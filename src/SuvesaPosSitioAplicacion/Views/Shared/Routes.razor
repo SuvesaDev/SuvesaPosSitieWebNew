@@ -1,6 +1,13 @@
-<Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(NotFound)">
+@using Microsoft.AspNetCore.Components.Authorization
+
+<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)" />
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)">
+            <NotAuthorized>
+                @* Sin sesion: al ingreso. Con sesion pero sin permiso: aviso claro. *@
+                <RedirigirAIngreso />
+            </NotAuthorized>
+        </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>

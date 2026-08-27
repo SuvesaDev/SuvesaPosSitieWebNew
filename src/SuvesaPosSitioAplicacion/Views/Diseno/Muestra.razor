@@ -1,0 +1,175 @@
+@page "/diseno"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IServicioDialogos Dialogos
+
+@* Muestra del sistema de diseno. No es una pantalla de negocio: existe para poder
+   revisar de un vistazo que los componentes base se ven bien en los tres niveles y
+   en tema claro y oscuro. Se conserva mientras dure la migracion. *@
+
+<PageTitle>Sistema de diseno &mdash; SeePOS</PageTitle>
+
+<h1 class="h5 mb-1">Sistema de diseno</h1>
+<p class="text-secondary small mb-4">
+    Componentes base de SeePOS. Estreche la ventana para comprobar los tres niveles:
+    movil 360, tableta 768, escritorio 1280.
+</p>
+
+<div class="row g-4">
+
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">Identidad</div>
+            <div class="card-body">
+                <p class="small text-secondary">
+                    Tomada del SCSS del sistema actual, no inventada.
+                </p>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <Muestra_Color Nombre="Azul" Variable="--seepos-azul" />
+                    <Muestra_Color Nombre="Naranja" Variable="--seepos-naranja" />
+                    <Muestra_Color Nombre="Borde" Variable="--seepos-gris-borde" />
+                    <Muestra_Color Nombre="Fondo" Variable="--seepos-gris-fondo" />
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-primary btn-sm">Primario</button>
+                    <button class="btn btn-secondary btn-sm">Secundario</button>
+                    <button class="btn btn-outline-primary btn-sm">Contorno</button>
+                    <button class="btn btn-outline-secondary btn-sm">Neutro</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">Campos</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <AppCampoTexto Etiqueta="Descripcion" @bind-Valor="_texto"
+                                       Marcador="Escriba algo..." />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <AppCampoNumero Etiqueta="Cantidad" @bind-Valor="_cantidad" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <AppCampoMoneda Etiqueta="Precio" @bind-Valor="_precio" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <AppCampoFecha Etiqueta="Fecha" @bind-Valor="_fecha" />
+                    </div>
+                </div>
+                <p class="small text-secondary mt-3 mb-0">
+                    Importe: <code>@(_precio?.ToString("N2") ?? "—")</code>, tipo
+                    <code>decimal</code>. Nunca <code>double</code> para dinero.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">Rejilla</div>
+            <div class="card-body">
+                <AppRejilla TItem="Fila" Datos="Cargar" Nivel="NivelPantalla.Escritorio">
+                    <Columnas>
+                        <HxGridColumn TItem="Fila" HeaderText="Codigo"
+                                      ItemTextSelector="f => f.Codigo"
+                                      SortKeySelector="f => f.Codigo" />
+                        <HxGridColumn TItem="Fila" HeaderText="Descripcion"
+                                      ItemTextSelector="f => f.Descripcion"
+                                      SortKeySelector="f => f.Descripcion" />
+                        <HxGridColumn TItem="Fila" HeaderText="Existencia"
+                                      ItemTextSelector="@(f => f.Existencia.ToString("N2"))"
+                                      SortKeySelector="f => f.Existencia"
+                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                        <HxGridColumn TItem="Fila" HeaderText="Precio"
+                                      ItemTextSelector="@(f => f.Precio.ToString("N2"))"
+                                      SortKeySelector="f => f.Precio"
+                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                    </Columnas>
+                </AppRejilla>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">Dialogos</div>
+            <div class="card-body">
+                <p class="small text-secondary">
+                    Sustituyen las 1&nbsp;893 llamadas a SweetAlert del sistema actual.
+                    Las pantallas usan esta fachada, nunca la libreria directamente.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-outline-primary" @onclick="Confirmar">Confirmar</button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="ConfirmarPeligro">Confirmar peligro</button>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="Informar">Informar</button>
+                    <button class="btn btn-sm btn-outline-success" @onclick="Exito">Exito</button>
+                    <button class="btn btn-sm btn-outline-warning" @onclick="Advertencia">Advertencia</button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="ErrorBreve">Error breve</button>
+                </div>
+                @if (_resultado is not null)
+                {
+                    <p class="small mt-3 mb-0">Ultima respuesta: <code>@_resultado</code></p>
+                }
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@code {
+    private string? _texto;
+    private int? _cantidad = 1;
+    private decimal? _precio = 2090.91m;
+    private DateTime? _fecha = DateTime.Today;
+    private string? _resultado;
+
+    private sealed record Fila(string Codigo, string Descripcion, decimal Existencia, decimal Precio);
+
+    private static readonly List<Fila> Datos = new()
+    {
+        new("835980000004", "Snack de conejo para perros y gatos", 42, 2090.91m),
+        new("750100200011", "Alimento seco adulto 15 kg", 8, 28500.00m),
+        new("400300100015", "Antipulgas pipeta mediana", 116, 6400.00m),
+        new("990100100019", "Collar isabelino talla M", 12, 4200.00m),
+        new("610200300013", "Shampoo medicado 250 ml", 31, 5300.00m),
+        new("120400500017", "Jeringa desechable 5 ml", 480, 210.00m),
+        new("770600800011", "Arena sanitaria 5 kg", 64, 3950.00m)
+    };
+
+    private Task<GridDataProviderResult<Fila>> Cargar(GridDataProviderRequest<Fila> peticion)
+        => Task.FromResult(peticion.ApplyTo(Datos));
+
+    private async Task Confirmar()
+        => _resultado = await Dialogos.ConfirmarAsync("Se aplicaran los cambios.") ? "confirmado" : "cancelado";
+
+    private async Task ConfirmarPeligro()
+        => _resultado = await Dialogos.ConfirmarPeligroAsync("Se eliminara el registro y no se puede deshacer.") ? "confirmado" : "cancelado";
+
+    private void Exito()
+    {
+        Dialogos.Exito("Guardado correctamente.");
+        _resultado = "aviso de exito";
+    }
+
+    private void Advertencia()
+    {
+        Dialogos.Advertencia("Revise los datos antes de continuar.");
+        _resultado = "aviso de advertencia";
+    }
+
+    private void ErrorBreve()
+    {
+        Dialogos.ErrorBreve("No se pudo guardar el documento.");
+        _resultado = "aviso de error";
+    }
+
+    private async Task Informar()
+    {
+        await Dialogos.InformarAsync("El documento quedo registrado con el numero 10452.");
+        _resultado = "informado";
+    }
+}

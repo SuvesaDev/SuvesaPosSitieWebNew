@@ -1,3 +1,5 @@
+@using Microsoft.AspNetCore.Components.Endpoints
+
 <!DOCTYPE html>
 <html lang="es">
 
@@ -11,6 +13,7 @@
     <link href="_content/Havit.Blazor.Components.Web.Bootstrap/bootstrap.min.css" rel="stylesheet" />
     <link href="_content/Havit.Blazor.Components.Web.Bootstrap/defaults.css" rel="stylesheet" />
 
+    <link rel="stylesheet" href="@Assets["css/tema.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["SuvesaPosSitioAplicacion.styles.css"]" />
 
@@ -18,12 +21,29 @@
     <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
     <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
 
+    @* Bootstrap 5.3 activa el tema oscuro con data-bs-theme; no lo deduce de
+       prefers-color-scheme por su cuenta. Va en el head y sin esperar a Blazor
+       para que no haya un destello de tema claro al cargar. *@
+    <script>
+        (function () {
+            try {
+                var guardado = localStorage.getItem('seepos.tema');
+                var oscuro = guardado
+                    ? guardado === 'dark'
+                    : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.setAttribute('data-bs-theme', oscuro ? 'dark' : 'light');
+            } catch (e) {
+                document.documentElement.setAttribute('data-bs-theme', 'light');
+            }
+        })();
+    </script>
+
     <ImportMap />
-    <HeadOutlet />
+    <HeadOutlet @rendermode="ModoDeLaPagina" />
 </head>
 
 <body>
-    <Routes />
+    <Routes @rendermode="ModoDeLaPagina" />
 
     <!-- Los componentes de Havit llaman a la API JS de Bootstrap (dropdown, modal,
          toast), asi que el bundle tiene que cargarse ANTES que Blazor. -->
@@ -32,3 +52,18 @@
 </body>
 
 </html>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    /// <summary>
+    /// La aplicacion es interactiva salvo donde se marque lo contrario con
+    /// <c>[ExcludeFromInteractiveRouting]</c>.
+    ///
+    /// Las pantallas de sesion tienen que quedarse en render estatico: establecer la
+    /// cookie exige HttpContext, y un componente interactivo ya no lo tiene.
+    /// </summary>
+    private IComponentRenderMode? ModoDeLaPagina =>
+        HttpContext.AcceptsInteractiveRouting() ? InteractiveServer : null;
+}

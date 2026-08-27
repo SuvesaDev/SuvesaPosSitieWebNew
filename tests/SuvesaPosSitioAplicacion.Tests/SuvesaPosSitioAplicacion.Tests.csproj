@@ -18,4 +18,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SuvesaPosSitioAplicacion\SuvesaPosSitioAplicacion.csproj" />
+  </ItemGroup>
+
 </Project>

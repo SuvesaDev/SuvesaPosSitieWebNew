@@ -36,3 +36,55 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+/* ---------- Shell ---------- */
+
+.seepos-lateral {
+    width: 15.5rem;
+    min-height: 100%;
+}
+
+.seepos-lateral .nav-link {
+    text-decoration: none;
+    border-radius: .25rem;
+}
+
+.seepos-lateral .nav-link:hover {
+    background-color: rgba(0, 0, 0, .05);
+}
+
+.seepos-pestanas {
+    min-height: 2.75rem;
+}
+
+/* La barra de pestanas no debe romper el ancho de la pagina cuando hay muchas. */
+.seepos-pestanas > div:first-child {
+    scrollbar-width: thin;
+}
+
+@media (max-width: 991.98px) {
+    .seepos-lateral {
+        position: absolute;
+        z-index: 1030;
+        height: calc(100vh - 3.5rem);
+        box-shadow: .25rem 0 1rem rgba(0, 0, 0, .15);
+    }
+}
+
+/* ---------- Convivencia con la SPA React ---------- */
+
+.seepos-legado,
+.seepos-legado-marco {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+}
+
+.seepos-contenido {
+    padding: 1rem;
+}
+
+/* Cuando la pestana alberga una pantalla del legado, el iframe ocupa todo. */
+.seepos-contenido:has(> .seepos-legado) {
+    padding: 0;
+}

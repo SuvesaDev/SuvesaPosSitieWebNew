@@ -1,0 +1,22 @@
+@* Campo de texto. Envuelve el de Havit para que las 78 pantallas no dependan
+   directamente de la libreria: si manana se cambia, se cambia aqui. *@
+
+<HxInputText Label="@Etiqueta"
+             @bind-Value="Valor"
+             @bind-Value:after="AlCambiar"
+             Placeholder="@Marcador"
+             Enabled="@(!Deshabilitado)"
+             InputMode="@ModoEntrada"
+             autocomplete="off" />
+
+@code {
+    [Parameter] public string? Valor { get; set; }
+    [Parameter] public EventCallback<string?> ValorChanged { get; set; }
+
+    [Parameter, EditorRequired] public string Etiqueta { get; set; } = default!;
+    [Parameter] public string? Marcador { get; set; }
+    [Parameter] public bool Deshabilitado { get; set; }
+    [Parameter] public InputMode? ModoEntrada { get; set; }
+
+    private Task AlCambiar() => ValorChanged.InvokeAsync(Valor);
+}

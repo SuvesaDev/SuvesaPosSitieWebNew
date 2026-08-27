@@ -1,0 +1,17 @@
+@* Cantidad entera: existencias, numeros de documento, unidades. *@
+
+<HxInputNumber Label="@Etiqueta"
+               @bind-Value="Valor"
+               @bind-Value:after="AlCambiar"
+               Decimals="0"
+               Enabled="@(!Deshabilitado)" />
+
+@code {
+    [Parameter] public int? Valor { get; set; }
+    [Parameter] public EventCallback<int?> ValorChanged { get; set; }
+
+    [Parameter, EditorRequired] public string Etiqueta { get; set; } = default!;
+    [Parameter] public bool Deshabilitado { get; set; }
+
+    private Task AlCambiar() => ValorChanged.InvokeAsync(Valor);
+}

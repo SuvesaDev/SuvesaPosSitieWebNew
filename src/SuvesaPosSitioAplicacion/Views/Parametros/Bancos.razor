@@ -1,0 +1,212 @@
+@page "/parameters/bank"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IBancos Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  ARQUETIPO 01 - CRUD DE CATALOGO
+    ================================
+    Modelo para los ~30 catalogos de la Ola 6. Que copiar:
+
+      1. <AppPantalla> envuelve todo: comprueba el permiso por titulo, pone el
+         encabezado y decide el aviso por ancho. Nunca comprobar permisos a mano.
+      2. Los botones se muestran segun la accion del rol (Crear, Modificar, Borrar),
+         pero eso es cortesia: quien autoriza de verdad es el API.
+      3. Toda llamada pasa por IManejadorRespuestas. La pantalla no mira EsCorrecta
+         ni compone mensajes de error.
+      4. Confirmaciones y avisos por IServicioDialogos. Nunca la libreria directamente.
+      5. La rejilla es <AppRejilla>, no HxGrid.
+
+    Que adaptar: el DTO, las columnas, los campos del formulario y el titulo.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Agregar">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
+            </button>
+        }
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
+
+    <ChildContent>
+        <div class="card">
+            <div class="card-body">
+                <AppRejilla TItem="EntidadesBancariasDTO"
+                            Datos="Cargar"
+                            Nivel="NivelPantalla.Tableta"
+                            TextoVacio="No hay bancos registrados."
+                            @ref="_rejilla">
+                    <Columnas>
+                        <HxGridColumn TItem="EntidadesBancariasDTO" HeaderText="Banco"
+                                      ItemTextSelector="b => b.Banco"
+                                      SortKeySelector="b => b.Banco" />
+
+                        <HxGridColumn TItem="EntidadesBancariasDTO" HeaderText="Estado"
+                                      SortKeySelector="b => b.Activo">
+                            <ItemTemplate Context="b">
+                                <span class="badge @(b.Activo ? "text-bg-success" : "text-bg-secondary")">
+                                    @(b.Activo ? "Activo" : "Inactivo")
+                                </span>
+                            </ItemTemplate>
+                        </HxGridColumn>
+
+                        <HxGridColumn TItem="EntidadesBancariasDTO" HeaderText=""
+                                      HeaderCssClass="text-end" ItemCssClass="text-end">
+                            <ItemTemplate Context="b">
+                                @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                {
+                                    <button class="btn btn-sm btn-link p-0 me-3"
+                                            @onclick="() => Editar(b)">Editar</button>
+                                }
+                                @if (Sesion.Puede(Titulo, AccionPantalla.Borrar))
+                                {
+                                    <button class="btn btn-sm btn-link p-0 @(b.Activo ? "text-danger" : "text-success")"
+                                            @onclick="() => AlternarEstado(b)">
+                                        @(b.Activo ? "Desactivar" : "Activar")
+                                    </button>
+                                }
+                            </ItemTemplate>
+                        </HxGridColumn>
+                    </Columnas>
+                </AppRejilla>
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modal" Title="@(_edicion?.Id > 0 ? "Editar banco" : "Nuevo banco")" Size="ModalSize.Regular">
+    <BodyTemplate>
+        @if (_edicion is not null)
+        {
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formBanco">
+                <DataAnnotationsValidator />
+                <AppCampoTexto Etiqueta="Nombre del banco" @bind-Valor="_edicion.Banco" />
+            </EditForm>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" type="submit" form="formBanco" disabled="@_guardando">
+            @(_guardando ? "Guardando..." : "Guardar")
+        </button>
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    /// <summary>Titulo del menu. Es la llave de permisos, asi que se escribe una sola vez.</summary>
+    private const string Titulo = "Bancos";
+
+    private AppRejilla<EntidadesBancariasDTO>? _rejilla;
+    private HxModal _modal = default!;
+
+    private List<EntidadesBancariasDTO> _bancos = new();
+    private EntidadesBancariasDTO? _edicion;
+    private bool _guardando;
+    private bool _cargado;
+
+    private async Task<GridDataProviderResult<EntidadesBancariasDTO>> Cargar(
+        GridDataProviderRequest<EntidadesBancariasDTO> peticion)
+    {
+        if (!_cargado)
+        {
+            _bancos = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar los bancos"))
+                      ?.ToList() ?? new List<EntidadesBancariasDTO>();
+            _cargado = true;
+        }
+
+        return peticion.ApplyTo(_bancos);
+    }
+
+    private async Task Recargar()
+    {
+        _cargado = false;
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private async Task Agregar()
+    {
+        _edicion = new EntidadesBancariasDTO { Activo = true };
+        await _modal.ShowAsync();
+    }
+
+    private async Task Editar(EntidadesBancariasDTO banco)
+    {
+        // Se edita una copia: si el guardado falla, la fila de la rejilla no queda tocada.
+        _edicion = new EntidadesBancariasDTO
+        {
+            Id = banco.Id,
+            Banco = banco.Banco,
+            Activo = banco.Activo
+        };
+
+        await _modal.ShowAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null || _guardando)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_edicion.Banco))
+        {
+            await Dialogos.ErrorAsync("Indique el nombre del banco.");
+            return;
+        }
+
+        _guardando = true;
+
+        var r = _edicion.Id > 0
+            ? await Api.Editar(_edicion)
+            : await Api.Crear(_edicion);
+
+        _guardando = false;
+
+        var esNuevo = _edicion.Id == 0;
+
+        if (await Respuestas.CorrectaAsync(r, esNuevo ? "crear el banco" : "editar el banco"))
+        {
+            await _modal.HideAsync();
+            Dialogos.Exito(esNuevo ? "Banco creado." : "Banco actualizado.");
+            await Recargar();
+        }
+    }
+
+    private async Task AlternarEstado(EntidadesBancariasDTO banco)
+    {
+        var desactivar = banco.Activo;
+
+        var confirmado = desactivar
+            ? await Dialogos.ConfirmarPeligroAsync(
+                $"El banco {banco.Banco} dejara de estar disponible.", "Desactivar banco")
+            : await Dialogos.ConfirmarAsync(
+                $"El banco {banco.Banco} volvera a estar disponible.", "Activar banco");
+
+        if (!confirmado)
+        {
+            return;
+        }
+
+        var r = desactivar
+            ? await Api.Inactivar(banco.Id)
+            : await Api.Activar(banco.Id);
+
+        if (await Respuestas.CorrectaAsync(r, desactivar ? "desactivar el banco" : "activar el banco"))
+        {
+            Dialogos.Exito(desactivar ? "Banco desactivado." : "Banco activado.");
+            await Recargar();
+        }
+    }
+}

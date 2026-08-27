@@ -1,0 +1,67 @@
+@typeparam TItem
+@using SuvesaPosSitioAplicacion.Class
+
+@* Rejilla de datos. Punto unico: 102 pantallas del sistema actual llevan tabla,
+   asi que aqui se fijan de una vez el paginado, la densidad y el comportamiento
+   en movil. Las pantallas solo declaran columnas.
+
+   Cubre lo que hoy hace DataTables, sin jQuery. *@
+
+<HxGrid @ref="_rejilla"
+        TItem="TItem"
+        DataProvider="Datos"
+        PageSize="@TamanoPagina"
+        Responsive="true"
+        Striped="true"
+        Hover="true"
+        SelectionEnabled="@SeleccionActiva"
+        @bind-SelectedDataItem="Seleccionado"
+        TableContainerCssClass="seepos-rejilla">
+    <Columns>
+        @Columnas
+    </Columns>
+    <EmptyDataTemplate>
+        <div class="text-center text-secondary py-4 small">
+            @TextoVacio
+        </div>
+    </EmptyDataTemplate>
+</HxGrid>
+
+@code {
+    [Parameter, EditorRequired]
+    public GridDataProviderDelegate<TItem> Datos { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public RenderFragment Columnas { get; set; } = default!;
+
+    /// <summary>Nivel al que pertenece la pantalla. En movil se pagina mas corto.</summary>
+    [Parameter] public NivelPantalla Nivel { get; set; } = NivelPantalla.Escritorio;
+
+    [Parameter] public string TextoVacio { get; set; } = "No hay datos que mostrar.";
+
+    [Parameter] public bool SeleccionActiva { get; set; }
+
+    [Parameter] public TItem? Seleccionado { get; set; }
+    [Parameter] public EventCallback<TItem> SeleccionadoChanged { get; set; }
+
+    private HxGrid<TItem>? _rejilla;
+
+    /// <summary>
+    /// Vuelve a pedir los datos. La pantalla lo llama despues de guardar o borrar;
+    /// el proveedor de datos decide si consulta al API o sirve lo que ya tiene.
+    /// </summary>
+    public async Task RefrescarAsync()
+    {
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefreshDataAsync();
+        }
+    }
+
+    private int TamanoPagina => Nivel switch
+    {
+        NivelPantalla.Movil => 10,
+        NivelPantalla.Tableta => 15,
+        _ => 25
+    };
+}

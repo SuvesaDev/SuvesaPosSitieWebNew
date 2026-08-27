@@ -1,20 +1,56 @@
 @inherits LayoutComponentBase
+@using SuvesaPosSitioAplicacion.Services
+@inject IContextoSesion Sesion
+@inject IEstadoEspacioTrabajo Espacio
+@inject NavigationManager Navegacion
+@inject IJSRuntime JS
 
 <HxMessenger Position="ToastContainerPosition.BottomEnd" />
 <HxMessageBoxHost />
 
-<div class="d-flex flex-column min-vh-100">
+<div class="d-flex flex-column vh-100">
 
-    <nav class="navbar navbar-expand navbar-dark bg-dark px-3">
-        <span class="navbar-brand mb-0 h1">SUVESA SeePOS</span>
-        <div class="ms-auto">
-            <HxBadge Color="ThemeColor.Warning">Ola 0</HxBadge>
+    <nav class="navbar navbar-expand navbar-dark bg-dark px-3 flex-shrink-0">
+        <button class="btn btn-sm btn-outline-light border-0 me-2 d-lg-none"
+                aria-label="Menu" @onclick="() => _lateralAbierta = !_lateralAbierta">
+            <i class="bi bi-list" aria-hidden="true"></i>
+        </button>
+
+        <a class="navbar-brand mb-0 h1 text-decoration-none" href="/">SUVESA SeePOS</a>
+
+        <div class="ms-3 d-none d-md-block">
+            <AtajosNavbar />
+        </div>
+
+        <div class="ms-auto d-flex align-items-center gap-3">
+            @if (Sesion.Autenticado)
+            {
+                <span class="text-white-50 small d-none d-md-inline">@Sesion.NombreSucursal</span>
+                <span class="text-white small">@Sesion.Usuario</span>
+                <button type="button" class="btn btn-sm btn-outline-light border-0"
+                        aria-label="Cambiar tema" title="Cambiar tema" @onclick="AlternarTema">
+                    <i class="bi @(_oscuro ? "bi-sun" : "bi-moon-stars")" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="btn btn-outline-light btn-sm" @onclick="Salir">Salir</button>
+            }
         </div>
     </nav>
 
-    <main class="container-fluid flex-grow-1 py-4">
-        @Body
-    </main>
+    <div class="d-flex flex-grow-1 overflow-hidden">
+
+        <div class="@(_lateralAbierta ? "d-block" : "d-none") d-lg-block flex-shrink-0 overflow-auto">
+            <BarraLateral />
+        </div>
+
+        <div class="d-flex flex-column flex-grow-1 overflow-hidden">
+            <BarraPestanas />
+
+            <main class="flex-grow-1 overflow-auto seepos-contenido">
+                @Body
+            </main>
+        </div>
+
+    </div>
 
 </div>
 
@@ -23,3 +59,51 @@
     <a href="." class="reload">Recargar</a>
     <span class="dismiss">&#128937;</span>
 </div>
+
+@code {
+    private bool _lateralAbierta;
+    private bool _oscuro;
+
+    private async Task AlternarTema()
+    {
+        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+        _oscuro = await modulo.InvokeAsync<bool>("alternar");
+        await modulo.DisposeAsync();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Sesion.CargarAsync();
+
+        if (Sesion.Autenticado && !Sesion.TieneSucursal)
+        {
+            Navegacion.NavigateTo("/cuenta/sucursal", forceLoad: true);
+        }
+    }
+
+    private async Task Salir()
+    {
+        // Se borra lo que se sembro para la SPA antes de cerrar la sesion del sitio.
+        try
+        {
+            var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/legado.js");
+            await modulo.InvokeVoidAsync("limpiarSesion");
+            await modulo.DisposeAsync();
+        }
+        catch
+        {
+            // Si falla, el cierre de sesion del servidor sigue adelante igual.
+        }
+
+        Navegacion.NavigateTo("/cuenta/salir", forceLoad: true);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+        // ProtectedLocalStorage necesita el circuito ya establecido.
+        if (primeraVez)
+        {
+            await Espacio.RestaurarAsync();
+        }
+    }
+}

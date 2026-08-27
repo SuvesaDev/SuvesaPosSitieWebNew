@@ -1,0 +1,79 @@
+@using SuvesaPosSitioAplicacion.Services
+@implements IAsyncDisposable
+@inject IContextoSesion Sesion
+@inject IJSRuntime JS
+
+@* Alberga una pantalla del sistema actual dentro de la pestana, mediante un iframe
+   servido por YARP desde el mismo origen. Se retira pantalla a pantalla segun avanzan
+   las olas, y el componente entero desaparece al terminar la Ola 6. *@
+
+<div class="seepos-legado">
+    @if (_error is not null)
+    {
+        <div class="alert alert-warning m-3">
+            <h1 class="h6 alert-heading">No se pudo abrir la pantalla</h1>
+            <p class="mb-0 small">@_error</p>
+        </div>
+    }
+    else
+    {
+        <iframe @ref="_marco"
+                src="@UrlLegado"
+                title="@Titulo"
+                class="seepos-legado-marco"></iframe>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Ruta { get; set; } = default!;
+
+    [Parameter]
+    public string Titulo { get; set; } = "Pantalla del sistema actual";
+
+    private ElementReference _marco;
+    private IJSObjectReference? _modulo;
+    private string? _error;
+
+    private string UrlLegado => "/legado/" + Ruta.TrimStart('/');
+
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+        if (!primeraVez || _error is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            _modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/legado.js");
+
+            // La SPA lee la sesion de localStorage al arrancar, asi que se siembra
+            // antes de que el iframe termine de cargar.
+            await _modulo.InvokeVoidAsync("sembrarSesion",
+                Sesion.Token, Sesion.IdSucursal, Sesion.NombreSucursal);
+
+            await _modulo.InvokeVoidAsync("prepararMarco", _marco);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_modulo is not null)
+        {
+            try
+            {
+                await _modulo.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // El circuito ya se cerro; no hay nada que liberar.
+            }
+        }
+    }
+}

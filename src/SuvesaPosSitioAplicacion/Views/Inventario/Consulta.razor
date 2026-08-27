@@ -1,0 +1,256 @@
+@page "/consulta/inventario"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IInventarioConsulta Api
+@inject IManejadorRespuestas Respuestas
+
+@*  ARQUETIPO 02 - CONSULTA DE NIVEL A, MOVIL PRIMERO
+    ==================================================
+    Modelo para las ~15 pantallas de consulta de la Ola 1. Es el patron que entrega
+    el acceso desde movil y tableta. Que copiar:
+
+      1. Nivel Movil en <AppPantalla>: se abre desde 360 px, sin avisos de ancho.
+      2. UNA sola consulta alimenta DOS presentaciones: tarjetas por debajo de 768 px
+         y rejilla por encima. Nunca dos consultas ni dos estados.
+      3. La busqueda espera a que el usuario deje de escribir. Sin eso, cada tecla
+         seria una llamada al API.
+      4. Solo lectura: aqui no se calcula nada, solo se formatea. Ver la nota sobre
+         float mas abajo.
+
+    Que adaptar: el proxy, los campos de la tarjeta y las columnas de la rejilla.
+
+    NOTA SOBRE IMPORTES
+    El API entrega el dinero en float (formato declarado en el propio swagger).
+    En una pantalla de consulta eso solo afecta al formateo, que es inofensivo.
+    En cuanto una pantalla tenga que SUMAR, hay que convertir a decimal en el borde
+    y operar ahi. Nunca aritmetica en float.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+    <ChildContent>
+
+        <div class="mb-3">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+                <input type="search"
+                       class="form-control"
+                       placeholder="Codigo o descripcion..."
+                       aria-label="Buscar articulo"
+                       value="@_texto"
+                       @oninput="AlEscribir" />
+            </div>
+            <div class="form-text">
+                Escriba al menos dos caracteres. Solo digitos busca por codigo.
+            </div>
+        </div>
+
+        @if (_buscando)
+        {
+            <div class="d-flex justify-content-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Buscando</span>
+                </div>
+            </div>
+        }
+        else if (_resultados.Count == 0)
+        {
+            <div class="text-center text-secondary py-5 small">
+                @(string.IsNullOrWhiteSpace(_texto)
+                    ? "Escriba para buscar en el inventario."
+                    : "Ningun articulo coincide con la busqueda.")
+            </div>
+        }
+        else
+        {
+            <p class="text-secondary small">
+                @_resultados.Count @(_resultados.Count == 1 ? "articulo" : "articulos")
+            </p>
+
+            @* Movil: tarjetas. Una tabla de siete columnas no se lee en 360 px. *@
+            <div class="d-md-none d-flex flex-column gap-2">
+                @foreach (var a in _resultados)
+                {
+                    <button type="button" class="card text-start border-0 shadow-sm p-0"
+                            @onclick="() => Ver(a)">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <span class="fw-semibold small">@a.Descripcion</span>
+                                <span class="seepos-importe small">@Formato.Importe(a.Precio_A)</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
+                                <code class="small text-secondary">@a.Cod_Articulo</code>
+                                <span class="badge @(a.Existencia > 0 ? "text-bg-light text-secondary" : "text-bg-warning")">
+                                    @Formato.Cantidad(a.Existencia) en existencia
+                                </span>
+                            </div>
+                        </div>
+                    </button>
+                }
+            </div>
+
+            @* Escritorio y tableta: rejilla. *@
+            <div class="d-none d-md-block card">
+                <div class="card-body">
+                    <AppRejilla TItem="InventarioDTO" Datos="Servir" Nivel="NivelPantalla.Tableta"
+                                @ref="_rejilla">
+                        <Columnas>
+                            <HxGridColumn TItem="InventarioDTO" HeaderText="Codigo"
+                                          ItemTextSelector="a => a.Cod_Articulo"
+                                          SortKeySelector="a => a.Cod_Articulo" />
+                            <HxGridColumn TItem="InventarioDTO" HeaderText="Descripcion"
+                                          ItemTextSelector="a => a.Descripcion"
+                                          SortKeySelector="a => a.Descripcion" />
+                            <HxGridColumn TItem="InventarioDTO" HeaderText="Ubicacion"
+                                          ItemTextSelector="a => a.SubUbicacion" />
+                            <HxGridColumn TItem="InventarioDTO" HeaderText="Existencia"
+                                          ItemTextSelector="@(a => Formato.Cantidad(a.Existencia))"
+                                          SortKeySelector="a => a.Existencia"
+                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                            <HxGridColumn TItem="InventarioDTO" HeaderText="Precio"
+                                          ItemTextSelector="@(a => Formato.Importe(a.Precio_A))"
+                                          SortKeySelector="a => a.Precio_A"
+                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                            <HxGridColumn TItem="InventarioDTO" HeaderText="">
+                                <ItemTemplate Context="a">
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(a)">Ver</button>
+                                </ItemTemplate>
+                            </HxGridColumn>
+                        </Columnas>
+                    </AppRejilla>
+                </div>
+            </div>
+        }
+
+    </ChildContent>
+</AppPantalla>
+
+<HxOffcanvas @ref="_detalle" Title="@(_elegido?.Descripcion ?? "Articulo")" Placement="OffcanvasPlacement.End">
+    <BodyTemplate>
+        @if (_elegido is not null)
+        {
+            <dl class="row small mb-0">
+                <dt class="col-5 fw-normal text-secondary">Codigo</dt>
+                <dd class="col-7"><code>@_elegido.Cod_Articulo</code></dd>
+
+                <dt class="col-5 fw-normal text-secondary">Codigo de barras</dt>
+                <dd class="col-7"><code>@(_elegido.Barras ?? "—")</code></dd>
+
+                <dt class="col-5 fw-normal text-secondary">Ubicacion</dt>
+                <dd class="col-7">@(_elegido.SubUbicacion ?? "—")</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Existencia</dt>
+                <dd class="col-7 seepos-importe">@Formato.Cantidad(_elegido.Existencia)</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Minima</dt>
+                <dd class="col-7 seepos-importe">@Formato.Cantidad(_elegido.Minima)</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Maxima</dt>
+                <dd class="col-7 seepos-importe">@Formato.Cantidad(_elegido.Maxima)</dd>
+            </dl>
+
+            <hr />
+
+            <dl class="row small mb-0">
+                <dt class="col-5 fw-normal text-secondary">Precio A</dt>
+                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_A)</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Precio B</dt>
+                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_B)</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Precio C</dt>
+                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_C)</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Precio D</dt>
+                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_D)</dd>
+
+                @if (_elegido.Promo_Activa)
+                {
+                    <dt class="col-5 fw-normal text-secondary">Promocion</dt>
+                    <dd class="col-7 seepos-importe text-success">@Formato.Importe(_elegido.Precio_Promo)</dd>
+                }
+            </dl>
+
+            @if (!string.IsNullOrWhiteSpace(_elegido.Observaciones))
+            {
+                <hr />
+                <p class="small text-secondary mb-0">@_elegido.Observaciones</p>
+            }
+        }
+    </BodyTemplate>
+</HxOffcanvas>
+
+@code {
+    private const string Titulo = "Inventarios";
+
+    /// <summary>Lo que se espera desde la ultima tecla antes de consultar al API.</summary>
+    private static readonly TimeSpan Espera = TimeSpan.FromMilliseconds(400);
+
+    private AppRejilla<InventarioDTO>? _rejilla;
+    private HxOffcanvas _detalle = default!;
+
+    private string _texto = string.Empty;
+    private List<InventarioDTO> _resultados = new();
+    private InventarioDTO? _elegido;
+    private bool _buscando;
+
+    private CancellationTokenSource? _pendiente;
+
+    private async Task AlEscribir(ChangeEventArgs e)
+    {
+        _texto = e.Value?.ToString() ?? string.Empty;
+
+        // Cada tecla cancela la busqueda anterior: solo se consulta cuando el
+        // usuario para. Sin esto, escribir "shampoo" serian siete llamadas.
+        _pendiente?.Cancel();
+        _pendiente = new CancellationTokenSource();
+        var token = _pendiente.Token;
+
+        try
+        {
+            await Task.Delay(Espera, token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        await Buscar(token);
+    }
+
+    private async Task Buscar(CancellationToken token)
+    {
+        _buscando = true;
+        StateHasChanged();
+
+        var r = await Api.Buscar(_texto);
+
+        if (token.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _resultados = (await Respuestas.DatoAsync(r, "buscar en el inventario"))
+                      ?.ToList() ?? new List<InventarioDTO>();
+
+        _buscando = false;
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+
+        StateHasChanged();
+    }
+
+    /// <summary>La rejilla sirve de lo ya consultado; no vuelve a llamar al API.</summary>
+    private Task<GridDataProviderResult<InventarioDTO>> Servir(
+        GridDataProviderRequest<InventarioDTO> peticion)
+        => Task.FromResult(peticion.ApplyTo(_resultados));
+
+    private async Task Ver(InventarioDTO articulo)
+    {
+        _elegido = articulo;
+        await _detalle.ShowAsync();
+    }
+}

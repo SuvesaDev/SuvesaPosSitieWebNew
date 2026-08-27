@@ -1,0 +1,109 @@
+@page "/cuenta/sucursal"
+@layout LayoutVacio
+@using Microsoft.AspNetCore.Components.Endpoints
+@attribute [ExcludeFromInteractiveRouting]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.Services
+@attribute [Authorize]
+@inject ISeguridad Seguridad
+@inject IServicioAutenticacion Autenticacion
+@inject NavigationManager Navegacion
+
+@* Segundo paso del ingreso. El sistema actual hace lo mismo tras validar credenciales. *@
+
+<PageTitle>Seleccione el centro &mdash; SeePOS</PageTitle>
+
+<div class="container" style="max-width: 26rem;">
+    <div class="card shadow-sm mt-5">
+        <div class="card-body p-4">
+
+            <h1 class="h5 mb-1">Seleccione el centro</h1>
+            <p class="text-secondary small mb-4">Determina con que sucursal va a trabajar.</p>
+
+            @if (!string.IsNullOrEmpty(Error))
+            {
+                <div class="alert alert-danger py-2 small" role="alert">@Error</div>
+            }
+
+            @if (Sucursales is null)
+            {
+                <p class="text-secondary small mb-0">Consultando centros...</p>
+            }
+            else if (Sucursales.Count == 0)
+            {
+                <div class="alert alert-warning py-2 small mb-0">
+                    El usuario no tiene ningun centro asignado.
+                </div>
+            }
+            else
+            {
+                <EditForm Model="Seleccion" FormName="sucursal" OnValidSubmit="Elegir">
+                    <div class="mb-4">
+                        <InputSelect class="form-select" @bind-Value="Seleccion.IdSucursal">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var s in Sucursales)
+                            {
+                                <option value="@s.Id">@(s.Alias ?? s.NombreComercial)</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Continuar</button>
+                </EditForm>
+            }
+
+            <hr class="my-4" />
+            <a href="/cuenta/salir" class="small text-secondary">Ingresar con otro usuario</a>
+
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    public LoginVM Seleccion { get; set; } = default!;
+
+    private IList<SucursalDTO>? Sucursales { get; set; }
+    private string? Error { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // El binder puede dejarla en null tras el POST.
+        Seleccion ??= new();
+
+        var r = await Seguridad.ObtenerSucursales();
+
+        if (!r.EsCorrecta)
+        {
+            Error = r.Excepcion;
+            Sucursales = new List<SucursalDTO>();
+            return;
+        }
+
+        Sucursales = r.Responses?.ToList() ?? new List<SucursalDTO>();
+    }
+
+    private async Task Elegir()
+    {
+        var elegida = Sucursales?.FirstOrDefault(s => s.Id == Seleccion.IdSucursal);
+
+        if (elegida is null)
+        {
+            Error = "Seleccione un centro de la lista.";
+            return;
+        }
+
+        var r = await Autenticacion.EstablecerSucursalAsync(HttpContext, elegida);
+
+        if (!r.EsCorrecta)
+        {
+            Error = r.Excepcion;
+            return;
+        }
+
+        Navegacion.NavigateTo("/", forceLoad: true);
+    }
+}

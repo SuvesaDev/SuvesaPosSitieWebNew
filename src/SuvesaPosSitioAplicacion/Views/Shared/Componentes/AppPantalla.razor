@@ -1,0 +1,83 @@
+@using SuvesaPosSitioAplicacion.Class
+@inject IContextoSesion Sesion
+
+@* Envoltura de toda pantalla de negocio. Resuelve de una vez lo que si no se
+   repetiria 78 veces: comprobar el permiso, poner el titulo, y avisar cuando la
+   pantalla no esta pensada para el ancho del dispositivo.
+
+   El permiso se comprueba por TITULO, que es como responde el API. *@
+
+@if (!_cargada)
+{
+    <div class="d-flex justify-content-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando</span>
+        </div>
+    </div>
+}
+else if (!Sesion.PuedeVer(Pantalla))
+{
+    <div class="alert alert-danger">
+        <h1 class="h5 alert-heading">Sin permiso</h1>
+        <p class="mb-0">
+            Su rol no tiene acceso a <strong>@Pantalla</strong>. Si cree que es un
+            error, consulte con el administrador del sistema.
+        </p>
+    </div>
+}
+else
+{
+    <PageTitle>@Pantalla &mdash; SeePOS</PageTitle>
+
+    <div class="@ClaseNivel">
+        <div class="seepos-solo-escritorio-aviso alert alert-warning">
+            <h1 class="h6 alert-heading">Pantalla de escritorio</h1>
+            <p class="mb-0 small">
+                <strong>@Pantalla</strong> muestra demasiado dato para esta pantalla.
+                Abrala desde un equipo de escritorio.
+            </p>
+        </div>
+
+        <div class="seepos-solo-escritorio-contenido">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                <h1 class="h5 mb-0">@Pantalla</h1>
+                @if (Acciones is not null)
+                {
+                    <div class="d-flex gap-2">@Acciones</div>
+                }
+            </div>
+
+            @ChildContent
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>Titulo de la pantalla en el menu. Es tambien la llave de permisos.</summary>
+    [Parameter, EditorRequired]
+    public string Pantalla { get; set; } = default!;
+
+    /// <summary>Desde que ancho tiene sentido. Por debajo se avisa en lugar de romperse.</summary>
+    [Parameter]
+    public NivelPantalla Nivel { get; set; } = NivelPantalla.Escritorio;
+
+    /// <summary>Botones de la cabecera.</summary>
+    [Parameter] public RenderFragment? Acciones { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool _cargada;
+
+    private string ClaseNivel => Nivel switch
+    {
+        NivelPantalla.Movil => "seepos-nivel-a",
+        NivelPantalla.Tableta => "seepos-nivel-b",
+        _ => "seepos-nivel-c"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Sesion.CargarAsync();
+        _cargada = true;
+    }
+}

@@ -1,0 +1,18 @@
+@* Importe. Siempre decimal, nunca double: la aritmetica del sistema actual usa
+   coma flotante en el navegador y eso es justo lo que no se quiere repetir. *@
+
+<HxInputNumber Label="@Etiqueta"
+               @bind-Value="Valor"
+               @bind-Value:after="AlCambiar"
+               Decimals="2"
+               Enabled="@(!Deshabilitado)" />
+
+@code {
+    [Parameter] public decimal? Valor { get; set; }
+    [Parameter] public EventCallback<decimal?> ValorChanged { get; set; }
+
+    [Parameter, EditorRequired] public string Etiqueta { get; set; } = default!;
+    [Parameter] public bool Deshabilitado { get; set; }
+
+    private Task AlCambiar() => ValorChanged.InvokeAsync(Valor);
+}

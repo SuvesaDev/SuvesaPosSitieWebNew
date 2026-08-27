@@ -1,0 +1,11 @@
+@* Cuadrito de color de la muestra. *@
+
+<div class="text-center">
+    <div style="width:3.5rem;height:3.5rem;border-radius:.25rem;border:1px solid var(--bs-border-color);background:var(@Variable)"></div>
+    <div class="small text-secondary mt-1" style="font-size:.7rem">@Nombre</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Nombre { get; set; } = default!;
+    [Parameter, EditorRequired] public string Variable { get; set; } = default!;
+}

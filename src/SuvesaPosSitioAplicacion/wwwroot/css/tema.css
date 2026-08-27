@@ -1,0 +1,132 @@
+/* Identidad visual de SeePOS.
+ *
+ * Los valores salen del SCSS del sistema actual, no de una paleta inventada:
+ *   base/_settings.scss  ->  $primary #1072a9, $secundary #ee7519
+ *   uso real medido      ->  #f68a1d (287), #bfbcc1 (728), #aca9a9, #eef2e6, #3d59a9
+ *   base/_base.scss      ->  Helvetica, Arial, sans-serif
+ *
+ * Se expresa sobre las variables de Bootstrap 5.3 para que los componentes de
+ * Havit lo hereden sin tener que estilarlos uno a uno.
+ */
+
+:root {
+    /* Marca */
+    --seepos-naranja: #ee7519;
+    --seepos-naranja-claro: #f68a1d;
+    --seepos-naranja-oscuro: #c85d0e;
+    --seepos-azul: #1072a9;
+    --seepos-azul-oscuro: #0d5c88;
+
+    /* Neutros, con el sesgo gris del sistema actual */
+    --seepos-gris-borde: #bfbcc1;
+    --seepos-gris-suave: #e3e3e3;
+    --seepos-gris-fondo: #f0f0f0;
+    --seepos-gris-texto: #aca9a9;
+
+    /* Bootstrap */
+    --bs-primary: var(--seepos-azul);
+    --bs-primary-rgb: 16, 114, 169;
+    /* OJO: no se toca --bs-secondary. En Bootstrap 5.3 es el gris neutro que usan
+       .text-secondary y compania, no un acento de marca. Sobreescribirlo pone naranja
+       todo el texto atenuado de la aplicacion. El naranja se aplica donde toca. */
+    --bs-border-color: var(--seepos-gris-borde);
+    --bs-body-font-family: Helvetica, Arial, sans-serif;
+    --bs-body-font-size: 0.9375rem;
+    --bs-tertiary-bg: var(--seepos-gris-fondo);
+
+    /* Densidad: el punto de venta muestra mucho dato por pantalla */
+    --seepos-alto-fila: 2rem;
+}
+
+/* Bootstrap 5.3 estila los botones con variables propias; sobreescribir
+   --bs-primary no basta. */
+.btn-primary {
+    --bs-btn-bg: var(--seepos-azul);
+    --bs-btn-border-color: var(--seepos-azul);
+    --bs-btn-hover-bg: var(--seepos-azul-oscuro);
+    --bs-btn-hover-border-color: var(--seepos-azul-oscuro);
+    --bs-btn-active-bg: var(--seepos-azul-oscuro);
+    --bs-btn-active-border-color: var(--seepos-azul-oscuro);
+    --bs-btn-disabled-bg: var(--seepos-azul);
+    --bs-btn-disabled-border-color: var(--seepos-azul);
+}
+
+.btn-secondary {
+    --bs-btn-bg: var(--seepos-naranja);
+    --bs-btn-border-color: var(--seepos-naranja);
+    --bs-btn-hover-bg: var(--seepos-naranja-oscuro);
+    --bs-btn-hover-border-color: var(--seepos-naranja-oscuro);
+    --bs-btn-active-bg: var(--seepos-naranja-oscuro);
+    --bs-btn-active-border-color: var(--seepos-naranja-oscuro);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--seepos-azul);
+    --bs-btn-border-color: var(--seepos-azul);
+    --bs-btn-hover-bg: var(--seepos-azul);
+    --bs-btn-hover-border-color: var(--seepos-azul);
+    --bs-btn-active-bg: var(--seepos-azul);
+    --bs-btn-active-border-color: var(--seepos-azul);
+}
+
+.text-primary { color: var(--seepos-azul) !important; }
+.bg-primary { background-color: var(--seepos-azul) !important; }
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--seepos-azul);
+    box-shadow: 0 0 0 .2rem rgba(16, 114, 169, .2);
+}
+
+/* ---------- Tema oscuro ----------
+   Bootstrap 5.3 lo activa con data-bs-theme="dark" en <html>. */
+
+[data-bs-theme="dark"] {
+    --seepos-gris-borde: #3a3f45;
+    --seepos-gris-suave: #2a2e33;
+    --seepos-gris-fondo: #1c1f23;
+    --seepos-gris-texto: #8b9198;
+
+    /* El azul de marca no contrasta bien sobre fondo oscuro; se aclara. */
+    --seepos-azul: #4aa3d6;
+    --seepos-azul-oscuro: #3d8cbb;
+    --bs-primary-rgb: 74, 163, 214;
+
+    --seepos-naranja: #f68a1d;
+    --seepos-naranja-oscuro: #d97613;
+}
+
+/* ---------- Niveles adaptables ----------
+   A: movil 360, B: tableta 768, C: escritorio 1280. */
+
+/* Una pantalla de nivel C avisa en lugar de romperse en un movil. */
+.seepos-solo-escritorio-aviso { display: none; }
+
+@media (max-width: 1279.98px) {
+    .seepos-nivel-c .seepos-solo-escritorio-aviso { display: block; }
+    .seepos-nivel-c .seepos-solo-escritorio-contenido { display: none; }
+}
+
+@media (max-width: 767.98px) {
+    .seepos-nivel-b .seepos-solo-escritorio-aviso { display: block; }
+    .seepos-nivel-b .seepos-solo-escritorio-contenido { display: none; }
+}
+
+/* ---------- Rejilla ---------- */
+
+.seepos-rejilla table {
+    font-size: 0.875rem;
+}
+
+.seepos-rejilla td,
+.seepos-rejilla th {
+    padding-top: .35rem;
+    padding-bottom: .35rem;
+    vertical-align: middle;
+}
+
+/* Los importes se leen en columna: cifras alineadas y de ancho fijo. */
+.seepos-importe {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}

@@ -1,0 +1,80 @@
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Security
+@using SuvesaPosSitioAplicacion.Services
+@inject IContextoSesion Sesion
+@inject IEstadoEspacioTrabajo Espacio
+@inject NavigationManager Navegacion
+
+@* Menu lateral. A diferencia del sistema actual, que solo filtra por permisos en la
+   variante CostaPets, aqui se filtra siempre: una pantalla que el rol no puede ver
+   no aparece. *@
+
+<nav class="seepos-lateral border-end bg-body-tertiary" aria-label="Menu principal">
+    <ul class="nav flex-column p-2 mb-0">
+        @foreach (var raiz in FiltroMenu.Visibles(MenuSeePos.Items, Sesion))
+        {
+            <li class="nav-item">
+                @if (raiz.EsGrupo)
+                {
+                    <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 text-body"
+                            @onclick="() => Alternar(raiz.Titulo)"
+                            aria-expanded="@(Abierto(raiz.Titulo) ? "true" : "false")">
+                        @if (raiz.Icono is not null)
+                        {
+                            <i class="bi @raiz.Icono" aria-hidden="true"></i>
+                        }
+                        <span class="flex-grow-1">@raiz.Titulo</span>
+                        <i class="bi @(Abierto(raiz.Titulo) ? "bi-chevron-up" : "bi-chevron-down") small" aria-hidden="true"></i>
+                    </button>
+
+                    @if (Abierto(raiz.Titulo))
+                    {
+                        <ul class="nav flex-column ms-3 border-start ps-2">
+                            @foreach (var hijo in FiltroMenu.Visibles(raiz.Hijos, Sesion))
+                            {
+                                <RamaMenu Item="hijo" AlAbrir="Abrir" />
+                            }
+                        </ul>
+                    }
+                }
+                else
+                {
+                    <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 text-body"
+                            @onclick="() => Abrir(raiz)">
+                        @if (raiz.Icono is not null)
+                        {
+                            <i class="bi @raiz.Icono" aria-hidden="true"></i>
+                        }
+                        <span>@raiz.Titulo</span>
+                    </button>
+                }
+            </li>
+        }
+    </ul>
+</nav>
+
+@code {
+    private readonly HashSet<string> _abiertos = new(StringComparer.OrdinalIgnoreCase);
+
+    private bool Abierto(string titulo) => _abiertos.Contains(titulo);
+
+    private void Alternar(string titulo)
+    {
+        if (!_abiertos.Add(titulo))
+        {
+            _abiertos.Remove(titulo);
+        }
+    }
+
+    private void Abrir(ItemMenu item)
+    {
+        if (item.Ruta is null)
+        {
+            return;
+        }
+
+        var pestana = Espacio.Abrir(item.Titulo, item.Ruta);
+        Navegacion.NavigateTo(pestana.Ruta);
+    }
+
+}

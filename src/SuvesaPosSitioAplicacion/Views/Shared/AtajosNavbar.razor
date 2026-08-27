@@ -1,0 +1,36 @@
+@using SuvesaPosSitioAplicacion.Services
+@inject IEstadoEspacioTrabajo Espacio
+@inject IContextoSesion Sesion
+@inject NavigationManager Navegacion
+
+@* Accesos rapidos de la barra superior. Mismos que ShortcutsNavbar.jsx. *@
+
+<div class="d-flex align-items-center gap-1">
+    @foreach (var a in Atajos.Where(a => Sesion.EsAdministrador || Sesion.PuedeVer(a.Pantalla)))
+    {
+        <button type="button" class="btn btn-sm btn-outline-light border-0"
+                title="@a.Titulo" aria-label="@a.Titulo"
+                @onclick="() => Abrir(a)">
+            <i class="bi @a.Icono" aria-hidden="true"></i>
+        </button>
+    }
+</div>
+
+@code {
+    private sealed record Atajo(string Titulo, string Pantalla, string Ruta, string Icono);
+
+    private static readonly Atajo[] Atajos =
+    {
+        new("Venta", "Facturación", "/initial/billing", "bi-receipt"),
+        new("Apertura Caja", "Apertura Caja", "/initial/cash/opencash", "bi-cash-stack"),
+        new("Proformas o Cotización", "Proformas o Cotización", "/sales/budgets/proforma", "bi-file-earmark-text"),
+        new("Clientes", "Clientes", "/initial/customers", "bi-people-fill"),
+        new("Inventarios", "Inventarios", "/initial/inventory", "bi-capsule")
+    };
+
+    private void Abrir(Atajo a)
+    {
+        var pestana = Espacio.Abrir(a.Titulo, a.Ruta);
+        Navegacion.NavigateTo(pestana.Ruta);
+    }
+}

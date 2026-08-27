@@ -1,0 +1,89 @@
+@using SuvesaPosSitioAplicacion.Services
+@implements IDisposable
+@inject IEstadoEspacioTrabajo Espacio
+@inject NavigationManager Navegacion
+@inject IServicioDialogos Dialogos
+
+@* Barra de pestanas del espacio de trabajo. *@
+
+@if (Espacio.Pestanas.Count > 0)
+{
+    <div class="seepos-pestanas border-bottom bg-body d-flex align-items-center gap-1 px-2">
+        <div class="d-flex align-items-center gap-1 overflow-auto flex-grow-1 py-1">
+            @foreach (var p in Espacio.Pestanas)
+            {
+                var activa = p.Id == Espacio.Actual?.Id;
+
+                <div class="btn-group btn-group-sm flex-shrink-0" role="group">
+                    <button type="button"
+                            class="btn @(activa ? "btn-primary" : "btn-outline-secondary")"
+                            @onclick="() => Seleccionar(p)">
+                        @p.Titulo
+                    </button>
+                    <button type="button"
+                            class="btn @(activa ? "btn-primary" : "btn-outline-secondary") px-2"
+                            aria-label="@($"Cerrar {p.Titulo}")"
+                            @onclick="() => Cerrar(p)">
+                        <i class="bi bi-x" aria-hidden="true"></i>
+                    </button>
+                </div>
+            }
+        </div>
+
+        <button type="button" class="btn btn-sm btn-link text-secondary flex-shrink-0"
+                @onclick="CerrarTodas">
+            Cerrar todas
+        </button>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized() => Espacio.Cambio += AlCambiar;
+
+    public void Dispose() => Espacio.Cambio -= AlCambiar;
+
+    private void AlCambiar() => InvokeAsync(StateHasChanged);
+
+    private void Seleccionar(PestanaTrabajo p)
+    {
+        Espacio.Seleccionar(p.Id);
+        Navegacion.NavigateTo(p.Ruta);
+    }
+
+    private async Task Cerrar(PestanaTrabajo p)
+    {
+        // Una venta a medias no se puede cerrar por accidente.
+        if (p.EsVenta)
+        {
+            var confirmado = await Dialogos.ConfirmarPeligroAsync(
+                $"Se perdera lo capturado en {p.Titulo}.",
+                "Cerrar la venta");
+
+            if (!confirmado)
+            {
+                return;
+            }
+        }
+
+        Espacio.Cerrar(p.Id);
+        IrAActual();
+    }
+
+    private async Task CerrarTodas()
+    {
+        var confirmado = await Dialogos.ConfirmarPeligroAsync(
+            "Se cerraran todas las pestanas abiertas.",
+            "Cerrar todas");
+
+        if (!confirmado)
+        {
+            return;
+        }
+
+        Espacio.CerrarTodas();
+        IrAActual();
+    }
+
+    private void IrAActual()
+        => Navegacion.NavigateTo(Espacio.Actual?.Ruta ?? "/");
+}

@@ -1,13 +1,15 @@
 namespace SuvesaPosSitioAplicacion.Class;
 
-/// <summary>Acciones que un rol puede tener sobre una pantalla. Espejo de lo que devuelve el API en rol.permisos.</summary>
-public static class AccionPantalla
+/// <summary>
+/// Acciones que un rol puede tener sobre una pantalla.
+/// Espejo exacto de AccionesDTO, que es lo que devuelve el API en rol.permisos.
+/// </summary>
+public enum AccionPantalla
 {
-    public const string Consultar = "Consultar";
-    public const string Agregar = "Agregar";
-    public const string Editar = "Editar";
-    public const string Eliminar = "Eliminar";
-    public const string Imprimir = "Imprimir";
+    Ver = 0,
+    Crear = 1,
+    Modificar = 2,
+    Borrar = 3
 }
 
 /// <summary>

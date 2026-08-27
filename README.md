@@ -21,6 +21,18 @@ dotnet build SuvesaPosSitioWeb.slnx
 dotnet test tests/SuvesaPosSitioAplicacion.Tests
 ```
 
+## Pruebas contra el API real
+
+Necesitan un usuario de pruebas, que se toma del entorno:
+
+```bash
+export SEEPOS_USUARIO='...'
+export SEEPOS_PASSWORD='...'
+dotnet test tests/SuvesaPosSitioAplicacion.E2E --logger "console;verbosity=detailed"
+```
+
+Sin esas variables las pruebas se omiten.
+
 ## Configuracion
 
 Las URLs no se versionan. Van en `appsettings.Development.json` (ignorado por git)
