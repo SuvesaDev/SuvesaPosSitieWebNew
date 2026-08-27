@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, 'feature/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restaurar
+        run: dotnet restore SuvesaPosSitioWeb.slnx
+
+      - name: Compilar
+        run: dotnet build SuvesaPosSitioWeb.slnx --no-restore --configuration Release
+
+      # Solo pruebas unitarias. Las E2E necesitan navegador y aplicacion levantada;
+      # se activan en un job aparte cuando existan.
+      - name: Pruebas
+        run: dotnet test tests/SuvesaPosSitioAplicacion.Tests --no-build --configuration Release --verbosity normal
+
+      - name: Publicar
+        run: dotnet publish src/SuvesaPosSitioAplicacion --no-build --configuration Release --output ./publicado
+
+      - name: Guardar artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: suvesa-pos-sitio
+          path: ./publicado
+          retention-days: 7

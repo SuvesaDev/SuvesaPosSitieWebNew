@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SuvesaPosSitioAplicacion/SuvesaPosSitioAplicacion.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SuvesaPosSitioAplicacion.E2E/SuvesaPosSitioAplicacion.E2E.csproj" />
+    <Project Path="tests/SuvesaPosSitioAplicacion.Tests/SuvesaPosSitioAplicacion.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,25 @@
+@inherits LayoutComponentBase
+
+<HxMessenger Position="ToastContainerPosition.BottomEnd" />
+<HxMessageBoxHost />
+
+<div class="d-flex flex-column min-vh-100">
+
+    <nav class="navbar navbar-expand navbar-dark bg-dark px-3">
+        <span class="navbar-brand mb-0 h1">SUVESA SeePOS</span>
+        <div class="ms-auto">
+            <HxBadge Color="ThemeColor.Warning">Ola 0</HxBadge>
+        </div>
+    </nav>
+
+    <main class="container-fluid flex-grow-1 py-4">
+        @Body
+    </main>
+
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Ocurrio un error inesperado.
+    <a href="." class="reload">Recargar</a>
+    <span class="dismiss">&#128937;</span>
+</div>

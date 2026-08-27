@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+
+    <!-- Bootstrap 5 y los iconos los sirve el paquete de Havit, para que la version
+         del CSS y la de los componentes no se puedan desalinear. -->
+    <link href="_content/Havit.Blazor.Components.Web.Bootstrap/bootstrap.min.css" rel="stylesheet" />
+    <link href="_content/Havit.Blazor.Components.Web.Bootstrap/defaults.css" rel="stylesheet" />
+
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["SuvesaPosSitioAplicacion.styles.css"]" />
+
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
+
+    <ImportMap />
+    <HeadOutlet />
+</head>
+
+<body>
+    <Routes />
+
+    <!-- Los componentes de Havit llaman a la API JS de Bootstrap (dropdown, modal,
+         toast), asi que el bundle tiene que cargarse ANTES que Blazor. -->
+    <script src="lib/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="_framework/blazor.web.js"></script>
+</body>
+
+</html>

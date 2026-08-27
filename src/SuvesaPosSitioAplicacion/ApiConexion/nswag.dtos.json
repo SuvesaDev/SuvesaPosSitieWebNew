@@ -1,0 +1,17 @@
+{
+  "runtime": "Net100",
+  "documentGenerator": { "fromDocument": { "url": "swagger.json" } },
+  "codeGenerators": {
+    "openApiToCSharpClient": {
+      "namespace": "SuvesaPosSitioAplicacion.DTOs.Generated",
+      "generateClientClasses": false,
+      "generateClientInterfaces": false,
+      "generateDtoTypes": true,
+      "generateNullableReferenceTypes": true,
+      "generateDefaultValues": true,
+      "dateTimeType": "System.DateTime",
+      "jsonLibrary": "SystemTextJson",
+      "output": "../DTOs/Generated/SeePosDtos.cs"
+    }
+  }
+}
