@@ -23,10 +23,19 @@ jobs:
       - name: Compilar
         run: dotnet build SuvesaPosSitioWeb.slnx --no-restore --configuration Release
 
-      # Solo pruebas unitarias. Las E2E necesitan navegador y aplicacion levantada;
-      # se activan en un job aparte cuando existan.
-      - name: Pruebas
+      - name: Pruebas unitarias
         run: dotnet test tests/SuvesaPosSitioAplicacion.Tests --no-build --configuration Release --verbosity normal
+
+      # Las E2E levantan la aplicacion y la conducen con un navegador de verdad.
+      # Las que necesitan usuario de pruebas se omiten solas si no hay secretos.
+      - name: Instalar navegador para Playwright
+        run: npx --yes playwright install --with-deps chromium
+
+      - name: Pruebas de extremo a extremo
+        env:
+          SEEPOS_USUARIO: ${{ secrets.SEEPOS_USUARIO }}
+          SEEPOS_PASSWORD: ${{ secrets.SEEPOS_PASSWORD }}
+        run: dotnet test tests/SuvesaPosSitioAplicacion.E2E --no-build --configuration Release --verbosity normal
 
       - name: Publicar
         run: dotnet publish src/SuvesaPosSitioAplicacion --no-build --configuration Release --output ./publicado

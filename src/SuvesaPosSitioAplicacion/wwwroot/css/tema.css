@@ -130,3 +130,15 @@
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
+
+/* ---------- Pantallas de sesion ---------- */
+
+/* El fondo que queda tras el modal de seleccion de centro. */
+.seepos-fondo-ingreso {
+    min-height: 100vh;
+}
+
+/* Sin JS de por medio, el backdrop se pinta directamente. */
+.modal-backdrop.show {
+    opacity: .5;
+}

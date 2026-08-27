@@ -2,6 +2,7 @@ using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.Helpers;
+using SuvesaPosSitioAplicacion.Security;
 
 namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 
@@ -11,12 +12,13 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 ///
 /// Los ~30 catalogos de la Ola 6 se escriben exactamente asi.
 /// </summary>
-public sealed class Bancos : IBancos
+public sealed class Bancos : ProxyBase, IBancos
 {
     private readonly IBancosApiCliente _api;
     private readonly ILogger<Bancos> _log;
 
-    public Bancos(IBancosApiCliente api, ILogger<Bancos> log)
+    public Bancos(IBancosApiCliente api, IContextoSesion sesion, ILogger<Bancos> log)
+        : base(sesion, log)
     {
         _api = api;
         _log = log;
@@ -64,22 +66,4 @@ public sealed class Bancos : IBancos
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "desactivar el banco");
 
-    /// <summary>
-    /// El try/catch de todas las llamadas, en un solo sitio. Sin esto cada metodo
-    /// repite ocho lineas identicas, y con 51 proxies por delante eso es mucho ruido.
-    /// </summary>
-    private async Task<ResponseGeneric<T>> Ejecutar<T>(
-        Func<Task<ResponseGeneric<T>>> llamada,
-        string queSeIntentaba)
-    {
-        try
-        {
-            return await llamada();
-        }
-        catch (Exception ex)
-        {
-            _log.LogWarning(ex, "Fallo al {Intento}", queSeIntentaba);
-            return new ResponseGeneric<T>(ex);
-        }
-    }
 }

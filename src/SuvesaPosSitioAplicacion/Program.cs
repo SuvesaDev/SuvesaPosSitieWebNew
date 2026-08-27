@@ -1,5 +1,6 @@
 using Havit.Blazor.Components.Web;
 using Havit.Blazor.Components.Web.Bootstrap;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
@@ -55,6 +56,7 @@ builder.Services.AddAuthorization(opciones =>
     opciones.FallbackPolicy = opciones.DefaultPolicy;
 });
 
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IContextoSesion, ContextoSesion>();
 builder.Services.AddScoped<ApiAuthHeaderHandler>();
 builder.Services.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
@@ -144,6 +146,26 @@ app.MapGet("/healthz", () => Results.Ok(new { estado = "ok", ola = 0 })).AllowAn
 // Diagnostico de la cadena ApiConexion, solo en desarrollo.
 if (app.Environment.IsDevelopment())
 {
+    // Que lleva la sesion actual. Sin esto, un 401 obliga a adivinar si falta el
+    // token, si no llego el claim, o si el API lo rechaza.
+    app.MapGet("/diagnostico/sesion", (HttpContext ctx) =>
+    {
+        var u = ctx.User;
+        var token = u.FindFirst(ClaimsSeePos.Token)?.Value;
+
+        return Results.Ok(new
+        {
+            autenticado = u.Identity?.IsAuthenticated ?? false,
+            usuario = u.Identity?.Name,
+            claims = u.Claims.Count(),
+            hayToken = !string.IsNullOrWhiteSpace(token),
+            largoToken = token?.Length ?? 0,
+            permisos = u.FindAll(ClaimsSeePos.Permiso).Count(),
+            idSucursal = u.FindFirst(ClaimsSeePos.IdSucursal)?.Value,
+            administrador = u.FindFirst(ClaimsSeePos.Administrador)?.Value
+        });
+    });
+
     app.MapGet("/diagnostico/apiconexion", async (ISeguridad seguridad) =>
     {
         var r = await seguridad.ObtenerSucursales();

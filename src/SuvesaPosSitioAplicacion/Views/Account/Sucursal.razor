@@ -4,56 +4,98 @@
 @attribute [ExcludeFromInteractiveRouting]
 @using Microsoft.AspNetCore.Authorization
 @using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Security
 @attribute [Authorize]
 @inject ISeguridad Seguridad
 @inject IServicioAutenticacion Autenticacion
 @inject NavigationManager Navegacion
+@inject ILogger<Sucursal> Log
+@inject IContextoSesion Sesion
+@inject IWebHostEnvironment Entorno
 
 @* Segundo paso del ingreso. El sistema actual hace lo mismo tras validar credenciales. *@
 
 <PageTitle>Seleccione el centro &mdash; SeePOS</PageTitle>
 
-<div class="container" style="max-width: 26rem;">
-    <div class="card shadow-sm mt-5">
-        <div class="card-body p-4">
+@*  Se presenta como modal sobre la pantalla de ingreso, igual que el sistema
+    actual: tras validar credenciales aparece encima para elegir el centro.
 
-            <h1 class="h5 mb-1">Seleccione el centro</h1>
-            <p class="text-secondary small mb-4">Determina con que sucursal va a trabajar.</p>
+    Es una pagina y no un dialogo interactivo porque establecer la cookie de sesion
+    exige HttpContext, y un componente interactivo ya no lo tiene. El usuario ve un
+    modal; por debajo es una peticion mas, que es lo que lo hace fiable. *@
 
-            @if (!string.IsNullOrEmpty(Error))
-            {
-                <div class="alert alert-danger py-2 small" role="alert">@Error</div>
-            }
+<div class="seepos-fondo-ingreso">
+    <div class="container" style="max-width: 26rem;">
+        <div class="card shadow-sm mt-5 opacity-50">
+            <div class="card-body p-4">
+                <h1 class="h4 mb-1">SUVESA SeePOS</h1>
+                <p class="text-secondary small mb-0">Sesion iniciada.</p>
+            </div>
+        </div>
+    </div>
+</div>
 
-            @if (Sucursales is null)
-            {
-                <p class="text-secondary small mb-0">Consultando centros...</p>
-            }
-            else if (Sucursales.Count == 0)
-            {
-                <div class="alert alert-warning py-2 small mb-0">
-                    El usuario no tiene ningun centro asignado.
-                </div>
-            }
-            else
-            {
-                <EditForm Model="Seleccion" FormName="sucursal" OnValidSubmit="Elegir">
-                    <div class="mb-4">
-                        <InputSelect class="form-select" @bind-Value="Seleccion.IdSucursal">
+<div class="modal-backdrop show"></div>
+
+<div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true"
+     aria-labelledby="tituloCentro">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 24rem;">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h1 class="modal-title h5" id="tituloCentro">Seleccione el centro</h1>
+            </div>
+
+            <div class="modal-body">
+                <p class="text-secondary small">Determina con que sucursal va a trabajar.</p>
+
+                @if (!string.IsNullOrEmpty(Error))
+                {
+                    <div class="alert alert-danger py-2 small" role="alert">@Error</div>
+
+                    @if (Entorno.IsDevelopment() && Diagnostico is not null)
+                    {
+                        <details class="small text-secondary mb-2" open>
+                            <summary>Detalle tecnico</summary>
+                            <pre class="small mt-2 mb-0" style="white-space:pre-wrap">@Diagnostico</pre>
+                        </details>
+                    }
+                }
+                else if (Sucursales is null)
+                {
+                    <p class="text-secondary small mb-0">Consultando centros...</p>
+                }
+                else if (Sucursales.Count == 0)
+                {
+                    <div class="alert alert-warning py-2 small mb-0">
+                        El usuario no tiene ningun centro asignado. Consulte con el
+                        administrador del sistema.
+                    </div>
+                }
+                else
+                {
+                    <EditForm Model="Seleccion" FormName="sucursal" OnValidSubmit="Elegir" id="formCentro">
+                        <InputSelect class="form-select" @bind-Value="Seleccion.IdSucursal"
+                                     aria-label="Centro">
                             <option value="0">Seleccione...</option>
                             @foreach (var s in Sucursales)
                             {
                                 <option value="@s.Id">@(s.Alias ?? s.NombreComercial)</option>
                             }
                         </InputSelect>
-                    </div>
+                    </EditForm>
+                }
+            </div>
 
-                    <button type="submit" class="btn btn-primary w-100">Continuar</button>
-                </EditForm>
-            }
-
-            <hr class="my-4" />
-            <a href="/cuenta/salir" class="small text-secondary">Ingresar con otro usuario</a>
+            <div class="modal-footer justify-content-between">
+                <a href="/cuenta/salir" class="small text-secondary text-decoration-none">
+                    Ingresar con otro usuario
+                </a>
+                @if (Sucursales is { Count: > 0 })
+                {
+                    <button type="submit" form="formCentro" class="btn btn-primary">Ingresar</button>
+                }
+            </div>
 
         </div>
     </div>
@@ -69,16 +111,44 @@
     private IList<SucursalDTO>? Sucursales { get; set; }
     private string? Error { get; set; }
 
+    /// <summary>Solo en desarrollo: por que fallo, con datos en vez de conjeturas.</summary>
+    private string? Diagnostico { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         // El binder puede dejarla en null tras el POST.
         Seleccion ??= new();
 
+        // Sin esto el token queda nulo y el API responde 401. Toda pantalla que
+        // llame al API tiene que cargar antes el contexto; las de negocio lo hacen
+        // dentro de AppPantalla, y estas dos de sesion lo hacen aqui.
+        await Sesion.CargarAsync();
+
         var r = await Seguridad.ObtenerSucursales();
 
         if (!r.EsCorrecta)
         {
-            Error = r.Excepcion;
+            // El detalle tecnico va al log, no a la pantalla: al usuario no le sirve
+            // leer un codigo HTTP y no puede hacer nada con el.
+            Log.LogWarning("No se pudieron consultar los centros: {Detalle}", r.Excepcion);
+
+            if (Entorno.IsDevelopment())
+            {
+                var u = HttpContext.User;
+                var token = u.FindFirst(ClaimsSeePos.Token)?.Value;
+
+                Diagnostico =
+                    $"autenticado      : {u.Identity?.IsAuthenticated}\n" +
+                    $"usuario          : {u.Identity?.Name ?? "(ninguno)"}\n" +
+                    $"claims           : {u.Claims.Count()}\n" +
+                    $"token en claims  : {!string.IsNullOrWhiteSpace(token)}\n" +
+                    $"largo del token  : {token?.Length ?? 0}\n" +
+                    $"token en contexto: {!string.IsNullOrWhiteSpace(Sesion.Token)}\n" +
+                    $"permisos         : {u.FindAll(ClaimsSeePos.Permiso).Count()}\n" +
+                    $"---\n{r.Excepcion}";
+            }
+
+            Error = "No se pudieron consultar los centros. Intente de nuevo o vuelva a ingresar.";
             Sucursales = new List<SucursalDTO>();
             return;
         }
@@ -100,7 +170,8 @@
 
         if (!r.EsCorrecta)
         {
-            Error = r.Excepcion;
+            Log.LogWarning("No se pudo establecer la sucursal: {Detalle}", r.Excepcion);
+            Error = "No se pudo establecer el centro. Vuelva a ingresar.";
             return;
         }
 

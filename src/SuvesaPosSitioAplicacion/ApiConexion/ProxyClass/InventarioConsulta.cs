@@ -2,16 +2,21 @@ using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.Helpers;
+using SuvesaPosSitioAplicacion.Security;
 
 namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 
 /// <inheritdoc cref="IInventarioConsulta" />
-public sealed class InventarioConsulta : IInventarioConsulta
+public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
 {
     private readonly IInventarioApiCliente _api;
     private readonly ILogger<InventarioConsulta> _log;
 
-    public InventarioConsulta(IInventarioApiCliente api, ILogger<InventarioConsulta> log)
+    public InventarioConsulta(
+        IInventarioApiCliente api,
+        IContextoSesion sesion,
+        ILogger<InventarioConsulta> log)
+        : base(sesion, log)
     {
         _api = api;
         _log = log;
@@ -40,18 +45,13 @@ public sealed class InventarioConsulta : IInventarioConsulta
             MostrarInhabilitados = incluirInhabilitados
         };
 
-        try
+        return await Ejecutar(async () =>
         {
             var r = porCodigo
                 ? await _api.BuscarCodigoArticuloAsync(peticion)
                 : await _api.BuscarDescripcionAsync(peticion);
 
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-        }
-        catch (Exception ex)
-        {
-            _log.LogWarning(ex, "Fallo la busqueda de inventario con {Texto}", limpio);
-            return new ResponseGeneric<ICollection<InventarioDTO>>(ex);
-        }
+        }, $"buscar en el inventario con {limpio}");
     }
 }

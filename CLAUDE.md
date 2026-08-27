@@ -252,6 +252,53 @@ lo mas delicado: los permisos casan por titulo, no por ruta, asi que una diferen
 de un acento hace desaparecer esa pantalla para todo el que no sea administrador.
 Esa prueba hoy solo informa del desfase; cuando se conozca, pasa a ser una asercion.
 
+## Los permisos del API no casan con los titulos del menu
+
+Comprobado con el usuario `admin`: el API devuelve 23 permisos y varios no coinciden
+con los titulos de `MenuSeePos`.
+
+| El API manda | El menu tiene |
+|---|---|
+| `Facturacion` (menu `Inicio`) | `Facturación` (menu `Ventas`) |
+| `Consignacion` | `Consignación` |
+| `Abono Cobrar` bajo `Ventas` **y** `Compras` | una sola entrada |
+
+Con un administrador no se nota, porque ve todo. **Con cualquier rol limitado esas
+pantallas desaparecen del menu.** Hay que revisarlo con un usuario no administrador
+antes de la Ola 1, y decidir si se normaliza en el API o se mapea en el sitio.
+
+## Pruebas de extremo a extremo
+
+`tests/SuvesaPosSitioAplicacion.E2E` levanta la aplicacion en un puerto libre y la
+conduce con Playwright sobre el **Chrome instalado** (`Channel = "chrome"`), en vez
+de descargar los navegadores propios: son cientos de megas y aqui no se prueba
+compatibilidad entre navegadores.
+
+```bash
+dotnet test tests/SuvesaPosSitioAplicacion.E2E
+```
+
+Dos grupos:
+
+- **`CimientosE2ETests`** — corre siempre. Cubre los fallos de la Ola 0: estaticos
+  que redirigian al login, consola sin errores, rutas del sistema actual que piden
+  sesion en vez de dar 404, y el mensaje de error del API en el ingreso.
+- **`SesionE2ETests`** — necesita `SEEPOS_USUARIO` y `SEEPOS_PASSWORD` en el entorno;
+  sin ellas se omite. Cubre el modal de centro, el shell, la numeracion de las
+  pestanas de venta y que sobrevivan a recargar.
+
+### Por que existe esta suite
+
+Los cuatro fallos que costaron la Ola 0 eran de **integracion**: politicas de
+autorizacion aplicadas a endpoints que no debian, modos de render, ambitos de
+inyeccion. Ninguna prueba unitaria los vio.
+
+Comprobado por mutacion: reintroduciendo el bug de `MapStaticAssets` sin
+`AllowAnonymous`, la prueba E2E falla. Reintroduciendo el del token que no llega al
+handler, **las 44 unitarias siguen en verde** y solo lo atrapa la E2E con sesion.
+
+**Antes de replicar una pantalla en serie, la suite tiene que estar verde.**
+
 ## Pendiente de verificar
 
 Sin un usuario de pruebas contra `devapi.pos2650.com` no se ha podido ejercitar nada
@@ -261,6 +308,34 @@ ticket con ~82 pantallas, el 403 a un usuario sin permiso, y el shell entero
 falta es verla funcionando con datos reales.
 
 ## Trampas ya resueltas — no repetirlas
+
+**Nunca inyectar un servicio con scope en `ApiAuthHeaderHandler`.** Es la trampa que
+mas cara salio de toda la Ola 0.
+
+`IHttpClientFactory` **no** resuelve sus handlers desde el ambito de la peticion:
+crea el suyo y lo reutiliza unos minutos. Un `IContextoSesion` inyectado ahi llega
+**vacio**, aunque la pantalla tenga la sesion perfectamente cargada. El sintoma es un
+401 del API con todo aparentemente bien, y no hay nada en pantalla que lo explique.
+
+Medido: con sesion valida y token de 512 caracteres, el handler veia
+`largo del token=0, cabecera puesta=False`.
+
+**Como se resuelve.** `ProxyBase.Ejecutar` es el unico sitio que toca esto:
+
+1. Carga el contexto (el proxy si vive en el ambito correcto).
+2. Deja el token en `ContextoLlamada`, que usa `AsyncLocal` y **si** atraviesa el
+   limite porque va con el flujo asincrono de quien llama.
+3. Contiene la excepcion, para que ninguna View vea una `ApiException`.
+
+**Todos los proxies heredan de `ProxyBase`.** Uno que no lo haga fallara con 401 sin
+explicacion. De paso desaparece el "hay que acordarse de llamar a `CargarAsync`".
+
+`CargarAsync` tambien atrapa la excepcion de ambito y lo trata como "sin sesion" en
+lugar de reventar: durante el login, efectivamente todavia no hay usuario.
+
+**No ensenar al usuario el error tecnico del API.** Un
+`The HTTP status code of the response was not expected (401)` no le sirve de nada y
+no puede hacer nada con el. El detalle va al log; en pantalla, un mensaje accionable.
 
 **`IHttpContextAccessor` e `ISession` no sirven en Blazor Server.** El HttpContext solo
 existe durante el render inicial y desaparece al arrancar el circuito. Por eso el token

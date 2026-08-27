@@ -39,8 +39,12 @@ public sealed class AlmacenTickets : ITicketStore
     {
         var opciones = new DistributedCacheEntryOptions();
 
+        // Una expiracion ya pasada haria que el ticket se desalojara al instante y
+        // la sesion se perdiera entre dos peticiones, con un 401 como unico sintoma.
+        // Aqui no se acepta: si no esta en el futuro, manda la ventana deslizante.
         var expira = ticket.Properties.ExpiresUtc;
-        if (expira.HasValue)
+
+        if (expira.HasValue && expira.Value > DateTimeOffset.UtcNow)
         {
             opciones.SetAbsoluteExpiration(expira.Value);
         }

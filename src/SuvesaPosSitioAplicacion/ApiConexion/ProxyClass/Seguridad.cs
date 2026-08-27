@@ -2,6 +2,7 @@ using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.Helpers;
+using SuvesaPosSitioAplicacion.Security;
 
 namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 
@@ -14,7 +15,7 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 ///   3. Atrapa la excepcion aqui: una View jamas debe ver una ApiException.
 ///   4. No lleva logica de negocio. Solo transporte y traduccion.
 /// </summary>
-public sealed class Seguridad : ISeguridad
+public sealed class Seguridad : ProxyBase, ISeguridad
 {
     private readonly IUsuarioApiCliente _usuario;
     private readonly ICentrosApiCliente _centros;
@@ -23,16 +24,17 @@ public sealed class Seguridad : ISeguridad
     public Seguridad(
         IUsuarioApiCliente usuario,
         ICentrosApiCliente centros,
+        IContextoSesion sesion,
         ILogger<Seguridad> log)
+        : base(sesion, log)
     {
         _usuario = usuario;
         _centros = centros;
         _log = log;
     }
 
-    public async Task<ResponseGeneric<Autenticacion>> Login(string usuario, string password)
-    {
-        try
+    public Task<ResponseGeneric<Autenticacion>> Login(string usuario, string password)
+        => Ejecutar(async () =>
         {
             var r = await _usuario.LoginNuevoAsync(new Credencial
             {
@@ -41,25 +43,12 @@ public sealed class Seguridad : ISeguridad
             });
 
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-        }
-        catch (Exception ex)
-        {
-            _log.LogWarning(ex, "Fallo el inicio de sesion del usuario {Usuario}", usuario);
-            return new ResponseGeneric<Autenticacion>(ex);
-        }
-    }
+        }, $"iniciar sesion de {usuario}");
 
-    public async Task<ResponseGeneric<ICollection<SucursalDTO>>> ObtenerSucursales()
-    {
-        try
+    public Task<ResponseGeneric<ICollection<SucursalDTO>>> ObtenerSucursales()
+        => Ejecutar(async () =>
         {
             var r = await _centros.ObtenerSucursalAsync();
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-        }
-        catch (Exception ex)
-        {
-            _log.LogWarning(ex, "Fallo la consulta de sucursales");
-            return new ResponseGeneric<ICollection<SucursalDTO>>(ex);
-        }
-    }
+        }, "consultar las sucursales");
 }

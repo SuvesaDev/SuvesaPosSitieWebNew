@@ -72,8 +72,12 @@ public sealed class ServicioAutenticacion : IServicioAutenticacion
     public Task SalirAsync(HttpContext contexto)
         => contexto.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
-    private static async Task FirmarAsync(HttpContext contexto, IList<Claim> claims, DateTime expiracion)
+    private async Task FirmarAsync(HttpContext contexto, IList<Claim> claims, DateTime expiracion)
     {
+        // Si la respuesta ya empezo a escribirse, SignInAsync no puede poner la
+        // cabecera Set-Cookie y la sesion se pierde sin dar error. Es el fallo
+        // clasico de firmar dentro del render de un componente.
+        var yaEmpezo = contexto.Response.HasStarted;
         var identidad = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
         await contexto.SignInAsync(
@@ -82,8 +86,40 @@ public sealed class ServicioAutenticacion : IServicioAutenticacion
             new AuthenticationProperties
             {
                 IsPersistent = false,
-                ExpiresUtc = new DateTimeOffset(expiracion.ToUniversalTime())
+
+                // Solo se fija si el API mando una expiracion util. Si llega vacia o
+                // ya pasada, se deja nula y manda el ExpireTimeSpan de la cookie.
+                // Ponerla en el pasado hacia que el ticket se desalojara al instante
+                // del almacen: la sesion se perdia entre una peticion y la siguiente,
+                // y el sintoma era un 401 sin explicacion.
+                ExpiresUtc = ExpiracionUtil(expiracion)
             });
+
+        _log.LogInformation(
+            "Firma de sesion: expiracion del API = {Expiracion:O}, aplicada = {Aplicada}, " +
+            "respuesta ya iniciada = {YaEmpezo}, Set-Cookie presente = {HayCookie}",
+            expiracion,
+            ExpiracionUtil(expiracion),
+            yaEmpezo,
+            contexto.Response.Headers.SetCookie.Count > 0);
+    }
+
+    /// <summary>
+    /// La expiracion del API solo se usa si de verdad esta en el futuro. Se exige un
+    /// margen de un minuto para no aceptar una que caduque mientras se responde.
+    /// </summary>
+    private static DateTimeOffset? ExpiracionUtil(DateTime expiracion)
+    {
+        if (expiracion == default)
+        {
+            return null;
+        }
+
+        var utc = expiracion.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(expiracion, DateTimeKind.Utc)
+            : expiracion.ToUniversalTime();
+
+        return utc > DateTime.UtcNow.AddMinutes(1) ? new DateTimeOffset(utc) : null;
     }
 
     /// <summary>
