@@ -1,0 +1,124 @@
+@page "/buys/countswihoutpay"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICuentasPorPagar Api
+@inject IManejadorRespuestas Respuestas
+
+@*  ARQUETIPO 05 - REPORTE CON PDF
+    ===============================
+    Consultar en pantalla y llevarse el documento. Modelo para los modulos de reportes.
+
+    Que copiar:
+      1. La consulta se hace UNA vez y alimenta pantalla y PDF. No se consulta dos
+         veces ni se arma el PDF con datos distintos de los que se ven.
+      2. El PDF se descarga desde un endpoint (`/reportes/...`), no desde el
+         componente: enviar un archivo desde Blazor interactivo obliga a pasarlo
+         por JS en base64, que es peor y se rompe con archivos grandes.
+      3. El PDF se genera en SERVIDOR. Por la decision 05 no se imprime nada: se ve
+         o se descarga, siempre A4. No hay formatos termicos.
+      4. Los importes se suman en decimal, convirtiendo en el borde.
+
+    Que adaptar: el proxy, los filtros, las columnas y el endpoint del PDF.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        <a class="btn btn-sm btn-outline-primary" href="/reportes/cuentas-por-pagar"
+           target="_blank" rel="noopener">
+            <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Descargar PDF
+        </a>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
+
+    <ChildContent>
+        <div class="card">
+            <div class="card-body">
+                <AppRejilla TItem="FilaDeuda" Datos="Cargar" Nivel="NivelPantalla.Tableta"
+                            TextoVacio="No hay facturas pendientes de pago."
+                            @ref="_rejilla">
+                    <Columnas>
+                        <HxGridColumn TItem="FilaDeuda" HeaderText="Proveedor"
+                                      ItemTextSelector="f => f.Proveedor"
+                                      SortKeySelector="f => f.Proveedor" />
+                        <HxGridColumn TItem="FilaDeuda" HeaderText="Factura"
+                                      ItemTextSelector="f => f.Factura"
+                                      SortKeySelector="f => f.Factura" />
+                        <HxGridColumn TItem="FilaDeuda" HeaderText="Fecha"
+                                      ItemTextSelector="@(f => f.Fecha.ToString("dd/MM/yyyy"))"
+                                      SortKeySelector="f => f.Fecha" />
+                        <HxGridColumn TItem="FilaDeuda" HeaderText="Monto"
+                                      ItemTextSelector="@(f => Formato.Importe(f.Monto))"
+                                      SortKeySelector="f => f.Monto"
+                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                        <HxGridColumn TItem="FilaDeuda" HeaderText="Saldo"
+                                      ItemTextSelector="@(f => Formato.Importe(f.Saldo))"
+                                      SortKeySelector="f => f.Saldo"
+                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                    </Columnas>
+                </AppRejilla>
+
+                @if (_filas.Count > 0)
+                {
+                    <div class="d-flex justify-content-end gap-4 border-top pt-3 mt-3">
+                        <span class="text-secondary small">@_filas.Count facturas pendientes</span>
+                        <span class="fw-semibold">
+                            Total: <span class="seepos-importe">@Formato.Importe(_total)</span>
+                        </span>
+                    </div>
+                }
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Cuentas por pagar";
+
+    /// <summary>Fila aplanada: el API devuelve proveedores con sus facturas dentro.</summary>
+    private sealed record FilaDeuda(
+        string Proveedor, string Factura, DateTime Fecha, decimal Monto, decimal Saldo);
+
+    private AppRejilla<FilaDeuda>? _rejilla;
+    private List<FilaDeuda> _filas = new();
+    private decimal _total;
+    private bool _cargado;
+
+    private async Task<GridDataProviderResult<FilaDeuda>> Cargar(
+        GridDataProviderRequest<FilaDeuda> peticion)
+    {
+        if (!_cargado)
+        {
+            var deudas = await Respuestas.DatoAsync(
+                await Api.ObtenerDeudas(), "consultar las cuentas por pagar");
+
+            _filas = (deudas ?? new List<BuscarProveedorPendientesDTO>())
+                .SelectMany(p => (p.Facturas ?? new List<FacturasPendientesPagoDTO>())
+                    .Select(f => new FilaDeuda(
+                        p.Nombre ?? "",
+                        f.NumeroFactura ?? "",
+                        f.Fecha,
+                        // El borde: lo que llega en double pasa a decimal una vez.
+                        Formato.AImporte(f.MontoFactura),
+                        Formato.AImporte(f.SaldoActual ?? 0))))
+                .ToList();
+
+            _total = CalculoDocumento.Redondear(_filas.Sum(f => f.Saldo));
+            _cargado = true;
+        }
+
+        return peticion.ApplyTo(_filas);
+    }
+
+    private async Task Recargar()
+    {
+        _cargado = false;
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+}

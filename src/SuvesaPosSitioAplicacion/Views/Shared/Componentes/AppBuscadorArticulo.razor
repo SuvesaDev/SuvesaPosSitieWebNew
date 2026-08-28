@@ -1,0 +1,223 @@
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@implements IDisposable
+@inject IInventarioConsulta Api
+@inject IManejadorRespuestas Respuestas
+
+@*  ARQUETIPO 04 - MODAL DE BUSQUEDA
+    =================================
+    Buscar y elegir una entidad desde dentro de otra pantalla, devolviendo el
+    resultado a quien lo abrio. En el sistema actual hay 37 modales asi.
+
+    Que copiar:
+      1. El modal NO decide que hacer con lo elegido: lo devuelve por EventCallback.
+         Quien lo abre decide. Asi el mismo modal sirve en facturacion, compras,
+         proformas y consulta.
+      2. La busqueda espera a que el usuario pare de escribir y cancela la anterior.
+      3. Se puede usar solo con el teclado: flechas para moverse, Enter para elegir,
+         Escape para cerrar. En un punto de venta esto no es opcional.
+      4. Al abrirse pone el foco en el campo. Sin eso el cajero tiene que ir al raton.
+
+    Que adaptar: el proxy, las columnas y el tipo que se devuelve.
+*@
+
+<HxModal @ref="_modal" Title="Buscar articulo" Size="ModalSize.Large"
+         OnClosed="AlCerrar">
+    <BodyTemplate>
+        <div class="mb-3">
+            <input @ref="_campo"
+                   type="search"
+                   class="form-control"
+                   placeholder="Codigo o descripcion..."
+                   aria-label="Buscar articulo"
+                   value="@_texto"
+                   @oninput="AlEscribir"
+                   @onkeydown="AlTeclear" />
+            <div class="form-text">
+                Flechas para moverse, Enter para elegir, Escape para cerrar.
+            </div>
+        </div>
+
+        @if (_buscando)
+        {
+            <div class="d-flex justify-content-center py-4">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Buscando</span>
+                </div>
+            </div>
+        }
+        else if (_resultados.Count == 0)
+        {
+            <p class="text-secondary small text-center py-4 mb-0">
+                @(string.IsNullOrWhiteSpace(_texto)
+                    ? "Escriba para buscar."
+                    : "Ningun articulo coincide.")
+            </p>
+        }
+        else
+        {
+            <div class="table-responsive" style="max-height: 22rem; overflow-y: auto;">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="sticky-top bg-body">
+                        <tr>
+                            <th>Codigo</th>
+                            <th>Descripcion</th>
+                            <th class="seepos-importe">Existencia</th>
+                            <th class="seepos-importe">Precio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var i = 0; i < _resultados.Count; i++)
+                        {
+                            var indice = i;
+                            var a = _resultados[i];
+
+                            <tr class="@(indice == _resaltado ? "table-active" : null)"
+                                style="cursor:pointer"
+                                @onclick="() => Elegir(a)">
+                                <td><code class="small">@a.Cod_Articulo</code></td>
+                                <td>@a.Descripcion</td>
+                                <td class="seepos-importe">@Formato.Cantidad(a.Existencia)</td>
+                                <td class="seepos-importe">@Formato.Importe(a.Precio_A)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </BodyTemplate>
+</HxModal>
+
+@code {
+    /// <summary>Que hacer con el articulo elegido. Lo decide quien abre el modal.</summary>
+    [Parameter, EditorRequired]
+    public EventCallback<InventarioDTO> AlElegir { get; set; }
+
+    private static readonly TimeSpan Espera = TimeSpan.FromMilliseconds(400);
+
+    private HxModal _modal = default!;
+    private ElementReference _campo;
+
+    private string _texto = string.Empty;
+    private List<InventarioDTO> _resultados = new();
+    private int _resaltado;
+    private bool _buscando;
+    private bool _reciehAbierto;
+
+    private CancellationTokenSource? _pendiente;
+
+    /// <summary>Abre el buscador. Opcionalmente con un texto ya escrito.</summary>
+    public async Task AbrirAsync(string? textoInicial = null)
+    {
+        _texto = textoInicial ?? string.Empty;
+        _resultados = new List<InventarioDTO>();
+        _resaltado = 0;
+        _reciehAbierto = true;
+
+        await _modal.ShowAsync();
+
+        if (!string.IsNullOrWhiteSpace(_texto))
+        {
+            await Buscar(CancellationToken.None);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+        // El foco va al campo en cuanto se abre: en caja no se usa el raton.
+        if (_reciehAbierto)
+        {
+            _reciehAbierto = false;
+
+            try
+            {
+                await _campo.FocusAsync();
+            }
+            catch (JSException)
+            {
+                // El modal aun no esta en el DOM; no es critico.
+            }
+        }
+    }
+
+    private async Task AlEscribir(ChangeEventArgs e)
+    {
+        _texto = e.Value?.ToString() ?? string.Empty;
+        _resaltado = 0;
+
+        _pendiente?.Cancel();
+        _pendiente = new CancellationTokenSource();
+        var token = _pendiente.Token;
+
+        try
+        {
+            await Task.Delay(Espera, token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        await Buscar(token);
+    }
+
+    private async Task AlTeclear(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                _resaltado = Math.Min(_resaltado + 1, _resultados.Count - 1);
+                break;
+
+            case "ArrowUp":
+                _resaltado = Math.Max(_resaltado - 1, 0);
+                break;
+
+            case "Enter":
+                if (_resultados.Count > 0)
+                {
+                    await Elegir(_resultados[_resaltado]);
+                }
+                break;
+
+            case "Escape":
+                await _modal.HideAsync();
+                break;
+        }
+    }
+
+    private async Task Buscar(CancellationToken token)
+    {
+        _buscando = true;
+        StateHasChanged();
+
+        var r = await Api.Buscar(_texto);
+
+        if (token.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _resultados = (await Respuestas.DatoAsync(r, "buscar en el inventario"))
+                      ?.ToList() ?? new List<InventarioDTO>();
+
+        _resaltado = 0;
+        _buscando = false;
+        StateHasChanged();
+    }
+
+    private async Task Elegir(InventarioDTO articulo)
+    {
+        await _modal.HideAsync();
+        await AlElegir.InvokeAsync(articulo);
+    }
+
+    private void AlCerrar()
+    {
+        _pendiente?.Cancel();
+        _texto = string.Empty;
+        _resultados = new List<InventarioDTO>();
+    }
+
+    public void Dispose() => _pendiente?.Cancel();
+}

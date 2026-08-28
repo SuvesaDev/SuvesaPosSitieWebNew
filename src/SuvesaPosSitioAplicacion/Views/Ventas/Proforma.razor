@@ -1,0 +1,423 @@
+@page "/sales/budgets/proforma"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICotizaciones Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  ARQUETIPO 03 - DOCUMENTO MAESTRO-DETALLE
+    =========================================
+    El patron que sostiene facturacion, compras y proformas. El mas complejo de los
+    cinco, y el unico con implicaciones fiscales.
+
+    Que copiar:
+      1. **Los importes se calculan en decimal, siempre.** El API los entrega en
+         double; se convierten en el borde con Formato.AImporte y se opera con
+         CalculoDocumento. Nunca aritmetica en double.
+      2. El calculo vive en Services/CalculoDocumento, no en la pantalla. Asi se
+         puede probar sin navegador, y se comparte con facturacion y compras.
+      3. Las lineas se anaden con el buscador del arquetipo 04, que devuelve el
+         articulo y es la pantalla quien decide que hacer con el.
+      4. Al recalcular se recalcula TODO el documento desde las lineas. Nunca se
+         ajusta un total sumandole la diferencia: asi es como se desincronizan.
+      5. Guardar es una sola llamada con encabezado y detalle juntos.
+
+    Que adaptar: el DTO del documento, los campos del encabezado y las columnas.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Nueva">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nueva
+            </button>
+        }
+    </Acciones>
+
+    <ChildContent>
+        @if (_documento is null)
+        {
+            <div class="card">
+                <div class="card-body">
+                    <AppRejilla TItem="CotizacionesDTO" Datos="Cargar" @ref="_rejilla"
+                                TextoVacio="No hay proformas registradas.">
+                        <Columnas>
+                            <HxGridColumn TItem="CotizacionesDTO" HeaderText="Numero"
+                                          ItemTextSelector="@(c => c.Cotizacion1.ToString())"
+                                          SortKeySelector="c => c.Cotizacion1" />
+                            <HxGridColumn TItem="CotizacionesDTO" HeaderText="Fecha"
+                                          ItemTextSelector="@(c => c.Fecha.ToString("dd/MM/yyyy"))"
+                                          SortKeySelector="c => c.Fecha" />
+                            <HxGridColumn TItem="CotizacionesDTO" HeaderText="Cliente"
+                                          ItemTextSelector="c => c.NombreCliente"
+                                          SortKeySelector="c => c.NombreCliente" />
+                            <HxGridColumn TItem="CotizacionesDTO" HeaderText="Total"
+                                          ItemTextSelector="@(c => Formato.Importe(c.Total))"
+                                          SortKeySelector="c => c.Total"
+                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                            <HxGridColumn TItem="CotizacionesDTO" HeaderText="Estado">
+                                <ItemTemplate Context="c">
+                                    <span class="badge @(c.Anulado ? "text-bg-secondary" : "text-bg-success")">
+                                        @(c.Anulado ? "Anulada" : "Vigente")
+                                    </span>
+                                </ItemTemplate>
+                            </HxGridColumn>
+                            <HxGridColumn TItem="CotizacionesDTO" HeaderText=""
+                                          HeaderCssClass="text-end" ItemCssClass="text-end">
+                                <ItemTemplate Context="c">
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Abrir(c)">Abrir</button>
+                                </ItemTemplate>
+                            </HxGridColumn>
+                        </Columnas>
+                    </AppRejilla>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>@(_documento.Cotizacion1 > 0 ? $"Proforma {_documento.Cotizacion1}" : "Proforma nueva")</span>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="Cerrar">Volver</button>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <AppCampoTexto Etiqueta="Cliente" @bind-Valor="_documento.NombreCliente" />
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <AppCampoTexto Etiqueta="Cedula" @bind-Valor="_documento.CedulaCliente" />
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <AppCampoNumero Etiqueta="Validez (dias)" @bind-Valor="_validez" />
+                        </div>
+                        <div class="col-12">
+                            <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_documento.Observaciones" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Detalle</span>
+                    <button class="btn btn-sm btn-primary" @onclick="BuscarArticulo">
+                        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar articulo
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    @if (_lineas.Count == 0)
+                    {
+                        <p class="text-secondary small text-center py-4 mb-0">
+                            Agregue articulos a la proforma.
+                        </p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Codigo</th>
+                                        <th>Descripcion</th>
+                                        <th class="seepos-importe" style="width:7rem">Cantidad</th>
+                                        <th class="seepos-importe" style="width:9rem">Precio</th>
+                                        <th class="seepos-importe" style="width:6rem">Desc. %</th>
+                                        <th class="seepos-importe">Impuesto</th>
+                                        <th class="seepos-importe">Total</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var l in _lineas)
+                                    {
+                                        <tr>
+                                            <td><code class="small">@l.CodArticulo</code></td>
+                                            <td class="small">@l.Descripcion</td>
+                                            <td>
+                                                <input type="number" step="0.01" class="form-control form-control-sm text-end"
+                                                       value="@l.Cantidad"
+                                                       @onchange="e => CambiarCantidad(l, e)" />
+                                            </td>
+                                            <td>
+                                                <input type="number" step="0.01" class="form-control form-control-sm text-end"
+                                                       value="@l.PrecioUnitario"
+                                                       @onchange="e => CambiarPrecio(l, e)" />
+                                            </td>
+                                            <td>
+                                                <input type="number" step="0.01" class="form-control form-control-sm text-end"
+                                                       value="@l.Descuento"
+                                                       @onchange="e => CambiarDescuento(l, e)" />
+                                            </td>
+                                            <td class="seepos-importe">@Formato.Importe(l.Calculo.MontoImpuesto)</td>
+                                            <td class="seepos-importe">@Formato.Importe(l.Calculo.Total)</td>
+                                            <td class="text-end">
+                                                <button class="btn btn-sm btn-link text-danger p-0"
+                                                        aria-label="Quitar" @onclick="() => Quitar(l)">
+                                                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-12 col-md-6 offset-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <dl class="row mb-0 small">
+                                <dt class="col-7 fw-normal text-secondary">Subtotal</dt>
+                                <dd class="col-5 seepos-importe">@Formato.Importe(_totales.SubTotal)</dd>
+
+                                <dt class="col-7 fw-normal text-secondary">Descuento</dt>
+                                <dd class="col-5 seepos-importe">@Formato.Importe(_totales.Descuento)</dd>
+
+                                <dt class="col-7 fw-normal text-secondary">Impuesto</dt>
+                                <dd class="col-5 seepos-importe">@Formato.Importe(_totales.Impuesto)</dd>
+
+                                <dt class="col-7 fw-semibold">Total</dt>
+                                <dd class="col-5 seepos-importe fw-semibold">@Formato.Importe(_totales.Total)</dd>
+                            </dl>
+
+                            <div class="d-flex gap-2 mt-3">
+                                <button class="btn btn-primary flex-grow-1" @onclick="Guardar"
+                                        disabled="@(_guardando || _lineas.Count == 0)">
+                                    @(_guardando ? "Guardando..." : "Guardar")
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppBuscadorArticulo @ref="_buscador" AlElegir="AgregarLinea" />
+
+@code {
+    private const string Titulo = "Proformas o Cotización";
+
+    /// <summary>Una linea en edicion. Los importes viven en decimal, no en double.</summary>
+    private sealed class Linea
+    {
+        public string? CodArticulo { get; init; }
+        public long Codigo { get; init; }
+        public string? Descripcion { get; init; }
+        public decimal Cantidad { get; set; } = 1;
+        public decimal PrecioUnitario { get; set; }
+        public decimal Descuento { get; set; }
+        public decimal Impuesto { get; set; }
+
+        public CalculoDocumento.LineaCalculada Calculo { get; private set; }
+
+        public void Recalcular()
+            => Calculo = CalculoDocumento.Linea(Cantidad, PrecioUnitario, Descuento, Impuesto);
+    }
+
+    private AppRejilla<CotizacionesDTO>? _rejilla;
+    private AppBuscadorArticulo _buscador = default!;
+
+    private List<CotizacionesDTO> _proformas = new();
+    private bool _cargado;
+
+    private CotizacionesDTO? _documento;
+    private readonly List<Linea> _lineas = new();
+    private CalculoDocumento.TotalesDocumento _totales;
+    private int? _validez = 15;
+    private bool _guardando;
+
+    private async Task<GridDataProviderResult<CotizacionesDTO>> Cargar(
+        GridDataProviderRequest<CotizacionesDTO> peticion)
+    {
+        if (!_cargado)
+        {
+            _proformas = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar las proformas"))
+                         ?.ToList() ?? new List<CotizacionesDTO>();
+            _cargado = true;
+        }
+
+        return peticion.ApplyTo(_proformas);
+    }
+
+    private void Nueva()
+    {
+        _documento = new CotizacionesDTO { Fecha = DateTime.Today, IdSucursal = Sesion.IdSucursal };
+        _lineas.Clear();
+        Recalcular();
+    }
+
+    private async Task Abrir(CotizacionesDTO resumen)
+    {
+        var completa = await Respuestas.DatoAsync(
+            await Api.ObtenerPorId(resumen.Cotizacion1), "abrir la proforma");
+
+        if (completa is null)
+        {
+            return;
+        }
+
+        _documento = completa;
+        _validez = completa.Validez;
+        _lineas.Clear();
+
+        foreach (var d in completa.Detalle ?? new List<DetalleCotizacionDTO>())
+        {
+            // Aqui esta el borde: lo que llega en double se pasa a decimal una vez,
+            // y a partir de aqui todo el calculo es decimal.
+            var linea = new Linea
+            {
+                CodArticulo = d.CodArticulo,
+                Codigo = d.Codigo,
+                Descripcion = d.Descripcion,
+                Cantidad = Formato.AImporte(d.Cantidad),
+                PrecioUnitario = Formato.AImporte(d.PrecioUnit),
+                Descuento = Formato.AImporte(d.Descuento),
+                Impuesto = Formato.AImporte(d.Impuesto)
+            };
+
+            linea.Recalcular();
+            _lineas.Add(linea);
+        }
+
+        Recalcular();
+    }
+
+    private void Cerrar()
+    {
+        _documento = null;
+        _lineas.Clear();
+    }
+
+    private Task BuscarArticulo() => _buscador.AbrirAsync();
+
+    private void AgregarLinea(InventarioDTO articulo)
+    {
+        var existente = _lineas.FirstOrDefault(l => l.Codigo == articulo.Codigo);
+
+        if (existente is not null)
+        {
+            // Repetir un articulo suma cantidad en vez de crear otra linea, que es
+            // como se comporta el sistema actual.
+            existente.Cantidad += 1;
+            existente.Recalcular();
+            Recalcular();
+            return;
+        }
+
+        var linea = new Linea
+        {
+            CodArticulo = articulo.Cod_Articulo,
+            Codigo = articulo.Codigo,
+            Descripcion = articulo.Descripcion,
+            Cantidad = 1,
+            PrecioUnitario = Formato.AImporte(articulo.Precio_A),
+            Impuesto = Formato.AImporte(articulo.IVenta)
+        };
+
+        linea.Recalcular();
+        _lineas.Add(linea);
+        Recalcular();
+    }
+
+    private void Quitar(Linea linea)
+    {
+        _lineas.Remove(linea);
+        Recalcular();
+    }
+
+    private void CambiarCantidad(Linea l, ChangeEventArgs e)
+    {
+        l.Cantidad = Leer(e, l.Cantidad);
+        l.Recalcular();
+        Recalcular();
+    }
+
+    private void CambiarPrecio(Linea l, ChangeEventArgs e)
+    {
+        l.PrecioUnitario = Leer(e, l.PrecioUnitario);
+        l.Recalcular();
+        Recalcular();
+    }
+
+    private void CambiarDescuento(Linea l, ChangeEventArgs e)
+    {
+        l.Descuento = Leer(e, l.Descuento);
+        l.Recalcular();
+        Recalcular();
+    }
+
+    private static decimal Leer(ChangeEventArgs e, decimal actual)
+        => decimal.TryParse(e.Value?.ToString(), out var v) && v >= 0 ? v : actual;
+
+    /// <summary>
+    /// Recalcula el documento ENTERO desde las lineas. Nunca se ajusta un total
+    /// sumandole la diferencia: asi es como encabezado y detalle se desincronizan.
+    /// </summary>
+    private void Recalcular()
+        => _totales = CalculoDocumento.Totales(_lineas.Select(l => l.Calculo));
+
+    private async Task Guardar()
+    {
+        if (_documento is null || _guardando)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_documento.NombreCliente))
+        {
+            await Dialogos.ErrorAsync("Indique el cliente.");
+            return;
+        }
+
+        _guardando = true;
+
+        _documento.Validez = _validez ?? 0;
+        _documento.SubTotal = (double)_totales.SubTotal;
+        _documento.Descuento = (double)_totales.Descuento;
+        _documento.PagoImpuesto = (double)_totales.Impuesto;
+        _documento.Total = (double)_totales.Total;
+
+        _documento.Detalle = _lineas.Select(l => new DetalleCotizacionDTO
+        {
+            Codigo = l.Codigo,
+            CodArticulo = l.CodArticulo,
+            Descripcion = l.Descripcion,
+            Cantidad = (double)l.Cantidad,
+            PrecioUnit = (double)l.PrecioUnitario,
+            Descuento = (double)l.Descuento,
+            MontoDescuento = (double)l.Calculo.MontoDescuento,
+            Impuesto = (double)l.Impuesto,
+            MontoImpuesto = (double)l.Calculo.MontoImpuesto,
+            SubTotal = (double)l.Calculo.SubTotal,
+            SubtotalGravado = (double)l.Calculo.SubtotalGravado,
+            Total = (double)l.Calculo.Total
+        }).ToList();
+
+        var r = _documento.Cotizacion1 > 0
+            ? await Api.EditarEncabezado(_documento)
+            : await Api.Crear(_documento);
+
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(r, "guardar la proforma"))
+        {
+            Dialogos.Exito("Proforma guardada.");
+            _cargado = false;
+            Cerrar();
+
+            if (_rejilla is not null)
+            {
+                await _rejilla.RefrescarAsync();
+            }
+        }
+    }
+}

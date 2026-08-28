@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
+using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.Helpers;
 using SuvesaPosSitioAplicacion.Security;
 using SuvesaPosSitioAplicacion.Services;
@@ -66,6 +67,11 @@ builder.Services.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
 builder.Services.AddScoped<IServicioDialogos, ServicioDialogos>();
 builder.Services.AddScoped<IManejadorRespuestas, ManejadorRespuestas>();
 
+// PDF. QuestPDF exige aceptar su licencia al arrancar; la comunitaria es gratuita
+// solo por debajo de cierto umbral de facturacion. VERIFICAR antes de produccion.
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+builder.Services.AddSingleton<IGeneradorPdf, GeneradorPdfQuestPdf>();
+
 builder.Services.AddScoped<IAlmacenEspacioTrabajo, AlmacenEspacioTrabajoNavegador>();
 builder.Services.AddScoped<IEstadoEspacioTrabajo, EstadoEspacioTrabajo>();
 
@@ -89,6 +95,8 @@ ClienteApi<IUsuarioApiCliente, UsuarioApiCliente>();
 ClienteApi<ICentrosApiCliente, CentrosApiCliente>();
 ClienteApi<IBancosApiCliente, BancosApiCliente>();
 ClienteApi<IInventarioApiCliente, InventarioApiCliente>();
+ClienteApi<ICotizacionApiCliente, CotizacionApiCliente>();
+ClienteApi<IAbonoPagarApiCliente, AbonoPagarApiCliente>();
 
 // ---------------------------------------------------------------------------
 // Convivencia: YARP sirve la SPA React bajo el mismo origen mientras queden
@@ -101,6 +109,8 @@ builder.Services.AddReverseProxy()
 builder.Services.AddScoped<ISeguridad, Seguridad>();
 builder.Services.AddScoped<IBancos, Bancos>();
 builder.Services.AddScoped<IInventarioConsulta, InventarioConsulta>();
+builder.Services.AddScoped<ICotizaciones, Cotizaciones>();
+builder.Services.AddScoped<ICuentasPorPagar, CuentasPorPagar>();
 
 var app = builder.Build();
 
@@ -141,13 +151,62 @@ app.MapGet("/cuenta/salir", async (HttpContext ctx, IServicioAutenticacion auth)
 
 app.MapGet("/favicon.ico", () => Results.Redirect("/favicon.png")).AllowAnonymous();
 
+// Descarga de reportes en PDF. Un endpoint y no una pagina: enviar un archivo desde
+// un componente interactivo obligaria a pasarlo por JS codificado en base64.
+app.MapGet("/reportes/cuentas-por-pagar", async (
+    ICuentasPorPagar api,
+    IGeneradorPdf pdf) =>
+{
+    var r = await api.ObtenerDeudas();
+
+    if (!r.EsCorrecta)
+    {
+        return Results.Problem(r.Excepcion ?? "No se pudieron consultar las deudas.");
+    }
+
+    var filas = new List<IReadOnlyList<string>>();
+    decimal total = 0;
+
+    foreach (var proveedor in r.Responses ?? (ICollection<BuscarProveedorPendientesDTO>)Array.Empty<BuscarProveedorPendientesDTO>())
+    {
+        foreach (var f in proveedor.Facturas ?? (ICollection<FacturasPendientesPagoDTO>)Array.Empty<FacturasPendientesPagoDTO>())
+        {
+            var saldo = Formato.AImporte(f.SaldoActual ?? 0);
+            total += saldo;
+
+            filas.Add(new[]
+            {
+                proveedor.Nombre ?? "",
+                f.NumeroFactura ?? "",
+                f.Fecha.ToString("dd/MM/yyyy"),
+                Formato.Importe(f.MontoFactura),
+                Formato.Importe(saldo)
+            });
+        }
+    }
+
+    var bytes = pdf.Tabla(new ReporteTabular(
+        Titulo: "Cuentas por pagar",
+        Subtitulo: "Facturas pendientes por proveedor",
+        Encabezados: new[] { "Proveedor", "Factura", "Fecha", "Monto", "Saldo" },
+        Filas: filas,
+        Totales: new[] { "", "", "", "Total", Formato.Importe(total) })
+    {
+        ColumnasNumericas = new HashSet<int> { 3, 4 }
+    });
+
+    return Results.File(bytes, "application/pdf", "cuentas-por-pagar.pdf");
+});
+
 app.MapGet("/healthz", () => Results.Ok(new { estado = "ok", ola = 0 })).AllowAnonymous();
 
-// Diagnostico de la cadena ApiConexion, solo en desarrollo.
+// Diagnostico de sesion, solo en desarrollo.
 if (app.Environment.IsDevelopment())
 {
-    // Que lleva la sesion actual. Sin esto, un 401 obliga a adivinar si falta el
-    // token, si no llego el claim, o si el API lo rechaza.
+    // SE QUEDA a proposito, contra lo que dije al empezar. Fue lo que dio el dato
+    // decisivo en el fallo del token, y cuando alguien reporta un problema es mas
+    // rapido que correr la suite. Solo en desarrollo, y **nunca devuelve el token**,
+    // solo su largo.
     app.MapGet("/diagnostico/sesion", (HttpContext ctx) =>
     {
         var u = ctx.User;
@@ -165,17 +224,6 @@ if (app.Environment.IsDevelopment())
             administrador = u.FindFirst(ClaimsSeePos.Administrador)?.Value
         });
     });
-
-    app.MapGet("/diagnostico/apiconexion", async (ISeguridad seguridad) =>
-    {
-        var r = await seguridad.ObtenerSucursales();
-        return Results.Ok(new
-        {
-            esCorrecta = r.EsCorrecta,
-            excepcion = r.Excepcion,
-            cantidadSucursales = r.Responses?.Count
-        });
-    }).AllowAnonymous();
 }
 
 app.Run();

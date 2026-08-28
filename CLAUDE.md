@@ -299,6 +299,37 @@ handler, **las 44 unitarias siguen en verde** y solo lo atrapa la E2E con sesion
 
 **Antes de replicar una pantalla en serie, la suite tiene que estar verde.**
 
+## Comparador fiscal — semana 8
+
+`ComparadorFiscalTests` toma documentos reales del API, recalcula cada linea con
+`CalculoDocumento` y compara importe a importe contra lo que el sistema actual dejo
+guardado. Necesita usuario de pruebas.
+
+```bash
+dotnet test tests/SuvesaPosSitioAplicacion.E2E \
+  --filter "FullyQualifiedName~ComparadorFiscal" \
+  --logger "console;verbosity=detailed"
+```
+
+Informa cuantas discrepancias hay, en que campo y de que tamano. **Todavia no
+afirma nada**: primero hay que ver el desfase real contra datos de produccion.
+
+Alguna diferencia es esperable: el sistema actual calcula en el navegador con coma
+flotante y el API guarda los importes en `double`. Lo que importa es **cuanta y
+donde**. Cuando se conozca, hay que decidir si se replica el comportamiento antiguo
+o se corrige —**decision de negocio, no tecnica**— y entonces la prueba pasa a ser
+una asercion.
+
+**La Ola 3 no deberia abrirse antes de eso.** Es la ola que emite documentos fiscales.
+
+## Diagnosticos que se quedan
+
+`/diagnostico/sesion`, solo en desarrollo. Se queda **contra lo que dije al empezar**:
+fue lo que dio el dato decisivo en el fallo del token, y cuando alguien reporta un
+problema es mas rapido que correr la suite. Nunca devuelve el token, solo su largo.
+
+`/diagnostico/apiconexion` se retiro: la suite E2E hace lo mismo y mejor.
+
 ## Pendiente de verificar
 
 Sin un usuario de pruebas contra `devapi.pos2650.com` no se ha podido ejercitar nada
