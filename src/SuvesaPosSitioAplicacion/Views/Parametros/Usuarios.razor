@@ -1,0 +1,354 @@
+@page "/parameters/users"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@using System.Text.RegularExpressions
+@inject IUsuarios Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  Ola 4 — escritura compleja, primera fuera de los catalogos simples.
+
+    DOS COSAS QUE NO SON EL ARQUETIPO 01:
+      1. Crear y editar usan DTOs distintos (UsuariosDTO / UsuarioDTO). El de editar
+         no tiene Administrador, IdRol ni Foto: esos campos NO se pueden cambiar
+         desde este endpoint una vez creado el usuario. Se muestran de solo lectura
+         en edicion, con una nota. Si hace falta cambiarlos, es una pregunta para
+         el equipo del API, no algo que se pueda resolver aqui.
+      2. La clave se manda SIEMPRE en el cuerpo del DTO, nunca en la URL. El sistema
+         actual valida la clave con un GET que la lleva en la query string —
+         deliberadamente no se replica esa llamada.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Agregar">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
+            </button>
+        }
+    </Acciones>
+
+    <ChildContent>
+
+        <div class="mb-3">
+            <input type="search" class="form-control"
+                   placeholder="Nombre de usuario..."
+                   aria-label="Buscar usuario"
+                   value="@_texto" @onchange="AlEscribir" />
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <AppRejilla TItem="BuscarUsuarioDTO" Datos="Cargar" @ref="_rejilla"
+                            TextoVacio="No hay usuarios que coincidan.">
+                    <Columnas>
+                        <HxGridColumn TItem="BuscarUsuarioDTO" HeaderText="Usuario"
+                                      ItemTextSelector="u => u.IdUsuario"
+                                      SortKeySelector="u => u.IdUsuario" />
+                        <HxGridColumn TItem="BuscarUsuarioDTO" HeaderText="Nombre"
+                                      ItemTextSelector="u => u.Nombre"
+                                      SortKeySelector="u => u.Nombre" />
+                        <HxGridColumn TItem="BuscarUsuarioDTO" HeaderText=""
+                                      HeaderCssClass="text-end" ItemCssClass="text-end">
+                            <ItemTemplate Context="u">
+                                @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                {
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Editar(u)">Editar</button>
+                                }
+                            </ItemTemplate>
+                        </HxGridColumn>
+                    </Columnas>
+                </AppRejilla>
+            </div>
+        </div>
+
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo usuario" : "Editar usuario")" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_edicion is not null)
+        {
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formUsuario">
+                <DataAnnotationsValidator />
+
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <AppCampoTexto Etiqueta="Usuario (login)" @bind-Valor="_edicion.IdUsuario"
+                                       Deshabilitado="@(!_esNuevo)" />
+                        @if (!_esNuevo)
+                        {
+                            <div class="form-text">El usuario de acceso no se puede cambiar.</div>
+                        }
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <AppCampoTexto Etiqueta="Nombre completo" @bind-Valor="_edicion.Nombre" />
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="perfil">Perfil</label>
+                        <select id="perfil" class="form-select" @bind="_edicion.Perfil">
+                            @foreach (var p in _perfiles)
+                            {
+                                <option value="@p.IdPerfil">@p.Descripcion</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="rol">Rol</label>
+                        @if (_esNuevo)
+                        {
+                            <select id="rol" class="form-select" @bind="_idRolNuevo">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var r in _roles)
+                                {
+                                    <option value="@r.IdRol">@r.Descripcion</option>
+                                }
+                            </select>
+                        }
+                        else
+                        {
+                            <input id="rol" class="form-control" disabled
+                                   value="@(_roles.FirstOrDefault(r => r.IdRol == _idRolActual)?.Descripcion ?? "—")" />
+                            <div class="form-text">
+                                El rol no se puede cambiar desde esta pantalla: el API no lo
+                                admite en la edicion. Consulte con el administrador del sistema.
+                            </div>
+                        }
+                    </div>
+
+                    @if (_esNuevo)
+                    {
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="clave">Contrasena</label>
+                            <input id="clave" type="password" class="form-control"
+                                   autocomplete="new-password"
+                                   @bind="_clave" @bind:event="oninput" />
+                            <div class="form-text">
+                                Minimo 8 caracteres, con mayuscula, minuscula, numero y un
+                                caracter especial.
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="claveConfirmar">Confirmar contrasena</label>
+                            <input id="claveConfirmar" type="password" class="form-control"
+                                   autocomplete="new-password"
+                                   @bind="_claveConfirmar" @bind:event="oninput" />
+                        </div>
+                    }
+
+                    <div class="col-12">
+                        <AppCampoTexto Etiqueta="Correo" @bind-Valor="_edicion.Email" />
+                    </div>
+                    <div class="col-12">
+                        <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" />
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="activo"
+                                   @bind="_edicion.Activo" />
+                            <label class="form-check-label" for="activo">Activo</label>
+                        </div>
+                    </div>
+                </div>
+            </EditForm>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" type="submit" form="formUsuario" disabled="@_guardando">
+            @(_guardando ? "Guardando..." : "Guardar")
+        </button>
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Usuarios";
+
+    /// <summary>Misma regla que valida el sistema actual: 8+, mayuscula, minuscula, numero, especial.</summary>
+    private static readonly Regex ReglaClave =
+        new(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$");
+
+    private AppRejilla<BuscarUsuarioDTO>? _rejilla;
+    private HxModal _modal = default!;
+
+    private List<Perfil> _perfiles = new();
+    private List<Role> _roles = new();
+
+    private string _texto = string.Empty;
+
+    private UsuarioBase? _edicion;
+    private bool _esNuevo;
+    private long _idActual;
+    private int _idRolActual;
+    private int _idRolNuevo;
+    private string _clave = string.Empty;
+    private string _claveConfirmar = string.Empty;
+    private bool _guardando;
+
+    /// <summary>Campos comunes a UsuariosDTO y UsuarioDTO, para no duplicar el formulario.</summary>
+    private sealed class UsuarioBase
+    {
+        public string? IdUsuario { get; set; }
+        public string? Nombre { get; set; }
+        public int Perfil { get; set; }
+        public string? Email { get; set; }
+        public string? Observaciones { get; set; }
+        public bool Activo { get; set; } = true;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _perfiles = (await Respuestas.DatoAsync(await Api.ObtenerPerfiles(), "consultar los perfiles"))
+                    ?.ToList() ?? new List<Perfil>();
+        _roles = (await Respuestas.DatoAsync(await Api.ObtenerRoles(), "consultar los roles"))
+                 ?.ToList() ?? new List<Role>();
+    }
+
+    private async Task<GridDataProviderResult<BuscarUsuarioDTO>> Cargar(
+        GridDataProviderRequest<BuscarUsuarioDTO> peticion)
+    {
+        var r = await Respuestas.DatoAsync(await Api.Buscar(_texto), "buscar usuarios");
+        return peticion.ApplyTo(r?.ToList() ?? new List<BuscarUsuarioDTO>());
+    }
+
+    private async Task AlEscribir(ChangeEventArgs e)
+    {
+        _texto = e.Value?.ToString() ?? string.Empty;
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private async Task Agregar()
+    {
+        _esNuevo = true;
+        _idActual = 0;
+        _idRolNuevo = 0;
+        _clave = string.Empty;
+        _claveConfirmar = string.Empty;
+        _edicion = new UsuarioBase();
+        await _modal.ShowAsync();
+    }
+
+    private async Task Editar(BuscarUsuarioDTO resumen)
+    {
+        var completo = await Respuestas.DatoAsync(
+            await Api.ObtenerUno(resumen.IdUsuario ?? string.Empty), "obtener el usuario");
+
+        if (completo is null)
+        {
+            return;
+        }
+
+        _esNuevo = false;
+        _idActual = completo.Id ?? 0;
+        _idRolActual = completo.IdRol ?? 0;
+
+        _edicion = new UsuarioBase
+        {
+            IdUsuario = completo.IdUsuario,
+            Nombre = completo.Nombre,
+            Perfil = completo.Perfil,
+            Email = completo.Email,
+            Observaciones = completo.Observaciones,
+            Activo = completo.Activo
+        };
+
+        await _modal.ShowAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null || _guardando)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_edicion.IdUsuario) || string.IsNullOrWhiteSpace(_edicion.Nombre))
+        {
+            await Dialogos.ErrorAsync("Indique el usuario y el nombre.");
+            return;
+        }
+
+        if (_esNuevo && !ClaveValida())
+        {
+            return;
+        }
+
+        _guardando = true;
+
+        var r = _esNuevo ? await GuardarNuevoAsync() : await GuardarEdicionAsync();
+
+        _guardando = false;
+
+        if (r)
+        {
+            await _modal.HideAsync();
+            Dialogos.Exito(_esNuevo ? "Usuario creado." : "Usuario actualizado.");
+            if (_rejilla is not null)
+            {
+                await _rejilla.RefrescarAsync();
+            }
+        }
+    }
+
+    private bool ClaveValida()
+    {
+        if (!ReglaClave.IsMatch(_clave))
+        {
+            Dialogos.ErrorBreve(
+                "La contrasena debe tener minimo 8 caracteres, con mayuscula, " +
+                "minuscula, numero y caracter especial.");
+            return false;
+        }
+
+        if (_clave != _claveConfirmar)
+        {
+            Dialogos.ErrorBreve("Las contrasenas no coinciden.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task<bool> GuardarNuevoAsync()
+    {
+        var dto = new UsuariosDTO
+        {
+            IdUsuario = _edicion!.IdUsuario,
+            Nombre = _edicion.Nombre,
+            Perfil = _edicion.Perfil,
+            Email = _edicion.Email,
+            Observaciones = _edicion.Observaciones,
+            Activo = _edicion.Activo,
+            ClaveEntrada = _clave,
+            ClaveInterna = _clave,
+            IdRol = _idRolNuevo > 0 ? _idRolNuevo : null
+        };
+
+        return await Respuestas.CorrectaAsync(await Api.Crear(dto), "crear el usuario");
+    }
+
+    private async Task<bool> GuardarEdicionAsync()
+    {
+        var dto = new UsuarioDTO
+        {
+            Id = _idActual,
+            IdUsuario = _edicion!.IdUsuario,
+            Nombre = _edicion.Nombre,
+            Perfil = _edicion.Perfil,
+            Email = _edicion.Email,
+            Observaciones = _edicion.Observaciones,
+            Activo = _edicion.Activo
+        };
+
+        return await Respuestas.CorrectaAsync(await Api.Editar(_idActual, dto), "editar el usuario");
+    }
+}

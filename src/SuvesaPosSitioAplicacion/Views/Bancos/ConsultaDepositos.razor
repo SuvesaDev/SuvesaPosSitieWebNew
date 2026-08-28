@@ -1,0 +1,176 @@
+@page "/initial/cash/deposits/consultdeposits"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IDepositosConsulta Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+@*  OLA 1 — replica del ARQUETIPO 02, con filtro por rango de fechas.
+    Mismo patron que Documentos Emitidos: se filtra en el API, no en memoria.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+    <ChildContent>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-2 align-items-end">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small" for="desde">Desde</label>
+                        <input id="desde" type="date" class="form-control form-control-sm"
+                               value="@_desde.ToString("yyyy-MM-dd")"
+                               @onchange="e => _desde = Fecha(e, _desde)" />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small" for="hasta">Hasta</label>
+                        <input id="hasta" type="date" class="form-control form-control-sm"
+                               value="@_hasta.ToString("yyyy-MM-dd")"
+                               @onchange="e => _hasta = Fecha(e, _hasta)" />
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small" for="numero">Numero</label>
+                        <input id="numero" type="search" class="form-control form-control-sm"
+                               placeholder="Opcional"
+                               value="@_numero" @onchange="e => _numero = Texto(e)" />
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <button class="btn btn-primary btn-sm w-100" @onclick="Buscar"
+                                disabled="@_buscando">
+                            @(_buscando ? "Buscando..." : "Buscar")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_buscando)
+        {
+            <div class="d-flex justify-content-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Buscando</span>
+                </div>
+            </div>
+        }
+        else if (!_hayBusqueda)
+        {
+            <div class="text-center text-secondary py-5 small">
+                Indique un rango de fechas o un numero y pulse Buscar.
+            </div>
+        }
+        else if (_depositos.Count == 0)
+        {
+            <div class="text-center text-secondary py-5 small">
+                No se encontraron depositos con esos criterios.
+            </div>
+        }
+        else
+        {
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-secondary small">
+                    @_depositos.Count @(_depositos.Count == 1 ? "deposito" : "depositos")
+                </span>
+                <span class="small fw-semibold">
+                    Total: <span class="seepos-importe">@Formato.Importe(_total)</span>
+                </span>
+            </div>
+
+            <div class="d-md-none d-flex flex-column gap-2">
+                @foreach (var d in _depositos)
+                {
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <span class="fw-semibold small">@d.Banco</span>
+                                <span class="seepos-importe small">@Formato.Importe(d.Monto)</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
+                                <code class="small text-secondary">@d.Numero</code>
+                                <span class="small text-secondary">@d.Cajero</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="d-none d-md-block card">
+                <div class="card-body">
+                    <AppRejilla TItem="DepositosBuscarDTO" Datos="Servir"
+                                Nivel="NivelPantalla.Tableta" @ref="_rejilla">
+                        <Columnas>
+                            <HxGridColumn TItem="DepositosBuscarDTO" HeaderText="Numero"
+                                          ItemTextSelector="d => d.Numero"
+                                          SortKeySelector="d => d.Numero" />
+                            <HxGridColumn TItem="DepositosBuscarDTO" HeaderText="Banco"
+                                          ItemTextSelector="d => d.Banco"
+                                          SortKeySelector="d => d.Banco" />
+                            <HxGridColumn TItem="DepositosBuscarDTO" HeaderText="Cajero"
+                                          ItemTextSelector="d => d.Cajero" />
+                            <HxGridColumn TItem="DepositosBuscarDTO" HeaderText="Monto"
+                                          ItemTextSelector="@(d => Formato.Importe(d.Monto))"
+                                          SortKeySelector="d => d.Monto"
+                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                        </Columnas>
+                    </AppRejilla>
+                </div>
+            </div>
+        }
+
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Consulta Depósitos";
+
+    private AppRejilla<DepositosBuscarDTO>? _rejilla;
+
+    private DateTime _desde = DateTime.Today.AddDays(-7);
+    private DateTime _hasta = DateTime.Today;
+    private string _numero = string.Empty;
+
+    private List<DepositosBuscarDTO> _depositos = new();
+    private decimal _total;
+    private bool _buscando;
+    private bool _hayBusqueda;
+
+    private static DateTime Fecha(ChangeEventArgs e, DateTime actual)
+        => DateTime.TryParse(e.Value?.ToString(), out var v) ? v : actual;
+
+    private static string Texto(ChangeEventArgs e) => e.Value?.ToString() ?? string.Empty;
+
+    private async Task Buscar()
+    {
+        if (_buscando)
+        {
+            return;
+        }
+
+        if (_desde > _hasta)
+        {
+            await Dialogos.ErrorAsync("La fecha inicial no puede ser posterior a la final.");
+            return;
+        }
+
+        _buscando = true;
+        _hayBusqueda = true;
+
+        _depositos = (await Respuestas.DatoAsync(
+            await Api.Buscar(_numero, _desde, _hasta), "consultar los depositos"))
+            ?.ToList() ?? new List<DepositosBuscarDTO>();
+
+        // Los montos llegan en float: se convierten en el borde y se suman en decimal.
+        _total = CalculoDocumento.Redondear(
+            _depositos.Sum(d => Formato.AImporte(d.Monto)));
+
+        _buscando = false;
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private Task<GridDataProviderResult<DepositosBuscarDTO>> Servir(
+        GridDataProviderRequest<DepositosBuscarDTO> peticion)
+        => Task.FromResult(peticion.ApplyTo(_depositos));
+}

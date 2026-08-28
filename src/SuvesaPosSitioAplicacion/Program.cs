@@ -96,6 +96,11 @@ void ClienteApi<TInterfaz, TImplementacion>()
         .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 }
 
+// Excepcion puntual para endpoints cuyo contrato OpenAPI tiene un tipo incorrecto.
+// Conserva la misma URL base y el mismo handler que los clientes tipados.
+builder.Services.AddHttpClient("SeePosApi", c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+
 ClienteApi<IUsuarioApiCliente, UsuarioApiCliente>();
 ClienteApi<ICentrosApiCliente, CentrosApiCliente>();
 ClienteApi<IBancosApiCliente, BancosApiCliente>();
@@ -108,6 +113,10 @@ ClienteApi<IAbonoCobrarApiCliente, AbonoCobrarApiCliente>();
 ClienteApi<IReportesApiCliente, ReportesApiCliente>();
 ClienteApi<IVentaApiCliente, VentaApiCliente>();
 ClienteApi<IQvetApiCliente, QvetApiCliente>();
+ClienteApi<IConsignacionApiCliente, ConsignacionApiCliente>();
+ClienteApi<IFamiliasApiCliente, FamiliasApiCliente>();
+ClienteApi<ICategoriasApiCliente, CategoriasApiCliente>();
+ClienteApi<IPresentacionApiCliente, PresentacionApiCliente>();
 ClienteApi<IStockLoteApiCliente, StockLoteApiCliente>();
 
 // ---------------------------------------------------------------------------
@@ -129,6 +138,12 @@ builder.Services.AddScoped<ICuentasPorCobrar, CuentasPorCobrar>();
 builder.Services.AddScoped<IReportes, Reportes>();
 builder.Services.AddScoped<IDocumentosEmitidos, DocumentosEmitidos>();
 builder.Services.AddScoped<IAlbaranes, Albaranes>();
+builder.Services.AddScoped<IConsignaciones, Consignaciones>();
+builder.Services.AddScoped<IDepositosConsulta, DepositosConsulta>();
+builder.Services.AddScoped<IFamilias, Familias>();
+builder.Services.AddScoped<ICategorias, Categorias>();
+builder.Services.AddScoped<IPresentaciones, Presentaciones>();
+builder.Services.AddScoped<IUsuarios, Usuarios>();
 
 var app = builder.Build();
 

@@ -1,0 +1,179 @@
+@page "/parameters/family"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IFamilias Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  Replica del ARQUETIPO 01 (CRUD de catalogo). Mismo molde que
+    Views/Parametros/Bancos.razor.
+
+    UNICA DIFERENCIA: GetFamiliasAsync devuelve la respuesta como `object`, no
+    tipada; ApiConexion/ProxyClass/Familias.cs la reinterpreta a mano. Verificado
+    con datos reales antes de construir esta pantalla (ver
+    FamiliasDeserializacionTests). El resto es identico al arquetipo.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Agregar">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
+            </button>
+        }
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
+
+    <ChildContent>
+        <div class="card">
+            <div class="card-body">
+                <AppRejilla TItem="FamiliaDTO"
+                            Datos="Cargar"
+                            Nivel="NivelPantalla.Tableta"
+                            TextoVacio="No hay familias registradas."
+                            @ref="_rejilla">
+                    <Columnas>
+                        <HxGridColumn TItem="FamiliaDTO" HeaderText="Codigo"
+                                      ItemTextSelector="@(f => f.Codigo.ToString())"
+                                      SortKeySelector="f => f.Codigo" />
+
+                        <HxGridColumn TItem="FamiliaDTO" HeaderText="Descripcion"
+                                      ItemTextSelector="f => f.Descripcion"
+                                      SortKeySelector="f => f.Descripcion" />
+
+                        <HxGridColumn TItem="FamiliaDTO" HeaderText="Observaciones"
+                                      ItemTextSelector="f => f.Observaciones" />
+
+                        <HxGridColumn TItem="FamiliaDTO" HeaderText="Estado"
+                                      SortKeySelector="f => f.Estado">
+                            <ItemTemplate Context="f">
+                                <span class="badge @((f.Estado ?? true) ? "text-bg-success" : "text-bg-secondary")">
+                                    @((f.Estado ?? true) ? "Activa" : "Inactiva")
+                                </span>
+                            </ItemTemplate>
+                        </HxGridColumn>
+
+                        <HxGridColumn TItem="FamiliaDTO" HeaderText=""
+                                      HeaderCssClass="text-end" ItemCssClass="text-end">
+                            <ItemTemplate Context="f">
+                                @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                {
+                                    <button class="btn btn-sm btn-link p-0 me-3"
+                                            @onclick="() => Editar(f)">Editar</button>
+                                }
+                            </ItemTemplate>
+                        </HxGridColumn>
+                    </Columnas>
+                </AppRejilla>
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modal" Title="@(_edicion?.Codigo > 0 ? "Editar familia" : "Nueva familia")" Size="ModalSize.Regular">
+    <BodyTemplate>
+        @if (_edicion is not null)
+        {
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formFamilia">
+                <DataAnnotationsValidator />
+                <div class="mb-3">
+                    <AppCampoTexto Etiqueta="Descripcion" @bind-Valor="_edicion.Descripcion" />
+                </div>
+                <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" />
+            </EditForm>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" type="submit" form="formFamilia" disabled="@_guardando">
+            @(_guardando ? "Guardando..." : "Guardar")
+        </button>
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Familias";
+
+    private AppRejilla<FamiliaDTO>? _rejilla;
+    private HxModal _modal = default!;
+
+    private List<FamiliaDTO> _familias = new();
+    private FamiliaDTO? _edicion;
+    private bool _guardando;
+    private bool _cargado;
+
+    private async Task<GridDataProviderResult<FamiliaDTO>> Cargar(
+        GridDataProviderRequest<FamiliaDTO> peticion)
+    {
+        if (!_cargado)
+        {
+            _familias = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar las familias"))
+                        ?.ToList() ?? new List<FamiliaDTO>();
+            _cargado = true;
+        }
+
+        return peticion.ApplyTo(_familias);
+    }
+
+    private async Task Recargar()
+    {
+        _cargado = false;
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private async Task Agregar()
+    {
+        _edicion = new FamiliaDTO { Estado = true };
+        await _modal.ShowAsync();
+    }
+
+    private async Task Editar(FamiliaDTO familia)
+    {
+        // Se edita una copia: si el guardado falla, la fila de la rejilla no queda tocada.
+        _edicion = new FamiliaDTO
+        {
+            Codigo = familia.Codigo,
+            Descripcion = familia.Descripcion,
+            Observaciones = familia.Observaciones,
+            Estado = familia.Estado
+        };
+
+        await _modal.ShowAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null || _guardando)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_edicion.Descripcion))
+        {
+            await Dialogos.ErrorAsync("Indique la descripcion de la familia.");
+            return;
+        }
+
+        _guardando = true;
+
+        var esNuevo = _edicion.Codigo == 0;
+        var r = esNuevo ? await Api.Crear(_edicion) : await Api.Editar(_edicion);
+
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(r, esNuevo ? "crear la familia" : "editar la familia"))
+        {
+            await _modal.HideAsync();
+            Dialogos.Exito(esNuevo ? "Familia creada." : "Familia actualizada.");
+            await Recargar();
+        }
+    }
+}

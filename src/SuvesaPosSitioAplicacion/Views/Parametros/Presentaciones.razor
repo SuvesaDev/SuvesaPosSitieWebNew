@@ -1,0 +1,181 @@
+@page "/parameters/presentations"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IPresentaciones Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  Catalogo PARCIAL: el API tiene un unico endpoint de escritura que crea o
+    actualiza segun el nombre (no hay distincion crear/editar). El formulario de
+    edicion manda el mismo nombre que ya tenia la fila: eso lo hace actualizar
+    en lugar de crear una nueva.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Agregar">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
+            </button>
+        }
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
+
+    <ChildContent>
+        <div class="card">
+            <div class="card-body">
+                <AppRejilla TItem="Presentacione"
+                            Datos="Cargar"
+                            Nivel="NivelPantalla.Tableta"
+                            TextoVacio="No hay presentaciones registradas."
+                            @ref="_rejilla">
+                    <Columnas>
+                        <HxGridColumn TItem="Presentacione" HeaderText="Codigo"
+                                      ItemTextSelector="@(p => p.CodPres.ToString())"
+                                      SortKeySelector="p => p.CodPres" />
+
+                        <HxGridColumn TItem="Presentacione" HeaderText="Presentacion"
+                                      ItemTextSelector="p => p.Presentaciones"
+                                      SortKeySelector="p => p.Presentaciones" />
+
+                        <HxGridColumn TItem="Presentacione" HeaderText="Unidad Hacienda"
+                                      ItemTextSelector="p => p.Mh" />
+
+                        <HxGridColumn TItem="Presentacione" HeaderText="Estado"
+                                      SortKeySelector="p => p.Estado">
+                            <ItemTemplate Context="p">
+                                <span class="badge @(p.Estado ? "text-bg-success" : "text-bg-secondary")">
+                                    @(p.Estado ? "Activa" : "Inactiva")
+                                </span>
+                            </ItemTemplate>
+                        </HxGridColumn>
+
+                        <HxGridColumn TItem="Presentacione" HeaderText=""
+                                      HeaderCssClass="text-end" ItemCssClass="text-end">
+                            <ItemTemplate Context="p">
+                                @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                {
+                                    <button class="btn btn-sm btn-link p-0"
+                                            @onclick="() => Editar(p)">Editar</button>
+                                }
+                            </ItemTemplate>
+                        </HxGridColumn>
+                    </Columnas>
+                </AppRejilla>
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modal" Title="@(_esNueva ? "Nueva presentacion" : "Editar presentacion")" Size="ModalSize.Regular">
+    <BodyTemplate>
+        @if (_edicion is not null)
+        {
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formPresentacion">
+                <DataAnnotationsValidator />
+                <div class="mb-3">
+                    <AppCampoTexto Etiqueta="Presentacion" @bind-Valor="_edicion.Presentaciones"
+                                   Deshabilitado="@(!_esNueva)" />
+                    @if (!_esNueva)
+                    {
+                        <div class="form-text">
+                            El nombre identifica la presentacion en el API y no se puede cambiar.
+                        </div>
+                    }
+                </div>
+                <AppCampoTexto Etiqueta="Unidad Hacienda" @bind-Valor="_edicion.Mh" />
+            </EditForm>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" type="submit" form="formPresentacion" disabled="@_guardando">
+            @(_guardando ? "Guardando..." : "Guardar")
+        </button>
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Presentaciones";
+
+    private AppRejilla<Presentacione>? _rejilla;
+    private HxModal _modal = default!;
+
+    private List<Presentacione> _presentaciones = new();
+    private PresentacionDTO? _edicion;
+    private bool _esNueva;
+    private bool _guardando;
+    private bool _cargado;
+
+    private async Task<GridDataProviderResult<Presentacione>> Cargar(
+        GridDataProviderRequest<Presentacione> peticion)
+    {
+        if (!_cargado)
+        {
+            _presentaciones = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar las presentaciones"))
+                              ?.ToList() ?? new List<Presentacione>();
+            _cargado = true;
+        }
+
+        return peticion.ApplyTo(_presentaciones);
+    }
+
+    private async Task Recargar()
+    {
+        _cargado = false;
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private async Task Agregar()
+    {
+        _esNueva = true;
+        _edicion = new PresentacionDTO { Estado = true };
+        await _modal.ShowAsync();
+    }
+
+    private async Task Editar(Presentacione presentacion)
+    {
+        _esNueva = false;
+        _edicion = new PresentacionDTO
+        {
+            Presentaciones = presentacion.Presentaciones,
+            Mh = presentacion.Mh,
+            Estado = presentacion.Estado
+        };
+
+        await _modal.ShowAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null || _guardando)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_edicion.Presentaciones))
+        {
+            await Dialogos.ErrorAsync("Indique el nombre de la presentacion.");
+            return;
+        }
+
+        _guardando = true;
+        var r = await Api.Guardar(_edicion);
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(r, "guardar la presentacion"))
+        {
+            await _modal.HideAsync();
+            Dialogos.Exito(_esNueva ? "Presentacion creada." : "Presentacion actualizada.");
+            await Recargar();
+        }
+    }
+}

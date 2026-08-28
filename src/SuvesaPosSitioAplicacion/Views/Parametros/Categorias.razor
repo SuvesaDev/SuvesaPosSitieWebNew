@@ -1,0 +1,140 @@
+@page "/parameters/category"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICategorias Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  Catalogo PARCIAL: el API solo ofrece crear y listar. No hay boton de editar
+    porque no hay endpoint que lo soporte; anadirlo seria prometer algo que fallaria.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Agregar">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
+            </button>
+        }
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
+
+    <ChildContent>
+        <div class="card">
+            <div class="card-body">
+                <AppRejilla TItem="CategoriasDTO"
+                            Datos="Cargar"
+                            Nivel="NivelPantalla.Tableta"
+                            TextoVacio="No hay categorias registradas."
+                            @ref="_rejilla">
+                    <Columnas>
+                        <HxGridColumn TItem="CategoriasDTO" HeaderText="Codigo"
+                                      ItemTextSelector="@(c => c.Id.ToString())"
+                                      SortKeySelector="c => c.Id" />
+
+                        <HxGridColumn TItem="CategoriasDTO" HeaderText="Descripcion"
+                                      ItemTextSelector="c => c.Descripcion"
+                                      SortKeySelector="c => c.Descripcion" />
+
+                        <HxGridColumn TItem="CategoriasDTO" HeaderText="Estado"
+                                      SortKeySelector="c => c.Estado">
+                            <ItemTemplate Context="c">
+                                <span class="badge @(c.Estado ? "text-bg-success" : "text-bg-secondary")">
+                                    @(c.Estado ? "Activa" : "Inactiva")
+                                </span>
+                            </ItemTemplate>
+                        </HxGridColumn>
+                    </Columnas>
+                </AppRejilla>
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modal" Title="Nueva categoria" Size="ModalSize.Regular">
+    <BodyTemplate>
+        @if (_edicion is not null)
+        {
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formCategoria">
+                <DataAnnotationsValidator />
+                <AppCampoTexto Etiqueta="Descripcion" @bind-Valor="_edicion.Descripcion" />
+            </EditForm>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" type="submit" form="formCategoria" disabled="@_guardando">
+            @(_guardando ? "Guardando..." : "Guardar")
+        </button>
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Categorias";
+
+    private AppRejilla<CategoriasDTO>? _rejilla;
+    private HxModal _modal = default!;
+
+    private List<CategoriasDTO> _categorias = new();
+    private CategoriasDTO? _edicion;
+    private bool _guardando;
+    private bool _cargado;
+
+    private async Task<GridDataProviderResult<CategoriasDTO>> Cargar(
+        GridDataProviderRequest<CategoriasDTO> peticion)
+    {
+        if (!_cargado)
+        {
+            _categorias = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar las categorias"))
+                          ?.ToList() ?? new List<CategoriasDTO>();
+            _cargado = true;
+        }
+
+        return peticion.ApplyTo(_categorias);
+    }
+
+    private async Task Recargar()
+    {
+        _cargado = false;
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private async Task Agregar()
+    {
+        _edicion = new CategoriasDTO { Estado = true };
+        await _modal.ShowAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null || _guardando)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_edicion.Descripcion))
+        {
+            await Dialogos.ErrorAsync("Indique la descripcion de la categoria.");
+            return;
+        }
+
+        _guardando = true;
+        var r = await Api.Crear(_edicion);
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(r, "crear la categoria"))
+        {
+            await _modal.HideAsync();
+            Dialogos.Exito("Categoria creada.");
+            await Recargar();
+        }
+    }
+}

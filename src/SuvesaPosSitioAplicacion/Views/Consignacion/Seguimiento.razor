@@ -1,0 +1,155 @@
+@page "/buys/consignment/following"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IConsignaciones Api
+@inject IManejadorRespuestas Respuestas
+
+@*  OLA 1 — replica del ARQUETIPO 02, con filtro por estado.
+    Reutiliza el mismo patron que Seguimiento de Cotizaciones.
+
+    NOTA DE INTEGRACION: el endpoint que en principio correspondia a esta pantalla
+    (Consignacion/ObtenerConsignacionEncabezadoEstado) responde 500 contra
+    devapi.pos2650.com con cualquier parametro. Se uso el hermano que si funciona,
+    venta/ObtenerConsignacionEstado, sobre FacturaDTO en lugar de
+    ConsignacionEncabezadoDTO. Ver la nota en ApiConexion/ProxyClass/Consignaciones.cs.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
+
+    <ChildContent>
+
+        <div class="mb-3">
+            <select class="form-select" aria-label="Estado" @onchange="AlCambiarEstado">
+                <option value="pendientes">Pendientes de aceptar</option>
+                <option value="aceptadas">Aceptadas</option>
+            </select>
+        </div>
+
+        @if (!_cargado)
+        {
+            <div class="d-flex justify-content-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando</span>
+                </div>
+            </div>
+        }
+        else if (_consignaciones.Count == 0)
+        {
+            <div class="text-center text-secondary py-5 small">
+                No hay consignaciones en este estado.
+            </div>
+        }
+        else
+        {
+            <p class="text-secondary small">
+                @_consignaciones.Count @(_consignaciones.Count == 1 ? "consignacion" : "consignaciones")
+            </p>
+
+            <div class="d-md-none d-flex flex-column gap-2">
+                @foreach (var c in _consignaciones)
+                {
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <span class="fw-semibold small">@c.NombreCliente</span>
+                                <span class="seepos-importe small">@Formato.Importe(c.Total)</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
+                                <code class="small text-secondary">@c.NumFactura</code>
+                                <span class="badge @(c.ConsignacionAceptada == true ? "text-bg-success" : "text-bg-warning")">
+                                    @(c.ConsignacionAceptada == true ? "Aceptada" : "Pendiente")
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="d-none d-md-block card">
+                <div class="card-body">
+                    <AppRejilla TItem="FacturaDTO" Datos="Servir" Nivel="NivelPantalla.Tableta"
+                                @ref="_rejilla">
+                        <Columnas>
+                            <HxGridColumn TItem="FacturaDTO" HeaderText="Numero"
+                                          ItemTextSelector="c => c.NumFactura"
+                                          SortKeySelector="c => c.NumFactura" />
+                            <HxGridColumn TItem="FacturaDTO" HeaderText="Fecha"
+                                          ItemTextSelector="c => c.Fecha"
+                                          SortKeySelector="c => c.Fecha" />
+                            <HxGridColumn TItem="FacturaDTO" HeaderText="Cliente"
+                                          ItemTextSelector="c => c.NombreCliente"
+                                          SortKeySelector="c => c.NombreCliente" />
+                            <HxGridColumn TItem="FacturaDTO" HeaderText="Total"
+                                          ItemTextSelector="@(c => Formato.Importe(c.Total))"
+                                          SortKeySelector="c => c.Total"
+                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                            <HxGridColumn TItem="FacturaDTO" HeaderText="Estado">
+                                <ItemTemplate Context="c">
+                                    <span class="badge @(c.ConsignacionAceptada == true ? "text-bg-success" : "text-bg-warning")">
+                                        @(c.ConsignacionAceptada == true ? "Aceptada" : "Pendiente")
+                                    </span>
+                                </ItemTemplate>
+                            </HxGridColumn>
+                        </Columnas>
+                    </AppRejilla>
+                </div>
+            </div>
+        }
+
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Seguimiento de Consignaciones";
+
+    private AppRejilla<FacturaDTO>? _rejilla;
+    private List<FacturaDTO> _consignaciones = new();
+    private string _estado = "pendientes";
+    private bool _cargado;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        // SIN VERIFICAR: el API no documenta que significa el booleano, y la base
+        // de desarrollo no tiene consignaciones para contrastarlo (true y false
+        // devuelven ambos una lista vacia). Se asume que true = aceptadas por ser
+        // la lectura mas natural del nombre del parametro; hay que confirmarlo en
+        // cuanto existan datos, y corregir si esta al reves.
+        var aceptadas = _estado == "aceptadas";
+
+        _consignaciones = (await Respuestas.DatoAsync(
+            await Api.PorEstado(aceptadas), "consultar las consignaciones"))
+            ?.ToList() ?? new List<FacturaDTO>();
+
+        _cargado = true;
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private async Task AlCambiarEstado(ChangeEventArgs e)
+    {
+        _estado = e.Value?.ToString() ?? "pendientes";
+        _cargado = false;
+        await Cargar();
+    }
+
+    private async Task Recargar()
+    {
+        _cargado = false;
+        await Cargar();
+    }
+
+    private Task<GridDataProviderResult<FacturaDTO>> Servir(
+        GridDataProviderRequest<FacturaDTO> peticion)
+        => Task.FromResult(peticion.ApplyTo(_consignaciones));
+}

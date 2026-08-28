@@ -62,7 +62,10 @@
 </AppPantalla>
 
 @code {
-    private const string Titulo = "Cobrar";
+    // El menu llama "Cobrar" a otra pantalla (/initial/charge). Esta, en
+    // /sales/collect, se llama "Abono Cobrar", y es ese el titulo que gobierna
+    // el permiso.
+    private const string Titulo = "Abono Cobrar";
 
     private sealed record FilaCobro(
         string Cliente, string Cedula, string Factura, DateTime Fecha, decimal Monto, decimal Saldo);
