@@ -7,6 +7,7 @@
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
 @inject ICartasExoneracion Cartas
+@inject IGeografia Geografia
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -33,9 +34,10 @@
         }
     </Acciones>
     <ChildContent>
+        <section class="seepos-clientes">
 
-        <div class="mb-3">
-            <div class="input-group">
+        <div class="seepos-clientes-busqueda mb-3">
+            <div class="input-group input-group-lg">
                 <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
                 <input type="search" class="form-control"
                        placeholder="Cedula o nombre..."
@@ -65,8 +67,8 @@
         }
         else
         {
-            <p class="text-secondary small">
-                @_resultados.Count @(_resultados.Count == 1 ? "cliente" : "clientes")
+            <p class="seepos-clientes-resumen">
+                <i class="bi bi-people me-1" aria-hidden="true"></i>@_resultados.Count @(_resultados.Count == 1 ? "cliente encontrado" : "clientes encontrados")
             </p>
 
             @* Movil: tarjetas. *@
@@ -90,7 +92,7 @@
             </div>
 
             @* Escritorio y tableta: rejilla. *@
-            <div class="d-none d-md-block card">
+            <div class="d-none d-md-block card seepos-clientes-tabla">
                 <div class="card-body">
                     <AppRejilla TItem="FiltranClienteDTO" Datos="Servir"
                                 Nivel="NivelPantalla.Tableta" @ref="_rejilla">
@@ -123,6 +125,7 @@
                 </div>
             </div>
         }
+        </section>
 
     </ChildContent>
 </AppPantalla>
@@ -298,86 +301,120 @@
     <BodyTemplate>
         @if (_edicion is not null)
         {
-            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formCliente">
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formCliente" class="seepos-cliente-editor">
                 <DataAnnotationsValidator />
-                <div class="row g-3">
-                    <div class="col-12 col-md-6">
-                        <AppCampoTexto Etiqueta="Nombre" @bind-Valor="_edicion.Nombre" />
+                <nav class="mb-3" aria-label="Secciones del cliente">
+                    <div class="nav nav-pills flex-wrap gap-2">
+                        <button type="button" class="btn btn-sm @ClaseGenerales" @onclick="AbrirGenerales">Datos generales</button>
+                        <button type="button" class="btn btn-sm @ClaseCredito" @onclick="AbrirCredito">Crédito y descuento</button>
+                        @if (!Sesion.EsCostaPets)
+                        {
+                            <button type="button" class="btn btn-sm @ClaseCarta" @onclick="AbrirCarta">Carta exoneración</button>
+                        }
+                        @if (Sesion.EsCostaPets)
+                        {
+                            <button type="button" class="btn btn-sm @ClaseAdjuntos" @onclick="AbrirAdjuntos">Documentos adjuntos</button>
+                        }
+                        @if (Sesion.EsCostaPets && _variasSucursales)
+                        {
+                            <button type="button" class="btn btn-sm @ClaseFacturacion" @onclick="AbrirFacturacion">Datos facturación</button>
+                        }
                     </div>
-                    <div class="col-12 col-md-6">
-                        <AppCampoTexto Etiqueta="Cédula" @bind-Valor="_edicion.Cedula" Deshabilitado="@(!_esNuevo)" />
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <AppCampoTexto Etiqueta="Correo" @bind-Valor="_edicion.EMail" />
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono01" />
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <AppCampoTexto Etiqueta="Teléfono alterno" @bind-Valor="_edicion.Telefono02" />
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <AppCampoTexto Etiqueta="Nombre comercial" @bind-Valor="_edicion.NombreFantasia" />
-                    </div>
-                    <div class="col-12">
-                        <AppCampoTexto Etiqueta="Dirección" @bind-Valor="_edicion.Direccion" />
-                    </div>
-                    <div class="col-12">
-                        <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" />
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label" for="cliente-plazo">Plazo de crédito (días)</label>
-                        <input id="cliente-plazo" type="number" min="0" max="365" class="form-control"
-                               @bind="_edicion.PlazoCredito" @bind:event="onchange" />
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label" for="cliente-credito">Límite de crédito</label>
-                        <input id="cliente-credito" type="number" min="0" step="0.01" class="form-control"
-                               @bind="_edicion.MaxCredito" @bind:event="onchange" />
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label" for="cliente-descuento">Descuento máximo (%)</label>
-                        <input id="cliente-descuento" type="number" min="0" max="100" step="0.01" class="form-control"
-                               @bind="_edicion.Descuento" @bind:event="onchange" />
-                    </div>
-                    <div class="col-12 d-flex flex-wrap gap-3">
-                        <div class="form-check">
-                            <input id="cliente-credito-abierto" class="form-check-input" type="checkbox" @bind="_edicion.Abierto" />
-                            <label class="form-check-label" for="cliente-credito-abierto">Crédito abierto</label>
-                        </div>
-                        <div class="form-check">
-                            <input id="cliente-empresa" class="form-check-input" type="checkbox" @bind="_edicion.Empresa" />
-                            <label class="form-check-label" for="cliente-empresa">Empresa</label>
-                        </div>
-                        <div class="form-check">
-                            <input id="cliente-mag" class="form-check-input" type="checkbox" @bind="_edicion.Mag" />
-                            <label class="form-check-label" for="cliente-mag">MAG</label>
-                        </div>
-                    </div>
+                </nav>
 
-                    <div class="col-12"><hr class="my-1" /><h3 class="h6 mb-0">Datos de facturación por sucursal</h3></div>
-                    <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Sucursal" @bind-Valor="_datosSucursalEdicion.Sucursal" /></div>
-                    <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Nombre comercial" @bind-Valor="_datosSucursalEdicion.NombreComercial" /></div>
-                    <div class="col-12 col-md-2"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_datosSucursalEdicion.Telefono" /></div>
-                    <div class="col-12 col-md-2"><AppCampoTexto Etiqueta="Correo" @bind-Valor="_datosSucursalEdicion.Email" /></div>
-                    <div class="col-12 col-md-2 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarDatosSucursal">Agregar</button></div>
-                    <div class="col-12"><AppCampoTexto Etiqueta="Contacto" @bind-Valor="_datosSucursalEdicion.Contacto" /></div>
-                    @if (_edicion.DatosSucursal is { Count: > 0 })
-                    {
-                        <div class="col-12 table-responsive">
-                            <table class="table table-sm mb-0">
-                                <thead><tr><th>Sucursal</th><th>Nombre comercial</th><th>Contacto</th><th></th></tr></thead>
-                                <tbody>
-                                    @foreach (var dato in _edicion.DatosSucursal)
-                                    {
-                                        <tr><td>@dato.Sucursal</td><td>@dato.NombreComercial</td><td>@dato.Contacto</td>
-                                            <td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _edicion.DatosSucursal.Remove(dato)">Quitar</button></td></tr>
-                                    }
-                                </tbody>
-                            </table>
+                @if (_pestanaEdicion == "generales")
+                {
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre" @bind-Valor="_edicion.Nombre" /></div>
+                        <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Cédula" @bind-Valor="_edicion.Cedula" Deshabilitado="@(!_esNuevo)" /></div>
+                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono01" /></div>
+                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono alterno" @bind-Valor="_edicion.Telefono02" /></div>
+                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Correo cuentas por cobrar" @bind-Valor="_edicion.EMail" /></div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cliente-provincia">Provincia</label>
+                            <select id="cliente-provincia" class="form-select" value="@_edicion.IdProvincia" @onchange="AlCambiarProvincia">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var provincia in _provincias) { <option value="@provincia.Id">@provincia.Nombre</option> }
+                            </select>
                         </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cliente-canton">Cantón</label>
+                            <select id="cliente-canton" class="form-select" value="@_edicion.IdCanton" @onchange="AlCambiarCanton" disabled="@(_edicion.IdProvincia <= 0)">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var canton in _cantones) { <option value="@canton.Id">@canton.Nombre</option> }
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cliente-distrito">Distrito</label>
+                            <select id="cliente-distrito" class="form-select" @bind="_edicion.IdDistrito" disabled="@(_edicion.IdCanton <= 0)">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var distrito in _distritos) { <option value="@distrito.Id">@distrito.Nombre</option> }
+                            </select>
+                        </div>
+                        <div class="col-12"><AppCampoTexto Etiqueta="Dirección" @bind-Valor="_edicion.Direccion" /></div>
+                        <div class="col-12"><AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" /></div>
+                        <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo de facturación electrónica" @bind-Valor="_edicion.CorreoComprobante" /></div>
+                        <div class="col-12 col-md-6 d-flex align-items-end gap-4">
+                            <div class="form-check"><input id="cliente-sucursales" class="form-check-input" type="checkbox" checked="@_variasSucursales" @onchange="AlCambiarSucursales" /><label class="form-check-label" for="cliente-sucursales">Varias sucursales</label></div>
+                            <div class="form-check"><input id="cliente-recibo" class="form-check-input" type="checkbox" @bind="_edicion.EnviarRecibo" /><label class="form-check-label" for="cliente-recibo">Enviar recibo al correo</label></div>
+                        </div>
+                        @if (!_variasSucursales) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre fantasía" @bind-Valor="_edicion.NombreFantasia" /></div> }
+                        @if (_edicion.EnviarRecibo) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo para recibos" @bind-Valor="_edicion.CorreoRecibo" /></div> }
+                        @if (!Sesion.EsCostaPets)
+                        {
+                            <div class="col-12 d-flex flex-wrap gap-4 border-top pt-3">
+                                <div class="form-check"><input id="cliente-empresa-general" class="form-check-input" type="checkbox" @bind="_edicion.Empresa" /><label class="form-check-label" for="cliente-empresa-general">Empresa</label></div>
+                                <div class="form-check"><input id="cliente-mag" class="form-check-input" type="checkbox" @bind="_edicion.Mag" /><label class="form-check-label" for="cliente-mag">Registrado en MAG</label></div>
+                                <div class="form-check"><input id="cliente-actualizado" class="form-check-input" type="checkbox" @bind="_edicion.Actualizado" /><label class="form-check-label" for="cliente-actualizado">Actualizado</label></div>
+                                <div class="form-check"><input id="cliente-fallecido" class="form-check-input" type="checkbox" @bind="_edicion.Fallecido" /><label class="form-check-label" for="cliente-fallecido">Fallecido</label></div>
+                            </div>
+                        }
+                    </div>
+                }
+                else if (_pestanaEdicion == "credito")
+                {
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4"><div class="form-check mt-md-4"><input id="cliente-credito-abierto" class="form-check-input" type="checkbox" @bind="_edicion.Abierto" /><label class="form-check-label" for="cliente-credito-abierto">¿Activar crédito?</label></div></div>
+                        <div class="col-12 col-md-4"><label class="form-label" for="cliente-plazo">Plazo de crédito (días)</label><input id="cliente-plazo" type="number" min="0" max="365" class="form-control" @bind="_edicion.PlazoCredito" /></div>
+                        <div class="col-12 col-md-4"><label class="form-label" for="cliente-credito">Límite de crédito</label><input id="cliente-credito" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.MaxCredito" /></div>
+                        <div class="col-12 col-md-4"><label class="form-label" for="cliente-descuento">Límite descuento (%)</label><input id="cliente-descuento" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.Descuento" /></div>
+                        @if (!Sesion.EsCostaPets)
+                        {
+                            <div class="col-12 col-md-4"><label class="form-label" for="cliente-descuento-especial">Descuento especial (%)</label><input id="cliente-descuento-especial" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.DescuentoEspecial" /></div>
+                            <div class="col-12 d-flex flex-wrap gap-4"><div class="form-check"><input id="cliente-sin-restriccion" class="form-check-input" type="checkbox" @bind="_edicion.Sinrestriccion" /><label class="form-check-label" for="cliente-sin-restriccion">Permitir venta sin restricción</label></div><div class="form-check"><input id="cliente-moroso" class="form-check-input" type="checkbox" @bind="_edicion.ClienteMoroso" /><label class="form-check-label text-danger" for="cliente-moroso">Cliente moroso</label></div><div class="form-check"><input id="cliente-orden" class="form-check-input" type="checkbox" @bind="_edicion.OrdenCompra" /><label class="form-check-label" for="cliente-orden">Obligar orden de compra</label></div></div>
+                        }
+                    </div>
+                }
+                else if (_pestanaEdicion == "carta")
+                {
+                    <p class="text-secondary small">La carta se administra por separado para conservar su vigencia y trazabilidad.</p>
+                    @if (_cargandoCarta) { <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando carta</span></div> }
+                    else if (_carta is null) { <button type="button" class="btn btn-outline-primary" @onclick="NuevaCarta">Agregar carta de exoneración</button> }
+                    else { <p class="mb-2"><strong>@_carta.NumeroDocumento</strong> · vence @_carta.FechaVence.ToString("dd/MM/yyyy")</p><button type="button" class="btn btn-outline-primary" @onclick="EditarCarta">Editar carta</button> }
+                }
+                else if (_pestanaEdicion == "adjuntos")
+                {
+                    <InputFile class="form-control" OnChange="AgregarAdjunto" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp" />
+                    <p class="form-text">PDF, Word o imágenes; máximo 10 MB por archivo.</p>
+                    @if (_adjuntos.Count == 0 && _adjuntosNuevos.Count == 0) { <p class="text-secondary small">No hay adjuntos.</p> }
+                    else { <ul class="list-group list-group-flush small">@foreach (var adjunto in _adjuntos) { <li class="list-group-item px-0 d-flex justify-content-between"><span>@adjunto.Extencion</span><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarAdjunto(adjunto)">Eliminar</button></li> } @foreach (var adjunto in _adjuntosNuevos) { <li class="list-group-item px-0 d-flex justify-content-between"><span>@adjunto.Extencion <span class="text-secondary">(pendiente)</span></span><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _adjuntosNuevos.Remove(adjunto)">Quitar</button></li> }</ul> }
+                    @if (_adjuntosNuevos.Count > 0)
+                    {
+                        @if (_esNuevo)
+                        {
+                            <p class="alert alert-info small mt-3 mb-0"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>Los documentos se guardarán al crear el cliente.</p>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-outline-primary mt-3" @onclick="GuardarAdjuntos" disabled="@_guardandoAdjuntos">@(_guardandoAdjuntos ? "Guardando..." : "Guardar adjuntos")</button>
+                        }
                     }
-                </div>
+                }
+                else if (_pestanaEdicion == "facturacion")
+                {
+                    <div class="row g-3"><div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Sucursal" @bind-Valor="_datosSucursalEdicion.Sucursal" /></div><div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Nombre comercial" @bind-Valor="_datosSucursalEdicion.NombreComercial" /></div><div class="col-12 col-md-2"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_datosSucursalEdicion.Telefono" /></div><div class="col-12 col-md-2"><AppCampoTexto Etiqueta="Correo" @bind-Valor="_datosSucursalEdicion.Email" /></div><div class="col-12 col-md-2 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarDatosSucursal">Agregar</button></div><div class="col-12"><AppCampoTexto Etiqueta="Contacto" @bind-Valor="_datosSucursalEdicion.Contacto" /></div></div>
+                    @if (_edicion.DatosSucursal is { Count: > 0 }) { <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Sucursal</th><th>Nombre comercial</th><th>Contacto</th><th></th></tr></thead><tbody>@foreach (var dato in _edicion.DatosSucursal) { <tr><td>@dato.Sucursal</td><td>@dato.NombreComercial</td><td>@dato.Contacto</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _edicion.DatosSucursal.Remove(dato)">Quitar</button></td></tr> }</tbody></table></div> }
+                }
             </EditForm>
         }
     </BodyTemplate>
@@ -416,6 +453,11 @@
     private bool _cartaEsNueva;
     private bool _guardandoCarta;
     private ClienteDatosSucursalDTO _datosSucursalEdicion = new();
+    private List<ProvinciaDTO> _provincias = new();
+    private List<CantonDTO> _cantones = new();
+    private List<DistritoDTO> _distritos = new();
+    private string _pestanaEdicion = "generales";
+    private bool _variasSucursales;
 
     private CancellationTokenSource? _pendiente;
 
@@ -484,6 +526,7 @@
     private async Task Agregar()
     {
         _esNuevo = true;
+        _elegido = null;
         _edicion = new ClienteDTO
         {
             Cedula = string.Empty,
@@ -495,19 +538,142 @@
             Estado = true
         };
         _datosSucursalEdicion = new ClienteDatosSucursalDTO();
+        _adjuntos = new List<ClienteAdjuntoDTO>();
+        _adjuntosNuevos = new List<ClienteAdjuntoDTO>();
+        _cargandoAdjuntos = false;
+        _pestanaEdicion = "generales";
+        _variasSucursales = false;
+        _cantones = new List<CantonDTO>();
+        _distritos = new List<DistritoDTO>();
+        await CargarProvincias();
         await _modal.ShowAsync();
     }
 
     private async Task Editar(FiltranClienteDTO cliente)
     {
         _esNuevo = false;
+        _elegido = cliente;
         _edicion = ACliente(cliente);
         _edicion.DatosSucursal = (await Respuestas.DatoAsync(
             await Api.DatosSucursal(cliente.Identificacion), "consultar los datos de facturación"))?.ToList()
             ?? new List<ClienteDatosSucursalDTO>();
         _datosSucursalEdicion = new ClienteDatosSucursalDTO();
+        _variasSucursales = _edicion.DatosSucursal.Count > 0;
+        _pestanaEdicion = "generales";
+        _adjuntos = new List<ClienteAdjuntoDTO>();
+        _adjuntosNuevos = new List<ClienteAdjuntoDTO>();
+        _carta = null;
+        _cargandoCarta = !Sesion.EsCostaPets;
+        await CargarProvincias();
+        if (_edicion.IdProvincia > 0)
+        {
+            await CargarCantones(_edicion.IdProvincia);
+        }
+        else
+        {
+            _cantones = new List<CantonDTO>();
+        }
+        if (_edicion.IdCanton > 0)
+        {
+            await CargarDistritos(_edicion.IdCanton);
+        }
+        else
+        {
+            _distritos = new List<DistritoDTO>();
+        }
+        if (Sesion.EsCostaPets)
+        {
+            _cargandoAdjuntos = true;
+            await CargarAdjuntos(cliente.Identificacion);
+        }
+        else
+        {
+            await CargarCarta(cliente.Cedula);
+        }
         await _modal.ShowAsync();
     }
+
+    private string ClasePestana(string pestana)
+        => _pestanaEdicion == pestana ? "btn-primary" : "btn-outline-primary";
+
+    private string ClaseGenerales => ClasePestana("generales");
+    private string ClaseCredito => ClasePestana("credito");
+    private string ClaseCarta => ClasePestana("carta");
+    private string ClaseAdjuntos => ClasePestana("adjuntos");
+    private string ClaseFacturacion => ClasePestana("facturacion");
+    private void AbrirGenerales() => _pestanaEdicion = "generales";
+    private void AbrirCredito() => _pestanaEdicion = "credito";
+    private void AbrirCarta() => _pestanaEdicion = "carta";
+    private void AbrirAdjuntos() => _pestanaEdicion = "adjuntos";
+    private void AbrirFacturacion() => _pestanaEdicion = "facturacion";
+
+    private async Task CargarProvincias()
+    {
+        _provincias = (await Respuestas.DatoAsync(await Geografia.Provincias(), "consultar las provincias"))
+            ?.OrderBy(p => p.Nombre).ToList() ?? new List<ProvinciaDTO>();
+    }
+
+    private async Task CargarCantones(int provincia)
+    {
+        _cantones = (await Respuestas.DatoAsync(await Geografia.Cantones(provincia), "consultar los cantones"))
+            ?.OrderBy(c => c.Nombre).ToList() ?? new List<CantonDTO>();
+    }
+
+    private async Task CargarDistritos(int canton)
+    {
+        _distritos = (await Respuestas.DatoAsync(await Geografia.Distritos(canton), "consultar los distritos"))
+            ?.OrderBy(d => d.Nombre).ToList() ?? new List<DistritoDTO>();
+    }
+
+    private async Task AlCambiarProvincia(ChangeEventArgs evento)
+    {
+        if (_edicion is null)
+        {
+            return;
+        }
+
+        _edicion.IdProvincia = IdSeleccionado(evento);
+        _edicion.IdCanton = 0;
+        _edicion.IdDistrito = 0;
+        _distritos = new List<DistritoDTO>();
+        if (_edicion.IdProvincia <= 0)
+        {
+            _cantones = new List<CantonDTO>();
+            return;
+        }
+        await CargarCantones(_edicion.IdProvincia);
+    }
+
+    private async Task AlCambiarCanton(ChangeEventArgs evento)
+    {
+        if (_edicion is null)
+        {
+            return;
+        }
+
+        _edicion.IdCanton = IdSeleccionado(evento);
+        _edicion.IdDistrito = 0;
+        if (_edicion.IdCanton <= 0)
+        {
+            _distritos = new List<DistritoDTO>();
+            return;
+        }
+        await CargarDistritos(_edicion.IdCanton);
+    }
+
+    private void AlCambiarSucursales(ChangeEventArgs evento)
+    {
+        _variasSucursales = evento.Value is bool marcado
+                            ? marcado
+                            : string.Equals(evento.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        if (!_variasSucursales && _pestanaEdicion == "facturacion")
+        {
+            _pestanaEdicion = "generales";
+        }
+    }
+
+    private static int IdSeleccionado(ChangeEventArgs evento)
+        => int.TryParse(evento.Value?.ToString(), out var id) ? id : 0;
 
     private async Task Guardar()
     {
@@ -525,6 +691,13 @@
             return;
         }
 
+        if (_variasSucursales && (_edicion.DatosSucursal?.Count ?? 0) == 0)
+        {
+            _pestanaEdicion = "facturacion";
+            await Dialogos.ErrorAsync("Agregue al menos una sucursal para sus datos de facturación.");
+            return;
+        }
+
         var confirmar = await Dialogos.ConfirmarAsync(
             _esNuevo ? "Se registrará el nuevo cliente." : "Se actualizarán los datos del cliente.");
         if (!confirmar)
@@ -532,14 +705,35 @@
             return;
         }
 
+        var eraNuevo = _esNuevo;
         _guardando = true;
-        var respuesta = _esNuevo ? await Api.Crear(_edicion) : await Api.Editar(_edicion);
+        var respuesta = eraNuevo ? await Api.Crear(_edicion) : await Api.Editar(_edicion);
         _guardando = false;
 
-        if (await Respuestas.CorrectaAsync(respuesta, _esNuevo ? "crear el cliente" : "editar el cliente"))
+        if (await Respuestas.CorrectaAsync(respuesta, eraNuevo ? "crear el cliente" : "editar el cliente"))
         {
+            if (eraNuevo && _adjuntosNuevos.Count > 0)
+            {
+                var idCliente = respuesta.Responses?.Identificacion ?? 0;
+                if (idCliente <= 0)
+                {
+                    await Dialogos.ErrorAsync("El cliente fue creado, pero la API no devolvió su identificador para guardar los documentos. Ábralo en edición para cargarlos.");
+                    await _modal.HideAsync();
+                    await RefrescarResultados();
+                    return;
+                }
+
+                _edicion.Identificacion = idCliente;
+                _esNuevo = false;
+                if (!await PersistirAdjuntos(idCliente, recargar: false))
+                {
+                    await Dialogos.ErrorAsync("El cliente fue creado, pero no se pudieron guardar todos los documentos. Puede reintentarlo desde esta pestaña.");
+                    return;
+                }
+            }
+
             await _modal.HideAsync();
-            Dialogos.Exito(_esNuevo ? "Cliente creado." : "Cliente actualizado.");
+            Dialogos.Exito(eraNuevo ? "Cliente creado." : "Cliente actualizado.");
             await RefrescarResultados();
         }
     }
@@ -643,10 +837,7 @@
 
     private async Task AgregarAdjunto(InputFileChangeEventArgs evento)
     {
-        if (_elegido is null)
-        {
-            return;
-        }
+        var idCliente = IdClienteActual;
 
         var archivo = evento.File;
         const long maximo = 10 * 1024 * 1024;
@@ -667,7 +858,7 @@
 
         _adjuntosNuevos.Add(new ClienteAdjuntoDTO
         {
-            IdCliente = _elegido.Identificacion,
+            IdCliente = idCliente,
             Archivo = contenido,
             Tipo = extension.TrimStart('.'),
             Extencion = archivo.Name
@@ -676,7 +867,8 @@
 
     private async Task GuardarAdjuntos()
     {
-        if (_elegido is null || _adjuntosNuevos.Count == 0 || _guardandoAdjuntos)
+        var idCliente = IdClienteActual;
+        if (idCliente <= 0 || _adjuntosNuevos.Count == 0 || _guardandoAdjuntos)
         {
             return;
         }
@@ -686,22 +878,45 @@
             return;
         }
 
+        if (await PersistirAdjuntos(idCliente, recargar: true))
+        {
+            Dialogos.Exito("Adjuntos guardados.");
+        }
+    }
+
+    private async Task<bool> PersistirAdjuntos(long idCliente, bool recargar)
+    {
+        if (idCliente <= 0 || _adjuntosNuevos.Count == 0 || _guardandoAdjuntos)
+        {
+            return false;
+        }
+
+        foreach (var adjunto in _adjuntosNuevos)
+        {
+            adjunto.IdCliente = idCliente;
+        }
+
         _guardandoAdjuntos = true;
         var respuesta = await Api.GuardarAdjuntos(_adjuntosNuevos);
         _guardandoAdjuntos = false;
 
-        if (await Respuestas.CorrectaAsync(respuesta, "guardar los adjuntos"))
+        if (!await Respuestas.CorrectaAsync(respuesta, "guardar los adjuntos"))
         {
-            Dialogos.Exito("Adjuntos guardados.");
-            _adjuntosNuevos = new List<ClienteAdjuntoDTO>();
-            _cargandoAdjuntos = true;
-            await CargarAdjuntos(_elegido.Identificacion);
+            return false;
         }
+
+        _adjuntosNuevos = new List<ClienteAdjuntoDTO>();
+        if (recargar)
+        {
+            _cargandoAdjuntos = true;
+            await CargarAdjuntos(idCliente);
+        }
+        return true;
     }
 
     private async Task EliminarAdjunto(ClienteAdjuntoDTO adjunto)
     {
-        if (_elegido is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea eliminar este adjunto?"))
+        if (IdClienteActual <= 0 || !await Dialogos.ConfirmarPeligroAsync("¿Desea eliminar este adjunto?"))
         {
             return;
         }
@@ -731,7 +946,8 @@
 
     private async Task NuevaCarta()
     {
-        if (_elegido?.Cedula is null)
+        var cedula = CedulaActual;
+        if (string.IsNullOrWhiteSpace(cedula))
         {
             return;
         }
@@ -739,7 +955,7 @@
         _cartaEsNueva = true;
         _cartaEdicion = new CartaExoneracionDTO
         {
-            Cedula = _elegido.Cedula,
+            Cedula = cedula,
             FechaEmision = DateTime.Today,
             FechaVence = DateTime.Today.AddYears(1),
             Estado = true,
@@ -805,4 +1021,10 @@
             Dialogos.Exito("Carta de exoneración guardada.");
         }
     }
+
+    private long IdClienteActual => _edicion?.Identificacion > 0
+        ? _edicion.Identificacion
+        : _elegido?.Identificacion ?? 0;
+
+    private string? CedulaActual => _edicion?.Cedula ?? _elegido?.Cedula;
 }

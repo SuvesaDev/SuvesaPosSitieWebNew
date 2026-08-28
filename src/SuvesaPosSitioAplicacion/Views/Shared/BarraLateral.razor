@@ -5,6 +5,7 @@
 @inject IContextoSesion Sesion
 @inject IEstadoEspacioTrabajo Espacio
 @inject NavigationManager Navegacion
+@inject IJSRuntime JS
 
 @* Menu lateral. A diferencia del sistema actual, que solo filtra por permisos en la
    variante CostaPets, aqui se filtra siempre: una pantalla que el rol no puede ver
@@ -16,10 +17,10 @@
         <span>Menu principal</span>
     </div>
 
-    <ul class="seepos-lista-menu nav flex-column flex-grow-1 overflow-auto px-2 pb-2 mb-0">
+    <ul class="seepos-lista-menu nav flex-column flex-grow-1 px-2 pb-2 mb-0">
         @foreach (var raiz in FiltroMenu.Visibles(MenuSeePos.Items, Sesion))
         {
-            <li class="nav-item" title="@(Compacto ? raiz.Titulo : null)">
+            <li id="@IdRaiz(raiz)" class="nav-item" title="@(Compacto ? raiz.Titulo : null)">
                 @if (raiz.EsGrupo)
                 {
                     <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 @(ContieneRutaActiva(raiz) ? "seepos-menu-activo" : "")"
@@ -32,7 +33,7 @@
 
                     @if (!Compacto && Abierto(raiz.Titulo))
                     {
-                        <ul class="nav flex-column ms-3 border-start ps-2">
+                        <ul class="seepos-menu-nivel nav flex-column border-start">
                             @foreach (var hijo in FiltroMenu.Visibles(raiz.Hijos, Sesion))
                             {
                                 <RamaMenu Item="hijo" AlAbrir="Abrir" RutaActual="@RutaActual" />
@@ -70,6 +71,7 @@
     [Parameter, EditorRequired] public string IconoAlternar { get; set; } = default!;
 
     private readonly HashSet<string> _abiertos = new(StringComparer.OrdinalIgnoreCase);
+    private string? _idPendienteDeMostrar;
 
     private string RutaActual => Navegacion.ToBaseRelativePath(Navegacion.Uri).Trim('/');
 
@@ -91,6 +93,10 @@
         if (!_abiertos.Add(item.Titulo))
         {
             _abiertos.Remove(item.Titulo);
+        }
+        else
+        {
+            _idPendienteDeMostrar = IdRaiz(item);
         }
     }
 
@@ -116,6 +122,23 @@
 
     private static string IconoDe(ItemMenu item)
         => item.Icono ?? (item.Titulo == "Consignación" ? "bi-arrow-left-right" : "bi-circle");
+
+    private static string IdRaiz(ItemMenu item)
+        => $"seepos-menu-raiz-{item.Titulo.ToLowerInvariant().Replace(' ', '-') }";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_idPendienteDeMostrar is null)
+        {
+            return;
+        }
+
+        var id = _idPendienteDeMostrar;
+        _idPendienteDeMostrar = null;
+        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+        await modulo.InvokeVoidAsync("desplazarMenuAVista", id);
+        await modulo.DisposeAsync();
+    }
 
     private void AlCambiarUbicacion(object? sender, LocationChangedEventArgs args)
         => InvokeAsync(StateHasChanged);

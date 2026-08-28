@@ -1,10 +1,11 @@
 @* Rama del menu lateral. Se llama a si misma para los niveles 3 y 4. *@
+@inject IJSRuntime JS
 
-<li class="nav-item">
+<li @ref="_elemento" class="nav-item seepos-menu-rama">
     @if (Item.EsGrupo)
     {
-        <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 small @(ContieneRutaActiva(Item) ? "seepos-menu-activo" : "")"
-                @onclick="() => _abierto = !_abierto"
+        <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 @(ContieneRutaActiva(Item) ? "seepos-menu-activo" : "")"
+                @onclick="Alternar"
                 aria-expanded="@(_abierto ? "true" : "false")">
             <span class="flex-grow-1">@Item.Titulo</span>
             <i class="bi @(_abierto ? "bi-chevron-up" : "bi-chevron-down") small" aria-hidden="true"></i>
@@ -12,7 +13,7 @@
 
         @if (_abierto)
         {
-            <ul class="nav flex-column ms-3 border-start ps-2">
+            <ul class="seepos-menu-nivel nav flex-column border-start">
                 @foreach (var hijo in Item.Hijos)
                 {
                     <RamaMenu Item="hijo" AlAbrir="AlAbrir" RutaActual="@RutaActual" />
@@ -22,7 +23,7 @@
     }
     else
     {
-        <button class="btn btn-link nav-link text-start w-100 px-2 small @(EstaActiva(Item) ? "seepos-menu-activo" : "")"
+        <button class="btn btn-link nav-link text-start w-100 px-2 @(EstaActiva(Item) ? "seepos-menu-activo" : "")"
                 @onclick="() => AlAbrir.InvokeAsync(Item)">
             @Item.Titulo
         </button>
@@ -40,6 +41,14 @@
     public string RutaActual { get; set; } = default!;
 
     private bool _abierto;
+    private bool _debeMostrar;
+    private ElementReference _elemento;
+
+    private void Alternar()
+    {
+        _abierto = !_abierto;
+        _debeMostrar = _abierto;
+    }
 
     private bool EstaActiva(ItemMenu item)
         => item.Ruta is not null
@@ -48,4 +57,17 @@
 
     private bool ContieneRutaActiva(ItemMenu item)
         => EstaActiva(item) || item.Hijos.Any(ContieneRutaActiva);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_debeMostrar)
+        {
+            return;
+        }
+
+        _debeMostrar = false;
+        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+        await modulo.InvokeVoidAsync("desplazarMenuAVista", _elemento);
+        await modulo.DisposeAsync();
+    }
 }

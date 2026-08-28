@@ -17,6 +17,10 @@ public interface IInventarioConsulta
     /// <summary>Lotes de un articulo, con su vencimiento y existencia.</summary>
     Task<ResponseGeneric<ICollection<StockLoteDTO>>> Lotes(long idArticulo);
 
+    Task<ResponseGeneric<StockLoteDTO>> CrearLote(StockLoteDTO lote);
+
+    Task<ResponseGeneric<bool>> EliminarLote(long idLote);
+
     Task<ResponseGeneric<InventarioDTO>> Uno(long codigo);
 
     Task<ResponseGeneric<InventarioDTO>> Crear(InventarioDTO articulo);

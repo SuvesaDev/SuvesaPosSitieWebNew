@@ -16,6 +16,8 @@ public sealed class SesionFija : IContextoSesion
     public bool Autenticado => !string.IsNullOrWhiteSpace(Token);
     public string? Usuario => "pruebas";
     public bool EsAdministrador => true;
+    public bool EsCostaPets => false;
+    public bool EsAgenteCostaPets => false;
     public int IdSucursal => 0;
     public string? NombreSucursal => null;
     public bool TieneSucursal => false;

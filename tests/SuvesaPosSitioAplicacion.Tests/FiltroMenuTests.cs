@@ -24,6 +24,8 @@ public class FiltroMenuTests
         public string? Token => "falso";
         public string? Usuario => "prueba";
         public bool EsAdministrador { get; }
+        public bool EsCostaPets => false;
+        public bool EsAgenteCostaPets => false;
         public int IdSucursal => 1;
         public string? NombreSucursal => "Central";
         public bool TieneSucursal => true;

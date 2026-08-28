@@ -151,3 +151,226 @@
 .modal-backdrop.show {
     opacity: .5;
 }
+
+/* ---------- Clientes ----------
+   La consulta y el editor son flujos densos. Esta capa presenta la informacion
+   como una herramienta de trabajo, no como un formulario generico. */
+
+.seepos-clientes {
+    max-width: 100rem;
+}
+
+.seepos-clientes-busqueda {
+    position: relative;
+    padding: 1.1rem;
+    overflow: hidden;
+    background: linear-gradient(110deg, color-mix(in srgb, var(--seepos-gris-fondo) 92%, white), var(--bs-body-bg));
+    border: 1px solid var(--bs-border-color);
+    border-radius: 1rem;
+    box-shadow: 0 .35rem 1.15rem rgba(62, 47, 35, .06);
+}
+
+.seepos-clientes-busqueda::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 9rem;
+    height: .22rem;
+    content: "";
+    background: linear-gradient(90deg, var(--seepos-verde), var(--seepos-naranja));
+    border-radius: 0 1rem 0 1rem;
+}
+
+.seepos-clientes-busqueda .input-group-text {
+    color: var(--seepos-verde-accion);
+    background: color-mix(in srgb, var(--seepos-verde) 11%, var(--bs-body-bg));
+    border-color: var(--bs-border-color);
+}
+
+.seepos-clientes-busqueda .form-control {
+    font-weight: 600;
+    letter-spacing: .01em;
+}
+
+.seepos-clientes-busqueda .form-text {
+    margin: .6rem 0 0;
+    color: var(--seepos-gris-texto);
+}
+
+.seepos-clientes-resumen {
+    display: inline-flex;
+    align-items: center;
+    margin: .2rem 0 .75rem;
+    padding: .35rem .65rem;
+    color: var(--seepos-gris-texto);
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    background: var(--seepos-gris-fondo);
+    border-radius: 99rem;
+}
+
+.seepos-clientes-tabla {
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 1rem;
+    box-shadow: 0 .35rem 1.15rem rgba(62, 47, 35, .05);
+}
+
+.seepos-clientes-tabla .card-body {
+    padding: .7rem 1rem 1rem;
+}
+
+.seepos-clientes-tabla thead th {
+    padding-top: .75rem;
+    padding-bottom: .75rem;
+    color: var(--seepos-gris-texto);
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+    background: var(--seepos-gris-fondo);
+    border-bottom-width: 1px;
+}
+
+.seepos-clientes-tabla tbody tr {
+    transition: background-color .16s ease;
+}
+
+.seepos-clientes-tabla tbody tr:hover {
+    background: color-mix(in srgb, var(--seepos-verde) 7%, transparent);
+}
+
+.seepos-clientes-tabla td {
+    padding-top: .7rem;
+    padding-bottom: .7rem;
+}
+
+.seepos-clientes-tabla td:first-child,
+.seepos-clientes-tabla td:nth-child(5) {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.seepos-clientes-tabla .btn-link {
+    padding: .22rem .42rem !important;
+    font-weight: 700;
+    text-decoration: none;
+    border-radius: .45rem;
+}
+
+.seepos-clientes-tabla .btn-link:hover {
+    background: color-mix(in srgb, var(--seepos-verde) 13%, transparent);
+}
+
+/* La presencia de este formulario identifica exclusivamente el modal de
+   Clientes, evitando que estas reglas cambien modales de otros módulos. */
+.modal:has(.seepos-cliente-editor) .modal-content {
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--seepos-tierra) 38%, var(--bs-border-color));
+    border-radius: 1.05rem;
+    box-shadow: 0 1.2rem 3.5rem rgba(42, 28, 18, .24);
+}
+
+.modal:has(.seepos-cliente-editor) .modal-header {
+    padding: 1.1rem 1.35rem;
+    color: #fff;
+    background: linear-gradient(110deg, var(--seepos-tierra-oscuro), var(--seepos-tierra));
+    border-bottom: .2rem solid var(--seepos-verde);
+}
+
+.modal:has(.seepos-cliente-editor) .modal-title {
+    font-size: 1.08rem;
+    font-weight: 800;
+}
+
+.modal:has(.seepos-cliente-editor) .btn-close {
+    filter: invert(1) grayscale(1) brightness(2);
+}
+
+.modal:has(.seepos-cliente-editor) .modal-body {
+    padding: 1.3rem;
+    background: var(--bs-body-bg);
+}
+
+.modal:has(.seepos-cliente-editor) .modal-footer {
+    padding: .9rem 1.3rem;
+    background: var(--seepos-gris-fondo);
+    border-top-color: var(--bs-border-color);
+}
+
+.seepos-cliente-editor .nav {
+    padding: .38rem;
+    background: var(--seepos-gris-fondo);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .8rem;
+}
+
+.seepos-cliente-editor .nav .btn {
+    min-height: 2.4rem;
+    padding: .42rem .75rem;
+    font-size: .78rem;
+    font-weight: 750;
+    border-radius: .55rem;
+}
+
+.seepos-cliente-editor .nav .btn-primary {
+    box-shadow: 0 .25rem .55rem color-mix(in srgb, var(--seepos-verde-accion) 28%, transparent);
+}
+
+.seepos-cliente-editor .form-label,
+.seepos-cliente-editor .app-campo-texto label {
+    margin-bottom: .35rem;
+    color: var(--seepos-gris-texto);
+    font-size: .76rem;
+    font-weight: 750;
+    letter-spacing: .02em;
+}
+
+.seepos-cliente-editor .form-control,
+.seepos-cliente-editor .form-select {
+    min-height: 2.65rem;
+    border-radius: .58rem;
+}
+
+.seepos-cliente-editor .form-control:disabled,
+.seepos-cliente-editor .form-select:disabled {
+    color: var(--seepos-gris-texto);
+    background: var(--seepos-gris-fondo);
+}
+
+.seepos-cliente-editor .form-check {
+    padding: .48rem .65rem  .48rem 2rem;
+    border-radius: .55rem;
+}
+
+.seepos-cliente-editor .form-check:has(.form-check-input:checked) {
+    background: color-mix(in srgb, var(--seepos-verde) 10%, transparent);
+}
+
+.seepos-cliente-editor .form-check-input {
+    margin-left: -1.35rem;
+}
+
+.seepos-cliente-editor .table {
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .7rem;
+}
+
+.seepos-cliente-editor .table thead th {
+    color: var(--seepos-gris-texto);
+    font-size: .72rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    background: var(--seepos-gris-fondo);
+}
+
+@media (max-width: 575.98px) {
+    .seepos-clientes-busqueda { padding: .8rem; }
+    .seepos-clientes-busqueda .input-group-lg > .form-control,
+    .seepos-clientes-busqueda .input-group-lg > .input-group-text { min-height: 2.7rem; font-size: .92rem; }
+    .modal:has(.seepos-cliente-editor) .modal-body { padding: 1rem; }
+    .seepos-cliente-editor .nav { gap: .3rem !important; }
+    .seepos-cliente-editor .nav .btn { flex: 1 1 9.5rem; }
+}

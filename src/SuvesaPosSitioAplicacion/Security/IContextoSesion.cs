@@ -18,6 +18,8 @@ public interface IContextoSesion
     string? Token { get; }
     string? Usuario { get; }
     bool EsAdministrador { get; }
+    bool EsCostaPets { get; }
+    bool EsAgenteCostaPets { get; }
 
     int IdSucursal { get; }
     string? NombreSucursal { get; }

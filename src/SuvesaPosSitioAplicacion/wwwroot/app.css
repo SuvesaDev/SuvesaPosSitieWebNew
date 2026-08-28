@@ -91,6 +91,7 @@ h1:focus {
     width: clamp(14rem, 19vw, 17rem);
     flex: 0 0 clamp(14rem, 19vw, 17rem);
     overflow: hidden;
+    min-height: 0;
     transition: flex-basis .24s ease, opacity .18s ease, transform .24s ease;
 }
 
@@ -113,10 +114,20 @@ h1:focus {
 
 .seepos-lateral {
     width: 100%;
+    min-width: 0;
     height: 100%;
     min-height: 0;
     overflow: hidden;
     background: color-mix(in srgb, var(--bs-tertiary-bg) 94%, var(--seepos-verde)) !important;
+}
+
+/* El lateral tiene tres zonas fijas: marca, lista y control. La fila central
+   recibe exactamente el alto restante; por eso puede activar scroll vertical
+   de manera fiable cuando se abren ramas largas, sin ocultar opciones detrás
+   del control inferior. */
+.seepos-lateral:not(.seepos-lateral-compacto) {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .seepos-lateral-marca {
@@ -151,8 +162,36 @@ h1:focus {
 }
 
 .seepos-lista-menu {
+    flex: 1 1 0;
     min-height: 0;
+    min-width: 0;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
     scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--seepos-tierra) 56%, transparent) transparent;
+}
+
+.seepos-lateral:not(.seepos-lateral-compacto) .seepos-lista-menu {
+    height: 100%;
+    max-height: 100%;
+}
+
+.seepos-lista-menu::-webkit-scrollbar {
+    width: .42rem;
+}
+
+.seepos-lista-menu::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--seepos-tierra) 56%, transparent);
+    border-radius: 99rem;
+}
+
+.seepos-lista-menu > .nav-item,
+.seepos-menu-nivel > .nav-item {
+    width: 100%;
+    min-width: 0;
 }
 
 .seepos-lateral .nav-link {
@@ -162,6 +201,10 @@ h1:focus {
     color: var(--bs-body-color) !important;
     text-decoration: none;
     border-radius: .55rem;
+    min-width: 0;
+    font-size: .84rem;
+    font-weight: 600;
+    line-height: 1.2;
     transition: background-color .16s ease, color .16s ease, transform .16s ease;
 }
 
@@ -169,6 +212,26 @@ h1:focus {
     background-color: rgba(88, 186, 0, .12);
     color: var(--seepos-verde-accion) !important;
     transform: translateX(.15rem);
+}
+
+.seepos-lateral .nav-link .seepos-menu-text,
+.seepos-lateral .nav-link > .flex-grow-1,
+.seepos-lateral .nav-link:not(:has(i)) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.seepos-lateral .nav-link > i:first-child {
+    flex: 0 0 1.15rem;
+    width: 1.15rem;
+    text-align: center;
+}
+
+.seepos-lateral .seepos-menu-flecha {
+    flex: 0 0 auto;
+    margin-left: auto;
 }
 
 .seepos-lateral .nav-link:focus-visible,
@@ -183,8 +246,48 @@ h1:focus {
     font-weight: 700;
 }
 
+/* En el tema oscuro el verde de acción de la marca es demasiado profundo para
+   texto sobre un fondo verde. El estado seleccionado debe leerse primero: se
+   conserva el acento de marca en el fondo y borde, con texto de alto contraste. */
+[data-bs-theme="dark"] .seepos-lateral .nav-link:hover,
+[data-bs-theme="dark"] .seepos-lateral .nav-link:focus-visible {
+    color: #f5ffeb !important;
+    background-color: rgba(88, 186, 0, .22);
+}
+
+[data-bs-theme="dark"] .seepos-lateral .nav-link.seepos-menu-activo {
+    color: #f8fff2 !important;
+    background-color: rgba(88, 186, 0, .27);
+    box-shadow: inset .22rem 0 0 #82d93b, 0 .12rem .4rem rgba(0, 0, 0, .14);
+}
+
+[data-bs-theme="dark"] .seepos-lateral .nav-link.seepos-menu-activo i {
+    color: #b9f58b;
+}
+
 .seepos-lateral .border-start {
     border-color: rgba(100, 75, 60, .28) !important;
+}
+
+/* Los subniveles consumen solo el ancho disponible. Nunca fuerzan una barra
+   horizontal; la barra vertical aparece por overflow únicamente cuando hay más
+   opciones que altura disponible. */
+.seepos-menu-nivel {
+    width: auto;
+    min-width: 0;
+    margin: .1rem 0 .15rem .72rem;
+    padding: .08rem 0 .08rem .5rem;
+}
+
+.seepos-menu-nivel .nav-link {
+    min-height: 2.28rem;
+    padding-top: .38rem;
+    padding-bottom: .38rem;
+}
+
+.seepos-menu-nivel .seepos-menu-nivel {
+    margin-left: .55rem;
+    padding-left: .45rem;
 }
 
 .seepos-lateral-control {

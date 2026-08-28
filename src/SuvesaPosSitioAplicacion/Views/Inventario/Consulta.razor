@@ -9,6 +9,8 @@
 @inject IContextoSesion Sesion
 @inject IImagenesArticulo Imagenes
 @inject IArticulosRelacionados Relacionados
+@inject IProduccionInventario Produccion
+@inject ICatalogosInventario Catalogos
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -296,6 +298,22 @@
         {
             <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formArticulo">
                 <DataAnnotationsValidator />
+                <nav class="nav nav-pills gap-2 mb-4" aria-label="Secciones del artículo">
+                    <button type="button" class="btn btn-sm @ClasePestanaGenerales" @onclick="MostrarGenerales">Datos generales</button>
+                    <button type="button" class="btn btn-sm @ClasePestanaPrecios" @onclick="MostrarPrecios">Precios</button>
+                    <button type="button" class="btn btn-sm @ClasePestanaBarras" @onclick="MostrarBarras">Códigos de barras</button>
+                    @if (Sesion.EsCostaPets && _tipoArticulo == 3)
+                    {
+                        <button type="button" class="btn btn-sm @ClasePestanaFormula" @onclick="MostrarFormula">Fórmula y conversión</button>
+                    }
+                    @if (_edicion.Lote)
+                    {
+                        <button type="button" class="btn btn-sm @ClasePestanaLotes" @onclick="MostrarLotes">Lotes</button>
+                    }
+                </nav>
+
+                @if (_pestanaInventario == "generales")
+                {
                 <div class="row g-3">
                     <div class="col-12 col-md-4">
                         <AppCampoTexto Etiqueta="Código" @bind-Valor="_edicion.Cod_Articulo" Deshabilitado="@(!_esNuevo)" />
@@ -303,8 +321,58 @@
                     <div class="col-12 col-md-8">
                         <AppCampoTexto Etiqueta="Descripción" @bind-Valor="_edicion.Descripcion" />
                     </div>
-                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Código de barras" @bind-Valor="_edicion.Barras" /></div>
-                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Ubicación" @bind-Valor="_edicion.SubUbicacion" /></div>
+                    <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Código de barras" @bind-Valor="_edicion.Barras" /></div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-presentacion">Tipo de presentación</label>
+                        <select id="articulo-presentacion" class="form-select" @bind="_edicion.CodPresentacion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var presentacion in _presentaciones)
+                            {
+                                <option value="@presentacion.CodPres">@presentacion.Presentaciones</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4"><label class="form-label" for="articulo-cantidad-presentacion">Cantidad</label><input id="articulo-cantidad-presentacion" type="number" min="0" step="0.001" class="form-control" @bind="_edicion.PresentaCant" /></div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-familia">Familia</label>
+                        <select id="articulo-familia" class="form-select" @bind="_edicion.SubFamilia">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var familia in _familias)
+                            {
+                                <option value="@familia.Codigo">@familia.Descripcion</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-proveedor">Proveedor</label>
+                        <select id="articulo-proveedor" class="form-select" @bind="_edicion.Proveedor">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var proveedor in _proveedoresInventario)
+                            {
+                                <option value="@proveedor.Codigo">@proveedor.Descripcion</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-cabys">Código CABYS</label>
+                        <div class="input-group"><input id="articulo-cabys" class="form-control" @bind="_edicion.Codcabys" /><button type="button" class="btn btn-outline-primary" @onclick="AbrirCabys"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Buscar CABYS</span></button></div>
+                    </div>
+                    @if (!Sesion.EsCostaPets)
+                    {
+                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Ubicación" @bind-Valor="_edicion.SubUbicacion" /></div>
+                    }
+                    @if (Sesion.EsCostaPets)
+                    {
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="articulo-tipo">Tipo de artículo</label>
+                            <select id="articulo-tipo" class="form-select" @bind="_tipoArticulo" @bind:after="AlCambiarTipoArticulo">
+                                <option value="1">Normal</option>
+                                <option value="2">Materia prima</option>
+                                <option value="3">Producto terminado</option>
+                            </select>
+                            <div class="form-text">La fórmula y conversión aplican a productos terminados.</div>
+                        </div>
+                    }
                     <div class="col-12 col-md-4">
                         <label class="form-label" for="articulo-minima">Existencia mínima</label>
                         <input id="articulo-minima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Minima" @bind:event="onchange" />
@@ -312,22 +380,6 @@
                     <div class="col-12 col-md-4">
                         <label class="form-label" for="articulo-maxima">Existencia máxima</label>
                         <input id="articulo-maxima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Maxima" @bind:event="onchange" />
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label" for="articulo-impuesto">Impuesto (%)</label>
-                        <input id="articulo-impuesto" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.IVenta" @bind:event="onchange" />
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label" for="articulo-precio-a">Precio A</label>
-                        <input id="articulo-precio-a" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Precio_A" @bind:event="onchange" />
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label" for="articulo-precio-b">Precio B</label>
-                        <input id="articulo-precio-b" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Precio_B" @bind:event="onchange" />
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label" for="articulo-precio-c">Precio C</label>
-                        <input id="articulo-precio-c" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Precio_C" @bind:event="onchange" />
                     </div>
                     <div class="col-12">
                         <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" />
@@ -338,7 +390,7 @@
                             <label class="form-check-label" for="articulo-servicio">Servicio</label>
                         </div>
                         <div class="form-check">
-                            <input id="articulo-lote" class="form-check-input" type="checkbox" @bind="_edicion.Lote" />
+                            <input id="articulo-lote" class="form-check-input" type="checkbox" @bind="_edicion.Lote" @bind:after="AlCambiarLotes" />
                             <label class="form-check-label" for="articulo-lote">Maneja lotes</label>
                         </div>
                         <div class="form-check">
@@ -347,28 +399,116 @@
                         </div>
                     </div>
 
-                    <div class="col-12"><hr class="my-1" /><h3 class="h6 mb-0">Códigos de barras alternos</h3></div>
-                    <div class="col-12 col-md-7"><AppCampoTexto Etiqueta="Código de barras" @bind-Valor="_nuevoCodigoBarras" /></div>
-                    <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Tarifa" @bind-Valor="_tarifaCodigoBarras" /></div>
-                    <div class="col-12 col-md-2 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarCodigoBarras">Agregar</button></div>
-                    @if (_edicion.CodigoBarras is { Count: > 0 })
+                </div>
+                }
+                else if (_pestanaInventario == "precios")
+                {
+                    <div class="row g-3">
+                        <div class="col-12"><p class="text-secondary mb-0">Calcule el precio de venta a partir del costo y la utilidad. El cálculo usa la regla CostaPets cuando corresponde.</p></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Precio base</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.PrecioBase" /></div>
+                        @if (!Sesion.EsCostaPets)
+                        {
+                            <div class="col-12 col-md-4"><label class="form-label">Fletes</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Fletes" /></div>
+                            <div class="col-12 col-md-4"><label class="form-label">Otros cargos</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.OtrosCargos" /></div>
+                        }
+                        <div class="col-12 col-md-4"><label class="form-label">Impuesto (%)</label><input type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.IVenta" /></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Tarifa</label><select class="form-select" @bind="_tarifaPrecio"><option value="A">Precio A</option><option value="B">Precio B</option><option value="C">Precio C</option><option value="D">Precio D</option><option value="P">Promoción</option></select></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Utilidad (%)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_utilidadPrecio" /></div>
+                        <div class="col-12 col-md-4 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="CalcularPrecio">Calcular precio</button></div>
+                        <div class="col-12 col-md-6"><label class="form-label">Precio sin impuesto</label><input type="number" min="0" step="0.01" class="form-control" @bind="PrecioTarifaActual" /></div>
+                        <div class="col-12 col-md-6"><label class="form-label">Precio con impuesto</label><input type="text" readonly class="form-control" value="@PrecioConImpuestoTexto" /></div>
+                    </div>
+                }
+                else if (_pestanaInventario == "barras")
+                {
+                    <div class="row g-3">
+                        <div class="col-12"><h3 class="h6 mb-0">Códigos de barras alternos</h3></div>
+                        <div class="col-12 col-md-7"><AppCampoTexto Etiqueta="Código de barras" @bind-Valor="_nuevoCodigoBarras" /></div>
+                        <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Tarifa" @bind-Valor="_tarifaCodigoBarras" /></div>
+                        <div class="col-12 col-md-2 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarCodigoBarras">Agregar</button></div>
+                        @if (_edicion.CodigoBarras is { Count: > 0 })
+                        {
+                            <div class="col-12 table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead><tr><th>Código</th><th>Tarifa</th><th></th></tr></thead>
+                                    <tbody>
+                                        @foreach (var codigo in _edicion.CodigoBarras)
+                                        {
+                                            <tr><td><code>@codigo.Descripcion</code></td><td>@codigo.Tarifa</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarCodigoBarras(codigo)">Quitar</button></td></tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                }
+                else if (_pestanaInventario == "formula")
+                {
+                    @if (_esNuevo)
                     {
-                        <div class="col-12 table-responsive">
-                            <table class="table table-sm mb-0">
-                                <thead><tr><th>Código</th><th>Tarifa</th><th></th></tr></thead>
-                                <tbody>
-                                    @foreach (var codigo in _edicion.CodigoBarras)
-                                    {
-                                        <tr>
-                                            <td><code>@codigo.Descripcion</code></td><td>@codigo.Tarifa</td>
-                                            <td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarCodigoBarras(codigo)">Quitar</button></td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
+                        <div class="alert alert-info mb-0">Guarde primero el producto terminado. Después podrá definir su fórmula y convertir existencias.</div>
+                    }
+                    else
+                    {
+                    <div class="row g-3">
+                        <div class="col-12"><h3 class="h6 mb-0">Fórmula de producción</h3><p class="form-text">Agregue los insumos del producto terminado. La conversión descuenta los lotes seleccionados.</p></div>
+                        <div class="col-12 col-md-5"><label class="form-label">Código del insumo</label><input type="number" min="1" class="form-control" @bind="_codigoFormula" /></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Cantidad por unidad</label><input type="number" min="0.0001" step="0.0001" class="form-control" @bind="_cantidadFormula" /></div>
+                        <div class="col-12 col-md-3 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarFormula">Agregar insumo</button></div>
+                        @if (_formula.Count == 0)
+                        {
+                            <div class="col-12"><div class="alert alert-light border mb-0">Aún no hay insumos en la fórmula.</div></div>
+                        }
+                        else
+                        {
+                            <div class="col-12 table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Insumo</th><th class="text-end">Cantidad</th><th></th></tr></thead><tbody>@foreach (var item in _formula) { <tr><td><strong>@item.CodArticulo</strong><br /><span class="small text-secondary">@item.Descripcion</span></td><td class="text-end">@item.Cantidad</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarFormula(item)">Quitar</button></td></tr> }</tbody></table></div>
+                        }
+
+                        <div class="col-12"><hr /><h3 class="h6 mb-0">Lotes que se consumirán</h3><p class="form-text">Debe seleccionar al menos un lote para cada insumo de la fórmula antes de calcular.</p></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Insumo</label><select class="form-select" @bind="_articuloLoteFormula" @bind:after="CargarLotesFormula"><option value="0">Seleccione...</option>@foreach (var item in _formula) { <option value="@item.Codigo">@item.CodArticulo — @item.Descripcion</option> }</select></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Lote</label><select class="form-select" @bind="_loteFormula"><option value="0">Seleccione...</option>@foreach (var lote in _lotesFormula) { <option value="@lote.Id">@lote.Lote (@lote.Cantidad:N2)</option> }</select></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Bodega</label><select class="form-select" @bind="_bodegaFormula"><option value="0">Seleccione...</option>@foreach (var bodega in _bodegas) { <option value="@bodega.IdBodega">@bodega.NombreBodega</option> }</select></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Cantidad del lote</label><input type="number" min="1" step="1" class="form-control" @bind="_cantidadLoteFormula" /></div>
+                        <div class="col-12 col-md-4 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarLoteFormula">Agregar lote</button></div>
+                        @if (_seleccionLotesFormula.Count > 0)
+                        {
+                            <div class="col-12 table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Insumo</th><th>Lote</th><th>Bodega</th><th class="text-end">Disponible</th><th class="text-end">A consumir</th><th></th></tr></thead><tbody>@foreach (var lote in _seleccionLotesFormula) { <tr><td>@lote.Articulo</td><td>@lote.Lote</td><td>@lote.Bodega</td><td class="text-end">@lote.Disponible:N2</td><td class="text-end">@lote.Cantidad</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _seleccionLotesFormula.Remove(lote)">Quitar</button></td></tr> }</tbody></table></div>
+                        }
+                        <div class="col-12 col-md-6 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="CalcularProduccion">Calcular producción disponible</button></div>
+                        @if (_produccionDisponible is not null)
+                        {
+                            <div class="col-12"><div class="alert alert-info mb-0">Con los lotes seleccionados puede producir <strong>@_produccionDisponible</strong> unidades.</div></div>
+                            <div class="col-12 col-md-6"><label class="form-label">Unidades por convertir</label><input type="number" min="1" max="@_produccionDisponible" class="form-control" @bind="_cantidadConvertir" /></div>
+                            <div class="col-12 col-md-6 d-grid align-self-end"><button type="button" class="btn btn-primary" @onclick="ConvertirProduccion">Convertir inventario</button></div>
+                        }
+                    </div>
+                    }
+                }
+                else if (_pestanaInventario == "lotes")
+                {
+                    @if (_esNuevo)
+                    {
+                        <div class="alert alert-info mb-0">Guarde primero el artículo. La pestaña ya quedó activada para que pueda registrar sus lotes al editarlo.</div>
+                    }
+                    else
+                    {
+                        <div class="row g-3">
+                            <div class="col-12"><h3 class="h6 mb-0">Lotes del artículo</h3><p class="form-text">Cada lote controla su vencimiento y existencia inicial.</p></div>
+                            <div class="col-12 col-md-4"><label class="form-label">Número de lote</label><input class="form-control" @bind="_nuevoLote" /></div>
+                            <div class="col-12 col-md-4"><label class="form-label">Vencimiento</label><input type="date" class="form-control" @bind="_vencimientoLote" /></div>
+                            <div class="col-12 col-md-4"><label class="form-label">Existencia inicial</label><input type="number" min="0" step="0.001" class="form-control" @bind="_cantidadNuevoLote" /></div>
+                            <div class="col-12 d-flex"><button type="button" class="btn btn-outline-primary" @onclick="AgregarLote">Agregar lote</button></div>
+                            @if (_lotesEdicion.Count == 0)
+                            {
+                                <div class="col-12"><div class="alert alert-light border mb-0">No hay lotes registrados.</div></div>
+                            }
+                            else
+                            {
+                                <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Lote</th><th>Vencimiento</th><th class="text-end">Existencia</th><th></th></tr></thead><tbody>@foreach (var lote in _lotesEdicion) { <tr><td>@lote.Lote</td><td>@lote.Vencimiento.ToString("dd/MM/yyyy")</td><td class="text-end">@lote.Cantidad:N2</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarLote(lote)">Quitar</button></td></tr> }</tbody></table></div>
+                            }
                         </div>
                     }
-                </div>
+                }
             </EditForm>
         }
     </BodyTemplate>
@@ -380,6 +520,32 @@
     </FooterTemplate>
 </HxModal>
 
+<HxModal @ref="_modalCabys" Title="Buscar código CABYS" Size="ModalSize.Large">
+    <BodyTemplate>
+        <div class="input-group mb-3">
+            <input class="form-control" placeholder="Escriba código o descripción" @bind="_textoCabys" @bind:event="oninput" @onkeydown="BuscarCabysConEnter" />
+            <button type="button" class="btn btn-primary" @onclick="BuscarCabys">Buscar</button>
+        </div>
+        @if (_buscandoCabys)
+        {
+            <div class="text-center py-3"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Buscando</span></div></div>
+        }
+        else if (_busquedaCabysHecha && _resultadosCabys.Count == 0)
+        {
+            <div class="alert alert-light border mb-0">No hay coincidencias para la búsqueda indicada.</div>
+        }
+        else if (_resultadosCabys.Count > 0)
+        {
+            <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th></th></tr></thead><tbody>@foreach (var cabys in _resultadosCabys) { <tr><td><code>@cabys.Codigo</code></td><td>@cabys.Descripcion</td><td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => ElegirCabys(cabys)">Seleccionar</button></td></tr> }</tbody></table></div>
+        }
+        else
+        {
+            <p class="text-secondary mb-0">Busque por código o una palabra de la descripción fiscal.</p>
+        }
+    </BodyTemplate>
+    <FooterTemplate><button type="button" class="btn btn-outline-secondary" @onclick="() => _modalCabys.HideAsync()">Cerrar</button></FooterTemplate>
+</HxModal>
+
 @code {
     private const string Titulo = "Inventarios";
 
@@ -389,6 +555,7 @@
     private AppRejilla<InventarioDTO>? _rejilla;
     private HxOffcanvas _detalle = default!;
     private HxModal _modal = default!;
+    private HxModal _modalCabys = default!;
 
     private string _texto = string.Empty;
     private List<InventarioDTO> _resultados = new();
@@ -404,6 +571,33 @@
     private float _cantidadRelacionada = 1;
     private string _nuevoCodigoBarras = string.Empty;
     private string _tarifaCodigoBarras = string.Empty;
+    private string _pestanaInventario = "generales";
+    private string _tarifaPrecio = "A";
+    private float _utilidadPrecio;
+    private int _tipoArticulo = 1;
+    private List<Bodega> _bodegas = new();
+    private List<ArticulosRelacionadosDTO> _formula = new();
+    private int _codigoFormula;
+    private float _cantidadFormula = 1;
+    private int _articuloLoteFormula;
+    private long _loteFormula;
+    private int _bodegaFormula;
+    private int _cantidadLoteFormula = 1;
+    private int _cantidadConvertir;
+    private List<StockLoteDTO> _lotesFormula = new();
+    private List<LoteFormulaSeleccionado> _seleccionLotesFormula = new();
+    private int? _produccionDisponible;
+    private List<StockLoteDTO> _lotesEdicion = new();
+    private string _nuevoLote = string.Empty;
+    private DateTime _vencimientoLote = DateTime.Today;
+    private double _cantidadNuevoLote;
+    private List<SubFamiliasFilterInventarioDTO> _familias = new();
+    private List<ProveedoresFilterInventarioDTO> _proveedoresInventario = new();
+    private List<Presentacione> _presentaciones = new();
+    private string _textoCabys = string.Empty;
+    private List<CabysArticulos> _resultadosCabys = new();
+    private bool _buscandoCabys;
+    private bool _busquedaCabysHecha;
 
     private List<StockLoteDTO> _lotes = new();
     private bool _cargandoLotes;
@@ -490,6 +684,8 @@
     private async Task Agregar()
     {
         _esNuevo = true;
+        ReiniciarEditorProduccion();
+        await CargarCatalogosInventario();
         _edicion = new InventarioDTO
         {
             Cod_Articulo = string.Empty,
@@ -509,6 +705,17 @@
         _edicion = Copiar(completo ?? articulo);
         _nuevoCodigoBarras = string.Empty;
         _tarifaCodigoBarras = string.Empty;
+        ReiniciarEditorProduccion();
+        await CargarCatalogosInventario();
+        _tipoArticulo = _edicion.EsPadre == true ? 2 : 1;
+        if (Sesion.EsCostaPets)
+        {
+            await CargarProduccion();
+        }
+        if (_edicion.Lote)
+        {
+            await CargarLotesEdicion();
+        }
         await _modal.ShowAsync();
     }
 
@@ -569,6 +776,330 @@
 
     private static InventarioDTO Copiar(InventarioDTO articulo)
         => JsonSerializer.Deserialize<InventarioDTO>(JsonSerializer.Serialize(articulo))!;
+
+    private string ClasePestanaGenerales => ClasePestana("generales");
+    private string ClasePestanaPrecios => ClasePestana("precios");
+    private string ClasePestanaBarras => ClasePestana("barras");
+    private string ClasePestanaFormula => ClasePestana("formula");
+    private string ClasePestanaLotes => ClasePestana("lotes");
+
+    private string ClasePestana(string pestana)
+        => _pestanaInventario == pestana ? "btn-primary" : "btn-outline-primary";
+
+    private void MostrarGenerales() => _pestanaInventario = "generales";
+    private void MostrarPrecios() => _pestanaInventario = "precios";
+    private void MostrarBarras() => _pestanaInventario = "barras";
+    private void MostrarFormula() => _pestanaInventario = "formula";
+    private void MostrarLotes() => _pestanaInventario = "lotes";
+
+    private float PrecioTarifaActual
+    {
+        get => _edicion is null ? 0 : _tarifaPrecio switch
+        {
+            "B" => _edicion.Precio_B,
+            "C" => _edicion.Precio_C,
+            "D" => _edicion.Precio_D,
+            "P" => _edicion.Precio_Promo,
+            _ => _edicion.Precio_A
+        };
+        set
+        {
+            if (_edicion is null) return;
+            switch (_tarifaPrecio)
+            {
+                case "B": _edicion.Precio_B = value; break;
+                case "C": _edicion.Precio_C = value; break;
+                case "D": _edicion.Precio_D = value; break;
+                case "P": _edicion.Precio_Promo = value; break;
+                default: _edicion.Precio_A = value; break;
+            }
+        }
+    }
+
+    private decimal PrecioConImpuesto
+        => Math.Round((decimal)PrecioTarifaActual * (1 + (decimal)(_edicion?.IVenta ?? 0) / 100), 2);
+
+    private string PrecioConImpuestoTexto => PrecioConImpuesto.ToString("N2");
+
+    /// <summary>Replica el cálculo de utilidad del inventario anterior sin usar float para operar.</summary>
+    private async Task CalcularPrecio()
+    {
+        if (_edicion is null) return;
+        var basePrecio = (decimal)_edicion.PrecioBase;
+        var utilidad = (decimal)_utilidadPrecio / 100;
+        if (Sesion.EsCostaPets && utilidad >= 1)
+        {
+            await Dialogos.ErrorAsync("La utilidad debe ser menor al 100 % para calcular el precio CostaPets.");
+            return;
+        }
+        var precio = Sesion.EsCostaPets
+            ? basePrecio / (1 - utilidad)
+            : basePrecio * (1 + utilidad) + (decimal)_edicion.Fletes + (decimal)_edicion.OtrosCargos;
+        PrecioTarifaActual = (float)Math.Round(precio, 2);
+    }
+
+    private void ReiniciarEditorProduccion()
+    {
+        _pestanaInventario = "generales";
+        _tarifaPrecio = "A";
+        _utilidadPrecio = 0;
+        _tipoArticulo = 1;
+        _formula = new();
+        _bodegas = new();
+        _codigoFormula = 0;
+        _cantidadFormula = 1;
+        _articuloLoteFormula = 0;
+        _loteFormula = 0;
+        _bodegaFormula = 0;
+        _cantidadLoteFormula = 1;
+        _cantidadConvertir = 0;
+        _lotesFormula = new();
+        _seleccionLotesFormula = new();
+        _produccionDisponible = null;
+        _lotesEdicion = new();
+        _nuevoLote = string.Empty;
+        _vencimientoLote = DateTime.Today;
+        _cantidadNuevoLote = 0;
+    }
+
+    private async Task CargarProduccion()
+    {
+        if (_edicion is null || _esNuevo || !Sesion.EsCostaPets) return;
+        _bodegas = (await Respuestas.DatoAsync(await Produccion.Bodegas(true), "consultar las bodegas"))?.ToList() ?? new();
+        _formula = (await Respuestas.DatoAsync(await Produccion.Formula(_edicion.Codigo), "consultar la fórmula"))?.ToList() ?? new();
+        // En el sistema anterior una fórmula existente identifica un producto terminado.
+        if (_formula.Count > 0) _tipoArticulo = 3;
+    }
+
+    /// <summary>Los selectores usan las proyecciones de inventario, no los catálogos administrativos genéricos.</summary>
+    private async Task CargarCatalogosInventario()
+    {
+        _familias = (await Respuestas.DatoAsync(await Catalogos.Familias(), "consultar las familias de inventario"))?.ToList() ?? new();
+        _proveedoresInventario = (await Respuestas.DatoAsync(await Catalogos.Proveedores(), "consultar los proveedores de inventario"))?.ToList() ?? new();
+        _presentaciones = (await Respuestas.DatoAsync(await Catalogos.Presentaciones(), "consultar las presentaciones"))?.Where(x => x.Estado).ToList() ?? new();
+    }
+
+    private async Task AbrirCabys()
+    {
+        _textoCabys = _edicion?.Codcabys ?? string.Empty;
+        _resultadosCabys = new();
+        _busquedaCabysHecha = false;
+        await _modalCabys.ShowAsync();
+    }
+
+    private async Task BuscarCabys()
+    {
+        if (string.IsNullOrWhiteSpace(_textoCabys))
+        {
+            await Dialogos.ErrorAsync("Indique un código o descripción para buscar CABYS.");
+            return;
+        }
+        _buscandoCabys = true;
+        _busquedaCabysHecha = true;
+        _resultadosCabys = (await Respuestas.DatoAsync(await Catalogos.BuscarCabys(_textoCabys), "buscar códigos CABYS"))?.ToList() ?? new();
+        _buscandoCabys = false;
+    }
+
+    private async Task BuscarCabysConEnter(KeyboardEventArgs evento)
+    {
+        if (evento.Key == "Enter")
+        {
+            await BuscarCabys();
+        }
+    }
+
+    private async Task ElegirCabys(CabysArticulos cabys)
+    {
+        if (_edicion is null) return;
+        _edicion.Codcabys = cabys.Codigo;
+        await _modalCabys.HideAsync();
+    }
+
+    private Task AlCambiarTipoArticulo()
+    {
+        if (_edicion is not null) _edicion.EsPadre = _tipoArticulo == 2;
+        if (_tipoArticulo != 3 && _pestanaInventario == "formula") _pestanaInventario = "generales";
+        return Task.CompletedTask;
+    }
+
+    private async Task AlCambiarLotes()
+    {
+        if (_edicion?.Lote != true && _pestanaInventario == "lotes")
+        {
+            _pestanaInventario = "generales";
+            return;
+        }
+        if (_edicion?.Lote == true && !_esNuevo && _lotesEdicion.Count == 0)
+        {
+            await CargarLotesEdicion();
+        }
+    }
+
+    private async Task CargarLotesEdicion()
+    {
+        if (_edicion is null || _esNuevo) return;
+        _lotesEdicion = (await Respuestas.DatoAsync(await Api.Lotes(_edicion.Codigo), "consultar los lotes del artículo"))?.OrderBy(x => x.Vencimiento).ToList() ?? new();
+    }
+
+    private async Task AgregarLote()
+    {
+        if (_edicion is null || _esNuevo || string.IsNullOrWhiteSpace(_nuevoLote) || _cantidadNuevoLote < 0)
+        {
+            await Dialogos.ErrorAsync("Indique un número de lote y una existencia válida.");
+            return;
+        }
+        if (_lotesEdicion.Any(x => string.Equals(x.Lote, _nuevoLote.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            await Dialogos.ErrorAsync("Ese número de lote ya está registrado para el artículo.");
+            return;
+        }
+        var lote = new StockLoteDTO
+        {
+            IdArticulo = _edicion.Codigo,
+            Lote = _nuevoLote.Trim(),
+            Vencimiento = _vencimientoLote,
+            Cantidad = _cantidadNuevoLote,
+            Activo = true
+        };
+        if (await Respuestas.CorrectaAsync(await Api.CrearLote(lote), "crear el lote"))
+        {
+            await CargarLotesEdicion();
+            _nuevoLote = string.Empty;
+            _vencimientoLote = DateTime.Today;
+            _cantidadNuevoLote = 0;
+            Dialogos.Exito("Lote agregado.");
+        }
+    }
+
+    private async Task EliminarLote(StockLoteDTO lote)
+    {
+        if (lote.Id <= 0 || !await Dialogos.ConfirmarPeligroAsync($"¿Desea quitar el lote {lote.Lote}?")) return;
+        if (await Respuestas.CorrectaAsync(await Api.EliminarLote(lote.Id), "quitar el lote"))
+        {
+            _lotesEdicion.Remove(lote);
+            Dialogos.Exito("Lote quitado.");
+        }
+    }
+
+    private async Task AgregarFormula()
+    {
+        if (_edicion is null || _codigoFormula <= 0 || _cantidadFormula <= 0)
+        {
+            await Dialogos.ErrorAsync("Indique un código y una cantidad válida para el insumo.");
+            return;
+        }
+        if (_codigoFormula == _edicion.Codigo || _formula.Any(x => x.Codigo == _codigoFormula))
+        {
+            await Dialogos.ErrorAsync("El insumo ya está en la fórmula o corresponde al producto terminado.");
+            return;
+        }
+        var insumo = await Respuestas.DatoAsync(await Api.Uno(_codigoFormula), "consultar el insumo");
+        if (insumo is null)
+        {
+            await Dialogos.ErrorAsync("No existe un artículo con ese código.");
+            return;
+        }
+        if (await Respuestas.CorrectaAsync(await Produccion.GuardarFormula(_edicion.Codigo, _codigoFormula, _cantidadFormula, true), "agregar el insumo a la fórmula"))
+        {
+            _formula = (await Respuestas.DatoAsync(await Produccion.Formula(_edicion.Codigo), "actualizar la fórmula"))?.ToList() ?? new();
+            _codigoFormula = 0;
+            _cantidadFormula = 1;
+            _produccionDisponible = null;
+            Dialogos.Exito("Insumo agregado a la fórmula.");
+        }
+    }
+
+    private async Task QuitarFormula(ArticulosRelacionadosDTO item)
+    {
+        if (_edicion is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea quitar este insumo de la fórmula?")) return;
+        if (await Respuestas.CorrectaAsync(await Produccion.GuardarFormula(_edicion.Codigo, item.Codigo, item.Cantidad, false), "quitar el insumo de la fórmula"))
+        {
+            _formula.Remove(item);
+            _seleccionLotesFormula.RemoveAll(lote => lote.IdArticulo == item.Codigo);
+            _produccionDisponible = null;
+            Dialogos.Exito("Insumo quitado de la fórmula.");
+        }
+    }
+
+    private async Task CargarLotesFormula()
+    {
+        _loteFormula = 0;
+        _lotesFormula = _articuloLoteFormula <= 0
+            ? new()
+            : (await Respuestas.DatoAsync(await Api.Lotes(_articuloLoteFormula), "consultar los lotes del insumo"))?.Where(x => x.Activo != false).ToList() ?? new();
+    }
+
+    private async Task AgregarLoteFormula()
+    {
+        var lote = _lotesFormula.FirstOrDefault(x => x.Id == _loteFormula);
+        var insumo = _formula.FirstOrDefault(x => x.Codigo == _articuloLoteFormula);
+        var bodega = _bodegas.FirstOrDefault(x => x.IdBodega == _bodegaFormula);
+        if (lote is null || insumo is null || bodega is null || _cantidadLoteFormula <= 0)
+        {
+            await Dialogos.ErrorAsync("Seleccione el insumo, lote, bodega y una cantidad válida.");
+            return;
+        }
+        if (_cantidadLoteFormula > lote.Cantidad)
+        {
+            await Dialogos.ErrorAsync("La cantidad a consumir no puede exceder la disponibilidad del lote.");
+            return;
+        }
+        if (_seleccionLotesFormula.Any(x => x.IdArticulo == insumo.Codigo && x.IdLote == lote.Id))
+        {
+            await Dialogos.ErrorAsync("Ese lote ya fue agregado para este insumo.");
+            return;
+        }
+        _seleccionLotesFormula.Add(new LoteFormulaSeleccionado(insumo.Codigo, lote.Id, bodega.IdBodega, insumo.Descripcion ?? insumo.CodArticulo ?? "Insumo", lote.Lote ?? "Sin lote", bodega.NombreBodega ?? "Bodega", lote.Cantidad, _cantidadLoteFormula));
+        _loteFormula = 0;
+        _cantidadLoteFormula = 1;
+        _produccionDisponible = null;
+    }
+
+    private bool FormulaCompleta()
+        => _formula.Count > 0 && _formula.All(item => _seleccionLotesFormula.Any(lote => lote.IdArticulo == item.Codigo));
+
+    private CalculadoraDTO SolicitudProduccion(bool convertir, int cantidad)
+        => new()
+        {
+            IdArticuloPrincipal = _edicion!.Codigo,
+            ConvertirCantidad = convertir,
+            CantidadConvertir = cantidad,
+            ListaDeLotes = _seleccionLotesFormula.Select(lote => new LotesCalcularDTO
+            {
+                IdArticulo = lote.IdArticulo,
+                IdLote = lote.IdLote,
+                IdBodega = lote.IdBodega,
+                CantidadLote = lote.Cantidad
+            }).ToList()
+        };
+
+    private async Task CalcularProduccion()
+    {
+        if (!FormulaCompleta())
+        {
+            await Dialogos.ErrorAsync("Seleccione al menos un lote para cada insumo de la fórmula.");
+            return;
+        }
+        _produccionDisponible = await Respuestas.DatoAsync(await Produccion.Calcular(SolicitudProduccion(false, 0)), "calcular la producción disponible");
+        if (_produccionDisponible is 0) await Dialogos.ErrorAsync("Los lotes seleccionados no permiten producir unidades completas.");
+    }
+
+    private async Task ConvertirProduccion()
+    {
+        if (_produccionDisponible is null || _cantidadConvertir <= 0 || _cantidadConvertir > _produccionDisponible)
+        {
+            await Dialogos.ErrorAsync("Indique una cantidad mayor que cero y no superior a la producción disponible.");
+            return;
+        }
+        if (!await Dialogos.ConfirmarPeligroAsync($"Se convertirán {_cantidadConvertir} unidades y se descontarán los lotes seleccionados. ¿Desea continuar?")) return;
+        if (await Respuestas.CorrectaAsync(await Produccion.Calcular(SolicitudProduccion(true, _cantidadConvertir)), "convertir la producción"))
+        {
+            _seleccionLotesFormula.Clear();
+            _produccionDisponible = null;
+            _cantidadConvertir = 0;
+            Dialogos.Exito("Conversión registrada correctamente.");
+        }
+    }
 
     private async Task AgregarCodigoBarras()
     {
@@ -637,6 +1168,17 @@
         if (_imagen is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea eliminar la imagen del artículo?")) return;
         if (await Respuestas.CorrectaAsync(await Imagenes.Eliminar(_imagen.IdImagenArticulo), "eliminar la imagen")) { _imagen = null; Dialogos.Exito("Imagen eliminada."); }
     }
+
+    /// <summary>Lote elegido temporalmente para una conversión; no se guarda hasta confirmar.</summary>
+    private sealed record LoteFormulaSeleccionado(
+        long IdArticulo,
+        long IdLote,
+        int IdBodega,
+        string Articulo,
+        string Lote,
+        string Bodega,
+        double Disponible,
+        int Cantidad);
 
     private async Task AgregarRelacionado() { if (_elegido is null || _codigoRelacionado is not > 0 || _cantidadRelacionada <= 0) { await Dialogos.ErrorAsync("Indique un código y cantidad válidos."); return; } if (await Respuestas.CorrectaAsync(await Relacionados.Guardar(_elegido.Codigo, _codigoRelacionado.Value, _cantidadRelacionada, true), "agregar el artículo relacionado")) { _relacionados = (await Respuestas.DatoAsync(await Relacionados.Buscar(_elegido.Codigo), "consultar los artículos relacionados"))?.ToList() ?? new(); _codigoRelacionado = null; _cantidadRelacionada = 1; Dialogos.Exito("Artículo relacionado agregado."); } }
     private async Task QuitarRelacionado(ArticulosRelacionadosDTO relacionado) { if (_elegido is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea quitar este artículo relacionado?")) return; if (await Respuestas.CorrectaAsync(await Relacionados.Guardar(_elegido.Codigo, relacionado.Codigo, relacionado.Cantidad, false), "quitar el artículo relacionado")) { _relacionados.Remove(relacionado); Dialogos.Exito("Artículo relacionado quitado."); } }

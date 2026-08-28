@@ -32,6 +32,20 @@ public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar los lotes del articulo");
 
+    public Task<ResponseGeneric<StockLoteDTO>> CrearLote(StockLoteDTO lote)
+        => Ejecutar(async () =>
+        {
+            var r = await _lotes.InsertLoteAsync(lote);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "crear un lote de inventario");
+
+    public Task<ResponseGeneric<bool>> EliminarLote(long idLote)
+        => Ejecutar(async () =>
+        {
+            var r = await _lotes.DesactivateLoteAsync(idLote);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "desactivar un lote de inventario");
+
     public Task<ResponseGeneric<InventarioDTO>> Uno(long codigo)
         => Ejecutar(async () =>
         {

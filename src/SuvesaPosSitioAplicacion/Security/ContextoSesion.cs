@@ -37,6 +37,8 @@ public sealed class ContextoSesion : IContextoSesion
     public string? Token => Claim(ClaimsSeePos.Token);
     public string? Usuario => _usuario?.Identity?.Name;
     public bool EsAdministrador => Claim(ClaimsSeePos.Administrador) == bool.TrueString;
+    public bool EsCostaPets => Claim(ClaimsSeePos.CostaPets) == bool.TrueString;
+    public bool EsAgenteCostaPets => Claim(ClaimsSeePos.AgenteCostaPets) == bool.TrueString;
 
     public int IdSucursal => int.TryParse(Claim(ClaimsSeePos.IdSucursal), out var id) ? id : 0;
     public string? NombreSucursal => Claim(ClaimsSeePos.NombreSucursal);
