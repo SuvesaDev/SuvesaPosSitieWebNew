@@ -105,6 +105,7 @@ ClienteApi<IUsuarioApiCliente, UsuarioApiCliente>();
 ClienteApi<ICentrosApiCliente, CentrosApiCliente>();
 ClienteApi<IBancosApiCliente, BancosApiCliente>();
 ClienteApi<IInventarioApiCliente, InventarioApiCliente>();
+ClienteApi<IOrdenCompraApiCliente, OrdenCompraApiCliente>();
 ClienteApi<ICotizacionApiCliente, CotizacionApiCliente>();
 ClienteApi<IAbonoPagarApiCliente, AbonoPagarApiCliente>();
 ClienteApi<IClienteApiCliente, ClienteApiCliente>();
@@ -130,6 +131,7 @@ builder.Services.AddReverseProxy()
 builder.Services.AddScoped<ISeguridad, Seguridad>();
 builder.Services.AddScoped<IBancos, Bancos>();
 builder.Services.AddScoped<IInventarioConsulta, InventarioConsulta>();
+builder.Services.AddScoped<IOrdenesCompraConsulta, OrdenesCompraConsulta>();
 builder.Services.AddScoped<ICotizaciones, Cotizaciones>();
 builder.Services.AddScoped<ICuentasPorPagar, CuentasPorPagar>();
 builder.Services.AddScoped<IClientesConsulta, ClientesConsulta>();

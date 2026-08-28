@@ -37,4 +37,11 @@ public sealed class Albaranes : ProxyBase, IAlbaranes
             var r = await _api.ObtenerAlbaranAsync(id);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar el albaran");
+
+    public Task<ResponseGeneric<ICollection<EstadoAlbaranesDTO>>> Estados()
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ObtenerEstadosAlbaranesAsync();
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar los estados de albaranes");
 }

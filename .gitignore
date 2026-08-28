@@ -150,6 +150,13 @@ ipch/
 # Visual Studio Trace Files
 *.e2e
 
+# La extension anterior tambien coincide con el nombre del proyecto E2E.
+# Sus fuentes forman parte de la suite y deben poder versionarse.
+!tests/SuvesaPosSitioAplicacion.E2E/
+!tests/SuvesaPosSitioAplicacion.E2E/**
+tests/SuvesaPosSitioAplicacion.E2E/bin/
+tests/SuvesaPosSitioAplicacion.E2E/obj/
+
 # TFS 2012 Local Workspace
 $tf/
 

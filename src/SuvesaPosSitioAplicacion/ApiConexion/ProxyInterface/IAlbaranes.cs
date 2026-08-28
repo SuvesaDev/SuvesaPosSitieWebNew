@@ -11,4 +11,7 @@ public interface IAlbaranes
     Task<ResponseGeneric<ICollection<VentaDTO>>> Todos();
 
     Task<ResponseGeneric<VentaDTO>> Uno(long id);
+
+    /// <summary>Catalogo de estados que Qvet publica para los albaranes.</summary>
+    Task<ResponseGeneric<ICollection<EstadoAlbaranesDTO>>> Estados();
 }

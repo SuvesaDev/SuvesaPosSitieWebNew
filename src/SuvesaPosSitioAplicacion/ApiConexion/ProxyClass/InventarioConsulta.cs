@@ -64,4 +64,19 @@ public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, $"buscar en el inventario con {limpio}");
     }
+
+    public async Task<ResponseGeneric<ICollection<InventarioDTO>>> BuscarMag(string texto)
+    {
+        var resultado = await Buscar(texto);
+
+        if (!resultado.EsCorrecta)
+        {
+            return resultado;
+        }
+
+        return new ResponseGeneric<ICollection<InventarioDTO>>(
+            (resultado.Responses ?? Array.Empty<InventarioDTO>())
+                .Where(articulo => articulo.Mag)
+                .ToList());
+    }
 }

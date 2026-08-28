@@ -1,0 +1,125 @@
+@page "/moduloInventario"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IAlbaranes Albaranes
+@inject IInventarioConsulta Inventario
+@inject IManejadorRespuestas Respuestas
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar" aria-label="Actualizar módulo">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
+
+    <ChildContent>
+        <div class="row g-3">
+            <div class="col-12 col-lg-6">
+                <section class="card h-100">
+                    <div class="card-body">
+                        <h2 class="h5">Estados de albaranes</h2>
+                        <p class="text-secondary small">Catálogo de estados publicado por Qvet para el seguimiento de albaranes.</p>
+
+                        @if (!_estadosCargados)
+                        {
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando</span></div>
+                        }
+                        else if (_estados.Count == 0)
+                        {
+                            <p class="text-secondary small mb-0">No hay estados disponibles.</p>
+                        }
+                        else
+                        {
+                            <ul class="list-group list-group-flush">
+                                @foreach (var estado in _estados.OrderBy(e => e.IdEstado))
+                                {
+                                    <li class="list-group-item px-0">
+                                        <span class="fw-semibold">@estado.Nombre</span>
+                                        @if (!string.IsNullOrWhiteSpace(estado.Descripcion))
+                                        {
+                                            <span class="d-block text-secondary small">@estado.Descripcion</span>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </section>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <section class="card h-100">
+                    <div class="card-body">
+                        <h2 class="h5">Consulta por código</h2>
+                        <p class="text-secondary small">Admite el valor capturado por un lector QR o de barras; esta Ola solo consulta, no altera existencias.</p>
+                        <div class="input-group mb-3">
+                            <input type="search" class="form-control" aria-label="Código QR o de barras"
+                                   placeholder="Código QR o de barras..." @bind="_codigo" @bind:event="onchange" />
+                            <button class="btn btn-primary" @onclick="BuscarArticulo">Consultar</button>
+                        </div>
+
+                        @if (_consultaHecha && _articulos.Count == 0)
+                        {
+                            <p class="text-secondary small mb-0">No se encontró un artículo para ese código.</p>
+                        }
+                        else if (_articulos.Count > 0)
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead><tr><th>Código</th><th>Descripción</th><th class="seepos-importe">Existencia</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var articulo in _articulos)
+                                        {
+                                            <tr>
+                                                <td><code>@articulo.Cod_Articulo</code></td>
+                                                <td>@articulo.Descripcion</td>
+                                                <td class="seepos-importe">@Formato.Cantidad(articulo.Existencia)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </section>
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Módulo Inventario";
+
+    private List<EstadoAlbaranesDTO> _estados = new();
+    private List<InventarioDTO> _articulos = new();
+    private string _codigo = string.Empty;
+    private bool _estadosCargados;
+    private bool _consultaHecha;
+
+    protected override async Task OnInitializedAsync() => await CargarEstados();
+
+    private async Task Recargar()
+    {
+        _estadosCargados = false;
+        _consultaHecha = false;
+        _articulos = new List<InventarioDTO>();
+        await CargarEstados();
+    }
+
+    private async Task CargarEstados()
+    {
+        _estados = (await Respuestas.DatoAsync(await Albaranes.Estados(), "consultar los estados de albaranes"))
+            ?.ToList() ?? new List<EstadoAlbaranesDTO>();
+        _estadosCargados = true;
+    }
+
+    private async Task BuscarArticulo()
+    {
+        _articulos = _codigo.Trim().Length < 2
+            ? new List<InventarioDTO>()
+            : (await Respuestas.DatoAsync(await Inventario.Buscar(_codigo), "consultar el artículo"))
+                ?.ToList() ?? new List<InventarioDTO>();
+        _consultaHecha = true;
+    }
+}

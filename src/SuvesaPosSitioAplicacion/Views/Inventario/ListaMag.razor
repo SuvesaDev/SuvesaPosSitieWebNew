@@ -1,0 +1,83 @@
+@page "/utilities/magitemslist"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IInventarioConsulta Api
+@inject IManejadorRespuestas Respuestas
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+    <ChildContent>
+        <div class="input-group mb-2">
+            <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+            <input type="search" class="form-control" placeholder="Código o descripción..."
+                   aria-label="Buscar artículo MAG" @bind="_texto" @bind:event="onchange" />
+            <button class="btn btn-primary" @onclick="Buscar">Buscar</button>
+        </div>
+        <p class="form-text">Escriba al menos dos caracteres. La lista solo muestra artículos marcados como MAG.</p>
+
+        @if (_buscado && _articulos.Count == 0)
+        {
+            <div class="text-center text-secondary py-5 small">No hay artículos MAG que coincidan con la búsqueda.</div>
+        }
+        else if (_articulos.Count > 0)
+        {
+            <p class="text-secondary small">@_articulos.Count artículo(s) MAG encontrado(s).</p>
+            <div class="card">
+                <div class="card-body">
+                    <AppRejilla TItem="InventarioDTO" Datos="Servir" Nivel="NivelPantalla.Tableta" @ref="_rejilla">
+                        <Columnas>
+                            <HxGridColumn TItem="InventarioDTO" HeaderText="Código"
+                                          ItemTextSelector="a => a.Cod_Articulo" SortKeySelector="a => a.Cod_Articulo" />
+                            <HxGridColumn TItem="InventarioDTO" HeaderText="Descripción"
+                                          ItemTextSelector="a => a.Descripcion" SortKeySelector="a => a.Descripcion" />
+                            <HxGridColumn TItem="InventarioDTO" HeaderText="Existencia"
+                                          ItemTextSelector="@(a => Formato.Cantidad(a.Existencia))" SortKeySelector="a => a.Existencia"
+                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                            <HxGridColumn TItem="InventarioDTO" HeaderText="Precio A"
+                                          ItemTextSelector="@(a => Formato.Importe(a.Precio_A))" SortKeySelector="a => a.Precio_A"
+                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                        </Columnas>
+                    </AppRejilla>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="text-center text-secondary py-5 small">Busque un código o una descripción para consultar artículos MAG.</div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Lista articulos MAG";
+
+    private AppRejilla<InventarioDTO>? _rejilla;
+    private string _texto = string.Empty;
+    private List<InventarioDTO> _articulos = new();
+    private bool _buscado;
+
+    private async Task Buscar()
+    {
+        if (_texto.Trim().Length < 2)
+        {
+            _articulos = new List<InventarioDTO>();
+            _buscado = false;
+        }
+        else
+        {
+            _articulos = (await Respuestas.DatoAsync(await Api.BuscarMag(_texto), "consultar los artículos MAG"))
+                ?.OrderBy(a => a.Descripcion)
+                .ToList() ?? new List<InventarioDTO>();
+            _buscado = true;
+        }
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private Task<GridDataProviderResult<InventarioDTO>> Servir(
+        GridDataProviderRequest<InventarioDTO> peticion)
+        => Task.FromResult(peticion.ApplyTo(_articulos));
+}

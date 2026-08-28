@@ -12,6 +12,9 @@ public interface IInventarioConsulta
     /// <summary>Busca por descripcion o por codigo, segun lo que se escriba.</summary>
     Task<ResponseGeneric<ICollection<InventarioDTO>>> Buscar(string texto, bool incluirInhabilitados = false);
 
+    /// <summary>Busca articulos marcados como MAG por codigo o descripcion.</summary>
+    Task<ResponseGeneric<ICollection<InventarioDTO>>> BuscarMag(string texto);
+
     /// <summary>Lotes de un articulo, con su vencimiento y existencia.</summary>
     Task<ResponseGeneric<ICollection<StockLoteDTO>>> Lotes(long idArticulo);
 }
