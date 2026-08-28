@@ -4,6 +4,9 @@
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IClientesConsulta Api
 @inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+@inject ICartasExoneracion Cartas
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -21,6 +24,14 @@
 *@
 
 <AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+    <Acciones>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Agregar">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
+            </button>
+        }
+    </Acciones>
     <ChildContent>
 
         <div class="mb-3">
@@ -101,6 +112,10 @@
                             <HxGridColumn TItem="FiltranClienteDTO" HeaderText="">
                                 <ItemTemplate Context="c">
                                     <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(c)">Ver</button>
+                                    @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                    {
+                                        <button class="btn btn-sm btn-link p-0 ms-3" @onclick="() => Editar(c)">Editar</button>
+                                    }
                                 </ItemTemplate>
                             </HxGridColumn>
                         </Columnas>
@@ -152,9 +167,227 @@
                 <hr />
                 <p class="small text-secondary mb-0">@_elegido.Observaciones</p>
             }
+
+            <div class="d-flex gap-2 border-top pt-3 mt-3">
+                @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                {
+                    <button class="btn btn-sm btn-primary" @onclick="() => Editar(_elegido)">Editar</button>
+                }
+                @if (Sesion.Puede(Titulo, AccionPantalla.Borrar))
+                {
+                    <button class="btn btn-sm @( _elegido.Anulado ? "btn-outline-success" : "btn-outline-danger")"
+                            @onclick="() => CambiarEstado(_elegido)">
+                        @(_elegido.Anulado ? "Activar" : "Desactivar")
+                    </button>
+                }
+            </div>
+
+            <hr />
+            <h3 class="h6">Carta de exoneración</h3>
+            @if (_cargandoCarta)
+            {
+                <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando carta</span></div>
+            }
+            else if (_carta is null)
+            {
+                <p class="small text-secondary mb-2">El cliente no tiene una carta de exoneración vigente.</p>
+                @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+                {
+                    <button class="btn btn-sm btn-outline-primary" @onclick="NuevaCarta">Agregar carta</button>
+                }
+            }
+            else
+            {
+                <dl class="row small mb-2">
+                    <dt class="col-6 fw-normal text-secondary">Documento</dt><dd class="col-6">@_carta.NumeroDocumento</dd>
+                    <dt class="col-6 fw-normal text-secondary">Vence</dt><dd class="col-6">@_carta.FechaVence.ToString("dd/MM/yyyy")</dd>
+                    <dt class="col-6 fw-normal text-secondary">Exoneración</dt><dd class="col-6">@_carta.PorcentajeCompra.ToString("N2")%</dd>
+                </dl>
+                @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                {
+                    <button class="btn btn-sm btn-outline-primary" @onclick="EditarCarta">Editar carta</button>
+                }
+            }
+
+            <hr />
+            <h3 class="h6">Adjuntos</h3>
+            @if (_cargandoAdjuntos)
+            {
+                <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando adjuntos</span></div>
+            }
+            else
+            {
+                <InputFile class="form-control form-control-sm" OnChange="AgregarAdjunto" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp" />
+                <p class="form-text">PDF, Word o imágenes; máximo 10 MB por archivo.</p>
+
+                @if (_adjuntos.Count == 0 && _adjuntosNuevos.Count == 0)
+                {
+                    <p class="small text-secondary mb-0">No hay adjuntos.</p>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush small">
+                        @foreach (var adjunto in _adjuntos)
+                        {
+                            <li class="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
+                                <span class="text-truncate">@adjunto.Extencion</span>
+                                @if (Sesion.Puede(Titulo, AccionPantalla.Borrar))
+                                {
+                                    <button class="btn btn-sm btn-link text-danger p-0" @onclick="() => EliminarAdjunto(adjunto)">Eliminar</button>
+                                }
+                            </li>
+                        }
+                        @foreach (var adjunto in _adjuntosNuevos)
+                        {
+                            <li class="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
+                                <span class="text-truncate">@adjunto.Extencion <span class="text-secondary">(pendiente)</span></span>
+                                <button class="btn btn-sm btn-link text-danger p-0" @onclick="() => _adjuntosNuevos.Remove(adjunto)">Quitar</button>
+                            </li>
+                        }
+                    </ul>
+                    @if (_adjuntosNuevos.Count > 0)
+                    {
+                        <button class="btn btn-sm btn-outline-primary mt-2" @onclick="GuardarAdjuntos" disabled="@_guardandoAdjuntos">@(_guardandoAdjuntos ? "Guardando..." : "Guardar adjuntos")</button>
+                    }
+                }
+            }
         }
     </BodyTemplate>
 </HxOffcanvas>
+
+<HxModal @ref="_modalCarta" Title="@(_cartaEsNueva ? "Nueva carta de exoneración" : "Editar carta de exoneración")" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_cartaEdicion is not null)
+        {
+            <EditForm Model="_cartaEdicion" OnValidSubmit="GuardarCarta" id="formCarta">
+                <DataAnnotationsValidator />
+                <div class="row g-3">
+                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Número de documento" @bind-Valor="_cartaEdicion.NumeroDocumento" /></div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="carta-tipo">Tipo de exoneración</label>
+                        <input id="carta-tipo" type="number" min="1" class="form-control" @bind="_cartaEdicion.IdTipoExoneracion" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="carta-emision">Fecha de emisión</label>
+                        <input id="carta-emision" type="date" class="form-control" @bind="_cartaEdicion.FechaEmision" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="carta-vence">Fecha de vencimiento</label>
+                        <input id="carta-vence" type="date" class="form-control" @bind="_cartaEdicion.FechaVence" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="carta-porcentaje">Porcentaje de compra</label>
+                        <input id="carta-porcentaje" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_cartaEdicion.PorcentajeCompra" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="carta-impuesto">Impuesto</label>
+                        <input id="carta-impuesto" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_cartaEdicion.Impuesto" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12"><AppCampoTexto Etiqueta="Nota" @bind-Valor="_cartaEdicion.Nota" /></div>
+                </div>
+            </EditForm>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modalCarta.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" type="submit" form="formCarta" disabled="@_guardandoCarta">@(_guardandoCarta ? "Guardando..." : "Guardar")</button>
+    </FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo cliente" : "Editar cliente")" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_edicion is not null)
+        {
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formCliente">
+                <DataAnnotationsValidator />
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <AppCampoTexto Etiqueta="Nombre" @bind-Valor="_edicion.Nombre" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <AppCampoTexto Etiqueta="Cédula" @bind-Valor="_edicion.Cedula" Deshabilitado="@(!_esNuevo)" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <AppCampoTexto Etiqueta="Correo" @bind-Valor="_edicion.EMail" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono01" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <AppCampoTexto Etiqueta="Teléfono alterno" @bind-Valor="_edicion.Telefono02" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <AppCampoTexto Etiqueta="Nombre comercial" @bind-Valor="_edicion.NombreFantasia" />
+                    </div>
+                    <div class="col-12">
+                        <AppCampoTexto Etiqueta="Dirección" @bind-Valor="_edicion.Direccion" />
+                    </div>
+                    <div class="col-12">
+                        <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="cliente-plazo">Plazo de crédito (días)</label>
+                        <input id="cliente-plazo" type="number" min="0" max="365" class="form-control"
+                               @bind="_edicion.PlazoCredito" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="cliente-credito">Límite de crédito</label>
+                        <input id="cliente-credito" type="number" min="0" step="0.01" class="form-control"
+                               @bind="_edicion.MaxCredito" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="cliente-descuento">Descuento máximo (%)</label>
+                        <input id="cliente-descuento" type="number" min="0" max="100" step="0.01" class="form-control"
+                               @bind="_edicion.Descuento" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 d-flex flex-wrap gap-3">
+                        <div class="form-check">
+                            <input id="cliente-credito-abierto" class="form-check-input" type="checkbox" @bind="_edicion.Abierto" />
+                            <label class="form-check-label" for="cliente-credito-abierto">Crédito abierto</label>
+                        </div>
+                        <div class="form-check">
+                            <input id="cliente-empresa" class="form-check-input" type="checkbox" @bind="_edicion.Empresa" />
+                            <label class="form-check-label" for="cliente-empresa">Empresa</label>
+                        </div>
+                        <div class="form-check">
+                            <input id="cliente-mag" class="form-check-input" type="checkbox" @bind="_edicion.Mag" />
+                            <label class="form-check-label" for="cliente-mag">MAG</label>
+                        </div>
+                    </div>
+
+                    <div class="col-12"><hr class="my-1" /><h3 class="h6 mb-0">Datos de facturación por sucursal</h3></div>
+                    <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Sucursal" @bind-Valor="_datosSucursalEdicion.Sucursal" /></div>
+                    <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Nombre comercial" @bind-Valor="_datosSucursalEdicion.NombreComercial" /></div>
+                    <div class="col-12 col-md-2"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_datosSucursalEdicion.Telefono" /></div>
+                    <div class="col-12 col-md-2"><AppCampoTexto Etiqueta="Correo" @bind-Valor="_datosSucursalEdicion.Email" /></div>
+                    <div class="col-12 col-md-2 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarDatosSucursal">Agregar</button></div>
+                    <div class="col-12"><AppCampoTexto Etiqueta="Contacto" @bind-Valor="_datosSucursalEdicion.Contacto" /></div>
+                    @if (_edicion.DatosSucursal is { Count: > 0 })
+                    {
+                        <div class="col-12 table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Sucursal</th><th>Nombre comercial</th><th>Contacto</th><th></th></tr></thead>
+                                <tbody>
+                                    @foreach (var dato in _edicion.DatosSucursal)
+                                    {
+                                        <tr><td>@dato.Sucursal</td><td>@dato.NombreComercial</td><td>@dato.Contacto</td>
+                                            <td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _edicion.DatosSucursal.Remove(dato)">Quitar</button></td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </EditForm>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" type="submit" form="formCliente" disabled="@_guardando">
+            @(_guardando ? "Guardando..." : "Guardar")
+        </button>
+    </FooterTemplate>
+</HxModal>
 
 @code {
     private const string Titulo = "Clientes";
@@ -163,11 +396,26 @@
 
     private AppRejilla<FiltranClienteDTO>? _rejilla;
     private HxOffcanvas _detalle = default!;
+    private HxModal _modal = default!;
+    private HxModal _modalCarta = default!;
 
     private string _texto = string.Empty;
     private List<FiltranClienteDTO> _resultados = new();
     private FiltranClienteDTO? _elegido;
     private bool _buscando;
+    private ClienteDTO? _edicion;
+    private bool _esNuevo;
+    private bool _guardando;
+    private List<ClienteAdjuntoDTO> _adjuntos = new();
+    private List<ClienteAdjuntoDTO> _adjuntosNuevos = new();
+    private bool _cargandoAdjuntos;
+    private bool _guardandoAdjuntos;
+    private CartaExoneracionDTO? _carta;
+    private CartaExoneracionDTO? _cartaEdicion;
+    private bool _cargandoCarta;
+    private bool _cartaEsNueva;
+    private bool _guardandoCarta;
+    private ClienteDatosSucursalDTO _datosSucursalEdicion = new();
 
     private CancellationTokenSource? _pendiente;
 
@@ -223,6 +471,338 @@
     private async Task Ver(FiltranClienteDTO cliente)
     {
         _elegido = cliente;
+        _adjuntos = new List<ClienteAdjuntoDTO>();
+        _adjuntosNuevos = new List<ClienteAdjuntoDTO>();
+        _cargandoAdjuntos = true;
+        _carta = null;
+        _cargandoCarta = true;
         await _detalle.ShowAsync();
+        await CargarAdjuntos(cliente.Identificacion);
+        await CargarCarta(cliente.Cedula);
+    }
+
+    private async Task Agregar()
+    {
+        _esNuevo = true;
+        _edicion = new ClienteDTO
+        {
+            Cedula = string.Empty,
+            Nombre = string.Empty,
+            EMail = string.Empty,
+            Direccion = string.Empty,
+            Tipoprecio = 1,
+            CodMonedaCredito = 1,
+            Estado = true
+        };
+        _datosSucursalEdicion = new ClienteDatosSucursalDTO();
+        await _modal.ShowAsync();
+    }
+
+    private async Task Editar(FiltranClienteDTO cliente)
+    {
+        _esNuevo = false;
+        _edicion = ACliente(cliente);
+        _edicion.DatosSucursal = (await Respuestas.DatoAsync(
+            await Api.DatosSucursal(cliente.Identificacion), "consultar los datos de facturación"))?.ToList()
+            ?? new List<ClienteDatosSucursalDTO>();
+        _datosSucursalEdicion = new ClienteDatosSucursalDTO();
+        await _modal.ShowAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null || _guardando)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_edicion.Cedula)
+            || string.IsNullOrWhiteSpace(_edicion.Nombre)
+            || string.IsNullOrWhiteSpace(_edicion.EMail)
+            || string.IsNullOrWhiteSpace(_edicion.Direccion))
+        {
+            await Dialogos.ErrorAsync("Cédula, nombre, correo y dirección son obligatorios.");
+            return;
+        }
+
+        var confirmar = await Dialogos.ConfirmarAsync(
+            _esNuevo ? "Se registrará el nuevo cliente." : "Se actualizarán los datos del cliente.");
+        if (!confirmar)
+        {
+            return;
+        }
+
+        _guardando = true;
+        var respuesta = _esNuevo ? await Api.Crear(_edicion) : await Api.Editar(_edicion);
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, _esNuevo ? "crear el cliente" : "editar el cliente"))
+        {
+            await _modal.HideAsync();
+            Dialogos.Exito(_esNuevo ? "Cliente creado." : "Cliente actualizado.");
+            await RefrescarResultados();
+        }
+    }
+
+    private async Task CambiarEstado(FiltranClienteDTO cliente)
+    {
+        var activar = cliente.Anulado;
+        var accion = activar ? "activar" : "desactivar";
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Desea {accion} a {cliente.Nombre}?"))
+        {
+            return;
+        }
+
+        var respuesta = await Api.CambiarEstado(new EliminarClienteDTO
+        {
+            Cedula = cliente.Cedula,
+            Nombre = cliente.Nombre,
+            IdUsuarioModificacion = Sesion.Usuario
+        }, activar);
+
+        if (await Respuestas.CorrectaAsync(respuesta, $"{accion} el cliente"))
+        {
+            await _detalle.HideAsync();
+            Dialogos.Exito(activar ? "Cliente activado." : "Cliente desactivado.");
+            await RefrescarResultados();
+        }
+    }
+
+    private async Task RefrescarResultados()
+    {
+        await Buscar(CancellationToken.None);
+    }
+
+    private static ClienteDTO ACliente(FiltranClienteDTO cliente) => new()
+    {
+        Identificacion = cliente.Identificacion,
+        Cedula = cliente.Cedula ?? string.Empty,
+        Nombre = cliente.Nombre ?? string.Empty,
+        Observaciones = cliente.Observaciones,
+        Telefono01 = cliente.Telefono_01,
+        Telefono02 = cliente.Telefono_02,
+        Fax01 = cliente.Fax_01,
+        Fax02 = cliente.Fax_02,
+        EMail = cliente.E_Mail ?? string.Empty,
+        Abierto = cliente.Abierto,
+        Direccion = cliente.Direccion ?? string.Empty,
+        Impuesto = cliente.Impuesto,
+        MaxCredito = cliente.Max_Credito,
+        PlazoCredito = cliente.Plazo_Credito,
+        Descuento = cliente.Descuento,
+        Empresa = cliente.Empresa,
+        Tipoprecio = cliente.Tipoprecio,
+        Sinrestriccion = cliente.Sinrestriccion,
+        Agente = cliente.Agente,
+        CodMonedaCredito = cliente.CodMonedaCredito,
+        ClienteMoroso = cliente.Cliente_Moroso,
+        Anulado = cliente.Anulado,
+        OrdenCompra = cliente.OrdenCompra,
+        CorreoComprobante = cliente.CorreoComprobante,
+        Actualizado = cliente.Actualizado,
+        DescuentoEspecial = cliente.DescuentoEspecial,
+        Relacionados = cliente.Relacionados,
+        Mag = cliente.Mag,
+        EnviarRecibo = cliente.EnviarRecibo,
+        CorreoRecibo = cliente.CorreoRecibo,
+        UsoInterno = cliente.UsoInterno,
+        Fallecido = cliente.Fallecido,
+        IdSucursal = cliente.IdSucursal,
+        IdTipoIdentificacion = cliente.IdTipoIdentificacion,
+        IdProvincia = cliente.IdProvincia,
+        IdCanton = cliente.IdCanton,
+        IdDistrito = cliente.IdDistrito,
+        IdUsuarioCreacion = cliente.IdUsuarioCreacion,
+        Estado = cliente.Estado,
+        TieneBonificacion = cliente.TieneBonificacion,
+        NombreFantasia = cliente.NombreFantasia
+    };
+
+    private async Task AgregarDatosSucursal()
+    {
+        if (_edicion is null || string.IsNullOrWhiteSpace(_datosSucursalEdicion.Sucursal)
+            || string.IsNullOrWhiteSpace(_datosSucursalEdicion.NombreComercial))
+        {
+            await Dialogos.ErrorAsync("Indique sucursal y nombre comercial.");
+            return;
+        }
+
+        _datosSucursalEdicion.IdCliente = _edicion.Identificacion;
+        _edicion.DatosSucursal ??= new List<ClienteDatosSucursalDTO>();
+        _edicion.DatosSucursal.Add(_datosSucursalEdicion);
+        _datosSucursalEdicion = new ClienteDatosSucursalDTO();
+    }
+
+    private async Task CargarAdjuntos(long idCliente)
+    {
+        _adjuntos = (await Respuestas.DatoAsync(await Api.Adjuntos(idCliente), "consultar los adjuntos"))
+            ?.ToList() ?? new List<ClienteAdjuntoDTO>();
+        _cargandoAdjuntos = false;
+        StateHasChanged();
+    }
+
+    private async Task AgregarAdjunto(InputFileChangeEventArgs evento)
+    {
+        if (_elegido is null)
+        {
+            return;
+        }
+
+        var archivo = evento.File;
+        const long maximo = 10 * 1024 * 1024;
+        var extension = Path.GetExtension(archivo.Name).ToLowerInvariant();
+        var permitidas = new[] { ".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+
+        if (!permitidas.Contains(extension) || archivo.Size > maximo)
+        {
+            await Dialogos.ErrorAsync("El adjunto debe ser PDF, Word o imagen y no superar 10 MB.");
+            return;
+        }
+
+        await using var entrada = archivo.OpenReadStream(maximo);
+        await using var memoria = new MemoryStream();
+        await entrada.CopyToAsync(memoria);
+        var base64 = Convert.ToBase64String(memoria.ToArray());
+        var contenido = $"data:{archivo.ContentType};base64,{base64}";
+
+        _adjuntosNuevos.Add(new ClienteAdjuntoDTO
+        {
+            IdCliente = _elegido.Identificacion,
+            Archivo = contenido,
+            Tipo = extension.TrimStart('.'),
+            Extencion = archivo.Name
+        });
+    }
+
+    private async Task GuardarAdjuntos()
+    {
+        if (_elegido is null || _adjuntosNuevos.Count == 0 || _guardandoAdjuntos)
+        {
+            return;
+        }
+
+        if (!await Dialogos.ConfirmarAsync("Se guardarán los adjuntos seleccionados."))
+        {
+            return;
+        }
+
+        _guardandoAdjuntos = true;
+        var respuesta = await Api.GuardarAdjuntos(_adjuntosNuevos);
+        _guardandoAdjuntos = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "guardar los adjuntos"))
+        {
+            Dialogos.Exito("Adjuntos guardados.");
+            _adjuntosNuevos = new List<ClienteAdjuntoDTO>();
+            _cargandoAdjuntos = true;
+            await CargarAdjuntos(_elegido.Identificacion);
+        }
+    }
+
+    private async Task EliminarAdjunto(ClienteAdjuntoDTO adjunto)
+    {
+        if (_elegido is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea eliminar este adjunto?"))
+        {
+            return;
+        }
+
+        if (await Respuestas.CorrectaAsync(await Api.EliminarAdjunto(adjunto.Id), "eliminar el adjunto"))
+        {
+            _adjuntos.Remove(adjunto);
+            Dialogos.Exito("Adjunto eliminado.");
+        }
+    }
+
+    private async Task CargarCarta(string? cedula)
+    {
+        if (string.IsNullOrWhiteSpace(cedula))
+        {
+            _cargandoCarta = false;
+            return;
+        }
+
+        var respuesta = await Cartas.Buscar(cedula);
+        // Una carta inexistente llega como respuesta de negocio; se muestra como
+        // ausencia, sin convertir la consulta del cliente en una alerta de error.
+        _carta = respuesta.EsCorrecta ? respuesta.Responses : null;
+        _cargandoCarta = false;
+        StateHasChanged();
+    }
+
+    private async Task NuevaCarta()
+    {
+        if (_elegido?.Cedula is null)
+        {
+            return;
+        }
+
+        _cartaEsNueva = true;
+        _cartaEdicion = new CartaExoneracionDTO
+        {
+            Cedula = _elegido.Cedula,
+            FechaEmision = DateTime.Today,
+            FechaVence = DateTime.Today.AddYears(1),
+            Estado = true,
+            IdUsuarioCreacion = Sesion.Usuario
+        };
+        await _modalCarta.ShowAsync();
+    }
+
+    private async Task EditarCarta()
+    {
+        if (_carta is null)
+        {
+            return;
+        }
+
+        _cartaEsNueva = false;
+        _cartaEdicion = new CartaExoneracionDTO
+        {
+            Id = _carta.Id,
+            Cedula = _carta.Cedula,
+            IdTipoExoneracion = _carta.IdTipoExoneracion,
+            NumeroDocumento = _carta.NumeroDocumento,
+            FechaEmision = _carta.FechaEmision,
+            FechaVence = _carta.FechaVence,
+            PorcentajeCompra = _carta.PorcentajeCompra,
+            Impuesto = _carta.Impuesto,
+            Nota = _carta.Nota,
+            Estado = _carta.Estado,
+            IdUsuarioCreacion = _carta.IdUsuarioCreacion,
+            IdUsuarioModificacion = Sesion.Usuario
+        };
+        await _modalCarta.ShowAsync();
+    }
+
+    private async Task GuardarCarta()
+    {
+        if (_cartaEdicion is null || _guardandoCarta)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_cartaEdicion.NumeroDocumento)
+            || _cartaEdicion.IdTipoExoneracion <= 0
+            || _cartaEdicion.FechaVence < _cartaEdicion.FechaEmision)
+        {
+            await Dialogos.ErrorAsync("Indique documento, tipo de exoneración y un período válido.");
+            return;
+        }
+
+        if (!await Dialogos.ConfirmarAsync(_cartaEsNueva ? "Se registrará la carta de exoneración." : "Se actualizará la carta de exoneración."))
+        {
+            return;
+        }
+
+        _guardandoCarta = true;
+        var respuesta = _cartaEsNueva ? await Cartas.Crear(_cartaEdicion) : await Cartas.Editar(_cartaEdicion);
+        _guardandoCarta = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "guardar la carta de exoneración"))
+        {
+            _carta = respuesta.Responses ?? _cartaEdicion;
+            await _modalCarta.HideAsync();
+            Dialogos.Exito("Carta de exoneración guardada.");
+        }
     }
 }

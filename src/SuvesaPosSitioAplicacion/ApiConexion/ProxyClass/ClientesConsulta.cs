@@ -1,3 +1,4 @@
+using System.Text.Json;
 using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
@@ -9,6 +10,7 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 /// <inheritdoc cref="IClientesConsulta" />
 public sealed class ClientesConsulta : ProxyBase, IClientesConsulta
 {
+    private static readonly JsonSerializerOptions Opciones = new(JsonSerializerDefaults.Web);
     private readonly IClienteApiCliente _api;
 
     public ClientesConsulta(
@@ -49,4 +51,70 @@ public sealed class ClientesConsulta : ProxyBase, IClientesConsulta
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, $"buscar clientes con {limpio}");
     }
+
+    public Task<ResponseGeneric<ClienteDTO>> Crear(ClienteDTO cliente)
+        => Ejecutar(async () =>
+        {
+            // NewRegistrar es el endpoint que utiliza la pantalla completa del
+            // sistema actual; RegistrarBasico se reserva para altas desde venta.
+            var r = await _api.NewRegistrarAsync(cliente);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "crear el cliente");
+
+    public Task<ResponseGeneric<ClienteDTO>> Editar(ClienteDTO cliente)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.NewActualizarAsync(cliente);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "editar el cliente");
+
+    public Task<ResponseGeneric<FiltranClienteDTO>> CambiarEstado(
+        EliminarClienteDTO cliente, bool activar)
+        => Ejecutar(async () =>
+        {
+            var r = activar
+                ? await _api.ActivarAsync(cliente)
+                : await _api.DesactivarAsync(cliente);
+
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, activar ? "activar el cliente" : "desactivar el cliente");
+
+    public Task<ResponseGeneric<ICollection<ClienteAdjuntoDTO>>> Adjuntos(long idCliente)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ObtenerAdjuntosClienteAsync(idCliente);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar los adjuntos del cliente");
+
+    public Task<ResponseGeneric<ICollection<ClienteAdjuntoDTO>>> GuardarAdjuntos(
+        ICollection<ClienteAdjuntoDTO> adjuntos)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.InsertarAdjuntosClienteAsync(adjuntos);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "guardar los adjuntos del cliente");
+
+    public Task<ResponseGeneric<ClienteAdjuntoDTO>> EliminarAdjunto(long idAdjunto)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.EliminarAdjuntosClienteAsync(idAdjunto);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "eliminar el adjunto del cliente");
+
+    public Task<ResponseGeneric<ICollection<ClienteDatosSucursalDTO>>> DatosSucursal(long idCliente)
+        => Ejecutar<ICollection<ClienteDatosSucursalDTO>>(async () =>
+        {
+            var r = await _api.ObtenerDatosFacturacionClienteAsync(idCliente);
+            if (r.Status != ResponseStatus._0)
+            {
+                return EnvelopeApi.A<ICollection<ClienteDatosSucursalDTO>>(
+                    r.Status, r.CurrentException, r.ValidationErrors, null);
+            }
+
+            var json = JsonSerializer.Serialize(r.Responses, Opciones);
+            var datos = JsonSerializer.Deserialize<List<ClienteDatosSucursalDTO>>(json, Opciones)
+                        ?? new List<ClienteDatosSucursalDTO>();
+            return EnvelopeApi.A<ICollection<ClienteDatosSucursalDTO>>(
+                r.Status, r.CurrentException, r.ValidationErrors, datos);
+        }, "consultar los datos de facturación del cliente");
 }

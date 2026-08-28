@@ -2,8 +2,13 @@
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@using System.Text.Json
 @inject IInventarioConsulta Api
 @inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+@inject IImagenesArticulo Imagenes
+@inject IArticulosRelacionados Relacionados
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -37,6 +42,14 @@
 *@
 
 <AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+    <Acciones>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Agregar">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
+            </button>
+        }
+    </Acciones>
     <ChildContent>
 
         <div class="mb-3">
@@ -123,6 +136,10 @@
                             <HxGridColumn TItem="InventarioDTO" HeaderText="">
                                 <ItemTemplate Context="a">
                                     <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(a)">Ver</button>
+                                    @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                    {
+                                        <button class="btn btn-sm btn-link p-0 ms-3" @onclick="() => Editar(a)">Editar</button>
+                                    }
                                 </ItemTemplate>
                             </HxGridColumn>
                         </Columnas>
@@ -230,9 +247,138 @@
                 <hr />
                 <p class="small text-secondary mb-0">@_elegido.Observaciones</p>
             }
+
+            <div class="d-flex gap-2 border-top pt-3 mt-3">
+                @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                {
+                    <button class="btn btn-sm btn-primary" @onclick="() => Editar(_elegido)">Editar</button>
+                }
+                @if (Sesion.Puede(Titulo, AccionPantalla.Borrar))
+                {
+                    <button class="btn btn-sm @(_elegido.Inhabilitado ? "btn-outline-success" : "btn-outline-danger")"
+                            @onclick="() => CambiarEstado(_elegido)">
+                        @(_elegido.Inhabilitado ? "Activar" : "Desactivar")
+                    </button>
+                }
+            </div>
+
+            <hr />
+            <h3 class="h6">Artículos relacionados</h3>
+            <div class="input-group input-group-sm mb-2"><input type="number" class="form-control" placeholder="Código relacionado" @bind="_codigoRelacionado" @bind:event="onchange" /><input type="number" class="form-control" min="0.01" step="0.01" @bind="_cantidadRelacionada" @bind:event="onchange" /><button class="btn btn-outline-primary" @onclick="AgregarRelacionado">Agregar</button></div>
+            @if (_relacionados.Count > 0) { <ul class="list-group list-group-flush small">@foreach (var relacionado in _relacionados) { <li class="list-group-item px-0 d-flex justify-content-between"><span>@relacionado.Descripcion · @Formato.Cantidad(relacionado.Cantidad)</span><button class="btn btn-sm btn-link text-danger p-0" @onclick="() => QuitarRelacionado(relacionado)">Quitar</button></li> }</ul> }
+
+            <hr />
+            <h3 class="h6">Imagen del artículo</h3>
+            @if (_cargandoImagen)
+            {
+                <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando imagen</span></div>
+            }
+            else
+            {
+                @if (!string.IsNullOrWhiteSpace(_imagen?.Imagen))
+                {
+                    <img class="img-fluid rounded border mb-2" style="max-height: 180px" src="@_imagen.Imagen" alt="Imagen de @_elegido.Descripcion" />
+                    @if (Sesion.Puede(Titulo, AccionPantalla.Borrar))
+                    {
+                        <button class="btn btn-sm btn-link text-danger d-block p-0 mb-2" @onclick="EliminarImagen">Eliminar imagen</button>
+                    }
+                }
+                <InputFile class="form-control form-control-sm" accept=".jpg,.jpeg,.png,.webp" OnChange="GuardarImagen" />
+                <p class="form-text mb-0">JPG, PNG o WebP; máximo 5 MB.</p>
+            }
         }
     </BodyTemplate>
 </HxOffcanvas>
+
+<HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo artículo" : "Editar artículo")" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_edicion is not null)
+        {
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formArticulo">
+                <DataAnnotationsValidator />
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <AppCampoTexto Etiqueta="Código" @bind-Valor="_edicion.Cod_Articulo" Deshabilitado="@(!_esNuevo)" />
+                    </div>
+                    <div class="col-12 col-md-8">
+                        <AppCampoTexto Etiqueta="Descripción" @bind-Valor="_edicion.Descripcion" />
+                    </div>
+                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Código de barras" @bind-Valor="_edicion.Barras" /></div>
+                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Ubicación" @bind-Valor="_edicion.SubUbicacion" /></div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-minima">Existencia mínima</label>
+                        <input id="articulo-minima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Minima" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-maxima">Existencia máxima</label>
+                        <input id="articulo-maxima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Maxima" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-impuesto">Impuesto (%)</label>
+                        <input id="articulo-impuesto" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.IVenta" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-precio-a">Precio A</label>
+                        <input id="articulo-precio-a" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Precio_A" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-precio-b">Precio B</label>
+                        <input id="articulo-precio-b" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Precio_B" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-precio-c">Precio C</label>
+                        <input id="articulo-precio-c" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Precio_C" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12">
+                        <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" />
+                    </div>
+                    <div class="col-12 d-flex flex-wrap gap-3">
+                        <div class="form-check">
+                            <input id="articulo-servicio" class="form-check-input" type="checkbox" @bind="_edicion.Servicio" />
+                            <label class="form-check-label" for="articulo-servicio">Servicio</label>
+                        </div>
+                        <div class="form-check">
+                            <input id="articulo-lote" class="form-check-input" type="checkbox" @bind="_edicion.Lote" />
+                            <label class="form-check-label" for="articulo-lote">Maneja lotes</label>
+                        </div>
+                        <div class="form-check">
+                            <input id="articulo-mag" class="form-check-input" type="checkbox" @bind="_edicion.Mag" />
+                            <label class="form-check-label" for="articulo-mag">MAG</label>
+                        </div>
+                    </div>
+
+                    <div class="col-12"><hr class="my-1" /><h3 class="h6 mb-0">Códigos de barras alternos</h3></div>
+                    <div class="col-12 col-md-7"><AppCampoTexto Etiqueta="Código de barras" @bind-Valor="_nuevoCodigoBarras" /></div>
+                    <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Tarifa" @bind-Valor="_tarifaCodigoBarras" /></div>
+                    <div class="col-12 col-md-2 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarCodigoBarras">Agregar</button></div>
+                    @if (_edicion.CodigoBarras is { Count: > 0 })
+                    {
+                        <div class="col-12 table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Código</th><th>Tarifa</th><th></th></tr></thead>
+                                <tbody>
+                                    @foreach (var codigo in _edicion.CodigoBarras)
+                                    {
+                                        <tr>
+                                            <td><code>@codigo.Descripcion</code></td><td>@codigo.Tarifa</td>
+                                            <td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarCodigoBarras(codigo)">Quitar</button></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </EditForm>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" type="submit" form="formArticulo" disabled="@_guardando">
+            @(_guardando ? "Guardando..." : "Guardar")
+        </button>
+    </FooterTemplate>
+</HxModal>
 
 @code {
     private const string Titulo = "Inventarios";
@@ -242,11 +388,22 @@
 
     private AppRejilla<InventarioDTO>? _rejilla;
     private HxOffcanvas _detalle = default!;
+    private HxModal _modal = default!;
 
     private string _texto = string.Empty;
     private List<InventarioDTO> _resultados = new();
     private InventarioDTO? _elegido;
     private bool _buscando;
+    private InventarioDTO? _edicion;
+    private bool _esNuevo;
+    private bool _guardando;
+    private ArticulosImagenesDTO? _imagen;
+    private bool _cargandoImagen;
+    private List<ArticulosRelacionadosDTO> _relacionados = new();
+    private long? _codigoRelacionado;
+    private float _cantidadRelacionada = 1;
+    private string _nuevoCodigoBarras = string.Empty;
+    private string _tarifaCodigoBarras = string.Empty;
 
     private List<StockLoteDTO> _lotes = new();
     private bool _cargandoLotes;
@@ -310,6 +467,9 @@
         _elegido = articulo;
         _lotes = new List<StockLoteDTO>();
         _cargandoLotes = true;
+        _imagen = null;
+        _cargandoImagen = true;
+        _relacionados = new List<ArticulosRelacionadosDTO>();
 
         await _detalle.ShowAsync();
 
@@ -318,9 +478,166 @@
                  ?.OrderBy(l => l.Vencimiento).ToList() ?? new List<StockLoteDTO>();
 
         _cargandoLotes = false;
+        _imagen = await Respuestas.DatoAsync(await Imagenes.Obtener(articulo.Codigo), "consultar la imagen del artículo");
+        _relacionados = (await Respuestas.DatoAsync(await Relacionados.Buscar(articulo.Codigo), "consultar los artículos relacionados"))?.ToList() ?? new List<ArticulosRelacionadosDTO>();
+        _cargandoImagen = false;
         StateHasChanged();
     }
 
     /// <summary>Un lote vencido sigue apareciendo, pero marcado: es informacion util.</summary>
     private static bool Vencido(StockLoteDTO l) => l.Vencimiento.Date < DateTime.Today;
+
+    private async Task Agregar()
+    {
+        _esNuevo = true;
+        _edicion = new InventarioDTO
+        {
+            Cod_Articulo = string.Empty,
+            Descripcion = string.Empty,
+            MonedaCosto = 1,
+            MonedaVenta = 1,
+            Estado = true,
+            IdUsuarioCreacion = Sesion.Usuario
+        };
+        await _modal.ShowAsync();
+    }
+
+    private async Task Editar(InventarioDTO articulo)
+    {
+        _esNuevo = false;
+        var completo = await Respuestas.DatoAsync(await Api.Uno(articulo.Codigo), "abrir el artículo");
+        _edicion = Copiar(completo ?? articulo);
+        _nuevoCodigoBarras = string.Empty;
+        _tarifaCodigoBarras = string.Empty;
+        await _modal.ShowAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null || _guardando)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_edicion.Cod_Articulo) || string.IsNullOrWhiteSpace(_edicion.Descripcion))
+        {
+            await Dialogos.ErrorAsync("Código y descripción son obligatorios.");
+            return;
+        }
+
+        if (!await Dialogos.ConfirmarAsync(_esNuevo ? "Se registrará el nuevo artículo." : "Se actualizarán los datos del artículo."))
+        {
+            return;
+        }
+
+        _edicion.IdUsuarioModificacion = Sesion.Usuario;
+        _guardando = true;
+        var respuesta = _esNuevo ? await Api.Crear(_edicion) : await Api.Editar(_edicion);
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, _esNuevo ? "crear el artículo" : "editar el artículo"))
+        {
+            await _modal.HideAsync();
+            Dialogos.Exito(_esNuevo ? "Artículo creado." : "Artículo actualizado.");
+            await Buscar(CancellationToken.None);
+        }
+    }
+
+    private async Task CambiarEstado(InventarioDTO articulo)
+    {
+        var activar = articulo.Inhabilitado;
+        var accion = activar ? "activar" : "desactivar";
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Desea {accion} {articulo.Descripcion}?"))
+        {
+            return;
+        }
+
+        var respuesta = await Api.CambiarEstado(new EliminarInventarioDTO
+        {
+            Cod_Articulo = articulo.Cod_Articulo,
+            Descripcion = articulo.Descripcion,
+            IdUsuarioModificacion = Sesion.Usuario
+        }, activar);
+
+        if (await Respuestas.CorrectaAsync(respuesta, $"{accion} el artículo"))
+        {
+            await _detalle.HideAsync();
+            Dialogos.Exito(activar ? "Artículo activado." : "Artículo desactivado.");
+            await Buscar(CancellationToken.None);
+        }
+    }
+
+    private static InventarioDTO Copiar(InventarioDTO articulo)
+        => JsonSerializer.Deserialize<InventarioDTO>(JsonSerializer.Serialize(articulo))!;
+
+    private async Task AgregarCodigoBarras()
+    {
+        if (_edicion is null || string.IsNullOrWhiteSpace(_nuevoCodigoBarras))
+        {
+            await Dialogos.ErrorAsync("Indique el código de barras.");
+            return;
+        }
+
+        if ((_edicion.CodigoBarras ?? Array.Empty<CodigoBarrasInventarioDTO>())
+            .Any(c => string.Equals(c.Descripcion, _nuevoCodigoBarras, StringComparison.OrdinalIgnoreCase)))
+        {
+            await Dialogos.ErrorAsync("Ese código de barras ya está registrado en el artículo.");
+            return;
+        }
+
+        _edicion.CodigoBarras ??= new List<CodigoBarrasInventarioDTO>();
+        _edicion.CodigoBarras.Add(new CodigoBarrasInventarioDTO
+        {
+            IdInventario = checked((int)_edicion.Codigo),
+            Descripcion = _nuevoCodigoBarras.Trim(),
+            Tarifa = _tarifaCodigoBarras,
+            Estado = true,
+            FechaCreacion = DateTime.Now,
+            IdUsuarioCreacion = Sesion.Usuario
+        });
+        _nuevoCodigoBarras = string.Empty;
+        _tarifaCodigoBarras = string.Empty;
+    }
+
+    private async Task QuitarCodigoBarras(CodigoBarrasInventarioDTO codigo)
+    {
+        if (_edicion?.CodigoBarras is null
+            || !await Dialogos.ConfirmarPeligroAsync("¿Desea quitar este código de barras?"))
+        {
+            return;
+        }
+
+        if (codigo.IdCodigoBarrasInventario == 0)
+        {
+            _edicion.CodigoBarras.Remove(codigo);
+            return;
+        }
+
+        if (await Respuestas.CorrectaAsync(await Api.EliminarCodigoBarras(codigo), "eliminar el código de barras"))
+        {
+            _edicion.CodigoBarras.Remove(codigo);
+            Dialogos.Exito("Código de barras eliminado.");
+        }
+    }
+
+    private async Task GuardarImagen(InputFileChangeEventArgs evento)
+    {
+        if (_elegido is null) return;
+        var archivo = evento.File;
+        const long maximo = 5 * 1024 * 1024;
+        var extension = Path.GetExtension(archivo.Name).ToLowerInvariant();
+        if (archivo.Size > maximo || extension is not (".jpg" or ".jpeg" or ".png" or ".webp")) { await Dialogos.ErrorAsync("La imagen debe ser JPG, PNG o WebP y no superar 5 MB."); return; }
+        await using var entrada = archivo.OpenReadStream(maximo); await using var memoria = new MemoryStream(); await entrada.CopyToAsync(memoria);
+        var imagen = new ArticulosImagenesDTO { IdInventario = _elegido.Codigo, Imagen = $"data:{archivo.ContentType};base64,{Convert.ToBase64String(memoria.ToArray())}", Tipo = extension.TrimStart('.'), Extencion = archivo.Name };
+        if (await Respuestas.CorrectaAsync(await Imagenes.Guardar(imagen), "guardar la imagen")) { _imagen = imagen; Dialogos.Exito("Imagen guardada."); }
+    }
+
+    private async Task EliminarImagen()
+    {
+        if (_imagen is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea eliminar la imagen del artículo?")) return;
+        if (await Respuestas.CorrectaAsync(await Imagenes.Eliminar(_imagen.IdImagenArticulo), "eliminar la imagen")) { _imagen = null; Dialogos.Exito("Imagen eliminada."); }
+    }
+
+    private async Task AgregarRelacionado() { if (_elegido is null || _codigoRelacionado is not > 0 || _cantidadRelacionada <= 0) { await Dialogos.ErrorAsync("Indique un código y cantidad válidos."); return; } if (await Respuestas.CorrectaAsync(await Relacionados.Guardar(_elegido.Codigo, _codigoRelacionado.Value, _cantidadRelacionada, true), "agregar el artículo relacionado")) { _relacionados = (await Respuestas.DatoAsync(await Relacionados.Buscar(_elegido.Codigo), "consultar los artículos relacionados"))?.ToList() ?? new(); _codigoRelacionado = null; _cantidadRelacionada = 1; Dialogos.Exito("Artículo relacionado agregado."); } }
+    private async Task QuitarRelacionado(ArticulosRelacionadosDTO relacionado) { if (_elegido is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea quitar este artículo relacionado?")) return; if (await Respuestas.CorrectaAsync(await Relacionados.Guardar(_elegido.Codigo, relacionado.Codigo, relacionado.Cantidad, false), "quitar el artículo relacionado")) { _relacionados.Remove(relacionado); Dialogos.Exito("Artículo relacionado quitado."); } }
 }

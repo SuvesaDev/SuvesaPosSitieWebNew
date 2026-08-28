@@ -4,8 +4,7 @@ using SuvesaPosSitioAplicacion.Helpers;
 namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 
 /// <summary>
-/// Consulta de inventario. Solo lectura: no toca existencias ni precios.
-/// La pantalla de mantenimiento completa llega en la Ola 2.
+/// Consulta y mantenimiento base de inventario.
 /// </summary>
 public interface IInventarioConsulta
 {
@@ -17,4 +16,14 @@ public interface IInventarioConsulta
 
     /// <summary>Lotes de un articulo, con su vencimiento y existencia.</summary>
     Task<ResponseGeneric<ICollection<StockLoteDTO>>> Lotes(long idArticulo);
+
+    Task<ResponseGeneric<InventarioDTO>> Uno(long codigo);
+
+    Task<ResponseGeneric<InventarioDTO>> Crear(InventarioDTO articulo);
+
+    Task<ResponseGeneric<InventarioDTO>> Editar(InventarioDTO articulo);
+
+    Task<ResponseGeneric<InventarioDTO>> CambiarEstado(EliminarInventarioDTO articulo, bool activar);
+
+    Task<ResponseGeneric<CodigoBarrasInventarioDTO>> EliminarCodigoBarras(CodigoBarrasInventarioDTO codigo);
 }

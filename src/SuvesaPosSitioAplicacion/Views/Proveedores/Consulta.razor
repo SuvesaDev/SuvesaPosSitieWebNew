@@ -4,6 +4,8 @@
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IProveedoresConsulta Api
 @inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -22,6 +24,17 @@
 *@
 
 <AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+    <Acciones>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Agregar">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
+            </button>
+        }
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar" aria-label="Actualizar proveedores">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
     <ChildContent>
 
         <div class="mb-3">
@@ -97,6 +110,10 @@
                             <HxGridColumn TItem="ProveedorDTO" HeaderText="">
                                 <ItemTemplate Context="p">
                                     <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(p)">Ver</button>
+                                    @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                    {
+                                        <button class="btn btn-sm btn-link p-0 ms-3" @onclick="() => Editar(p)">Editar</button>
+                                    }
                                 </ItemTemplate>
                             </HxGridColumn>
                         </Columnas>
@@ -148,29 +165,109 @@
                 <hr />
                 <p class="small text-secondary mb-0">@_elegido.Observaciones</p>
             }
+
+            <div class="d-flex gap-2 border-top pt-3 mt-3">
+                @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                {
+                    <button class="btn btn-sm btn-primary" @onclick="() => Editar(_elegido)">Editar</button>
+                }
+                @if (Sesion.Puede(Titulo, AccionPantalla.Borrar))
+                {
+                    <button class="btn btn-sm @(_elegido.Inhabilitado == true ? "btn-outline-success" : "btn-outline-danger")"
+                            @onclick="() => CambiarEstado(_elegido)">
+                        @(_elegido.Inhabilitado == true ? "Activar" : "Deshabilitar")
+                    </button>
+                }
+            </div>
         }
     </BodyTemplate>
 </HxOffcanvas>
+
+<HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo proveedor" : "Editar proveedor")" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_edicion is not null)
+        {
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formProveedor">
+                <DataAnnotationsValidator />
+                <div class="row g-3">
+                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre" @bind-Valor="_edicion.Nombre" /></div>
+                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Cédula" @bind-Valor="_edicion.Cedula" /></div>
+                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Contacto" @bind-Valor="_edicion.Contacto" /></div>
+                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Teléfono del contacto" @bind-Valor="_edicion.TelefonoCont" /></div>
+                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono1" /></div>
+                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo" @bind-Valor="_edicion.Email" /></div>
+                    <div class="col-12"><AppCampoTexto Etiqueta="Dirección" @bind-Valor="_edicion.Direccion" /></div>
+                    <div class="col-12"><AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" /></div>
+                    <div class="col-12 d-flex gap-3">
+                        <div class="form-check">
+                            <input id="proveedor-actualizado" class="form-check-input" type="checkbox" @bind="_edicion.Actualizado" />
+                            <label class="form-check-label" for="proveedor-actualizado">Actualizado</label>
+                        </div>
+                    </div>
+
+                    <div class="col-12"><hr class="my-1" /><h3 class="h6 mb-0">Cuentas bancarias</h3></div>
+                    <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Tipo de cuenta" @bind-Valor="_cuentaEdicion.TipoCuenta" /></div>
+                    <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Banco" @bind-Valor="_cuentaEdicion.Banco" /></div>
+                    <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Número de cuenta" @bind-Valor="_cuentaEdicion.NumCuenta" /></div>
+                    <div class="col-12 col-md-2">
+                        <label class="form-label" for="cuenta-moneda">Moneda</label>
+                        <select id="cuenta-moneda" class="form-select" @bind="_cuentaEdicion.CodMoneda" @bind:after="ActualizarMonedaCuenta">
+                            <option value="1">Colón</option>
+                            <option value="2">Dólar</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-1 d-grid align-self-end">
+                        <button type="button" class="btn btn-outline-primary" @onclick="AgregarCuenta">Agregar</button>
+                    </div>
+                    @if (_edicion.CuentasBancariasProveedors is { Count: > 0 })
+                    {
+                        <div class="col-12 table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Tipo</th><th>Banco</th><th>Cuenta</th><th>Moneda</th><th></th></tr></thead>
+                                <tbody>
+                                    @foreach (var cuenta in _edicion.CuentasBancariasProveedors)
+                                    {
+                                        <tr>
+                                            <td>@cuenta.TipoCuenta</td><td>@cuenta.Banco</td><td><code>@cuenta.NumCuenta</code></td><td>@cuenta.MonedaNombre</td>
+                                            <td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarCuenta(cuenta)">Quitar</button></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </EditForm>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" type="submit" form="formProveedor" disabled="@_guardando">
+            @(_guardando ? "Guardando..." : "Guardar")
+        </button>
+    </FooterTemplate>
+</HxModal>
 
 @code {
     private const string Titulo = "Proveedores";
 
     private AppRejilla<ProveedorDTO>? _rejilla;
     private HxOffcanvas _detalle = default!;
+    private HxModal _modal = default!;
 
     private List<ProveedorDTO> _todos = new();
     private List<ProveedorDTO> _filtrados = new();
     private ProveedorDTO? _elegido;
     private string _texto = string.Empty;
     private bool _cargado;
+    private ProveedorDTO? _edicion;
+    private bool _esNuevo;
+    private bool _guardando;
+    private CuentaBancariaProveedorDTO _cuentaEdicion = NuevaCuenta();
 
     protected override async Task OnInitializedAsync()
     {
-        _todos = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar los proveedores"))
-                 ?.ToList() ?? new List<ProveedorDTO>();
-
-        _filtrados = _todos;
-        _cargado = true;
+        await Cargar();
     }
 
     private async Task AlEscribir(ChangeEventArgs e)
@@ -204,4 +301,186 @@
         _elegido = proveedor;
         await _detalle.ShowAsync();
     }
+
+    private async Task Recargar() => await Cargar();
+
+    private async Task Cargar()
+    {
+        _cargado = false;
+        _todos = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar los proveedores"))
+                 ?.ToList() ?? new List<ProveedorDTO>();
+        await AlEscribir(new ChangeEventArgs { Value = _texto });
+        _cargado = true;
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private async Task Agregar()
+    {
+        _esNuevo = true;
+        _edicion = new ProveedorDTO { Estado = true, Actualizado = true };
+        _cuentaEdicion = NuevaCuenta();
+        await _modal.ShowAsync();
+    }
+
+    private async Task Editar(ProveedorDTO proveedor)
+    {
+        _esNuevo = false;
+        _edicion = Copiar(proveedor);
+        _cuentaEdicion = NuevaCuenta();
+        await _modal.ShowAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null || _guardando)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_edicion.Nombre) || string.IsNullOrWhiteSpace(_edicion.Cedula))
+        {
+            await Dialogos.ErrorAsync("Nombre y cédula son obligatorios.");
+            return;
+        }
+
+        if (!await Dialogos.ConfirmarAsync(_esNuevo ? "Se registrará el nuevo proveedor." : "Se actualizarán los datos del proveedor."))
+        {
+            return;
+        }
+
+        _guardando = true;
+        if (_esNuevo)
+        {
+            _edicion.IdUsuarioCreacion = Sesion.Usuario;
+            _edicion.FechaCreacion = DateTime.Today.ToString("d", System.Globalization.CultureInfo.GetCultureInfo("es-CR"));
+        }
+        else
+        {
+            _edicion.IdUsuarioModificacion = Sesion.Usuario;
+            _edicion.FechaModificacion = DateTime.Today.ToString("d", System.Globalization.CultureInfo.GetCultureInfo("es-CR"));
+        }
+        var respuesta = _esNuevo ? await Api.Crear(_edicion) : await Api.Editar(_edicion);
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, _esNuevo ? "crear el proveedor" : "editar el proveedor"))
+        {
+            await _modal.HideAsync();
+            Dialogos.Exito(_esNuevo ? "Proveedor creado." : "Proveedor actualizado.");
+            await Cargar();
+        }
+    }
+
+    private async Task CambiarEstado(ProveedorDTO proveedor)
+    {
+        var inhabilitar = proveedor.Inhabilitado != true;
+        var accion = inhabilitar ? "deshabilitar" : "activar";
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Desea {accion} a {proveedor.Nombre}?"))
+        {
+            return;
+        }
+
+        var respuesta = await Api.CambiarEstado(proveedor.CodigoProv, inhabilitar);
+        if (await Respuestas.CorrectaAsync(respuesta, $"{accion} el proveedor"))
+        {
+            await _detalle.HideAsync();
+            Dialogos.Exito(inhabilitar ? "Proveedor deshabilitado." : "Proveedor activado.");
+            await Cargar();
+        }
+    }
+
+    private static ProveedorDTO Copiar(ProveedorDTO p) => new()
+    {
+        CodigoProv = p.CodigoProv,
+        Cedula = p.Cedula,
+        Nombre = p.Nombre,
+        Contacto = p.Contacto,
+        TelefonoCont = p.TelefonoCont,
+        Observaciones = p.Observaciones,
+        Telefono1 = p.Telefono1,
+        Telefono2 = p.Telefono2,
+        Fax1 = p.Fax1,
+        Fax2 = p.Fax2,
+        Email = p.Email,
+        Direccion = p.Direccion,
+        MontoCredito = p.MontoCredito,
+        Plazo = p.Plazo,
+        CostoTotal = p.CostoTotal,
+        ImpIncluido = p.ImpIncluido,
+        PedidosMes = p.PedidosMes,
+        UtilidadInventario = p.UtilidadInventario,
+        UtilidadFija = p.UtilidadFija,
+        DescripcionCuentaContable = p.DescripcionCuentaContable,
+        Actualizado = p.Actualizado,
+        Inhabilitado = p.Inhabilitado,
+        Serie = p.Serie,
+        Bloqueado = p.Bloqueado,
+        Estado = p.Estado,
+        IdUsuarioCreacion = p.IdUsuarioCreacion,
+        FechaCreacion = p.FechaCreacion,
+        IdUsuarioModificacion = p.IdUsuarioModificacion,
+        FechaModificacion = p.FechaModificacion,
+        CuentasBancariasProveedors = p.CuentasBancariasProveedors?.ToList()
+    };
+
+    private void ActualizarMonedaCuenta()
+        => _cuentaEdicion.MonedaNombre = _cuentaEdicion.CodMoneda == 2 ? "DOLAR" : "COLON";
+
+    private async Task AgregarCuenta()
+    {
+        if (_edicion is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_cuentaEdicion.TipoCuenta)
+            || string.IsNullOrWhiteSpace(_cuentaEdicion.Banco)
+            || string.IsNullOrWhiteSpace(_cuentaEdicion.NumCuenta))
+        {
+            await Dialogos.ErrorAsync("Indique tipo, banco y número de cuenta.");
+            return;
+        }
+
+        _cuentaEdicion.CodigoProv = _edicion.CodigoProv;
+        _cuentaEdicion.Estado = 1;
+        _edicion.CuentasBancariasProveedors ??= new List<CuentaBancariaProveedorDTO>();
+        _edicion.CuentasBancariasProveedors.Add(_cuentaEdicion);
+        _cuentaEdicion = NuevaCuenta();
+    }
+
+    private async Task QuitarCuenta(CuentaBancariaProveedorDTO cuenta)
+    {
+        if (_edicion?.CuentasBancariasProveedors is null)
+        {
+            return;
+        }
+
+        if (!await Dialogos.ConfirmarPeligroAsync("¿Desea quitar esta cuenta bancaria?"))
+        {
+            return;
+        }
+
+        // Las cuentas sin id aun no llegaron al API: basta retirarlas del modelo.
+        if (cuenta.IdCuenta == 0 || _esNuevo)
+        {
+            _edicion.CuentasBancariasProveedors.Remove(cuenta);
+            return;
+        }
+
+        if (await Respuestas.CorrectaAsync(await Api.EliminarCuenta(cuenta.IdCuenta), "eliminar la cuenta bancaria"))
+        {
+            _edicion.CuentasBancariasProveedors.Remove(cuenta);
+            Dialogos.Exito("Cuenta bancaria eliminada.");
+        }
+    }
+
+    private static CuentaBancariaProveedorDTO NuevaCuenta() => new()
+    {
+        CodMoneda = 1,
+        MonedaNombre = "COLON",
+        Estado = 1
+    };
 }

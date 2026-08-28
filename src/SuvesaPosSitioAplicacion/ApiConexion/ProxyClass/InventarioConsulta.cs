@@ -32,6 +32,13 @@ public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar los lotes del articulo");
 
+    public Task<ResponseGeneric<InventarioDTO>> Uno(long codigo)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ObtenerUnInventarioAsync(new BuscarInventarioDTO { Codigo = checked((int)codigo) });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar el artículo completo");
+
     public async Task<ResponseGeneric<ICollection<InventarioDTO>>> Buscar(
         string texto, bool incluirInhabilitados = false)
     {
@@ -79,4 +86,36 @@ public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
                 .Where(articulo => articulo.Mag)
                 .ToList());
     }
+
+    public Task<ResponseGeneric<InventarioDTO>> Crear(InventarioDTO articulo)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.InventarioAsync(articulo);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "crear el artículo");
+
+    public Task<ResponseGeneric<InventarioDTO>> Editar(InventarioDTO articulo)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.Actualizar4Async(articulo);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "editar el artículo");
+
+    public Task<ResponseGeneric<InventarioDTO>> CambiarEstado(
+        EliminarInventarioDTO articulo, bool activar)
+        => Ejecutar(async () =>
+        {
+            var r = activar
+                ? await _api.Activar2Async(articulo)
+                : await _api.Desactivar2Async(articulo);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, activar ? "activar el artículo" : "desactivar el artículo");
+
+    public Task<ResponseGeneric<CodigoBarrasInventarioDTO>> EliminarCodigoBarras(
+        CodigoBarrasInventarioDTO codigo)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.EliminarCodigoBarrasInventarioAsync(codigo);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "eliminar el código de barras");
 }
