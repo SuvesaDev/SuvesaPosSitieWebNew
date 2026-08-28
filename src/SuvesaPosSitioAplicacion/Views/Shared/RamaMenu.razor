@@ -3,7 +3,7 @@
 <li class="nav-item">
     @if (Item.EsGrupo)
     {
-        <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 small text-body"
+        <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 small @(ContieneRutaActiva(Item) ? "seepos-menu-activo" : "")"
                 @onclick="() => _abierto = !_abierto"
                 aria-expanded="@(_abierto ? "true" : "false")">
             <span class="flex-grow-1">@Item.Titulo</span>
@@ -15,14 +15,14 @@
             <ul class="nav flex-column ms-3 border-start ps-2">
                 @foreach (var hijo in Item.Hijos)
                 {
-                    <RamaMenu Item="hijo" AlAbrir="AlAbrir" />
+                    <RamaMenu Item="hijo" AlAbrir="AlAbrir" RutaActual="@RutaActual" />
                 }
             </ul>
         }
     }
     else
     {
-        <button class="btn btn-link nav-link text-start w-100 px-2 small text-body"
+        <button class="btn btn-link nav-link text-start w-100 px-2 small @(EstaActiva(Item) ? "seepos-menu-activo" : "")"
                 @onclick="() => AlAbrir.InvokeAsync(Item)">
             @Item.Titulo
         </button>
@@ -36,5 +36,16 @@
     [Parameter, EditorRequired]
     public EventCallback<ItemMenu> AlAbrir { get; set; }
 
+    [Parameter, EditorRequired]
+    public string RutaActual { get; set; } = default!;
+
     private bool _abierto;
+
+    private bool EstaActiva(ItemMenu item)
+        => item.Ruta is not null
+           && (RutaActual.Equals(item.Ruta.Trim('/'), StringComparison.OrdinalIgnoreCase)
+               || RutaActual.StartsWith($"{item.Ruta.Trim('/')}/", StringComparison.OrdinalIgnoreCase));
+
+    private bool ContieneRutaActiva(ItemMenu item)
+        => EstaActiva(item) || item.Hijos.Any(ContieneRutaActiva);
 }

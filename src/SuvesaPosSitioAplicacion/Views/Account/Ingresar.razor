@@ -12,14 +12,33 @@
 @* Render estatico a proposito: establecer la cookie de sesion exige HttpContext,
    y un componente interactivo ya no lo tiene. *@
 
-<PageTitle>Ingresar &mdash; SeePOS</PageTitle>
+<PageTitle>Ingresar &mdash; CostaVet SeePOS</PageTitle>
 
-<div class="container" style="max-width: 26rem;">
-    <div class="card shadow-sm mt-5">
-        <div class="card-body p-4">
+<div class="seepos-acceso">
+    <section class="seepos-acceso-tarjeta" aria-labelledby="tituloIngreso">
+        <aside class="seepos-acceso-presentacion">
+            <div class="seepos-acceso-presentacion-contenido">
+                <span class="seepos-acceso-eyebrow"><i class="bi bi-heart-pulse-fill" aria-hidden="true"></i> CostaVet SeePOS</span>
+                <h2>La operacion veterinaria, siempre bajo control.</h2>
+                <p>Acceda de forma segura para continuar con la gestion de su negocio.</p>
 
-            <h1 class="h4 mb-1">SUVESA SeePOS</h1>
-            <p class="text-secondary small mb-4">Indique sus credenciales para continuar.</p>
+                <ul class="seepos-acceso-beneficios">
+                    <li><i class="bi bi-shield-check" aria-hidden="true"></i> Acceso seguro</li>
+                    <li><i class="bi bi-grid-1x2" aria-hidden="true"></i> Gestion en un solo lugar</li>
+                    <li><i class="bi bi-clock-history" aria-hidden="true"></i> Informacion disponible cuando la necesita</li>
+                </ul>
+            </div>
+        </aside>
+
+        <div class="seepos-acceso-formulario" data-bs-theme="light">
+            <div class="seepos-acceso-logo">
+                <img src="img/costavet-logo-compact.png" alt="CostaVet - Soluciones de salud veterinaria" />
+            </div>
+
+            <div class="text-center mb-4">
+                <h1 class="h3 mb-2" id="tituloIngreso">Bienvenido</h1>
+                <p class="text-secondary mb-0">Ingrese sus credenciales para continuar.</p>
+            </div>
 
             @if (!string.IsNullOrEmpty(Error))
             {
@@ -30,22 +49,33 @@
                 <DataAnnotationsValidator />
 
                 <div class="mb-3">
-                    <label class="form-label" for="usuario">Usuario</label>
-                    <InputText id="usuario" class="form-control" @bind-Value="Entrada.Usuario" autofocus />
+                    <label class="form-label fw-semibold" for="usuario">Usuario</label>
+                    <div class="input-group seepos-acceso-campo">
+                        <span class="input-group-text"><i class="bi bi-person" aria-hidden="true"></i></span>
+                        <InputText id="usuario" class="form-control" @bind-Value="Entrada.Usuario"
+                                   autocomplete="username" autofocus />
+                    </div>
                     <ValidationMessage For="() => Entrada.Usuario" class="text-danger small" />
                 </div>
 
                 <div class="mb-4">
-                    <label class="form-label" for="password">Contrasena</label>
-                    <InputText id="password" type="password" class="form-control" @bind-Value="Entrada.Password" />
+                    <label class="form-label fw-semibold" for="password">Contrasena</label>
+                    <div class="input-group seepos-acceso-campo">
+                        <span class="input-group-text"><i class="bi bi-key" aria-hidden="true"></i></span>
+                        <InputText id="password" type="password" class="form-control" @bind-Value="Entrada.Password"
+                                   autocomplete="current-password" />
+                    </div>
                     <ValidationMessage For="() => Entrada.Password" class="text-danger small" />
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+                <button type="submit" class="btn btn-primary seepos-acceso-enviar w-100">
+                    <span>Iniciar sesion</span><i class="bi bi-arrow-right" aria-hidden="true"></i>
+                </button>
             </EditForm>
 
+            <p class="seepos-acceso-pie mb-0"><i class="bi bi-lock-fill" aria-hidden="true"></i> Conexion segura</p>
         </div>
-    </div>
+    </section>
 </div>
 
 @code {

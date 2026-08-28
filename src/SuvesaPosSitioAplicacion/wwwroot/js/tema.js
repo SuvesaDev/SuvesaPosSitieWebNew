@@ -19,3 +19,7 @@ export function alternar() {
 export function esOscuro() {
     return document.documentElement.getAttribute('data-bs-theme') === 'dark';
 }
+
+export function esPantallaPequena() {
+    return window.matchMedia('(max-width: 991.98px)').matches;
+}

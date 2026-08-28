@@ -1,38 +1,46 @@
 /* Identidad visual de SeePOS.
  *
- * Los valores salen del SCSS del sistema actual, no de una paleta inventada:
- *   base/_settings.scss  ->  $primary #1072a9, $secundary #ee7519
- *   uso real medido      ->  #f68a1d (287), #bfbcc1 (728), #aca9a9, #eef2e6, #3d59a9
- *   base/_base.scss      ->  Helvetica, Arial, sans-serif
+ * La paleta y la tipografia se alinean con el libro de marca y CostaVet:
+ * verde #58BA00, naranja #F87602, tierra #644B3C y Montserrat.
+ * El logotipo se sirve como activo original, sin reconstruirlo con una fuente.
  *
  * Se expresa sobre las variables de Bootstrap 5.3 para que los componentes de
  * Havit lo hereden sin tener que estilarlos uno a uno.
  */
 
 :root {
-    /* Marca */
-    --seepos-naranja: #ee7519;
-    --seepos-naranja-claro: #f68a1d;
-    --seepos-naranja-oscuro: #c85d0e;
-    --seepos-azul: #1072a9;
-    --seepos-azul-oscuro: #0d5c88;
+    /* Marca. Los tonos de accion se oscurecen para conservar contraste con blanco. */
+    --seepos-verde: #58ba00;
+    --seepos-verde-accion: #347000;
+    --seepos-verde-accion-oscuro: #285900;
+    --seepos-naranja: #f87602;
+    --seepos-naranja-oscuro: #c75b00;
+    --seepos-tierra: #644b3c;
+    --seepos-tierra-oscuro: #4d382d;
 
-    /* Neutros, con el sesgo gris del sistema actual */
-    --seepos-gris-borde: #bfbcc1;
-    --seepos-gris-suave: #e3e3e3;
-    --seepos-gris-fondo: #f0f0f0;
-    --seepos-gris-texto: #aca9a9;
+    /* Neutros calidos: sostienen la marca sin competir con el dato operativo. */
+    --seepos-gris-borde: #d8d0c8;
+    --seepos-gris-suave: #eee9e3;
+    --seepos-gris-fondo: #f8f5f0;
+    --seepos-gris-texto: #716860;
+    --seepos-texto: #302a26;
+    --seepos-halo-verde: rgba(88, 186, 0, .22);
 
     /* Bootstrap */
-    --bs-primary: var(--seepos-azul);
-    --bs-primary-rgb: 16, 114, 169;
+    --bs-primary: var(--seepos-verde-accion);
+    --bs-primary-rgb: 52, 112, 0;
     /* OJO: no se toca --bs-secondary. En Bootstrap 5.3 es el gris neutro que usan
        .text-secondary y compania, no un acento de marca. Sobreescribirlo pone naranja
        todo el texto atenuado de la aplicacion. El naranja se aplica donde toca. */
     --bs-border-color: var(--seepos-gris-borde);
-    --bs-body-font-family: Helvetica, Arial, sans-serif;
+    --bs-body-bg: #fffdf9;
+    --bs-body-color: var(--seepos-texto);
+    --bs-emphasis-color: #241f1b;
+    --bs-body-font-family: Montserrat, "Helvetica Neue", Arial, sans-serif;
     --bs-body-font-size: 0.9375rem;
     --bs-tertiary-bg: var(--seepos-gris-fondo);
+    --bs-link-color: var(--seepos-verde-accion);
+    --bs-link-hover-color: var(--seepos-verde-accion-oscuro);
 
     /* Densidad: el punto de venta muestra mucho dato por pantalla */
     --seepos-alto-fila: 2rem;
@@ -41,58 +49,59 @@
 /* Bootstrap 5.3 estila los botones con variables propias; sobreescribir
    --bs-primary no basta. */
 .btn-primary {
-    --bs-btn-bg: var(--seepos-azul);
-    --bs-btn-border-color: var(--seepos-azul);
-    --bs-btn-hover-bg: var(--seepos-azul-oscuro);
-    --bs-btn-hover-border-color: var(--seepos-azul-oscuro);
-    --bs-btn-active-bg: var(--seepos-azul-oscuro);
-    --bs-btn-active-border-color: var(--seepos-azul-oscuro);
-    --bs-btn-disabled-bg: var(--seepos-azul);
-    --bs-btn-disabled-border-color: var(--seepos-azul);
+    --bs-btn-bg: var(--seepos-verde-accion);
+    --bs-btn-border-color: var(--seepos-verde-accion);
+    --bs-btn-hover-bg: var(--seepos-verde-accion-oscuro);
+    --bs-btn-hover-border-color: var(--seepos-verde-accion-oscuro);
+    --bs-btn-active-bg: var(--seepos-verde-accion-oscuro);
+    --bs-btn-active-border-color: var(--seepos-verde-accion-oscuro);
+    --bs-btn-disabled-bg: var(--seepos-verde-accion);
+    --bs-btn-disabled-border-color: var(--seepos-verde-accion);
 }
 
 .btn-secondary {
-    --bs-btn-bg: var(--seepos-naranja);
-    --bs-btn-border-color: var(--seepos-naranja);
-    --bs-btn-hover-bg: var(--seepos-naranja-oscuro);
-    --bs-btn-hover-border-color: var(--seepos-naranja-oscuro);
-    --bs-btn-active-bg: var(--seepos-naranja-oscuro);
-    --bs-btn-active-border-color: var(--seepos-naranja-oscuro);
+    --bs-btn-bg: var(--seepos-tierra);
+    --bs-btn-border-color: var(--seepos-tierra);
+    --bs-btn-hover-bg: var(--seepos-tierra-oscuro);
+    --bs-btn-hover-border-color: var(--seepos-tierra-oscuro);
+    --bs-btn-active-bg: var(--seepos-tierra-oscuro);
+    --bs-btn-active-border-color: var(--seepos-tierra-oscuro);
 }
 
 .btn-outline-primary {
-    --bs-btn-color: var(--seepos-azul);
-    --bs-btn-border-color: var(--seepos-azul);
-    --bs-btn-hover-bg: var(--seepos-azul);
-    --bs-btn-hover-border-color: var(--seepos-azul);
-    --bs-btn-active-bg: var(--seepos-azul);
-    --bs-btn-active-border-color: var(--seepos-azul);
+    --bs-btn-color: var(--seepos-verde-accion);
+    --bs-btn-border-color: var(--seepos-verde-accion);
+    --bs-btn-hover-bg: var(--seepos-verde-accion);
+    --bs-btn-hover-border-color: var(--seepos-verde-accion);
+    --bs-btn-active-bg: var(--seepos-verde-accion);
+    --bs-btn-active-border-color: var(--seepos-verde-accion);
 }
 
-.text-primary { color: var(--seepos-azul) !important; }
-.bg-primary { background-color: var(--seepos-azul) !important; }
+.text-primary { color: var(--seepos-verde-accion) !important; }
+.bg-primary { background-color: var(--seepos-verde-accion) !important; }
 .form-control:focus,
 .form-select:focus {
-    border-color: var(--seepos-azul);
-    box-shadow: 0 0 0 .2rem rgba(16, 114, 169, .2);
+    border-color: var(--seepos-verde);
+    box-shadow: 0 0 0 .2rem var(--seepos-halo-verde);
 }
 
 /* ---------- Tema oscuro ----------
    Bootstrap 5.3 lo activa con data-bs-theme="dark" en <html>. */
 
 [data-bs-theme="dark"] {
-    --seepos-gris-borde: #3a3f45;
-    --seepos-gris-suave: #2a2e33;
-    --seepos-gris-fondo: #1c1f23;
-    --seepos-gris-texto: #8b9198;
+    --seepos-gris-borde: #4c433c;
+    --seepos-gris-suave: #2d2824;
+    --seepos-gris-fondo: #211d1a;
+    --seepos-gris-texto: #c9c1b8;
+    --seepos-texto: #f3eee8;
+    --seepos-halo-verde: rgba(135, 215, 77, .28);
 
-    /* El azul de marca no contrasta bien sobre fondo oscuro; se aclara. */
-    --seepos-azul: #4aa3d6;
-    --seepos-azul-oscuro: #3d8cbb;
-    --bs-primary-rgb: 74, 163, 214;
-
-    --seepos-naranja: #f68a1d;
-    --seepos-naranja-oscuro: #d97613;
+    --bs-body-bg: #191614;
+    --bs-body-color: var(--seepos-texto);
+    --bs-emphasis-color: #fffaf5;
+    --bs-primary-rgb: 52, 112, 0;
+    --bs-link-color: #9ae55e;
+    --bs-link-hover-color: #b5ee89;
 }
 
 /* ---------- Niveles adaptables ----------

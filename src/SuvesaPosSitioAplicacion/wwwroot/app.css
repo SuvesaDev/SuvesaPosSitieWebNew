@@ -38,22 +38,241 @@ h1:focus {
 }
 /* ---------- Shell ---------- */
 
+.seepos-shell {
+    background:
+        radial-gradient(circle at 100% 0, rgba(88, 186, 0, .08), transparent 28rem),
+        var(--bs-body-bg);
+}
+
+.seepos-barra-superior {
+    min-height: 3.9rem;
+    background: linear-gradient(105deg, var(--seepos-tierra-oscuro), var(--seepos-tierra)) !important;
+    border-bottom: .2rem solid var(--seepos-verde);
+    box-shadow: 0 .25rem 1.25rem rgba(51, 34, 23, .18);
+}
+
+.seepos-boton-menu {
+    color: #fff;
+    border: 0;
+    border-radius: .65rem;
+    transition: background-color .18s ease, transform .18s ease;
+}
+
+.seepos-boton-menu:hover,
+.seepos-boton-menu:focus-visible {
+    color: #fff;
+    background: rgba(255, 255, 255, .14);
+    transform: translateY(-1px);
+}
+
+.seepos-marca {
+    display: inline-flex;
+    align-items: center;
+    height: 2.75rem;
+    padding: .2rem .65rem;
+    background: #fffdf9;
+    border-radius: .7rem;
+    box-shadow: 0 .2rem .65rem rgba(36, 25, 18, .14);
+}
+
+.seepos-marca img {
+    display: block;
+    width: 6.6rem;
+    height: 100%;
+    object-fit: contain;
+}
+
+.seepos-cuerpo {
+    position: relative;
+    min-height: 0;
+}
+
+.seepos-contenedor-lateral {
+    width: clamp(14rem, 19vw, 17rem);
+    flex: 0 0 clamp(14rem, 19vw, 17rem);
+    overflow: hidden;
+    transition: flex-basis .24s ease, opacity .18s ease, transform .24s ease;
+}
+
+.seepos-contenedor-lateral.seepos-menu-compacto {
+    width: 4.9rem;
+    flex-basis: 4.9rem;
+}
+
+.seepos-menu-cerrado {
+    flex-basis: 0;
+    width: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-1rem);
+}
+
+.seepos-sombra-menu {
+    display: none;
+}
+
 .seepos-lateral {
-    width: 15.5rem;
-    min-height: 100%;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--bs-tertiary-bg) 94%, var(--seepos-verde)) !important;
+}
+
+.seepos-lateral-marca {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    padding: .55rem .65rem;
+    margin: .45rem .45rem .55rem;
+    background: #fffdf9;
+    border: 1px solid rgba(100, 75, 60, .16);
+    border-radius: .9rem;
+    box-shadow: 0 .2rem .65rem rgba(75, 54, 40, .08);
+}
+
+.seepos-lateral-marca img {
+    width: 4.5rem;
+    height: 3.4rem;
+    flex: 0 0 auto;
+    object-fit: contain;
+}
+
+.seepos-lateral-marca span {
+    color: var(--seepos-gris-texto);
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.seepos-lateral > .nav {
+    gap: .1rem;
+}
+
+.seepos-lista-menu {
+    min-height: 0;
+    scrollbar-width: thin;
 }
 
 .seepos-lateral .nav-link {
+    min-height: 2.5rem;
+    padding-top: .45rem;
+    padding-bottom: .45rem;
+    color: var(--bs-body-color) !important;
     text-decoration: none;
-    border-radius: .25rem;
+    border-radius: .55rem;
+    transition: background-color .16s ease, color .16s ease, transform .16s ease;
 }
 
 .seepos-lateral .nav-link:hover {
-    background-color: rgba(0, 0, 0, .05);
+    background-color: rgba(88, 186, 0, .12);
+    color: var(--seepos-verde-accion) !important;
+    transform: translateX(.15rem);
+}
+
+.seepos-lateral .nav-link:focus-visible,
+.seepos-lateral .nav-link.seepos-menu-activo {
+    outline: 0;
+    background-color: rgba(88, 186, 0, .16);
+    box-shadow: inset .2rem 0 0 var(--seepos-verde);
+}
+
+.seepos-lateral .seepos-menu-activo {
+    color: var(--seepos-verde-accion) !important;
+    font-weight: 700;
+}
+
+.seepos-lateral .border-start {
+    border-color: rgba(100, 75, 60, .28) !important;
+}
+
+.seepos-lateral-control {
+    flex: 0 0 auto;
+    padding: .5rem;
+    border-top: 1px solid rgba(100, 75, 60, .2);
+    background: color-mix(in srgb, var(--bs-tertiary-bg) 88%, var(--seepos-tierra));
+}
+
+.seepos-lateral-control-boton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .6rem;
+    min-height: 2.45rem;
+    color: var(--bs-body-color);
+    font-size: .82rem;
+    font-weight: 700;
+    border-radius: .65rem;
+    transition: background-color .16s ease, color .16s ease;
+}
+
+.seepos-lateral-control-boton:hover,
+.seepos-lateral-control-boton:focus-visible {
+    color: var(--seepos-verde-accion);
+    background: rgba(88, 186, 0, .13);
+}
+
+/* El carril compacto conserva los iconos de los modulos y libera espacio para
+   la pantalla de trabajo. El nombre se mantiene disponible como tooltip. */
+.seepos-lateral-compacto .seepos-lateral-marca {
+    display: grid;
+    place-items: center;
+    padding: .45rem;
+    margin: .45rem .35rem .6rem;
+}
+
+.seepos-lateral-compacto .seepos-lateral-marca img {
+    width: 3.1rem;
+    height: 3.1rem;
+}
+
+.seepos-lateral-compacto .seepos-lateral-marca span,
+.seepos-lateral-compacto .seepos-menu-text,
+.seepos-lateral-compacto .seepos-menu-flecha {
+    display: none;
+}
+
+.seepos-lateral-compacto > .nav {
+    padding-inline: .55rem !important;
+}
+
+.seepos-lateral-compacto .seepos-lista-menu {
+    flex-grow: 0 !important;
+    overflow: hidden !important;
+}
+
+.seepos-lateral-compacto .nav-link {
+    justify-content: center;
+    min-height: 2.8rem;
+    padding-inline: .25rem !important;
+    gap: 0 !important;
+    font-size: 1.1rem;
+}
+
+.seepos-lateral-compacto .nav-link:hover {
+    transform: translateY(-.08rem);
+}
+
+.seepos-lateral-compacto .nav-link.seepos-menu-activo {
+    box-shadow: inset 0 -.2rem 0 var(--seepos-verde);
+}
+
+.seepos-lateral-compacto .seepos-lateral-control {
+    padding: .45rem .55rem;
+    margin-top: auto;
+}
+
+.seepos-lateral-compacto .seepos-lateral-control-boton {
+    min-height: 2.8rem;
+    padding-inline: .25rem;
+    font-size: 1.1rem;
 }
 
 .seepos-pestanas {
     min-height: 2.75rem;
+    background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--seepos-naranja)) !important;
+    box-shadow: 0 .2rem .65rem rgba(64, 49, 39, .06);
 }
 
 /* La barra de pestanas no debe romper el ancho de la pagina cuando hay muchas. */
@@ -62,11 +281,36 @@ h1:focus {
 }
 
 @media (max-width: 991.98px) {
-    .seepos-lateral {
+    .seepos-contenedor-lateral {
         position: absolute;
         z-index: 1030;
-        height: calc(100vh - 3.5rem);
-        box-shadow: .25rem 0 1rem rgba(0, 0, 0, .15);
+        inset: 0 auto 0 0;
+        width: min(88vw, 20rem);
+        height: 100%;
+        flex-basis: min(88vw, 20rem);
+        box-shadow: .5rem 0 1.5rem rgba(51, 34, 23, .2);
+    }
+
+    .seepos-contenedor-lateral.seepos-menu-cerrado {
+        width: min(88vw, 20rem);
+        flex-basis: min(88vw, 20rem);
+        transform: translateX(-105%);
+    }
+
+    .seepos-contenedor-lateral.seepos-menu-compacto {
+        width: min(88vw, 20rem);
+        flex-basis: min(88vw, 20rem);
+    }
+
+    .seepos-sombra-menu {
+        display: block;
+        position: absolute;
+        z-index: 1025;
+        inset: 0;
+        width: 100%;
+        border: 0;
+        background: rgba(37, 27, 21, .38);
+        backdrop-filter: blur(2px);
     }
 }
 
@@ -87,4 +331,247 @@ h1:focus {
 /* Cuando la pestana alberga una pantalla del legado, el iframe ocupa todo. */
 .seepos-contenido:has(> .seepos-legado) {
     padding: 0;
+}
+
+/* ---------- Acceso ---------- */
+
+.seepos-layout-acceso {
+    display: grid;
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at 0 0, rgba(248, 118, 2, .16), transparent 28rem),
+        radial-gradient(circle at 100% 100%, rgba(88, 186, 0, .14), transparent 32rem),
+        #f5f0ea;
+}
+
+.seepos-acceso {
+    display: grid;
+    width: min(100% - 2rem, 72rem);
+    margin: auto;
+    padding: 1.25rem 0;
+}
+
+.seepos-acceso-tarjeta {
+    display: grid;
+    grid-template-columns: minmax(17rem, .9fr) minmax(22rem, 1fr);
+    overflow: hidden;
+    background: #fffdf9;
+    border: 1px solid rgba(100, 75, 60, .16);
+    border-radius: 1.35rem;
+    box-shadow: 0 1.25rem 3.5rem rgba(75, 54, 40, .18);
+}
+
+.seepos-acceso-presentacion {
+    display: grid;
+    min-height: 34rem;
+    padding: clamp(2rem, 5vw, 4.25rem);
+    color: #fff;
+    background:
+        radial-gradient(circle at 100% 0, rgba(88, 186, 0, .28), transparent 14rem),
+        linear-gradient(145deg, var(--seepos-tierra-oscuro), var(--seepos-tierra) 54%, #8d4d20);
+}
+
+.seepos-acceso-presentacion-contenido {
+    align-self: center;
+}
+
+.seepos-acceso-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: 1.35rem;
+    color: #dcffbf;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.seepos-acceso-presentacion h2 {
+    max-width: 22rem;
+    margin-bottom: 1rem;
+    font-size: clamp(1.85rem, 3vw, 2.55rem);
+    font-weight: 750;
+    letter-spacing: -.045em;
+    line-height: 1.08;
+}
+
+.seepos-acceso-presentacion p {
+    max-width: 23rem;
+    margin-bottom: 2rem;
+    color: rgba(255, 255, 255, .83);
+    line-height: 1.6;
+}
+
+.seepos-acceso-beneficios {
+    display: grid;
+    gap: .85rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    font-size: .9rem;
+    font-weight: 600;
+}
+
+.seepos-acceso-beneficios li {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+}
+
+.seepos-acceso-beneficios i {
+    color: #c8ff9a;
+    font-size: 1.1rem;
+}
+
+.seepos-acceso-formulario {
+    align-self: center;
+    width: min(100%, 31rem);
+    padding: clamp(2rem, 5vw, 4rem);
+    margin-inline: auto;
+    color: #302a26;
+    --bs-body-bg: #fffdf9;
+    --bs-body-color: #302a26;
+    --bs-emphasis-color: #241f1b;
+    --bs-secondary-color: #716860;
+    --bs-border-color: #d8d0c8;
+    --bs-form-control-bg: #fffdf9;
+    --bs-form-control-color: #302a26;
+    --bs-form-control-border-color: #d8d0c8;
+    --bs-form-control-focus-bg: #fff;
+    --bs-form-control-focus-color: #302a26;
+    --bs-form-control-focus-border-color: #58ba00;
+}
+
+.seepos-acceso-logo {
+    display: grid;
+    place-items: center;
+    width: 10.5rem;
+    height: 10.5rem;
+    margin: 0 auto 1.7rem;
+}
+
+.seepos-acceso-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.seepos-acceso-campo .input-group-text {
+    color: var(--seepos-tierra);
+    background: #fffdf9;
+    border-color: var(--seepos-gris-borde);
+}
+
+.seepos-acceso-campo .form-control {
+    min-height: 3rem;
+    color: #302a26;
+    background-color: #fffdf9;
+    border-left: 0;
+}
+
+.seepos-acceso-campo:focus-within .input-group-text {
+    color: var(--seepos-verde-accion);
+    border-color: var(--seepos-verde);
+    box-shadow: 0 0 0 .2rem var(--seepos-halo-verde);
+}
+
+.seepos-acceso-campo:focus-within .form-control {
+    box-shadow: 0 0 0 .2rem var(--seepos-halo-verde);
+}
+
+.seepos-acceso-enviar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .65rem;
+    min-height: 3.1rem;
+    font-weight: 700;
+    box-shadow: 0 .55rem 1.1rem rgba(52, 112, 0, .2);
+}
+
+.seepos-acceso-pie {
+    margin-top: 1.4rem;
+    color: var(--seepos-gris-texto);
+    font-size: .78rem;
+    text-align: center;
+}
+
+.seepos-acceso-pie i {
+    margin-right: .35rem;
+    color: var(--seepos-verde-accion);
+}
+
+@media (max-width: 575.98px) {
+    .seepos-barra-superior {
+        min-height: 3.5rem;
+    }
+
+    .seepos-marca {
+        font-size: .96rem;
+    }
+
+    .seepos-contenido {
+        padding: .75rem;
+    }
+
+    .seepos-pestanas {
+        min-height: 2.55rem;
+    }
+
+    .seepos-marca {
+        height: 2.4rem;
+        padding-inline: .45rem;
+    }
+
+    .seepos-marca img {
+        width: 5.5rem;
+    }
+
+    .seepos-acceso {
+        width: min(100% - 1rem, 32rem);
+        padding-block: .5rem;
+    }
+
+    .seepos-acceso-tarjeta {
+        border-radius: 1rem;
+    }
+
+    .seepos-acceso-presentacion {
+        display: none;
+    }
+
+    .seepos-acceso-formulario {
+        padding: 2rem 1.35rem;
+    }
+
+    .seepos-acceso-logo {
+        width: 8.25rem;
+        height: 8.25rem;
+        margin-bottom: 1.35rem;
+    }
+}
+
+@media (min-width: 576px) and (max-width: 767.98px) {
+    .seepos-acceso {
+        width: min(100% - 2rem, 35rem);
+    }
+
+    .seepos-acceso-tarjeta {
+        grid-template-columns: 1fr;
+    }
+
+    .seepos-acceso-presentacion {
+        min-height: auto;
+        padding: 2rem 2.5rem;
+    }
+
+    .seepos-acceso-beneficios {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+    }
+
+    .seepos-acceso-beneficios li {
+        align-items: flex-start;
+    }
 }

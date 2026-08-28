@@ -1,6 +1,7 @@
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Security
 @using SuvesaPosSitioAplicacion.Services
+@implements IDisposable
 @inject IContextoSesion Sesion
 @inject IEstadoEspacioTrabajo Espacio
 @inject NavigationManager Navegacion
@@ -9,64 +10,91 @@
    variante CostaPets, aqui se filtra siempre: una pantalla que el rol no puede ver
    no aparece. *@
 
-<nav class="seepos-lateral border-end bg-body-tertiary" aria-label="Menu principal">
-    <ul class="nav flex-column p-2 mb-0">
+<nav class="seepos-lateral @(Compacto ? "seepos-lateral-compacto" : "") border-end bg-body-tertiary d-flex flex-column" aria-label="Menu principal">
+    <div class="seepos-lateral-marca">
+        <img src="img/costavet-logo-compact.png" alt="CostaVet - Soluciones de salud veterinaria" />
+        <span>Menu principal</span>
+    </div>
+
+    <ul class="seepos-lista-menu nav flex-column flex-grow-1 overflow-auto px-2 pb-2 mb-0">
         @foreach (var raiz in FiltroMenu.Visibles(MenuSeePos.Items, Sesion))
         {
-            <li class="nav-item">
+            <li class="nav-item" title="@(Compacto ? raiz.Titulo : null)">
                 @if (raiz.EsGrupo)
                 {
-                    <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 text-body"
-                            @onclick="() => Alternar(raiz.Titulo)"
+                    <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 @(ContieneRutaActiva(raiz) ? "seepos-menu-activo" : "")"
+                            @onclick="() => Alternar(raiz)"
                             aria-expanded="@(Abierto(raiz.Titulo) ? "true" : "false")">
-                        @if (raiz.Icono is not null)
-                        {
-                            <i class="bi @raiz.Icono" aria-hidden="true"></i>
-                        }
-                        <span class="flex-grow-1">@raiz.Titulo</span>
-                        <i class="bi @(Abierto(raiz.Titulo) ? "bi-chevron-up" : "bi-chevron-down") small" aria-hidden="true"></i>
+                        <i class="bi @IconoDe(raiz)" aria-hidden="true"></i>
+                        <span class="seepos-menu-text flex-grow-1">@raiz.Titulo</span>
+                        <i class="seepos-menu-flecha bi @(Abierto(raiz.Titulo) ? "bi-chevron-up" : "bi-chevron-down") small" aria-hidden="true"></i>
                     </button>
 
-                    @if (Abierto(raiz.Titulo))
+                    @if (!Compacto && Abierto(raiz.Titulo))
                     {
                         <ul class="nav flex-column ms-3 border-start ps-2">
                             @foreach (var hijo in FiltroMenu.Visibles(raiz.Hijos, Sesion))
                             {
-                                <RamaMenu Item="hijo" AlAbrir="Abrir" />
+                                <RamaMenu Item="hijo" AlAbrir="Abrir" RutaActual="@RutaActual" />
                             }
                         </ul>
                     }
                 }
                 else
                 {
-                    <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 text-body"
+                    <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 @(EstaActiva(raiz) ? "seepos-menu-activo" : "")"
                             @onclick="() => Abrir(raiz)">
-                        @if (raiz.Icono is not null)
-                        {
-                            <i class="bi @raiz.Icono" aria-hidden="true"></i>
-                        }
-                        <span>@raiz.Titulo</span>
+                        <i class="bi @IconoDe(raiz)" aria-hidden="true"></i>
+                        <span class="seepos-menu-text">@raiz.Titulo</span>
                     </button>
                 }
             </li>
         }
     </ul>
+
+    <div class="seepos-lateral-control">
+        <button type="button" class="btn seepos-lateral-control-boton w-100" @onclick="AlAlternar"
+                title="@TextoAlternar" aria-label="@TextoAlternar">
+            <i class="bi @IconoAlternar" aria-hidden="true"></i>
+            <span class="seepos-menu-text">@TextoAlternar</span>
+        </button>
+    </div>
 </nav>
 
 @code {
+    [Parameter] public EventCallback AlNavegar { get; set; }
+    [Parameter] public EventCallback AlExpandir { get; set; }
+    [Parameter] public EventCallback AlAlternar { get; set; }
+    [Parameter] public bool Compacto { get; set; }
+    [Parameter, EditorRequired] public string TextoAlternar { get; set; } = default!;
+    [Parameter, EditorRequired] public string IconoAlternar { get; set; } = default!;
+
     private readonly HashSet<string> _abiertos = new(StringComparer.OrdinalIgnoreCase);
+
+    private string RutaActual => Navegacion.ToBaseRelativePath(Navegacion.Uri).Trim('/');
+
+    protected override void OnInitialized() => Navegacion.LocationChanged += AlCambiarUbicacion;
+
+    public void Dispose() => Navegacion.LocationChanged -= AlCambiarUbicacion;
 
     private bool Abierto(string titulo) => _abiertos.Contains(titulo);
 
-    private void Alternar(string titulo)
+    private async Task Alternar(ItemMenu item)
     {
-        if (!_abiertos.Add(titulo))
+        if (Compacto)
         {
-            _abiertos.Remove(titulo);
+            _abiertos.Add(item.Titulo);
+            await AlExpandir.InvokeAsync();
+            return;
+        }
+
+        if (!_abiertos.Add(item.Titulo))
+        {
+            _abiertos.Remove(item.Titulo);
         }
     }
 
-    private void Abrir(ItemMenu item)
+    private async Task Abrir(ItemMenu item)
     {
         if (item.Ruta is null)
         {
@@ -74,7 +102,22 @@
         }
 
         var pestana = Espacio.Abrir(item.Titulo, item.Ruta);
+        await AlNavegar.InvokeAsync();
         Navegacion.NavigateTo(pestana.Ruta);
     }
+
+    private bool EstaActiva(ItemMenu item)
+        => item.Ruta is not null
+           && (RutaActual.Equals(item.Ruta.Trim('/'), StringComparison.OrdinalIgnoreCase)
+               || RutaActual.StartsWith($"{item.Ruta.Trim('/')}/", StringComparison.OrdinalIgnoreCase));
+
+    private bool ContieneRutaActiva(ItemMenu item)
+        => EstaActiva(item) || item.Hijos.Any(ContieneRutaActiva);
+
+    private static string IconoDe(ItemMenu item)
+        => item.Icono ?? (item.Titulo == "Consignación" ? "bi-arrow-left-right" : "bi-circle");
+
+    private void AlCambiarUbicacion(object? sender, LocationChangedEventArgs args)
+        => InvokeAsync(StateHasChanged);
 
 }

@@ -8,15 +8,21 @@
 <HxMessenger Position="ToastContainerPosition.BottomEnd" />
 <HxMessageBoxHost />
 
-<div class="d-flex flex-column vh-100">
+<div class="seepos-shell d-flex flex-column vh-100">
 
-    <nav class="navbar navbar-expand navbar-dark bg-dark px-3 flex-shrink-0">
-        <button class="btn btn-sm btn-outline-light border-0 me-2 d-lg-none"
-                aria-label="Menu" @onclick="() => _lateralAbierta = !_lateralAbierta">
+    <nav class="navbar navbar-expand navbar-dark seepos-barra-superior px-3 flex-shrink-0">
+        <button class="btn btn-sm seepos-boton-menu d-lg-none me-2"
+                aria-label="@(_lateralAbierta ? "Cerrar menu" : "Mostrar menu")"
+                aria-controls="seepos-menu-principal"
+                aria-expanded="@_lateralAbierta.ToString().ToLowerInvariant()"
+                @onclick="AlternarMenu">
             <i class="bi bi-list" aria-hidden="true"></i>
         </button>
 
-        <a class="navbar-brand mb-0 h1 text-decoration-none" href="/">SUVESA SeePOS</a>
+        <a class="navbar-brand mb-0 h1 text-decoration-none seepos-marca" href="/">
+            <img src="img/costavet-logo-compact.png" alt="CostaVet SeePOS" />
+            <span class="visually-hidden">CostaVet SeePOS</span>
+        </a>
 
         <div class="ms-3 d-none d-md-block">
             <AtajosNavbar />
@@ -26,8 +32,8 @@
             @if (Sesion.Autenticado)
             {
                 <span class="text-white-50 small d-none d-md-inline">@Sesion.NombreSucursal</span>
-                <span class="text-white small">@Sesion.Usuario</span>
-                <button type="button" class="btn btn-sm btn-outline-light border-0"
+                <span class="text-white small d-none d-sm-inline">@Sesion.Usuario</span>
+                <button type="button" class="btn btn-sm seepos-boton-menu"
                         aria-label="Cambiar tema" title="Cambiar tema" @onclick="AlternarTema">
                     <i class="bi @(_oscuro ? "bi-sun" : "bi-moon-stars")" aria-hidden="true"></i>
                 </button>
@@ -36,11 +42,20 @@
         </div>
     </nav>
 
-    <div class="d-flex flex-grow-1 overflow-hidden">
+    <div class="seepos-cuerpo d-flex flex-grow-1 overflow-hidden">
 
-        <div class="@(_lateralAbierta ? "d-block" : "d-none") d-lg-block flex-shrink-0 overflow-auto">
-            <BarraLateral />
-        </div>
+        @if (_lateralAbierta)
+        {
+            <button class="seepos-sombra-menu" type="button" aria-label="Cerrar menu" @onclick="CerrarMenu"></button>
+        }
+
+        <aside id="seepos-menu-principal"
+              class="seepos-contenedor-lateral @(_lateralAbierta ? "seepos-menu-abierto" : "seepos-menu-cerrado") @(_menuCompacto ? "seepos-menu-compacto" : "") flex-shrink-0 overflow-hidden"
+              aria-hidden="@(!_lateralAbierta)">
+            <BarraLateral Compacto="_menuCompacto" AlNavegar="CerrarMenuTrasNavegacionAsync"
+                          AlExpandir="ExpandirMenu" AlAlternar="AlternarMenu"
+                          TextoAlternar="@TextoAlternarMenu" IconoAlternar="@IconoAlternarMenu" />
+        </aside>
 
         <div class="d-flex flex-column flex-grow-1 overflow-hidden">
             <BarraPestanas />
@@ -61,14 +76,53 @@
 </div>
 
 @code {
-    private bool _lateralAbierta;
+    private bool _lateralAbierta = true;
+    private bool _menuCompacto;
     private bool _oscuro;
+
+    private string TextoAlternarMenu => _menuCompacto ? "Expandir menu" : "Contraer menu";
+
+    private string IconoAlternarMenu => _menuCompacto ? "bi-chevron-right" : "bi-chevron-left";
 
     private async Task AlternarTema()
     {
         var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
         _oscuro = await modulo.InvokeAsync<bool>("alternar");
         await modulo.DisposeAsync();
+    }
+
+    private async Task AlternarMenu()
+    {
+        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+        var esPantallaPequena = await modulo.InvokeAsync<bool>("esPantallaPequena");
+        await modulo.DisposeAsync();
+
+        if (esPantallaPequena)
+        {
+            _lateralAbierta = !_lateralAbierta;
+            _menuCompacto = false;
+            return;
+        }
+
+        _lateralAbierta = true;
+        _menuCompacto = !_menuCompacto;
+    }
+
+    private void CerrarMenu() => _lateralAbierta = false;
+
+    private void ExpandirMenu() => _menuCompacto = false;
+
+    private async Task CerrarMenuTrasNavegacionAsync()
+    {
+        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+        var esPantallaPequena = await modulo.InvokeAsync<bool>("esPantallaPequena");
+        await modulo.DisposeAsync();
+
+        if (esPantallaPequena)
+        {
+            _lateralAbierta = false;
+            _menuCompacto = false;
+        }
     }
 
     protected override async Task OnInitializedAsync()
@@ -104,6 +158,18 @@
         if (primeraVez)
         {
             await Espacio.RestaurarAsync();
+
+            var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+            _oscuro = await modulo.InvokeAsync<bool>("esOscuro");
+
+            if (await modulo.InvokeAsync<bool>("esPantallaPequena"))
+            {
+                _lateralAbierta = false;
+                _menuCompacto = false;
+            }
+
+            await modulo.DisposeAsync();
+            await InvokeAsync(StateHasChanged);
         }
     }
 }
