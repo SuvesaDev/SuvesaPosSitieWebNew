@@ -30,6 +30,8 @@ public class FiltroMenuTests
         public IReadOnlyCollection<string> Menus => Array.Empty<string>();
         public IReadOnlyCollection<PermisoPantalla> Permisos => Array.Empty<PermisoPantalla>();
 
+        public bool EstaGobernada(string pantalla) => true;
+
         public bool PuedeVer(string pantalla) => EsAdministrador || _pantallas.Contains(pantalla);
 
         public bool Puede(string pantalla, AccionPantalla accion) => PuedeVer(pantalla);
@@ -147,7 +149,9 @@ public class FiltroMenuTests
         static int Contar(IEnumerable<ItemMenu> ns) =>
             ns.Sum(n => 1 + Contar(n.Hijos));
 
-        Assert.Equal(8, MenuSeePos.Items.Count);
-        Assert.Equal(82, Contar(MenuSeePos.Items));
+        // 8 raices portadas de SidebarData.jsx mas Consignación, que se anadio
+        // porque sus rutas existian sin entrada de menu.
+        Assert.Equal(9, MenuSeePos.Items.Count);
+        Assert.Equal(86, Contar(MenuSeePos.Items));
     }
 }

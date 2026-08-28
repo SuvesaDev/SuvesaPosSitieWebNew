@@ -1,0 +1,211 @@
+@page "/sales/budgets/seguimiento"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICotizaciones Api
+@inject IManejadorRespuestas Respuestas
+
+@*  OLA 1 — replica del ARQUETIPO 02, con filtro por estado.
+    Es la pantalla que un agente de ventas abre en el movil para saber que paso con
+    sus cotizaciones. Reutiliza el proxy de Proforma sin anadir nada al API.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
+
+    <ChildContent>
+
+        <div class="row g-2 mb-3">
+            <div class="col-12 col-md-8">
+                <input type="search" class="form-control"
+                       placeholder="Cliente o numero..."
+                       aria-label="Filtrar cotizaciones"
+                       value="@_texto" @oninput="AlEscribir" />
+            </div>
+            <div class="col-12 col-md-4">
+                <select class="form-select" aria-label="Estado"
+                        @onchange="AlCambiarEstado">
+                    <option value="vigentes">Vigentes</option>
+                    <option value="anuladas">Anuladas</option>
+                    <option value="todas">Todas</option>
+                </select>
+            </div>
+        </div>
+
+        @if (!_cargado)
+        {
+            <div class="d-flex justify-content-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando</span>
+                </div>
+            </div>
+        }
+        else if (_filtradas.Count == 0)
+        {
+            <div class="text-center text-secondary py-5 small">
+                No hay cotizaciones que coincidan.
+            </div>
+        }
+        else
+        {
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-secondary small">
+                    @_filtradas.Count de @_todas.Count
+                </span>
+                <span class="small fw-semibold">
+                    Total: <span class="seepos-importe">@Formato.Importe(_total)</span>
+                </span>
+            </div>
+
+            @* Movil: tarjetas. *@
+            <div class="d-md-none d-flex flex-column gap-2">
+                @foreach (var c in _filtradas)
+                {
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <span class="fw-semibold small">@c.NombreCliente</span>
+                                <span class="seepos-importe small">@Formato.Importe(c.Total)</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
+                                <span class="small text-secondary">
+                                    <code>@c.Cotizacion1</code> · @c.Fecha.ToString("dd/MM/yyyy")
+                                </span>
+                                <span class="badge @(c.Anulado ? "text-bg-secondary" : "text-bg-success")">
+                                    @Estado(c)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @* Escritorio y tableta: rejilla. *@
+            <div class="d-none d-md-block card">
+                <div class="card-body">
+                    <AppRejilla TItem="CotizacionesDTO" Datos="Servir"
+                                Nivel="NivelPantalla.Tableta" @ref="_rejilla">
+                        <Columnas>
+                            <HxGridColumn TItem="CotizacionesDTO" HeaderText="Numero"
+                                          ItemTextSelector="@(c => c.Cotizacion1.ToString())"
+                                          SortKeySelector="c => c.Cotizacion1" />
+                            <HxGridColumn TItem="CotizacionesDTO" HeaderText="Fecha"
+                                          ItemTextSelector="@(c => c.Fecha.ToString("dd/MM/yyyy"))"
+                                          SortKeySelector="c => c.Fecha" />
+                            <HxGridColumn TItem="CotizacionesDTO" HeaderText="Cliente"
+                                          ItemTextSelector="c => c.NombreCliente"
+                                          SortKeySelector="c => c.NombreCliente" />
+                            <HxGridColumn TItem="CotizacionesDTO" HeaderText="Validez"
+                                          ItemTextSelector="@(c => $"{c.Validez} dias")" />
+                            <HxGridColumn TItem="CotizacionesDTO" HeaderText="Total"
+                                          ItemTextSelector="@(c => Formato.Importe(c.Total))"
+                                          SortKeySelector="c => c.Total"
+                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                            <HxGridColumn TItem="CotizacionesDTO" HeaderText="Estado">
+                                <ItemTemplate Context="c">
+                                    <span class="badge @(c.Anulado ? "text-bg-secondary" : "text-bg-success")">
+                                        @Estado(c)
+                                    </span>
+                                </ItemTemplate>
+                            </HxGridColumn>
+                        </Columnas>
+                    </AppRejilla>
+                </div>
+            </div>
+        }
+
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Seguimiento Cotizaciones";
+
+    private AppRejilla<CotizacionesDTO>? _rejilla;
+
+    private List<CotizacionesDTO> _todas = new();
+    private List<CotizacionesDTO> _filtradas = new();
+    private decimal _total;
+    private string _texto = string.Empty;
+    private string _estado = "vigentes";
+    private bool _cargado;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        _todas = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar las cotizaciones"))
+                 ?.ToList() ?? new List<CotizacionesDTO>();
+
+        _cargado = true;
+        Filtrar();
+    }
+
+    private async Task Recargar()
+    {
+        _cargado = false;
+        await Cargar();
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private async Task AlEscribir(ChangeEventArgs e)
+    {
+        _texto = e.Value?.ToString() ?? string.Empty;
+        Filtrar();
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private async Task AlCambiarEstado(ChangeEventArgs e)
+    {
+        _estado = e.Value?.ToString() ?? "vigentes";
+        Filtrar();
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private void Filtrar()
+    {
+        IEnumerable<CotizacionesDTO> q = _estado switch
+        {
+            "anuladas" => _todas.Where(c => c.Anulado),
+            "todas" => _todas,
+            _ => _todas.Where(c => !c.Anulado)
+        };
+
+        var buscado = Security.NombrePantalla.Normalizar(_texto);
+
+        if (!string.IsNullOrWhiteSpace(buscado))
+        {
+            q = q.Where(c =>
+                Security.NombrePantalla.Normalizar(c.NombreCliente).Contains(buscado)
+                || c.Cotizacion1.ToString().Contains(buscado));
+        }
+
+        _filtradas = q.OrderByDescending(c => c.Fecha).ToList();
+
+        // Los importes llegan en double: se convierten en el borde y se suman en decimal.
+        _total = CalculoDocumento.Redondear(
+            _filtradas.Sum(c => Formato.AImporte(c.Total)));
+    }
+
+    private static string Estado(CotizacionesDTO c)
+        => c.Anulado ? "Anulada" : (c.Confirmada == true ? "Confirmada" : "Vigente");
+
+    private Task<GridDataProviderResult<CotizacionesDTO>> Servir(
+        GridDataProviderRequest<CotizacionesDTO> peticion)
+        => Task.FromResult(peticion.ApplyTo(_filtradas));
+}

@@ -11,4 +11,7 @@ public interface IInventarioConsulta
 {
     /// <summary>Busca por descripcion o por codigo, segun lo que se escriba.</summary>
     Task<ResponseGeneric<ICollection<InventarioDTO>>> Buscar(string texto, bool incluirInhabilitados = false);
+
+    /// <summary>Lotes de un articulo, con su vencimiento y existencia.</summary>
+    Task<ResponseGeneric<ICollection<StockLoteDTO>>> Lotes(long idArticulo);
 }

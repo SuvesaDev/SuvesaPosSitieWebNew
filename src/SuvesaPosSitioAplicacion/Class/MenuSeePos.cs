@@ -234,6 +234,37 @@ public static class MenuSeePos
         },
         new ItemMenu
         {
+            // ANADIDO, no viene de SidebarData.jsx.
+            //
+            // Las tres rutas existen en el enrutador de React pero el menu actual no
+            // tenia ninguna entrada que llevara a ellas, asi que eran inalcanzables
+            // desde la barra lateral. El API si concede permiso "Consignacion".
+            //
+            // Va bajo Compras porque ahi viven sus rutas. El API lo declara bajo
+            // "Inicio", pero eso no afecta al filtrado: los permisos casan por el
+            // titulo de la PANTALLA, no por el del menu.
+            Titulo = "Consignación",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Registro de Consignaciones",
+                    Ruta = "/buys/consignment/register",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Facturacion de Consignaciones",
+                    Ruta = "/buys/consignment/billing",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Seguimiento de Consignaciones",
+                    Ruta = "/buys/consignment/following",
+                }
+            }
+        },
+        new ItemMenu
+        {
             Titulo = "Ventas",
             Ruta = "/sales",
             Icono = "bi-receipt",

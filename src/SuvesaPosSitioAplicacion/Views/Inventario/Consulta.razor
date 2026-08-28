@@ -1,9 +1,18 @@
-@page "/consulta/inventario"
+@page "/initial/inventory"
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IInventarioConsulta Api
 @inject IManejadorRespuestas Respuestas
+
+@*  RUTA DEL MENU, no una propia.
+    Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
+    llega al sitio nuevo y ya no al iframe de la SPA React.
+
+    CONSECUENCIA: la version anterior tenia ademas EDICION, y esta es solo consulta.
+    Quien necesite editar entra por la SPA React mientras dure la convivencia.
+    Se cierra cuando esta pantalla incorpore el mantenimiento.
+*@
 
 @*  ARQUETIPO 02 - CONSULTA DE NIVEL A, MOVIL PRIMERO
     ==================================================
@@ -171,6 +180,51 @@
                 }
             </dl>
 
+            <hr />
+
+            <p class="small text-secondary mb-2">Lotes</p>
+
+            @if (_cargandoLotes)
+            {
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Cargando lotes</span>
+                </div>
+            }
+            else if (_lotes.Count == 0)
+            {
+                <p class="small text-secondary mb-0">Este articulo no maneja lotes.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm small mb-0">
+                        <thead>
+                            <tr>
+                                <th>Lote</th>
+                                <th>Vence</th>
+                                <th class="seepos-importe">Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var l in _lotes)
+                            {
+                                <tr class="@(Vencido(l) ? "table-warning" : null)">
+                                    <td>
+                                        <code>@l.Lote</code>
+                                        @if (Vencido(l))
+                                        {
+                                            <span class="badge text-bg-warning ms-1">Vencido</span>
+                                        }
+                                    </td>
+                                    <td>@l.Vencimiento.ToString("dd/MM/yyyy")</td>
+                                    <td class="seepos-importe">@Formato.Cantidad(l.Cantidad)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
             @if (!string.IsNullOrWhiteSpace(_elegido.Observaciones))
             {
                 <hr />
@@ -193,6 +247,9 @@
     private List<InventarioDTO> _resultados = new();
     private InventarioDTO? _elegido;
     private bool _buscando;
+
+    private List<StockLoteDTO> _lotes = new();
+    private bool _cargandoLotes;
 
     private CancellationTokenSource? _pendiente;
 
@@ -251,6 +308,19 @@
     private async Task Ver(InventarioDTO articulo)
     {
         _elegido = articulo;
+        _lotes = new List<StockLoteDTO>();
+        _cargandoLotes = true;
+
         await _detalle.ShowAsync();
+
+        // Los lotes se piden aparte: la busqueda de inventario no los trae.
+        _lotes = (await Respuestas.DatoAsync(await Api.Lotes(articulo.Codigo), "consultar los lotes"))
+                 ?.OrderBy(l => l.Vencimiento).ToList() ?? new List<StockLoteDTO>();
+
+        _cargandoLotes = false;
+        StateHasChanged();
     }
+
+    /// <summary>Un lote vencido sigue apareciendo, pero marcado: es informacion util.</summary>
+    private static bool Vencido(StockLoteDTO l) => l.Vencimiento.Date < DateTime.Today;
 }

@@ -67,6 +67,11 @@ builder.Services.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
 builder.Services.AddScoped<IServicioDialogos, ServicioDialogos>();
 builder.Services.AddScoped<IManejadorRespuestas, ManejadorRespuestas>();
 
+// Comprueba si la SPA React esta viva, para no mostrar un iframe en blanco.
+builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ISondaLegado, SondaLegado>();
+
 // PDF. QuestPDF exige aceptar su licencia al arrancar; la comunitaria es gratuita
 // solo por debajo de cierto umbral de facturacion. VERIFICAR antes de produccion.
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
@@ -97,6 +102,13 @@ ClienteApi<IBancosApiCliente, BancosApiCliente>();
 ClienteApi<IInventarioApiCliente, InventarioApiCliente>();
 ClienteApi<ICotizacionApiCliente, CotizacionApiCliente>();
 ClienteApi<IAbonoPagarApiCliente, AbonoPagarApiCliente>();
+ClienteApi<IClienteApiCliente, ClienteApiCliente>();
+ClienteApi<IProveedorApiCliente, ProveedorApiCliente>();
+ClienteApi<IAbonoCobrarApiCliente, AbonoCobrarApiCliente>();
+ClienteApi<IReportesApiCliente, ReportesApiCliente>();
+ClienteApi<IVentaApiCliente, VentaApiCliente>();
+ClienteApi<IQvetApiCliente, QvetApiCliente>();
+ClienteApi<IStockLoteApiCliente, StockLoteApiCliente>();
 
 // ---------------------------------------------------------------------------
 // Convivencia: YARP sirve la SPA React bajo el mismo origen mientras queden
@@ -111,6 +123,12 @@ builder.Services.AddScoped<IBancos, Bancos>();
 builder.Services.AddScoped<IInventarioConsulta, InventarioConsulta>();
 builder.Services.AddScoped<ICotizaciones, Cotizaciones>();
 builder.Services.AddScoped<ICuentasPorPagar, CuentasPorPagar>();
+builder.Services.AddScoped<IClientesConsulta, ClientesConsulta>();
+builder.Services.AddScoped<IProveedoresConsulta, ProveedoresConsulta>();
+builder.Services.AddScoped<ICuentasPorCobrar, CuentasPorCobrar>();
+builder.Services.AddScoped<IReportes, Reportes>();
+builder.Services.AddScoped<IDocumentosEmitidos, DocumentosEmitidos>();
+builder.Services.AddScoped<IAlbaranes, Albaranes>();
 
 var app = builder.Build();
 
@@ -153,6 +171,39 @@ app.MapGet("/favicon.ico", () => Results.Redirect("/favicon.png")).AllowAnonymou
 
 // Descarga de reportes en PDF. Un endpoint y no una pagina: enviar un archivo desde
 // un componente interactivo obligaria a pasarlo por JS codificado en base64.
+app.MapGet("/reportes/compras/pdf", async (IReportes api, IGeneradorPdf pdf) =>
+{
+    var r = await api.Compras();
+
+    if (!r.EsCorrecta)
+    {
+        return Results.Problem(r.Excepcion ?? "No se pudo consultar el reporte.");
+    }
+
+    var compras = r.Responses ?? (ICollection<ReporteComprasDTO>)Array.Empty<ReporteComprasDTO>();
+
+    var bytes = pdf.Tabla(new ReporteTabular(
+        Titulo: "Reporte de compras",
+        Subtitulo: "Facturas de compra registradas",
+        Encabezados: new[] { "Factura", "Proveedor", "Fecha", "Gravado", "Impuesto", "Total" },
+        Filas: compras.Select(c => (IReadOnlyList<string>)new[]
+        {
+            c.Factura ?? "",
+            c.Nombre ?? "",
+            c.Fecha.ToString("dd/MM/yyyy"),
+            Formato.Importe(c.SubTotalGravado),
+            Formato.Importe(c.Impuesto),
+            Formato.Importe(c.TotalFactura)
+        }).ToList(),
+        Totales: new[] { "", "", "", "", "Total",
+            Formato.Importe(compras.Sum(c => Formato.AImporte(c.TotalFactura))) })
+    {
+        ColumnasNumericas = new HashSet<int> { 3, 4, 5 }
+    });
+
+    return Results.File(bytes, "application/pdf", "reporte-compras.pdf");
+});
+
 app.MapGet("/reportes/cuentas-por-pagar", async (
     ICuentasPorPagar api,
     IGeneradorPdf pdf) =>

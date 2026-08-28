@@ -1,33 +1,66 @@
 @page "/{*Ruta}"
 @using SuvesaPosSitioAplicacion.Services
 @inject IEstadoEspacioTrabajo Espacio
+@inject ISondaLegado Legado
 @inject IConfiguration Config
 
-@* Ruta comodin: recoge las 78 pantallas del sistema actual que todavia no se migran.
+@* Ruta comodin: recoge las pantallas del sistema actual que todavia no se migran.
    Las rutas concretas tienen prioridad, asi que cada pantalla migrada la va vaciando.
 
-   Si hay SPA configurada, la pantalla se sirve dentro de la pestana. Si no,
-   se explica que esta pendiente. *@
+   Solo se muestra el iframe si la SPA React responde de verdad. Antes se mostraba
+   siempre que hubiera URL configurada, y si la SPA no estaba levantada el usuario
+   veia una pantalla EN BLANCO sin ninguna explicacion. *@
 
 <PageTitle>@(Espacio.Actual?.Titulo ?? "Pendiente") &mdash; SeePOS</PageTitle>
 
-@if (HayLegado && Ruta is not null)
+@if (_comprobando)
+{
+    <div class="d-flex align-items-center justify-content-center h-100">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando</span>
+        </div>
+    </div>
+}
+else if (_disponible && Ruta is not null)
 {
     <PantallaLegado Ruta="@Ruta" Titulo="@(Espacio.Actual?.Titulo ?? Ruta)" />
 }
 else
 {
     <div class="d-flex align-items-center justify-content-center h-100">
-        <div class="text-center" style="max-width: 30rem;">
+        <div class="text-center" style="max-width: 32rem;">
             <i class="bi bi-hourglass-split display-5 text-secondary opacity-50" aria-hidden="true"></i>
 
             <h1 class="h5 mt-3">@(Espacio.Actual?.Titulo ?? "Pantalla pendiente")</h1>
 
-            <p class="text-secondary small mb-1">Esta pantalla todavia no se migra.</p>
-            <p class="text-secondary small mb-0">
-                Tampoco hay una SPA configurada para servirla, asi que no se puede
-                mostrar aqui. Revise <code>SeePos:LegacySpaUrl</code>.
+            <p class="text-secondary small mb-3">
+                Esta pantalla todavia no se migra al sitio nuevo.
             </p>
+
+            @if (string.IsNullOrWhiteSpace(UrlLegado))
+            {
+                <div class="alert alert-secondary small text-start">
+                    No hay una aplicacion anterior configurada para servirla. Se define
+                    en <code>SeePos:LegacySpaUrl</code>.
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-warning small text-start">
+                    <p class="mb-1">
+                        <strong>La aplicacion anterior no responde</strong> en
+                        <code>@UrlLegado</code>.
+                    </p>
+                    <p class="mb-0">
+                        Mientras no este levantada, estas pantallas no se pueden mostrar
+                        aqui. Se puede seguir usando desde su direccion habitual.
+                    </p>
+                </div>
+
+                <button class="btn btn-sm btn-outline-secondary" @onclick="Comprobar">
+                    <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Reintentar
+                </button>
+            }
 
             <p class="mt-3 mb-0"><code class="small">/@Ruta</code></p>
         </div>
@@ -38,6 +71,17 @@ else
     [Parameter]
     public string? Ruta { get; set; }
 
-    private bool HayLegado =>
-        !string.IsNullOrWhiteSpace(Config["SeePos:LegacySpaUrl"]);
+    private bool _comprobando = true;
+    private bool _disponible;
+
+    private string? UrlLegado => Config["SeePos:LegacySpaUrl"];
+
+    protected override async Task OnParametersSetAsync() => await Comprobar();
+
+    private async Task Comprobar()
+    {
+        _comprobando = true;
+        _disponible = await Legado.EstaDisponibleAsync();
+        _comprobando = false;
+    }
 }

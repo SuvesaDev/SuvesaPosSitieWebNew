@@ -1,0 +1,228 @@
+@page "/initial/customers"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IClientesConsulta Api
+@inject IManejadorRespuestas Respuestas
+
+@*  RUTA DEL MENU, no una propia.
+    Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
+    llega al sitio nuevo y ya no al iframe de la SPA React.
+
+    CONSECUENCIA: la version anterior tenia ademas EDICION, y esta es solo consulta.
+    Quien necesite editar entra por la SPA React mientras dure la convivencia.
+    Se cierra cuando esta pantalla incorpore el mantenimiento.
+*@
+
+@*  OLA 1 — replica del ARQUETIPO 02 (consulta de nivel A, movil primero).
+    Misma estructura que Views/Inventario/Consulta.razor: una consulta alimenta dos
+    presentaciones, busqueda con espera y cancelacion, detalle en panel lateral.
+    Solo cambian el proxy, los campos de la tarjeta y las columnas.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+    <ChildContent>
+
+        <div class="mb-3">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+                <input type="search" class="form-control"
+                       placeholder="Cedula o nombre..."
+                       aria-label="Buscar cliente"
+                       value="@_texto" @oninput="AlEscribir" />
+            </div>
+            <div class="form-text">
+                Escriba al menos dos caracteres. Solo digitos busca por cedula.
+            </div>
+        </div>
+
+        @if (_buscando)
+        {
+            <div class="d-flex justify-content-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Buscando</span>
+                </div>
+            </div>
+        }
+        else if (_resultados.Count == 0)
+        {
+            <div class="text-center text-secondary py-5 small">
+                @(string.IsNullOrWhiteSpace(_texto)
+                    ? "Escriba para buscar un cliente."
+                    : "Ningun cliente coincide con la busqueda.")
+            </div>
+        }
+        else
+        {
+            <p class="text-secondary small">
+                @_resultados.Count @(_resultados.Count == 1 ? "cliente" : "clientes")
+            </p>
+
+            @* Movil: tarjetas. *@
+            <div class="d-md-none d-flex flex-column gap-2">
+                @foreach (var c in _resultados)
+                {
+                    <button type="button" class="card text-start border-0 shadow-sm p-0"
+                            @onclick="() => Ver(c)">
+                        <div class="card-body py-2 px-3">
+                            <div class="fw-semibold small">@c.Nombre</div>
+                            <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
+                                <code class="small text-secondary">@c.Cedula</code>
+                                @if (!string.IsNullOrWhiteSpace(c.Telefono_01))
+                                {
+                                    <span class="small text-secondary">@c.Telefono_01</span>
+                                }
+                            </div>
+                        </div>
+                    </button>
+                }
+            </div>
+
+            @* Escritorio y tableta: rejilla. *@
+            <div class="d-none d-md-block card">
+                <div class="card-body">
+                    <AppRejilla TItem="FiltranClienteDTO" Datos="Servir"
+                                Nivel="NivelPantalla.Tableta" @ref="_rejilla">
+                        <Columnas>
+                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Cedula"
+                                          ItemTextSelector="c => c.Cedula"
+                                          SortKeySelector="c => c.Cedula" />
+                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Nombre"
+                                          ItemTextSelector="c => c.Nombre"
+                                          SortKeySelector="c => c.Nombre" />
+                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Telefono"
+                                          ItemTextSelector="c => c.Telefono_01" />
+                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Correo"
+                                          ItemTextSelector="c => c.E_Mail" />
+                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Credito"
+                                          ItemTextSelector="@(c => Formato.Importe(c.Max_Credito))"
+                                          SortKeySelector="c => c.Max_Credito"
+                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="">
+                                <ItemTemplate Context="c">
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(c)">Ver</button>
+                                </ItemTemplate>
+                            </HxGridColumn>
+                        </Columnas>
+                    </AppRejilla>
+                </div>
+            </div>
+        }
+
+    </ChildContent>
+</AppPantalla>
+
+<HxOffcanvas @ref="_detalle" Title="@(_elegido?.Nombre ?? "Cliente")"
+             Placement="OffcanvasPlacement.End">
+    <BodyTemplate>
+        @if (_elegido is not null)
+        {
+            <dl class="row small mb-0">
+                <dt class="col-5 fw-normal text-secondary">Cedula</dt>
+                <dd class="col-7"><code>@_elegido.Cedula</code></dd>
+
+                <dt class="col-5 fw-normal text-secondary">Telefono</dt>
+                <dd class="col-7">@(_elegido.Telefono_01 ?? "—")</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Telefono 2</dt>
+                <dd class="col-7">@(_elegido.Telefono_02 ?? "—")</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Correo</dt>
+                <dd class="col-7">@(_elegido.E_Mail ?? "—")</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Direccion</dt>
+                <dd class="col-7">@(_elegido.Direccion ?? "—")</dd>
+            </dl>
+
+            <hr />
+
+            <dl class="row small mb-0">
+                <dt class="col-5 fw-normal text-secondary">Credito maximo</dt>
+                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Max_Credito)</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Plazo</dt>
+                <dd class="col-7 seepos-importe">@_elegido.Plazo_Credito dias</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Impuesto</dt>
+                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Impuesto)</dd>
+            </dl>
+
+            @if (!string.IsNullOrWhiteSpace(_elegido.Observaciones))
+            {
+                <hr />
+                <p class="small text-secondary mb-0">@_elegido.Observaciones</p>
+            }
+        }
+    </BodyTemplate>
+</HxOffcanvas>
+
+@code {
+    private const string Titulo = "Clientes";
+
+    private static readonly TimeSpan Espera = TimeSpan.FromMilliseconds(400);
+
+    private AppRejilla<FiltranClienteDTO>? _rejilla;
+    private HxOffcanvas _detalle = default!;
+
+    private string _texto = string.Empty;
+    private List<FiltranClienteDTO> _resultados = new();
+    private FiltranClienteDTO? _elegido;
+    private bool _buscando;
+
+    private CancellationTokenSource? _pendiente;
+
+    private async Task AlEscribir(ChangeEventArgs e)
+    {
+        _texto = e.Value?.ToString() ?? string.Empty;
+
+        _pendiente?.Cancel();
+        _pendiente = new CancellationTokenSource();
+        var token = _pendiente.Token;
+
+        try
+        {
+            await Task.Delay(Espera, token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        await Buscar(token);
+    }
+
+    private async Task Buscar(CancellationToken token)
+    {
+        _buscando = true;
+        StateHasChanged();
+
+        var r = await Api.Buscar(_texto);
+
+        if (token.IsCancellationRequested)
+        {
+            return;
+        }
+
+        _resultados = (await Respuestas.DatoAsync(r, "buscar clientes"))
+                      ?.ToList() ?? new List<FiltranClienteDTO>();
+
+        _buscando = false;
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+
+        StateHasChanged();
+    }
+
+    private Task<GridDataProviderResult<FiltranClienteDTO>> Servir(
+        GridDataProviderRequest<FiltranClienteDTO> peticion)
+        => Task.FromResult(peticion.ApplyTo(_resultados));
+
+    private async Task Ver(FiltranClienteDTO cliente)
+    {
+        _elegido = cliente;
+        await _detalle.ShowAsync();
+    }
+}

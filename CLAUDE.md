@@ -227,12 +227,29 @@ una pantalla interactiva marcada `[AllowAnonymous]` no arranca, y falla con un
 `Failed to complete negotiation ... 401` que no dice de donde viene. No estorba
 porque todas las pantallas interactivas van tras el login, pero conviene saberlo.
 
+## Las pantallas migradas ocupan la ruta del menu
+
+Una pantalla nueva **tiene que declarar la misma ruta que el menu**
+(`/initial/customers`, no `/consulta/clientes`). Si no, el menu sigue llevando al
+iframe de la SPA y la pantalla nueva queda inalcanzable. Paso con tres de la Ola 1 y
+no se detecto hasta abrirlas a mano: las pruebas las visitaban por su ruta propia, no
+por la del menu.
+
+**Deuda que esto genera.** Clientes, Inventarios y Proveedores estan migradas **solo
+como consulta**; la version anterior tambien editaba. Mientras dure la convivencia,
+quien necesite editar entra por la SPA React. Se cierra cuando esas pantallas
+incorporen el mantenimiento, en la Ola 4.
+
 ## Rutas pendientes
 
-`Views/Shared/PantallaPendiente.razor` tiene `@page "/{*Ruta}"` y recoge las 78 rutas
-del sistema actual que aun no se migran. Las rutas concretas ganan al comodin, asi que
-cada pantalla migrada lo va vaciando sola. En la semana 4 este componente pasa a
-albergar el iframe con la pantalla React equivalente.
+`Views/Shared/PantallaPendiente.razor` tiene `@page "/{*Ruta}"` y recoge las rutas del
+sistema actual que aun no se migran. Las rutas concretas ganan al comodin, asi que cada
+pantalla migrada lo va vaciando sola.
+
+**Solo muestra el iframe si la SPA React responde de verdad** (`ISondaLegado`, con
+cache corta). Antes bastaba con que hubiera URL configurada, y si la SPA no estaba
+levantada el usuario veia una pantalla **en blanco sin ninguna explicacion**. Ahora
+sale un aviso con la URL que no responde y un boton de reintentar.
 
 ## Verificacion contra el API real
 
@@ -252,20 +269,36 @@ lo mas delicado: los permisos casan por titulo, no por ruta, asi que una diferen
 de un acento hace desaparecer esa pantalla para todo el que no sea administrador.
 Esa prueba hoy solo informa del desfase; cuando se conozca, pasa a ser una asercion.
 
-## Los permisos del API no casan con los titulos del menu
+## Permisos y menu — medido y resuelto
 
-Comprobado con el usuario `admin`: el API devuelve 23 permisos y varios no coinciden
-con los titulos de `MenuSeePos`.
+Ejecutado contra el API real con `admin`. El catalogo de permisos **esta incompleto**:
 
-| El API manda | El menu tiene |
+| | |
 |---|---|
-| `Facturacion` (menu `Inicio`) | `Facturación` (menu `Ventas`) |
-| `Consignacion` | `Consignación` |
-| `Abono Cobrar` bajo `Ventas` **y** `Compras` | una sola entrada |
+| Titulos en el menu | 78 |
+| Pantallas que el API menciona | 20 |
+| No casaban por escritura | 2 |
 
-Con un administrador no se nota, porque ve todo. **Con cualquier rol limitado esas
-pantallas desaparecen del menu.** Hay que revisarlo con un usuario no administrador
-antes de la Ola 1, y decidir si se normaliza en el API o se mapea en el sitio.
+**Resuelto — diferencias de escritura.** `NombrePantalla.Comparador` ignora tildes,
+mayusculas y espacios sobrantes. Asi `Facturacion` del API casa con `Facturación`
+del menu. Sin esto, esa pantalla desaparecia para todo rol no administrador.
+
+**Resuelto — pantallas que el API no menciona.** Una pantalla no mencionada **no es
+lo mismo que una denegada**. Tratarlas igual escondia 60 pantallas que hoy se ven.
+`ContextoSesion.Puede` devuelve `true` para lo no gobernado, que es **paridad con el
+sistema actual**, donde el menu no se filtra.
+
+Se puede endurecer con `SeePos:VerPantallasNoGobernadas: false`, pero eso deja fuera
+esas 60 hasta que el API complete su catalogo.
+
+Esto **no relaja la seguridad real**: quien autoriza es el API, que responde 401 o
+403 si el rol no puede. El menu solo decide que se ensena.
+
+**Sin resolver — `Consignacion`.** El API concede permiso para una pantalla que
+**no existe en el menu**. Las tres rutas (`/buys/consignment/register`, `/billing`,
+`/following`) estan en el enrutador de React pero `SidebarData.jsx` no tiene ninguna
+entrada que lleve a ellas. No es un fallo del portado: el menu actual no las incluye.
+Hay que decidir si se anaden al menu o se llega a ellas desde otra pantalla.
 
 ## Pruebas de extremo a extremo
 

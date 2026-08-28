@@ -10,17 +10,27 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
 {
     private readonly IInventarioApiCliente _api;
+    private readonly IStockLoteApiCliente _lotes;
     private readonly ILogger<InventarioConsulta> _log;
 
     public InventarioConsulta(
         IInventarioApiCliente api,
+        IStockLoteApiCliente lotes,
         IContextoSesion sesion,
         ILogger<InventarioConsulta> log)
         : base(sesion, log)
     {
         _api = api;
+        _lotes = lotes;
         _log = log;
     }
+
+    public Task<ResponseGeneric<ICollection<StockLoteDTO>>> Lotes(long idArticulo)
+        => Ejecutar(async () =>
+        {
+            var r = await _lotes.GetStockLotesArticuloAsync(idArticulo);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar los lotes del articulo");
 
     public async Task<ResponseGeneric<ICollection<InventarioDTO>>> Buscar(
         string texto, bool incluirInhabilitados = false)

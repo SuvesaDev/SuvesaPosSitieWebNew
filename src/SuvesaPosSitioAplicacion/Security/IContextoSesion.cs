@@ -29,6 +29,15 @@ public interface IContextoSesion
     /// <summary>Si la pantalla puede abrirse. Equivale a la accion Ver.</summary>
     bool PuedeVer(string pantalla);
 
+    /// <summary>
+    /// Si el API menciona siquiera esta pantalla en los permisos del rol.
+    ///
+    /// Importa porque el catalogo del API esta incompleto: de los 78 titulos del
+    /// menu, solo menciona 20. Una pantalla no mencionada no es lo mismo que una
+    /// denegada, y tratarlas igual esconderia 60 pantallas que hoy se ven.
+    /// </summary>
+    bool EstaGobernada(string pantalla);
+
     /// <summary>Si el usuario puede ejecutar una accion concreta sobre una pantalla.</summary>
     bool Puede(string pantalla, AccionPantalla accion);
 

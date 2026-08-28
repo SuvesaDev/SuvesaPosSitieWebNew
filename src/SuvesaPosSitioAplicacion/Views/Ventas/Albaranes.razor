@@ -1,0 +1,276 @@
+@page "/initial/consultAlbaranes"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IAlbaranes Api
+@inject IManejadorRespuestas Respuestas
+
+@*  OLA 1 — replica del ARQUETIPO 02, en solo lectura.
+    Los albaranes vienen de Qvet. Aqui solo se consultan; facturarlos es una
+    operacion de escritura que corresponde a una ola posterior.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
+
+    <ChildContent>
+
+        <div class="row g-2 mb-3">
+            <div class="col-12 col-md-8">
+                <input type="search" class="form-control"
+                       placeholder="Cliente, cedula o mascota..."
+                       aria-label="Filtrar albaranes"
+                       value="@_texto" @oninput="AlEscribir" />
+            </div>
+            <div class="col-12 col-md-4">
+                <select class="form-select" aria-label="Alcance" @onchange="AlCambiarAlcance">
+                    <option value="pendientes">Pendientes de facturar</option>
+                    <option value="todos">Todos</option>
+                </select>
+            </div>
+        </div>
+
+        @if (!_cargado)
+        {
+            <div class="d-flex justify-content-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando</span>
+                </div>
+            </div>
+        }
+        else if (_filtrados.Count == 0)
+        {
+            <div class="text-center text-secondary py-5 small">
+                @(string.IsNullOrWhiteSpace(_texto)
+                    ? "No hay albaranes en este alcance."
+                    : "Ningun albaran coincide con el filtro.")
+            </div>
+        }
+        else
+        {
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-secondary small">
+                    @_filtrados.Count de @_todos.Count
+                </span>
+                <span class="small fw-semibold">
+                    Total: <span class="seepos-importe">@Formato.Importe(_total)</span>
+                </span>
+            </div>
+
+            <div class="d-md-none d-flex flex-column gap-2">
+                @foreach (var a in _filtrados)
+                {
+                    <button type="button" class="card text-start border-0 shadow-sm p-0"
+                            @onclick="() => Ver(a)">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <span class="fw-semibold small">@a.Cliente</span>
+                                <span class="seepos-importe small">@Formato.Importe(a.Total)</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
+                                <span class="small text-secondary">
+                                    <code>@a.Id</code>
+                                    @if (!string.IsNullOrWhiteSpace(a.Mascota))
+                                    {
+                                        <span> · @a.Mascota</span>
+                                    }
+                                </span>
+                                <span class="small text-secondary">@FechaTexto(a)</span>
+                            </div>
+                        </div>
+                    </button>
+                }
+            </div>
+
+            <div class="d-none d-md-block card">
+                <div class="card-body">
+                    <AppRejilla TItem="VentaDTO" Datos="Servir"
+                                Nivel="NivelPantalla.Tableta" @ref="_rejilla">
+                        <Columnas>
+                            <HxGridColumn TItem="VentaDTO" HeaderText="Albaran"
+                                          ItemTextSelector="@(a => a.Id.ToString())"
+                                          SortKeySelector="a => a.Id" />
+                            <HxGridColumn TItem="VentaDTO" HeaderText="Fecha"
+                                          ItemTextSelector="@(a => FechaTexto(a))" />
+                            <HxGridColumn TItem="VentaDTO" HeaderText="Cliente"
+                                          ItemTextSelector="a => a.Cliente"
+                                          SortKeySelector="a => a.Cliente" />
+                            <HxGridColumn TItem="VentaDTO" HeaderText="Mascota"
+                                          ItemTextSelector="a => a.Mascota" />
+                            <HxGridColumn TItem="VentaDTO" HeaderText="Responsable"
+                                          ItemTextSelector="a => a.ResponsableVenta" />
+                            <HxGridColumn TItem="VentaDTO" HeaderText="Total"
+                                          ItemTextSelector="@(a => Formato.Importe(a.Total))"
+                                          SortKeySelector="a => a.Total"
+                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                            <HxGridColumn TItem="VentaDTO" HeaderText="">
+                                <ItemTemplate Context="a">
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(a)">Ver</button>
+                                </ItemTemplate>
+                            </HxGridColumn>
+                        </Columnas>
+                    </AppRejilla>
+                </div>
+            </div>
+        }
+
+    </ChildContent>
+</AppPantalla>
+
+<HxOffcanvas @ref="_detalle" Title="@($"Albaran {_elegido?.Id}")"
+             Placement="OffcanvasPlacement.End" Size="OffcanvasSize.Large">
+    <BodyTemplate>
+        @if (_elegido is not null)
+        {
+            <dl class="row small mb-0">
+                <dt class="col-5 fw-normal text-secondary">Cliente</dt>
+                <dd class="col-7">@(_elegido.Cliente ?? "—")</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Cedula</dt>
+                <dd class="col-7"><code>@(_elegido.Cedula ?? "—")</code></dd>
+
+                <dt class="col-5 fw-normal text-secondary">Mascota</dt>
+                <dd class="col-7">@(_elegido.Mascota ?? "—")</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Responsable</dt>
+                <dd class="col-7">@(_elegido.ResponsableVenta ?? "—")</dd>
+            </dl>
+
+            @if (_elegido.ListaLineas is { Count: > 0 })
+            {
+                <hr />
+                <p class="small text-secondary mb-2">@_elegido.ListaLineas.Count lineas</p>
+
+                <div class="table-responsive">
+                    <table class="table table-sm small mb-0">
+                        <thead>
+                            <tr>
+                                <th>Descripcion</th>
+                                <th class="seepos-importe">Cant.</th>
+                                <th class="seepos-importe">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var l in _elegido.ListaLineas)
+                            {
+                                <tr>
+                                    <td>@l.Descripcion</td>
+                                    <td class="seepos-importe">@Formato.Cantidad(l.Cantidad)</td>
+                                    <td class="seepos-importe">@Formato.Importe(l.Total)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <hr />
+
+            <dl class="row small mb-0">
+                <dt class="col-7 fw-normal text-secondary">Subtotal</dt>
+                <dd class="col-5 seepos-importe">@Formato.Importe(_elegido.Subtotal)</dd>
+
+                <dt class="col-7 fw-normal text-secondary">Descuento</dt>
+                <dd class="col-5 seepos-importe">@Formato.Importe(_elegido.Descuento)</dd>
+
+                <dt class="col-7 fw-normal text-secondary">Impuesto</dt>
+                <dd class="col-5 seepos-importe">@Formato.Importe(_elegido.Impuesto)</dd>
+
+                <dt class="col-7 fw-semibold">Total</dt>
+                <dd class="col-5 seepos-importe fw-semibold">@Formato.Importe(_elegido.Total)</dd>
+            </dl>
+        }
+    </BodyTemplate>
+</HxOffcanvas>
+
+@code {
+    private const string Titulo = "Consultar Albaranes";
+
+    private AppRejilla<VentaDTO>? _rejilla;
+    private HxOffcanvas _detalle = default!;
+
+    private List<VentaDTO> _todos = new();
+    private List<VentaDTO> _filtrados = new();
+    private VentaDTO? _elegido;
+    private string _texto = string.Empty;
+    private string _alcance = "pendientes";
+    private decimal _total;
+    private bool _cargado;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        var r = _alcance == "todos" ? await Api.Todos() : await Api.PendientesDeFacturar();
+
+        _todos = (await Respuestas.DatoAsync(r, "consultar los albaranes"))
+                 ?.ToList() ?? new List<VentaDTO>();
+
+        _cargado = true;
+        Filtrar();
+    }
+
+    private async Task Recargar()
+    {
+        _cargado = false;
+        await Cargar();
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private async Task AlCambiarAlcance(ChangeEventArgs e)
+    {
+        _alcance = e.Value?.ToString() ?? "pendientes";
+        await Recargar();
+    }
+
+    private async Task AlEscribir(ChangeEventArgs e)
+    {
+        _texto = e.Value?.ToString() ?? string.Empty;
+        Filtrar();
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private void Filtrar()
+    {
+        var buscado = Security.NombrePantalla.Normalizar(_texto);
+
+        _filtrados = string.IsNullOrWhiteSpace(buscado)
+            ? _todos
+            : _todos.Where(a =>
+                  Security.NombrePantalla.Normalizar(a.Cliente).Contains(buscado)
+                  || Security.NombrePantalla.Normalizar(a.Cedula).Contains(buscado)
+                  || Security.NombrePantalla.Normalizar(a.Mascota).Contains(buscado))
+              .ToList();
+
+        _total = CalculoDocumento.Redondear(
+            _filtrados.Sum(a => Formato.AImporte(a.Total)));
+    }
+
+    /// <summary>El API declara Fecha como object; se muestra tal cual venga.</summary>
+    private static string FechaTexto(VentaDTO a) => a.Fecha?.ToString() ?? "—";
+
+    private Task<GridDataProviderResult<VentaDTO>> Servir(
+        GridDataProviderRequest<VentaDTO> peticion)
+        => Task.FromResult(peticion.ApplyTo(_filtrados));
+
+    private async Task Ver(VentaDTO albaran)
+    {
+        // La lista no trae las lineas; el detalle si.
+        var completo = await Respuestas.DatoAsync(await Api.Uno(albaran.Id), "abrir el albaran");
+
+        _elegido = completo ?? albaran;
+        await _detalle.ShowAsync();
+    }
+}

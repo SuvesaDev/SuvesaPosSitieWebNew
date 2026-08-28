@@ -1,0 +1,207 @@
+@page "/buys/providers"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IProveedoresConsulta Api
+@inject IManejadorRespuestas Respuestas
+
+@*  RUTA DEL MENU, no una propia.
+    Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
+    llega al sitio nuevo y ya no al iframe de la SPA React.
+
+    CONSECUENCIA: la version anterior tenia ademas EDICION, y esta es solo consulta.
+    Quien necesite editar entra por la SPA React mientras dure la convivencia.
+    Se cierra cuando esta pantalla incorpore el mantenimiento.
+*@
+
+@*  OLA 1 — replica del ARQUETIPO 02.
+    Variante: el API no ofrece busqueda de proveedores, solo el listado completo.
+    Asi que se trae una vez y se filtra en memoria, en lugar de consultar por cada
+    tecla. Para un catalogo de proveedores el volumen lo permite; si algun dia deja
+    de permitirlo, hay que pedirle al API un endpoint de busqueda.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+    <ChildContent>
+
+        <div class="mb-3">
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+                <input type="search" class="form-control"
+                       placeholder="Nombre, cedula o contacto..."
+                       aria-label="Filtrar proveedores"
+                       value="@_texto" @oninput="AlEscribir" />
+            </div>
+        </div>
+
+        @if (!_cargado)
+        {
+            <div class="d-flex justify-content-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando</span>
+                </div>
+            </div>
+        }
+        else if (_filtrados.Count == 0)
+        {
+            <div class="text-center text-secondary py-5 small">
+                @(string.IsNullOrWhiteSpace(_texto)
+                    ? "No hay proveedores registrados."
+                    : "Ningun proveedor coincide con el filtro.")
+            </div>
+        }
+        else
+        {
+            <p class="text-secondary small">
+                @_filtrados.Count de @_todos.Count @(_todos.Count == 1 ? "proveedor" : "proveedores")
+            </p>
+
+            <div class="d-md-none d-flex flex-column gap-2">
+                @foreach (var p in _filtrados)
+                {
+                    <button type="button" class="card text-start border-0 shadow-sm p-0"
+                            @onclick="() => Ver(p)">
+                        <div class="card-body py-2 px-3">
+                            <div class="fw-semibold small">@p.Nombre</div>
+                            <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
+                                <code class="small text-secondary">@p.Cedula</code>
+                                @if (!string.IsNullOrWhiteSpace(p.Telefono1))
+                                {
+                                    <span class="small text-secondary">@p.Telefono1</span>
+                                }
+                            </div>
+                        </div>
+                    </button>
+                }
+            </div>
+
+            <div class="d-none d-md-block card">
+                <div class="card-body">
+                    <AppRejilla TItem="ProveedorDTO" Datos="Servir"
+                                Nivel="NivelPantalla.Tableta" @ref="_rejilla">
+                        <Columnas>
+                            <HxGridColumn TItem="ProveedorDTO" HeaderText="Cedula"
+                                          ItemTextSelector="p => p.Cedula"
+                                          SortKeySelector="p => p.Cedula" />
+                            <HxGridColumn TItem="ProveedorDTO" HeaderText="Nombre"
+                                          ItemTextSelector="p => p.Nombre"
+                                          SortKeySelector="p => p.Nombre" />
+                            <HxGridColumn TItem="ProveedorDTO" HeaderText="Contacto"
+                                          ItemTextSelector="p => p.Contacto" />
+                            <HxGridColumn TItem="ProveedorDTO" HeaderText="Telefono"
+                                          ItemTextSelector="p => p.Telefono1" />
+                            <HxGridColumn TItem="ProveedorDTO" HeaderText="Credito"
+                                          ItemTextSelector="@(p => Formato.Importe(p.MontoCredito ?? 0))"
+                                          SortKeySelector="p => p.MontoCredito"
+                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                            <HxGridColumn TItem="ProveedorDTO" HeaderText="">
+                                <ItemTemplate Context="p">
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(p)">Ver</button>
+                                </ItemTemplate>
+                            </HxGridColumn>
+                        </Columnas>
+                    </AppRejilla>
+                </div>
+            </div>
+        }
+
+    </ChildContent>
+</AppPantalla>
+
+<HxOffcanvas @ref="_detalle" Title="@(_elegido?.Nombre ?? "Proveedor")"
+             Placement="OffcanvasPlacement.End">
+    <BodyTemplate>
+        @if (_elegido is not null)
+        {
+            <dl class="row small mb-0">
+                <dt class="col-5 fw-normal text-secondary">Cedula</dt>
+                <dd class="col-7"><code>@_elegido.Cedula</code></dd>
+
+                <dt class="col-5 fw-normal text-secondary">Contacto</dt>
+                <dd class="col-7">@(_elegido.Contacto ?? "—")</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Tel. contacto</dt>
+                <dd class="col-7">@(_elegido.TelefonoCont ?? "—")</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Telefono</dt>
+                <dd class="col-7">@(_elegido.Telefono1 ?? "—")</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Correo</dt>
+                <dd class="col-7">@(_elegido.Email ?? "—")</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Direccion</dt>
+                <dd class="col-7">@(_elegido.Direccion ?? "—")</dd>
+            </dl>
+
+            <hr />
+
+            <dl class="row small mb-0">
+                <dt class="col-5 fw-normal text-secondary">Credito</dt>
+                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.MontoCredito ?? 0)</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Plazo</dt>
+                <dd class="col-7 seepos-importe">@(_elegido.Plazo ?? 0) dias</dd>
+            </dl>
+
+            @if (!string.IsNullOrWhiteSpace(_elegido.Observaciones))
+            {
+                <hr />
+                <p class="small text-secondary mb-0">@_elegido.Observaciones</p>
+            }
+        }
+    </BodyTemplate>
+</HxOffcanvas>
+
+@code {
+    private const string Titulo = "Proveedores";
+
+    private AppRejilla<ProveedorDTO>? _rejilla;
+    private HxOffcanvas _detalle = default!;
+
+    private List<ProveedorDTO> _todos = new();
+    private List<ProveedorDTO> _filtrados = new();
+    private ProveedorDTO? _elegido;
+    private string _texto = string.Empty;
+    private bool _cargado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _todos = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar los proveedores"))
+                 ?.ToList() ?? new List<ProveedorDTO>();
+
+        _filtrados = _todos;
+        _cargado = true;
+    }
+
+    private async Task AlEscribir(ChangeEventArgs e)
+    {
+        _texto = e.Value?.ToString() ?? string.Empty;
+
+        // Filtrado en memoria: sin tildes ni mayusculas, para que "jose" encuentre
+        // "José" como espera cualquiera que escriba deprisa.
+        var buscado = Security.NombrePantalla.Normalizar(_texto);
+
+        _filtrados = string.IsNullOrWhiteSpace(buscado)
+            ? _todos
+            : _todos.Where(p =>
+                  Security.NombrePantalla.Normalizar(p.Nombre).Contains(buscado)
+                  || Security.NombrePantalla.Normalizar(p.Cedula).Contains(buscado)
+                  || Security.NombrePantalla.Normalizar(p.Contacto).Contains(buscado))
+              .ToList();
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+
+    private Task<GridDataProviderResult<ProveedorDTO>> Servir(
+        GridDataProviderRequest<ProveedorDTO> peticion)
+        => Task.FromResult(peticion.ApplyTo(_filtrados));
+
+    private async Task Ver(ProveedorDTO proveedor)
+    {
+        _elegido = proveedor;
+        await _detalle.ShowAsync();
+    }
+}

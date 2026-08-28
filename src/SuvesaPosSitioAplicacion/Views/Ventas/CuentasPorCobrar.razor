@@ -1,0 +1,110 @@
+@page "/sales/collect"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICuentasPorCobrar Api
+@inject IManejadorRespuestas Respuestas
+
+@*  OLA 1 — replica del ARQUETIPO 05, sin el PDF.
+    Misma forma que Views/Compras/CuentasPorPagar.razor: el API devuelve clientes con
+    sus facturas dentro y aqui se aplana a filas. Los saldos se convierten a decimal
+    en el borde y se suman en decimal.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
+
+    <ChildContent>
+        <div class="card">
+            <div class="card-body">
+                <AppRejilla TItem="FilaCobro" Datos="Cargar" Nivel="NivelPantalla.Tableta"
+                            TextoVacio="No hay facturas pendientes de cobro."
+                            @ref="_rejilla">
+                    <Columnas>
+                        <HxGridColumn TItem="FilaCobro" HeaderText="Cliente"
+                                      ItemTextSelector="f => f.Cliente"
+                                      SortKeySelector="f => f.Cliente" />
+                        <HxGridColumn TItem="FilaCobro" HeaderText="Cedula"
+                                      ItemTextSelector="f => f.Cedula" />
+                        <HxGridColumn TItem="FilaCobro" HeaderText="Factura"
+                                      ItemTextSelector="f => f.Factura"
+                                      SortKeySelector="f => f.Factura" />
+                        <HxGridColumn TItem="FilaCobro" HeaderText="Fecha"
+                                      ItemTextSelector="@(f => f.Fecha.ToString("dd/MM/yyyy"))"
+                                      SortKeySelector="f => f.Fecha" />
+                        <HxGridColumn TItem="FilaCobro" HeaderText="Monto"
+                                      ItemTextSelector="@(f => Formato.Importe(f.Monto))"
+                                      SortKeySelector="f => f.Monto"
+                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                        <HxGridColumn TItem="FilaCobro" HeaderText="Saldo"
+                                      ItemTextSelector="@(f => Formato.Importe(f.Saldo))"
+                                      SortKeySelector="f => f.Saldo"
+                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                    </Columnas>
+                </AppRejilla>
+
+                @if (_filas.Count > 0)
+                {
+                    <div class="d-flex justify-content-end gap-4 border-top pt-3 mt-3">
+                        <span class="text-secondary small">@_filas.Count facturas pendientes</span>
+                        <span class="fw-semibold">
+                            Total: <span class="seepos-importe">@Formato.Importe(_total)</span>
+                        </span>
+                    </div>
+                }
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Cobrar";
+
+    private sealed record FilaCobro(
+        string Cliente, string Cedula, string Factura, DateTime Fecha, decimal Monto, decimal Saldo);
+
+    private AppRejilla<FilaCobro>? _rejilla;
+    private List<FilaCobro> _filas = new();
+    private decimal _total;
+    private bool _cargado;
+
+    private async Task<GridDataProviderResult<FilaCobro>> Cargar(
+        GridDataProviderRequest<FilaCobro> peticion)
+    {
+        if (!_cargado)
+        {
+            var pendientes = await Respuestas.DatoAsync(
+                await Api.ObtenerPendientes(), "consultar las cuentas por cobrar");
+
+            _filas = (pendientes ?? new List<BuscarClientesPendientesDTO>())
+                .SelectMany(c => (c.Facturas ?? new List<FacturasPendientesPagoDTO>())
+                    .Select(f => new FilaCobro(
+                        c.Nombre ?? "",
+                        c.Cedula ?? "",
+                        f.NumeroFactura ?? "",
+                        f.Fecha,
+                        Formato.AImporte(f.MontoFactura),
+                        Formato.AImporte(f.SaldoActual ?? 0))))
+                .ToList();
+
+            _total = CalculoDocumento.Redondear(_filas.Sum(f => f.Saldo));
+            _cargado = true;
+        }
+
+        return peticion.ApplyTo(_filas);
+    }
+
+    private async Task Recargar()
+    {
+        _cargado = false;
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+}

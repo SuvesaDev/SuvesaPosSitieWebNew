@@ -1,0 +1,101 @@
+@page "/reportes/compras"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IReportes Api
+@inject IManejadorRespuestas Respuestas
+
+@*  OLA 1 — replica del ARQUETIPO 05 (reporte con PDF).
+    Una sola consulta alimenta pantalla y PDF. Los totales se suman en decimal.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        <a class="btn btn-sm btn-outline-primary" href="/reportes/compras/pdf"
+           target="_blank" rel="noopener">
+            <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Descargar PDF
+        </a>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
+
+    <ChildContent>
+        <div class="card">
+            <div class="card-body">
+                <AppRejilla TItem="ReporteComprasDTO" Datos="Cargar" Nivel="NivelPantalla.Tableta"
+                            TextoVacio="No hay compras registradas." @ref="_rejilla">
+                    <Columnas>
+                        <HxGridColumn TItem="ReporteComprasDTO" HeaderText="Factura"
+                                      ItemTextSelector="c => c.Factura"
+                                      SortKeySelector="c => c.Factura" />
+                        <HxGridColumn TItem="ReporteComprasDTO" HeaderText="Proveedor"
+                                      ItemTextSelector="c => c.Nombre"
+                                      SortKeySelector="c => c.Nombre" />
+                        <HxGridColumn TItem="ReporteComprasDTO" HeaderText="Fecha"
+                                      ItemTextSelector="@(c => c.Fecha.ToString("dd/MM/yyyy"))"
+                                      SortKeySelector="c => c.Fecha" />
+                        <HxGridColumn TItem="ReporteComprasDTO" HeaderText="Gravado"
+                                      ItemTextSelector="@(c => Formato.Importe(c.SubTotalGravado))"
+                                      SortKeySelector="c => c.SubTotalGravado"
+                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                        <HxGridColumn TItem="ReporteComprasDTO" HeaderText="Impuesto"
+                                      ItemTextSelector="@(c => Formato.Importe(c.Impuesto))"
+                                      SortKeySelector="c => c.Impuesto"
+                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                        <HxGridColumn TItem="ReporteComprasDTO" HeaderText="Total"
+                                      ItemTextSelector="@(c => Formato.Importe(c.TotalFactura))"
+                                      SortKeySelector="c => c.TotalFactura"
+                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                    </Columnas>
+                </AppRejilla>
+
+                @if (_compras.Count > 0)
+                {
+                    <div class="d-flex justify-content-end gap-4 border-top pt-3 mt-3">
+                        <span class="text-secondary small">@_compras.Count facturas</span>
+                        <span class="fw-semibold">
+                            Total: <span class="seepos-importe">@Formato.Importe(_total)</span>
+                        </span>
+                    </div>
+                }
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Módulo Reportes";
+
+    private AppRejilla<ReporteComprasDTO>? _rejilla;
+    private List<ReporteComprasDTO> _compras = new();
+    private decimal _total;
+    private bool _cargado;
+
+    private async Task<GridDataProviderResult<ReporteComprasDTO>> Cargar(
+        GridDataProviderRequest<ReporteComprasDTO> peticion)
+    {
+        if (!_cargado)
+        {
+            _compras = (await Respuestas.DatoAsync(await Api.Compras(), "consultar el reporte de compras"))
+                       ?.ToList() ?? new List<ReporteComprasDTO>();
+
+            _total = CalculoDocumento.Redondear(
+                _compras.Sum(c => Formato.AImporte(c.TotalFactura)));
+
+            _cargado = true;
+        }
+
+        return peticion.ApplyTo(_compras);
+    }
+
+    private async Task Recargar()
+    {
+        _cargado = false;
+
+        if (_rejilla is not null)
+        {
+            await _rejilla.RefrescarAsync();
+        }
+    }
+}
