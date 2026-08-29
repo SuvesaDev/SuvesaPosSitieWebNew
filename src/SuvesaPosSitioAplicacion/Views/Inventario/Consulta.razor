@@ -16,9 +16,8 @@
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
     llega al sitio nuevo y ya no al iframe de la SPA React.
 
-    CONSECUENCIA: la version anterior tenia ademas EDICION, y esta es solo consulta.
-    Quien necesite editar entra por la SPA React mientras dure la convivencia.
-    Se cierra cuando esta pantalla incorpore el mantenimiento.
+    Ya incorpora alta, edicion y cambio de estado (cerrado en la Ola 4); no hace
+    falta entrar por la SPA React para mantener estos registros.
 *@
 
 @*  ARQUETIPO 02 - CONSULTA DE NIVEL A, MOVIL PRIMERO
@@ -296,9 +295,9 @@
     <BodyTemplate>
         @if (_edicion is not null)
         {
-            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formArticulo">
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formArticulo" class="seepos-articulo-editor">
                 <DataAnnotationsValidator />
-                <nav class="nav nav-pills gap-2 mb-4" aria-label="Secciones del artículo">
+                <nav class="nav nav-pills gap-2 mb-4 seepos-editor-tabs" aria-label="Secciones del artículo">
                     <button type="button" class="btn btn-sm @ClasePestanaGenerales" @onclick="MostrarGenerales">Datos generales</button>
                     <button type="button" class="btn btn-sm @ClasePestanaPrecios" @onclick="MostrarPrecios">Precios</button>
                     <button type="button" class="btn btn-sm @ClasePestanaBarras" @onclick="MostrarBarras">Códigos de barras</button>

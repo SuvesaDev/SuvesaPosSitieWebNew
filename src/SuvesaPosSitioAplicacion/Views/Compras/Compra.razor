@@ -1,0 +1,795 @@
+@page "/buys/buy"
+@using System.Globalization
+@using System.Xml.Linq
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICompras Api
+@inject IProveedoresConsulta Proveedores
+@inject IInventarioConsulta Inventario
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@* Registro de compras: port nativo de BuysPage/BuysArticulosHeader del POS
+   anterior. El encabezado se valida antes de abrir el buscador y cada detalle
+   conserva su costo compuesto para que el API actualice inventario y lotes. *@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="NuevaCompra"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nueva compra</button>
+        <button class="btn btn-sm btn-outline-primary" disabled="@(!_compraDesbloqueada)" @onclick="AbrirBuscadorCompras"><i class="bi bi-search me-1" aria-hidden="true"></i>Buscar</button>
+        <button class="btn btn-sm btn-primary" disabled="@(!_compraDesbloqueada)" @onclick="AbrirImportadorXml"><i class="bi bi-file-earmark-arrow-up me-1" aria-hidden="true"></i>Importar XML</button>
+    </Acciones>
+    <ChildContent>
+        <div class="seepos-compras-estado d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-3 border rounded bg-body-tertiary">
+            @if (_compraDesbloqueada)
+            {
+                <div><strong><i class="bi bi-unlock-fill me-2 text-success" aria-hidden="true"></i>Compra desbloqueada</strong><span class="text-secondary ms-2">Usuario: @_usuarioCompra?.Nombre</span></div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AbrirDesbloqueo">Cambiar usuario</button>
+            }
+            else
+            {
+                <div><strong><i class="bi bi-lock-fill me-2 text-warning" aria-hidden="true"></i>Compra bloqueada</strong><span class="text-secondary ms-2">Ingrese la clave interna para registrar compras.</span></div>
+                <button type="button" class="btn btn-sm btn-primary" @onclick="AbrirDesbloqueo">Desbloquear compras</button>
+            }
+        </div>
+
+        <fieldset disabled="@(!_compraDesbloqueada)" class="seepos-compras border-0 p-0 m-0">
+            <div class="row g-3">
+                <div class="col-12 col-xl-8">
+                    <div class="card h-100 seepos-compras-cabecera">
+                        <div class="card-header d-flex justify-content-between align-items-center"><strong>@(_idCompra > 0 ? $"Compra #{_idCompra}" : "Datos de la compra")</strong>@if (_idCompra > 0) { <span class="badge text-bg-warning">Edición</span> }</div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">Proveedor</label>
+                                    <div class="input-group"><input class="form-control" placeholder="Cédula o nombre del proveedor" @bind="_textoProveedor" @oninput="FiltrarProveedores" /><button type="button" class="btn btn-outline-primary" @onclick="MostrarProveedores">Buscar</button><button type="button" class="btn btn-outline-secondary" title="Crear proveedor" @onclick="AbrirNuevoProveedor"><i class="bi bi-person-plus" aria-hidden="true"></i></button></div>
+                                    @if (_proveedoresEncontrados.Count > 0)
+                                    {
+                                        <div class="list-group position-absolute shadow seepos-resultados-proveedor">@foreach (var proveedor in _proveedoresEncontrados) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirProveedor(proveedor)"><strong>@proveedor.Nombre</strong><span class="text-secondary ms-2">@proveedor.Cedula</span></button> }</div>
+                                    }
+                                </div>
+                                <div class="col-12 col-md-6"><label class="form-label">Proveedor seleccionado</label><div class="form-control bg-body-tertiary text-truncate">@(_proveedor?.Nombre ?? "Seleccione un proveedor")</div></div>
+                                <div class="col-6 col-md-3"><label class="form-label">Número de factura</label><input class="form-control" @bind="_numeroFactura" /></div>
+                                <div class="col-6 col-md-3"><label class="form-label">Condición</label><select class="form-select" @bind="_tipoCompra" @bind:after="ActualizarVencimiento"><option value="2">Contado</option><option value="1">Crédito</option></select></div>
+                                <div class="col-6 col-md-3"><label class="form-label">Fecha</label><input type="date" class="form-control" @bind="_fecha" @bind:after="ActualizarVencimiento" /></div>
+                                <div class="col-6 col-md-3"><label class="form-label">Días de crédito</label><input type="number" min="0" class="form-control" disabled="@(_tipoCompra != 1)" @bind="_diasCredito" @bind:after="ActualizarVencimiento" /></div>
+                                <div class="col-6 col-md-3"><label class="form-label">Vencimiento</label><input type="date" class="form-control" disabled value="@VencimientoTexto" /></div>
+                                <div class="col-6 col-md-3"><label class="form-label">Moneda</label><select class="form-select" @bind="_moneda"><option value="0">Seleccione...</option>@foreach (var moneda in _monedas) { <option value="@moneda.CodMoneda">@moneda.MonedaNombre</option> }</select></div>
+                                <div class="col-12 col-md-3"><label class="form-label">Bodega</label><select class="form-select" @bind="_bodega"><option value="0">Seleccione...</option>@foreach (var bodega in _bodegas) { <option value="@bodega.IdBodega">@bodega.NombreBodega</option> }</select></div>
+                                @if (!EsCostaPetsCompra)
+                                {
+                                    <div class="col-12 col-md-3"><label class="form-label">Empresa</label><select class="form-select" @bind="_empresa"><option value="0">Seleccione...</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-xl-4">
+                    <div class="card h-100 seepos-compras-totales"><div class="card-header"><strong>Totales de compra</strong></div><div class="card-body"><dl class="row mb-0"><dt class="col-7 fw-normal text-secondary">Exento</dt><dd class="col-5 text-end">@Formato.Importe(TotalExento)</dd><dt class="col-7 fw-normal text-secondary">Gravado</dt><dd class="col-5 text-end">@Formato.Importe(TotalGravado)</dd><dt class="col-7 fw-normal text-secondary">Descuento</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Descuento)</dd><dt class="col-7 fw-normal text-secondary">Impuesto</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Impuesto)</dd><dt class="col-7">Total</dt><dd class="col-5 text-end fs-5">@Formato.Importe(_totales.Total)</dd></dl><button class="btn btn-primary w-100 mt-3" disabled="@(_guardando || _lineas.Count == 0)" @onclick="Guardar"><i class="bi bi-floppy me-2" aria-hidden="true"></i>@(_guardando ? "Guardando..." : _idCompra > 0 ? "Guardar cambios" : "Registrar compra")</button>@if (_idCompra > 0) { <button class="btn btn-outline-danger w-100 mt-2" disabled="@_guardando" @onclick="Anular"><i class="bi bi-x-circle me-2" aria-hidden="true"></i>Anular compra</button> }</div></div>
+                </div>
+            </div>
+
+            <div class="card mt-3 seepos-compras-detalle">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2"><strong>Artículos en detalle</strong><button type="button" class="btn btn-sm btn-primary" @onclick="AbrirBuscadorArticulo"><i class="bi bi-search me-1" aria-hidden="true"></i>Buscar artículo</button></div>
+                <div class="card-body">
+                    @if (_articuloActual is not null)
+                    {
+                        <div class="seepos-compras-editor border rounded p-3 mb-3">
+                            <div class="d-flex justify-content-between gap-2 mb-3"><div><strong>@_articuloActual.Descripcion</strong><span class="text-secondary ms-2 small">@_articuloActual.Cod_Articulo · CABYS @_articuloActual.Codcabys</span></div><button type="button" class="btn btn-sm btn-link text-danger" @onclick="LimpiarEditor">Cancelar</button></div>
+                            <div class="row g-3">
+                                <div class="col-6 col-md-2"><label class="form-label">Cantidad</label><input type="number" min="0.001" step="0.001" class="form-control text-end" @bind="_cantidad" @bind:after="RecalcularEditor" /></div>
+                                @if (!EsCostaPetsCompra) { <div class="col-6 col-md-2"><label class="form-label">Regalías</label><input type="number" min="0" step="0.001" class="form-control text-end" @bind="_regalias" /></div> }
+                                <div class="col-6 col-md-2"><label class="form-label">Base</label><input type="number" min="0" step="0.01" class="form-control text-end" @bind="_base" @bind:after="RecalcularEditor" /></div>
+                                @if (!EsCostaPetsCompra) { <div class="col-6 col-md-2"><label class="form-label">Flete</label><input type="number" min="0" step="0.01" class="form-control text-end" @bind="_flete" @bind:after="RecalcularEditor" /></div><div class="col-6 col-md-2"><label class="form-label">Otros cargos</label><input type="number" min="0" step="0.01" class="form-control text-end" @bind="_otros" @bind:after="RecalcularEditor" /></div> }
+                                <div class="col-6 col-md-2"><label class="form-label">Costo unitario</label><div class="form-control bg-body-tertiary text-end">@Formato.Importe(CostoEditor)</div></div>
+                                <div class="col-6 col-md-2"><label class="form-label">Descuento %</label><input type="number" min="0" max="100" step="0.01" class="form-control text-end" @bind="_descuento" @bind:after="RecalcularEditor" /></div>
+                                <div class="col-6 col-md-2"><label class="form-label">Impuesto %</label><input type="number" min="0" max="100" step="0.01" class="form-control text-end" @bind="_impuesto" @bind:after="RecalcularEditor" /></div>
+                                @if (_articuloActual.Lote)
+                                {
+                                    <div class="col-12 col-md-4"><label class="form-label">Número de lote</label><input class="form-control" @bind="_lote" /></div><div class="col-12 col-md-3"><label class="form-label">Vencimiento de lote</label><input type="date" class="form-control" @bind="_venceLote" /></div>
+                                }
+                                <div class="col-12 col-md-auto d-flex align-items-end"><button type="button" class="btn btn-success w-100" @onclick="AgregarOActualizarLinea"><i class="bi bi-plus-circle me-1" aria-hidden="true"></i>@(_indiceEdicion is null ? "Agregar" : "Actualizar")</button></div>
+                            </div>
+                        </div>
+                    }
+                    @if (_lineas.Count == 0) { <p class="text-secondary text-center py-4 mb-0">Agregue los artículos recibidos en esta compra.</p> }
+                    else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th>@if (!EsCostaPetsCompra) { <th class="text-end">Regalías</th> }<th class="text-end">Base</th>@if (!EsCostaPetsCompra) { <th class="text-end">Flete</th><th class="text-end">Otros</th> }<th class="text-end">Costo</th><th class="text-end">Desc.</th><th class="text-end">IV</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@for (var i = 0; i < _lineas.Count; i++) { var linea = _lineas[i]; var indice = i; <tr><td><code>@linea.Articulo.Cod_Articulo</code></td><td>@linea.Articulo.Descripcion @if (linea.Articulo.Lote) { <small class="d-block text-secondary">Lote @linea.Lote · vence @linea.VenceLote.ToString("dd/MM/yyyy")</small> }</td><td class="text-end">@Formato.Cantidad(linea.Cantidad)</td>@if (!EsCostaPetsCompra) { <td class="text-end">@Formato.Cantidad(linea.Regalias)</td> }<td class="text-end">@Formato.Importe(linea.Base)</td>@if (!EsCostaPetsCompra) { <td class="text-end">@Formato.Importe(linea.Flete)</td><td class="text-end">@Formato.Importe(linea.Otros)</td> }<td class="text-end">@Formato.Importe(linea.Costo)</td><td class="text-end">@linea.Descuento:N2%</td><td class="text-end">@linea.Impuesto:N2%</td><td class="text-end fw-semibold">@Formato.Importe(linea.Calculo.Total)</td><td class="text-end text-nowrap"><button type="button" class="btn btn-sm btn-link" @onclick="() => EditarLinea(indice)">Editar</button><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(indice)">Quitar</button></td></tr> }</tbody></table></div> }
+                </div>
+            </div>
+        </fieldset>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modalDesbloqueo" Title="Desbloquear compras" Size="ModalSize.Regular">
+    <BodyTemplate>
+        <p class="text-secondary">Ingrese la clave interna del usuario que registrará la compra.</p>
+        <label class="form-label" for="clave-compras">Clave interna</label>
+        <div class="input-group">
+            <input id="clave-compras" class="form-control" type="@TipoClave" autocomplete="current-password" @bind="_claveInterna" @onkeydown="DesbloquearConEnter" />
+            <button type="button" class="btn btn-outline-secondary" @onclick="AlternarClave"><i class="bi @IconoClave" aria-hidden="true"></i></button>
+        </div>
+    </BodyTemplate>
+    <FooterTemplate><button type="button" class="btn btn-primary" disabled="@_validandoClave" @onclick="Desbloquear">@TextoDesbloquear</button></FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalNuevaProveedor" Title="Nuevo proveedor" Size="ModalSize.Regular">
+    <BodyTemplate><div class="row g-3"><div class="col-12"><label class="form-label">Cédula</label><input class="form-control" @bind="_nuevoProveedorCedula" /></div><div class="col-12"><label class="form-label">Nombre</label><input class="form-control" @bind="_nuevoProveedorNombre" /></div><div class="col-12"><label class="form-label">Teléfono</label><input class="form-control" @bind="_nuevoProveedorTelefono" /></div></div></BodyTemplate>
+    <FooterTemplate><button type="button" class="btn btn-outline-secondary" @onclick="CerrarNuevoProveedor">Cancelar</button><button type="button" class="btn btn-primary" @onclick="CrearProveedor">Guardar proveedor</button></FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalBuscarCompras" Title="Buscar compras" Size="ModalSize.Large">
+    <BodyTemplate>
+        <div class="row g-2 align-items-end mb-3"><div class="col-12 col-md-4"><label class="form-label">Factura</label><input class="form-control" @bind="_filtroFactura" /></div><div class="col-12 col-md-4"><label class="form-label">Proveedor</label><input class="form-control" @bind="_filtroProveedor" /></div><div class="col-12 col-md-4 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="BuscarCompras">Buscar</button></div></div>
+        @if (_comprasEncontradas.Count == 0) { <p class="text-secondary text-center py-4">Use uno de los filtros para consultar compras.</p> }
+        else { <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Factura</th><th>Proveedor</th><th>Fecha</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var compra in _comprasEncontradas) { <tr><td>@compra.Factura</td><td>@compra.NombreProveedor</td><td>@compra.Fecha</td><td class="text-end">@Formato.Importe(compra.TotalFactura)</td><td class="text-end"><button type="button" class="btn btn-sm btn-primary" @onclick="() => CargarCompra(compra.IdCompra)">Abrir</button></td></tr> }</tbody></table></div> }
+    </BodyTemplate>
+</HxModal>
+
+<HxModal @ref="_modalImportarXml" Title="Importar factura electrónica" Size="ModalSize.ExtraLarge">
+    <BodyTemplate>
+        <div class="seepos-importador-xml">
+            <div class="border rounded p-3 mb-3 bg-body-tertiary">
+                <label class="form-label" for="archivo-factura-xml">Comprobante electrónico XML</label>
+                <InputFile id="archivo-factura-xml" class="form-control" accept=".xml,text/xml,application/xml" OnChange="ImportarXml" />
+                <div class="form-text">Se aceptan Factura Electrónica y Tiquete Electrónico de Hacienda, incluyendo las versiones con espacios de nombres y firma digital.</div>
+                @if (!string.IsNullOrWhiteSpace(_nombreArchivoXml)) { <div class="small mt-2"><i class="bi bi-file-earmark-check me-1 text-success" aria-hidden="true"></i>@_nombreArchivoXml</div> }
+            </div>
+            @if (_leyendoXml)
+            {
+                <div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Leyendo XML...</span></div></div>
+            }
+            else if (_xml is not null)
+            {
+                <div class="row g-3 mb-3"><div class="col-12 col-md-6"><span class="text-secondary small d-block">Consecutivo</span><strong>@_xml.Consecutivo</strong></div><div class="col-12 col-md-6"><span class="text-secondary small d-block">Clave</span><code class="small text-break">@_xml.Clave</code></div><div class="col-12 col-md-4"><span class="text-secondary small d-block">Proveedor</span><strong>@_xml.NombreProveedor</strong><span class="text-secondary d-block">@_xml.CedulaProveedor</span></div><div class="col-6 col-md-2"><span class="text-secondary small d-block">Fecha</span><strong>@_xml.Fecha.ToString("dd/MM/yyyy")</strong></div><div class="col-6 col-md-2"><span class="text-secondary small d-block">Condición</span><strong>@(_xml.Credito ? "Crédito" : "Contado")</strong></div><div class="col-6 col-md-2"><span class="text-secondary small d-block">Moneda</span><strong>@_xml.Moneda</strong></div><div class="col-6 col-md-2"><span class="text-secondary small d-block">Total XML</span><strong>@Formato.Importe(_xml.Total)</strong></div></div>
+                @if (_proveedorXmlNoExiste)
+                {
+                    <div class="alert alert-warning d-flex align-items-center justify-content-between gap-2"><span>El proveedor del XML no existe aún en el catálogo.</span><button type="button" class="btn btn-sm btn-outline-primary" @onclick="PrepararProveedorXml">Crear proveedor</button></div>
+                }
+                @if (_editorXml == EditorXml.Busqueda)
+                {
+                    <div class="border rounded p-3 mb-3 bg-body-tertiary">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2"><strong>Asociar artículo interno</strong><button type="button" class="btn btn-sm btn-link text-danger" @onclick="CancelarEditorXml">Cancelar asociación</button></div>
+                        <p class="small text-secondary mb-2">Busque y elija el artículo que corresponde a la línea del proveedor. El importador permanece abierto.</p>
+                        <div class="input-group mb-3"><input type="search" class="form-control" placeholder="Código o descripción del artículo" @bind="_textoBusquedaXml" @onkeydown="BuscarArticuloXmlConEnter" /><button type="button" class="btn btn-outline-primary" disabled="@_buscandoArticuloXml" @onclick="BuscarArticulosXml">@(_buscandoArticuloXml ? "Buscando..." : "Buscar")</button></div>
+                        @if (_buscandoArticuloXml) { <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div> }
+                        else if (_resultadosBusquedaXml.Count > 0) { <div class="table-responsive seepos-importador-resultados"><table class="table table-sm table-hover mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Existencia</th><th class="text-end">Precio</th></tr></thead><tbody>@foreach (var articulo in _resultadosBusquedaXml) { <tr role="button" @onclick="() => ElegirArticuloXml(articulo)"><td><code>@articulo.Cod_Articulo</code></td><td>@articulo.Descripcion</td><td class="text-end">@Formato.Cantidad(articulo.Existencia)</td><td class="text-end">@Formato.Importe(articulo.Precio_A)</td></tr> }</tbody></table></div> }
+                        else if (!string.IsNullOrWhiteSpace(_textoBusquedaXml)) { <p class="small text-secondary mb-0">No hay artículos para la búsqueda indicada.</p> }
+                    </div>
+                }
+                @if (_editorXml == EditorXml.Lotes && LineaXmlSeleccionada is not null)
+                {
+                    <div class="border rounded p-3 mb-3 bg-body-tertiary"><div class="d-flex justify-content-between align-items-center mb-3"><strong>Lote: @LineaXmlSeleccionada.Articulo?.Descripcion</strong><button type="button" class="btn btn-sm btn-primary" @onclick="CancelarEditorXml">Aceptar lote</button></div><div class="row g-3"><div class="col-12 col-md-6"><label class="form-label">Número de lote</label><input class="form-control" @bind="LineaXmlSeleccionada.Lote" /></div><div class="col-12 col-md-6"><label class="form-label">Vencimiento</label><input type="date" class="form-control" @bind="LineaXmlSeleccionada.Vencimiento" /></div></div></div>
+                }
+                @if (_editorXml == EditorXml.Precios && LineaXmlSeleccionada is not null)
+                {
+                    <div class="border rounded p-3 mb-3 bg-body-tertiary"><div class="d-flex justify-content-between align-items-center mb-2"><strong>Precios de venta: @LineaXmlSeleccionada.Articulo?.Descripcion</strong><button type="button" class="btn btn-sm btn-primary" @onclick="CancelarEditorXml">Guardar precios</button></div><div class="alert alert-light border small">Costo nuevo: <strong>@Formato.Importe(CostoNuevoXml)</strong> · Impuesto: @LineaXmlSeleccionada.Impuesto:N2%</div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Tipo</th><th class="text-end">Utilidad %</th><th class="text-end">Precio</th><th class="text-end">Precio + IV</th></tr></thead><tbody>@foreach (var precio in LineaXmlSeleccionada.Precios) { <tr><td>@precio.Tarifa</td><td><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="precio.Utilidad" @bind:after="RecalcularPrecioXml" /></td><td><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="precio.Precio" @bind:after="RecalcularUtilidadXml" /></td><td class="text-end">@Formato.Importe(precio.Precio * (1 + LineaXmlSeleccionada.Impuesto / 100m))</td></tr> }</tbody></table></div></div>
+                }
+                <div class="alert alert-light border small py-2 mb-3"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>Revise las asociaciones, cantidades, regalías, lotes y precios antes de aplicar. El vínculo proveedor–artículo se guarda explícitamente para las líneas asociadas manualmente.</div>
+                <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>#</th><th>Código prov.</th><th>Descripción prov.</th><th>Código interno</th><th>Descripción interna</th><th>Presentación</th><th class="text-end">Cantidad</th>@if (!EsCostaPetsCompra) { <th class="text-end">Regalía</th> }<th class="text-end">Precio</th><th>Opciones</th></tr></thead><tbody>@for (var i = 0; i < _xml.Lineas.Count; i++) { var linea = _xml.Lineas[i]; var indice = i; <tr><td>@linea.Numero</td><td><code>@linea.CodigoProveedor</code><small class="d-block text-secondary">@linea.Cabys</small></td><td>@linea.Descripcion</td><td>@if (linea.Articulo is null) { <span class="text-warning">Sin asociar</span> } else { <code>@linea.Articulo.Cod_Articulo</code> }</td><td>@(linea.Articulo?.Descripcion ?? "—")</td><td>@linea.Presentacion</td><td style="min-width:7rem"><input type="number" min="0.001" step="0.001" class="form-control form-control-sm text-end" @bind="linea.Cantidad" @bind:after="() => RecalcularLineaXml(linea)" /></td>@if (!EsCostaPetsCompra) { <td style="min-width:6rem"><input type="number" min="0" step="0.001" class="form-control form-control-sm text-end" @bind="linea.Regalia" /></td> }<td class="text-end">@Formato.Importe(linea.Precio)</td><td class="text-nowrap"><button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="() => AsociarArticuloXml(indice)">@((linea.Articulo is null) ? "Asociar" : "Cambiar")</button>@if (linea.Articulo is not null && !linea.VinculoConfirmado) { <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="() => VincularArticuloXml(indice)"><i class="bi bi-link-45deg" aria-hidden="true"></i><span class="visually-hidden">Vincular</span></button> }@if (EsCostaPetsCompra || linea.Articulo?.Lote == true) { <button type="button" class="btn btn-sm btn-outline-secondary me-1" title="Lote" @onclick="() => AbrirLotesXml(indice)"><i class="bi bi-box-seam" aria-hidden="true"></i></button> }@if (linea.Articulo is not null) { <button type="button" class="btn btn-sm btn-outline-success" title="Precios de venta" @onclick="() => AbrirPreciosXml(indice)"><i class="bi bi-currency-dollar" aria-hidden="true"></i></button> }</td></tr>@if ((EsCostaPetsCompra || linea.Articulo?.Lote == true) && (string.IsNullOrWhiteSpace(linea.Lote) || linea.Vencimiento == DateTime.MinValue)) { <tr><td colspan="@(EsCostaPetsCompra ? 9 : 10)" class="small text-warning"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Indique lote y vencimiento para esta línea importada.</td></tr> } }</tbody></table></div>
+                @if (_xml.Lineas.Any(l => l.Articulo is null || !l.VinculoConfirmado)) { <p class="form-text mb-0">Asocie y vincule cada línea a un artículo interno antes de aplicar el comprobante.</p> }
+            }
+        </div>
+    </BodyTemplate>
+    <FooterTemplate><button type="button" class="btn btn-outline-secondary" @onclick="CerrarImportadorXml">Cerrar</button><button type="button" class="btn btn-primary" disabled="@(_xml is null || _xml.Lineas.Any(l => l.Articulo is null || !l.VinculoConfirmado) || _proveedorXmlNoExiste)" @onclick="AplicarImportacionXml"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Aplicar a compra</button></FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalLotesXml" Title="Lote del artículo importado" Size="ModalSize.Regular">
+    <BodyTemplate>
+        @if (LineaXmlSeleccionada is not null) { <p class="text-secondary small">@LineaXmlSeleccionada.Articulo?.Descripcion</p><div class="row g-3"><div class="col-12 col-md-6"><label class="form-label">Número de lote</label><input class="form-control" @bind="LineaXmlSeleccionada.Lote" /></div><div class="col-12 col-md-6"><label class="form-label">Vencimiento</label><input type="date" class="form-control" @bind="LineaXmlSeleccionada.Vencimiento" /></div></div> }
+    </BodyTemplate>
+    <FooterTemplate><button type="button" class="btn btn-primary" @onclick="CerrarLotesXml">Aceptar lote</button></FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalPreciosXml" Title="Precios de venta del artículo importado" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (LineaXmlSeleccionada is not null) { <div class="alert alert-light border small">Costo nuevo: <strong>@Formato.Importe(CostoNuevoXml)</strong> · Impuesto: @LineaXmlSeleccionada.Impuesto:N2%</div><div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Tipo</th><th class="text-end">Utilidad %</th><th class="text-end">Precio</th><th class="text-end">Precio + IV</th></tr></thead><tbody>@foreach (var precio in LineaXmlSeleccionada.Precios) { <tr><td>@precio.Tarifa</td><td><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="precio.Utilidad" @bind:after="RecalcularPrecioXml" /></td><td><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="precio.Precio" @bind:after="RecalcularUtilidadXml" /></td><td class="text-end">@Formato.Importe(precio.Precio * (1 + LineaXmlSeleccionada.Impuesto / 100m))</td></tr> }</tbody></table></div> }
+    </BodyTemplate>
+    <FooterTemplate><button type="button" class="btn btn-primary" @onclick="CerrarPreciosXml">Guardar precios</button></FooterTemplate>
+</HxModal>
+
+<AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="ElegirArticulo" AlCerrar="ReabrirImportadorDesdeBuscador" />
+
+@code {
+    private const string Titulo = "Compras";
+    private enum EditorXml { Ninguno, Busqueda, Lotes, Precios }
+    private sealed class LineaCompra
+    {
+        public required InventarioDTO Articulo { get; init; }
+        public long? IdArticuloComprados { get; init; }
+        public string? Cabys { get; set; }
+        public decimal Cantidad { get; set; } = 1m;
+        public decimal Regalias { get; set; }
+        public decimal Base { get; set; }
+        public decimal Flete { get; set; }
+        public decimal Otros { get; set; }
+        public decimal Descuento { get; set; }
+        public decimal Impuesto { get; set; }
+        public string Lote { get; set; } = string.Empty;
+        public DateTime VenceLote { get; set; } = DateTime.Today;
+        public decimal Costo => Base + Flete + Otros;
+        public CalculoDocumento.LineaCalculada Calculo { get; private set; }
+        public void Recalcular() => Calculo = CalculoDocumento.Linea(Cantidad, Costo, Descuento, Impuesto);
+    }
+    private sealed class ComprobanteXml
+    {
+        public string Clave { get; init; } = string.Empty;
+        public string Consecutivo { get; init; } = string.Empty;
+        public string CedulaProveedor { get; init; } = string.Empty;
+        public string NombreProveedor { get; init; } = string.Empty;
+        public DateTime Fecha { get; init; }
+        public bool Credito { get; init; }
+        public int DiasCredito { get; init; }
+        public string Moneda { get; init; } = "CRC";
+        public decimal Total { get; init; }
+        public List<LineaXml> Lineas { get; init; } = new();
+    }
+    private sealed class LineaXml
+    {
+        public int Numero { get; init; }
+        public string CodigoProveedor { get; init; } = string.Empty;
+        public string Cabys { get; init; } = string.Empty;
+        public string Descripcion { get; init; } = string.Empty;
+        public string Presentacion { get; init; } = string.Empty;
+        public decimal Cantidad { get; set; }
+        public decimal Regalia { get; set; }
+        public decimal Precio { get; init; }
+        public decimal Descuento { get; init; }
+        public decimal Impuesto { get; init; }
+        public string Lote { get; set; } = string.Empty;
+        public DateTime Vencimiento { get; set; } = DateTime.Today;
+        public bool VinculoConfirmado { get; set; }
+        public bool PreciosEditados { get; set; }
+        public List<PrecioXml> Precios { get; } = new();
+        public InventarioDTO? Articulo { get; set; }
+    }
+    private sealed class PrecioXml
+    {
+        public string Tarifa { get; init; } = "A";
+        public decimal Utilidad { get; set; }
+        public decimal Precio { get; set; }
+    }
+
+    private AppBuscadorArticulo _buscadorArticulo = default!;
+    private HxModal _modalDesbloqueo = default!, _modalNuevaProveedor = default!, _modalBuscarCompras = default!, _modalImportarXml = default!, _modalLotesXml = default!, _modalPreciosXml = default!;
+    private readonly List<LineaCompra> _lineas = new();
+    private List<ProveedorDTO> _proveedores = new(), _proveedoresEncontrados = new();
+    private List<EmpresaDTO> _empresas = new();
+    private List<Moneda> _monedas = new();
+    private List<Bodega> _bodegas = new();
+    private List<FacturaCompraDTO> _comprasEncontradas = new();
+    private ProveedorDTO? _proveedor;
+    private InventarioDTO? _articuloActual;
+    private Usuario? _usuarioCompra;
+    private CalculoDocumento.TotalesDocumento _totales;
+    private string _textoProveedor = string.Empty, _numeroFactura = string.Empty, _claveInterna = string.Empty, _lote = string.Empty;
+    private string _nuevoProveedorCedula = string.Empty, _nuevoProveedorNombre = string.Empty, _nuevoProveedorTelefono = string.Empty;
+    private string _filtroFactura = string.Empty, _filtroProveedor = string.Empty;
+    private DateTime _fecha = DateTime.Today, _vence = DateTime.Today, _venceLote = DateTime.Today;
+    private int _tipoCompra = 2, _diasCredito, _moneda, _bodega, _empresa;
+    private long _idCompra;
+    private int? _indiceEdicion;
+    private int? _indiceXmlAsignacion;
+    private int? _indiceXmlOpciones;
+    private decimal _cantidad = 1m, _regalias, _base, _flete, _otros, _descuento, _impuesto;
+    private bool _compraDesbloqueada, _validandoClave, _mostrarClave, _guardando, _esCostaPetsCompra, _compraDesdeXml;
+    private bool _leyendoXml, _proveedorXmlNoExiste;
+    private bool _buscandoArticuloXml;
+    private string _nombreArchivoXml = string.Empty;
+    private string _textoBusquedaXml = string.Empty;
+    private ComprobanteXml? _xml;
+    private EditorXml _editorXml;
+    private List<InventarioDTO> _resultadosBusquedaXml = new();
+
+    private bool EsCostaPetsCompra => _compraDesbloqueada ? _esCostaPetsCompra : Sesion.EsCostaPets;
+    private string TipoClave => _mostrarClave ? "text" : "password";
+    private string IconoClave => _mostrarClave ? "bi-eye-slash" : "bi-eye";
+    private string TextoDesbloquear => _validandoClave ? "Validando..." : "Desbloquear";
+    private string VencimientoTexto => _vence.ToString("yyyy-MM-dd");
+    private decimal CostoEditor => _base + _flete + _otros;
+    private decimal TotalExento => _lineas.Where(l => l.Impuesto <= 0).Sum(l => l.Calculo.SubTotal);
+    private decimal TotalGravado => _lineas.Where(l => l.Impuesto > 0).Sum(l => l.Calculo.SubTotal);
+    private LineaXml? LineaXmlSeleccionada => _indiceXmlOpciones is int indice && _xml is not null && indice >= 0 && indice < _xml.Lineas.Count ? _xml.Lineas[indice] : null;
+    private decimal CostoNuevoXml => LineaXmlSeleccionada is { } linea ? linea.Precio : 0m;
+
+    protected override void OnInitialized() => _esCostaPetsCompra = Sesion.EsCostaPets;
+    protected override async Task OnAfterRenderAsync(bool firstRender) { if (firstRender) await _modalDesbloqueo.ShowAsync(); }
+
+    private Task AbrirDesbloqueo() => _modalDesbloqueo.ShowAsync();
+    private void AlternarClave() => _mostrarClave = !_mostrarClave;
+    private Task CerrarNuevoProveedor() => _modalNuevaProveedor.HideAsync();
+    private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
+    private async Task Desbloquear()
+    {
+        if (string.IsNullOrWhiteSpace(_claveInterna)) { await Dialogos.ErrorAsync("Ingrese la clave interna.", "Desbloquear compras"); return; }
+        _validandoClave = true;
+        var respuesta = await Api.ValidarClaveInterna(_claveInterna);
+        _validandoClave = false;
+        if (!respuesta.EsCorrecta) { _claveInterna = string.Empty; await Dialogos.ErrorAsync(respuesta.Excepcion ?? "Contraseña incorrecta."); return; }
+        _usuarioCompra = respuesta.Responses;
+        _esCostaPetsCompra = _usuarioCompra?.CostaPets ?? Sesion.EsCostaPets;
+        _compraDesbloqueada = true;
+        _claveInterna = string.Empty;
+        await _modalDesbloqueo.HideAsync();
+        await CargarCatalogos();
+    }
+
+    private async Task CargarCatalogos()
+    {
+        var proveedores = Proveedores.Obtener(); var empresas = Api.Empresas(); var monedas = Api.Monedas(); var bodegas = Api.Bodegas(EsCostaPetsCompra);
+        await Task.WhenAll(proveedores, empresas, monedas, bodegas);
+        _proveedores = (await Respuestas.DatoAsync(await proveedores, "consultar los proveedores"))?.Where(p => p.Inhabilitado != true).OrderBy(p => p.Nombre).ToList() ?? new();
+        _empresas = (await Respuestas.DatoAsync(await empresas, "consultar las empresas"))?.ToList() ?? new();
+        _monedas = (await Respuestas.DatoAsync(await monedas, "consultar las monedas"))?.Where(m => m.Estado).ToList() ?? new();
+        _bodegas = (await Respuestas.DatoAsync(await bodegas, "consultar las bodegas"))?.Where(b => b.Estado && b.Bloqueada != true).ToList() ?? new();
+        if (_moneda == 0) _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0;
+        if (EsCostaPetsCompra) _empresa = 1;
+    }
+
+    private void FiltrarProveedores(ChangeEventArgs e)
+    {
+        _textoProveedor = e.Value?.ToString() ?? string.Empty;
+        MostrarProveedores();
+    }
+    private void MostrarProveedores()
+    {
+        var texto = _textoProveedor.Trim();
+        _proveedoresEncontrados = string.IsNullOrEmpty(texto) ? _proveedores.Take(8).ToList() : _proveedores.Where(p => (p.Nombre?.Contains(texto, StringComparison.OrdinalIgnoreCase) ?? false) || (p.Cedula?.Contains(texto, StringComparison.OrdinalIgnoreCase) ?? false)).Take(8).ToList();
+    }
+    private void ElegirProveedor(ProveedorDTO proveedor) { _proveedor = proveedor; _textoProveedor = proveedor.Cedula ?? proveedor.Nombre ?? string.Empty; _proveedoresEncontrados.Clear(); }
+
+    private async Task AbrirNuevoProveedor() { _nuevoProveedorCedula = _textoProveedor; _nuevoProveedorNombre = _nuevoProveedorTelefono = string.Empty; await _modalNuevaProveedor.ShowAsync(); }
+    private async Task CrearProveedor()
+    {
+        if (string.IsNullOrWhiteSpace(_nuevoProveedorCedula) || string.IsNullOrWhiteSpace(_nuevoProveedorNombre)) { await Dialogos.ErrorAsync("Indique la cédula y el nombre del proveedor."); return; }
+        // El API de proveedores recorre la colección de cuentas al crear. La
+        // ventana anterior siempre enviaba una colección vacía, además de la
+        // auditoría de creación; no enviar esas propiedades deja la colección
+        // en null y el servidor rechaza el alta (Parameter 's').
+        var creado = await Respuestas.DatoAsync(await Proveedores.Crear(new ProveedorDTO
+        {
+            Cedula = _nuevoProveedorCedula.Trim(),
+            Nombre = _nuevoProveedorNombre.Trim(),
+            Telefono1 = _nuevoProveedorTelefono.Trim(),
+            Contacto = string.Empty,
+            TelefonoCont = string.Empty,
+            Fax1 = string.Empty,
+            Email = string.Empty,
+            Direccion = string.Empty,
+            Observaciones = string.Empty,
+            Estado = true,
+            Inhabilitado = false,
+            Actualizado = true,
+            IdUsuarioCreacion = Sesion.Usuario,
+            FechaCreacion = DateTime.Today.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("es-CR")),
+            CuentasBancariasProveedors = new List<CuentaBancariaProveedorDTO>()
+        }), "crear el proveedor");
+        if (creado is null) return;
+        _proveedores.Add(creado); ElegirProveedor(creado); _proveedorXmlNoExiste = false; await _modalNuevaProveedor.HideAsync();
+        await RestaurarImportadorXmlAsync();
+        Dialogos.Exito("Proveedor creado correctamente.");
+    }
+
+    private void ActualizarVencimiento() => _vence = _tipoCompra == 1 ? _fecha.AddDays(Math.Max(0, _diasCredito)) : _fecha;
+    private async Task AbrirBuscadorArticulo()
+    {
+        if (_proveedor is null || string.IsNullOrWhiteSpace(_numeroFactura) || _bodega <= 0 || _moneda <= 0 || (!EsCostaPetsCompra && _empresa <= 0)) { await Dialogos.ErrorAsync("Seleccione proveedor, factura, moneda, bodega y empresa antes de agregar artículos."); return; }
+        await _buscadorArticulo.AbrirAsync();
+    }
+    private Task ElegirArticulo(InventarioDTO articulo)
+    {
+        if (_indiceXmlAsignacion is int indice && _xml is not null)
+        {
+            _xml.Lineas[indice].Articulo = articulo;
+            _xml.Lineas[indice].VinculoConfirmado = false;
+            _xml.Lineas[indice].Lote = string.Empty;
+            _xml.Lineas[indice].Vencimiento = DateTime.Today;
+            _xml.Lineas[indice].Precios.Clear();
+            PrepararPreciosXml(_xml.Lineas[indice]);
+            _indiceXmlAsignacion = null;
+            return Task.CompletedTask;
+        }
+        _articuloActual = articulo; _indiceEdicion = null; _cantidad = 1; _regalias = 0; _base = Formato.AImporte(articulo.PrecioBase); _flete = EsCostaPetsCompra ? 0 : Formato.AImporte(articulo.Fletes); _otros = EsCostaPetsCompra ? 0 : Formato.AImporte(articulo.OtrosCargos); _descuento = 0; _impuesto = Formato.AImporte(articulo.IVenta); _lote = string.Empty; _venceLote = DateTime.Today; RecalcularEditor(); return Task.CompletedTask;
+    }
+    private async Task ReabrirImportadorDesdeBuscador()
+    {
+        // HxModal cierra el modal previo al abrir otro. Si el buscador fue
+        // invocado desde XML, se vuelve a mostrar el mismo comprobante (sin
+        // obligar a seleccionar el archivo de nuevo), tanto al elegir como al
+        // cancelar la búsqueda.
+        if (_xml is null || !_indiceXmlAsignacion.HasValue) return;
+        await RestaurarImportadorXmlAsync();
+    }
+    private void RecalcularEditor() { _cantidad = Math.Max(0.001m, _cantidad); _base = Math.Max(0, _base); _flete = Math.Max(0, _flete); _otros = Math.Max(0, _otros); _descuento = Math.Clamp(_descuento, 0, 100); _impuesto = Math.Clamp(_impuesto, 0, 100); }
+    private async Task AgregarOActualizarLinea()
+    {
+        if (_articuloActual is null) return;
+        RecalcularEditor();
+        if (_articuloActual.Lote && (string.IsNullOrWhiteSpace(_lote) || _venceLote.Date < _fecha.Date)) { await Dialogos.ErrorAsync("Indique un lote y una fecha de vencimiento válida."); return; }
+        var linea = new LineaCompra { Articulo = _articuloActual, Cabys = _articuloActual.Codcabys, Cantidad = _cantidad, Regalias = EsCostaPetsCompra ? 0 : Math.Max(0, _regalias), Base = _base, Flete = EsCostaPetsCompra ? 0 : _flete, Otros = EsCostaPetsCompra ? 0 : _otros, Descuento = _descuento, Impuesto = _impuesto, Lote = _lote.Trim(), VenceLote = _venceLote };
+        linea.Recalcular();
+        if (_indiceEdicion is int indice) _lineas[indice] = linea; else _lineas.Add(linea);
+        LimpiarEditor(); RecalcularTotales();
+    }
+    private void EditarLinea(int indice)
+    {
+        var l = _lineas[indice]; _articuloActual = l.Articulo; _indiceEdicion = indice; _cantidad = l.Cantidad; _regalias = l.Regalias; _base = l.Base; _flete = l.Flete; _otros = l.Otros; _descuento = l.Descuento; _impuesto = l.Impuesto; _lote = l.Lote; _venceLote = l.VenceLote;
+    }
+    private void QuitarLinea(int indice) { _lineas.RemoveAt(indice); LimpiarEditor(); RecalcularTotales(); }
+    private void LimpiarEditor() { _articuloActual = null; _indiceEdicion = null; _cantidad = 1; _regalias = _base = _flete = _otros = _descuento = _impuesto = 0; _lote = string.Empty; _venceLote = DateTime.Today; }
+    private void RecalcularTotales() => _totales = CalculoDocumento.Totales(_lineas.Select(l => l.Calculo));
+
+    private FacturaCompraDTO ArmarCompra() => new()
+    {
+        IdCompra = _idCompra, Factura = _numeroFactura.Trim(), CodigoProv = _proveedor!.CodigoProv, NombreProveedor = _proveedor.Nombre, SubTotalGravado = (double)TotalGravado, SubTotalExento = (double)TotalExento, Descuento = (double)_totales.Descuento, Impuesto = (double)_totales.Impuesto, TotalFactura = (double)_totales.Total,
+        Fecha = _fecha.ToString("yyyy-MM-dd"), Vence = _vence.ToString("yyyy-MM-dd"), FechaIngreso = _fecha.ToString("yyyy-MM-dd"), MotivoGasto = string.Empty, Compra1 = true, Contabilizado = false, Consignacion = false, Asiento = 0, ContaInve = false, AsientoInve = 0, TipoCompra = _tipoCompra, CedulaUsuario = _usuarioCompra?.IdUsuario ?? Sesion.Usuario, CodMonedaCompra = _moneda, FacturaCancelado = false, Gasto = false, TipoCambio = 0, CambioImpuesto = 0, Taller = false, Mascotas = false, NumOrden = 0, Fec = false, CodigoActividad = string.Empty, EnviadoDgt = false, EstadoDgt = string.Empty, ConsecutivoDgt = string.Empty, ClaveDgt = string.Empty, Trans = false, NumTrans = string.Empty, Prepagada = false, PreAbono = 0, IdEmpresa = (EsCostaPetsCompra ? 1 : _empresa).ToString(),
+        Detalle = _lineas.Select(l => new FacturaCompraDetalleDTO { IdArticuloComprados = l.IdArticuloComprados, Codigo = l.Articulo.Codigo, CodArticulo = l.Articulo.Cod_Articulo, Descripcion = l.Articulo.Descripcion, Base = (double)l.Base, MontoFlete = (double)l.Flete, OtrosCargos = (double)l.Otros, Costo = (double)l.Costo, Cantidad = (double)l.Cantidad, Regalias = (double)l.Regalias, Gravado = l.Impuesto > 0 ? (double)l.Calculo.SubTotal : 0, Exento = l.Impuesto <= 0 ? (double)l.Calculo.SubTotal : 0, DescuentoP = (double)l.Descuento, Descuento = (double)l.Calculo.MontoDescuento, ImpuestoP = (double)l.Impuesto, Impuesto = (double)l.Calculo.MontoImpuesto, Total = (double)l.Calculo.Total, Devoluciones = 0, PrecioA = l.Articulo.Precio_A, PrecioB = l.Articulo.Precio_B, PrecioC = l.Articulo.Precio_C, PrecioD = l.Articulo.Precio_D, CodMonedaVenta = l.Articulo.MonedaVenta, NuevoCostoBase = 0, Lote = l.Lote, Bonificado = false, CodigoBonificado = 0, CantidadBonificado = 0, CostoBonificado = 0, SubTotalBonificado = 0, CodArticuloBonificacion = string.Empty, CodCabys = l.Cabys ?? l.Articulo.Codcabys, IdBodega = _bodega, EstadoLinea = l.IdArticuloComprados.HasValue ? 2 : 1, LoteArticulo = new StockLoteDTO { Id = 0, Lote = l.Lote, Vencimiento = l.VenceLote, IdArticulo = l.Articulo.Codigo, Activo = true, Cantidad = (double)l.Cantidad } }).ToList()
+    };
+    private async Task Guardar()
+    {
+        if (!_compraDesbloqueada) { await AbrirDesbloqueo(); return; }
+        if (_proveedor is null || string.IsNullOrWhiteSpace(_numeroFactura) || _bodega <= 0 || _moneda <= 0 || _lineas.Count == 0 || (!EsCostaPetsCompra && _empresa <= 0)) { await Dialogos.ErrorAsync("Complete encabezado, empresa y al menos un artículo antes de guardar."); return; }
+        var accion = _idCompra > 0 ? "actualizar" : "registrar";
+        if (!await Dialogos.ConfirmarAsync($"Se va a {accion} la compra y afectar el inventario. ¿Desea continuar?")) return;
+        _guardando = true; var respuesta = _idCompra > 0 ? await Api.Editar(ArmarCompra()) : await Api.Crear(ArmarCompra()); _guardando = false;
+        if (await Respuestas.CorrectaAsync(respuesta, $"{accion} la compra"))
+        {
+            if (_compraDesdeXml && _xml is not null)
+            {
+                var precios = PreciosActualizadosXml();
+                if (precios.Count > 0) await Respuestas.CorrectaAsync(await Api.ActualizarPrecios(precios), "actualizar los precios importados");
+            }
+            Dialogos.Exito(_idCompra > 0 ? "Compra actualizada correctamente." : "Compra registrada correctamente.");
+            NuevaCompra();
+        }
+    }
+    private async Task Anular()
+    {
+        if (_idCompra <= 0 || !await Dialogos.ConfirmarAsync("Se anulará la compra y se revertirá el movimiento de inventario. ¿Desea continuar?")) return;
+        _guardando = true; var respuesta = await Api.Anular(ArmarCompra()); _guardando = false;
+        if (await Respuestas.CorrectaAsync(respuesta, "anular la compra")) { Dialogos.Exito("Compra anulada correctamente."); NuevaCompra(); }
+    }
+
+    private async Task AbrirImportadorXml()
+    {
+        if (!_compraDesbloqueada) { await AbrirDesbloqueo(); return; }
+        _xml = null; _nombreArchivoXml = string.Empty; _proveedorXmlNoExiste = false; _indiceXmlAsignacion = _indiceXmlOpciones = null; _editorXml = EditorXml.Ninguno; _textoBusquedaXml = string.Empty; _resultadosBusquedaXml.Clear();
+        await _modalImportarXml.ShowAsync();
+    }
+
+    private Task CerrarImportadorXml() => _modalImportarXml.HideAsync();
+
+    private async Task ImportarXml(InputFileChangeEventArgs evento)
+    {
+        var archivo = evento.File;
+        _nombreArchivoXml = archivo.Name;
+        _xml = null;
+        _proveedorXmlNoExiste = false;
+        _leyendoXml = true;
+
+        try
+        {
+            await using var flujo = archivo.OpenReadStream(10 * 1024 * 1024);
+            var documento = await XDocument.LoadAsync(flujo, LoadOptions.None, CancellationToken.None);
+            _xml = LeerComprobante(documento);
+            _proveedorXmlNoExiste = !_proveedores.Any(p => string.Equals(p.Cedula?.Trim(), _xml.CedulaProveedor, StringComparison.OrdinalIgnoreCase));
+            await AsociarCatalogosXml();
+        }
+        catch (Exception ex) when (ex is InvalidDataException or System.Xml.XmlException or FormatException)
+        {
+            _nombreArchivoXml = string.Empty;
+            await Dialogos.ErrorAsync("El archivo no contiene un comprobante electrónico XML válido de Hacienda.", "No se pudo importar el XML");
+        }
+        finally
+        {
+            _leyendoXml = false;
+        }
+    }
+
+    private static ComprobanteXml LeerComprobante(XDocument documento)
+    {
+        var raiz = documento.Root ?? throw new FormatException("XML sin nodo raíz.");
+        var tipo = raiz.Name.LocalName;
+        if (tipo is not ("FacturaElectronica" or "TiqueteElectronico" or "NotaCreditoElectronica" or "NotaDebitoElectronica"))
+        {
+            throw new FormatException("Tipo de comprobante no soportado.");
+        }
+
+        var emisor = Hijo(raiz, "Emisor") ?? throw new FormatException("El XML no contiene emisor.");
+        var detalle = Hijo(raiz, "DetalleServicio") ?? throw new FormatException("El XML no contiene detalle.");
+        var lineas = detalle.Elements().Where(e => e.Name.LocalName == "LineaDetalle").Select((linea, indice) => LeerLinea(linea, indice + 1)).ToList();
+        if (lineas.Count == 0) throw new FormatException("El XML no contiene líneas de detalle.");
+
+        var resumen = Hijo(raiz, "ResumenFactura");
+        var moneda = Texto(Hijo(resumen, "CodigoTipoMoneda"), "CodigoMoneda");
+        var fechaTexto = Texto(raiz, "FechaEmision");
+        var fecha = DateTimeOffset.TryParse(fechaTexto, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var fechaConZona)
+            ? fechaConZona.LocalDateTime.Date
+            : DateTime.TryParse(fechaTexto, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var fechaSimple) ? fechaSimple.Date : throw new FormatException("Fecha de emisión inválida.");
+        var condicion = Texto(raiz, "CondicionVenta");
+        var credito = condicion is "02" or "03";
+
+        return new ComprobanteXml
+        {
+            Clave = Texto(raiz, "Clave"),
+            Consecutivo = Texto(raiz, "NumeroConsecutivo"),
+            CedulaProveedor = Texto(Hijo(emisor, "Identificacion"), "Numero"),
+            NombreProveedor = Texto(emisor, "Nombre"),
+            Fecha = fecha,
+            Credito = credito,
+            DiasCredito = Entero(Texto(raiz, "PlazoCredito")),
+            Moneda = string.IsNullOrWhiteSpace(moneda) ? "CRC" : moneda,
+            Total = Numero(Texto(resumen, "TotalComprobante")),
+            Lineas = lineas
+        };
+    }
+
+    private static LineaXml LeerLinea(XElement linea, int predeterminado)
+    {
+        var montoTotal = Numero(Texto(linea, "MontoTotal"));
+        var montoDescuento = linea.Elements().Where(e => e.Name.LocalName == "Descuento").Sum(e => Numero(Texto(e, "MontoDescuento")));
+        var impuestoNodo = linea.Elements().FirstOrDefault(e => e.Name.LocalName == "Impuesto");
+        var tarifa = Numero(Texto(impuestoNodo, "Tarifa"));
+        if (tarifa == 0)
+        {
+            var montoImpuesto = Numero(Texto(impuestoNodo, "Monto"));
+            var baseImpuesto = montoTotal - montoDescuento;
+            tarifa = baseImpuesto > 0 ? CalculoDocumento.Redondear(montoImpuesto * 100m / baseImpuesto) : 0;
+        }
+        var codigoProveedor = linea.Elements().Where(e => e.Name.LocalName == "Codigo")
+            .Select(e => Texto(e, "Codigo") is { Length: > 0 } anidado ? anidado : e.Value.Trim())
+            .FirstOrDefault() ?? string.Empty;
+
+        return new LineaXml
+        {
+            Numero = Entero(Texto(linea, "NumeroLinea"), predeterminado),
+            CodigoProveedor = codigoProveedor,
+            Cabys = Texto(linea, "CodigoCABYS"),
+            Descripcion = Texto(linea, "Detalle"),
+            Presentacion = Texto(linea, "UnidadMedida"),
+            Cantidad = Math.Max(0.001m, Numero(Texto(linea, "Cantidad"))),
+            Precio = Numero(Texto(linea, "PrecioUnitario")),
+            Descuento = montoTotal > 0 ? CalculoDocumento.Redondear(montoDescuento * 100m / montoTotal) : 0,
+            Impuesto = tarifa
+        };
+    }
+
+    private static XElement? Hijo(XElement? origen, string nombre) => origen?.Elements().FirstOrDefault(e => e.Name.LocalName == nombre);
+    private static string Texto(XElement? origen, string nombre) => Hijo(origen, nombre)?.Value.Trim() ?? string.Empty;
+    private static decimal Numero(string texto) => decimal.TryParse(texto, NumberStyles.Number, CultureInfo.InvariantCulture, out var valor) || decimal.TryParse(texto, NumberStyles.Number, new CultureInfo("es-CR"), out valor) ? valor : 0;
+    private static int Entero(string texto, int predeterminado = 0) => int.TryParse(texto, NumberStyles.Integer, CultureInfo.InvariantCulture, out var valor) ? valor : predeterminado;
+
+    private async Task AsociarArticuloXml(int indice)
+    {
+        if (_xml is null) return;
+        _indiceXmlAsignacion = indice;
+        var linea = _xml.Lineas[indice];
+        _indiceXmlOpciones = null;
+        _editorXml = EditorXml.Busqueda;
+        _textoBusquedaXml = linea.CodigoProveedor.Length >= 2 ? linea.CodigoProveedor : linea.Descripcion;
+        _resultadosBusquedaXml.Clear();
+        await BuscarArticulosXml();
+    }
+
+    private async Task BuscarArticuloXmlConEnter(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await BuscarArticulosXml();
+    }
+
+    private async Task BuscarArticulosXml()
+    {
+        var texto = _textoBusquedaXml.Trim();
+        _resultadosBusquedaXml.Clear();
+        if (texto.Length < 2) return;
+        _buscandoArticuloXml = true;
+        try
+        {
+            var respuesta = await Inventario.Buscar(texto);
+            if (respuesta.EsCorrecta) _resultadosBusquedaXml = respuesta.Responses?.ToList() ?? new();
+        }
+        finally
+        {
+            _buscandoArticuloXml = false;
+        }
+    }
+
+    private async Task ElegirArticuloXml(InventarioDTO articulo)
+    {
+        if (_xml is null || _indiceXmlAsignacion is not int indice) return;
+        // El buscador devuelve una proyección ligera. La propiedad Lote (y
+        // demás reglas del artículo) llega completa en la consulta individual;
+        // sin esta lectura el botón de lotes no se podía mostrar aunque el
+        // artículo realmente los manejara.
+        var detalle = await Inventario.Uno(articulo.Codigo);
+        if (detalle.EsCorrecta && detalle.Responses is not null) articulo = detalle.Responses;
+        var linea = _xml.Lineas[indice];
+        linea.Articulo = articulo;
+        linea.VinculoConfirmado = false;
+        linea.Lote = string.Empty;
+        linea.Vencimiento = DateTime.Today;
+        linea.Precios.Clear();
+        PrepararPreciosXml(linea);
+        CancelarEditorXml();
+    }
+
+    private void CancelarEditorXml()
+    {
+        _editorXml = EditorXml.Ninguno;
+        _indiceXmlAsignacion = null;
+        _indiceXmlOpciones = null;
+        _textoBusquedaXml = string.Empty;
+        _resultadosBusquedaXml.Clear();
+    }
+
+    /// <summary>
+    /// Conserva el comportamiento de la ventana anterior: primero consulta de
+    /// una sola vez los vínculos proveedor-artículo y solo pide elegir los que
+    /// no estén en el catálogo. Esto evita una consulta por cada renglón XML.
+    /// </summary>
+    private async Task AsociarCatalogosXml()
+    {
+        if (_xml is null) return;
+        var solicitud = _xml.Lineas.Select(l => new CatalogoProductosInternosDTO
+        {
+            CodigoProveedor = l.CodigoProveedor,
+            DescripcionProveedor = l.Descripcion
+        }).ToList();
+        var catalogos = await Api.CatalogosInternos(solicitud);
+        if (!catalogos.EsCorrecta || catalogos.Responses is null) return;
+
+        var asociaciones = catalogos.Responses
+            .Where(c => !string.IsNullOrWhiteSpace(c.CodigoInterno))
+            .ToList();
+        var tareas = _xml.Lineas.Select(async linea =>
+        {
+            var vinculo = asociaciones.FirstOrDefault(c =>
+                string.Equals(c.CodigoProveedor?.Trim(), linea.CodigoProveedor, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(c.DescripcionProveedor?.Trim(), linea.Descripcion, StringComparison.OrdinalIgnoreCase));
+            if (vinculo is null) return;
+
+            var encontrados = await Inventario.Buscar(vinculo.CodigoInterno!);
+            var articulo = encontrados.Responses?.FirstOrDefault(a =>
+                string.Equals(a.Cod_Articulo, vinculo.CodigoInterno, StringComparison.OrdinalIgnoreCase));
+            if (articulo is not null)
+            {
+                linea.Articulo = articulo;
+                linea.VinculoConfirmado = true;
+                PrepararPreciosXml(linea);
+            }
+        });
+        await Task.WhenAll(tareas);
+    }
+
+    private void PrepararPreciosXml(LineaXml linea)
+    {
+        if (linea.Articulo is null || linea.Precios.Count > 0) return;
+        foreach (var (tarifa, precio) in new[]
+        {
+            ("A", Formato.AImporte(linea.Articulo.Precio_A)),
+            ("B", Formato.AImporte(linea.Articulo.Precio_B)),
+            ("C", Formato.AImporte(linea.Articulo.Precio_C)),
+            ("D", Formato.AImporte(linea.Articulo.Precio_D))
+        })
+        {
+            var utilidad = linea.Precio > 0 ? CalculoDocumento.Redondear((precio / linea.Precio - 1m) * 100m) : 0m;
+            linea.Precios.Add(new PrecioXml { Tarifa = tarifa, Precio = precio, Utilidad = Math.Max(0, utilidad) });
+        }
+    }
+
+    private async Task VincularArticuloXml(int indice)
+    {
+        if (_xml is null || _xml.Lineas[indice].Articulo is not { } articulo) return;
+        var linea = _xml.Lineas[indice];
+        var respuesta = await Api.VincularArticuloXml(new CatalogoProductosInternosDTO
+        {
+            CodigoProveedor = linea.CodigoProveedor,
+            DescripcionProveedor = linea.Descripcion,
+            CodigoInterno = articulo.Cod_Articulo,
+            DescripcionInterno = articulo.Descripcion
+        });
+        if (await Respuestas.CorrectaAsync(respuesta, "vincular el artículo importado"))
+        {
+            linea.VinculoConfirmado = true;
+            Dialogos.Exito("Artículo vinculado al catálogo del proveedor.");
+        }
+    }
+
+    private Task AbrirLotesXml(int indice) { _indiceXmlOpciones = indice; _editorXml = EditorXml.Lotes; return Task.CompletedTask; }
+    private void CerrarLotesXml() => CancelarEditorXml();
+    private Task AbrirPreciosXml(int indice) { _indiceXmlOpciones = indice; if (LineaXmlSeleccionada is { } linea) PrepararPreciosXml(linea); _editorXml = EditorXml.Precios; return Task.CompletedTask; }
+    private void CerrarPreciosXml() => CancelarEditorXml();
+    private async Task RestaurarImportadorXmlAsync()
+    {
+        if (_xml is null) return;
+        await Task.Delay(350);
+        await _modalImportarXml.ShowAsync();
+    }
+    private static void RecalcularLineaXml(LineaXml linea) => linea.Cantidad = Math.Max(0.001m, linea.Cantidad);
+    private void RecalcularPrecioXml()
+    {
+        if (LineaXmlSeleccionada is not { } linea) return;
+        linea.PreciosEditados = true;
+        foreach (var precio in linea.Precios) precio.Precio = CalculoDocumento.Redondear(linea.Precio * (1 + Math.Max(0, precio.Utilidad) / 100m));
+    }
+    private void RecalcularUtilidadXml()
+    {
+        if (LineaXmlSeleccionada is not { } linea || linea.Precio <= 0) return;
+        linea.PreciosEditados = true;
+        foreach (var precio in linea.Precios) precio.Utilidad = Math.Max(0, CalculoDocumento.Redondear((precio.Precio / linea.Precio - 1m) * 100m));
+    }
+
+    private async Task PrepararProveedorXml()
+    {
+        if (_xml is null) return;
+        _nuevoProveedorCedula = _xml.CedulaProveedor;
+        _nuevoProveedorNombre = _xml.NombreProveedor;
+        _nuevoProveedorTelefono = string.Empty;
+        await _modalNuevaProveedor.ShowAsync();
+    }
+
+    private async Task AplicarImportacionXml()
+    {
+        if (_xml is null || _xml.Lineas.Any(l => l.Articulo is null || !l.VinculoConfirmado)) return;
+        var proveedor = _proveedores.FirstOrDefault(p => string.Equals(p.Cedula?.Trim(), _xml.CedulaProveedor, StringComparison.OrdinalIgnoreCase));
+        if (proveedor is null) { _proveedorXmlNoExiste = true; return; }
+        var sinLote = _xml.Lineas.Where(l => (EsCostaPetsCompra || l.Articulo?.Lote == true) && (string.IsNullOrWhiteSpace(l.Lote) || l.Vencimiento.Date < _xml.Fecha.Date)).ToList();
+        if (sinLote.Count > 0) { await Dialogos.ErrorAsync($"Indique lote y vencimiento válido para {sinLote.Count} artículo(s) que manejan lotes.", "Importar XML"); return; }
+        if (_xml.Lineas.Any(l => l.Cantidad <= 0)) { await Dialogos.ErrorAsync("Cada línea importada debe tener una cantidad mayor a cero.", "Importar XML"); return; }
+
+        _idCompra = 0;
+        _proveedor = proveedor;
+        _textoProveedor = proveedor.Cedula ?? proveedor.Nombre ?? string.Empty;
+        _numeroFactura = _xml.Consecutivo;
+        _fecha = _xml.Fecha;
+        _tipoCompra = _xml.Credito ? 1 : 2;
+        _diasCredito = _xml.Credito ? _xml.DiasCredito : 0;
+        ActualizarVencimiento();
+        var moneda = _monedas.FirstOrDefault(m => string.Equals(m.MonedaNombre, _xml.Moneda, StringComparison.OrdinalIgnoreCase) || (string.Equals(_xml.Moneda, "CRC", StringComparison.OrdinalIgnoreCase) && ((m.MonedaNombre?.Contains("COL", StringComparison.OrdinalIgnoreCase) ?? false) || m.Simbolo == "₡")) || (string.Equals(_xml.Moneda, "USD", StringComparison.OrdinalIgnoreCase) && (m.MonedaNombre?.Contains("DOL", StringComparison.OrdinalIgnoreCase) ?? false)));
+        if (moneda is not null) _moneda = moneda.CodMoneda;
+        _lineas.Clear();
+        foreach (var x in _xml.Lineas)
+        {
+            var linea = new LineaCompra { Articulo = x.Articulo!, Cabys = x.Cabys, Cantidad = x.Cantidad, Base = x.Precio, Flete = 0, Otros = 0, Regalias = EsCostaPetsCompra ? 0 : Math.Max(0, x.Regalia), Descuento = x.Descuento, Impuesto = x.Impuesto, Lote = x.Lote.Trim(), VenceLote = x.Vencimiento };
+            linea.Recalcular();
+            _lineas.Add(linea);
+        }
+        _compraDesdeXml = true;
+        LimpiarEditor();
+        RecalcularTotales();
+        await _modalImportarXml.HideAsync();
+        Dialogos.Exito("XML importado. Revise la bodega, las asociaciones y los importes antes de registrar la compra.");
+    }
+
+    private List<ActualizarPreciosArticulosDTO> PreciosActualizadosXml()
+        => _xml?.Lineas.Where(l => l.Articulo is not null && l.PreciosEditados && l.Precios.Count > 0)
+            .Select(l => new ActualizarPreciosArticulosDTO
+            {
+                IdArticulo = l.Articulo!.Codigo,
+                ListaPrecios = l.Precios.Select(p => new ListaArticulosPreciosDTO { Tarifa = p.Tarifa, Precio = (float)p.Precio }).ToList()
+            }).ToList() ?? new();
+
+    private async Task AbrirBuscadorCompras() { _comprasEncontradas.Clear(); await _modalBuscarCompras.ShowAsync(); }
+    private async Task BuscarCompras()
+    {
+        _comprasEncontradas = (await Respuestas.DatoAsync(await Api.Buscar(new FiltroFacturaCompras { Numero = _filtroFactura.Trim(), Proveedor = _filtroProveedor.Trim(), FechaDesde = string.Empty, FechaHasta = string.Empty }), "buscar compras"))?.OrderByDescending(c => c.IdCompra).ToList() ?? new();
+    }
+    private async Task CargarCompra(long id)
+    {
+        var compra = await Respuestas.DatoAsync(await Api.Obtener(id), "abrir la compra");
+        if (compra is null) return;
+        _idCompra = compra.IdCompra; _numeroFactura = compra.Factura ?? string.Empty; _proveedor = _proveedores.FirstOrDefault(p => p.CodigoProv == compra.CodigoProv) ?? new ProveedorDTO { CodigoProv = compra.CodigoProv, Nombre = compra.NombreProveedor }; _textoProveedor = _proveedor.Cedula ?? compra.NombreProveedor ?? string.Empty; _tipoCompra = compra.TipoCompra; _moneda = compra.CodMonedaCompra; _empresa = int.TryParse(compra.IdEmpresa, out var empresa) ? empresa : 0; _fecha = Fecha(compra.Fecha); _vence = Fecha(compra.Vence); _diasCredito = Math.Max(0, (_vence - _fecha).Days); _bodega = 0; _lineas.Clear();
+        foreach (var d in compra.Detalle ?? Array.Empty<FacturaCompraDetalleDTO>())
+        {
+            var articulo = new InventarioDTO { Codigo = d.Codigo, Cod_Articulo = d.CodArticulo, Descripcion = d.Descripcion, Codcabys = d.CodCabys, Precio_A = (float)d.PrecioA, Precio_B = (float)d.PrecioB, Precio_C = (float)d.PrecioC, Precio_D = (float)d.PrecioD, MonedaVenta = d.CodMonedaVenta, Lote = !string.IsNullOrWhiteSpace(d.Lote) };
+            var linea = new LineaCompra { Articulo = articulo, IdArticuloComprados = d.IdArticuloComprados, Cabys = d.CodCabys, Cantidad = Formato.AImporte(d.Cantidad), Regalias = Formato.AImporte(d.Regalias), Base = Formato.AImporte(d.Base), Flete = Formato.AImporte(d.MontoFlete), Otros = Formato.AImporte(d.OtrosCargos), Descuento = Formato.AImporte(d.DescuentoP), Impuesto = Formato.AImporte(d.ImpuestoP), Lote = d.Lote ?? string.Empty, VenceLote = d.LoteArticulo?.Vencimiento.DateTime ?? DateTime.Today };
+            linea.Recalcular(); _lineas.Add(linea); if (_bodega == 0) _bodega = d.IdBodega;
+        }
+        RecalcularTotales(); LimpiarEditor(); await _modalBuscarCompras.HideAsync();
+    }
+    private static DateTime Fecha(string? valor) => DateTime.TryParse(valor, out var fecha) ? fecha.Date : DateTime.Today;
+    private void NuevaCompra()
+    {
+        _idCompra = 0; _proveedor = null; _textoProveedor = _numeroFactura = string.Empty; _proveedoresEncontrados.Clear(); _fecha = _vence = DateTime.Today; _tipoCompra = 2; _diasCredito = _bodega = 0; _empresa = EsCostaPetsCompra ? 1 : 0; _lineas.Clear(); _compraDesdeXml = false; LimpiarEditor(); RecalcularTotales();
+    }
+}

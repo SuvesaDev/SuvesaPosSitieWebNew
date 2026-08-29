@@ -6,17 +6,18 @@
     {
         <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 @(ContieneRutaActiva(Item) ? "seepos-menu-activo" : "")"
                 @onclick="Alternar"
-                aria-expanded="@(_abierto ? "true" : "false")">
+                aria-expanded="@(Abierto ? "true" : "false")">
             <span class="flex-grow-1">@Item.Titulo</span>
-            <i class="bi @(_abierto ? "bi-chevron-up" : "bi-chevron-down") small" aria-hidden="true"></i>
+            <i class="bi @(Abierto ? "bi-chevron-up" : "bi-chevron-down") small" aria-hidden="true"></i>
         </button>
 
-        @if (_abierto)
+        @if (Abierto)
         {
             <ul class="seepos-menu-nivel nav flex-column border-start">
                 @foreach (var hijo in Item.Hijos)
                 {
-                    <RamaMenu Item="hijo" AlAbrir="AlAbrir" RutaActual="@RutaActual" />
+                    <RamaMenu @key="hijo.Titulo" Item="hijo" AlAbrir="AlAbrir" RutaActual="@RutaActual"
+                              Abierto="@(_hijoAbierto == hijo.Titulo)" AlAlternar="AlternarHijo" />
                 }
             </ul>
         }
@@ -40,14 +41,33 @@
     [Parameter, EditorRequired]
     public string RutaActual { get; set; } = default!;
 
-    private bool _abierto;
+    // Controlados por el padre (BarraLateral o la RamaMenu que nos contiene), que es
+    // quien decide cual de los hermanos del mismo nivel queda abierto.
+    [Parameter]
+    public bool Abierto { get; set; }
+
+    [Parameter]
+    public EventCallback<ItemMenu> AlAlternar { get; set; }
+
+    // Cual de MIS hijos (nivel siguiente) esta abierto; solo uno a la vez.
+    private string? _hijoAbierto;
+    private bool _abiertoAnterior;
     private bool _debeMostrar;
     private ElementReference _elemento;
 
-    private void Alternar()
+    private Task Alternar() => AlAlternar.InvokeAsync(Item);
+
+    private void AlternarHijo(ItemMenu hijo)
+        => _hijoAbierto = _hijoAbierto == hijo.Titulo ? null : hijo.Titulo;
+
+    protected override void OnParametersSet()
     {
-        _abierto = !_abierto;
-        _debeMostrar = _abierto;
+        if (Abierto && !_abiertoAnterior)
+        {
+            _debeMostrar = true;
+        }
+
+        _abiertoAnterior = Abierto;
     }
 
     private bool EstaActiva(ItemMenu item)

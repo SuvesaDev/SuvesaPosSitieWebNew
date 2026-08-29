@@ -22,7 +22,7 @@
 *@
 
 <HxModal @ref="_modal" Title="Buscar articulo" Size="ModalSize.Large"
-         OnClosed="AlCerrar">
+         OnClosed="AlCerrarModal">
     <BodyTemplate>
         <div class="mb-3">
             <input @ref="_campo"
@@ -92,6 +92,13 @@
     /// <summary>Que hacer con el articulo elegido. Lo decide quien abre el modal.</summary>
     [Parameter, EditorRequired]
     public EventCallback<InventarioDTO> AlElegir { get; set; }
+
+    /// <summary>
+    /// Notifica que se cerró el buscador. Es útil si quien lo abrió estaba
+    /// dentro de otro modal y debe recuperar su contexto visual.
+    /// </summary>
+    [Parameter]
+    public EventCallback AlCerrar { get; set; }
 
     private static readonly TimeSpan Espera = TimeSpan.FromMilliseconds(400);
 
@@ -212,11 +219,12 @@
         await AlElegir.InvokeAsync(articulo);
     }
 
-    private void AlCerrar()
+    private async Task AlCerrarModal()
     {
         _pendiente?.Cancel();
         _texto = string.Empty;
         _resultados = new List<InventarioDTO>();
+        await AlCerrar.InvokeAsync();
     }
 
     public void Dispose() => _pendiente?.Cancel();

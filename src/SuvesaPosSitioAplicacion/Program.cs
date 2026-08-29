@@ -120,6 +120,9 @@ ClienteApi<IProveedorApiCliente, ProveedorApiCliente>();
 ClienteApi<IAbonoCobrarApiCliente, AbonoCobrarApiCliente>();
 ClienteApi<IReportesApiCliente, ReportesApiCliente>();
 ClienteApi<IVentaApiCliente, VentaApiCliente>();
+ClienteApi<ITipoFacturaApiCliente, TipoFacturaApiCliente>();
+ClienteApi<IComprasApiCliente, ComprasApiCliente>();
+ClienteApi<IMonedaApiCliente, MonedaApiCliente>();
 ClienteApi<IQvetApiCliente, QvetApiCliente>();
 ClienteApi<IConsignacionApiCliente, ConsignacionApiCliente>();
 ClienteApi<IFamiliasApiCliente, FamiliasApiCliente>();
@@ -127,6 +130,7 @@ ClienteApi<ICategoriasApiCliente, CategoriasApiCliente>();
 ClienteApi<IPresentacionApiCliente, PresentacionApiCliente>();
 ClienteApi<IHaciendaApiCliente, HaciendaApiCliente>();
 ClienteApi<IStockLoteApiCliente, StockLoteApiCliente>();
+ClienteApi<IIdentificacionApiCliente, IdentificacionApiCliente>();
 
 // ---------------------------------------------------------------------------
 // Convivencia: YARP sirve la SPA React bajo el mismo origen mientras queden
@@ -152,6 +156,8 @@ builder.Services.AddScoped<IGeografia, Geografia>();
 builder.Services.AddScoped<IProveedoresConsulta, ProveedoresConsulta>();
 builder.Services.AddScoped<ICuentasPorCobrar, CuentasPorCobrar>();
 builder.Services.AddScoped<IReportes, Reportes>();
+builder.Services.AddScoped<IFacturacion, Facturacion>();
+builder.Services.AddScoped<ICompras, Compras>();
 builder.Services.AddScoped<IDocumentosEmitidos, DocumentosEmitidos>();
 builder.Services.AddScoped<IAlbaranes, Albaranes>();
 builder.Services.AddScoped<IConsignaciones, Consignaciones>();
@@ -160,6 +166,9 @@ builder.Services.AddScoped<IFamilias, Familias>();
 builder.Services.AddScoped<ICategorias, Categorias>();
 builder.Services.AddScoped<IPresentaciones, Presentaciones>();
 builder.Services.AddScoped<IUsuarios, Usuarios>();
+builder.Services.AddScoped<IRoles, Roles>();
+builder.Services.AddScoped<ISucursales, Sucursales>();
+builder.Services.AddScoped<IEmpresas, Empresas>();
 
 var app = builder.Build();
 

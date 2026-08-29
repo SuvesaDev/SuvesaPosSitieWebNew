@@ -5,24 +5,27 @@ Este documento fija las decisiones ya tomadas para no volver a discutirlas en ca
 
 ## Estado
 
-Ola 0 — Cimientos. **No se migra ninguna pantalla de negocio todavia.**
+**Esta seccion se quedo describiendo la Ola 0 mucho despues de que el proyecto avanzo.**
+No confiar en fechas/semanas de aqui abajo como estado actual; son historia de los
+cimientos. El estado real: ya hay un usuario de pruebas, y las Olas 1 a 4 tienen
+pantallas migradas y verificadas contra el API real (`dotnet test
+tests/SuvesaPosSitioAplicacion.E2E`). Entre lo migrado:
 
-- Semana 1: proyecto unico con la estructura de la casa, Bootstrap 5 + Havit.Blazor,
-  contratos generados (321 operaciones, 386 DTOs, 51 clientes), CI.
-- Semana 2: sesion, sucursal y permisos en servidor. Verificado contra el API real
-  hasta el rechazo de credenciales.
-- Semana 3: shell completo. Menu lateral de 82 nodos portado desde SidebarData.jsx,
-  espacio de trabajo por pestanas, atajos y ruta comodin para las 78 pantallas
-  pendientes. 25 pruebas cubren la semantica de pestanas y el filtrado del menu.
-- Semana 4: convivencia. YARP, anfitrion de iframe y puente JS listos y verificados
-  del lado del sitio. El cambio de `basename` esta hecho en la rama
-  `feature/convivencia-blazor` de la SPA, **sin compilar** (no hay Node en el equipo).
-- Semana 5: sistema de diseno. Tema con la identidad extraida del SCSS actual,
-  fachada de dialogos, manejo unico de errores del API, campos y rejilla envueltos,
-  y pagina de muestra en `/diseno`.
+- **Catalogos y consulta** (Ola 1-2): Bancos, Familias, Categorias, Presentaciones,
+  Inventarios, Clientes, Proveedores (las tres ultimas con alta/edicion/cambio de
+  estado completos — la deuda de "solo consulta" que se menciona mas abajo esta
+  **cerrada**, aunque el comentario en cada Consulta.razor todavia no se actualizo).
+- **Ventas y compras** (Ola 1-3): Proformas, Abono Cobrar, Cuentas por pagar,
+  Seguimiento de Cotizaciones, Documentos Emitidos, Consulta Albaranes,
+  Consignaciones, Consulta Depositos.
+- **Ola 4 — escritura compleja**: Usuarios (alta/edicion), Roles (matriz de permisos
+  por rol, con la misma compuerta de reconfirmar la propia clave que tiene el
+  sistema actual), Sucursales y Empresas (alta del emisor electronico: identificacion,
+  ubicacion en cascada, certificado de firma digital, actividades de Hacienda,
+  cuentas bancarias).
 
-**Falta un usuario de pruebas** para ejercitar todo lo que hay detras del login
-(ver "Pendiente de verificar").
+El shell (menu, pestanas, convivencia con la SPA React via YARP) y el sistema de
+diseno de la Ola 0 siguen como se describen abajo.
 
 ## Decisiones cerradas — no reabrir sin motivo nuevo
 
@@ -235,10 +238,10 @@ iframe de la SPA y la pantalla nueva queda inalcanzable. Paso con tres de la Ola
 no se detecto hasta abrirlas a mano: las pruebas las visitaban por su ruta propia, no
 por la del menu.
 
-**Deuda que esto genera.** Clientes, Inventarios y Proveedores estan migradas **solo
-como consulta**; la version anterior tambien editaba. Mientras dure la convivencia,
-quien necesite editar entra por la SPA React. Se cierra cuando esas pantallas
-incorporen el mantenimiento, en la Ola 4.
+**Deuda cerrada.** Clientes, Inventarios y Proveedores llegaron a tener alta,
+edicion y cambio de estado completos en la Ola 4 (con sus modales, cuentas
+bancarias/lotes/relacionados segun corresponda a cada una). Ya no hace falta
+entrar por la SPA React para mantenerlas.
 
 ## Rutas pendientes
 

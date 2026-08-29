@@ -138,7 +138,7 @@ public class MenuAlcanzableTests
         await p.GotoAsync("/cuenta/ingresar");
         await p.GetByLabel("Usuario").FillAsync(CredencialesPrueba.Usuario!);
         await p.GetByLabel("Contrasena").FillAsync(CredencialesPrueba.Password!);
-        await p.GetByRole(AriaRole.Button, new() { Name = "Ingresar" }).ClickAsync();
+        await p.GetByRole(AriaRole.Button, new() { Name = "Iniciar sesion" }).ClickAsync();
         await p.WaitForURLAsync("**/cuenta/sucursal", new() { Timeout = 60_000 });
 
         var op = p.Locator("select option");

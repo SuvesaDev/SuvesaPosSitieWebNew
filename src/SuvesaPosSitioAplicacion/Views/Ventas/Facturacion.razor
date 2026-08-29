@@ -1,0 +1,381 @@
+@page "/initial/billing"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IFacturacion Api
+@inject IClientesConsulta Clientes
+@inject IInventarioConsulta Inventario
+@inject IImagenesArticulo Imagenes
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@* Port del flujo de Billing: cliente -> artículos/lotes -> totales -> emisión.
+   Los cálculos se hacen en decimal en CalculoDocumento; el DTO se arma una única vez
+   al confirmar, para evitar que encabezado y detalle queden desincronizados. *@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nueva factura</button>
+    </Acciones>
+    <ChildContent>
+        <div class="seepos-facturacion-estado d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-3 border rounded bg-body-tertiary">
+            @if (_ventaDesbloqueada)
+            {
+                <div><strong><i class="bi bi-unlock-fill me-2 text-success" aria-hidden="true"></i>Venta desbloqueada</strong><span class="text-secondary ms-2">Cajero: @_usuarioVenta?.Nombre</span></div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AbrirDesbloqueo">Cambiar cajero</button>
+            }
+            else
+            {
+                <div><strong><i class="bi bi-lock-fill me-2 text-warning" aria-hidden="true"></i>Venta bloqueada</strong><span class="text-secondary ms-2">Ingrese la clave interna para comenzar.</span></div>
+                <button type="button" class="btn btn-sm btn-primary" @onclick="AbrirDesbloqueo">Desbloquear venta</button>
+            }
+        </div>
+        <fieldset disabled="@(!_ventaDesbloqueada)" class="seepos-facturacion border-0 p-0 m-0">
+        <div class="row g-3">
+            <div class="col-12 col-lg-8">
+                <div class="card h-100 seepos-facturacion-cabecera">
+                    <div class="card-header"><strong>Factura de venta</strong></div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-5">
+                                <label class="form-label">Buscar cliente</label>
+                                <div class="input-group"><input class="form-control" placeholder="Cédula o nombre" @bind="_textoCliente" @onkeydown="BuscarClienteConEnter" /><button type="button" class="btn btn-outline-primary" @onclick="BuscarClientes">Buscar</button></div>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label">Tipo de factura</label>
+                                <select class="form-select" @bind="_tipoFactura"><option value="0">Seleccione...</option>@foreach (var tipo in TiposDisponibles) { <option value="@tipo.Codigo">@tipo.Descripcion</option> }</select>
+                            </div>
+                            <div class="col-12 col-md-3"><label class="form-label">Moneda</label><select class="form-select" @bind="_moneda"><option value="CRC">Colón</option><option value="USD">Dólar</option></select></div>
+                            @if (!EsCostaPetsVenta)
+                            {
+                                <div class="col-12 col-md-6"><label class="form-label">Empresa</label><select class="form-select" @bind="_idEmpresa"><option value="0">Seleccione...</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
+                            }
+                        </div>
+                        @if (_clientesEncontrados.Count > 0)
+                        {
+                            <div class="list-group mt-2" style="max-height: 12rem; overflow-y:auto;">@foreach (var cliente in _clientesEncontrados) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirCliente(cliente)"><strong>@cliente.Nombre</strong><span class="text-secondary ms-2">@cliente.Cedula</span></button> }</div>
+                        }
+                        @if (_cliente is not null)
+                        {
+                            <div class="alert alert-light border mt-3 mb-0"><div class="d-flex justify-content-between"><strong>@_cliente.Nombre</strong><button type="button" class="btn btn-sm btn-link" @onclick="QuitarCliente">Cambiar</button></div><div class="small text-secondary">@_cliente.Cedula · @_cliente.Telefono_01 · @_cliente.E_Mail</div>@if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { <div class="small text-danger mt-1">Cliente con restricción de morosidad.</div> } @if (_cliente.OrdenCompra) { <div class="small text-warning mt-1">El cliente requiere orden de compra.</div> }</div>
+                        }
+                        <div class="row g-3 mt-0"><div class="col-12 col-md-6"><label class="form-label">Orden de compra</label><input class="form-control" @bind="_ordenCompra" /></div><div class="col-12 col-md-6"><label class="form-label">Observaciones</label><input class="form-control" @bind="_observaciones" /></div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-4">
+                <div class="card h-100 seepos-facturacion-totales"><div class="card-header"><strong>Totales de la venta</strong></div><div class="card-body"><dl class="row mb-0"><dt class="col-7 fw-normal text-secondary">Subtotal</dt><dd class="col-5 text-end">@Formato.Importe(_totales.SubTotal)</dd><dt class="col-7 fw-normal text-secondary">Descuento</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Descuento)</dd><dt class="col-7 fw-normal text-secondary">Impuesto</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Impuesto)</dd><dt class="col-7">Total</dt><dd class="col-5 text-end fs-5">@Formato.Importe(_totales.Total)</dd></dl><button class="btn btn-primary w-100 mt-3" disabled="@(_guardando || _lineas.Count == 0)" @onclick="Emitir"><i class="bi bi-receipt-cutoff me-2" aria-hidden="true"></i>@(_guardando ? "Emitiendo..." : "Emitir factura")</button></div></div>
+            </div>
+        </div>
+
+        <div class="card mt-3 seepos-facturacion-detalle">
+            <div class="card-header d-flex justify-content-between align-items-center gap-2"><strong>Detalle</strong><div class="btn-group"><button type="button" class="btn btn-sm btn-outline-primary" @onclick="AbrirBuscadorArticulo"><i class="bi bi-list-ul me-1" aria-hidden="true"></i>Buscar artículo</button><button type="button" class="btn btn-sm btn-primary" @onclick="AbrirCatalogoImagenes"><i class="bi bi-camera me-1" aria-hidden="true"></i>Catálogo visual</button></div></div>
+            <div class="card-body p-0">
+                @if (_lineas.Count == 0) { <p class="text-secondary text-center py-4 mb-0">Seleccione un cliente y agregue artículos a la factura.</p> }
+                else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Precio</th><th class="text-end">Desc. %</th><th class="text-end">Impuesto</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var linea in _lineas) { <tr><td><code>@linea.Articulo.Cod_Articulo</code></td><td>@linea.Articulo.Descripcion @if (!string.IsNullOrWhiteSpace(linea.Lote)) { <small class="text-secondary d-block">Lote: @linea.Lote</small> }</td><td style="min-width:6rem"><input type="number" min="1" step="0.001" class="form-control form-control-sm text-end" @bind="linea.Cantidad" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:7rem"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="linea.Precio" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:5rem"><input type="number" min="0" max="@linea.MaxDescuento" step="0.01" class="form-control form-control-sm text-end" @bind="linea.Descuento" @bind:after="() => RecalcularLinea(linea)" /></td><td class="text-end">@Formato.Importe(linea.Calculo.MontoImpuesto)</td><td class="text-end fw-semibold">@Formato.Importe(linea.Calculo.Total)</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(linea)">Quitar</button></td></tr> }</tbody></table></div> }
+            </div>
+        </div>
+        </fieldset>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modalCatalogo" Title="Catálogo de artículos" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_cargandoCatalogo)
+        {
+            <div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando catálogo...</span></div></div>
+        }
+        else if (_catalogoImagenes.Count == 0)
+        {
+            <p class="text-secondary text-center py-4 mb-0">No hay artículos con imagen disponibles en el catálogo.</p>
+        }
+        else
+        {
+            <div class="form-check mb-3"><input id="catalogo-todos" class="form-check-input" type="checkbox" checked="@CatalogoCompletoSeleccionado" @onchange="SeleccionarTodoCatalogo" /><label class="form-check-label" for="catalogo-todos">Seleccionar todos (@_catalogoImagenes.Count)</label></div>
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3" style="max-height: 58vh; overflow-y: auto;">
+                @foreach (var producto in _catalogoImagenes)
+                {
+                    <div class="col">
+                        <div class="card h-100 shadow-sm @(producto.Seleccionado ? "border-primary" : null)">
+                            <div class="position-relative bg-body-tertiary text-center" style="height: 11rem;">
+                                @if (!string.IsNullOrWhiteSpace(producto.Datos.Imagen)) { <img class="mw-100 h-100 p-2" style="object-fit: contain;" src="@ImagenCatalogo(producto.Datos.Imagen)" alt="@producto.Datos.Descripcion" loading="lazy" /> }
+                                else { <i class="bi bi-image text-secondary" style="font-size: 3rem; line-height: 11rem;" aria-hidden="true"></i> }
+                                <div class="position-absolute top-0 end-0 p-2"><input class="form-check-input" type="checkbox" aria-label="Seleccionar @producto.Datos.Descripcion" @bind="producto.Seleccionado" /></div>
+                            </div>
+                            <div class="card-body py-2"><p class="fw-semibold small mb-1">@producto.Datos.Descripcion</p><div class="small text-secondary">@Formato.Importe(producto.Datos.Precio)</div>@if (producto.Seleccionado) { <div class="input-group input-group-sm mt-2"><span class="input-group-text">Cant.</span><input class="form-control text-end" type="number" min="1" step="1" @bind="producto.Cantidad" /></div> }</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-outline-secondary" @onclick="() => _modalCatalogo.HideAsync()">Cancelar</button>
+        <button type="button" class="btn btn-primary" disabled="@(_agregandoCatalogo || !_catalogoImagenes.Any(p => p.Seleccionado))" @onclick="AgregarSeleccionCatalogo">@(_agregandoCatalogo ? "Agregando..." : "Agregar selección")</button>
+    </FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalDesbloqueo" Title="Desbloquear venta" Size="ModalSize.Regular">
+    <BodyTemplate>
+        <p class="text-secondary">Ingrese la clave interna del cajero que atenderá esta venta.</p>
+        <div class="mb-2">
+            <label class="form-label" for="clave-facturacion">Clave interna</label>
+            <div class="input-group">
+                <input id="clave-facturacion" class="form-control" type="@(_mostrarClave ? "text" : "password")" autocomplete="current-password" @bind="_claveInterna" @onkeydown="DesbloquearConEnter" />
+                <button type="button" class="btn btn-outline-secondary" aria-label="@(_mostrarClave ? "Ocultar clave" : "Mostrar clave")" @onclick="() => _mostrarClave = !_mostrarClave"><i class="bi @(_mostrarClave ? "bi-eye-slash" : "bi-eye")" aria-hidden="true"></i></button>
+            </div>
+        </div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-primary" disabled="@_validandoClave" @onclick="Desbloquear">@(_validandoClave ? "Validando..." : "Desbloquear")</button>
+    </FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalLotes" Title="Seleccione el lote" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_articuloPendiente is not null) { <p class="text-secondary">@_articuloPendiente.Descripcion</p> }
+        @if (_lotesPendientes.Count == 0) { <div class="alert alert-warning mb-0">El artículo maneja lotes, pero no tiene lotes disponibles.</div> }
+        else { <div class="list-group">@foreach (var lote in _lotesPendientes.Where(l => l.Activo != false && l.Cantidad > 0)) { <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between" @onclick="() => ElegirLote(lote)"><span>@lote.Lote <small class="text-secondary">vence @lote.Vencimiento.ToString("dd/MM/yyyy")</small></span><strong>@Formato.Cantidad(lote.Cantidad)</strong></button> }</div> }
+    </BodyTemplate>
+</HxModal>
+
+<AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="PrepararArticulo" />
+
+@code {
+    private const string Titulo = "Facturación";
+    private sealed class LineaVenta
+    {
+        public required InventarioDTO Articulo { get; init; }
+        public decimal Cantidad { get; set; } = 1;
+        public decimal Precio { get; set; }
+        public decimal Descuento { get; set; }
+        public decimal MaxDescuento { get; init; }
+        public decimal Impuesto { get; init; }
+        public long IdLote { get; init; }
+        public string? Lote { get; init; }
+        public CalculoDocumento.LineaCalculada Calculo { get; private set; }
+        public void Recalcular() => Calculo = CalculoDocumento.Linea(Cantidad, Precio, Descuento, Impuesto);
+    }
+    private sealed class ProductoCatalogo
+    {
+        public required ArticulosImagenesCatalogoDTO Datos { get; init; }
+        public bool Seleccionado { get; set; }
+        public decimal Cantidad { get; set; } = 1;
+    }
+
+    private AppBuscadorArticulo _buscadorArticulo = default!;
+    private HxModal _modalCatalogo = default!;
+    private HxModal _modalDesbloqueo = default!;
+    private HxModal _modalLotes = default!;
+    private List<TipoFactura> _tipos = new();
+    private List<EmpresaDTO> _empresas = new();
+    private List<ProductoCatalogo> _catalogoImagenes = new();
+    private Task<ResponseGeneric<ICollection<ArticulosImagenesCatalogoDTO>>>? _catalogoPendiente;
+    private readonly List<LineaVenta> _lineas = new();
+    private CalculoDocumento.TotalesDocumento _totales;
+    private string _textoCliente = string.Empty, _moneda = "CRC", _observaciones = string.Empty, _ordenCompra = string.Empty;
+    private int _tipoFactura;
+    private int _idEmpresa;
+    private List<FiltranClienteDTO> _clientesEncontrados = new();
+    private FiltranClienteDTO? _cliente;
+    private InventarioDTO? _articuloPendiente;
+    private List<StockLoteDTO> _lotesPendientes = new();
+    private decimal _cantidadArticuloPendiente = 1;
+    private readonly Queue<(InventarioDTO Articulo, decimal Cantidad)> _colaLotesCatalogo = new();
+    private bool _guardando;
+    private bool _cargandoCatalogo, _agregandoCatalogo;
+    private bool _ventaDesbloqueada, _validandoClave, _mostrarClave;
+    private bool _esCostaPetsVenta;
+    private string _claveInterna = string.Empty;
+    private Usuario? _usuarioVenta;
+
+    private bool EsCostaPetsVenta => _ventaDesbloqueada ? _esCostaPetsVenta : Sesion.EsCostaPets;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _esCostaPetsVenta = Sesion.EsCostaPets;
+        _tipos = (await Respuestas.DatoAsync(await Api.Tipos(), "consultar los tipos de factura"))?.Where(t => !t.Compra).ToList() ?? new();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _modalDesbloqueo.ShowAsync();
+        }
+    }
+
+    private IEnumerable<TipoFactura> TiposDisponibles => _tipos.Where(t => !t.Credito || (_cliente?.Abierto == true || _cliente?.Sinrestriccion == true));
+    private bool CatalogoCompletoSeleccionado => _catalogoImagenes.Count > 0 && _catalogoImagenes.All(p => p.Seleccionado);
+    private Task AbrirBuscadorArticulo() => _ventaDesbloqueada ? _buscadorArticulo.AbrirAsync() : AbrirDesbloqueo();
+
+    private async Task AbrirCatalogoImagenes()
+    {
+        if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
+        if (_cliente is null) { await Dialogos.ErrorAsync("Seleccione primero el cliente."); return; }
+        _catalogoImagenes.Clear();
+        _cargandoCatalogo = true;
+        await _modalCatalogo.ShowAsync();
+        var respuestaCatalogo = await ObtenerCatalogoAsync();
+        if (!respuestaCatalogo.EsCorrecta)
+        {
+            _catalogoPendiente = null;
+            await Respuestas.DatoAsync(respuestaCatalogo, "consultar el catálogo visual");
+            _cargandoCatalogo = false;
+            return;
+        }
+        var catalogo = respuestaCatalogo.Responses;
+        _catalogoImagenes = catalogo?.Select(p => new ProductoCatalogo { Datos = p }).ToList() ?? new();
+        _cargandoCatalogo = false;
+    }
+
+    private Task<ResponseGeneric<ICollection<ArticulosImagenesCatalogoDTO>>> ObtenerCatalogoAsync()
+        => _catalogoPendiente ??= Imagenes.Catalogo();
+
+    private void PrecargarCatalogo() => _catalogoPendiente ??= Imagenes.Catalogo();
+
+    private void SeleccionarTodoCatalogo(ChangeEventArgs e)
+    {
+        var seleccionar = e.Value is bool valor && valor;
+        foreach (var producto in _catalogoImagenes) producto.Seleccionado = seleccionar;
+    }
+
+    private static string ImagenCatalogo(string base64) => $"data:image/*;base64,{base64}";
+
+    private async Task AgregarSeleccionCatalogo()
+    {
+        var seleccion = _catalogoImagenes.Where(p => p.Seleccionado).ToList();
+        if (seleccion.Count == 0) return;
+        _agregandoCatalogo = true;
+        await _modalCatalogo.HideAsync();
+        foreach (var producto in seleccion)
+        {
+            if (!long.TryParse(producto.Datos.Codigo, out var codigo))
+            {
+                Dialogos.Advertencia($"El artículo '{producto.Datos.Descripcion}' no tiene un código válido.");
+                continue;
+            }
+            var articulo = await Respuestas.DatoAsync(await Inventario.Uno(codigo), "consultar el artículo del catálogo");
+            if (articulo is null) continue;
+            var cantidad = Math.Max(1, producto.Cantidad);
+            if (articulo.Lote) _colaLotesCatalogo.Enqueue((articulo, cantidad));
+            else AgregarArticulo(articulo, null, cantidad);
+        }
+        _agregandoCatalogo = false;
+        await AbrirSiguienteLoteCatalogo();
+    }
+
+    private Task AbrirDesbloqueo() => _modalDesbloqueo.ShowAsync();
+    private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
+    private async Task Desbloquear()
+    {
+        if (string.IsNullOrWhiteSpace(_claveInterna)) { await Dialogos.ErrorAsync("Ingrese la clave interna.", "Desbloquear venta"); return; }
+        _validandoClave = true;
+        var respuesta = await Api.ValidarClaveInterna(_claveInterna);
+        _validandoClave = false;
+        if (!respuesta.EsCorrecta)
+        {
+            _claveInterna = string.Empty;
+            await Dialogos.ErrorAsync(respuesta.Excepcion ?? "Contraseña incorrecta.", "No se pudo desbloquear la venta");
+            return;
+        }
+        if (respuesta.Responses is null)
+        {
+            await Dialogos.ErrorAsync("El servidor no devolvió el usuario autorizado.", "No se pudo desbloquear la venta");
+            return;
+        }
+
+        _usuarioVenta = respuesta.Responses;
+        _esCostaPetsVenta = _usuarioVenta.CostaPets ?? Sesion.EsCostaPets;
+        _claveInterna = string.Empty;
+        _mostrarClave = false;
+
+        if (_esCostaPetsVenta)
+        {
+            _idEmpresa = 1;
+        }
+        else
+        {
+            _empresas = (await Respuestas.DatoAsync(await Api.Empresas(), "consultar las empresas de facturación"))?.ToList() ?? new();
+            if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        }
+
+        _ventaDesbloqueada = true;
+        await _modalDesbloqueo.HideAsync();
+        // La descarga grande empieza mientras el cajero elige cliente y tipo de
+        // factura, por lo que normalmente el catálogo ya está disponible al abrirlo.
+        PrecargarCatalogo();
+    }
+
+    private async Task BuscarClientes()
+        => _clientesEncontrados = (await Respuestas.DatoAsync(await Clientes.Buscar(_textoCliente), "buscar clientes"))?.Where(c => !c.Anulado && !c.Fallecido).ToList() ?? new();
+    private async Task BuscarClienteConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await BuscarClientes(); }
+    private void ElegirCliente(FiltranClienteDTO cliente) { _cliente = cliente; _textoCliente = cliente.Nombre ?? cliente.Cedula ?? string.Empty; _clientesEncontrados.Clear(); if (_tipoFactura != 0 && !TiposDisponibles.Any(t => t.Codigo == _tipoFactura)) _tipoFactura = 0; RecalcularTodo(); }
+    private void QuitarCliente() { _cliente = null; _tipoFactura = 0; }
+
+    private Task PrepararArticulo(InventarioDTO articulo) => PrepararArticulo(articulo, 1);
+    private async Task PrepararArticulo(InventarioDTO articulo, decimal cantidad)
+    {
+        if (_cliente is null) { await Dialogos.ErrorAsync("Seleccione primero el cliente."); return; }
+        var completo = await Respuestas.DatoAsync(await Inventario.Uno(articulo.Codigo), "consultar el artículo");
+        if (completo is null) return;
+        _articuloPendiente = completo;
+        _cantidadArticuloPendiente = cantidad;
+        if (completo.Lote)
+        {
+            _lotesPendientes = (await Respuestas.DatoAsync(await Inventario.Lotes(completo.Codigo), "consultar lotes"))?.ToList() ?? new();
+            await _modalLotes.ShowAsync();
+            return;
+        }
+        AgregarArticulo(completo, null, cantidad);
+    }
+
+    private async Task ElegirLote(StockLoteDTO lote)
+    {
+        if (_articuloPendiente is not null) AgregarArticulo(_articuloPendiente, lote, _cantidadArticuloPendiente);
+        await _modalLotes.HideAsync();
+        await AbrirSiguienteLoteCatalogo();
+    }
+    private async Task AbrirSiguienteLoteCatalogo()
+    {
+        if (_colaLotesCatalogo.Count == 0) return;
+        var pendiente = _colaLotesCatalogo.Dequeue();
+        _articuloPendiente = pendiente.Articulo;
+        _cantidadArticuloPendiente = pendiente.Cantidad;
+        _lotesPendientes = (await Respuestas.DatoAsync(await Inventario.Lotes(pendiente.Articulo.Codigo), "consultar lotes"))?.ToList() ?? new();
+        await _modalLotes.ShowAsync();
+    }
+    private void AgregarArticulo(InventarioDTO articulo, StockLoteDTO? lote, decimal cantidad = 1)
+    {
+        var existente = _lineas.FirstOrDefault(l => l.Articulo.Codigo == articulo.Codigo && l.IdLote == (lote?.Id ?? 0));
+        if (existente is not null) { existente.Cantidad += cantidad; existente.Recalcular(); RecalcularTodo(); return; }
+        var precio = PrecioCliente(articulo);
+        var linea = new LineaVenta { Articulo = articulo, Cantidad = cantidad, Precio = precio, Impuesto = Formato.AImporte(articulo.IVenta), Descuento = Math.Min(Formato.AImporte(_cliente?.DescuentoEspecial ?? 0), Formato.AImporte(articulo.Max_Descuento)), MaxDescuento = Formato.AImporte(articulo.Max_Descuento), IdLote = lote?.Id ?? 0, Lote = lote?.Lote };
+        linea.Recalcular(); _lineas.Add(linea); RecalcularTodo();
+    }
+    private decimal PrecioCliente(InventarioDTO articulo) => (_cliente?.Tipoprecio ?? 1) switch { 2 when articulo.Precio_B > 0 => Formato.AImporte(articulo.Precio_B), 3 when articulo.Precio_C > 0 => Formato.AImporte(articulo.Precio_C), 4 when articulo.Precio_D > 0 => Formato.AImporte(articulo.Precio_D), _ => articulo.Promo_Activa && articulo.Promo_Inicio <= DateTime.Today && articulo.Promo_Finaliza >= DateTime.Today ? Formato.AImporte(articulo.Precio_Promo) : Formato.AImporte(articulo.Precio_A) };
+    private void RecalcularLinea(LineaVenta linea) { linea.Cantidad = Math.Max(1, linea.Cantidad); linea.Descuento = Math.Clamp(linea.Descuento, 0, linea.MaxDescuento); linea.Recalcular(); RecalcularTodo(); }
+    private void QuitarLinea(LineaVenta linea) { _lineas.Remove(linea); RecalcularTodo(); }
+    private void RecalcularTodo() => _totales = CalculoDocumento.Totales(_lineas.Select(l => l.Calculo));
+
+    private async Task Emitir()
+    {
+        if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
+        if (_cliente is null || _tipoFactura == 0 || _lineas.Count == 0) { await Dialogos.ErrorAsync("Seleccione cliente, tipo de factura y al menos un artículo."); return; }
+        if (!EsCostaPetsVenta && _idEmpresa <= 0) { await Dialogos.ErrorAsync("Seleccione una empresa para registrar la facturación."); return; }
+        if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { await Dialogos.ErrorAsync("El cliente tiene restricción de morosidad."); return; }
+        if (_cliente.OrdenCompra && string.IsNullOrWhiteSpace(_ordenCompra)) { await Dialogos.ErrorAsync("El cliente requiere una orden de compra."); return; }
+        var tipo = _tipos.First(t => t.Codigo == _tipoFactura);
+        if (tipo.Credito && !_cliente.Abierto && !_cliente.Sinrestriccion) { await Dialogos.ErrorAsync("El cliente no tiene crédito habilitado."); return; }
+        if (_lineas.Any(l => l.Articulo.SoloContado) && tipo.Credito) { await Dialogos.ErrorAsync("La factura contiene artículos solo de contado."); return; }
+        if (_lineas.Any(l => l.Articulo.SoloConExistencia && l.Cantidad > Formato.AImporte(l.Articulo.Existencia))) { await Dialogos.ErrorAsync("Una línea supera la existencia disponible."); return; }
+        if (!await Dialogos.ConfirmarAsync("Se emitirá la factura y se afectará el inventario. ¿Desea continuar?")) return;
+        _guardando = true;
+        var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
+        var factura = new FacturaDTO { Tipo = _tipoFactura, CodCliente = _cliente.Cedula, NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = EsCostaPetsVenta ? 1 : _idEmpresa, Empresa = empresa?.Nombre, Preventa = false, SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = l.Articulo.Id_Bodega, Lote = l.IdLote, NumeroLote = l.Lote }).ToList() };
+        var r = await Api.Crear(factura); _guardando = false;
+        if (await Respuestas.CorrectaAsync(r, "emitir la factura")) { Dialogos.Exito("Factura emitida correctamente."); Limpiar(); }
+    }
+    private void Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _moneda = "CRC"; _lineas.Clear(); RecalcularTodo(); }
+}

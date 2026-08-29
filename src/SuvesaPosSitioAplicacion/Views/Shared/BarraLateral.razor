@@ -20,7 +20,7 @@
     <ul class="seepos-lista-menu nav flex-column flex-grow-1 px-2 pb-2 mb-0">
         @foreach (var raiz in FiltroMenu.Visibles(MenuSeePos.Items, Sesion))
         {
-            <li id="@IdRaiz(raiz)" class="nav-item" title="@(Compacto ? raiz.Titulo : null)">
+            <li @key="raiz.Titulo" id="@IdRaiz(raiz)" class="nav-item" title="@(Compacto ? raiz.Titulo : null)">
                 @if (raiz.EsGrupo)
                 {
                     <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 @(ContieneRutaActiva(raiz) ? "seepos-menu-activo" : "")"
@@ -36,7 +36,8 @@
                         <ul class="seepos-menu-nivel nav flex-column border-start">
                             @foreach (var hijo in FiltroMenu.Visibles(raiz.Hijos, Sesion))
                             {
-                                <RamaMenu Item="hijo" AlAbrir="Abrir" RutaActual="@RutaActual" />
+                                <RamaMenu @key="hijo.Titulo" Item="hijo" AlAbrir="Abrir" RutaActual="@RutaActual"
+                                          Abierto="@(_hijoAbierto == hijo.Titulo)" AlAlternar="AlternarHijo" />
                             }
                         </ul>
                     }
@@ -70,7 +71,13 @@
     [Parameter, EditorRequired] public string TextoAlternar { get; set; } = default!;
     [Parameter, EditorRequired] public string IconoAlternar { get; set; } = default!;
 
-    private readonly HashSet<string> _abiertos = new(StringComparer.OrdinalIgnoreCase);
+    // Acordeon: solo una raiz (y, dentro de ella, solo una rama por nivel) permanece
+    // abierta a la vez. Antes cada nodo guardaba su propio estado "abierto" de forma
+    // independiente (HashSet aqui, un bool por instancia en RamaMenu), asi que con
+    // menus largos como Compras se podian abrir varias ramas a la vez, la lista
+    // crecia sin limite y los items mas de abajo quedaban fuera de vista.
+    private string? _raizAbierta;
+    private string? _hijoAbierto;
     private string? _idPendienteDeMostrar;
 
     private string RutaActual => Navegacion.ToBaseRelativePath(Navegacion.Uri).Trim('/');
@@ -79,26 +86,33 @@
 
     public void Dispose() => Navegacion.LocationChanged -= AlCambiarUbicacion;
 
-    private bool Abierto(string titulo) => _abiertos.Contains(titulo);
+    private bool Abierto(string titulo) => _raizAbierta == titulo;
 
     private async Task Alternar(ItemMenu item)
     {
         if (Compacto)
         {
-            _abiertos.Add(item.Titulo);
+            _raizAbierta = item.Titulo;
+            _hijoAbierto = null;
             await AlExpandir.InvokeAsync();
             return;
         }
 
-        if (!_abiertos.Add(item.Titulo))
+        if (_raizAbierta == item.Titulo)
         {
-            _abiertos.Remove(item.Titulo);
+            _raizAbierta = null;
         }
         else
         {
+            _raizAbierta = item.Titulo;
             _idPendienteDeMostrar = IdRaiz(item);
         }
+
+        _hijoAbierto = null;
     }
+
+    private void AlternarHijo(ItemMenu hijo)
+        => _hijoAbierto = _hijoAbierto == hijo.Titulo ? null : hijo.Titulo;
 
     private async Task Abrir(ItemMenu item)
     {

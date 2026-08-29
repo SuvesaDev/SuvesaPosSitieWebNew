@@ -163,6 +163,12 @@ h1:focus {
 
 .seepos-lista-menu {
     flex: 1 1 0;
+    /* Bootstrap ".nav" trae "flex-wrap: wrap" de fabrica (pensado para pills/
+       tabs horizontales). Con flex-column y contenido mas alto que el
+       contenedor, eso no desborda hacia abajo: envuelve en columnas nuevas
+       hacia la derecha, que el "overflow-hidden" del aside recorta - el menu
+       se ve "en blanco" o con items perdidos aunque el DOM este bien. */
+    flex-wrap: nowrap !important;
     min-height: 0;
     min-width: 0;
     overflow-x: hidden !important;
@@ -175,8 +181,14 @@ h1:focus {
 }
 
 .seepos-lateral:not(.seepos-lateral-compacto) .seepos-lista-menu {
-    height: 100%;
-    max-height: 100%;
+    /* No usar 100% aqui: en una cuadrícula equivale al alto completo del
+       lateral, y al sumarle marca y control termina recortado por el padre.
+       El renglón central (1fr) ya proporciona exactamente el espacio libre. */
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    align-self: stretch;
+    grid-row: 2;
 }
 
 .seepos-lista-menu::-webkit-scrollbar {
@@ -277,6 +289,9 @@ h1:focus {
     min-width: 0;
     margin: .1rem 0 .15rem .72rem;
     padding: .08rem 0 .08rem .5rem;
+    /* Mismo motivo que .seepos-lista-menu: sin esto, Bootstrap ".nav" envuelve
+       las ramas anidadas en columnas nuevas en vez de solo crecer hacia abajo. */
+    flex-wrap: nowrap !important;
 }
 
 .seepos-menu-nivel .nav-link {

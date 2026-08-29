@@ -49,6 +49,10 @@ export function desplazarMenuAVista(elementoOId) {
     }
 
     if (destino !== lista.scrollTop) {
-        lista.scrollTo({ top: destino, behavior: 'smooth' });
+        // Sin animacion: un scroll "smooth" que queda a mitad de camino cuando
+        // Blazor vuelve a parchear el DOM justo despues (p. ej. al alternar otra
+        // rama enseguida) deja al navegador pintando un cuadro en blanco aunque
+        // el DOM ya sea correcto - visto tanto en Chrome real como en Playwright.
+        lista.scrollTo({ top: destino, behavior: 'instant' });
     }
 }

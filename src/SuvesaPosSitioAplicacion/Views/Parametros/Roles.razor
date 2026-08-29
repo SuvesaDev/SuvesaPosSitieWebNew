@@ -1,0 +1,417 @@
+@page "/parameters/role"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IRoles Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  Ola 4 — matriz de permisos por rol.
+
+    El sistema actual exige volver a escribir la propia clave antes de dejar tocar
+    esta pantalla (no la clave del rol: la del usuario que tiene la sesion abierta).
+    Se replica esa compuerta con ValidarClaveInternaSinUsuario, que valida contra el
+    token de sesion y por eso no hace falta decir cual usuario es.
+
+    "idPantalla" que pide el API al guardar es, en la practica, el mismo numero que
+    "idVentana" que devuelve ObtenerVetanas — el sistema actual reusa ese valor tal
+    cual (visto en RoleAddModuleModal.jsx). No son dos identificadores separados.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        @if (_passwordValidada && Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Agregar">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
+            </button>
+        }
+    </Acciones>
+
+    <ChildContent>
+
+        @if (!_passwordValidada)
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <p class="mb-2">
+                        Por seguridad, confirme su propia contrasena antes de ver o
+                        cambiar los permisos por rol.
+                    </p>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="claveGate">Su contrasena</label>
+                            <input id="claveGate" type="password" class="form-control"
+                                   @bind="_passwordGate" @bind:event="oninput"
+                                   @onkeyup="@(async e => { if (e.Key == "Enter") await ValidarGate(); })" />
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <button class="btn btn-primary" disabled="@_validandoGate" @onclick="ValidarGate">
+                                @(_validandoGate ? "Validando..." : "Confirmar")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="card">
+            <div class="card-body">
+                <AppRejilla TItem="Role" Datos="Cargar" @ref="_rejilla"
+                            TextoVacio="No hay roles registrados.">
+                    <Columnas>
+                        <HxGridColumn TItem="Role" HeaderText="Rol"
+                                      ItemTextSelector="r => r.Descripcion"
+                                      SortKeySelector="r => r.Descripcion" />
+                        <HxGridColumn TItem="Role" HeaderText="Estado"
+                                      ItemTextSelector="@(r => r.Activo ? "Activo" : "Inactivo")" />
+                        <HxGridColumn TItem="Role" HeaderText=""
+                                      HeaderCssClass="text-end" ItemCssClass="text-end">
+                            <ItemTemplate Context="r">
+                                @if (_passwordValidada && Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                {
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Editar(r)">Editar</button>
+                                }
+                            </ItemTemplate>
+                        </HxGridColumn>
+                    </Columnas>
+                </AppRejilla>
+            </div>
+        </div>
+
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo rol" : "Editar rol")" Size="ModalSize.ExtraLarge">
+    <BodyTemplate>
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+                <AppCampoTexto Etiqueta="Nombre del rol" @bind-Valor="_nombreRol" />
+            </div>
+            <div class="col-12 col-md-6">
+                <AppCampoTexto Etiqueta="Descripcion" @bind-Valor="_descripcionRol" />
+            </div>
+            <div class="col-12">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="activoRol" @bind="_activoRol" />
+                    <label class="form-check-label" for="activoRol">Activo</label>
+                </div>
+            </div>
+        </div>
+
+        <hr />
+        <h6>Agregar pantalla</h6>
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="modulo">Modulo</label>
+                <select id="modulo" class="form-select" @bind="_idModuloNuevo" @bind:after="AlCambiarModulo">
+                    <option value="0">Seleccione...</option>
+                    @foreach (var m in _modulos)
+                    {
+                        <option value="@m.IdModulo">@m.DescripcionWeb</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="pantalla">Pantalla</label>
+                <select id="pantalla" class="form-select" @bind="_idPantallaNueva">
+                    <option value="0">Seleccione...</option>
+                    @foreach (var v in _pantallasDelModulo)
+                    {
+                        <option value="@v.IdVentana">@v.Descripcion</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="d-flex flex-wrap gap-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="verNueva" @bind="_verNueva" />
+                        <label class="form-check-label" for="verNueva">Ver</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="crearNueva" @bind="_crearNueva" />
+                        <label class="form-check-label" for="crearNueva">Crear</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="modificarNueva" @bind="_modificarNueva" />
+                        <label class="form-check-label" for="modificarNueva">Modificar</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="borrarNueva" @bind="_borrarNueva" />
+                        <label class="form-check-label" for="borrarNueva">Borrar</label>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-2">
+                <button type="button" class="btn btn-success w-100" @onclick="AgregarFila">
+                    <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
+                </button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Modulo</th>
+                        <th>Pantalla</th>
+                        <th class="text-center">Ver</th>
+                        <th class="text-center">Crear</th>
+                        <th class="text-center">Modificar</th>
+                        <th class="text-center">Borrar</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_filas.Count == 0)
+                    {
+                        <tr><td colspan="7" class="text-secondary">Sin pantallas agregadas todavia.</td></tr>
+                    }
+                    @foreach (var fila in _filas)
+                    {
+                        <tr>
+                            <td>@fila.NombreModulo</td>
+                            <td>@fila.NombrePantalla</td>
+                            <td class="text-center">@(fila.Ver ? "✓" : "—")</td>
+                            <td class="text-center">@(fila.Crear ? "✓" : "—")</td>
+                            <td class="text-center">@(fila.Modificar ? "✓" : "—")</td>
+                            <td class="text-center">@(fila.Borrar ? "✓" : "—")</td>
+                            <td class="text-end">
+                                <button type="button" class="btn btn-sm btn-link text-danger p-0"
+                                        @onclick="() => _filas.Remove(fila)">
+                                    Quitar
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" disabled="@_guardando" @onclick="Guardar">
+            @(_guardando ? "Guardando..." : "Guardar")
+        </button>
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Roles";
+
+    private AppRejilla<Role>? _rejilla;
+    private HxModal _modal = default!;
+
+    private string _passwordGate = string.Empty;
+    private bool _validandoGate;
+    private bool _passwordValidada;
+
+    private List<Modulo> _modulos = new();
+    private List<Ventanas> _pantallasDelModulo = new();
+
+    private bool _esNuevo;
+    private int _idRolActual;
+    private string _nombreRol = string.Empty;
+    private string _descripcionRol = string.Empty;
+    private bool _activoRol = true;
+    private List<FilaPermiso> _filas = new();
+
+    private int _idModuloNuevo;
+    private int _idPantallaNueva;
+    private bool _verNueva;
+    private bool _crearNueva;
+    private bool _modificarNueva;
+    private bool _borrarNueva;
+    private bool _guardando;
+
+    private sealed class FilaPermiso
+    {
+        public int IdModulo { get; set; }
+        public string NombreModulo { get; set; } = string.Empty;
+        public int IdPantalla { get; set; }
+        public string NombrePantalla { get; set; } = string.Empty;
+        public bool Ver { get; set; }
+        public bool Crear { get; set; }
+        public bool Modificar { get; set; }
+        public bool Borrar { get; set; }
+    }
+
+    private async Task<GridDataProviderResult<Role>> Cargar(GridDataProviderRequest<Role> peticion)
+    {
+        var r = await Respuestas.DatoAsync(await Api.Buscar(), "consultar los roles");
+        return peticion.ApplyTo(r?.ToList() ?? new List<Role>());
+    }
+
+    private async Task ValidarGate()
+    {
+        if (_validandoGate || string.IsNullOrWhiteSpace(_passwordGate))
+        {
+            return;
+        }
+
+        _validandoGate = true;
+        var r = await Respuestas.DatoAsync(await Api.ValidarPasswordActual(_passwordGate), "validar la clave");
+        _validandoGate = false;
+        _passwordGate = string.Empty;
+
+        if (r is null)
+        {
+            return;
+        }
+
+        _passwordValidada = true;
+        _modulos = (await Respuestas.DatoAsync(await Api.Modulos(), "consultar los modulos"))
+                   ?.ToList() ?? new List<Modulo>();
+    }
+
+    private async Task AlCambiarModulo()
+    {
+        _idPantallaNueva = 0;
+        _pantallasDelModulo = _idModuloNuevo > 0
+            ? (await Respuestas.DatoAsync(await Api.Pantallas(_idModuloNuevo), "consultar las pantallas"))
+              ?.ToList() ?? new List<Ventanas>()
+            : new List<Ventanas>();
+    }
+
+    private void AgregarFila()
+    {
+        if (_idModuloNuevo <= 0 || _idPantallaNueva <= 0)
+        {
+            Dialogos.ErrorBreve("Seleccione el modulo y la pantalla.");
+            return;
+        }
+
+        if (_filas.Any(f => f.IdPantalla == _idPantallaNueva))
+        {
+            Dialogos.Advertencia("Esa pantalla ya esta en la lista.");
+            return;
+        }
+
+        var modulo = _modulos.FirstOrDefault(m => m.IdModulo == _idModuloNuevo);
+        var pantalla = _pantallasDelModulo.FirstOrDefault(v => v.IdVentana == _idPantallaNueva);
+
+        _filas.Add(new FilaPermiso
+        {
+            IdModulo = _idModuloNuevo,
+            NombreModulo = modulo?.DescripcionWeb ?? string.Empty,
+            IdPantalla = _idPantallaNueva,
+            NombrePantalla = pantalla?.Descripcion ?? string.Empty,
+            Ver = _verNueva,
+            Crear = _crearNueva,
+            Modificar = _modificarNueva,
+            Borrar = _borrarNueva
+        });
+
+        _idPantallaNueva = 0;
+        _verNueva = _crearNueva = _modificarNueva = _borrarNueva = false;
+    }
+
+    private async Task Agregar()
+    {
+        _esNuevo = true;
+        _idRolActual = 0;
+        _nombreRol = string.Empty;
+        _descripcionRol = string.Empty;
+        _activoRol = true;
+        _filas = new List<FilaPermiso>();
+        LimpiarFormularioFila();
+        await _modal.ShowAsync();
+    }
+
+    private async Task Editar(Role resumen)
+    {
+        var completo = await Respuestas.DatoAsync(await Api.ObtenerUno(resumen.IdRol), "consultar el rol");
+        if (completo is null)
+        {
+            return;
+        }
+
+        _esNuevo = false;
+        _idRolActual = completo.IdRol ?? resumen.IdRol;
+        _nombreRol = completo.NombreRol ?? string.Empty;
+        _descripcionRol = completo.Descripcion ?? string.Empty;
+        _activoRol = completo.Estado;
+
+        _filas = (completo.Pantallas ?? new List<ConfiguracionPantallasDTO>())
+            .Select(p => new FilaPermiso
+            {
+                IdModulo = p.IdModulo,
+                NombreModulo = p.NombreModulo ?? string.Empty,
+                IdPantalla = p.IdPantalla ?? 0,
+                NombrePantalla = p.NombrePantallaWeb ?? p.NombrePantalla ?? string.Empty,
+                Ver = p.Acciones?.Ver ?? false,
+                Crear = p.Acciones?.Crear ?? false,
+                Modificar = p.Acciones?.Modificar ?? false,
+                Borrar = p.Acciones?.Borrar ?? false
+            })
+            .ToList();
+
+        LimpiarFormularioFila();
+        await _modal.ShowAsync();
+    }
+
+    private void LimpiarFormularioFila()
+    {
+        _idModuloNuevo = 0;
+        _idPantallaNueva = 0;
+        _pantallasDelModulo = new List<Ventanas>();
+        _verNueva = _crearNueva = _modificarNueva = _borrarNueva = false;
+    }
+
+    private async Task Guardar()
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_nombreRol))
+        {
+            await Dialogos.ErrorAsync("Indique el nombre del rol.");
+            return;
+        }
+
+        _guardando = true;
+
+        var dto = new ConfiguracionRollDTO
+        {
+            IdRol = _esNuevo ? null : _idRolActual,
+            NombreRol = _nombreRol,
+            Descripcion = _descripcionRol,
+            Estado = _activoRol,
+            Pantallas = _filas.Select(f => new ConfiguracionPantallasDTO
+            {
+                IdModulo = f.IdModulo,
+                IdPantalla = f.IdPantalla,
+                NombrePantalla = f.NombrePantalla,
+                NombrePantallaWeb = f.NombrePantalla,
+                IdRol = _esNuevo ? null : _idRolActual,
+                Estado = true,
+                Acciones = new ConfiguracionAccionesDTO
+                {
+                    IdPantalla = f.IdPantalla,
+                    Ver = f.Ver,
+                    Crear = f.Crear,
+                    Modificar = f.Modificar,
+                    Borrar = f.Borrar
+                }
+            }).ToList()
+        };
+
+        var r = _esNuevo ? await Api.Crear(dto) : await Api.Editar(dto);
+        var ok = await Respuestas.CorrectaAsync(r, _esNuevo ? "crear el rol" : "editar el rol");
+
+        _guardando = false;
+
+        if (ok)
+        {
+            await _modal.HideAsync();
+            Dialogos.Exito(_esNuevo ? "Rol creado." : "Rol actualizado.");
+            if (_rejilla is not null)
+            {
+                await _rejilla.RefrescarAsync();
+            }
+        }
+    }
+}

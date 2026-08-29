@@ -1,0 +1,138 @@
+@page "/parameters/branch"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ISucursales Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  Ola 4 — el sistema actual SOLO da de alta sucursales desde esta pantalla:
+    BranchAction.js no tiene "obtener todas" ni edicion, y los botones Buscar/Anular
+    del original estan sin manejador (mockup). Se replica igual: un formulario de
+    alta, sin listado ni edicion.
+
+    El titulo del menu es "Surcursales" (con esa falta de ortografia): los permisos
+    casan por titulo exacto contra el menu, asi que hay que dejarlo igual.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Escritorio">
+    <ChildContent>
+        <div class="card">
+            <div class="card-body">
+                @if (!Sesion.Puede(Titulo, AccionPantalla.Crear))
+                {
+                    <p class="text-secondary mb-0">No tiene permiso para registrar sucursales.</p>
+                }
+                else
+                {
+                    <EditForm Model="this" OnValidSubmit="Guardar" id="formSucursal">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <AppCampoTexto Etiqueta="Nombre comercial" @bind-Valor="_nombreComercial" />
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <AppCampoTexto Etiqueta="Nombre fiscal" @bind-Valor="_nombreFiscal" />
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="tipoDocumento">Tipo de documento</label>
+                                <select id="tipoDocumento" class="form-select" @bind="_tipoDocumento">
+                                    <option value="0">Seleccione...</option>
+                                    @foreach (var t in _tiposIdentificacion)
+                                    {
+                                        <option value="@t.CodigoFe">@t.Descripcion</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <AppCampoTexto Etiqueta="Numero de documento" @bind-Valor="_numeroDocumento" />
+                            </div>
+
+                            <div class="col-12 col-md-4">
+                                <AppCampoTexto Etiqueta="Alias" @bind-Valor="_alias" />
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <AppCampoTexto Etiqueta="Telefono" @bind-Valor="_telefono" />
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <AppCampoTexto Etiqueta="Correo electronico" @bind-Valor="_email" />
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <button class="btn btn-primary" type="submit" disabled="@_guardando">
+                                @(_guardando ? "Guardando..." : "Registrar sucursal")
+                            </button>
+                        </div>
+                    </EditForm>
+                }
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Surcursales";
+
+    private List<TipoIdentificacionDTO> _tiposIdentificacion = new();
+
+    private string _nombreComercial = string.Empty;
+    private string _nombreFiscal = string.Empty;
+    private int _tipoDocumento;
+    private string _numeroDocumento = string.Empty;
+    private string _alias = string.Empty;
+    private string _telefono = string.Empty;
+    private string _email = string.Empty;
+    private bool _guardando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tiposIdentificacion = (await Respuestas.DatoAsync(await Api.TiposIdentificacion(), "consultar los tipos de documento"))
+                               ?.ToList() ?? new List<TipoIdentificacionDTO>();
+    }
+
+    private async Task Guardar()
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_nombreComercial) || string.IsNullOrWhiteSpace(_nombreFiscal))
+        {
+            await Dialogos.ErrorAsync("Indique el nombre comercial y el nombre fiscal.");
+            return;
+        }
+
+        if (_tipoDocumento <= 0 || string.IsNullOrWhiteSpace(_numeroDocumento))
+        {
+            await Dialogos.ErrorAsync("Indique el tipo y el numero de documento.");
+            return;
+        }
+
+        _guardando = true;
+
+        var dto = new SucursalDTO
+        {
+            NombreComercial = _nombreComercial,
+            NombreFiscal = _nombreFiscal,
+            TipoDocumento = _tipoDocumento,
+            NumeroDocumento = _numeroDocumento,
+            Alias = _alias,
+            Telefono = _telefono,
+            Email = _email
+        };
+
+        var ok = await Respuestas.CorrectaAsync(await Api.Crear(dto), "crear la sucursal");
+
+        _guardando = false;
+
+        if (ok)
+        {
+            Dialogos.Exito($"Sucursal {_nombreComercial} creada.");
+            _nombreComercial = _nombreFiscal = _numeroDocumento = _alias = _telefono = _email = string.Empty;
+            _tipoDocumento = 0;
+        }
+    }
+}
