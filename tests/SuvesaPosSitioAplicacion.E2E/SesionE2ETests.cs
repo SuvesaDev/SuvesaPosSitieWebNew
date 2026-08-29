@@ -47,7 +47,7 @@ public class SesionE2ETests
 
         var valor = await centros.Nth(1).GetAttributeAsync("value");
         await pagina.Locator("select").SelectOptionAsync(valor!);
-        await pagina.GetByRole(AriaRole.Button, new() { Name = "Ingresar" }).ClickAsync();
+        await pagina.GetByRole(AriaRole.Button, new() { Name = "Continuar" }).ClickAsync();
 
         await pagina.WaitForURLAsync(u => !u.Contains("/cuenta/"), new() { Timeout = 60_000 });
 

@@ -1,0 +1,333 @@
+@page "/initial/charge"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICobros Api
+@inject ICajaOperaciones Caja
+@inject ICompras Compras
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  Ola 5 — cobro de una preventa (por ficha o por cédula del cliente), con varias
+    formas de pago a la vez. Si el documento no es de crédito, además de cobrar se
+    factura la preventa (PreventaFacturada).
+
+    FUERA DE ALCANCE deliberadamente: el sistema actual, tras cobrar, abre un modal
+    de tiquete/recibo para imprimir (ObetenerAbonoCobrar, ObtenerDatosParaImpresionFactura
+    existen solo para eso). Por decisión de negocio no se usa tiquete ni báscula y no
+    se imprime nada, así que ese paso no se replica: el cobro queda registrado y listo.
+
+    La búsqueda "por nombre de cliente" está en el propio código de React sin
+    conectar (comentada, con un "//TODO: Cambiar URL" en el endpoint). No se
+    replica: solo ficha y cédula, que son los dos modos que sí funcionan. *@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nuevo cobro</button>
+    </Acciones>
+    <ChildContent>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-3 border rounded bg-body-tertiary">
+            @if (_desbloqueado)
+            {
+                <div><strong><i class="bi bi-unlock-fill me-2 text-success" aria-hidden="true"></i>Desbloqueado</strong><span class="text-secondary ms-2">Cajero: @_usuario?.Nombre</span></div>
+            }
+            else
+            {
+                <div><strong><i class="bi bi-lock-fill me-2 text-warning" aria-hidden="true"></i>Bloqueado</strong><span class="text-secondary ms-2">Ingrese la clave interna para comenzar.</span></div>
+                <button type="button" class="btn btn-sm btn-primary" @onclick="() => _modalDesbloqueo.ShowAsync()">Desbloquear</button>
+            }
+        </div>
+
+        <fieldset disabled="@(!_desbloqueado)" class="border-0 p-0 m-0">
+        <div class="card mb-3">
+            <div class="card-header"><strong>Buscar preventa</strong></div>
+            <div class="card-body row g-3 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Número de ficha</label>
+                    <input type="number" min="0" class="form-control" disabled="@_buscandoPorCedula" @bind="_ficha" @onkeydown="BuscarPorFichaConEnter" />
+                </div>
+                <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" disabled="@_buscandoPorCedula" @onclick="BuscarPorFicha">Buscar por ficha</button></div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Cédula del cliente</label>
+                    <input class="form-control" disabled="@_buscandoPorFicha" @bind="_cedulaCliente" @onkeydown="BuscarPorCedulaConEnter" />
+                </div>
+                <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" disabled="@_buscandoPorFicha" @onclick="BuscarPorCedula">Buscar por cédula</button></div>
+            </div>
+        </div>
+
+        @if (_preventa is not null)
+        {
+            <div class="row g-3">
+                <div class="col-12 col-lg-6">
+                    <div class="card h-100">
+                        <div class="card-header"><strong>Detalle de la preventa</strong></div>
+                        <div class="card-body">
+                            <dl class="row small mb-0">
+                                <dt class="col-5 fw-normal text-secondary">Factura</dt><dd class="col-7">@_preventa.NumFactura</dd>
+                                <dt class="col-5 fw-normal text-secondary">Tipo</dt><dd class="col-7">@(_preventa.TipoFactura ?? "—")</dd>
+                                <dt class="col-5 fw-normal text-secondary">Cliente</dt><dd class="col-7">@_preventa.Cliente</dd>
+                                <dt class="col-5 fw-normal text-secondary">Fecha</dt><dd class="col-7">@_preventa.Fecha</dd>
+                                <dt class="col-5 fw-normal text-secondary">Moneda</dt><dd class="col-7">@_preventa.Moneda</dd>
+                                <dt class="col-5">Total</dt><dd class="col-7 fw-semibold">@Formato.Importe(_preventa.Total)</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <div class="card h-100">
+                        <div class="card-header"><strong>Formas de pago</strong></div>
+                        <div class="card-body">
+                            <table class="table table-sm align-middle mb-3">
+                                <thead><tr><th>Forma de pago</th><th class="text-end">Monto</th></tr></thead>
+                                <tbody>
+                                    @foreach (var forma in _formasPago)
+                                    {
+                                        <tr>
+                                            <td>@forma.Descripcion</td>
+                                            <td style="min-width:8rem">
+                                                <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end"
+                                                       disabled="@Deshabilitada(forma)"
+                                                       @bind="_montosPorForma[forma.Codigo!]" @bind:after="Recalcular" />
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                            <dl class="row mb-0">
+                                <dt class="col-6 fw-normal text-secondary">A cobrar</dt><dd class="col-6 text-end">@Formato.Importe(_aCobrar)</dd>
+                                <dt class="col-6 fw-normal text-secondary">Entregado</dt><dd class="col-6 text-end">@Formato.Importe(_entregado)</dd>
+                                <dt class="col-6">Cambio</dt><dd class="col-6 text-end fw-semibold">@Formato.Importe(_cambio)</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary mt-3" disabled="@(_guardando || _entregado <= 0)" @onclick="Confirmar">
+                <i class="bi bi-cash-coin me-2" aria-hidden="true"></i>@(_guardando ? "Cobrando..." : "Cobrar")
+            </button>
+        }
+        </fieldset>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modalDesbloqueo" Title="Desbloquear cobros" Size="ModalSize.Regular">
+    <BodyTemplate>
+        <label class="form-label" for="clave-cobrar">Clave interna</label>
+        <input id="clave-cobrar" type="password" class="form-control" autocomplete="current-password" @bind="_claveInterna" @onkeydown="DesbloquearConEnter" />
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-primary" disabled="@_validandoClave" @onclick="Desbloquear">@(_validandoClave ? "Validando..." : "Desbloquear")</button>
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Cobrar";
+    private const string CodigoEfectivo = "EFE";
+    private const string CodigoTarjeta = "TAR";
+
+    private HxModal _modalDesbloqueo = default!;
+
+    private bool _desbloqueado, _validandoClave;
+    private string _claveInterna = string.Empty;
+    private Usuario? _usuario;
+    private long _numApertura;
+
+    private List<Moneda> _monedas = new();
+
+    private int _ficha;
+    private string _cedulaCliente = string.Empty;
+    private bool _buscandoPorFicha, _buscandoPorCedula;
+    private PreventaDTO? _preventa;
+    private long _codCliente;
+
+    private List<FormasPagoDTO> _formasPago = new();
+    private readonly Dictionary<string, decimal> _montosPorForma = new();
+    private decimal _aCobrar, _entregado, _cambio;
+    private bool _guardando;
+
+    private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
+
+    private async Task Desbloquear()
+    {
+        if (string.IsNullOrWhiteSpace(_claveInterna)) { await Dialogos.ErrorAsync("Ingrese la clave interna."); return; }
+        _validandoClave = true;
+        var r = await Caja.ValidarClaveInterna(_claveInterna);
+        _validandoClave = false;
+        if (!r.EsCorrecta || r.Responses is null)
+        {
+            _claveInterna = string.Empty;
+            await Dialogos.ErrorAsync(r.Excepcion ?? "Contraseña incorrecta.");
+            return;
+        }
+
+        _usuario = r.Responses;
+        _claveInterna = string.Empty;
+
+        var cajeros = await Respuestas.DatoAsync(await Caja.CajerosConCajaAbierta(), "consultar la caja abierta");
+        var cajero = cajeros?.FirstOrDefault(c => string.Equals(c.Nombre, _usuario.Nombre, StringComparison.OrdinalIgnoreCase));
+        if (cajero is null)
+        {
+            await Dialogos.ErrorAsync("Este usuario no tiene ninguna caja abierta.", "No se pudo desbloquear");
+            return;
+        }
+        _numApertura = cajero.IdApertura;
+
+        _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))?.ToList() ?? new();
+
+        _desbloqueado = true;
+        await _modalDesbloqueo.HideAsync();
+    }
+
+    private async Task BuscarPorFichaConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await BuscarPorFicha(); }
+
+    private async Task BuscarPorFicha()
+    {
+        if (_ficha <= 0) { await Dialogos.ErrorAsync("Indique el número de ficha."); return; }
+        _buscandoPorFicha = true;
+        var preventa = await Respuestas.DatoAsync(await Api.BuscarPorFicha(_ficha, DateTime.Today), "buscar la preventa");
+        _buscandoPorFicha = false;
+        await CargarPreventa(preventa);
+    }
+
+    private async Task BuscarPorCedulaConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await BuscarPorCedula(); }
+
+    private async Task BuscarPorCedula()
+    {
+        if (string.IsNullOrWhiteSpace(_cedulaCliente)) { await Dialogos.ErrorAsync("Indique la cédula del cliente."); return; }
+        _buscandoPorCedula = true;
+
+        var codigo = await Respuestas.DatoAsync(await Api.CodigoClientePorCedula(_cedulaCliente.Trim()), "buscar el código del cliente");
+        if (codigo == 0)
+        {
+            _buscandoPorCedula = false;
+            await Dialogos.ErrorAsync($"No existe ningún cliente con la cédula {_cedulaCliente}.");
+            return;
+        }
+
+        var preventa = await Respuestas.DatoAsync(await Api.BuscarPorCliente(codigo), "buscar la preventa del cliente");
+        _buscandoPorCedula = false;
+        await CargarPreventa(preventa);
+    }
+
+    private async Task CargarPreventa(PreventaDTO? preventa)
+    {
+        if (preventa is null)
+        {
+            await Dialogos.ErrorAsync("No existe una preventa pendiente para lo indicado.");
+            return;
+        }
+
+        _preventa = preventa;
+        _codCliente = long.TryParse(preventa.CodCliente, out var c) ? c : 0;
+
+        _formasPago = (await Respuestas.DatoAsync(await Api.FormasPago(_codCliente), "consultar las formas de pago"))?.ToList() ?? new();
+        _montosPorForma.Clear();
+        foreach (var forma in _formasPago)
+        {
+            if (forma.Codigo is not null) _montosPorForma[forma.Codigo] = 0;
+        }
+
+        Recalcular();
+    }
+
+    private bool Deshabilitada(FormasPagoDTO forma)
+    {
+        if (_preventa is null) return true;
+        var totalEfectivo = MontoDe(CodigoEfectivo);
+        var totalTarjeta = MontoDe(CodigoTarjeta);
+        var total = Formato.AImporte(_preventa.Total);
+
+        if (forma.Codigo == CodigoTarjeta)
+        {
+            return totalEfectivo > total || (totalEfectivo == total && _entregado != 0);
+        }
+        if (forma.Codigo == CodigoEfectivo)
+        {
+            return totalTarjeta == total && _entregado != 0;
+        }
+        return false;
+    }
+
+    private decimal MontoDe(string codigo) => _montosPorForma.TryGetValue(codigo, out var v) ? v : 0;
+
+    private void Recalcular()
+    {
+        if (_preventa is null) return;
+        var total = Formato.AImporte(_preventa.Total);
+        var nuevoTotal = _montosPorForma.Values.Sum();
+        var totalEfectivo = MontoDe(CodigoEfectivo);
+
+        _entregado = nuevoTotal;
+        _aCobrar = totalEfectivo > total ? 0 : Math.Max(0, total - nuevoTotal);
+        _cambio = totalEfectivo > total ? totalEfectivo - total : 0;
+    }
+
+    private async Task Confirmar()
+    {
+        if (_preventa is null || _entregado <= 0 || _guardando) return;
+        if (!await Dialogos.ConfirmarAsync("¿Desea generar el cobro?")) return;
+
+        _guardando = true;
+
+        var dolar = _monedas.FirstOrDefault(m => (m.MonedaNombre ?? string.Empty).Contains("DOL", StringComparison.OrdinalIgnoreCase));
+        var esCredito = string.Equals(_preventa.TipoFactura, "Credito", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(_preventa.TipoFactura);
+
+        var cobros = _formasPago
+            .Where(f => f.Codigo is not null && MontoDe(f.Codigo!) > 0)
+            .Select(f => new CobroDocumentosDTO
+            {
+                Documento = _preventa.NumFactura is not null && double.TryParse(_preventa.NumFactura, out var doc) ? doc : _preventa.Id,
+                TipoDocumento = _preventa.TipoFactura,
+                MontoPago = (double)MontoDe(f.Codigo!),
+                FormaPago = f.Codigo,
+                Usuario = Sesion.Usuario,
+                Nombre = _usuario?.Nombre,
+                CodMoneda = int.TryParse(_preventa.CodMoneda, out var cm) ? cm : 1,
+                Nombremoneda = _preventa.Moneda,
+                TipoCambio = f.Codigo == "USD" || string.Equals(_preventa.Moneda, "DOLAR", StringComparison.OrdinalIgnoreCase)
+                    ? Formato.AImporte(dolar?.ValorCompra ?? 0) is var vc && vc > 0 ? (double)vc : 0
+                    : 0,
+                Fecha = DateTime.Today.ToString("yyyy-MM-dd"),
+                Numapertura = _numApertura,
+                Vuelto = f.Codigo == CodigoEfectivo ? (double)_cambio : 0,
+                IdDocumento = _preventa.Id,
+                IdSucursal = Sesion.IdSucursal
+            })
+            .ToList();
+
+        var r = await Api.Cobrar(cobros);
+        if (!await Respuestas.CorrectaAsync(r, "registrar el cobro"))
+        {
+            _guardando = false;
+            return;
+        }
+
+        if (!esCredito)
+        {
+            var factura = await Respuestas.DatoAsync(await Api.FacturarPreventa(_preventa.Id), "facturar la preventa");
+            if (factura is null)
+            {
+                _guardando = false;
+                await Dialogos.ErrorAsync("El cobro se registró, pero no se pudo facturar la preventa. Revise el documento manualmente.");
+                return;
+            }
+        }
+
+        _guardando = false;
+        Dialogos.Exito("Cobro realizado correctamente.");
+        Limpiar();
+    }
+
+    private void Limpiar()
+    {
+        _ficha = 0;
+        _cedulaCliente = string.Empty;
+        _preventa = null;
+        _codCliente = 0;
+        _formasPago.Clear();
+        _montosPorForma.Clear();
+        _aCobrar = _entregado = _cambio = 0;
+    }
+}

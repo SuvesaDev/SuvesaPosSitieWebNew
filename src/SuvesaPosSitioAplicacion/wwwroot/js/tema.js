@@ -1,6 +1,28 @@
 // Conmutador de tema. Bootstrap 5.3 lee data-bs-theme del elemento raiz.
 // La eleccion se recuerda por navegador; si no hay ninguna, manda el sistema.
 
+// Selecciona todo el contenido de un campo numerico al enfocarlo. Varias
+// pantallas de alta (existencias, cantidades) arrancan esos campos en "0"
+// real, no vacio; sin esto, el usuario tiene que borrar el cero a mano antes
+// de escribir el valor de verdad. Delegado en document: sigue funcionando
+// aunque Blazor reemplace el DOM, sin tener que reengancharlo por pantalla.
+document.addEventListener('focusin', (evento) => {
+    if (evento.target instanceof HTMLInputElement && evento.target.type === 'number') {
+        evento.target.select();
+    }
+});
+
+// Copia texto al portapapeles (claves fiscales, codigos largos de leer a mano).
+// Devuelve si funciono para que quien llama decida si avisar del error.
+export async function copiarTexto(texto) {
+    try {
+        await navigator.clipboard.writeText(texto);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 export function alternar() {
     const raiz = document.documentElement;
     const oscuro = raiz.getAttribute('data-bs-theme') !== 'dark';

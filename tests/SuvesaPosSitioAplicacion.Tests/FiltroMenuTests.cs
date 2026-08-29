@@ -130,6 +130,19 @@ public class FiltroMenuTests
         // Se hereda del sistema actual, donde no molesta porque el menu no se filtra.
         // Aqui si se filtra, asi que la lista queda fijada: si aparece un titulo
         // repetido nuevo, esta prueba falla y obliga a decidir que hacer con el.
+        //
+        // Los 4 de aqui, revisados uno por uno (Ola 5):
+        //   - "Devoluciones": las dos rutas (/initial/repayment y /sales/repayment)
+        //     apuntan al MISMO componente en React, asi que aqui tambien apuntan a
+        //     la misma pantalla (DevolucionesVenta.razor con dos @page). Resuelto:
+        //     compartir el permiso es correcto, son la misma pantalla.
+        //   - "Facturación": una de las dos rutas (/sales/billing) no tiene ruta
+        //     real en el enrutador de React — es un enlace muerto del menu
+        //     original. La que funciona (/initial/billing) ya esta migrada.
+        //   - "Bodegas" y "Toma": ambas apariciones, en ambos casos, son mockup
+        //     puro (sin ninguna llamada real al API en ningun lado). No hay
+        //     pantalla real detras de ninguna, asi que no hay nada que decidir
+        //     todavia.
         static IEnumerable<string> Todos(IEnumerable<ItemMenu> ns) =>
             ns.SelectMany(n => new[] { n.Titulo }.Concat(Todos(n.Hijos)));
 

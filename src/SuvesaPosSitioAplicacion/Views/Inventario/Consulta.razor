@@ -266,7 +266,7 @@
             <hr />
             <h3 class="h6">Artículos relacionados</h3>
             <div class="input-group input-group-sm mb-2"><input type="number" class="form-control" placeholder="Código relacionado" @bind="_codigoRelacionado" @bind:event="onchange" /><input type="number" class="form-control" min="0.01" step="0.01" @bind="_cantidadRelacionada" @bind:event="onchange" /><button class="btn btn-outline-primary" @onclick="AgregarRelacionado">Agregar</button></div>
-            @if (_relacionados.Count > 0) { <ul class="list-group list-group-flush small">@foreach (var relacionado in _relacionados) { <li class="list-group-item px-0 d-flex justify-content-between"><span>@relacionado.Descripcion · @Formato.Cantidad(relacionado.Cantidad)</span><button class="btn btn-sm btn-link text-danger p-0" @onclick="() => QuitarRelacionado(relacionado)">Quitar</button></li> }</ul> }
+            @if (_relacionados.Count > 0) { <ul class="list-group list-group-flush small">@foreach (var relacionado in _relacionados) { <li class="list-group-item px-0 d-flex justify-content-between"><span>@relacionado.Descripcion · @Formato.Cantidad(relacionado.Cantidad)</span><button class="btn btn-sm btn-link text-danger p-0" @onclick="() => QuitarRelacionado(relacionado)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></li> }</ul> }
 
             <hr />
             <h3 class="h6">Imagen del artículo</h3>
@@ -314,13 +314,16 @@
                 @if (_pestanaInventario == "generales")
                 {
                 <div class="row g-3">
+                    <div class="col-12 seepos-form-seccion">Identificación</div>
                     <div class="col-12 col-md-4">
-                        <AppCampoTexto Etiqueta="Código" @bind-Valor="_edicion.Cod_Articulo" Deshabilitado="@(!_esNuevo)" />
+                        <AppCampoTexto Etiqueta="Código" @bind-Valor="_edicion.Cod_Articulo" Deshabilitado="@(!_esNuevo)" Requerido="true" />
                     </div>
                     <div class="col-12 col-md-8">
-                        <AppCampoTexto Etiqueta="Descripción" @bind-Valor="_edicion.Descripcion" />
+                        <AppCampoTexto Etiqueta="Descripción" @bind-Valor="_edicion.Descripcion" Requerido="true" />
                     </div>
                     <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Código de barras" @bind-Valor="_edicion.Barras" /></div>
+
+                    <div class="col-12 seepos-form-seccion">Clasificación</div>
                     <div class="col-12 col-md-4">
                         <label class="form-label" for="articulo-presentacion">Tipo de presentación</label>
                         <select id="articulo-presentacion" class="form-select" @bind="_edicion.CodPresentacion">
@@ -372,6 +375,7 @@
                             <div class="form-text">La fórmula y conversión aplican a productos terminados.</div>
                         </div>
                     }
+                    <div class="col-12 seepos-form-seccion">Existencias</div>
                     <div class="col-12 col-md-4">
                         <label class="form-label" for="articulo-minima">Existencia mínima</label>
                         <input id="articulo-minima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Minima" @bind:event="onchange" />
@@ -433,7 +437,7 @@
                                     <tbody>
                                         @foreach (var codigo in _edicion.CodigoBarras)
                                         {
-                                            <tr><td><code>@codigo.Descripcion</code></td><td>@codigo.Tarifa</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarCodigoBarras(codigo)">Quitar</button></td></tr>
+                                            <tr><td><code>@codigo.Descripcion</code></td><td>@codigo.Tarifa</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarCodigoBarras(codigo)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr>
                                         }
                                     </tbody>
                                 </table>
@@ -460,7 +464,7 @@
                         }
                         else
                         {
-                            <div class="col-12 table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Insumo</th><th class="text-end">Cantidad</th><th></th></tr></thead><tbody>@foreach (var item in _formula) { <tr><td><strong>@item.CodArticulo</strong><br /><span class="small text-secondary">@item.Descripcion</span></td><td class="text-end">@item.Cantidad</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarFormula(item)">Quitar</button></td></tr> }</tbody></table></div>
+                            <div class="col-12 table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Insumo</th><th class="text-end">Cantidad</th><th></th></tr></thead><tbody>@foreach (var item in _formula) { <tr><td><strong>@item.CodArticulo</strong><br /><span class="small text-secondary">@item.Descripcion</span></td><td class="text-end">@item.Cantidad</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarFormula(item)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
                         }
 
                         <div class="col-12"><hr /><h3 class="h6 mb-0">Lotes que se consumirán</h3><p class="form-text">Debe seleccionar al menos un lote para cada insumo de la fórmula antes de calcular.</p></div>
@@ -471,7 +475,7 @@
                         <div class="col-12 col-md-4 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarLoteFormula">Agregar lote</button></div>
                         @if (_seleccionLotesFormula.Count > 0)
                         {
-                            <div class="col-12 table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Insumo</th><th>Lote</th><th>Bodega</th><th class="text-end">Disponible</th><th class="text-end">A consumir</th><th></th></tr></thead><tbody>@foreach (var lote in _seleccionLotesFormula) { <tr><td>@lote.Articulo</td><td>@lote.Lote</td><td>@lote.Bodega</td><td class="text-end">@lote.Disponible:N2</td><td class="text-end">@lote.Cantidad</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _seleccionLotesFormula.Remove(lote)">Quitar</button></td></tr> }</tbody></table></div>
+                            <div class="col-12 table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Insumo</th><th>Lote</th><th>Bodega</th><th class="text-end">Disponible</th><th class="text-end">A consumir</th><th></th></tr></thead><tbody>@foreach (var lote in _seleccionLotesFormula) { <tr><td>@lote.Articulo</td><td>@lote.Lote</td><td>@lote.Bodega</td><td class="text-end">@lote.Disponible:N2</td><td class="text-end">@lote.Cantidad</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _seleccionLotesFormula.Remove(lote)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
                         }
                         <div class="col-12 col-md-6 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="CalcularProduccion">Calcular producción disponible</button></div>
                         @if (_produccionDisponible is not null)
@@ -503,7 +507,7 @@
                             }
                             else
                             {
-                                <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Lote</th><th>Vencimiento</th><th class="text-end">Existencia</th><th></th></tr></thead><tbody>@foreach (var lote in _lotesEdicion) { <tr><td>@lote.Lote</td><td>@lote.Vencimiento.ToString("dd/MM/yyyy")</td><td class="text-end">@lote.Cantidad:N2</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarLote(lote)">Quitar</button></td></tr> }</tbody></table></div>
+                                <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Lote</th><th>Vencimiento</th><th class="text-end">Existencia</th><th></th></tr></thead><tbody>@foreach (var lote in _lotesEdicion) { <tr><td>@lote.Lote</td><td>@lote.Vencimiento.ToString("dd/MM/yyyy")</td><td class="text-end">@lote.Cantidad:N2</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarLote(lote)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
                             }
                         </div>
                     }

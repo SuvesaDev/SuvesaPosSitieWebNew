@@ -7,22 +7,50 @@ Este documento fija las decisiones ya tomadas para no volver a discutirlas en ca
 
 **Esta seccion se quedo describiendo la Ola 0 mucho despues de que el proyecto avanzo.**
 No confiar en fechas/semanas de aqui abajo como estado actual; son historia de los
-cimientos. El estado real: ya hay un usuario de pruebas, y las Olas 1 a 4 tienen
-pantallas migradas y verificadas contra el API real (`dotnet test
-tests/SuvesaPosSitioAplicacion.E2E`). Entre lo migrado:
+cimientos. El estado real: **la migracion de pantallas con funcion real esta
+completa** (Olas 1 a 5), verificada contra el API real (`dotnet test
+tests/SuvesaPosSitioAplicacion.E2E`, 33 pantallas cubiertas en
+`PantallasMigradasTests`). Entre lo migrado:
 
 - **Catalogos y consulta** (Ola 1-2): Bancos, Familias, Categorias, Presentaciones,
   Inventarios, Clientes, Proveedores (las tres ultimas con alta/edicion/cambio de
   estado completos — la deuda de "solo consulta" que se menciona mas abajo esta
   **cerrada**, aunque el comentario en cada Consulta.razor todavia no se actualizo).
-- **Ventas y compras** (Ola 1-3): Proformas, Abono Cobrar, Cuentas por pagar,
-  Seguimiento de Cotizaciones, Documentos Emitidos, Consulta Albaranes,
-  Consignaciones, Consulta Depositos.
+- **Ventas y compras** (Ola 1-3): Proformas, Cuentas por Cobrar (solo listado — ver
+  nota abajo), Cuentas por Pagar, Seguimiento de Cotizaciones, Documentos Emitidos,
+  Consulta Albaranes, Consignaciones (seguimiento), Consulta Depositos, Compra,
+  Facturacion, Devoluciones de venta y de compra, Orden de compra manual.
 - **Ola 4 — escritura compleja**: Usuarios (alta/edicion), Roles (matriz de permisos
   por rol, con la misma compuerta de reconfirmar la propia clave que tiene el
   sistema actual), Sucursales y Empresas (alta del emisor electronico: identificacion,
   ubicacion en cascada, certificado de firma digital, actividades de Hacienda,
   cuentas bancarias).
+- **Ola 5 — caja y dinero**: Apertura/Arqueo/Cierre de caja, Pre-depositos y
+  Depositos, Configuracion (pronto pago), Entrega a Cuenta, Cobrar (cobro de
+  preventas por ficha o cedula, con facturacion automatica si no es credito).
+
+**Nota — "Cuentas por Cobrar" (`/sales/collect`, titulo de menu "Abono Cobrar") es
+solo lectura.** El sistema actual SI tiene ahi un registro real de abono
+(`/Cobros/InsertarCobro` vía la pantalla "Cobrar"), pero esa transaccion quedo
+cubierta por la nueva pantalla `Cobrar` (`/initial/charge`), que cobra facturas de
+credito por cedula del cliente. No se duplico el formulario de cobro dentro de
+"Cuentas por Cobrar" porque ya existe en "Cobrar"; si en algun momento se decide que
+hace falta cobrar directamente desde ese listado, es una extension menor, no un
+vacio de datos.
+
+**Fuera de alcance, verificado como mockup sin ninguna llamada real al API:**
+Pedidos, Pedidos a Bodega, Ajuste Bodega, Solicitud Bodega, Toma, Pretoma, Pretoma
+Fisica General, Movimientos de articulos, Gastos, Ajuste Inventario, Ajuste Pagar,
+Prestamos, Agente de ventas, Ajuste Cobrar, Rifa, Etiquetador, Unificar codigos,
+Asignar Codigo Cabys, Clientes Frecuentes, Asignar Ficha Por Usuarios, Tarifas,
+Ubicaciones, Monedas, Denominacion monedas, Bodegas (parametros), Areas, Registro de
+pantalla, Bloquea/Desbloquea bodega, Bloquea/desbloquea X Casa Comercial, Traslado
+entre puntos de venta, Convertir Saco por Kilos, Categoria de accion, Condiciones de
+Uso Firmado Contado, Modulo Farmacia completo, Registro/Facturacion de
+Consignaciones (la funcion real de consignacion — aceptar/rechazar, generar venta —
+esta cubierta por "Seguimiento de Consignaciones"). "Facturación" en `/sales/billing`
+es un enlace del propio menu original sin ruta real detras; la pantalla que funciona
+de verdad es `/initial/billing`, ya migrada.
 
 El shell (menu, pestanas, convivencia con la SPA React via YARP) y el sistema de
 diseno de la Ola 0 siguen como se describen abajo.
@@ -368,11 +396,27 @@ problema es mas rapido que correr la suite. Nunca devuelve el token, solo su lar
 
 ## Pendiente de verificar
 
-Sin un usuario de pruebas contra `devapi.pos2650.com` no se ha podido ejercitar nada
-de lo que hay detras del login: seleccion de sucursal, permisos reales, tamano del
-ticket con ~82 pantallas, el 403 a un usuario sin permiso, y el shell entero
-(menu, pestanas, atajos) en pantalla. La logica esta cubierta por pruebas; lo que
-falta es verla funcionando con datos reales.
+Ya hay usuario de pruebas y todo el shell (login, sucursal, permisos, menu,
+pestanas, atajos) esta verificado funcionando con datos reales — la version vieja
+de esta seccion decia lo contrario, quedo obsoleta. Lo que sigue realmente
+pendiente:
+
+- **Licencia de QuestPDF.** La comunitaria (`LicenseType.Community` en
+  `Program.cs`) es gratuita solo por debajo de cierto umbral de facturacion anual
+  de la organizacion que la usa — no del cliente final. Falta confirmar si SUVESA
+  ya lo supera antes de ir a produccion; si lo supera, el cambio queda aislado
+  detras de `IGeneradorPdf` (una clase, no un rediseño).
+- **`ComparadorFiscalTests` a escala.** Compara los calculos de `CalculoDocumento`
+  contra documentos reales del API, pero la base de desarrollo solo tenia 1-2
+  documentos historicos cuando se escribio. Informa diferencias, no las afirma
+  todavia (ver "Comparador fiscal" mas abajo); hace falta mas volumen real para
+  que decir "sin diferencias" signifique algo.
+- **Build de la SPA React con `VITE_BASE=/legado/`.** El cambio de `basename` esta
+  hecho en la rama `feature/convivencia-blazor` de la SPA pero nunca se compilo
+  (no hay Node.js en este equipo) — sigue sin verificar que el bundle resultante
+  funcione bajo ese prefijo.
+- **Despliegue.** Deliberadamente fuera de alcance por ahora, a peticion expresa
+  del usuario — no se ha decidido donde ni cuando.
 
 ## Trampas ya resueltas — no repetirlas
 

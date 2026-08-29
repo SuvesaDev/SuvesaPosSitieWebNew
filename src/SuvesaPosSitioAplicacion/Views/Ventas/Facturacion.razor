@@ -1,5 +1,6 @@
 @page "/initial/billing"
 @page "/buys/consignment/register"
+@implements IDisposable
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
@@ -42,7 +43,7 @@
                         <div class="row g-3">
                             <div class="col-12 col-md-5">
                                 <label class="form-label">Buscar cliente</label>
-                                <div class="input-group"><input class="form-control" placeholder="Cédula o nombre" @bind="_textoCliente" @onkeydown="BuscarClienteConEnter" /><button type="button" class="btn btn-outline-primary" @onclick="BuscarClientes">Buscar</button></div>
+                                <div class="input-group"><input class="form-control" placeholder="Cédula o nombre" value="@_textoCliente" @oninput="AlEscribirCliente" @onkeydown="BuscarClienteConEnter" /><button type="button" class="btn btn-outline-primary" @onclick="BuscarClientes">Buscar</button></div>
                             </div>
                             <div class="col-12 col-md-4">
                                 <label class="form-label">Tipo de factura</label>
@@ -75,7 +76,7 @@
             <div class="card-header d-flex justify-content-between align-items-center gap-2"><strong>Detalle</strong><div class="btn-group"><button type="button" class="btn btn-sm btn-outline-primary" @onclick="AbrirBuscadorArticulo"><i class="bi bi-list-ul me-1" aria-hidden="true"></i>Buscar artículo</button><button type="button" class="btn btn-sm btn-primary" @onclick="AbrirCatalogoImagenes"><i class="bi bi-camera me-1" aria-hidden="true"></i>Catálogo visual</button></div></div>
             <div class="card-body p-0">
                 @if (_lineas.Count == 0) { <p class="text-secondary text-center py-4 mb-0">Seleccione un cliente y agregue artículos a la factura.</p> }
-                else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Precio</th><th class="text-end">Desc. %</th><th class="text-end">Impuesto</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var linea in _lineas) { <tr><td><code>@linea.Articulo.Cod_Articulo</code></td><td>@linea.Articulo.Descripcion @if (!string.IsNullOrWhiteSpace(linea.Lote)) { <small class="text-secondary d-block">Lote: @linea.Lote</small> }</td><td style="min-width:6rem"><input type="number" min="1" step="0.001" class="form-control form-control-sm text-end" @bind="linea.Cantidad" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:7rem"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="linea.Precio" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:5rem"><input type="number" min="0" max="@linea.MaxDescuento" step="0.01" class="form-control form-control-sm text-end" @bind="linea.Descuento" @bind:after="() => RecalcularLinea(linea)" /></td><td class="text-end">@Formato.Importe(linea.Calculo.MontoImpuesto)</td><td class="text-end fw-semibold">@Formato.Importe(linea.Calculo.Total)</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(linea)">Quitar</button></td></tr> }</tbody></table></div> }
+                else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Precio</th><th class="text-end">Desc. %</th><th class="text-end">Impuesto</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var linea in _lineas) { <tr><td><code>@linea.Articulo.Cod_Articulo</code></td><td>@linea.Articulo.Descripcion @if (!string.IsNullOrWhiteSpace(linea.Lote)) { <small class="text-secondary d-block">Lote: @linea.Lote</small> }</td><td style="min-width:6rem"><input type="number" min="1" step="0.001" class="form-control form-control-sm text-end" @bind="linea.Cantidad" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:7rem"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="linea.Precio" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:5rem"><input type="number" min="0" max="@linea.MaxDescuento" step="0.01" class="form-control form-control-sm text-end" @bind="linea.Descuento" @bind:after="() => RecalcularLinea(linea)" /></td><td class="text-end">@Formato.Importe(linea.Calculo.MontoImpuesto)</td><td class="text-end fw-semibold">@Formato.Importe(linea.Calculo.Total)</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(linea)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div> }
             </div>
         </div>
         </fieldset>
@@ -201,6 +202,8 @@
         _tipos = (await Respuestas.DatoAsync(await Api.Tipos(), "consultar los tipos de factura"))?.Where(t => !t.Compra).ToList() ?? new();
     }
 
+    public void Dispose() => _pendienteCliente?.Cancel();
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -314,6 +317,39 @@
     private async Task BuscarClientes()
         => _clientesEncontrados = (await Respuestas.DatoAsync(await Clientes.Buscar(_textoCliente), "buscar clientes"))?.Where(c => !c.Anulado && !c.Fallecido).ToList() ?? new();
     private async Task BuscarClienteConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await BuscarClientes(); }
+
+    // Busca sola al escribir, igual que el buscador de articulos: el usuario no
+    // deberia tener que acordarse de apretar "Buscar" para que esto funcione.
+    // Espera a que pare de escribir para no llamar al API en cada tecla.
+    private static readonly TimeSpan EsperaCliente = TimeSpan.FromMilliseconds(400);
+    private CancellationTokenSource? _pendienteCliente;
+
+    private async Task AlEscribirCliente(ChangeEventArgs e)
+    {
+        _textoCliente = e.Value?.ToString() ?? string.Empty;
+
+        _pendienteCliente?.Cancel();
+
+        if (_textoCliente.Trim().Length < 2)
+        {
+            _clientesEncontrados.Clear();
+            return;
+        }
+
+        _pendienteCliente = new CancellationTokenSource();
+        var token = _pendienteCliente.Token;
+
+        try
+        {
+            await Task.Delay(EsperaCliente, token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        await BuscarClientes();
+    }
     private void ElegirCliente(FiltranClienteDTO cliente) { _cliente = cliente; _textoCliente = cliente.Nombre ?? cliente.Cedula ?? string.Empty; _clientesEncontrados.Clear(); if (_tipoFactura != 0 && !TiposDisponibles.Any(t => t.Codigo == _tipoFactura)) _tipoFactura = 0; RecalcularTodo(); }
     private void QuitarCliente() { _cliente = null; _tipoFactura = 0; }
 

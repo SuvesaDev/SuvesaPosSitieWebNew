@@ -41,9 +41,25 @@
     --bs-tertiary-bg: var(--seepos-gris-fondo);
     --bs-link-color: var(--seepos-verde-accion);
     --bs-link-hover-color: var(--seepos-verde-accion-oscuro);
+    /* Bootstrap colorea <code> en un magenta de libro de estilo (#d63384) que no
+       es de la marca. Se usa <code> en toda la app para codigos de articulo y la
+       clave fiscal; sin esto, ese magenta se cuela sin que nadie lo haya elegido. */
+    --bs-code-color: var(--seepos-tierra-oscuro);
 
     /* Densidad: el punto de venta muestra mucho dato por pantalla */
     --seepos-alto-fila: 2rem;
+}
+
+/* Campos y controles bloqueados (cascada de ubicacion, totales calculados, etc.):
+   un solo lugar para que "deshabilitado" se vea igual en toda la app, en vez de
+   que cada pantalla dependa del contraste debil que trae Bootstrap por defecto. */
+.form-control:disabled,
+.form-control[readonly],
+.form-check-input:disabled {
+    color: var(--seepos-gris-texto);
+    background-color: var(--seepos-gris-suave);
+    cursor: not-allowed;
+    opacity: 1;
 }
 
 /* Bootstrap 5.3 estila los botones con variables propias; sobreescribir
@@ -55,8 +71,12 @@
     --bs-btn-hover-border-color: var(--seepos-verde-accion-oscuro);
     --bs-btn-active-bg: var(--seepos-verde-accion-oscuro);
     --bs-btn-active-border-color: var(--seepos-verde-accion-oscuro);
-    --bs-btn-disabled-bg: var(--seepos-verde-accion);
-    --bs-btn-disabled-border-color: var(--seepos-verde-accion);
+    /* A proposito NO es el mismo verde con opacidad: en pantallas de caja, con el
+       mismo boton repetido decenas de veces al dia, "listo para enviar" y "todavia
+       no" tienen que distinguirse de un vistazo, no leyendo el cursor. */
+    --bs-btn-disabled-bg: var(--seepos-gris-borde);
+    --bs-btn-disabled-border-color: var(--seepos-gris-borde);
+    --bs-btn-disabled-color: var(--seepos-gris-texto);
 }
 
 .btn-secondary {
@@ -112,8 +132,9 @@
 
 .form-select:disabled {
     color: var(--seepos-gris-texto);
-    background-color: var(--seepos-gris-fondo);
-    opacity: .86;
+    background-color: var(--seepos-gris-suave);
+    cursor: not-allowed;
+    opacity: 1;
 }
 
 [data-bs-theme="dark"] .form-select {
@@ -377,12 +398,24 @@
     border-radius: .58rem;
 }
 
-.seepos-articulo-editor .form-control:disabled,
-.seepos-articulo-editor .form-select:disabled,
-.seepos-cliente-editor .form-control:disabled,
-.seepos-cliente-editor .form-select:disabled {
+/* Subtitulo de seccion dentro de un formulario largo (Nuevo cliente, Nuevo
+   articulo): rompe la lista plana de campos en grupos que se escanean de un
+   vistazo, sin meter otra tarjeta ni otro borde. */
+.seepos-form-seccion {
+    margin-top: .5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--bs-border-color);
+    font-size: .76rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
     color: var(--seepos-gris-texto);
-    background: var(--seepos-gris-fondo);
+}
+
+.seepos-form-seccion:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
 }
 
 .seepos-articulo-editor .form-check,

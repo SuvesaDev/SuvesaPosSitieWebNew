@@ -284,7 +284,7 @@
                                             <td>@cuenta.TipoCuenta</td><td>@cuenta.Banco</td><td><code>@cuenta.NumCuenta</code></td><td>@cuenta.MonedaNombre</td>
                                             <td class="text-end text-nowrap">
                                                 <button type="button" class="btn btn-sm btn-link" @onclick="() => EditarCuenta(cuenta)">Editar</button>
-                                                <button type="button" class="btn btn-sm btn-link text-danger ms-2" @onclick="() => QuitarCuenta(cuenta)">Quitar</button>
+                                                <button type="button" class="btn btn-sm btn-link text-danger ms-2" @onclick="() => QuitarCuenta(cuenta)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button>
                                             </td>
                                         </tr>
                                     }

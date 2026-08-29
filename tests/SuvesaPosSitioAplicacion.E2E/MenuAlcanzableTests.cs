@@ -144,7 +144,7 @@ public class MenuAlcanzableTests
         var op = p.Locator("select option");
         await Assertions.Expect(op.Nth(1)).ToBeAttachedAsync(new() { Timeout = 60_000 });
         await p.Locator("select").SelectOptionAsync((await op.Nth(1).GetAttributeAsync("value"))!);
-        await p.GetByRole(AriaRole.Button, new() { Name = "Ingresar" }).ClickAsync();
+        await p.GetByRole(AriaRole.Button, new() { Name = "Continuar" }).ClickAsync();
 
         await p.WaitForURLAsync(u => !u.Contains("/cuenta/"), new() { Timeout = 60_000 });
         await Assertions.Expect(p.GetByRole(AriaRole.Button, new() { Name = "Salir" }))

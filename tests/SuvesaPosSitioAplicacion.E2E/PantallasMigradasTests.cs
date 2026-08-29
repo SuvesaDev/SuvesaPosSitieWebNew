@@ -37,6 +37,8 @@ public class PantallasMigradasTests
         { "/parameters/bank", "Bancos" },
         { "/sales/budgets/proforma", "Proformas o Cotización" },
         { "/sales/collect", "Abono Cobrar" },
+        { "/initial/downPayment", "Entrega a Cuenta" },
+        { "/initial/charge", "Cobrar" },
         { "/buys/countswihoutpay", "Cuentas por pagar" },
         { "/buys/purchasereturns", "Devoluciones compra" },
         { "/buys/purchaseorder", "Orden de compra manual" },
@@ -122,7 +124,9 @@ public class PantallasMigradasTests
         var opciones = p.Locator("select option");
         await Assertions.Expect(opciones.Nth(1)).ToBeAttachedAsync(new() { Timeout = 60_000 });
         await p.Locator("select").SelectOptionAsync((await opciones.Nth(1).GetAttributeAsync("value"))!);
-        await p.GetByRole(AriaRole.Button, new() { Name = "Ingresar" }).ClickAsync();
+        // Mismo motivo que arriba: el boton de esta pantalla paso de "Ingresar" a
+        // "Continuar" en otro rediseño y la prueba se quedo con el texto viejo.
+        await p.GetByRole(AriaRole.Button, new() { Name = "Continuar" }).ClickAsync();
 
         await p.WaitForURLAsync(u => !u.Contains("/cuenta/"), new() { Timeout = 60_000 });
         await Assertions.Expect(p.GetByRole(AriaRole.Button, new() { Name = "Salir" }))

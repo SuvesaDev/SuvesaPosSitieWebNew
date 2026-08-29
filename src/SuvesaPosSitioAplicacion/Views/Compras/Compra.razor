@@ -10,6 +10,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject IJSRuntime JS
 
 @* Registro de compras: port nativo de BuysPage/BuysArticulosHeader del POS
    anterior. El encabezado se valida antes de abrir el buscador y cada detalle
@@ -95,7 +96,7 @@
                         </div>
                     }
                     @if (_lineas.Count == 0) { <p class="text-secondary text-center py-4 mb-0">Agregue los artículos recibidos en esta compra.</p> }
-                    else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th>@if (!EsCostaPetsCompra) { <th class="text-end">Regalías</th> }<th class="text-end">Base</th>@if (!EsCostaPetsCompra) { <th class="text-end">Flete</th><th class="text-end">Otros</th> }<th class="text-end">Costo</th><th class="text-end">Desc.</th><th class="text-end">IV</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@for (var i = 0; i < _lineas.Count; i++) { var linea = _lineas[i]; var indice = i; <tr><td><code>@linea.Articulo.Cod_Articulo</code></td><td>@linea.Articulo.Descripcion @if (linea.Articulo.Lote) { <small class="d-block text-secondary">Lote @linea.Lote · vence @linea.VenceLote.ToString("dd/MM/yyyy")</small> }</td><td class="text-end">@Formato.Cantidad(linea.Cantidad)</td>@if (!EsCostaPetsCompra) { <td class="text-end">@Formato.Cantidad(linea.Regalias)</td> }<td class="text-end">@Formato.Importe(linea.Base)</td>@if (!EsCostaPetsCompra) { <td class="text-end">@Formato.Importe(linea.Flete)</td><td class="text-end">@Formato.Importe(linea.Otros)</td> }<td class="text-end">@Formato.Importe(linea.Costo)</td><td class="text-end">@linea.Descuento:N2%</td><td class="text-end">@linea.Impuesto:N2%</td><td class="text-end fw-semibold">@Formato.Importe(linea.Calculo.Total)</td><td class="text-end text-nowrap"><button type="button" class="btn btn-sm btn-link" @onclick="() => EditarLinea(indice)">Editar</button><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(indice)">Quitar</button></td></tr> }</tbody></table></div> }
+                    else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th>@if (!EsCostaPetsCompra) { <th class="text-end">Regalías</th> }<th class="text-end">Base</th>@if (!EsCostaPetsCompra) { <th class="text-end">Flete</th><th class="text-end">Otros</th> }<th class="text-end">Costo</th><th class="text-end">Desc.</th><th class="text-end">IV</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@for (var i = 0; i < _lineas.Count; i++) { var linea = _lineas[i]; var indice = i; <tr><td><code>@linea.Articulo.Cod_Articulo</code></td><td>@linea.Articulo.Descripcion @if (linea.Articulo.Lote) { <small class="d-block text-secondary">Lote @linea.Lote · vence @linea.VenceLote.ToString("dd/MM/yyyy")</small> }</td><td class="text-end">@Formato.Cantidad(linea.Cantidad)</td>@if (!EsCostaPetsCompra) { <td class="text-end">@Formato.Cantidad(linea.Regalias)</td> }<td class="text-end">@Formato.Importe(linea.Base)</td>@if (!EsCostaPetsCompra) { <td class="text-end">@Formato.Importe(linea.Flete)</td><td class="text-end">@Formato.Importe(linea.Otros)</td> }<td class="text-end">@Formato.Importe(linea.Costo)</td><td class="text-end">@linea.Descuento:N2%</td><td class="text-end">@linea.Impuesto:N2%</td><td class="text-end fw-semibold">@Formato.Importe(linea.Calculo.Total)</td><td class="text-end text-nowrap"><button type="button" class="btn btn-sm btn-link" @onclick="() => EditarLinea(indice)">Editar</button><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(indice)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div> }
                 </div>
             </div>
         </fieldset>
@@ -142,7 +143,7 @@
             }
             else if (_xml is not null)
             {
-                <div class="row g-3 mb-3"><div class="col-12 col-md-6"><span class="text-secondary small d-block">Consecutivo</span><strong>@_xml.Consecutivo</strong></div><div class="col-12 col-md-6"><span class="text-secondary small d-block">Clave</span><code class="small text-break">@_xml.Clave</code></div><div class="col-12 col-md-4"><span class="text-secondary small d-block">Proveedor</span><strong>@_xml.NombreProveedor</strong><span class="text-secondary d-block">@_xml.CedulaProveedor</span></div><div class="col-6 col-md-2"><span class="text-secondary small d-block">Fecha</span><strong>@_xml.Fecha.ToString("dd/MM/yyyy")</strong></div><div class="col-6 col-md-2"><span class="text-secondary small d-block">Condición</span><strong>@(_xml.Credito ? "Crédito" : "Contado")</strong></div><div class="col-6 col-md-2"><span class="text-secondary small d-block">Moneda</span><strong>@_xml.Moneda</strong></div><div class="col-6 col-md-2"><span class="text-secondary small d-block">Total XML</span><strong>@Formato.Importe(_xml.Total)</strong></div></div>
+                <div class="row g-3 mb-3"><div class="col-12 col-md-6"><span class="text-secondary small d-block">Consecutivo</span><strong>@_xml.Consecutivo</strong></div><div class="col-12 col-md-6"><span class="text-secondary small d-block">Clave</span><span class="d-flex align-items-center gap-2"><code class="small text-break">@_xml.Clave</code><button type="button" class="btn btn-sm btn-link p-0" title="Copiar clave" @onclick="CopiarClave"><i class="bi @(_claveCopiada ? "bi-clipboard-check text-success" : "bi-clipboard")" aria-hidden="true"></i><span class="visually-hidden">Copiar clave</span></button></span></div><div class="col-12 col-md-4"><span class="text-secondary small d-block">Proveedor</span><strong>@_xml.NombreProveedor</strong><span class="text-secondary d-block">@_xml.CedulaProveedor</span></div><div class="col-6 col-md-2"><span class="text-secondary small d-block">Fecha</span><strong>@_xml.Fecha.ToString("dd/MM/yyyy")</strong></div><div class="col-6 col-md-2"><span class="text-secondary small d-block">Condición</span><strong>@(_xml.Credito ? "Crédito" : "Contado")</strong></div><div class="col-6 col-md-2"><span class="text-secondary small d-block">Moneda</span><strong>@_xml.Moneda</strong></div><div class="col-6 col-md-2"><span class="text-secondary small d-block">Total XML</span><strong>@Formato.Importe(_xml.Total)</strong></div></div>
                 @if (_proveedorXmlNoExiste)
                 {
                     <div class="alert alert-warning d-flex align-items-center justify-content-between gap-2"><span>El proveedor del XML no existe aún en el catálogo.</span><button type="button" class="btn btn-sm btn-outline-primary" @onclick="PrepararProveedorXml">Crear proveedor</button></div>
@@ -276,6 +277,7 @@
     private bool _compraDesbloqueada, _validandoClave, _mostrarClave, _guardando, _esCostaPetsCompra, _compraDesdeXml;
     private bool _leyendoXml, _proveedorXmlNoExiste;
     private bool _buscandoArticuloXml;
+    private bool _claveCopiada;
     private string _nombreArchivoXml = string.Empty;
     private string _textoBusquedaXml = string.Empty;
     private ComprobanteXml? _xml;
@@ -298,6 +300,27 @@
 
     private Task AbrirDesbloqueo() => _modalDesbloqueo.ShowAsync();
     private void AlternarClave() => _mostrarClave = !_mostrarClave;
+
+    // Clave fiscal de 50 digitos: nadie la transcribe a mano sin equivocarse.
+    private async Task CopiarClave()
+    {
+        if (_xml is null) return;
+
+        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+        var copiada = await modulo.InvokeAsync<bool>("copiarTexto", _xml.Clave);
+
+        if (!copiada)
+        {
+            Dialogos.ErrorBreve("No se pudo copiar la clave.");
+            return;
+        }
+
+        _claveCopiada = true;
+        StateHasChanged();
+        await Task.Delay(1500);
+        _claveCopiada = false;
+        StateHasChanged();
+    }
     private Task CerrarNuevoProveedor() => _modalNuevaProveedor.HideAsync();
     private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
     private async Task Desbloquear()

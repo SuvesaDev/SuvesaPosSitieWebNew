@@ -1,7 +1,7 @@
 @* Campo de texto. Envuelve el de Havit para que las 78 pantallas no dependan
    directamente de la libreria: si manana se cambia, se cambia aqui. *@
 
-<HxInputText Label="@Etiqueta"
+<HxInputText Label="@EtiquetaMostrada"
              @bind-Value="Valor"
              @bind-Value:after="AlCambiar"
              Placeholder="@Marcador"
@@ -17,6 +17,12 @@
     [Parameter] public string? Marcador { get; set; }
     [Parameter] public bool Deshabilitado { get; set; }
     [Parameter] public InputMode? ModoEntrada { get; set; }
+
+    /// <summary>Marca el campo como obligatorio en el rotulo. Solo visual: la
+    /// validacion de verdad sigue siendo DataAnnotationsValidator.</summary>
+    [Parameter] public bool Requerido { get; set; }
+
+    private string EtiquetaMostrada => Requerido ? $"{Etiqueta} *" : Etiqueta;
 
     private Task AlCambiar() => ValorChanged.InvokeAsync(Valor);
 }
