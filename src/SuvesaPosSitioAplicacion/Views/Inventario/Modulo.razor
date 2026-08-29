@@ -6,6 +6,12 @@
 @inject IInventarioConsulta Inventario
 @inject IManejadorRespuestas Respuestas
 
+@*  Consulta Estados Albaranes: en el sistema actual (StateBody.jsx) es un panel
+    real, gateado con clave interna, que trae las peticiones de pruebas medicas
+    de Qvet pendientes de facturar y las deja filtrar por personal/estado/prueba.
+    La version anterior de esta pantalla solo mostraba el catalogo de nombres de
+    estado, sin las peticiones de verdad detras. *@
+
 <AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
     <Acciones>
         <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar" aria-label="Actualizar módulo">
@@ -14,105 +20,238 @@
     </Acciones>
 
     <ChildContent>
-        <div class="row g-3">
-            <div class="col-12 col-lg-6">
-                <section class="card h-100">
-                    <div class="card-body">
-                        <h2 class="h5">Estados de albaranes</h2>
-                        <p class="text-secondary small">Catálogo de estados publicado por Qvet para el seguimiento de albaranes.</p>
+        <nav class="nav nav-pills gap-2 mb-3 seepos-editor-tabs" aria-label="Secciones del módulo de inventario">
+            <button type="button" class="btn btn-sm @ClasePestanaEstados" @onclick='() => _pestana = "estados"'>Consulta Estados Albaranes</button>
+            <button type="button" class="btn btn-sm @ClasePestanaQr" @onclick='() => _pestana = "qr"'>Inventario QR</button>
+        </nav>
 
-                        @if (!_estadosCargados)
+        @if (_pestana == "estados")
+        {
+            <AppDesbloqueoClave @ref="_desbloqueo" Titulo="la consulta de peticiones" AlCambiar="AlDesbloquear" />
+
+            @if (_desbloqueo?.Desbloqueado == true)
+            {
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row g-3 mb-3 align-items-end">
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="peticion-personal">Personal</label>
+                                <input id="peticion-personal" class="form-control" list="peticion-personal-lista"
+                                       placeholder="Seleccione personal" @bind="_filtroPersonal" @bind:event="oninput" />
+                                <datalist id="peticion-personal-lista">
+                                    @foreach (var nombre in _personal) { <option value="@nombre" /> }
+                                </datalist>
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="peticion-estado">Estado</label>
+                                <select id="peticion-estado" class="form-select" @bind="_filtroEstado">
+                                    <option value="-1">Todos</option>
+                                    @foreach (var estado in _estados.OrderBy(e => e.IdEstado))
+                                    {
+                                        <option value="@estado.IdEstado">@estado.Nombre</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="peticion-prueba">Prueba médica</label>
+                                <input id="peticion-prueba" class="form-control" list="peticion-prueba-lista"
+                                       placeholder="Seleccione prueba médica" @bind="_filtroPrueba" @bind:event="oninput" />
+                                <datalist id="peticion-prueba-lista">
+                                    @foreach (var prueba in _pruebas) { <option value="@prueba.Descripcion" /> }
+                                </datalist>
+                            </div>
+                            <div class="col-12 col-md-3 d-grid">
+                                <button type="button" class="btn btn-dark" disabled="@_cargandoPeticiones" @onclick="CargarPeticiones">
+                                    <i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>
+                                    @(_cargandoPeticiones ? "Obteniendo..." : "Obtener peticiones")
+                                </button>
+                            </div>
+                        </div>
+
+                        @if (_cargandoPeticiones)
                         {
-                            <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando</span></div>
+                            <div class="d-flex justify-content-center py-4">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando</span></div>
+                            </div>
                         }
-                        else if (_estados.Count == 0)
+                        else if (!_peticionesCargadas)
                         {
-                            <p class="text-secondary small mb-0">No hay estados disponibles.</p>
+                            <p class="text-secondary small mb-0">Presione "Obtener peticiones" para traer las pendientes de facturar.</p>
+                        }
+                        else if (PeticionesFiltradas.Count == 0)
+                        {
+                            <p class="text-secondary small mb-0">
+                                @(_peticiones.Count == 0 ? "No hay peticiones pendientes." : "Ninguna petición coincide con los filtros.")
+                            </p>
                         }
                         else
                         {
-                            <ul class="list-group list-group-flush">
-                                @foreach (var estado in _estados.OrderBy(e => e.IdEstado))
+                            <p class="text-secondary small">@PeticionesFiltradas.Count de @_peticiones.Count peticiones</p>
+                            <div class="d-flex flex-column gap-2">
+                                @foreach (var p in PeticionesFiltradas)
                                 {
-                                    <li class="list-group-item px-0">
-                                        <span class="fw-semibold">@estado.Nombre</span>
-                                        @if (!string.IsNullOrWhiteSpace(estado.Descripcion))
-                                        {
-                                            <span class="d-block text-secondary small">@estado.Descripcion</span>
-                                        }
-                                    </li>
+                                    <div class="card">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <span>Referencia Qvet: <strong>@p.Referencia</strong></span>
+                                            <span class="badge @ClaseEstado(p.Estado)">@NombreEstado(p.Estado)</span>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row g-2 small">
+                                                <div class="col-6 col-md-3"><span class="text-secondary d-block">Cliente</span>@p.Cliente</div>
+                                                <div class="col-6 col-md-3"><span class="text-secondary d-block">Mascota</span>@p.Mascota</div>
+                                                <div class="col-6 col-md-3"><span class="text-secondary d-block">Responsable</span>@p.Responsable</div>
+                                                <div class="col-6 col-md-3"><span class="text-secondary d-block">Fecha</span>@p.Fecha</div>
+                                                <div class="col-6 col-md-3"><span class="text-secondary d-block">Código prueba</span>@p.IdQvet</div>
+                                                <div class="col-6 col-md-9"><span class="text-secondary d-block">Prueba médica</span>@p.Descripcion</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 }
-                            </ul>
-                        }
-                    </div>
-                </section>
-            </div>
-
-            <div class="col-12 col-lg-6">
-                <section class="card h-100">
-                    <div class="card-body">
-                        <h2 class="h5">Consulta por código</h2>
-                        <p class="text-secondary small">Admite el valor capturado por un lector QR o de barras; esta Ola solo consulta, no altera existencias.</p>
-                        <div class="input-group mb-3">
-                            <input type="search" class="form-control" aria-label="Código QR o de barras"
-                                   placeholder="Código QR o de barras..." @bind="_codigo" @bind:event="onchange" />
-                            <button class="btn btn-primary" @onclick="BuscarArticulo">Consultar</button>
-                        </div>
-
-                        @if (_consultaHecha && _articulos.Count == 0)
-                        {
-                            <p class="text-secondary small mb-0">No se encontró un artículo para ese código.</p>
-                        }
-                        else if (_articulos.Count > 0)
-                        {
-                            <div class="table-responsive">
-                                <table class="table table-sm mb-0">
-                                    <thead><tr><th>Código</th><th>Descripción</th><th class="seepos-importe">Existencia</th></tr></thead>
-                                    <tbody>
-                                        @foreach (var articulo in _articulos)
-                                        {
-                                            <tr>
-                                                <td><code>@articulo.Cod_Articulo</code></td>
-                                                <td>@articulo.Descripcion</td>
-                                                <td class="seepos-importe">@Formato.Cantidad(articulo.Existencia)</td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
                             </div>
                         }
                     </div>
-                </section>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h5">Consulta por código</h2>
+                    <p class="text-secondary small">Admite el valor capturado por un lector QR o de barras; esta Ola solo consulta, no altera existencias.</p>
+                    <div class="input-group mb-3">
+                        <input type="search" class="form-control" aria-label="Código QR o de barras"
+                               placeholder="Código QR o de barras..." @bind="_codigo" @bind:event="onchange" />
+                        <button class="btn btn-primary" @onclick="BuscarArticulo">Consultar</button>
+                    </div>
+
+                    @if (_consultaHecha && _articulos.Count == 0)
+                    {
+                        <p class="text-secondary small mb-0">No se encontró un artículo para ese código.</p>
+                    }
+                    else if (_articulos.Count > 0)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Código</th><th>Descripción</th><th class="seepos-importe">Existencia</th></tr></thead>
+                                <tbody>
+                                    @foreach (var articulo in _articulos)
+                                    {
+                                        <tr>
+                                            <td><code>@articulo.Cod_Articulo</code></td>
+                                            <td>@articulo.Descripcion</td>
+                                            <td class="seepos-importe">@Formato.Cantidad(articulo.Existencia)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
             </div>
-        </div>
+        }
     </ChildContent>
 </AppPantalla>
 
 @code {
     private const string Titulo = "Módulo Inventario";
 
+    private string _pestana = "estados";
+    private string ClasePestanaEstados => _pestana == "estados" ? "btn-primary" : "btn-outline-primary";
+    private string ClasePestanaQr => _pestana == "qr" ? "btn-primary" : "btn-outline-primary";
+
+    private AppDesbloqueoClave? _desbloqueo;
+
     private List<EstadoAlbaranesDTO> _estados = new();
+    private List<PruebasMedicas> _pruebas = new();
+    private List<Peticion> _peticiones = new();
+    private List<string> _personal = new();
+    private bool _peticionesCargadas;
+    private bool _cargandoPeticiones;
+
+    private string _filtroPersonal = string.Empty;
+    private string _filtroPrueba = string.Empty;
+    private int _filtroEstado = -1;
+
     private List<InventarioDTO> _articulos = new();
     private string _codigo = string.Empty;
-    private bool _estadosCargados;
     private bool _consultaHecha;
 
-    protected override async Task OnInitializedAsync() => await CargarEstados();
+    private sealed record Peticion(
+        string Cliente, string Mascota, string Responsable, string Fecha,
+        long Referencia, long IdQvet, string Descripcion, int Estado);
+
+    private List<Peticion> PeticionesFiltradas => _peticiones.Where(p =>
+        (string.IsNullOrWhiteSpace(_filtroPersonal) || p.Responsable.Contains(_filtroPersonal, StringComparison.OrdinalIgnoreCase)) &&
+        (_filtroEstado < 0 || p.Estado == _filtroEstado) &&
+        (string.IsNullOrWhiteSpace(_filtroPrueba) || p.Descripcion.Contains(_filtroPrueba, StringComparison.OrdinalIgnoreCase)))
+        .ToList();
 
     private async Task Recargar()
     {
-        _estadosCargados = false;
         _consultaHecha = false;
         _articulos = new List<InventarioDTO>();
-        await CargarEstados();
+
+        if (_desbloqueo?.Desbloqueado == true)
+        {
+            await CargarPeticiones();
+        }
     }
 
-    private async Task CargarEstados()
+    private async Task AlDesbloquear(bool desbloqueado)
     {
+        if (!desbloqueado) return;
+
         _estados = (await Respuestas.DatoAsync(await Albaranes.Estados(), "consultar los estados de albaranes"))
             ?.ToList() ?? new List<EstadoAlbaranesDTO>();
-        _estadosCargados = true;
+        _pruebas = (await Respuestas.DatoAsync(await Albaranes.PruebasMedicas(), "consultar las pruebas médicas"))
+            ?.ToList() ?? new List<PruebasMedicas>();
+
+        await CargarPeticiones();
     }
+
+    private async Task CargarPeticiones()
+    {
+        _cargandoPeticiones = true;
+        StateHasChanged();
+
+        var albaranes = (await Respuestas.DatoAsync(await Albaranes.PendientesDeFacturarFiltrado(), "consultar las peticiones pendientes"))
+            ?.ToList() ?? new List<VentaDTO>();
+
+        _peticiones = albaranes
+            .SelectMany(a => (a.ListaLineas ?? new List<VentaDetalleDTO>()).Select(l => new Peticion(
+                a.Cliente ?? "—",
+                a.Mascota ?? "—",
+                a.ResponsableVenta ?? "—",
+                FormatearFecha(a.Fecha),
+                a.Id,
+                l.IdQvet,
+                l.Descripcion ?? "—",
+                l.Estado)))
+            .ToList();
+
+        _personal = _peticiones.Select(p => p.Responsable).Distinct().OrderBy(n => n).ToList();
+        _peticionesCargadas = true;
+        _cargandoPeticiones = false;
+        StateHasChanged();
+    }
+
+    private static string FormatearFecha(object? fecha)
+        => DateTime.TryParse(fecha?.ToString(), out var valor) ? valor.ToString("dd/MM/yyyy HH:mm") : "—";
+
+    private string NombreEstado(int estado)
+        => _estados.FirstOrDefault(e => e.IdEstado == estado)?.Nombre ?? estado.ToString();
+
+    // Mismos tres colores que el sistema actual: 0 pendiente (rojo), 1 en proceso
+    // (amarillo), 2 listo (verde). Cualquier otro valor no deberia llegar, pero
+    // se pinta neutro en vez de fallar si algun dia Qvet agrega un estado nuevo.
+    private static string ClaseEstado(int estado) => estado switch
+    {
+        0 => "text-bg-danger",
+        1 => "text-bg-warning",
+        2 => "text-bg-success",
+        _ => "text-bg-secondary"
+    };
 
     private async Task BuscarArticulo()
     {

@@ -28,6 +28,10 @@ tests/SuvesaPosSitioAplicacion.E2E`, 33 pantallas cubiertas en
 - **Ola 5 — caja y dinero**: Apertura/Arqueo/Cierre de caja, Pre-depositos y
   Depositos, Configuracion (pronto pago), Entrega a Cuenta, Cobrar (cobro de
   preventas por ficha o cedula, con facturacion automatica si no es credito).
+- **Ola 6 — pulido visual y "Consulta Estados Albaranes"**: mejoras de diseño
+  (contraste de deshabilitado, colores de marca en `<code>`, campos requeridos,
+  secciones en formularios largos, tildes) y el panel real de peticiones Qvet
+  dentro de Modulo Inventario — ver mas abajo.
 
 **Nota — "Cuentas por Cobrar" (`/sales/collect`, titulo de menu "Abono Cobrar") es
 solo lectura.** El sistema actual SI tiene ahi un registro real de abono
@@ -52,8 +56,68 @@ esta cubierta por "Seguimiento de Consignaciones"). "Facturación" en `/sales/bi
 es un enlace del propio menu original sin ruta real detras; la pantalla que funciona
 de verdad es `/initial/billing`, ya migrada.
 
+**Modulo Reportes (`/moduloReportes`) — las 5 pestañas de React (`ReportsCompras`,
+`ReportsVentas`, `ReportsInventarios`, `ReportsClientes`, `ReportsProveedor`) son
+mockup puro:** sin `onClick`, sin `dispatch`, sin `fetch`, con filas de tabla
+literalmente escritas como "Test". Ninguna de las 5 tiene nada real detras. La
+pantalla de Blazor (`Reportes/Compras.razor`) construyo el reporte de Compras de
+verdad — va MAS ALLA de lo que React ofrecia ahi — pero no hay nada que replicar
+para Ventas/Inventarios/Clientes/Proveedores porque el original tampoco lo tiene.
+Si en algun momento se decide construirlos, son pantallas nuevas, no una migracion.
+
 El shell (menu, pestanas, convivencia con la SPA React via YARP) y el sistema de
 diseno de la Ola 0 siguen como se describen abajo.
+
+## Diseño visual — pulido de Ola 6
+
+Revision visual sobre capturas reales, aplicada en `tema.css`/`tema.js` (un solo
+sitio, efecto en toda la app) y propagada a las pantallas con formularios largos
+que ya se habian revisado (Nuevo cliente, Nuevo articulo, Nuevo proveedor,
+Empresas):
+
+- Deshabilitado (campos y botones) con contraste real, no un gris casi identico
+  al fondo. `--bs-btn-disabled-bg` de `.btn-primary` ya NO es el mismo verde con
+  opacidad — antes un boton "Emitir factura" sin datos se veia casi igual de listo
+  que uno que si lo estaba.
+- `--bs-code-color` fijado al tono tierra de la marca: Bootstrap pinta `<code>` en
+  un magenta de libro de estilo (`#d63384`) que se colaba en codigos de articulo y
+  en la clave fiscal sin que nadie lo hubiera elegido.
+- Campos numericos seleccionan su contenido al enfocarse (`tema.js`): un campo que
+  arranca en "0" real (existencias, cantidades) ya no obliga a borrar el cero a
+  mano antes de escribir el valor de verdad.
+- `AppCampoTexto` gano el parametro `Requerido` (asterisco en el rotulo). Aplicado
+  en Cliente, Articulo, Proveedor y Empresa; falta propagarlo al resto de
+  formularios si se decide que vale la pena.
+- Clase `.seepos-form-seccion` para subtitulos dentro de formularios largos.
+  Proveedores y Empresas ya tenian su propio patron de seccion (con nombre propio,
+  `.seepos-proveedor-seccion` y tarjetas separadas) — no se toco, ya cumplia lo
+  mismo.
+- Buscar cliente en Facturacion ahora filtra al escribir (debounce de 400 ms,
+  igual que el buscador de articulos) en vez de exigir clic en "Buscar". Proveedor
+  (Compra, Orden de compra) ya filtraba al escribir de una lista precargada — no
+  necesitaba el cambio.
+- Boton "Quitar" con icono de basurero en toda la app (antes solo texto rojo).
+- Copiar al portapapeles junto a la clave fiscal (Compra → importar XML,
+  Documentos Emitidos).
+- Tildes corregidas en el login, Usuarios, Empresas — con el ajuste espejo en los
+  locators de Playwright que buscaban el texto viejo sin tilde
+  (`GetByRole`/`GetByLabel` no hacen match de "sesion" contra "sesión").
+
+### Consulta Estados Albaranes — de catalogo a panel real
+
+`Modulo Inventario` (`/moduloInventario`) solo mostraba la lista de nombres de
+estado. El sistema actual (`StateBody.jsx`) tiene ahi un panel real: gateado con
+clave interna (reutiliza `AppDesbloqueoClave`, el mismo componente que usa
+Consulta Depositos), trae las peticiones de pruebas medicas de Qvet pendientes de
+facturar (`Qvet/ObtenerAlbaranesPendientesFacturarFiltrado`) y las deja filtrar
+por personal/estado/prueba medica. Ahora Blazor hace lo mismo, con pestañas
+("Consulta Estados Albaranes" / "Inventario QR") en vez de las dos tarjetas
+lado a lado que tenia antes.
+
+Proxy nuevo en `IAlbaranes`: `PendientesDeFacturarFiltrado()` y `PruebasMedicas()`,
+ambos ya existian en el cliente generado (`IQvetApiCliente`) — solo faltaba
+envolverlos. Sin usuario de pruebas con datos de Qvet reales todavia no se
+verifico con datos reales, solo contra el build y las unitarias.
 
 ## Decisiones cerradas — no reabrir sin motivo nuevo
 

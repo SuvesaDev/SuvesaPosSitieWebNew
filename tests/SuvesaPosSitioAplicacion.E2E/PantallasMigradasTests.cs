@@ -114,11 +114,11 @@ public class PantallasMigradasTests
 
         await p.GotoAsync("/cuenta/ingresar");
         await p.GetByLabel("Usuario").FillAsync(CredencialesPrueba.Usuario!);
-        await p.GetByLabel("Contrasena").FillAsync(CredencialesPrueba.Password!);
+        await p.GetByLabel("Contraseña").FillAsync(CredencialesPrueba.Password!);
         // El rediseño del login (commit "Mejoras en diseño Web") cambio el texto del
-        // boton de "Ingresar" a "Iniciar sesion"; esta prueba se habia quedado con el
+        // boton de "Ingresar" a "Iniciar sesión"; esta prueba se habia quedado con el
         // texto viejo y por eso fallaba el 100% de las pantallas (nunca pasaba del login).
-        await p.GetByRole(AriaRole.Button, new() { Name = "Iniciar sesion" }).ClickAsync();
+        await p.GetByRole(AriaRole.Button, new() { Name = "Iniciar sesión" }).ClickAsync();
         await p.WaitForURLAsync("**/cuenta/sucursal", new() { Timeout = 60_000 });
 
         var opciones = p.Locator("select option");

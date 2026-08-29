@@ -5,6 +5,7 @@
 @inject IDocumentosEmitidos Api
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
+@inject IJSRuntime JS
 
 @*  OLA 1 — replica del ARQUETIPO 02, con busqueda por criterio.
     A diferencia de las otras consultas, aqui el API ofrece TRES busquedas distintas
@@ -181,8 +182,14 @@
             @if (!string.IsNullOrWhiteSpace(_elegido.Clave))
             {
                 <hr />
-                <p class="small text-secondary mb-1">Clave del comprobante electronico</p>
-                <code class="small" style="word-break:break-all">@_elegido.Clave</code>
+                <p class="small text-secondary mb-1">Clave del comprobante electrónico</p>
+                <div class="d-flex align-items-center gap-2">
+                    <code class="small" style="word-break:break-all">@_elegido.Clave</code>
+                    <button type="button" class="btn btn-sm btn-link p-0 flex-shrink-0" title="Copiar clave" @onclick="CopiarClave">
+                        <i class="bi @(_claveCopiada ? "bi-clipboard-check text-success" : "bi-clipboard")" aria-hidden="true"></i>
+                        <span class="visually-hidden">Copiar clave</span>
+                    </button>
+                </div>
             }
         }
     </BodyTemplate>
@@ -203,6 +210,28 @@
     private decimal _total;
     private bool _buscando;
     private bool _hayBusqueda;
+    private bool _claveCopiada;
+
+    // Clave fiscal de 50 digitos: nadie la transcribe a mano sin equivocarse.
+    private async Task CopiarClave()
+    {
+        if (_elegido is null || string.IsNullOrWhiteSpace(_elegido.Clave)) return;
+
+        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+        var copiada = await modulo.InvokeAsync<bool>("copiarTexto", _elegido.Clave);
+
+        if (!copiada)
+        {
+            Dialogos.ErrorBreve("No se pudo copiar la clave.");
+            return;
+        }
+
+        _claveCopiada = true;
+        StateHasChanged();
+        await Task.Delay(1500);
+        _claveCopiada = false;
+        StateHasChanged();
+    }
 
     private static DateTime Fecha(ChangeEventArgs e, DateTime actual)
         => DateTime.TryParse(e.Value?.ToString(), out var v) ? v : actual;

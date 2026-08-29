@@ -30,8 +30,8 @@ public class SesionE2ETests
 
         await pagina.GotoAsync("/cuenta/ingresar");
         await pagina.GetByLabel("Usuario").FillAsync(CredencialesPrueba.Usuario!);
-        await pagina.GetByLabel("Contrasena").FillAsync(CredencialesPrueba.Password!);
-        await pagina.GetByRole(AriaRole.Button, new() { Name = "Iniciar sesion" }).ClickAsync();
+        await pagina.GetByLabel("Contraseña").FillAsync(CredencialesPrueba.Password!);
+        await pagina.GetByRole(AriaRole.Button, new() { Name = "Iniciar sesión" }).ClickAsync();
 
         await pagina.WaitForURLAsync("**/cuenta/sucursal", new() { Timeout = 60_000 });
         return pagina;

@@ -34,7 +34,7 @@
                     <div class="card-header">Datos del emisor</div>
                     <div class="card-body row g-3">
                         <div class="col-12 col-md-3">
-                            <label class="form-label" for="tipoId">Tipo de identificacion</label>
+                            <label class="form-label" for="tipoId">Tipo de identificación</label>
                             <select id="tipoId" class="form-select" @bind="_tipoIdentificacion">
                                 <option value="0">Seleccione...</option>
                                 @foreach (var t in _tiposIdentificacion)
@@ -44,16 +44,16 @@
                             </select>
                         </div>
                         <div class="col-12 col-md-3">
-                            <AppCampoTexto Etiqueta="Identificacion (cedula)" @bind-Valor="_identificacion" />
+                            <AppCampoTexto Etiqueta="Identificación (cédula)" @bind-Valor="_identificacion" Requerido="true" />
                         </div>
                         <div class="col-12 col-md-6">
-                            <AppCampoTexto Etiqueta="Nombre" @bind-Valor="_nombre" />
+                            <AppCampoTexto Etiqueta="Nombre" @bind-Valor="_nombre" Requerido="true" />
                         </div>
                         <div class="col-12 col-md-4">
                             <AppCampoTexto Etiqueta="Correo" @bind-Valor="_correo" />
                         </div>
                         <div class="col-12 col-md-4">
-                            <AppCampoTexto Etiqueta="Telefono" @bind-Valor="_telefono" />
+                            <AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_telefono" />
                         </div>
                         <div class="col-12 col-md-4">
                             <AppCampoTexto Etiqueta="Sucursal" @bind-Valor="_sucursal" />
@@ -62,7 +62,7 @@
                 </div>
 
                 <div class="card mb-3">
-                    <div class="card-header">Ubicacion</div>
+                    <div class="card-header">Ubicación</div>
                     <div class="card-body row g-3">
                         <div class="col-12 col-md-4">
                             <label class="form-label" for="provincia">Provincia</label>
@@ -75,7 +75,7 @@
                             </select>
                         </div>
                         <div class="col-12 col-md-4">
-                            <label class="form-label" for="canton">Canton</label>
+                            <label class="form-label" for="canton">Cantón</label>
                             <select id="canton" class="form-select" @bind="_idCanton" @bind:after="AlCambiarCanton">
                                 <option value="0">Seleccione...</option>
                                 @foreach (var c in _cantones)
@@ -95,7 +95,7 @@
                             </select>
                         </div>
                         <div class="col-12">
-                            <AppCampoTexto Etiqueta="Otras senas" @bind-Valor="_otrasSenas" />
+                            <AppCampoTexto Etiqueta="Otras señas" @bind-Valor="_otrasSenas" />
                         </div>
                     </div>
                 </div>
@@ -120,15 +120,15 @@
                             }
                         </div>
                         <div class="col-12 col-md-3">
-                            <label class="form-label" for="claveCertificado">Contrasena del certificado</label>
+                            <label class="form-label" for="claveCertificado">Contraseña del certificado</label>
                             <input id="claveCertificado" type="password" class="form-control"
                                    autocomplete="new-password" @bind="_contrasenaCertificado" @bind:event="oninput" />
                         </div>
                         <div class="col-12 col-md-3">
-                            <AppCampoTexto Etiqueta="Numero de resolucion" @bind-Valor="_numeroResolucion" />
+                            <AppCampoTexto Etiqueta="Número de resolución" @bind-Valor="_numeroResolucion" />
                         </div>
                         <div class="col-12 col-md-3">
-                            <label class="form-label" for="fechaResolucion">Fecha de resolucion</label>
+                            <label class="form-label" for="fechaResolucion">Fecha de resolución</label>
                             <input id="fechaResolucion" type="date" class="form-control" @bind="_fechaResolucion" />
                         </div>
                         <div class="col-12 col-md-3">
@@ -139,7 +139,7 @@
                 </div>
 
                 <div class="card mb-3">
-                    <div class="card-header">Actividades economicas (Hacienda)</div>
+                    <div class="card-header">Actividades económicas (Hacienda)</div>
                     <div class="card-body">
                         <div class="row g-2 align-items-end mb-3">
                             <div class="col-12 col-md-4">
@@ -152,12 +152,12 @@
                         <div class="table-responsive">
                             <table class="table table-sm align-middle">
                                 <thead>
-                                    <tr><th>Codigo</th><th>Descripcion</th><th></th></tr>
+                                    <tr><th>Código</th><th>Descripción</th><th></th></tr>
                                 </thead>
                                 <tbody>
                                     @if (_actividades.Count == 0)
                                     {
-                                        <tr><td colspan="3" class="text-secondary">Sin actividades agregadas todavia.</td></tr>
+                                        <tr><td colspan="3" class="text-secondary">Sin actividades agregadas todavía.</td></tr>
                                     }
                                     @foreach (var a in _actividades)
                                     {
@@ -167,7 +167,7 @@
                                             <td class="text-end">
                                                 <button type="button" class="btn btn-sm btn-link text-danger p-0"
                                                         @onclick="() => _actividades.Remove(a)">
-                                                    Quitar
+                                                    <i class="bi bi-trash" aria-hidden="true"></i> Quitar
                                                 </button>
                                             </td>
                                         </tr>
@@ -203,7 +203,7 @@
                                 </select>
                             </div>
                             <div class="col-12 col-md-3">
-                                <label class="form-label" for="numeroNuevo">Numero de cuenta</label>
+                                <label class="form-label" for="numeroNuevo">Número de cuenta</label>
                                 <input id="numeroNuevo" class="form-control" @bind="_numeroCuentaNueva" />
                             </div>
                             <div class="col-12 col-md-3">
@@ -215,12 +215,12 @@
                         <div class="table-responsive">
                             <table class="table table-sm align-middle">
                                 <thead>
-                                    <tr><th>Banco</th><th>Moneda</th><th>Numero</th><th></th></tr>
+                                    <tr><th>Banco</th><th>Moneda</th><th>Número</th><th></th></tr>
                                 </thead>
                                 <tbody>
                                     @if (_cuentas.Count == 0)
                                     {
-                                        <tr><td colspan="4" class="text-secondary">Sin cuentas agregadas todavia.</td></tr>
+                                        <tr><td colspan="4" class="text-secondary">Sin cuentas agregadas todavía.</td></tr>
                                     }
                                     @foreach (var c in _cuentas)
                                     {
@@ -231,7 +231,7 @@
                                             <td class="text-end">
                                                 <button type="button" class="btn btn-sm btn-link text-danger p-0"
                                                         @onclick="() => _cuentas.Remove(c)">
-                                                    Quitar
+                                                    <i class="bi bi-trash" aria-hidden="true"></i> Quitar
                                                 </button>
                                             </td>
                                         </tr>

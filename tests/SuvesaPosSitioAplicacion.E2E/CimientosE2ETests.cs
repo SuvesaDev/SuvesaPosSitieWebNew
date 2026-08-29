@@ -56,7 +56,7 @@ public class CimientosE2ETests
         var pagina = await PaginaAsync();
         await pagina.GotoAsync("/");
 
-        await Assertions.Expect(pagina.GetByRole(AriaRole.Button, new() { Name = "Iniciar sesion" }))
+        await Assertions.Expect(pagina.GetByRole(AriaRole.Button, new() { Name = "Iniciar sesión" }))
             .ToBeVisibleAsync();
 
         var fondo = await pagina.Locator("button[type=submit]").EvaluateAsync<string>(
@@ -97,8 +97,8 @@ public class CimientosE2ETests
         await pagina.GotoAsync("/cuenta/ingresar");
 
         await pagina.GetByLabel("Usuario").FillAsync("usuario.que.no.existe");
-        await pagina.GetByLabel("Contrasena").FillAsync("clave.incorrecta");
-        await pagina.GetByRole(AriaRole.Button, new() { Name = "Iniciar sesion" }).ClickAsync();
+        await pagina.GetByLabel("Contraseña").FillAsync("clave.incorrecta");
+        await pagina.GetByRole(AriaRole.Button, new() { Name = "Iniciar sesión" }).ClickAsync();
 
         await Assertions.Expect(pagina.Locator(".alert-danger"))
             .ToBeVisibleAsync(new() { Timeout = 30_000 });
