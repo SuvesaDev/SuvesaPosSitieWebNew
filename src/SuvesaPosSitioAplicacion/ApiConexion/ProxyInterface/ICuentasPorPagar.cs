@@ -7,4 +7,5 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 public interface ICuentasPorPagar
 {
     Task<ResponseGeneric<ICollection<BuscarProveedorPendientesDTO>>> ObtenerDeudas();
+    Task<ResponseGeneric<AbonoCuentaPagarReciboDTO>> CrearAbono(AbonoCuentaPagarReciboDTO abono);
 }

@@ -1,0 +1,70 @@
+@page "/initial/cash/deposits/predeposits"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICajaOperaciones Api
+@inject IContextoSesion Sesion
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+<AppPantalla Pantalla="Pre Depósito" Nivel="NivelPantalla.Tableta">
+    <Acciones><button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" disabled="@(_cargando || Bloqueada)"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button><button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(Bloqueada || _guardando)"><i class="bi bi-safe2 me-1" aria-hidden="true"></i>@(_guardando ? "Guardando..." : "Registrar pre depósito")</button></Acciones>
+    <ChildContent>
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="los pre depósitos" AlCambiar="AlDesbloquear" />
+        <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
+        <div class="seepos-caja"><div class="card mb-3"><div class="card-header"><strong>Registro de pre depósito</strong></div><div class="card-body"><div class="row g-3">
+            <div class="col-12 col-md-4"><label class="form-label" for="cajero">Cajero</label><InputSelect id="cajero" class="form-select" @bind-Value="_cajero" @bind-Value:after="ElegirCajero"><option value="">Seleccione...</option>@foreach (var c in _cajeros) { <option value="@c.Nombre">@c.Nombre · Apertura #@c.IdApertura</option> }</InputSelect></div>
+            <div class="col-12 col-md-4"><label class="form-label" for="empresa">Empresa</label><InputSelect id="empresa" class="form-select" @bind-Value="_empresa"><option value="0">Seleccione...</option>@foreach (var e in _empresas) { <option value="@e.Id">@e.Nombre</option> }</InputSelect></div>
+            <div class="col-6 col-md-2"><label class="form-label">N.º apertura</label><input class="form-control" value="@_numeroApertura" disabled /></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="fecha">Fecha</label><InputDate id="fecha" class="form-control" @bind-Value="_fecha" /></div>
+            <div class="col-12 col-md-4"><label class="form-label" for="monto">Monto</label><InputNumber id="monto" class="form-control text-end" @bind-Value="_monto" /></div>
+            <div class="col-12 col-md-8"><label class="form-label" for="observaciones">Observaciones</label><InputText id="observaciones" class="form-control" @bind-Value="_observaciones" /></div>
+            <div class="col-12"><span class="small text-secondary">Depositante: <strong>@Sesion.Usuario</strong></span></div>
+        </div></div></div>
+        <div class="card"><div class="card-header"><strong>Pre depósitos de la apertura seleccionada</strong></div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Fecha</th><th>Cajero</th><th>Depositante</th><th class="text-end">Monto</th><th></th></tr></thead><tbody>
+            @foreach (var p in _registrados) { <tr><td>@p.Fecha.ToString("dd/MM/yyyy")</td><td>@p.Cajero</td><td>@p.Depositante</td><td class="text-end">@Formato.Importe(p.Monto)</td><td class="text-end"><button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(p)"><i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Eliminar</span></button></td></tr> }
+        </tbody></table></div></div></div>
+        </fieldset>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private readonly List<User> _cajeros = new(); private readonly List<EmpresaDTO> _empresas = new(); private readonly List<PreDepositosDTO> _registrados = new();
+    private string? _cajero, _observaciones; private int _empresa, _numeroApertura; private DateTime _fecha = DateTime.Today; private float _monto; private bool _cargando, _guardando;
+    private AppDesbloqueoClave? _bloqueo;
+    private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
+    private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
+    protected override Task OnInitializedAsync() => Cargar();
+    private async Task Cargar()
+    {
+        _cargando = true;
+        var cajeros = await Respuestas.DatoAsync(await Api.CajerosConCajaAbierta(), "consultar los cajeros con caja abierta");
+        var empresas = await Respuestas.DatoAsync(await Api.Empresas(), "consultar las empresas");
+        _cajeros.Clear(); _cajeros.AddRange(cajeros ?? Array.Empty<User>()); _empresas.Clear(); _empresas.AddRange(empresas ?? Array.Empty<EmpresaDTO>()); _cargando = false;
+        await CargarRegistrados();
+    }
+    private async Task ElegirCajero()
+    {
+        var cajero = _cajeros.FirstOrDefault(c => c.Nombre == _cajero); _numeroApertura = (int)(cajero?.IdApertura ?? 0); await CargarRegistrados();
+    }
+    private async Task CargarRegistrados()
+    {
+        _registrados.Clear(); if (_numeroApertura == 0) return;
+        var datos = await Respuestas.DatoAsync(await Api.PreDepositosDeApertura(_numeroApertura), "consultar los pre depósitos"); _registrados.AddRange(datos ?? Array.Empty<PreDepositosDTO>());
+    }
+    private async Task Guardar()
+    {
+        var cajero = _cajeros.FirstOrDefault(c => c.Nombre == _cajero);
+        if (cajero is null || _empresa == 0 || _monto <= 0) { await Dialogos.InformarAsync("Seleccione cajero y empresa, e indique un monto válido."); return; }
+        if (!await Dialogos.ConfirmarAsync("¿Desea registrar este pre depósito?", "Registrar pre depósito", "Registrar")) return;
+        _guardando = true;
+        var pre = new PreDepositosDTO { Fecha = _fecha, Cajero = cajero.Nombre, Cedula = cajero.Id.ToString(), Depositante = Sesion.Usuario, IdEmpresa = _empresa, NumApertura = _numeroApertura, Monto = _monto, Observaciones = _observaciones };
+        var creado = await Respuestas.DatoAsync(await Api.CrearPreDeposito(pre), "registrar el pre depósito"); _guardando = false;
+        if (creado is null) return; Dialogos.Exito("Pre depósito registrado correctamente."); _monto = 0; _observaciones = null; await CargarRegistrados();
+    }
+    private async Task Eliminar(PreDepositosDTO pre)
+    {
+        if (!await Dialogos.ConfirmarPeligroAsync("¿Desea eliminar este pre depósito?", "Eliminar pre depósito")) return;
+        if (await Respuestas.CorrectaAsync(await Api.EliminarPreDeposito((int)pre.Id), "eliminar el pre depósito")) { Dialogos.Exito("Pre depósito eliminado."); await CargarRegistrados(); }
+    }
+}

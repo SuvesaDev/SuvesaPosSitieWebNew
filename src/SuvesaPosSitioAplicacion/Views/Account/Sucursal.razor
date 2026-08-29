@@ -24,12 +24,17 @@
     exige HttpContext, y un componente interactivo ya no lo tiene. El usuario ve un
     modal; por debajo es una peticion mas, que es lo que lo hace fiable. *@
 
-<div class="seepos-fondo-ingreso">
-    <div class="container" style="max-width: 26rem;">
-        <div class="card shadow-sm mt-5 opacity-50">
-            <div class="card-body p-4">
-                <h1 class="h4 mb-1">SUVESA SeePOS</h1>
-                <p class="text-secondary small mb-0">Sesion iniciada.</p>
+<div class="seepos-fondo-ingreso seepos-fondo-centro" aria-hidden="true">
+    <div class="seepos-fondo-centro-contenido">
+        <div class="seepos-fondo-centro-marca">
+            <img src="img/costavet-logo-compact.png" alt="" />
+            <span>SeePOS</span>
+        </div>
+        <div class="seepos-fondo-centro-resumen">
+            <span class="seepos-fondo-centro-icono"><i class="bi bi-shield-check"></i></span>
+            <div>
+                <strong>Acceso validado</strong>
+                <span>Preparando su espacio de trabajo</span>
             </div>
         </div>
     </div>
@@ -37,21 +42,30 @@
 
 <div class="modal-backdrop show"></div>
 
-<div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true"
-     aria-labelledby="tituloCentro">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 24rem;">
-        <div class="modal-content">
+<div class="modal d-block seepos-modal-centro" tabindex="-1" role="dialog" aria-modal="true"
+     aria-labelledby="tituloCentro" aria-describedby="descripcionCentro">
+    <div class="modal-dialog modal-dialog-centered seepos-modal-centro-dialog">
+        <div class="modal-content seepos-modal-centro-contenido">
 
-            <div class="modal-header">
-                <h1 class="modal-title h5" id="tituloCentro">Seleccione el centro</h1>
+            <div class="modal-header seepos-modal-centro-encabezado">
+                <div class="seepos-modal-centro-identidad">
+                    <span class="seepos-modal-centro-icono" aria-hidden="true"><i class="bi bi-shop"></i></span>
+                    <div>
+                        <span class="seepos-modal-centro-eyebrow">Espacio de trabajo</span>
+                        <h1 class="modal-title" id="tituloCentro">Seleccione el centro</h1>
+                    </div>
+                </div>
             </div>
 
-            <div class="modal-body">
-                <p class="text-secondary small">Determina con que sucursal va a trabajar.</p>
+            <div class="modal-body seepos-modal-centro-cuerpo">
+                <p class="seepos-modal-centro-descripcion" id="descripcionCentro">Elija la sucursal desde la que va a trabajar hoy.</p>
 
                 @if (!string.IsNullOrEmpty(Error))
                 {
-                    <div class="alert alert-danger py-2 small" role="alert">@Error</div>
+                    <div class="alert alert-danger seepos-modal-centro-alerta" role="alert">
+                        <i class="bi bi-exclamation-circle-fill" aria-hidden="true"></i>
+                        <span>@Error</span>
+                    </div>
 
                     @if (Entorno.IsDevelopment() && Diagnostico is not null)
                     {
@@ -63,20 +77,24 @@
                 }
                 else if (Sucursales is null)
                 {
-                    <p class="text-secondary small mb-0">Consultando centros...</p>
+                    <div class="seepos-modal-centro-cargando" role="status">
+                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                        <span>Consultando centros disponibles...</span>
+                    </div>
                 }
                 else if (Sucursales.Count == 0)
                 {
-                    <div class="alert alert-warning py-2 small mb-0">
-                        El usuario no tiene ningun centro asignado. Consulte con el
-                        administrador del sistema.
+                    <div class="alert alert-warning seepos-modal-centro-alerta mb-0" role="alert">
+                        <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+                        <span>El usuario no tiene ningun centro asignado. Consulte con el administrador del sistema.</span>
                     </div>
                 }
                 else
                 {
                     <EditForm Model="Seleccion" FormName="sucursal" OnValidSubmit="Elegir" id="formCentro">
+                        <label class="form-label seepos-modal-centro-etiqueta" for="centro">Centro de trabajo</label>
                         <InputSelect class="form-select" @bind-Value="Seleccion.IdSucursal"
-                                     aria-label="Centro">
+                                     id="centro" aria-label="Centro de trabajo">
                             <option value="0">Seleccione...</option>
                             @foreach (var s in Sucursales)
                             {
@@ -87,13 +105,17 @@
                 }
             </div>
 
-            <div class="modal-footer justify-content-between">
-                <a href="/cuenta/salir" class="small text-secondary text-decoration-none">
-                    Ingresar con otro usuario
+            <div class="modal-footer seepos-modal-centro-pie">
+                <a href="/cuenta/salir" class="seepos-modal-centro-salir">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                    <span>Ingresar con otro usuario</span>
                 </a>
                 @if (Sucursales is { Count: > 0 })
                 {
-                    <button type="submit" form="formCentro" class="btn btn-primary">Ingresar</button>
+                    <button type="submit" form="formCentro" class="btn btn-primary seepos-modal-centro-ingresar">
+                        <span>Continuar</span>
+                        <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                    </button>
                 }
             </div>
 

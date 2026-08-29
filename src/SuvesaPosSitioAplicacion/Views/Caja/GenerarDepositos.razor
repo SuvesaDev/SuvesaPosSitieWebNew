@@ -1,0 +1,64 @@
+@page "/initial/cash/deposits/generatedeposits"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICajaOperaciones Api
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+<AppPantalla Pantalla="Generar Depósito" Nivel="NivelPantalla.Tableta">
+    <Acciones><button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" disabled="@(_cargando || Bloqueada)"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button><button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(Bloqueada || _guardando || !Seleccionados.Any())"><i class="bi bi-bank me-1" aria-hidden="true"></i>@(_guardando ? "Guardando..." : "Generar depósito")</button></Acciones>
+    <ChildContent>
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="la generación de depósitos" AlCambiar="AlDesbloquear" />
+        <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
+        <div class="seepos-caja"><div class="card mb-3"><div class="card-header"><strong>Datos del depósito</strong></div><div class="card-body"><div class="row g-3">
+            <div class="col-12 col-md-4"><label class="form-label" for="empresa">Empresa</label><InputSelect id="empresa" class="form-select" @bind-Value="_empresa" @bind-Value:after="CargarCuentas"><option value="0">Seleccione...</option>@foreach (var e in _empresas) { <option value="@e.Id">@e.Nombre</option> }</InputSelect></div>
+            <div class="col-12 col-md-4"><label class="form-label" for="banco">Banco</label><InputSelect id="banco" class="form-select" @bind-Value="_banco" @bind-Value:after="CargarCuentas"><option value="0">Seleccione...</option>@foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }</InputSelect></div>
+            <div class="col-12 col-md-4"><label class="form-label" for="cuenta">Cuenta</label><InputSelect id="cuenta" class="form-select" @bind-Value="_cuenta" disabled="@(_empresa == 0 || _banco == 0)"><option value="0">Seleccione...</option>@foreach (var c in _cuentas) { <option value="@c.Id">@c.Numero · @c.Moneda</option> }</InputSelect></div>
+            <div class="col-12 col-md-4"><label class="form-label" for="numero">Número de depósito</label><InputText id="numero" class="form-control" @bind-Value="_numeroDeposito" /></div>
+            <div class="col-6 col-md-4"><label class="form-label" for="fecha">Fecha</label><InputDate id="fecha" class="form-control" @bind-Value="_fecha" /></div>
+            <div class="col-6 col-md-4"><label class="form-label" for="apertura">N.º apertura</label><div class="input-group"><InputNumber id="apertura" class="form-control" @bind-Value="_apertura" /><button class="btn btn-outline-primary" type="button" @onclick="BuscarPreDepositos">Buscar</button></div></div>
+        </div></div></div>
+        <div class="card"><div class="card-header d-flex justify-content-between"><strong>Pre depósitos disponibles</strong><strong>Total seleccionado: @Formato.Importe(MontoSeleccionado)</strong></div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th></th><th>Fecha</th><th>Cajero</th><th>Depositante</th><th class="text-end">Monto</th></tr></thead><tbody>
+            @foreach (var pre in _preDepositos) { <tr><td><input type="checkbox" checked="@_seleccionados.Contains(pre.Id)" @onchange="() => Alternar(pre.Id)" aria-label="Seleccionar pre depósito @pre.Id" /></td><td>@pre.Fecha.ToString("dd/MM/yyyy")</td><td>@pre.Cajero</td><td>@pre.Depositante</td><td class="text-end">@Formato.Importe(pre.Monto)</td></tr> }
+            @if (_preDepositos.Count == 0) { <tr><td colspan="5" class="text-center text-secondary py-4">Indique una apertura y presione Buscar.</td></tr> }
+        </tbody></table></div></div></div>
+        </fieldset>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private readonly List<EmpresaDTO> _empresas = new(); private readonly List<EntidadesBancariasDTO> _bancos = new(); private readonly List<CuentaBancariaDTO> _cuentas = new(); private readonly List<PreDepositosDTO> _preDepositos = new(); private readonly HashSet<long> _seleccionados = new();
+    private int _empresa, _banco, _cuenta; private int _apertura; private string? _numeroDeposito; private DateTime _fecha = DateTime.Today; private bool _cargando, _guardando;
+    private AppDesbloqueoClave? _bloqueo;
+    private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
+    private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
+    private IEnumerable<PreDepositosDTO> Seleccionados => _preDepositos.Where(p => _seleccionados.Contains(p.Id));
+    private float MontoSeleccionado => Seleccionados.Sum(p => p.Monto);
+    protected override Task OnInitializedAsync() => Cargar();
+    private async Task Cargar()
+    {
+        _cargando = true; var empresas = await Respuestas.DatoAsync(await Api.Empresas(), "consultar las empresas"); var bancos = await Respuestas.DatoAsync(await Api.Bancos(), "consultar los bancos");
+        _empresas.Clear(); _empresas.AddRange(empresas ?? Array.Empty<EmpresaDTO>()); _bancos.Clear(); _bancos.AddRange(bancos ?? Array.Empty<EntidadesBancariasDTO>()); _cargando = false;
+    }
+    private async Task CargarCuentas()
+    {
+        _cuentas.Clear(); _cuenta = 0; if (_empresa == 0 || _banco == 0) return;
+        var cuentas = await Respuestas.DatoAsync(await Api.Cuentas(_banco, _empresa), "consultar las cuentas bancarias"); _cuentas.AddRange(cuentas ?? Array.Empty<CuentaBancariaDTO>());
+    }
+    private async Task BuscarPreDepositos()
+    {
+        _preDepositos.Clear(); _seleccionados.Clear(); if (_apertura <= 0) { await Dialogos.InformarAsync("Indique el número de apertura que desea depositar."); return; }
+        var pre = await Respuestas.DatoAsync(await Api.PreDepositosDeApertura(_apertura), "consultar los pre depósitos"); _preDepositos.AddRange((pre ?? Array.Empty<PreDepositosDTO>()).Where(p => p.IdDeposito is null));
+    }
+    private void Alternar(long id) { if (!_seleccionados.Add(id)) _seleccionados.Remove(id); }
+    private async Task Guardar()
+    {
+        if (_empresa == 0 || _banco == 0 || _cuenta == 0 || string.IsNullOrWhiteSpace(_numeroDeposito) || !Seleccionados.Any()) { await Dialogos.InformarAsync("Complete empresa, banco, cuenta, número de depósito y seleccione al menos un pre depósito."); return; }
+        if (!await Dialogos.ConfirmarAsync($"¿Desea generar el depósito número {_numeroDeposito}?", "Generar depósito", "Generar")) return;
+        _guardando = true;
+        var deposito = new DepositosDTO { NumeroDeposito = _numeroDeposito, Fecha = _fecha, IdCuenta = _cuenta, IdEmpresa = _empresa, MontoDeposito = MontoSeleccionado, PreDepositos = Seleccionados.ToList() };
+        var creado = await Respuestas.DatoAsync(await Api.CrearDeposito(deposito), "generar el depósito"); _guardando = false;
+        if (creado is null) return; Dialogos.Exito($"Depósito {_numeroDeposito} creado correctamente."); _numeroDeposito = null; _seleccionados.Clear(); await BuscarPreDepositos();
+    }
+}

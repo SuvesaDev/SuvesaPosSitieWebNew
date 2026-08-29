@@ -1,0 +1,308 @@
+@page "/buys/purchasereturns"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IDevolucionesCompra Api
+@inject ICompras Compras
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  Ola 5 — espejo de Devoluciones de venta, pero el sistema actual NO pide clave
+    interna aqui (a diferencia de Facturación/Devoluciones de venta). La busqueda
+    de la factura original reutiliza ICompras.Buscar/Obtener: es el mismo
+    endpoint que ya usa Compra.razor.
+
+    cedulaUsuario e idSucursal se mandan vacio/0 en el sistema actual
+    (PurchaseReturnsIcons.jsx linea 46-47) — se ve un descuido, no una regla de
+    negocio. Aqui se usan el usuario y la sucursal reales de la sesion. *@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="() => _modalBuscarDevoluciones.ShowAsync()">
+            <i class="bi bi-clock-history me-1" aria-hidden="true"></i>Devoluciones anteriores
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nueva devolución</button>
+    </Acciones>
+    <ChildContent>
+        <div class="row g-3">
+            <div class="col-12 col-lg-8">
+                <div class="card h-100">
+                    <div class="card-header"><strong>Factura original</strong></div>
+                    <div class="card-body">
+                        <button type="button" class="btn btn-outline-primary" @onclick="() => _modalBuscarFactura.ShowAsync()"><i class="bi bi-search me-1" aria-hidden="true"></i>Buscar factura de compra</button>
+
+                        @if (_factura is not null)
+                        {
+                            <dl class="row small mt-3 mb-0">
+                                <dt class="col-3 fw-normal text-secondary">Proveedor</dt><dd class="col-9">@_factura.NombreProveedor</dd>
+                                <dt class="col-3 fw-normal text-secondary">Factura</dt><dd class="col-9">@_factura.Factura</dd>
+                                <dt class="col-3 fw-normal text-secondary">Fecha</dt><dd class="col-9">@_factura.Fecha</dd>
+                                <dt class="col-3 fw-normal text-secondary">Total factura</dt><dd class="col-9">@Formato.Importe(_factura.TotalFactura)</dd>
+                            </dl>
+
+                            <hr />
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label">Artículo a devolver</label>
+                                    <select class="form-select" @bind="_codigoSeleccionado" @bind:after="AlSeleccionarLinea">
+                                        <option value="0">Seleccione...</option>
+                                        @foreach (var linea in _factura.Detalle ?? new List<FacturaCompraDetalleDTO>())
+                                        {
+                                            <option value="@linea.Codigo">@linea.Descripcion (máx. @Formato.Cantidad(linea.Cantidad))</option>
+                                        }
+                                    </select>
+                                </div>
+                                @if (_lineaSeleccionada is not null)
+                                {
+                                    <div class="col-6 col-md-2"><label class="form-label">Costo</label><input class="form-control" disabled value="@Formato.Importe(_lineaSeleccionada.Costo)" /></div>
+                                    <div class="col-6 col-md-2">
+                                        <label class="form-label">Cantidad a devolver</label>
+                                        <input type="number" min="0" max="@_lineaSeleccionada.Cantidad" step="0.001" class="form-control" @bind="_cantidadDevolver" @onkeydown="AgregarConEnter" />
+                                    </div>
+                                    <div class="col-6 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="Agregar">Agregar</button></div>
+                                    <div class="col-6 col-md-2 d-grid"><button type="button" class="btn btn-outline-secondary" @onclick="AgregarTodos">Agregar todos</button></div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-4">
+                <div class="card h-100"><div class="card-header"><strong>Totales de la devolución</strong></div><div class="card-body"><dl class="row mb-0"><dt class="col-7 fw-normal text-secondary">Sub. gravado</dt><dd class="col-5 text-end">@Formato.Importe(_subtotalGravado)</dd><dt class="col-7 fw-normal text-secondary">Sub. exento</dt><dd class="col-5 text-end">@Formato.Importe(_totales.SubTotal - _subtotalGravado)</dd><dt class="col-7 fw-normal text-secondary">Impuesto</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Impuesto)</dd><dt class="col-7">Total</dt><dd class="col-5 text-end fs-5">@Formato.Importe(_totales.Total)</dd></dl></div></div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header"><strong>Líneas a devolver</strong></div>
+            <div class="card-body p-0">
+                @if (_lineas.Count == 0) { <p class="text-secondary text-center py-4 mb-0">Busque la factura y agregue los artículos a devolver.</p> }
+                else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Costo</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var l in _lineas) { <tr><td>@l.Descripcion</td><td class="text-end">@Formato.Cantidad(l.Cantidad)</td><td class="text-end">@Formato.Importe(l.Costo)</td><td class="text-end fw-semibold">@Formato.Importe(l.Calculo.Total)</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(l)">Quitar</button></td></tr> }</tbody></table></div> }
+            </div>
+        </div>
+
+        <button class="btn btn-primary mt-3" disabled="@(_guardando || _lineas.Count == 0)" @onclick="Registrar">
+            <i class="bi bi-arrow-counterclockwise me-2" aria-hidden="true"></i>@(_guardando ? "Registrando..." : "Registrar devolución")
+        </button>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modalBuscarFactura" Title="Buscar factura de compra" Size="ModalSize.Large">
+    <BodyTemplate>
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-12 col-md-5"><label class="form-label">Número de factura</label><input class="form-control" @bind="_filtroFactura" /></div>
+            <div class="col-12 col-md-5"><label class="form-label">Proveedor</label><input class="form-control" @bind="_filtroProveedor" /></div>
+            <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-primary" @onclick="BuscarFacturas">Buscar</button></div>
+        </div>
+        @if (_facturasEncontradas.Count == 0) { <p class="text-secondary text-center py-3 mb-0">Sin resultados todavía.</p> }
+        else { <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Factura</th><th>Proveedor</th><th>Fecha</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var f in _facturasEncontradas) { <tr><td>@f.Factura</td><td>@f.NombreProveedor</td><td>@f.Fecha</td><td class="text-end">@Formato.Importe(f.TotalFactura)</td><td class="text-end"><button type="button" class="btn btn-sm btn-primary" @onclick="() => ElegirFactura(f.IdCompra)">Abrir</button></td></tr> }</tbody></table></div> }
+    </BodyTemplate>
+</HxModal>
+
+<HxModal @ref="_modalBuscarDevoluciones" Title="Devoluciones de compra anteriores" Size="ModalSize.Large">
+    <BodyTemplate>
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-12 col-md-4"><label class="form-label">Proveedor</label><input class="form-control" @bind="_filtroDevolucionProveedor" /></div>
+            <div class="col-12 col-md-4"><label class="form-label">Número</label><input class="form-control" @bind="_filtroDevolucionNumero" /></div>
+            <div class="col-12 col-md-4 d-grid"><button type="button" class="btn btn-primary" @onclick="BuscarDevolucionesAnteriores">Buscar</button></div>
+        </div>
+        @if (_devolucionesEncontradas.Count == 0) { <p class="text-secondary text-center py-3 mb-0">Sin resultados todavía.</p> }
+        else { <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Número</th><th>Proveedor</th><th>Fecha</th><th class="text-end">Monto</th></tr></thead><tbody>@foreach (var d in _devolucionesEncontradas) { <tr><td>@d.Devolucion</td><td>@d.NombrePro</td><td>@d.Fecha</td><td class="text-end">@Formato.Importe(d.Monto)</td></tr> }</tbody></table></div> }
+    </BodyTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Devoluciones compra";
+
+    private sealed class LineaDevolucion
+    {
+        public required long Codigo { get; init; }
+        public required string Descripcion { get; init; }
+        public decimal Cantidad { get; init; }
+        public decimal Costo { get; init; }
+        public decimal Base { get; init; }
+        public decimal Flete { get; init; }
+        public decimal Otros { get; init; }
+        public decimal Descuento { get; init; }
+        public decimal Impuesto { get; init; }
+        public int IdBodega { get; init; }
+        public CalculoDocumento.LineaCalculada Calculo { get; set; }
+    }
+
+    private HxModal _modalBuscarFactura = default!, _modalBuscarDevoluciones = default!;
+
+    private FacturaCompraDTO? _factura;
+    private long _codigoSeleccionado;
+    private FacturaCompraDetalleDTO? _lineaSeleccionada;
+    private decimal _cantidadDevolver = 1;
+    private readonly List<LineaDevolucion> _lineas = new();
+    private CalculoDocumento.TotalesDocumento _totales;
+    private decimal _subtotalGravado;
+    private bool _guardando;
+
+    private string _filtroFactura = string.Empty;
+    private string _filtroProveedor = string.Empty;
+    private List<FacturaCompraDTO> _facturasEncontradas = new();
+
+    private string _filtroDevolucionProveedor = string.Empty;
+    private string _filtroDevolucionNumero = string.Empty;
+    private List<DevolucionCompraDTO> _devolucionesEncontradas = new();
+
+    private async Task BuscarFacturas()
+    {
+        var filtro = new FiltroFacturaCompras
+        {
+            Numero = _filtroFactura.Trim(),
+            Proveedor = _filtroProveedor.Trim(),
+            FechaDesde = string.Empty,
+            FechaHasta = string.Empty
+        };
+        _facturasEncontradas = (await Respuestas.DatoAsync(await Compras.Buscar(filtro), "buscar compras"))?.ToList() ?? new();
+    }
+
+    private async Task ElegirFactura(long idCompra)
+    {
+        await _modalBuscarFactura.HideAsync();
+        var factura = await Respuestas.DatoAsync(await Compras.Obtener(idCompra), "consultar la compra");
+        if (factura is null) return;
+        _factura = factura;
+        _codigoSeleccionado = 0;
+        _lineaSeleccionada = null;
+        _lineas.Clear();
+        RecalcularTotales();
+    }
+
+    private void AlSeleccionarLinea()
+        => _lineaSeleccionada = _factura?.Detalle?.FirstOrDefault(l => l.Codigo == _codigoSeleccionado);
+
+    private async Task AgregarConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Agregar(); }
+
+    private async Task Agregar()
+    {
+        if (_lineaSeleccionada is null) return;
+        if (_cantidadDevolver <= 0 || _cantidadDevolver > Formato.AImporte(_lineaSeleccionada.Cantidad))
+        {
+            await Dialogos.ErrorAsync("La cantidad a devolver debe ser mayor a cero y no superar la cantidad original.");
+            return;
+        }
+        AgregarLinea(_lineaSeleccionada, _cantidadDevolver);
+        _lineaSeleccionada = null;
+        _codigoSeleccionado = 0;
+        _cantidadDevolver = 1;
+    }
+
+    private async Task AgregarTodos()
+    {
+        if (_factura?.Detalle is null || _factura.Detalle.Count == 0) return;
+        if (!await Dialogos.ConfirmarAsync("¿Desea devolver todos los artículos de la factura?")) return;
+        foreach (var linea in _factura.Detalle)
+        {
+            AgregarLinea(linea, Formato.AImporte(linea.Cantidad));
+        }
+        _lineaSeleccionada = null;
+        _codigoSeleccionado = 0;
+    }
+
+    private void AgregarLinea(FacturaCompraDetalleDTO linea, decimal cantidad)
+    {
+        if (_lineas.Any(l => l.Codigo == linea.Codigo))
+        {
+            _lineas.RemoveAll(l => l.Codigo == linea.Codigo);
+        }
+
+        var idBodega = 0;
+        var nueva = new LineaDevolucion
+        {
+            Codigo = linea.Codigo,
+            Descripcion = linea.Descripcion ?? string.Empty,
+            Cantidad = cantidad,
+            Costo = Formato.AImporte(linea.Costo),
+            Base = Formato.AImporte(linea.Base),
+            Flete = Formato.AImporte(linea.MontoFlete),
+            Otros = Formato.AImporte(linea.OtrosCargos),
+            Descuento = Formato.AImporte(linea.DescuentoP),
+            Impuesto = Formato.AImporte(linea.ImpuestoP),
+            IdBodega = idBodega
+        };
+        nueva.Calculo = CalculoDocumento.Linea(nueva.Cantidad, nueva.Costo, nueva.Descuento, nueva.Impuesto);
+        _lineas.Add(nueva);
+        RecalcularTotales();
+    }
+
+    private void QuitarLinea(LineaDevolucion linea) { _lineas.Remove(linea); RecalcularTotales(); }
+
+    private void RecalcularTotales()
+    {
+        _totales = CalculoDocumento.Totales(_lineas.Select(l => l.Calculo));
+        _subtotalGravado = _lineas.Sum(l => l.Calculo.SubtotalGravado);
+    }
+
+    private async Task BuscarDevolucionesAnteriores()
+    {
+        var filtro = new FiltroFacturaDevCompras
+        {
+            Proveedor = string.IsNullOrWhiteSpace(_filtroDevolucionProveedor) ? null : _filtroDevolucionProveedor,
+            Numero = string.IsNullOrWhiteSpace(_filtroDevolucionNumero) ? null : _filtroDevolucionNumero
+        };
+        _devolucionesEncontradas = (await Respuestas.DatoAsync(await Api.Buscar(filtro), "buscar devoluciones de compra"))?.ToList() ?? new();
+    }
+
+    private async Task Registrar()
+    {
+        if (_factura is null || _lineas.Count == 0 || _guardando) return;
+        if (!await Dialogos.ConfirmarAsync("Se registrará la devolución y se afectará el inventario. ¿Desea continuar?")) return;
+
+        _guardando = true;
+        var dto = new DevolucionCompraDTO
+        {
+            IdFacturaCompra = _factura.IdCompra,
+            SaldoAntFact = _factura.TotalFactura,
+            SubTotalGravado = (double)_subtotalGravado,
+            SubTotalExcento = (double)(_totales.SubTotal - _subtotalGravado),
+            Descuento = (double)_totales.Descuento,
+            Impuesto = (double)_totales.Impuesto,
+            Monto = (double)_totales.Total,
+            Fecha = DateTime.Today.ToString("dd/MM/yyyy"),
+            CedulaUsuario = Sesion.Usuario,
+            CodMoneda = 1,
+            NombrePro = _factura.NombreProveedor,
+            IdSucursal = Sesion.IdSucursal,
+            Detalle = _lineas.Select(l => new DevolucionCompraDetalleDTO
+            {
+                Codigo = l.Codigo,
+                Descripcion = l.Descripcion,
+                Cantidad = (double)l.Cantidad,
+                PrecioCosto = (double)l.Costo,
+                PrecioBase = (double)l.Base,
+                PrecioFlete = (double)l.Flete,
+                PrecioOtros = (double)l.Otros,
+                Descuento = (double)l.Descuento,
+                MontoDescuento = (double)l.Calculo.MontoDescuento,
+                Impuesto = (double)l.Impuesto,
+                MontoImpuesto = (double)l.Calculo.MontoImpuesto,
+                SubtotalGravado = (double)l.Calculo.SubtotalGravado,
+                SubTotalExcento = l.Impuesto == 0 ? (double)l.Calculo.SubTotal : 0,
+                SubTotal = (double)l.Calculo.SubTotal,
+                Numero = string.Empty,
+                IdBodega = l.IdBodega
+            }).ToList()
+        };
+
+        var r = await Api.Crear(dto);
+        _guardando = false;
+        if (await Respuestas.CorrectaAsync(r, "registrar la devolución de compra"))
+        {
+            Dialogos.Exito("Devolución de compra registrada correctamente.");
+            Limpiar();
+        }
+    }
+
+    private void Limpiar()
+    {
+        _factura = null;
+        _codigoSeleccionado = 0;
+        _lineaSeleccionada = null;
+        _lineas.Clear();
+        RecalcularTotales();
+    }
+}

@@ -3,8 +3,7 @@ using SuvesaPosSitioAplicacion.Helpers;
 
 namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 
-/// <summary>Seguimiento de consignaciones. Solo lectura; registrar y facturar quedan
-/// para cuando el arquetipo maestro-detalle se aplique a este documento.</summary>
+/// <summary>Consulta y aplicación de consignaciones.</summary>
 public interface IConsignaciones
 {
     /// <summary>
@@ -17,4 +16,7 @@ public interface IConsignaciones
     Task<ResponseGeneric<ICollection<FacturaDTO>>> PorEstado(bool valor);
 
     Task<ResponseGeneric<ICollection<ResultadoBusquedaConsignacionDTO>>> Buscar(string texto);
+    Task<ResponseGeneric<FacturaDTO>> Obtener(long id);
+    Task<ResponseGeneric<bool>> Aprobar(long id);
+    Task<ResponseGeneric<FacturaDTO>> Despachar(ConsignacionAplicacionDTO aplicacion);
 }

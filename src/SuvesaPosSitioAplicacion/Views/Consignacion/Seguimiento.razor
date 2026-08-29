@@ -4,152 +4,84 @@
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IConsignaciones Api
 @inject IManejadorRespuestas Respuestas
-
-@*  OLA 1 — replica del ARQUETIPO 02, con filtro por estado.
-    Reutiliza el mismo patron que Seguimiento de Cotizaciones.
-
-    NOTA DE INTEGRACION: el endpoint que en principio correspondia a esta pantalla
-    (Consignacion/ObtenerConsignacionEncabezadoEstado) responde 500 contra
-    devapi.pos2650.com con cualquier parametro. Se uso el hermano que si funciona,
-    venta/ObtenerConsignacionEstado, sobre FacturaDTO en lugar de
-    ConsignacionEncabezadoDTO. Ver la nota en ApiConexion/ProxyClass/Consignaciones.cs.
-*@
+@inject IServicioDialogos Dialogos
 
 <AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
     <Acciones>
-        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
-            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
-        </button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar" disabled="@(Bloqueada || _cargando)"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
     </Acciones>
-
     <ChildContent>
-
-        <div class="mb-3">
-            <select class="form-select" aria-label="Estado" @onchange="AlCambiarEstado">
-                <option value="pendientes">Pendientes de aceptar</option>
-                <option value="aceptadas">Aceptadas</option>
-            </select>
-        </div>
-
-        @if (!_cargado)
-        {
-            <div class="d-flex justify-content-center py-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Cargando</span>
-                </div>
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="el seguimiento de consignaciones" AlCambiar="AlDesbloquear" />
+        <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
+            <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+                <div><label class="form-label small" for="estado">Estado</label><select id="estado" class="form-select" @bind="_estado" @bind:after="Cargar"><option value="pendientes">Pendientes de aceptar</option><option value="aceptadas">Aceptadas</option></select></div>
+                @if (_bloqueo?.UsuarioValidado?.AceptaConsignacion == true) { <span class="small text-success pb-2"><i class="bi bi-shield-check me-1"></i>Usuario autorizado para aprobar consignaciones</span> }
             </div>
-        }
-        else if (_consignaciones.Count == 0)
-        {
-            <div class="text-center text-secondary py-5 small">
-                No hay consignaciones en este estado.
-            </div>
-        }
-        else
-        {
-            <p class="text-secondary small">
-                @_consignaciones.Count @(_consignaciones.Count == 1 ? "consignacion" : "consignaciones")
-            </p>
-
-            <div class="d-md-none d-flex flex-column gap-2">
-                @foreach (var c in _consignaciones)
-                {
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body py-2 px-3">
-                            <div class="d-flex justify-content-between align-items-start gap-2">
-                                <span class="fw-semibold small">@c.NombreCliente</span>
-                                <span class="seepos-importe small">@Formato.Importe(c.Total)</span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
-                                <code class="small text-secondary">@c.NumFactura</code>
-                                <span class="badge @(c.ConsignacionAceptada == true ? "text-bg-success" : "text-bg-warning")">
-                                    @(c.ConsignacionAceptada == true ? "Aceptada" : "Pendiente")
-                                </span>
-                            </div>
-                        </div>
+            @if (_cargando) { <div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div> }
+            else if (_consignaciones.Count == 0) { <p class="text-secondary text-center py-5">No hay consignaciones en este estado.</p> }
+            else
+            {
+                <div class="card"><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Número</th><th>Fecha</th><th>Cliente</th><th class="text-end">Total</th><th>Estado</th><th></th></tr></thead><tbody>
+                    @foreach (var c in _consignaciones) { <tr><td>@c.NumFactura</td><td>@c.Fecha</td><td>@c.NombreCliente</td><td class="text-end">@Formato.Importe(c.Total)</td><td><span class="badge @(c.ConsignacionAceptada == true ? "text-bg-success" : "text-bg-warning")">@(c.ConsignacionAceptada == true ? "Aceptada" : "Pendiente")</span></td><td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => Abrir(c.Id)">Abrir</button></td></tr> }
+                </tbody></table></div></div>
+            }
+            @if (_seleccionada is not null)
+            {
+                <div class="card mt-3"><div class="card-header d-flex justify-content-between align-items-center"><strong>Consignación @(_seleccionada.NumFactura ?? $"#{_seleccionada.Id}")</strong><button type="button" class="btn-close" aria-label="Cerrar detalle" @onclick="() => _seleccionada = null"></button></div><div class="card-body">
+                    <div class="row g-2 small mb-3"><div class="col-md-4"><span class="text-secondary">Cliente</span><strong class="d-block">@_seleccionada.NombreCliente</strong></div><div class="col-md-4"><span class="text-secondary">Fecha</span><strong class="d-block">@_seleccionada.Fecha</strong></div><div class="col-md-4"><span class="text-secondary">Total</span><strong class="d-block">@Formato.Importe(_seleccionada.Total)</strong></div></div>
+                    <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Artículo</th><th class="text-end">Solicitado</th><th style="width:10rem" class="text-end">A despachar</th></tr></thead><tbody>
+                        @foreach (var linea in _lineas) { <tr><td>@linea.Descripcion</td><td class="text-end">@Formato.Cantidad(linea.Maximo)</td><td><input class="form-control form-control-sm text-end" type="number" min="0" max="@linea.Maximo" step="0.001" @bind="linea.Cantidad" /></td></tr> }
+                    </tbody></table></div>
+                    <div class="d-flex justify-content-end gap-2"><button type="button" class="btn btn-outline-secondary" @onclick="() => _seleccionada = null">Volver</button>
+                        @if (_seleccionada.ConsignacionAceptada == true) { <button type="button" class="btn btn-primary" disabled="@(_procesando || !_lineas.Any(l => l.Cantidad > 0))" @onclick="Despachar">@(_procesando ? "Despachando..." : "Despachar")</button> }
+                        else if (_bloqueo?.UsuarioValidado?.AceptaConsignacion == true) { <button type="button" class="btn btn-success" disabled="@_procesando" @onclick="Aprobar">@(_procesando ? "Aprobando..." : "Aprobar")</button> }
                     </div>
-                }
-            </div>
-
-            <div class="d-none d-md-block card">
-                <div class="card-body">
-                    <AppRejilla TItem="FacturaDTO" Datos="Servir" Nivel="NivelPantalla.Tableta"
-                                @ref="_rejilla">
-                        <Columnas>
-                            <HxGridColumn TItem="FacturaDTO" HeaderText="Numero"
-                                          ItemTextSelector="c => c.NumFactura"
-                                          SortKeySelector="c => c.NumFactura" />
-                            <HxGridColumn TItem="FacturaDTO" HeaderText="Fecha"
-                                          ItemTextSelector="c => c.Fecha"
-                                          SortKeySelector="c => c.Fecha" />
-                            <HxGridColumn TItem="FacturaDTO" HeaderText="Cliente"
-                                          ItemTextSelector="c => c.NombreCliente"
-                                          SortKeySelector="c => c.NombreCliente" />
-                            <HxGridColumn TItem="FacturaDTO" HeaderText="Total"
-                                          ItemTextSelector="@(c => Formato.Importe(c.Total))"
-                                          SortKeySelector="c => c.Total"
-                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                            <HxGridColumn TItem="FacturaDTO" HeaderText="Estado">
-                                <ItemTemplate Context="c">
-                                    <span class="badge @(c.ConsignacionAceptada == true ? "text-bg-success" : "text-bg-warning")">
-                                        @(c.ConsignacionAceptada == true ? "Aceptada" : "Pendiente")
-                                    </span>
-                                </ItemTemplate>
-                            </HxGridColumn>
-                        </Columnas>
-                    </AppRejilla>
-                </div>
-            </div>
-        }
-
+                </div></div>
+            }
+        </fieldset>
     </ChildContent>
 </AppPantalla>
 
 @code {
     private const string Titulo = "Seguimiento de Consignaciones";
-
-    private AppRejilla<FacturaDTO>? _rejilla;
-    private List<FacturaDTO> _consignaciones = new();
+    private sealed class LineaDespacho { public required FacturaDetallesDTO Origen { get; init; } public float Maximo { get; init; } public float Cantidad { get; set; } public string Descripcion => Origen.Descripcion ?? Origen.CodArticulo.ToString(); }
+    private readonly List<FacturaDTO> _consignaciones = new();
+    private readonly List<LineaDespacho> _lineas = new();
+    private AppDesbloqueoClave? _bloqueo;
+    private FacturaDTO? _seleccionada;
     private string _estado = "pendientes";
-    private bool _cargado;
-
-    protected override async Task OnInitializedAsync() => await Cargar();
+    private bool _cargando, _procesando;
+    private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
+    private async Task AlDesbloquear(bool _) => await Cargar();
 
     private async Task Cargar()
     {
-        // SIN VERIFICAR: el API no documenta que significa el booleano, y la base
-        // de desarrollo no tiene consignaciones para contrastarlo (true y false
-        // devuelven ambos una lista vacia). Se asume que true = aceptadas por ser
-        // la lectura mas natural del nombre del parametro; hay que confirmarlo en
-        // cuanto existan datos, y corregir si esta al reves.
-        var aceptadas = _estado == "aceptadas";
-
-        _consignaciones = (await Respuestas.DatoAsync(
-            await Api.PorEstado(aceptadas), "consultar las consignaciones"))
-            ?.ToList() ?? new List<FacturaDTO>();
-
-        _cargado = true;
-
-        if (_rejilla is not null)
-        {
-            await _rejilla.RefrescarAsync();
-        }
+        if (Bloqueada) return;
+        _cargando = true;
+        var datos = await Respuestas.DatoAsync(await Api.PorEstado(_estado == "aceptadas"), "consultar las consignaciones");
+        _consignaciones.Clear(); _consignaciones.AddRange(datos ?? Array.Empty<FacturaDTO>());
+        _seleccionada = null; _cargando = false;
     }
-
-    private async Task AlCambiarEstado(ChangeEventArgs e)
+    private Task Recargar() => Cargar();
+    private async Task Abrir(long id)
     {
-        _estado = e.Value?.ToString() ?? "pendientes";
-        _cargado = false;
-        await Cargar();
+        _seleccionada = await Respuestas.DatoAsync(await Api.Obtener(id), "consultar el detalle de la consignación");
+        _lineas.Clear();
+        _lineas.AddRange((_seleccionada?.Detalle ?? Array.Empty<FacturaDetallesDTO>()).Select(d => new LineaDespacho { Origen = d, Maximo = d.Cantidad, Cantidad = d.Cantidad }));
     }
-
-    private async Task Recargar()
+    private async Task Aprobar()
     {
-        _cargado = false;
-        await Cargar();
+        if (_seleccionada is null || !await Dialogos.ConfirmarAsync("¿Desea aprobar la consignación?", "Aprobar consignación", "Aprobar")) return;
+        _procesando = true; var aprobada = await Respuestas.DatoAsync(await Api.Aprobar(_seleccionada.Id), "aprobar la consignación"); _procesando = false;
+        if (!aprobada) return;
+        Dialogos.Exito("Consignación aprobada correctamente."); await Cargar();
     }
-
-    private Task<GridDataProviderResult<FacturaDTO>> Servir(
-        GridDataProviderRequest<FacturaDTO> peticion)
-        => Task.FromResult(peticion.ApplyTo(_consignaciones));
+    private async Task Despachar()
+    {
+        if (_seleccionada is null || !await Dialogos.ConfirmarAsync("¿Desea despachar la consignación?", "Despachar consignación", "Despachar")) return;
+        var aplicacion = new ConsignacionAplicacionDTO { IdConsignacion = _seleccionada.Id, EsParcial = _lineas.Any(l => l.Cantidad < l.Maximo), Articulos = _lineas.Where(l => l.Cantidad > 0).Select(l => new ArticuloConsignacionAplicacionDTO { IdArticulo = l.Origen.CodFxArticulo, IdLote = (int)l.Origen.Lote, Cantidad = l.Cantidad }).ToList() };
+        _procesando = true; var factura = await Respuestas.DatoAsync(await Api.Despachar(aplicacion), "despachar la consignación"); _procesando = false;
+        if (factura is null) return;
+        Dialogos.Exito($"Consignación despachada correctamente. Factura #{factura.Id}."); await Cargar();
+    }
 }

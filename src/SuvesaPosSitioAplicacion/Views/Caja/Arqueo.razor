@@ -1,0 +1,83 @@
+@page "/initial/cash/arqueocash"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICajaOperaciones Api
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+<AppPantalla Pantalla="Arqueo Caja" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" disabled="@(_cargando || Bloqueada)"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
+        <button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(Bloqueada || _guardando || _aperturaSeleccionada is null)"><i class="bi bi-clipboard-check me-1" aria-hidden="true"></i>@(_guardando ? "Guardando..." : "Registrar arqueo")</button>
+    </Acciones>
+    <ChildContent>
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="el arqueo de caja" AlCambiar="AlDesbloquear" />
+        <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
+        <div class="seepos-caja">
+            <div class="card mb-3"><div class="card-header"><strong>Apertura de caja</strong></div><div class="card-body"><div class="row g-3 align-items-end">
+                <div class="col-12 col-md-5"><label class="form-label" for="apertura">Apertura pendiente de arqueo</label><InputSelect id="apertura" class="form-select" @bind-Value="_idApertura" @bind-Value:after="SeleccionarApertura"><option value="0">Seleccione...</option>@foreach (var a in _aperturas) { <option value="@a.Napertura">#@a.Napertura · @a.Nombre · Caja @a.NumCaja</option> }</InputSelect></div>
+                <div class="col-12 col-md-3"><label class="form-label">Cajero</label><input class="form-control" value="@(_aperturaSeleccionada?.Nombre ?? string.Empty)" disabled /></div>
+                <div class="col-12 col-md-4"><label class="form-label" for="observaciones">Observaciones</label><InputText id="observaciones" class="form-control" @bind-Value="_observaciones" /></div>
+            </div></div></div>
+
+            <div class="row g-3">
+                <div class="col-12 col-xl-7"><div class="card h-100"><div class="card-header"><strong>Desglose de efectivo</strong></div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Moneda</th><th>Tipo</th><th class="text-end">Denominación</th><th style="width:9rem">Cantidad</th><th class="text-end">Total</th></tr></thead><tbody>
+                    @foreach (var linea in _efectivo) { <tr><td>@linea.Moneda</td><td>@linea.Tipo</td><td class="text-end">@Formato.Importe(linea.Monto)</td><td><InputNumber class="form-control form-control-sm text-end" @bind-Value="linea.Cantidad" /></td><td class="text-end fw-semibold">@Formato.Importe(linea.Total)</td></tr> }
+                </tbody></table></div></div></div>
+                <div class="col-12 col-xl-5"><div class="card h-100"><div class="card-header"><strong>Totales declarados</strong></div><div class="card-body"><div class="row g-3">
+                    <div class="col-6"><label class="form-label">Efectivo colones</label><input class="form-control text-end" value="@Formato.Importe(EfectivoColones)" disabled /></div>
+                    <div class="col-6"><label class="form-label">Efectivo dólares</label><input class="form-control text-end" value="@Formato.Importe(EfectivoDolares)" disabled /></div>
+                    <div class="col-6"><label class="form-label">Tarjetas colones</label><InputNumber class="form-control text-end" @bind-Value="_tarjetaColones" /></div>
+                    <div class="col-6"><label class="form-label">Tarjetas dólares</label><InputNumber class="form-control text-end" @bind-Value="_tarjetaDolares" /></div>
+                    <div class="col-6"><label class="form-label">Cheques colones</label><InputNumber class="form-control text-end" @bind-Value="_cheques" /></div>
+                    <div class="col-6"><label class="form-label">Cheques dólares</label><InputNumber class="form-control text-end" @bind-Value="_chequesDol" /></div>
+                    <div class="col-6"><label class="form-label">Depósitos colones</label><InputNumber class="form-control text-end" @bind-Value="_depositoCol" /></div>
+                    <div class="col-6"><label class="form-label">Depósitos dólares</label><InputNumber class="form-control text-end" @bind-Value="_depositoDol" /></div>
+                    <div class="col-12 border-top pt-3 d-flex justify-content-between"><span>Total arqueado</span><strong>@Formato.Importe(Total)</strong></div>
+                </div></div></div></div>
+            </div>
+        </div>
+        </fieldset>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private sealed class Efectivo { public required DenominacionMonedum Origen { get; init; } public int Cantidad { get; set; } public double Monto => Origen.Denominacion; public double Total => Monto * Cantidad; public string Moneda => Origen.CodMoneda == 1 ? "Colones" : "Dólares"; public string Tipo => Origen.Tipo ?? "—"; }
+    private readonly List<ObtenerAperturaCajaDTO> _aperturas = new();
+    private readonly List<Efectivo> _efectivo = new();
+    private ObtenerAperturaCajaDTO? _aperturaSeleccionada;
+    private int _idApertura; private string? _observaciones; private bool _cargando, _guardando;
+    private AppDesbloqueoClave? _bloqueo;
+    private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
+    private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
+    private double _tarjetaColones, _tarjetaDolares, _cheques, _chequesDol, _depositoCol, _depositoDol;
+    private double EfectivoColones => _efectivo.Where(e => e.Origen.CodMoneda == 1).Sum(e => e.Total);
+    private double EfectivoDolares => _efectivo.Where(e => e.Origen.CodMoneda != 1).Sum(e => e.Total);
+    private double Total => EfectivoColones + EfectivoDolares + _tarjetaColones + _tarjetaDolares + _cheques + _chequesDol + _depositoCol + _depositoDol;
+    protected override Task OnInitializedAsync() => Cargar();
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        var aperturas = await Respuestas.DatoAsync(await Api.AperturasSinArqueo(), "consultar las aperturas pendientes");
+        var denominaciones = await Respuestas.DatoAsync(await Api.Denominaciones(), "consultar las denominaciones");
+        _aperturas.Clear(); _aperturas.AddRange(aperturas ?? Array.Empty<ObtenerAperturaCajaDTO>());
+        _efectivo.Clear(); _efectivo.AddRange((denominaciones ?? Array.Empty<DenominacionMonedum>()).Select(d => new Efectivo { Origen = d }));
+        _cargando = false;
+    }
+    private void SeleccionarApertura() => _aperturaSeleccionada = _aperturas.FirstOrDefault(a => a.Napertura == _idApertura);
+    private async Task Guardar()
+    {
+        if (_aperturaSeleccionada is null) { await Dialogos.InformarAsync("Seleccione una apertura para continuar."); return; }
+        if (!await Dialogos.ConfirmarAsync("¿Desea registrar este arqueo de caja?", "Registrar arqueo", "Registrar")) return;
+        _guardando = true;
+        var arqueo = new ArqueoCajaDTO { IdApertura = _idApertura, Cajero = _aperturaSeleccionada.Nombre, Fecha = DateTime.Now.ToString("yyyy-MM-dd"), Observaciones = _observaciones, EfectivoColones = EfectivoColones, EfectivoDolares = EfectivoDolares, TarjetaColones = _tarjetaColones, TarjetaDolares = _tarjetaDolares, Cheques = _cheques, ChequesDol = _chequesDol, DepositoCol = _depositoCol, DepositoDol = _depositoDol, Total = Total, Efectivos = _efectivo.Select(e => new ArqueoEfectivoDTO { IdDenominacion = e.Origen.Id, Monto = e.Monto, Cantidad = e.Cantidad, CodMoneda = e.Origen.CodMoneda, Tipo = e.Origen.Tipo }).ToList() };
+        var creado = await Respuestas.DatoAsync(await Api.CrearArqueo(arqueo), "registrar el arqueo de caja");
+        _guardando = false;
+        if (creado is null) return;
+        Dialogos.Exito("Arqueo registrado correctamente.");
+        _idApertura = 0; _aperturaSeleccionada = null; _observaciones = null; _tarjetaColones = _tarjetaDolares = _cheques = _chequesDol = _depositoCol = _depositoDol = 0; foreach (var e in _efectivo) e.Cantidad = 0;
+        await Cargar();
+    }
+}

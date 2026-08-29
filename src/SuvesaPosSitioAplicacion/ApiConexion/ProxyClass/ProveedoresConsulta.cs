@@ -10,14 +10,17 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 public sealed class ProveedoresConsulta : ProxyBase, IProveedoresConsulta
 {
     private readonly IProveedorApiCliente _api;
+    private readonly IClienteApiCliente _clientes;
 
     public ProveedoresConsulta(
         IProveedorApiCliente api,
+        IClienteApiCliente clientes,
         IContextoSesion sesion,
         ILogger<ProveedoresConsulta> log)
         : base(sesion, log)
     {
         _api = api;
+        _clientes = clientes;
     }
 
     public Task<ResponseGeneric<ICollection<ProveedorDTO>>> Obtener()
@@ -40,6 +43,18 @@ public sealed class ProveedoresConsulta : ProxyBase, IProveedoresConsulta
             var r = await _api.EditarProveedoresNuevoAsync(proveedor.CodigoProv, proveedor);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "editar el proveedor");
+
+    public Task<ResponseGeneric<BuscarClienteFacturacionDTO>> BuscarHacienda(string cedula)
+        => Ejecutar(async () =>
+        {
+            // El sistema actual utiliza este mismo endpoint de clientes para
+            // completar el nombre de una persona física o jurídica.
+            var r = await _clientes.BuscarClienteHaciendaAsync(new BuscarClienteDTO
+            {
+                Cedula = cedula
+            });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar el proveedor en Hacienda");
 
     public Task<ResponseGeneric<bool>> CambiarEstado(int codigo, bool inhabilitar)
         => Ejecutar(async () =>

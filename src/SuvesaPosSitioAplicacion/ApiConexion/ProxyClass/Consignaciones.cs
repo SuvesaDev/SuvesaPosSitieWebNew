@@ -51,4 +51,25 @@ public sealed class Consignaciones : ProxyBase, IConsignaciones
 
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "buscar consignaciones");
+
+    public Task<ResponseGeneric<FacturaDTO>> Obtener(long id)
+        => Ejecutar(async () =>
+        {
+            var r = await _venta.ObtenerConsignacion2Async(id);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar la consignación");
+
+    public Task<ResponseGeneric<bool>> Aprobar(long id)
+        => Ejecutar(async () =>
+        {
+            var r = await _consignacion.AceptarRechazarConsignacionAsync(id);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "aprobar la consignación");
+
+    public Task<ResponseGeneric<FacturaDTO>> Despachar(ConsignacionAplicacionDTO aplicacion)
+        => Ejecutar(async () =>
+        {
+            var r = await _consignacion.GenerarVentaConsignacionAsync(aplicacion);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "despachar la consignación");
 }

@@ -730,6 +730,280 @@
 .modal-title { font-size: 1.05rem; font-weight: 800; }
 .modal-footer { padding: .9rem 1.2rem; background: var(--seepos-gris-fondo); border-top-color: var(--bs-border-color); }
 
+/* ---------- Seleccion de centro ----------
+   El paso entre autenticacion y operacion se presenta como una decision breve
+   y segura. No reutiliza el modal generico: mantiene la jerarquia visual del
+   acceso y deja claro que el usuario esta por entrar a su espacio de trabajo. */
+.seepos-fondo-centro {
+    display: grid;
+    min-height: 100vh;
+    padding: 2rem;
+    place-items: center;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--seepos-verde) 18%, transparent), transparent 24rem),
+        radial-gradient(circle at 84% 82%, color-mix(in srgb, var(--seepos-naranja) 11%, transparent), transparent 25rem),
+        linear-gradient(135deg, color-mix(in srgb, var(--seepos-gris-fondo) 72%, var(--bs-body-bg)), var(--bs-body-bg));
+}
+
+.seepos-fondo-centro-contenido {
+    display: grid;
+    justify-items: center;
+    gap: 2rem;
+    width: min(100%, 35rem);
+    opacity: .72;
+}
+
+.seepos-fondo-centro-marca {
+    display: grid;
+    justify-items: center;
+    gap: .6rem;
+}
+
+.seepos-fondo-centro-marca img {
+    display: block;
+    width: min(19rem, 62vw);
+    max-height: 11rem;
+    object-fit: contain;
+}
+
+.seepos-fondo-centro-marca span {
+    color: var(--seepos-tierra);
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+}
+
+.seepos-fondo-centro-resumen {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    padding: .85rem 1rem;
+    color: var(--seepos-gris-texto);
+    background: color-mix(in srgb, var(--bs-body-bg) 78%, transparent);
+    border: 1px solid color-mix(in srgb, var(--seepos-tierra) 15%, var(--bs-border-color));
+    border-radius: .85rem;
+    box-shadow: 0 .45rem 1.4rem rgba(62, 47, 35, .06);
+}
+
+.seepos-fondo-centro-icono {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    color: var(--seepos-verde-accion);
+    background: color-mix(in srgb, var(--seepos-verde) 16%, var(--bs-body-bg));
+    border-radius: 50%;
+}
+
+.seepos-fondo-centro-resumen div { display: grid; gap: .06rem; }
+.seepos-fondo-centro-resumen strong { color: var(--bs-body-color); font-size: .82rem; }
+.seepos-fondo-centro-resumen span:not(.seepos-fondo-centro-icono) { font-size: .76rem; }
+
+.modal-backdrop.show { background: rgba(42, 32, 26, .55); opacity: 1; backdrop-filter: blur(2px); }
+
+.seepos-modal-centro-dialog { width: min(calc(100% - 2rem), 29rem); max-width: none; margin-inline: auto; }
+
+.seepos-modal-centro-contenido {
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--seepos-tierra) 36%, var(--bs-border-color));
+    border-radius: 1.1rem;
+    box-shadow: 0 1.5rem 4rem rgba(42, 28, 18, .3);
+}
+
+.seepos-modal-centro-encabezado {
+    padding: 1.05rem 1.2rem;
+    background: linear-gradient(105deg, color-mix(in srgb, var(--seepos-gris-fondo) 85%, var(--bs-body-bg)), var(--bs-body-bg));
+    border-bottom: .18rem solid color-mix(in srgb, var(--seepos-verde) 72%, var(--bs-border-color));
+}
+
+.seepos-modal-centro-identidad { display: flex; align-items: center; gap: .75rem; }
+
+.seepos-modal-centro-icono {
+    display: grid;
+    width: 2.35rem;
+    height: 2.35rem;
+    flex: 0 0 auto;
+    place-items: center;
+    color: var(--seepos-verde-accion);
+    background: color-mix(in srgb, var(--seepos-verde) 14%, var(--bs-body-bg));
+    border: 1px solid color-mix(in srgb, var(--seepos-verde) 27%, var(--bs-border-color));
+    border-radius: .68rem;
+}
+
+.seepos-modal-centro-eyebrow {
+    display: block;
+    margin-bottom: .12rem;
+    color: var(--seepos-gris-texto);
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+}
+
+.seepos-modal-centro .modal-title { margin: 0; font-size: 1.08rem; font-weight: 800; }
+
+.seepos-modal-centro-cuerpo { padding: 1.2rem; }
+
+.seepos-modal-centro-descripcion {
+    margin: 0 0 1rem;
+    color: var(--seepos-gris-texto);
+    font-size: .88rem;
+    line-height: 1.5;
+}
+
+.seepos-modal-centro-etiqueta {
+    margin-bottom: .38rem;
+    color: var(--seepos-gris-texto);
+    font-size: .74rem;
+    font-weight: 800;
+    letter-spacing: .015em;
+}
+
+.seepos-modal-centro .form-select { width: 100%; min-height: 2.75rem; font-weight: 650; }
+
+.seepos-modal-centro-alerta {
+    display: flex;
+    align-items: flex-start;
+    gap: .55rem;
+    margin: 0;
+    padding: .75rem .85rem;
+    font-size: .82rem;
+    line-height: 1.45;
+    border-radius: .65rem;
+}
+
+.seepos-modal-centro-alerta i { margin-top: .12rem; flex: 0 0 auto; }
+
+.seepos-modal-centro-cargando {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    padding: .75rem .85rem;
+    color: var(--seepos-gris-texto);
+    font-size: .84rem;
+    background: var(--seepos-gris-fondo);
+    border-radius: .65rem;
+}
+
+.seepos-modal-centro-cargando .spinner-border { color: var(--seepos-verde-accion); }
+
+.seepos-modal-centro-pie {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .95rem 1.2rem;
+    background: color-mix(in srgb, var(--seepos-gris-fondo) 82%, var(--bs-body-bg));
+}
+
+.seepos-modal-centro-salir {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    min-height: 2.4rem;
+    color: var(--seepos-gris-texto);
+    font-size: .79rem;
+    font-weight: 650;
+    text-decoration: none;
+    transition: color .16s ease, transform .16s ease;
+}
+
+.seepos-modal-centro-salir:hover { color: var(--seepos-verde-accion); transform: translateX(-.1rem); }
+
+.seepos-modal-centro-ingresar {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    min-height: 2.45rem;
+    padding-inline: .9rem;
+    font-size: .85rem;
+    font-weight: 750;
+    box-shadow: 0 .3rem .8rem color-mix(in srgb, var(--seepos-verde-accion) 25%, transparent);
+}
+
+@media (max-width: 420px) {
+    .seepos-fondo-centro { padding: 1rem; }
+    .seepos-fondo-centro-marca img { width: min(15rem, 70vw); }
+    .seepos-modal-centro-dialog { width: calc(100% - 1.25rem); }
+    .seepos-modal-centro-cuerpo, .seepos-modal-centro-encabezado, .seepos-modal-centro-pie { padding-inline: 1rem; }
+    .seepos-modal-centro-pie { align-items: stretch; flex-direction: column-reverse; }
+    .seepos-modal-centro-salir, .seepos-modal-centro-ingresar { justify-content: center; }
+}
+
+[data-bs-theme="dark"] .seepos-fondo-centro-marca span { color: var(--seepos-texto); }
+[data-bs-theme="dark"] .seepos-modal-centro-icono { color: #a9eb75; }
+
+/* Proveedores: el formulario reúne datos de contacto, contabilidad y bancos.
+   Estos grupos hacen la lectura más rápida sin cambiar el flujo de captura. */
+.seepos-proveedores {
+    max-width: 88rem;
+    margin-inline: auto;
+}
+
+.seepos-proveedores-busqueda {
+    max-width: 43rem;
+}
+
+.seepos-proveedores-busqueda .input-group {
+    border-radius: .75rem;
+    box-shadow: 0 .25rem .8rem rgba(62, 47, 35, .06);
+}
+
+.seepos-proveedores-busqueda .input-group-text {
+    color: var(--seepos-verde-accion);
+    background: color-mix(in srgb, var(--seepos-verde) 8%, var(--bs-body-bg));
+    border-color: color-mix(in srgb, var(--seepos-tierra) 22%, var(--bs-border-color));
+}
+
+.seepos-proveedores-busqueda .form-control { min-height: 2.65rem; }
+
+.seepos-proveedores-lista .card-body { padding: .45rem .9rem; }
+
+.seepos-proveedor-editor .form-control,
+.seepos-proveedor-editor .form-select { min-height: 2.55rem; }
+
+.seepos-proveedor-editor .form-text { font-size: .72rem; }
+
+.seepos-proveedor-editor .input-group .btn {
+    min-width: 2.8rem;
+    border-top-right-radius: .58rem;
+    border-bottom-right-radius: .58rem;
+}
+
+.seepos-proveedor-seccion {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .25rem 0 .2rem;
+    color: var(--seepos-tierra);
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+
+.seepos-proveedor-seccion::after {
+    flex: 1;
+    height: 1px;
+    content: "";
+    background: color-mix(in srgb, var(--seepos-tierra) 22%, var(--bs-border-color));
+}
+
+.seepos-proveedor-editor .table {
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--seepos-tierra) 18%, var(--bs-border-color));
+    border-radius: .6rem;
+}
+
+.seepos-proveedor-editor .form-check {
+    padding: .6rem .75rem .6rem 2.1rem;
+    border: 1px solid color-mix(in srgb, var(--seepos-tierra) 18%, var(--bs-border-color));
+    border-radius: .58rem;
+    background: color-mix(in srgb, var(--seepos-gris-fondo) 58%, var(--bs-body-bg));
+}
+
 @media (max-width: 575.98px) {
     .seepos-clientes-busqueda { padding: .8rem; }
     .seepos-clientes-busqueda .input-group-lg > .form-control,
@@ -737,4 +1011,52 @@
     .modal:has(.seepos-cliente-editor, .seepos-articulo-editor) .modal-body { padding: 1rem; }
     .seepos-editor-tabs { gap: .3rem !important; }
     .seepos-editor-tabs .btn { flex: 1 1 9.5rem; }
+    .seepos-proveedor-editor .table-responsive { margin-inline: -.2rem; }
+}
+
+/* Caja: la clave interna es una compuerta visible y consistente con el resto del sitio. */
+.seepos-desbloqueo-clave {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    padding: .85rem 1rem;
+    color: var(--seepos-tierra);
+    background: color-mix(in srgb, var(--seepos-verde) 9%, var(--bs-body-bg));
+    border: 1px solid color-mix(in srgb, var(--seepos-verde-accion) 32%, var(--bs-border-color));
+    border-radius: .75rem;
+    box-shadow: 0 .25rem .8rem rgba(62, 47, 35, .06);
+}
+
+.seepos-desbloqueo-clave-icono {
+    display: inline-grid;
+    width: 2.35rem;
+    height: 2.35rem;
+    flex: 0 0 2.35rem;
+    place-items: center;
+    color: #fff;
+    background: var(--seepos-verde-accion);
+    border-radius: 50%;
+}
+
+.seepos-desbloqueo-clave strong,
+.seepos-desbloqueo-clave span { display: block; }
+
+.seepos-desbloqueo-clave span { font-size: .8rem; }
+
+.seepos-desbloqueo-clave-campo {
+    width: min(100%, 20rem);
+    flex: 0 1 20rem;
+}
+
+.seepos-desbloqueo-clave-listo {
+    gap: .5rem;
+    color: var(--seepos-verde-accion);
+    background: color-mix(in srgb, var(--seepos-verde) 14%, var(--bs-body-bg));
+}
+
+.seepos-desbloqueo-clave-listo span { font-weight: 700; }
+
+@media (max-width: 575.98px) {
+    .seepos-desbloqueo-clave { align-items: stretch; flex-wrap: wrap; }
+    .seepos-desbloqueo-clave-campo { width: 100%; flex-basis: 100%; }
 }

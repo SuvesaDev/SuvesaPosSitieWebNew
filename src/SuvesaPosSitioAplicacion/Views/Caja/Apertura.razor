@@ -1,0 +1,107 @@
+@page "/initial/cash/opencash"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICajaOperaciones Api
+@inject IContextoSesion Sesion
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+<AppPantalla Pantalla="Apertura Caja" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar" disabled="@(_cargando || Bloqueada)"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
+        <button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(Bloqueada || !_lista || _guardando)"><i class="bi bi-cash-stack me-1" aria-hidden="true"></i>@(_guardando ? "Registrando..." : "Registrar apertura")</button>
+    </Acciones>
+    <ChildContent>
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="la apertura de caja" AlCambiar="AlDesbloquear" />
+        <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
+        <div class="seepos-caja">
+            <div class="card mb-3">
+                <div class="card-header"><strong>Datos del cajero</strong></div>
+                <div class="card-body">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-md-5"><label class="form-label">Cajero</label><input class="form-control" value="@Sesion.Usuario" disabled /></div>
+                        <div class="col-12 col-md-3"><label class="form-label" for="caja">N.º de caja</label>
+                            <InputSelect id="caja" class="form-select" @bind-Value="_numeroCaja"><option value="0">Seleccione...</option>@foreach (var caja in _cajas) { <option value="@caja.NumCaja">Caja @caja.NumCaja</option> }</InputSelect>
+                        </div>
+                        <div class="col-12 col-md-4"><label class="form-label" for="observaciones">Observaciones</label><InputText id="observaciones" class="form-control" @bind-Value="_observaciones" /></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-12 col-xl-8">
+                    <div class="card h-100"><div class="card-header"><strong>Detalle de denominaciones</strong><span class="text-secondary small ms-2">Indique la cantidad física inicial.</span></div>
+                        <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Moneda</th><th>Tipo</th><th class="text-end">Denominación</th><th style="width:9rem">Cantidad</th><th class="text-end">Total</th></tr></thead><tbody>
+                        @foreach (var linea in _denominaciones) { <tr><td>@linea.Moneda</td><td>@linea.Tipo</td><td class="text-end">@Formato.Importe(linea.Monto)</td><td><InputNumber class="form-control form-control-sm text-end" @bind-Value="linea.Cantidad" /></td><td class="text-end fw-semibold">@Formato.Importe(linea.Total)</td></tr> }
+                        </tbody></table></div>
+                    </div>
+                </div>
+                <div class="col-12 col-xl-4">
+                    <div class="card h-100"><div class="card-header"><strong>Total / tope inicial</strong></div><div class="card-body">
+                        @foreach (var total in TotalesPorMoneda) { <div class="d-flex justify-content-between py-2 border-bottom"><span>@total.Nombre</span><strong>@Formato.Importe(total.Total)</strong></div> }
+                        <p class="small text-secondary mt-3 mb-0">Los totales se calculan a partir del desglose registrado, como en la pantalla actual.</p>
+                    </div></div>
+                </div>
+            </div>
+        </div>
+        </fieldset>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private sealed class LineaDenominacion
+    {
+        public required DenominacionMonedum Origen { get; init; }
+        public double Cantidad { get; set; }
+        public double Monto => Origen.Denominacion;
+        public string Moneda => Origen.CodMoneda == 1 ? "Colones" : "Dólares";
+        public string Tipo => Origen.Tipo ?? "—";
+        public double Total => Monto * Cantidad;
+    }
+    private readonly List<CajasCantidad> _cajas = new();
+    private readonly List<LineaDenominacion> _denominaciones = new();
+    private bool _cargando, _guardando, _lista;
+    private AppDesbloqueoClave? _bloqueo;
+    private long _numeroCaja;
+    private string? _observaciones;
+    private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
+    private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
+
+    private IEnumerable<(string Nombre, double Total, int Codigo)> TotalesPorMoneda => _denominaciones
+        .GroupBy(d => d.Origen.CodMoneda)
+        .Select(g => (g.Key == 1 ? "Colones" : "Dólares", g.Sum(d => d.Total), g.Key));
+
+    protected override Task OnInitializedAsync() => Recargar();
+
+    private async Task Recargar()
+    {
+        _cargando = true;
+        var cajas = await Respuestas.DatoAsync(await Api.CajasDisponibles(), "consultar las cajas disponibles");
+        var denominaciones = await Respuestas.DatoAsync(await Api.Denominaciones(), "consultar las denominaciones");
+        _cajas.Clear(); _cajas.AddRange(cajas ?? Array.Empty<CajasCantidad>());
+        _denominaciones.Clear();
+        _denominaciones.AddRange((denominaciones ?? Array.Empty<DenominacionMonedum>()).Select(d => new LineaDenominacion { Origen = d }));
+        _lista = true; _cargando = false;
+    }
+
+    private async Task Guardar()
+    {
+        if (_numeroCaja == 0) { await Dialogos.InformarAsync("Seleccione el número de caja antes de registrar la apertura."); return; }
+        if (!await Dialogos.ConfirmarAsync("¿Desea registrar la apertura de caja?", "Registrar apertura", "Registrar")) return;
+        _guardando = true;
+        var apertura = new AperturaCajaDTO
+        {
+            Fecha = DateTime.Now.ToString("yyyy-MM-dd"), Nombre = Sesion.Usuario, Cedula = Sesion.Usuario,
+            NumCaja = _numeroCaja, IdSucursal = Sesion.IdSucursal, Estado = "Abierta", Observaciones = _observaciones,
+            AperturaDenominacion = _denominaciones.Select(d => new AperturaDenominacionDTO { IdDenominacion = d.Origen.Id, Monto = d.Monto, Cantidad = d.Cantidad, CodMoneda = d.Origen.CodMoneda, Tipo = d.Origen.Tipo }).ToList(),
+            AperturaTotalTope = TotalesPorMoneda.Select(t => new AperturaTotalTopeDTO { CodMoneda = t.Codigo, MontoTope = t.Total, MonedaNombre = t.Nombre }).ToList()
+        };
+        var creada = await Respuestas.DatoAsync(await Api.CrearApertura(apertura), "registrar la apertura de caja");
+        _guardando = false;
+        if (creada is null) return;
+        Dialogos.Exito($"Apertura #{creada.Napertura} registrada correctamente.");
+        _numeroCaja = 0; _observaciones = null; foreach (var linea in _denominaciones) linea.Cantidad = 0;
+        await Recargar();
+    }
+}

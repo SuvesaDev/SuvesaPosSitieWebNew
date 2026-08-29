@@ -35,91 +35,105 @@
         </button>
     </Acciones>
     <ChildContent>
+        <div class="seepos-proveedores">
 
-        <div class="mb-3">
-            <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
-                <input type="search" class="form-control"
-                       placeholder="Nombre, cedula o contacto..."
-                       aria-label="Filtrar proveedores"
-                       value="@_texto" @oninput="AlEscribir" />
-            </div>
-        </div>
-
-        @if (!_cargado)
-        {
-            <div class="d-flex justify-content-center py-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Cargando</span>
+            <div class="seepos-proveedores-busqueda mb-3">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+                    <input type="search" class="form-control"
+                           placeholder="Nombre, cédula o contacto..."
+                           aria-label="Filtrar proveedores"
+                           value="@_texto" @oninput="AlEscribir" />
                 </div>
             </div>
-        }
-        else if (_filtrados.Count == 0)
-        {
-            <div class="text-center text-secondary py-5 small">
-                @(string.IsNullOrWhiteSpace(_texto)
-                    ? "No hay proveedores registrados."
-                    : "Ningun proveedor coincide con el filtro.")
-            </div>
-        }
-        else
-        {
-            <p class="text-secondary small">
-                @_filtrados.Count de @_todos.Count @(_todos.Count == 1 ? "proveedor" : "proveedores")
-            </p>
 
-            <div class="d-md-none d-flex flex-column gap-2">
-                @foreach (var p in _filtrados)
-                {
-                    <button type="button" class="card text-start border-0 shadow-sm p-0"
-                            @onclick="() => Ver(p)">
-                        <div class="card-body py-2 px-3">
-                            <div class="fw-semibold small">@p.Nombre</div>
-                            <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
-                                <code class="small text-secondary">@p.Cedula</code>
-                                @if (!string.IsNullOrWhiteSpace(p.Telefono1))
-                                {
-                                    <span class="small text-secondary">@p.Telefono1</span>
-                                }
-                            </div>
-                        </div>
-                    </button>
-                }
-            </div>
+            @if (!_cargado)
+            {
+                <div class="d-flex justify-content-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando</span>
+                    </div>
+                </div>
+            }
+            else if (_filtrados.Count == 0)
+            {
+                <div class="text-center text-secondary py-5 small">
+                    @(string.IsNullOrWhiteSpace(_texto)
+                        ? "No hay proveedores registrados."
+                        : "Ningún proveedor coincide con el filtro.")
+                </div>
+            }
+            else
+            {
+                <p class="text-secondary small mb-2">
+                    @_filtrados.Count de @_todos.Count @(_todos.Count == 1 ? "proveedor" : "proveedores")
+                </p>
 
-            <div class="d-none d-md-block card">
-                <div class="card-body">
-                    <AppRejilla TItem="ProveedorDTO" Datos="Servir"
-                                Nivel="NivelPantalla.Tableta" @ref="_rejilla">
-                        <Columnas>
-                            <HxGridColumn TItem="ProveedorDTO" HeaderText="Cedula"
-                                          ItemTextSelector="p => p.Cedula"
-                                          SortKeySelector="p => p.Cedula" />
-                            <HxGridColumn TItem="ProveedorDTO" HeaderText="Nombre"
-                                          ItemTextSelector="p => p.Nombre"
-                                          SortKeySelector="p => p.Nombre" />
-                            <HxGridColumn TItem="ProveedorDTO" HeaderText="Contacto"
-                                          ItemTextSelector="p => p.Contacto" />
-                            <HxGridColumn TItem="ProveedorDTO" HeaderText="Telefono"
-                                          ItemTextSelector="p => p.Telefono1" />
-                            <HxGridColumn TItem="ProveedorDTO" HeaderText="Credito"
-                                          ItemTextSelector="@(p => Formato.Importe(p.MontoCredito ?? 0))"
-                                          SortKeySelector="p => p.MontoCredito"
-                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                            <HxGridColumn TItem="ProveedorDTO" HeaderText="">
-                                <ItemTemplate Context="p">
-                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(p)">Ver</button>
-                                    @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                <div class="d-md-none d-flex flex-column gap-2">
+                    @foreach (var p in _filtrados)
+                    {
+                        <button type="button" class="card text-start border-0 shadow-sm p-0"
+                                @onclick="() => Ver(p)">
+                            <div class="card-body py-2 px-3">
+                                <div class="d-flex justify-content-between gap-2">
+                                    <div class="fw-semibold small">@p.Nombre</div>
+                                    <span class="badge rounded-pill @(p.Inhabilitado == true ? "text-bg-secondary" : "text-bg-success")">
+                                        @(p.Inhabilitado == true ? "Inhabilitado" : "Activo")
+                                    </span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
+                                    <code class="small text-secondary">@p.Cedula</code>
+                                    @if (!string.IsNullOrWhiteSpace(p.Telefono1))
                                     {
-                                        <button class="btn btn-sm btn-link p-0 ms-3" @onclick="() => Editar(p)">Editar</button>
+                                        <span class="small text-secondary">@p.Telefono1</span>
                                     }
-                                </ItemTemplate>
-                            </HxGridColumn>
-                        </Columnas>
-                    </AppRejilla>
+                                </div>
+                            </div>
+                        </button>
+                    }
                 </div>
-            </div>
-        }
+
+                <div class="d-none d-md-block card seepos-proveedores-lista">
+                    <div class="card-body">
+                        <AppRejilla TItem="ProveedorDTO" Datos="Servir"
+                                    Nivel="NivelPantalla.Tableta" @ref="_rejilla">
+                            <Columnas>
+                                <HxGridColumn TItem="ProveedorDTO" HeaderText="Cédula"
+                                              ItemTextSelector="p => p.Cedula"
+                                              SortKeySelector="p => p.Cedula" />
+                                <HxGridColumn TItem="ProveedorDTO" HeaderText="Nombre"
+                                              ItemTextSelector="p => p.Nombre"
+                                              SortKeySelector="p => p.Nombre" />
+                                <HxGridColumn TItem="ProveedorDTO" HeaderText="Contacto"
+                                              ItemTextSelector="p => p.Contacto" />
+                                <HxGridColumn TItem="ProveedorDTO" HeaderText="Teléfono"
+                                              ItemTextSelector="p => p.Telefono1" />
+                                <HxGridColumn TItem="ProveedorDTO" HeaderText="Crédito"
+                                              ItemTextSelector="@(p => Formato.Importe(p.MontoCredito ?? 0))"
+                                              SortKeySelector="p => p.MontoCredito"
+                                              HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                                <HxGridColumn TItem="ProveedorDTO" HeaderText="Estado">
+                                    <ItemTemplate Context="p">
+                                        <span class="badge rounded-pill @(p.Inhabilitado == true ? "text-bg-secondary" : "text-bg-success")">
+                                            @(p.Inhabilitado == true ? "Inhabilitado" : "Activo")
+                                        </span>
+                                    </ItemTemplate>
+                                </HxGridColumn>
+                                <HxGridColumn TItem="ProveedorDTO" HeaderText="">
+                                    <ItemTemplate Context="p">
+                                        <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(p)">Ver</button>
+                                        @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                        {
+                                            <button class="btn btn-sm btn-link p-0 ms-3" @onclick="() => Editar(p)">Editar</button>
+                                        }
+                                    </ItemTemplate>
+                                </HxGridColumn>
+                            </Columnas>
+                        </AppRejilla>
+                    </div>
+                </div>
+            }
+        </div>
 
     </ChildContent>
 </AppPantalla>
@@ -142,6 +156,9 @@
                 <dt class="col-5 fw-normal text-secondary">Telefono</dt>
                 <dd class="col-7">@(_elegido.Telefono1 ?? "—")</dd>
 
+                <dt class="col-5 fw-normal text-secondary">Fax</dt>
+                <dd class="col-7">@(_elegido.Fax1 ?? "—")</dd>
+
                 <dt class="col-5 fw-normal text-secondary">Correo</dt>
                 <dd class="col-7">@(_elegido.Email ?? "—")</dd>
 
@@ -157,7 +174,27 @@
 
                 <dt class="col-5 fw-normal text-secondary">Plazo</dt>
                 <dd class="col-7 seepos-importe">@(_elegido.Plazo ?? 0) dias</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Cuenta contable</dt>
+                <dd class="col-7">@(_elegido.DescripcionCuentaContable ?? "—")</dd>
             </dl>
+
+            @if (_elegido.CuentasBancariasProveedors is { Count: > 0 })
+            {
+                <hr />
+                <h3 class="h6 mb-2">Cuentas bancarias</h3>
+                <div class="table-responsive small">
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>Banco</th><th>Cuenta</th><th>Moneda</th></tr></thead>
+                        <tbody>
+                            @foreach (var cuenta in _elegido.CuentasBancariasProveedors)
+                            {
+                                <tr><td>@cuenta.Banco</td><td><code>@cuenta.NumCuenta</code></td><td>@cuenta.MonedaNombre</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
 
             @if (!string.IsNullOrWhiteSpace(_elegido.Observaciones))
             {
@@ -186,15 +223,30 @@
     <BodyTemplate>
         @if (_edicion is not null)
         {
-            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formProveedor">
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formProveedor" class="seepos-proveedor-editor">
                 <DataAnnotationsValidator />
                 <div class="row g-3">
+                    <div class="col-12"><div class="seepos-proveedor-seccion">Datos del proveedor</div></div>
                     <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre" @bind-Valor="_edicion.Nombre" /></div>
-                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Cédula" @bind-Valor="_edicion.Cedula" /></div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="proveedor-cedula">Cédula</label>
+                        <div class="input-group">
+                            <input id="proveedor-cedula" class="form-control" @bind="_edicion.Cedula" @bind:event="oninput"
+                                   @onkeydown="CedulaTecla" autocomplete="off" />
+                            <button type="button" class="btn btn-outline-primary" @onclick="BuscarHacienda" disabled="@_consultandoHacienda"
+                                    title="Consultar en Hacienda">
+                                @if (_consultandoHacienda) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> } else { <i class="bi bi-search" aria-hidden="true"></i> }
+                                <span class="visually-hidden">Consultar en Hacienda</span>
+                            </button>
+                        </div>
+                        <div class="form-text">Ingrese la cédula y presione Enter o busque en Hacienda.</div>
+                    </div>
                     <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Contacto" @bind-Valor="_edicion.Contacto" /></div>
                     <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Teléfono del contacto" @bind-Valor="_edicion.TelefonoCont" /></div>
                     <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono1" /></div>
+                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Fax" @bind-Valor="_edicion.Fax1" /></div>
                     <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo" @bind-Valor="_edicion.Email" /></div>
+                    <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Cuenta contable" @bind-Valor="_edicion.DescripcionCuentaContable" /></div>
                     <div class="col-12"><AppCampoTexto Etiqueta="Dirección" @bind-Valor="_edicion.Direccion" /></div>
                     <div class="col-12"><AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" /></div>
                     <div class="col-12 d-flex gap-3">
@@ -204,7 +256,7 @@
                         </div>
                     </div>
 
-                    <div class="col-12"><hr class="my-1" /><h3 class="h6 mb-0">Cuentas bancarias</h3></div>
+                    <div class="col-12"><div class="seepos-proveedor-seccion">Cuentas bancarias</div></div>
                     <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Tipo de cuenta" @bind-Valor="_cuentaEdicion.TipoCuenta" /></div>
                     <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Banco" @bind-Valor="_cuentaEdicion.Banco" /></div>
                     <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Número de cuenta" @bind-Valor="_cuentaEdicion.NumCuenta" /></div>
@@ -216,7 +268,9 @@
                         </select>
                     </div>
                     <div class="col-12 col-md-1 d-grid align-self-end">
-                        <button type="button" class="btn btn-outline-primary" @onclick="AgregarCuenta">Agregar</button>
+                        <button type="button" class="btn btn-outline-primary" @onclick="AgregarCuenta">
+                            @(_indiceCuentaEditando is null ? "Agregar" : "Actualizar")
+                        </button>
                     </div>
                     @if (_edicion.CuentasBancariasProveedors is { Count: > 0 })
                     {
@@ -228,7 +282,10 @@
                                     {
                                         <tr>
                                             <td>@cuenta.TipoCuenta</td><td>@cuenta.Banco</td><td><code>@cuenta.NumCuenta</code></td><td>@cuenta.MonedaNombre</td>
-                                            <td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarCuenta(cuenta)">Quitar</button></td>
+                                            <td class="text-end text-nowrap">
+                                                <button type="button" class="btn btn-sm btn-link" @onclick="() => EditarCuenta(cuenta)">Editar</button>
+                                                <button type="button" class="btn btn-sm btn-link text-danger ms-2" @onclick="() => QuitarCuenta(cuenta)">Quitar</button>
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
@@ -262,7 +319,9 @@
     private ProveedorDTO? _edicion;
     private bool _esNuevo;
     private bool _guardando;
+    private bool _consultandoHacienda;
     private CuentaBancariaProveedorDTO _cuentaEdicion = NuevaCuenta();
+    private int? _indiceCuentaEditando;
 
     protected override async Task OnInitializedAsync()
     {
@@ -322,6 +381,7 @@
         _esNuevo = true;
         _edicion = new ProveedorDTO { Estado = true, Actualizado = true };
         _cuentaEdicion = NuevaCuenta();
+        _indiceCuentaEditando = null;
         await _modal.ShowAsync();
     }
 
@@ -330,7 +390,42 @@
         _esNuevo = false;
         _edicion = Copiar(proveedor);
         _cuentaEdicion = NuevaCuenta();
+        _indiceCuentaEditando = null;
         await _modal.ShowAsync();
+    }
+
+    private async Task CedulaTecla(KeyboardEventArgs evento)
+    {
+        if (evento.Key == "Enter")
+        {
+            await BuscarHacienda();
+        }
+    }
+
+    private async Task BuscarHacienda()
+    {
+        if (_edicion is null || _consultandoHacienda)
+        {
+            return;
+        }
+
+        var cedula = _edicion.Cedula?.Trim() ?? string.Empty;
+        if (cedula.Length < 9)
+        {
+            await Dialogos.ErrorAsync("Ingrese una cédula válida de al menos 9 dígitos para consultar Hacienda.");
+            return;
+        }
+
+        _consultandoHacienda = true;
+        var resultado = await Respuestas.DatoAsync(await Api.BuscarHacienda(cedula), "consultar el proveedor en Hacienda");
+        _consultandoHacienda = false;
+
+        // La pantalla actual únicamente completa el nombre: no reemplazamos los
+        // demás datos que el usuario ya haya digitado en el formulario.
+        if (resultado is not null && !string.IsNullOrWhiteSpace(resultado.Nombre))
+        {
+            _edicion.Nombre = resultado.Nombre.Trim();
+        }
     }
 
     private async Task Guardar()
@@ -352,6 +447,8 @@
         }
 
         _guardando = true;
+        _edicion.Cedula = _edicion.Cedula?.Trim();
+        _edicion.Nombre = _edicion.Nombre.Trim().ToUpperInvariant();
         if (_esNuevo)
         {
             _edicion.IdUsuarioCreacion = Sesion.Usuario;
@@ -444,10 +541,36 @@
         }
 
         _cuentaEdicion.CodigoProv = _edicion.CodigoProv;
-        _cuentaEdicion.Estado = 1;
-        _edicion.CuentasBancariasProveedors ??= new List<CuentaBancariaProveedorDTO>();
-        _edicion.CuentasBancariasProveedors.Add(_cuentaEdicion);
+        _cuentaEdicion.Estado = _indiceCuentaEditando is null ? 1 : 2;
+        var cuentas = _edicion.CuentasBancariasProveedors?.ToList() ?? new List<CuentaBancariaProveedorDTO>();
+        if (_indiceCuentaEditando is int indice)
+        {
+            cuentas[indice] = _cuentaEdicion;
+        }
+        else
+        {
+            cuentas.Add(_cuentaEdicion);
+        }
+        _edicion.CuentasBancariasProveedors = cuentas;
         _cuentaEdicion = NuevaCuenta();
+        _indiceCuentaEditando = null;
+    }
+
+    private void EditarCuenta(CuentaBancariaProveedorDTO cuenta)
+    {
+        if (_edicion?.CuentasBancariasProveedors is null)
+        {
+            return;
+        }
+
+        var indice = _edicion.CuentasBancariasProveedors.ToList().IndexOf(cuenta);
+        if (indice < 0)
+        {
+            return;
+        }
+
+        _indiceCuentaEditando = indice;
+        _cuentaEdicion = CopiarCuenta(cuenta);
     }
 
     private async Task QuitarCuenta(CuentaBancariaProveedorDTO cuenta)
@@ -466,15 +589,35 @@
         if (cuenta.IdCuenta == 0 || _esNuevo)
         {
             _edicion.CuentasBancariasProveedors.Remove(cuenta);
+            CancelarEdicionCuenta();
             return;
         }
 
         if (await Respuestas.CorrectaAsync(await Api.EliminarCuenta(cuenta.IdCuenta), "eliminar la cuenta bancaria"))
         {
             _edicion.CuentasBancariasProveedors.Remove(cuenta);
+            CancelarEdicionCuenta();
             Dialogos.Exito("Cuenta bancaria eliminada.");
         }
     }
+
+    private void CancelarEdicionCuenta()
+    {
+        _indiceCuentaEditando = null;
+        _cuentaEdicion = NuevaCuenta();
+    }
+
+    private static CuentaBancariaProveedorDTO CopiarCuenta(CuentaBancariaProveedorDTO cuenta) => new()
+    {
+        CodigoProv = cuenta.CodigoProv,
+        TipoCuenta = cuenta.TipoCuenta,
+        Banco = cuenta.Banco,
+        CodMoneda = cuenta.CodMoneda,
+        NumCuenta = cuenta.NumCuenta,
+        MonedaNombre = cuenta.MonedaNombre,
+        Estado = cuenta.Estado,
+        IdCuenta = cuenta.IdCuenta
+    };
 
     private static CuentaBancariaProveedorDTO NuevaCuenta() => new()
     {

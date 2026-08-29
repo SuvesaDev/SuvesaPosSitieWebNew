@@ -12,6 +12,9 @@ public interface IProveedoresConsulta
 
     Task<ResponseGeneric<ProveedorDTO>> Editar(ProveedorDTO proveedor);
 
+    /// <summary>Consulta el nombre registrado en Hacienda a partir de la cédula.</summary>
+    Task<ResponseGeneric<BuscarClienteFacturacionDTO>> BuscarHacienda(string cedula);
+
     Task<ResponseGeneric<bool>> CambiarEstado(int codigo, bool inhabilitar);
 
     Task<ResponseGeneric<CuentaBancariaProveedorDTO>> EliminarCuenta(int idCuenta);

@@ -2,30 +2,44 @@
 
 <dialog id="components-reconnect-modal" data-nosnippet>
     <div class="components-reconnect-container">
-        <div class="components-rejoining-animation" aria-hidden="true">
-            <div></div>
-            <div></div>
+        <div class="components-reconnect-encabezado">
+            <span class="components-reconnect-icono" aria-hidden="true"><i class="bi bi-wifi"></i></span>
+            <div>
+                <span class="components-reconnect-eyebrow">CostaVet SeePOS</span>
+                <h2 id="components-reconnect-title">Reconectando la sesión</h2>
+            </div>
         </div>
-        <p class="components-reconnect-first-attempt-visible">
-            Rejoining the server...
-        </p>
-        <p class="components-reconnect-repeated-attempt-visible">
-            Rejoin failed... trying again in <span id="components-seconds-to-next-attempt"></span> seconds.
-        </p>
-        <p class="components-reconnect-failed-visible">
-            Failed to rejoin.<br />Please retry or reload the page.
-        </p>
-        <button id="components-reconnect-button" class="components-reconnect-failed-visible">
-            Retry
-        </button>
-        <p class="components-pause-visible">
-            The session has been paused by the server.
-        </p>
-        <p class="components-resume-failed-visible">
-            Failed to resume the session.<br />Please retry or reload the page.
-        </p>
-        <button id="components-resume-button" class="components-pause-visible components-resume-failed-visible">
-            Resume
-        </button>
+
+        <div class="components-reconnect-estado" aria-live="assertive" aria-labelledby="components-reconnect-title">
+            <div class="components-rejoining-animation" aria-hidden="true">
+                <div></div>
+                <div></div>
+                <i class="bi bi-arrow-repeat"></i>
+            </div>
+            <p class="components-reconnect-first-attempt-visible">
+                Estamos restableciendo su conexión. Sus datos se mantienen seguros.
+            </p>
+            <p class="components-reconnect-repeated-attempt-visible">
+                Aún no podemos conectar. Intentaremos de nuevo en <strong><span id="components-seconds-to-next-attempt"></span> segundos</strong>.
+            </p>
+            <p class="components-reconnect-failed-visible">
+                No fue posible recuperar la conexión. Intente nuevamente o recargue la página.
+            </p>
+            <p class="components-pause-visible">
+                El servidor pausó esta sesión. Puede reanudarla cuando esté listo.
+            </p>
+            <p class="components-resume-failed-visible">
+                No fue posible reanudar la sesión. Intente nuevamente o recargue la página.
+            </p>
+        </div>
+
+        <div class="components-reconnect-acciones">
+            <button id="components-reconnect-button" class="components-reconnect-failed-visible">
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Reintentar
+            </button>
+            <button id="components-resume-button" class="components-pause-visible components-resume-failed-visible">
+                <i class="bi bi-play-fill" aria-hidden="true"></i> Reanudar sesión
+            </button>
+        </div>
     </div>
 </dialog>

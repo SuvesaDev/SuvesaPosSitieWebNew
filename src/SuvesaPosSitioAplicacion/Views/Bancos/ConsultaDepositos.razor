@@ -1,3 +1,4 @@
+@page "/initial/cash/deposits"
 @page "/initial/cash/deposits/consultdeposits"
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
@@ -12,6 +13,8 @@
 
 <AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
     <ChildContent>
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="la consulta de depósitos" AlCambiar="AlDesbloquear" />
+        <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
 
         <div class="card mb-3">
             <div class="card-body">
@@ -116,6 +119,7 @@
             </div>
         }
 
+        </fieldset>
     </ChildContent>
 </AppPantalla>
 
@@ -123,6 +127,7 @@
     private const string Titulo = "Consulta Depósitos";
 
     private AppRejilla<DepositosBuscarDTO>? _rejilla;
+    private AppDesbloqueoClave? _bloqueo;
 
     private DateTime _desde = DateTime.Today.AddDays(-7);
     private DateTime _hasta = DateTime.Today;
@@ -132,6 +137,8 @@
     private decimal _total;
     private bool _buscando;
     private bool _hayBusqueda;
+    private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
+    private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
 
     private static DateTime Fecha(ChangeEventArgs e, DateTime actual)
         => DateTime.TryParse(e.Value?.ToString(), out var v) ? v : actual;
@@ -140,7 +147,7 @@
 
     private async Task Buscar()
     {
-        if (_buscando)
+        if (Bloqueada || _buscando)
         {
             return;
         }

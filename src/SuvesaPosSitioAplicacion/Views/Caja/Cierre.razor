@@ -1,0 +1,76 @@
+@page "/initial/cash/closecash"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICajaOperaciones Api
+@inject IContextoSesion Sesion
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+<AppPantalla Pantalla="Cierre Caja" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="CargarAperturas" disabled="@(_cargando || Bloqueada)"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
+        <button class="btn btn-sm btn-primary" @onclick="CerrarCaja" disabled="@(Bloqueada || _datos is null || _guardando)"><i class="bi bi-lock-fill me-1" aria-hidden="true"></i>@(_guardando ? "Cerrando..." : "Registrar cierre")</button>
+    </Acciones>
+    <ChildContent>
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="el cierre de caja" AlCambiar="AlDesbloquear" />
+        <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
+        <div class="seepos-caja">
+            <div class="card mb-3"><div class="card-header"><strong>Período y apertura</strong></div><div class="card-body"><div class="row g-3 align-items-end">
+                <div class="col-12 col-md-6"><label class="form-label" for="aperturaCierre">Apertura sin cerrar</label><InputSelect id="aperturaCierre" class="form-select" @bind-Value="_numeroApertura" @bind-Value:after="CargarDatos"><option value="0">Seleccione...</option>@foreach (var a in _aperturas) { <option value="@a.Napertura">#@a.Napertura · @a.Nombre · Caja @a.NumCaja</option> }</InputSelect></div>
+                <div class="col-12 col-md-3"><label class="form-label">Fecha de apertura</label><input class="form-control" value="@(_datos?.FechaApertura.ToString("dd/MM/yyyy") ?? "")" disabled /></div>
+                <div class="col-12 col-md-3"><label class="form-label">Cajero</label><input class="form-control" value="@(_datos?.Nombre ?? "")" disabled /></div>
+            </div></div></div>
+            @if (_datos is not null)
+            {
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><span class="text-secondary small">Fondo de caja</span><strong class="d-block fs-5">@Formato.Importe(_datos.FondoCaja)</strong></div></div></div>
+                    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><span class="text-secondary small">Total sistema</span><strong class="d-block fs-5">@Formato.Importe(_datos.TotalSistema)</strong></div></div></div>
+                    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><span class="text-secondary small">Total cajero</span><strong class="d-block fs-5">@Formato.Importe(_datos.TotalCajero)</strong></div></div></div>
+                    <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><span class="text-secondary small">Diferencia</span><strong class="d-block fs-5 @(_datos.DiferenciaCaja == 0 ? "text-success" : "text-danger")">@Formato.Importe(_datos.DiferenciaCaja)</strong></div></div></div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-12 col-xl-7"><div class="card h-100"><div class="card-header"><strong>General por forma de pago</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Forma de pago</th><th class="text-end">Cajero</th><th class="text-end">Sistema</th></tr></thead><tbody>@foreach (var d in _datos.DetalleOperaciones ?? Array.Empty<GeneralDetallesCierreDeCaja>()) { <tr><td>@d.FormaPago</td><td class="text-end">@Formato.Importe(d.Cajero)</td><td class="text-end">@Formato.Importe(d.Sistema)</td></tr> }</tbody></table></div></div></div>
+                    <div class="col-12 col-xl-5"><div class="card h-100"><div class="card-header"><strong>Detalle de tarjetas</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Descripción</th><th>Moneda</th><th class="text-end">Cajero</th><th class="text-end">Sistema</th></tr></thead><tbody>@foreach (var d in _datos.DetalleFormasPago ?? Array.Empty<CierreCajaDetalleFormasPagos>()) { <tr><td>@d.Descripcion</td><td>@d.Moneda</td><td class="text-end">@Formato.Importe(d.TotalCajero)</td><td class="text-end">@Formato.Importe(d.Totalsistema)</td></tr> }</tbody></table></div></div></div>
+                </div>
+            }
+            else if (!_cargando) { <div class="alert alert-light border mb-0">Seleccione una apertura para consultar su consolidado antes de cerrar.</div> }
+        </div>
+        </fieldset>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private readonly List<AperturaCajaDTO> _aperturas = new();
+    private ObtenerDatosCierreCaja? _datos;
+    private int _numeroApertura;
+    private bool _cargando, _guardando;
+    private AppDesbloqueoClave? _bloqueo;
+    private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
+    private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
+    protected override Task OnInitializedAsync() => CargarAperturas();
+    private async Task CargarAperturas()
+    {
+        _cargando = true;
+        var aperturas = await Respuestas.DatoAsync(await Api.AperturasSinCerrar(), "consultar las aperturas sin cerrar");
+        _aperturas.Clear(); _aperturas.AddRange(aperturas ?? Array.Empty<AperturaCajaDTO>()); _cargando = false;
+    }
+    private async Task CargarDatos()
+    {
+        _datos = null;
+        if (_numeroApertura == 0) return;
+        _cargando = true;
+        _datos = await Respuestas.DatoAsync(await Api.DatosCierre(_numeroApertura), "consultar el consolidado del cierre");
+        _cargando = false;
+    }
+    private async Task CerrarCaja()
+    {
+        if (_datos is null || !await Dialogos.ConfirmarAsync("¿Desea registrar el cierre de esta caja?", "Cerrar caja", "Cerrar caja")) return;
+        _guardando = true;
+        var cierre = new CierreCajaDTO { NumApertura = _numeroApertura, NombreUsuarioApertura = _datos.Nombre, CedulaUsuarioApertura = _datos.CodigoCajero, NombreUsuarioCierre = Sesion.Usuario, CedulaUsuarioCierre = Sesion.Usuario, Fecha = DateTime.Now, TotalSistema = (float)_datos.TotalSistema };
+        var creado = await Respuestas.DatoAsync(await Api.CrearCierre(cierre), "registrar el cierre de caja");
+        _guardando = false;
+        if (creado is null) return;
+        Dialogos.Exito("Cierre de caja registrado correctamente."); _numeroApertura = 0; _datos = null; await CargarAperturas();
+    }
+}
