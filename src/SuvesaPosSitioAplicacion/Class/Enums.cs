@@ -1,15 +1,23 @@
 namespace SuvesaPosSitioAplicacion.Class;
 
 /// <summary>
-/// Acciones que un rol puede tener sobre una pantalla.
-/// Espejo exacto de AccionesDTO, que es lo que devuelve el API en rol.permisos.
+/// Acciones que un rol puede tener sobre una funcion (rediseno de seguridad V2).
+/// El nombre en MAYUSCULAS coincide con <c>Accion.Codigo</c> del API
+/// (VER/CREAR/EDITAR/BORRAR/ACTIVAR/EXPORTAR/IMPRIMIR).
+///
+/// <c>Modificar</c> se conserva como alias de <see cref="Editar"/> mientras el sitio
+/// termina de migrar del contrato viejo (AccionesDTO con Ver/Crear/Modificar/Borrar).
 /// </summary>
 public enum AccionPantalla
 {
     Ver = 0,
     Crear = 1,
+    Editar = 2,
     Modificar = 2,
-    Borrar = 3
+    Borrar = 3,
+    Activar = 4,
+    Exportar = 5,
+    Imprimir = 6
 }
 
 /// <summary>
