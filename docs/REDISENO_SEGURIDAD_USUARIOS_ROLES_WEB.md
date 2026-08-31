@@ -7,28 +7,21 @@
 > `Class/MenuSeePos.cs`, `Models/ItemMenu.cs`, proxies de `ApiConexion`, pantallas de
 > `Views/Parametros` (Usuarios, Roles) y pruebas.
 >
-> Estado: **parcial** en la rama `feature/seguridad-usuarios-roles-web`.
+> Estado: **W2–W8 implementadas** en `feature/seguridad-usuarios-roles-web`. La
+> solución web compila y **64/64 unitarias en verde**. Falta desplegar el API nuevo y
+> verificar contra datos reales.
 >
-> **Hecho** (no depende de regenerar contratos): `ItemMenu.Codigo`; `MenuSeePos.cs`
-> regenerado con códigos (99 nodos) vía `tools/anotar_codigos_menu.py` — mismo algoritmo
-> de slug que la semilla del API; `AccionPantalla` gana `Editar/Activar/Exportar/Imprimir`
-> (`Modificar` = alias de `Editar`); `tests/MenuCodigosTests` (drift menú↔semilla del API)
-> — 72/72 unitarias en verde.
->
-> **BLOQUEADO** — el resto (W2 salvo el enum, W4–W8) necesita **regenerar los contratos
-> NSwag contra el API nuevo ya desplegado**. Se intentó localmente y se descartó: los
-> contratos generados hoy (`DTOs/Generated/SeePosDtos.cs`) provienen de un API distinto
-> del código local de `DevSuvesaPosWeb` (p. ej. el schema `Presentacione` del sitio hoy es
-> `PresentacioneDTO` en el swagger del código local), así que regenerar desde el código
-> local rompe proxies ajenos. **Hay que desplegar el API de la rama
-> `feature/seguridad-usuarios-roles-v2` y correr `./tools/actualizar-contratos.sh` contra
-> él.** Tras eso, W2/W4–W8 son mecánicos siguiendo este documento.
->
-> Tipos que traerá la regeneración (namespace `SuvesaPosSitioAplicacion.DTOs.Generated`):
-> `Autenticacion` (con `Perfil` + `Permisos`), `PerfilLoginDTO`, `PermisoLoginDTO`,
-> `ModuloDTO`, `FuncionDTO`, `AccionDTO`, `RolResumenDTO`, `RolDetalleDTO`,
-> `RolFuncionPermisoDTO`, `PermisoFilaDTO`, `PerfilDTO`, `UsuariosDTO` (con `IdPerfil`,
-> sin capacidades). Clientes en `SeePosApiClientes.cs` para `/seguridad/*`.
+> | Fase | Qué | Estado |
+> |---|---|---|
+> | W1 | Regenerar contratos NSwag | ⏳ **pendiente** — necesita el API de `feature/seguridad-usuarios-roles-v2` desplegado. Se descartó regenerar en local: los contratos actuales vienen de otro despliegue (p. ej. `Presentacione` vs `PresentacioneDTO`) y romperían proxies ajenos. **Mientras tanto**: `ApiConexion/SeguridadApiCliente.cs` + `DTOs/Seguridad/*` son un cliente/DTOs a mano; al correr `./tools/actualizar-contratos.sh` contra el API nuevo se sustituyen por lo generado y los proxies solo cambian el `using`. |
+> | W2 | `PermisoFuncion` (reemplaza `PermisoPantalla`), `ClaimsSeePos` (`EsSuperAdministrador`, `PerfilCodigo`), `ServicioAutenticacion` lee `auth.Perfil`+`auth.Permisos` (`Autenticacion` extendido por `partial`), `AccionPantalla` +Activar/Exportar/Imprimir | ✅ |
+> | W3 | `ContextoSesion`/`FiltroMenu` por código; `ItemMenu.Codigo` + `MenuSeePos` regenerado (`tools/anotar_codigos_menu.py`); `NombrePantalla.cs` borrado → `Helpers/Texto.cs`. Las ~50 Views que pasan el título **no se tocaron**: `ContextoSesion` resuelve título→código con `MenuSeePos.ResolverCodigo`. `AppPantalla` gana `Codigo` opcional. | ✅ |
+> | W4 | `IRolesPermisos`/`RolesPermisos`, `IPerfiles`/`Perfiles`; `IUsuarios` (`Crear(UsuarioAltaDTO)`, `CambiarPerfil`, `CambiarRol`, `ObtenerUno`→`UsuarioDetalleDTO`). `IRoles` retirado. DI en `Program.cs`. | ✅ |
+> | W5 | `Views/Parametros/RolesPermisos.razor` (3 pestañas) reemplaza `Roles.razor`. | ✅ |
+> | W6 | `Usuarios.razor`: perfil desde `/seguridad/perfiles`, `SUPER_ADMIN` oculto salvo super admin, rol obligatorio según perfil, capacidades solo lectura, acción "Perfil / rol" por fila. | ✅ |
+> | W7 | `FiltroMenuTests` reescrito por código; `PermisoFuncionTests` (nuevo); `NombrePantallaTests`/`PermisoPantallaTests` borrados; `UsuariosTests` ajustado; `MenuCodigosTests` (drift menú↔semilla API); E2E `SesionRealTests` → **aserción** menú↔API por código. | ✅ |
+> | W8 | `SeePos:VerPantallasNoGobernadas = false` por defecto; `CLAUDE.md` actualizado. | ✅ |
+> | — | Regenerar contratos (W1), desplegar, verificar login/menú/matriz con datos reales, E2E con Playwright. | ⏳ |
 
 ---
 
