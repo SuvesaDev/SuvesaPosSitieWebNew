@@ -10,6 +10,7 @@ namespace SuvesaPosSitioAplicacion.E2E;
 /// prueba, un cambio en esa deserializacion fallaria en silencio: compilaria, y
 /// solo se veria al abrir la pantalla con datos reales.
 /// </summary>
+[Trait("Categoria", "RequiereCredenciales")]
 public class FamiliasDeserializacionTests
 {
     [HechoConCredenciales]

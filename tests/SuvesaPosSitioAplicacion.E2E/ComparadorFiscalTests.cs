@@ -25,6 +25,7 @@ namespace SuvesaPosSitioAplicacion.E2E;
 /// antiguo o se corrige, y esa es decision de negocio.
 /// </summary>
 [Collection(ColeccionE2E.Nombre)]
+[Trait("Categoria", "RequiereCredenciales")]
 public class ComparadorFiscalTests
 {
     private readonly ITestOutputHelper _salida;

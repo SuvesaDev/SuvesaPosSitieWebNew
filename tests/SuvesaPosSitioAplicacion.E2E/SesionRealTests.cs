@@ -13,6 +13,7 @@ namespace SuvesaPosSitioAplicacion.E2E;
 /// No usa navegador: llama a la misma capa ApiConexion que usa el sitio.
 /// </summary>
 [Collection(ColeccionE2E.Nombre)]
+[Trait("Categoria", "RequiereCredenciales")]
 public class SesionRealTests
 {
     private readonly ITestOutputHelper _salida;
