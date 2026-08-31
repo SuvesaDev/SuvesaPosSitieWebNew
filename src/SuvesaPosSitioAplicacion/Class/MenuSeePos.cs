@@ -10,7 +10,7 @@ namespace SuvesaPosSitioAplicacion.Class;
 /// GENERADO desde el arbol de React. Si el menu cambia alli, conviene regenerarlo
 /// en vez de editar a mano.
 /// </summary>
-public static class MenuSeePos
+public static partial class MenuSeePos
 {
     public static readonly IReadOnlyList<ItemMenu> Items = new ItemMenu[]
     {

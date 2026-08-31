@@ -2,6 +2,7 @@ using Havit.Blazor.Components.Web;
 using Havit.Blazor.Components.Web.Bootstrap;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using SuvesaPosSitioAplicacion.ApiConexion;
 using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
@@ -102,6 +103,10 @@ builder.Services.AddHttpClient("SeePosApi", c => c.BaseAddress = new Uri(urlApi)
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 
 ClienteApi<IUsuarioApiCliente, UsuarioApiCliente>();
+
+// Cliente hecho a mano para /seguridad/* (contratos NSwag no regenerables en local).
+builder.Services.AddHttpClient<ISeguridadApiCliente, SeguridadApiCliente>(c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 ClienteApi<ICentrosApiCliente, CentrosApiCliente>();
 ClienteApi<IBancosApiCliente, BancosApiCliente>();
 ClienteApi<IInventarioApiCliente, InventarioApiCliente>();
@@ -174,7 +179,8 @@ builder.Services.AddScoped<IFamilias, Familias>();
 builder.Services.AddScoped<ICategorias, Categorias>();
 builder.Services.AddScoped<IPresentaciones, Presentaciones>();
 builder.Services.AddScoped<IUsuarios, Usuarios>();
-builder.Services.AddScoped<IRoles, Roles>();
+builder.Services.AddScoped<IRolesPermisos, RolesPermisos>();
+builder.Services.AddScoped<IPerfiles, Perfiles>();
 builder.Services.AddScoped<ISucursales, Sucursales>();
 builder.Services.AddScoped<IEmpresas, Empresas>();
 builder.Services.AddScoped<IConfiguracion, Configuracion>();
@@ -340,7 +346,8 @@ if (app.Environment.IsDevelopment())
             largoToken = token?.Length ?? 0,
             permisos = u.FindAll(ClaimsSeePos.Permiso).Count(),
             idSucursal = u.FindFirst(ClaimsSeePos.IdSucursal)?.Value,
-            administrador = u.FindFirst(ClaimsSeePos.Administrador)?.Value
+            esSuperAdmin = u.FindFirst(ClaimsSeePos.EsSuperAdministrador)?.Value,
+            perfilCodigo = u.FindFirst(ClaimsSeePos.PerfilCodigo)?.Value
         });
     });
 }

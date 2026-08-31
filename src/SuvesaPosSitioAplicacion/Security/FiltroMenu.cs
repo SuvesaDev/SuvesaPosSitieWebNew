@@ -3,23 +3,21 @@ using SuvesaPosSitioAplicacion.Models;
 namespace SuvesaPosSitioAplicacion.Security;
 
 /// <summary>
-/// Decide que se ve del menu segun el rol.
+/// Decide que se ve del menu segun el rol. Casa por <see cref="ItemMenu.Codigo"/>
+/// (rediseno V2), no por rotulo.
 ///
-/// Vive aparte del componente por dos motivos: se puede probar, y hace falta tambien
-/// fuera de la barra lateral (atajos, y desde la Ola 1 la guarda de cada pantalla).
-///
-/// MEJORA respecto al sistema actual: alli el menu solo se filtra en la variante
-/// CostaPets; el camino normal muestra todas las pantallas aunque el rol no las tenga.
+/// Vive aparte del componente porque se prueba y hace falta tambien fuera de la
+/// barra lateral (atajos, y la guarda de cada pantalla).
 /// </summary>
 public static class FiltroMenu
 {
     /// <summary>
-    /// Un nodo hoja se ve si el rol tiene la accion Ver sobre su titulo.
+    /// Una hoja se ve si el rol tiene la accion VER sobre su codigo.
     /// Un grupo se ve si algun descendiente se ve, para no dejar menus vacios.
     /// </summary>
     public static bool EsVisible(ItemMenu item, IContextoSesion sesion)
     {
-        if (sesion.EsAdministrador)
+        if (sesion.EsSuperAdministrador)
         {
             return true;
         }
@@ -29,7 +27,7 @@ public static class FiltroMenu
             return item.Hijos.Any(h => EsVisible(h, sesion));
         }
 
-        return sesion.PuedeVer(item.Titulo);
+        return !string.IsNullOrWhiteSpace(item.Codigo) && sesion.PuedeVer(item.Codigo);
     }
 
     public static IEnumerable<ItemMenu> Visibles(IEnumerable<ItemMenu> items, IContextoSesion sesion)

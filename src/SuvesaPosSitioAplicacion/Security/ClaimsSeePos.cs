@@ -8,7 +8,13 @@ public static class ClaimsSeePos
 {
     public const string Token = "seepos:token";
     public const string Expiracion = "seepos:expiracion";
-    public const string Administrador = "seepos:administrador";
+
+    /// <summary>Perfil SUPER_ADMIN: ve todo, no pasa por rol. (Antes "seepos:administrador".)</summary>
+    public const string EsSuperAdministrador = "seepos:esSuperAdmin";
+
+    /// <summary>Codigo del perfil del usuario (SUPER_ADMIN / ADMIN / USUARIO / ...).</summary>
+    public const string PerfilCodigo = "seepos:perfilCodigo";
+
     public const string IdSucursal = "seepos:idSucursal";
     public const string NombreSucursal = "seepos:nombreSucursal";
     public const string IdRol = "seepos:idRol";
@@ -17,6 +23,6 @@ public static class ClaimsSeePos
     public const string AgenteCostaPets = "seepos:agenteCostaPets";
     public const string AceptaConsignacion = "seepos:aceptaConsignacion";
 
-    /// <summary>Un claim por pantalla. Valor: "menu|pantalla|ver|crear|modificar|borrar".</summary>
+    /// <summary>Un claim por funcion. Valor: "moduloCodigo|funcionCodigo|VER,CREAR,...".</summary>
     public const string Permiso = "seepos:permiso";
 }

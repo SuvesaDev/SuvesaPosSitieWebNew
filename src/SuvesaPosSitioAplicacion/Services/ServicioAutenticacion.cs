@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
+using SuvesaPosSitioAplicacion.DTOs.Seguridad;
 using SuvesaPosSitioAplicacion.Helpers;
 using SuvesaPosSitioAplicacion.Security;
 
@@ -128,40 +129,51 @@ public sealed class ServicioAutenticacion : IServicioAutenticacion
     /// </summary>
     private static List<Claim> ConstruirClaims(Autenticacion auth)
     {
+        var esSuper = auth.Perfil?.EsSuperAdministracion ?? auth.Administrador;
+
         var claims = new List<Claim>
         {
             new(ClaimTypes.Name, auth.Usuario ?? string.Empty),
             new(ClaimsSeePos.Token, auth.Token!),
             new(ClaimsSeePos.Expiracion, auth.Expiracion.ToString("O")),
-            new(ClaimsSeePos.Administrador, auth.Administrador.ToString()),
-            new(ClaimsSeePos.CostaPets, auth.CostaPets.ToString()),
-            new(ClaimsSeePos.AgenteCostaPets, auth.AgenteCostaPets.ToString()),
-            new(ClaimsSeePos.AceptaConsignacion, auth.AceptaConsignacion.ToString())
+            new(ClaimsSeePos.EsSuperAdministrador, esSuper.ToString()),
+            new(ClaimsSeePos.PerfilCodigo, auth.Perfil?.Codigo ?? string.Empty),
+            new(ClaimsSeePos.CostaPets, (auth.Perfil?.CostaPets ?? auth.CostaPets).ToString()),
+            new(ClaimsSeePos.AgenteCostaPets, (auth.Perfil?.AgenteCostaPets ?? auth.AgenteCostaPets).ToString()),
+            new(ClaimsSeePos.AceptaConsignacion, (auth.Perfil?.AceptaConsignacion ?? auth.AceptaConsignacion).ToString())
         };
 
+        // Rol (informativo). auth.Rol es el contrato viejo; los campos planos IdRol /
+        // NombreRol del contrato nuevo se leen si estan.
         if (auth.Rol is not null)
         {
             claims.Add(new Claim(ClaimsSeePos.IdRol, auth.Rol.IdRol.ToString()));
             claims.Add(new Claim(ClaimsSeePos.NombreRol, auth.Rol.NombreRol ?? string.Empty));
-            claims.Add(new Claim(ClaimTypes.Role, auth.Rol.NombreRol ?? string.Empty));
-
-            foreach (var p in auth.Rol.Permisos ?? Array.Empty<PermisosDTO>())
+            if (!string.IsNullOrWhiteSpace(auth.Rol.NombreRol))
             {
-                if (string.IsNullOrWhiteSpace(p.NombrePantalla))
-                {
-                    continue;
-                }
-
-                var permiso = new PermisoPantalla(
-                    Menu: p.Menu ?? string.Empty,
-                    Pantalla: p.NombrePantalla,
-                    Ver: p.Acciones?.Ver ?? false,
-                    Crear: p.Acciones?.Crear ?? false,
-                    Modificar: p.Acciones?.Modificar ?? false,
-                    Borrar: p.Acciones?.Borrar ?? false);
-
-                claims.Add(new Claim(ClaimsSeePos.Permiso, permiso.AClaim()));
+                claims.Add(new Claim(ClaimTypes.Role, auth.Rol.NombreRol));
             }
+        }
+
+        // Permisos aplanados del rol (contrato nuevo). Vacio si es SUPER_ADMIN.
+        foreach (var p in auth.Permisos ?? new List<PermisoLoginDTO>())
+        {
+            if (string.IsNullOrWhiteSpace(p.FuncionCodigo))
+            {
+                continue;
+            }
+
+            var acciones = (p.Acciones ?? new List<string>())
+                .Select(a => a.Trim().ToUpperInvariant())
+                .Where(a => a.Length > 0)
+                .ToHashSet();
+
+            var permiso = new PermisoFuncion(
+                ModuloCodigo: p.ModuloCodigo ?? string.Empty,
+                FuncionCodigo: p.FuncionCodigo,
+                Acciones: acciones);
+
+            claims.Add(new Claim(ClaimsSeePos.Permiso, permiso.AClaim()));
         }
 
         return claims;

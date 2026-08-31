@@ -1,29 +1,32 @@
 @page "/parameters/users"
 @using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Seguridad
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @using System.Text.RegularExpressions
 @inject IUsuarios Api
+@inject IPerfiles ApiPerfiles
+@inject IRolesPermisos ApiRoles
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
 
-@*  Ola 4 — escritura compleja, primera fuera de los catalogos simples.
+@*  Rediseno de seguridad V2.
 
-    DOS COSAS QUE NO SON EL ARQUETIPO 01:
-      1. Crear y editar usan DTOs distintos (UsuariosDTO / UsuarioDTO). El de editar
-         no tiene Administrador, IdRol ni Foto: esos campos NO se pueden cambiar
-         desde este endpoint una vez creado el usuario. Se muestran de solo lectura
-         en edicion, con una nota. Si hace falta cambiarlos, es una pregunta para
-         el equipo del API, no algo que se pueda resolver aqui.
-      2. La clave se manda SIEMPRE en el cuerpo del DTO, nunca en la URL. El sistema
-         actual valida la clave con un GET que la lleva en la query string —
-         deliberadamente no se replica esa llamada.
+    - El PERFIL (SUPER_ADMIN / ADMIN / USUARIO / ...) se elige al crear. La opcion
+      SUPER_ADMIN solo aparece si el usuario en sesion tambien es Super Administrador
+      (la compuerta real la aplica el API).
+    - Todo perfil que NO sea SUPER_ADMIN exige un ROL asignado.
+    - Las capacidades CostaPets / AgenteCostaPets se HEREDAN del perfil: aqui son de
+      solo lectura.
+    - El perfil y el rol de un usuario ya creado se cambian desde la tabla, con
+      endpoints propios (/seguridad/usuarios/{id}/perfil y /rol).
+    - La clave viaja siempre en el cuerpo, nunca en la URL.
 *@
 
-<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Escritorio">
+<AppPantalla Pantalla="@Titulo" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio">
     <Acciones>
-        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        @if (Sesion.Puede(Codigo, AccionPantalla.Crear))
         {
             <button class="btn btn-sm btn-primary" @onclick="Agregar">
                 <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
@@ -54,9 +57,10 @@
                         <HxGridColumn TItem="BuscarUsuarioDTO" HeaderText=""
                                       HeaderCssClass="text-end" ItemCssClass="text-end">
                             <ItemTemplate Context="u">
-                                @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                @if (Sesion.Puede(Codigo, AccionPantalla.Modificar))
                                 {
                                     <button class="btn btn-sm btn-link p-0" @onclick="() => Editar(u)">Editar</button>
+                                    <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => AbrirCambioPerfil(u)">Perfil / rol</button>
                                 }
                             </ItemTemplate>
                         </HxGridColumn>
@@ -68,6 +72,7 @@
     </ChildContent>
 </AppPantalla>
 
+@* ---------- Modal alta / edicion ---------- *@
 <HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo usuario" : "Editar usuario")" Size="ModalSize.Large">
     <BodyTemplate>
         @if (_edicion is not null)
@@ -78,66 +83,75 @@
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
                         <AppCampoTexto Etiqueta="Usuario (login)" @bind-Valor="_edicion.IdUsuario"
-                                       Deshabilitado="@(!_esNuevo)" />
+                                       Deshabilitado="@(!_esNuevo)" Requerido="true" />
                         @if (!_esNuevo)
                         {
                             <div class="form-text">El usuario de acceso no se puede cambiar.</div>
                         }
                     </div>
                     <div class="col-12 col-md-6">
-                        <AppCampoTexto Etiqueta="Nombre completo" @bind-Valor="_edicion.Nombre" />
-                    </div>
-
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="perfil">Perfil</label>
-                        <select id="perfil" class="form-select" @bind="_edicion.Perfil">
-                            @foreach (var p in _perfiles)
-                            {
-                                <option value="@p.IdPerfil">@p.Descripcion</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div class="col-12 col-md-6">
-                        <label class="form-label" for="rol">Rol</label>
-                        @if (_esNuevo)
-                        {
-                            <select id="rol" class="form-select" @bind="_idRolNuevo">
-                                <option value="0">Seleccione...</option>
-                                @foreach (var r in _roles)
-                                {
-                                    <option value="@r.IdRol">@r.Descripcion</option>
-                                }
-                            </select>
-                        }
-                        else
-                        {
-                            <input id="rol" class="form-control" disabled
-                                   value="@(_roles.FirstOrDefault(r => r.IdRol == _idRolActual)?.Descripcion ?? "—")" />
-                            <div class="form-text">
-                                El rol no se puede cambiar desde esta pantalla: el API no lo
-                                admite en la edicion. Consulte con el administrador del sistema.
-                            </div>
-                        }
+                        <AppCampoTexto Etiqueta="Nombre completo" @bind-Valor="_edicion.Nombre" Requerido="true" />
                     </div>
 
                     @if (_esNuevo)
                     {
                         <div class="col-12 col-md-6">
-                            <label class="form-label" for="clave">Contraseña</label>
-                            <input id="clave" type="password" class="form-control"
-                                   autocomplete="new-password"
+                            <label class="form-label" for="perfil">Perfil <span class="text-danger">*</span></label>
+                            <select id="perfil" class="form-select" @bind="_idPerfilNuevo" @bind:after="AlCambiarPerfilNuevo">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var p in PerfilesVisibles())
+                                {
+                                    <option value="@p.IdPerfil">@p.Descripcion</option>
+                                }
+                            </select>
+                        </div>
+
+                        @if (!PerfilElegidoEsSuper())
+                        {
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="rol">Rol <span class="text-danger">*</span></label>
+                                <select id="rol" class="form-select" @bind="_idRolNuevo">
+                                    <option value="0">Seleccione...</option>
+                                    @foreach (var r in _roles.Where(r => r.Activo))
+                                    {
+                                        <option value="@r.IdRol">@r.Nombre</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Rol</label>
+                                <input class="form-control" disabled value="No aplica (Super Administración)" />
+                            </div>
+                        }
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="clave">Contraseña <span class="text-danger">*</span></label>
+                            <input id="clave" type="password" class="form-control" autocomplete="new-password"
                                    @bind="_clave" @bind:event="oninput" />
                             <div class="form-text">
-                                Minimo 8 caracteres, con mayuscula, minuscula, numero y un
-                                caracter especial.
+                                Minimo 8 caracteres, con mayuscula, minuscula, numero y un caracter especial.
                             </div>
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label" for="claveConfirmar">Confirmar contrasena</label>
-                            <input id="claveConfirmar" type="password" class="form-control"
-                                   autocomplete="new-password"
+                            <label class="form-label" for="claveConfirmar">Confirmar contraseña <span class="text-danger">*</span></label>
+                            <input id="claveConfirmar" type="password" class="form-control" autocomplete="new-password"
                                    @bind="_claveConfirmar" @bind:event="oninput" />
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Perfil</label>
+                            <input class="form-control" disabled value="@NombrePerfil(_perfilActual)" />
+                            <div class="form-text">Se cambia desde la accion "Perfil / rol" de la tabla.</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Rol</label>
+                            <input class="form-control" disabled
+                                   value="@(_roles.FirstOrDefault(r => r.IdRol == _idRolActual)?.Nombre ?? "—")" />
                         </div>
                     }
 
@@ -148,10 +162,19 @@
                         <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" />
                     </div>
 
+                    @if (_perfilActual is { } pa && (pa.CostaPets || pa.AgenteCostaPets || pa.AceptaConsignacion))
+                    {
+                        <div class="col-12">
+                            <div class="form-text">
+                                Capacidades heredadas del perfil <strong>@pa.Descripcion</strong>:
+                                @(string.Join(", ", CapacidadesDe(pa)))
+                            </div>
+                        </div>
+                    }
+
                     <div class="col-12">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="activo"
-                                   @bind="_edicion.Activo" />
+                            <input class="form-check-input" type="checkbox" id="activo" @bind="_edicion.Activo" />
                             <label class="form-check-label" for="activo">Activo</label>
                         </div>
                     </div>
@@ -167,18 +190,58 @@
     </FooterTemplate>
 </HxModal>
 
+@* ---------- Modal cambiar perfil / rol ---------- *@
+<HxModal @ref="_modalPerfil" Title="Perfil y rol del usuario" Size="ModalSize.Regular">
+    <BodyTemplate>
+        <div class="row g-3">
+            <div class="col-12">
+                <strong>@_perfilUsuario</strong>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="perfilCambio">Perfil</label>
+                <select id="perfilCambio" class="form-select" @bind="_idPerfilCambio" @bind:after="AlCambiarPerfilCambio">
+                    @foreach (var p in PerfilesVisibles())
+                    {
+                        <option value="@p.IdPerfil">@p.Descripcion</option>
+                    }
+                </select>
+            </div>
+            @if (!PerfilCambioEsSuper())
+            {
+                <div class="col-12">
+                    <label class="form-label" for="rolCambio">Rol</label>
+                    <select id="rolCambio" class="form-select" @bind="_idRolCambio">
+                        <option value="0">Seleccione...</option>
+                        @foreach (var r in _roles.Where(r => r.Activo))
+                        {
+                            <option value="@r.IdRol">@r.Nombre</option>
+                        }
+                    </select>
+                </div>
+            }
+        </div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modalPerfil.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" disabled="@_guardando" @onclick="GuardarCambioPerfil">
+            @(_guardando ? "Guardando..." : "Guardar")
+        </button>
+    </FooterTemplate>
+</HxModal>
+
 @code {
     private const string Titulo = "Usuarios";
+    private const string Codigo = "PARAMETROS.USUARIOS";
 
-    /// <summary>Misma regla que valida el sistema actual: 8+, mayuscula, minuscula, numero, especial.</summary>
     private static readonly Regex ReglaClave =
         new(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$");
 
     private AppRejilla<BuscarUsuarioDTO>? _rejilla;
     private HxModal _modal = default!;
+    private HxModal _modalPerfil = default!;
 
-    private List<Perfil> _perfiles = new();
-    private List<Role> _roles = new();
+    private List<PerfilSeguridadDTO> _perfiles = new();
+    private List<RolResumenDTO> _roles = new();
 
     private string _texto = string.Empty;
 
@@ -186,17 +249,24 @@
     private bool _esNuevo;
     private long _idActual;
     private int _idRolActual;
+    private PerfilSeguridadDTO? _perfilActual;
+
+    private int _idPerfilNuevo;
     private int _idRolNuevo;
     private string _clave = string.Empty;
     private string _claveConfirmar = string.Empty;
     private bool _guardando;
 
-    /// <summary>Campos comunes a UsuariosDTO y UsuarioDTO, para no duplicar el formulario.</summary>
+    // cambio de perfil/rol desde la tabla
+    private long _idUsuarioCambio;
+    private string _perfilUsuario = string.Empty;
+    private int _idPerfilCambio;
+    private int _idRolCambio;
+
     private sealed class UsuarioBase
     {
         public string? IdUsuario { get; set; }
         public string? Nombre { get; set; }
-        public int Perfil { get; set; }
         public string? Email { get; set; }
         public string? Observaciones { get; set; }
         public bool Activo { get; set; } = true;
@@ -204,10 +274,40 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _perfiles = (await Respuestas.DatoAsync(await Api.ObtenerPerfiles(), "consultar los perfiles"))
-                    ?.ToList() ?? new List<Perfil>();
-        _roles = (await Respuestas.DatoAsync(await Api.ObtenerRoles(), "consultar los roles"))
-                 ?.ToList() ?? new List<Role>();
+        _perfiles = (await Respuestas.DatoAsync(await ApiPerfiles.Listar(), "consultar los perfiles"))
+                    ?.ToList() ?? new List<PerfilSeguridadDTO>();
+        _roles = (await Respuestas.DatoAsync(await ApiRoles.Roles(), "consultar los roles"))
+                 ?.ToList() ?? new List<RolResumenDTO>();
+    }
+
+    private IEnumerable<PerfilSeguridadDTO> PerfilesVisibles()
+        => _perfiles.Where(p => p.Activo &&
+                                (Sesion.EsSuperAdministrador || !p.EsSuperAdministracion));
+
+    private bool PerfilElegidoEsSuper()
+        => _perfiles.FirstOrDefault(p => p.IdPerfil == _idPerfilNuevo)?.EsSuperAdministracion ?? false;
+
+    private bool PerfilCambioEsSuper()
+        => _perfiles.FirstOrDefault(p => p.IdPerfil == _idPerfilCambio)?.EsSuperAdministracion ?? false;
+
+    private void AlCambiarPerfilNuevo()
+    {
+        if (PerfilElegidoEsSuper()) _idRolNuevo = 0;
+        _perfilActual = _perfiles.FirstOrDefault(p => p.IdPerfil == _idPerfilNuevo);
+    }
+
+    private void AlCambiarPerfilCambio()
+    {
+        if (PerfilCambioEsSuper()) _idRolCambio = 0;
+    }
+
+    private static string NombrePerfil(PerfilSeguridadDTO? p) => p?.Descripcion ?? "—";
+
+    private static IEnumerable<string> CapacidadesDe(PerfilSeguridadDTO p)
+    {
+        if (p.CostaPets) yield return "CostaPets";
+        if (p.AgenteCostaPets) yield return "Agente CostaPets";
+        if (p.AceptaConsignacion) yield return "Acepta consignación";
     }
 
     private async Task<GridDataProviderResult<BuscarUsuarioDTO>> Cargar(
@@ -220,17 +320,17 @@
     private async Task AlEscribir(ChangeEventArgs e)
     {
         _texto = e.Value?.ToString() ?? string.Empty;
-        if (_rejilla is not null)
-        {
-            await _rejilla.RefrescarAsync();
-        }
+        if (_rejilla is not null) await _rejilla.RefrescarAsync();
     }
 
     private async Task Agregar()
     {
         _esNuevo = true;
         _idActual = 0;
+        _idPerfilNuevo = 0;
         _idRolNuevo = 0;
+        _idRolActual = 0;
+        _perfilActual = null;
         _clave = string.Empty;
         _claveConfirmar = string.Empty;
         _edicion = new UsuarioBase();
@@ -241,21 +341,17 @@
     {
         var completo = await Respuestas.DatoAsync(
             await Api.ObtenerUno(resumen.IdUsuario ?? string.Empty), "obtener el usuario");
-
-        if (completo is null)
-        {
-            return;
-        }
+        if (completo is null) return;
 
         _esNuevo = false;
         _idActual = completo.Id ?? 0;
         _idRolActual = completo.IdRol ?? 0;
+        _perfilActual = _perfiles.FirstOrDefault(p => p.IdPerfil == completo.IdPerfil);
 
         _edicion = new UsuarioBase
         {
             IdUsuario = completo.IdUsuario,
             Nombre = completo.Nombre,
-            Perfil = completo.Perfil,
             Email = completo.Email,
             Observaciones = completo.Observaciones,
             Activo = completo.Activo
@@ -264,12 +360,48 @@
         await _modal.ShowAsync();
     }
 
+    private async Task AbrirCambioPerfil(BuscarUsuarioDTO resumen)
+    {
+        var completo = await Respuestas.DatoAsync(
+            await Api.ObtenerUno(resumen.IdUsuario ?? string.Empty), "obtener el usuario");
+        if (completo is null) return;
+
+        _idUsuarioCambio = completo.Id ?? 0;
+        _perfilUsuario = $"{completo.Nombre} ({completo.IdUsuario})";
+        _idPerfilCambio = completo.IdPerfil;
+        _idRolCambio = completo.IdRol ?? 0;
+        await _modalPerfil.ShowAsync();
+    }
+
+    private async Task GuardarCambioPerfil()
+    {
+        if (_guardando || _idUsuarioCambio == 0) return;
+        _guardando = true;
+
+        var okPerfil = await Respuestas.CorrectaAsync(
+            await Api.CambiarPerfil(_idUsuarioCambio, _idPerfilCambio), "cambiar el perfil");
+
+        bool okRol = true;
+        if (okPerfil && !PerfilCambioEsSuper())
+        {
+            okRol = await Respuestas.CorrectaAsync(
+                await Api.CambiarRol(_idUsuarioCambio, _idRolCambio > 0 ? _idRolCambio : null),
+                "cambiar el rol");
+        }
+
+        _guardando = false;
+
+        if (okPerfil && okRol)
+        {
+            await _modalPerfil.HideAsync();
+            Dialogos.Exito("Perfil y rol actualizados.");
+            if (_rejilla is not null) await _rejilla.RefrescarAsync();
+        }
+    }
+
     private async Task Guardar()
     {
-        if (_edicion is null || _guardando)
-        {
-            return;
-        }
+        if (_edicion is null || _guardando) return;
 
         if (string.IsNullOrWhiteSpace(_edicion.IdUsuario) || string.IsNullOrWhiteSpace(_edicion.Nombre))
         {
@@ -277,25 +409,30 @@
             return;
         }
 
-        if (_esNuevo && !ClaveValida())
+        if (_esNuevo)
         {
-            return;
+            if (_idPerfilNuevo == 0)
+            {
+                Dialogos.ErrorBreve("Seleccione el perfil.");
+                return;
+            }
+            if (!PerfilElegidoEsSuper() && _idRolNuevo == 0)
+            {
+                Dialogos.ErrorBreve("Este perfil exige un rol asignado.");
+                return;
+            }
+            if (!ClaveValida()) return;
         }
 
         _guardando = true;
-
         var r = _esNuevo ? await GuardarNuevoAsync() : await GuardarEdicionAsync();
-
         _guardando = false;
 
         if (r)
         {
             await _modal.HideAsync();
             Dialogos.Exito(_esNuevo ? "Usuario creado." : "Usuario actualizado.");
-            if (_rejilla is not null)
-            {
-                await _rejilla.RefrescarAsync();
-            }
+            if (_rejilla is not null) await _rejilla.RefrescarAsync();
         }
     }
 
@@ -308,29 +445,27 @@
                 "minuscula, numero y caracter especial.");
             return false;
         }
-
         if (_clave != _claveConfirmar)
         {
             Dialogos.ErrorBreve("Las contrasenas no coinciden.");
             return false;
         }
-
         return true;
     }
 
     private async Task<bool> GuardarNuevoAsync()
     {
-        var dto = new UsuariosDTO
+        var dto = new UsuarioAltaDTO
         {
             IdUsuario = _edicion!.IdUsuario,
             Nombre = _edicion.Nombre,
-            Perfil = _edicion.Perfil,
+            IdPerfil = _idPerfilNuevo,
             Email = _edicion.Email,
             Observaciones = _edicion.Observaciones,
             Activo = _edicion.Activo,
             ClaveEntrada = _clave,
             ClaveInterna = _clave,
-            IdRol = _idRolNuevo > 0 ? _idRolNuevo : null
+            IdRol = PerfilElegidoEsSuper() ? null : _idRolNuevo
         };
 
         return await Respuestas.CorrectaAsync(await Api.Crear(dto), "crear el usuario");
@@ -343,7 +478,6 @@
             Id = _idActual,
             IdUsuario = _edicion!.IdUsuario,
             Nombre = _edicion.Nombre,
-            Perfil = _edicion.Perfil,
             Email = _edicion.Email,
             Observaciones = _edicion.Observaciones,
             Activo = _edicion.Activo
