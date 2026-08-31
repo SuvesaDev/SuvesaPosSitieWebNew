@@ -222,13 +222,16 @@
                 {
                     <p class="text-body-secondary">Cargando catálogo...</p>
                 }
-                else if (_catalogo.Count == 0)
+                else if (CatalogoVisible().Count == 0)
                 {
-                    <p class="text-body-secondary">El catálogo está vacío. Ejecute la semilla del API.</p>
+                    <p class="text-body-secondary">
+                        El catálogo está vacío. Ejecute la semilla del API
+                        (<code>Seguridad:SeedAlArrancar = true</code>).
+                    </p>
                 }
                 else
                 {
-                    @foreach (var m in _catalogo)
+                    @foreach (var m in CatalogoVisible())
                     {
                         <div class="card mb-2">
                             <div class="card-header py-2 d-flex justify-content-between align-items-center">
@@ -768,6 +771,17 @@
         => _catalogo = (await Respuestas.DatoAsync(await Api.Catalogo(), "consultar el catálogo"))?.ToList()
                        ?? new List<ModuloCatalogoDTO>();
 
+    /// <summary>
+    /// Oculta los módulos LEGACY_* (relleno de la migración, no menú real). El seeder
+    /// del API también los desactiva; esto es por si el seeder aún no se ha ejecutado.
+    /// </summary>
+    private List<ModuloCatalogoDTO> CatalogoVisible()
+        => _catalogo?
+               .Where(m => !(m.Codigo ?? string.Empty).StartsWith("LEGACY_", StringComparison.OrdinalIgnoreCase))
+               .OrderBy(m => m.Orden).ThenBy(m => m.Nombre)
+               .ToList()
+           ?? new List<ModuloCatalogoDTO>();
+
     // ---------- roles ----------
     private async Task NuevoRol()
     {
@@ -924,7 +938,10 @@
     private async Task<GridDataProviderResult<AccionCatalogoDTO>> CargarAcciones(GridDataProviderRequest<AccionCatalogoDTO> p)
     {
         var r = await Respuestas.DatoAsync(await Api.Acciones(), "consultar las acciones");
-        return p.ApplyTo(r?.ToList() ?? new List<AccionCatalogoDTO>());
+        var lista = (r?.ToList() ?? new List<AccionCatalogoDTO>())
+            .Where(a => !(a.Codigo ?? string.Empty).StartsWith("LEGACY_", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        return p.ApplyTo(lista);
     }
 
     private void AbrirAccion(AccionCatalogoDTO? a)
