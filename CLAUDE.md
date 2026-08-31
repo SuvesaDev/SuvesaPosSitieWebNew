@@ -68,6 +68,41 @@ Si en algun momento se decide construirlos, son pantallas nuevas, no una migraci
 El shell (menu, pestanas, convivencia con la SPA React via YARP) y el sistema de
 diseno de la Ola 0 siguen como se describen abajo.
 
+## Rediseño de seguridad V2 — SUPERSEDE lo de "Sesion y permisos" de abajo
+
+Ver `docs/REDISENO_SEGURIDAD_USUARIOS_ROLES_WEB.md` (y su par en el repo del API).
+Estado: implementado en `feature/seguridad-usuarios-roles-web` (API en
+`DevSuvesaPosWeb`, rama `feature/seguridad-usuarios-roles-v2`), a la espera de
+regenerar los contratos NSwag contra el API nuevo desplegado.
+
+Cambios que ya mandan sobre el texto viejo de este archivo:
+
+- **Los permisos casan por CÓDIGO de función** (`MODULO.SLUG`), no por rótulo. Cada
+  nodo de `MenuSeePos.cs` lleva `Codigo` (generado por `tools/anotar_codigos_menu.py`
+  con el mismo algoritmo que la semilla del API). El claim de permiso es
+  `moduloCodigo|funcionCodigo|VER,CREAR,...` (`PermisoFuncion`, reemplaza a
+  `PermisoPantalla`). Las Views que aún pasan el título siguen funcionando porque
+  `ContextoSesion` lo resuelve con `MenuSeePos.ResolverCodigo`.
+- **`NombrePantalla.cs` borrado.** El parche de comparar títulos sin tildes ya no
+  hace falta; su normalizador de búsqueda vive ahora en `Helpers/Texto.cs`.
+- **Acciones**: VER/CREAR/EDITAR/BORRAR/**ACTIVAR/EXPORTAR/IMPRIMIR** (`AccionPantalla`;
+  `Modificar` es alias de `Editar`).
+- **Perfil** (tipo de cuenta): `SUPER_ADMIN` / `ADMIN` / `USUARIO` (catálogo
+  extensible). `SUPER_ADMIN` (`ClaimsSeePos.EsSuperAdministrador`, antes
+  `administrador`) ve todo y no pasa por rol. `ADMIN` gestiona usuarios y **lee** la
+  config de seguridad; sus permisos de negocio salen del rol, igual que `USUARIO`.
+  Las capacidades CostaPets/AgenteCostaPets se **heredan del perfil**.
+- **`SeePos:VerPantallasNoGobernadas` por defecto `false`**: el catálogo del API se
+  genera del mismo árbol que el menú, así que una función que el rol no menciona es
+  una denegación real.
+- **Pantallas**: `Views/Parametros/RolesPermisos.razor` (3 pestañas: Roles + matriz,
+  Catálogo, Acciones) reemplaza a `Roles.razor`. `Usuarios.razor` elige perfil desde
+  `/seguridad/perfiles` y cambia perfil/rol desde la tabla.
+- Proxies nuevos: `IRolesPermisos`, `IPerfiles`; `IRoles` retirado. Mientras no se
+  regeneren los contratos, `ApiConexion/SeguridadApiCliente.cs` + `DTOs/Seguridad/*`
+  son un cliente/DTOs escritos a mano que se sustituyen al correr
+  `./tools/actualizar-contratos.sh` contra el API nuevo.
+
 ## Diseño visual — pulido de Ola 6
 
 Revision visual sobre capturas reales, aplicada en `tema.css`/`tema.js` (un solo

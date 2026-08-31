@@ -1,0 +1,699 @@
+@page "/parameters/role"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Seguridad
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IRolesPermisos Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  Rediseno de seguridad V2 — mantenimiento unico de Roles y Permisos.
+
+    Tres pestanas:
+      - Roles: alta/edicion + matriz de permisos (Modulo -> Funcion -> Accion).
+      - Catalogo: alta/edicion de modulos y funciones, y que acciones expone cada funcion.
+      - Acciones: catalogo global de tipos de accion.
+
+    El API concede LECTURA a los perfiles que gestionan seguridad y ESCRITURA solo a
+    SUPER_ADMIN. El sitio ademas pide reconfirmar la propia clave antes de mostrar nada.
+*@
+
+<AppPantalla Pantalla="@Titulo" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio">
+    <ChildContent>
+
+        @if (!_passwordValidada)
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <p class="mb-2">
+                        Por seguridad, confirme su propia contrasena antes de ver o cambiar
+                        la configuracion de roles y permisos.
+                    </p>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="claveGate">Su contrasena</label>
+                            <input id="claveGate" type="password" class="form-control"
+                                   @bind="_passwordGate" @bind:event="oninput"
+                                   @onkeyup="@(async e => { if (e.Key == "Enter") await ValidarGate(); })" />
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <button class="btn btn-primary" disabled="@_validandoGate" @onclick="ValidarGate">
+                                @(_validandoGate ? "Validando..." : "Confirmar")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            @if (!_puedeEscribir)
+            {
+                <div class="alert alert-info py-2">
+                    Su perfil puede <strong>consultar</strong> esta configuracion pero no modificarla.
+                </div>
+            }
+
+            <ul class="nav nav-pills mb-3">
+                <li class="nav-item">
+                    <button class="nav-link @(_tab == Tab.Roles ? "active" : "")" @onclick="() => _tab = Tab.Roles">Roles</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(_tab == Tab.Catalogo ? "active" : "")" @onclick="AbrirCatalogo">Catálogo</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(_tab == Tab.Acciones ? "active" : "")" @onclick="AbrirAcciones">Acciones</button>
+                </li>
+            </ul>
+
+            @switch (_tab)
+            {
+                case Tab.Roles:
+                    <RolesTab />
+                    break;
+                case Tab.Catalogo:
+                    <CatalogoTab />
+                    break;
+                case Tab.Acciones:
+                    <AccionesTab />
+                    break;
+            }
+        }
+
+    </ChildContent>
+</AppPantalla>
+
+@* =================== PESTAÑA ROLES =================== *@
+@{
+    RenderFragment RolesTab() =>
+    @<div>
+        @if (_puedeEscribir)
+        {
+            <div class="mb-3 text-end">
+                <button class="btn btn-sm btn-primary" @onclick="NuevoRol">
+                    <i class="bi bi-plus-lg me-1"></i>Nuevo rol
+                </button>
+            </div>
+        }
+        <div class="card">
+            <div class="card-body">
+                <AppRejilla TItem="RolResumenDTO" Datos="CargarRoles" @ref="_rejillaRoles"
+                            TextoVacio="No hay roles registrados.">
+                    <Columnas>
+                        <HxGridColumn TItem="RolResumenDTO" HeaderText="Rol" ItemTextSelector="r => r.Nombre" />
+                        <HxGridColumn TItem="RolResumenDTO" HeaderText="Descripción" ItemTextSelector="r => r.Descripcion" />
+                        <HxGridColumn TItem="RolResumenDTO" HeaderText="Estado"
+                                      ItemTextSelector="@(r => r.Activo ? "Activo" : "Inactivo")" />
+                        <HxGridColumn TItem="RolResumenDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
+                            <ItemTemplate Context="r">
+                                <button class="btn btn-sm btn-link p-0" @onclick="() => EditarRol(r)">
+                                    @(_puedeEscribir ? "Editar" : "Ver")
+                                </button>
+                            </ItemTemplate>
+                        </HxGridColumn>
+                    </Columnas>
+                </AppRejilla>
+            </div>
+        </div>
+    </div>;
+}
+
+<HxModal @ref="_modalRol" Title="@(_rolEsNuevo ? "Nuevo rol" : "Rol")" Size="ModalSize.ExtraLarge">
+    <BodyTemplate>
+        @if (_rol is not null)
+        {
+            <div class="row g-3 mb-3">
+                <div class="col-12 col-md-6">
+                    <AppCampoTexto Etiqueta="Nombre del rol" @bind-Valor="_rol.Nombre"
+                                   Deshabilitado="@(!_puedeEscribir)" Requerido="true" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <AppCampoTexto Etiqueta="Descripción" @bind-Valor="_rol.Descripcion"
+                                   Deshabilitado="@(!_puedeEscribir)" />
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="activoRol"
+                               @bind="_rol.Activo" disabled="@(!_puedeEscribir)" />
+                        <label class="form-check-label" for="activoRol">Activo</label>
+                    </div>
+                </div>
+            </div>
+
+            <h6 class="seepos-form-seccion">Permisos</h6>
+            @foreach (var grupo in _rol.Funciones.GroupBy(f => f.ModuloNombre))
+            {
+                <div class="card mb-2">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                        <strong>@grupo.Key</strong>
+                        @if (_puedeEscribir)
+                        {
+                            <span>
+                                <button class="btn btn-sm btn-link p-0 me-3" @onclick="() => MarcarModuloVer(grupo)">Ver todo</button>
+                                <button class="btn btn-sm btn-link p-0" @onclick="() => LimpiarModulo(grupo)">Limpiar</button>
+                            </span>
+                        }
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0 align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style="min-width: 14rem">Función</th>
+                                        @foreach (var acc in TodasLasAcciones)
+                                        {
+                                            <th class="text-center">@acc</th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var f in grupo.OrderBy(x => x.FuncionNombre))
+                                    {
+                                        <tr>
+                                            <td>@f.FuncionNombre <code class="small">@f.FuncionCodigo</code></td>
+                                            @foreach (var acc in TodasLasAcciones)
+                                            {
+                                                <td class="text-center">
+                                                    @if (f.AccionesDisponibles.Contains(acc))
+                                                    {
+                                                        <input type="checkbox" class="form-check-input"
+                                                               checked="@f.AccionesConcedidas.Contains(acc)"
+                                                               disabled="@(!_puedeEscribir)"
+                                                               @onchange="e => AlternarAccion(f, acc, (bool)e.Value!)" />
+                                                    }
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modalRol.HideAsync()">Cerrar</button>
+        @if (_puedeEscribir)
+        {
+            <button class="btn btn-primary" disabled="@_guardando" @onclick="GuardarRol">
+                @(_guardando ? "Guardando..." : "Guardar")
+            </button>
+        }
+    </FooterTemplate>
+</HxModal>
+
+@* =================== PESTAÑA CATÁLOGO =================== *@
+@{
+    RenderFragment CatalogoTab() =>
+    @<div>
+        @if (_puedeEscribir)
+        {
+            <div class="mb-3 text-end">
+                <button class="btn btn-sm btn-primary" @onclick="() => AbrirModulo(null)">
+                    <i class="bi bi-plus-lg me-1"></i>Nuevo módulo
+                </button>
+            </div>
+        }
+        @if (_catalogo is null)
+        {
+            <p class="text-body-secondary">Cargando catálogo...</p>
+        }
+        else
+        {
+            @foreach (var m in _catalogo)
+            {
+                <div class="card mb-2">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                        <span>
+                            <strong>@m.Nombre</strong> <code class="small">@m.Codigo</code>
+                            @if (!m.Activo) { <span class="badge text-bg-secondary ms-2">inactivo</span> }
+                        </span>
+                        @if (_puedeEscribir)
+                        {
+                            <span>
+                                <button class="btn btn-sm btn-link p-0 me-3" @onclick="() => AbrirModulo(m)">Editar</button>
+                                <button class="btn btn-sm btn-link p-0" @onclick="() => AbrirFuncion(m, null)">Nueva función</button>
+                            </span>
+                        }
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm mb-0 align-middle">
+                            <tbody>
+                                @foreach (var f in Aplanar(m.Funciones))
+                                {
+                                    <tr>
+                                        <td style="padding-left: @(1 + f.Nivel)rem">
+                                            @f.Funcion.Nombre <code class="small">@f.Funcion.Codigo</code>
+                                            @if (!f.Funcion.Activo) { <span class="badge text-bg-secondary ms-2">inactivo</span> }
+                                        </td>
+                                        <td class="small text-body-secondary">@string.Join(", ", f.Funcion.AccionesDisponibles)</td>
+                                        <td class="text-end">
+                                            @if (_puedeEscribir)
+                                            {
+                                                <button class="btn btn-sm btn-link p-0" @onclick="() => AbrirFuncion(m, f.Funcion)">Editar</button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        }
+    </div>;
+}
+
+<HxModal @ref="_modalModulo" Title="Módulo" Size="ModalSize.Regular">
+    <BodyTemplate>
+        @if (_modulo is not null)
+        {
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <AppCampoTexto Etiqueta="Código" @bind-Valor="_modulo.Codigo"
+                                   Deshabilitado="@(_modulo.IdModulo is not null)" Requerido="true" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <AppCampoTexto Etiqueta="Nombre" @bind-Valor="_modulo.Nombre" Requerido="true" />
+                </div>
+                <div class="col-6 col-md-4">
+                    <AppCampoNumero Etiqueta="Orden" @bind-Valor="_moduloOrden" />
+                </div>
+                <div class="col-6 col-md-8">
+                    <AppCampoTexto Etiqueta="Icono (Bootstrap Icons)" @bind-Valor="_modulo.Icono" />
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="moduloActivo" @bind="_modulo.Activo" />
+                        <label class="form-check-label" for="moduloActivo">Activo</label>
+                    </div>
+                </div>
+            </div>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modalModulo.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" disabled="@_guardando" @onclick="GuardarModulo">Guardar</button>
+    </FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalFuncion" Title="Función" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_funcion is not null)
+        {
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <AppCampoTexto Etiqueta="Código" @bind-Valor="_funcion.Codigo"
+                                   Deshabilitado="@(_funcion.IdFuncion is not null)" Requerido="true" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <AppCampoTexto Etiqueta="Nombre" @bind-Valor="_funcion.Nombre" Requerido="true" />
+                </div>
+                <div class="col-12 col-md-8">
+                    <AppCampoTexto Etiqueta="Ruta" @bind-Valor="_funcion.Ruta" />
+                </div>
+                <div class="col-6 col-md-4">
+                    <AppCampoNumero Etiqueta="Orden" @bind-Valor="_funcionOrden" />
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="funcPadre">Función padre</label>
+                    <select id="funcPadre" class="form-select" @bind="_funcionIdPadre">
+                        <option value="0">— (hija directa del módulo)</option>
+                        @foreach (var f in _funcionesDelModulo.Where(f => f.IdFuncion != _funcion.IdFuncion))
+                        {
+                            <option value="@f.IdFuncion">@f.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Acciones que expone</label>
+                    <div class="d-flex flex-wrap gap-3">
+                        @foreach (var acc in TodasLasAcciones)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="fa_@acc"
+                                       checked="@_funcion.AccionesDisponibles.Contains(acc)"
+                                       @onchange="e => AlternarDisponible(acc, (bool)e.Value!)" />
+                                <label class="form-check-label" for="fa_@acc">@acc</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="funcActivo" @bind="_funcion.Activo" />
+                        <label class="form-check-label" for="funcActivo">Activo</label>
+                    </div>
+                </div>
+            </div>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modalFuncion.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" disabled="@_guardando" @onclick="GuardarFuncion">Guardar</button>
+    </FooterTemplate>
+</HxModal>
+
+@* =================== PESTAÑA ACCIONES =================== *@
+@{
+    RenderFragment AccionesTab() =>
+    @<div>
+        <div class="alert alert-warning py-2 small">
+            Este catálogo afecta a <strong>todo el sistema</strong>. Cambielo solo si sabe lo que hace.
+        </div>
+        @if (_puedeEscribir)
+        {
+            <div class="mb-3 text-end">
+                <button class="btn btn-sm btn-primary" @onclick="() => AbrirAccion(null)">
+                    <i class="bi bi-plus-lg me-1"></i>Nueva acción
+                </button>
+            </div>
+        }
+        <div class="card">
+            <div class="card-body">
+                <AppRejilla TItem="AccionCatalogoDTO" Datos="CargarAcciones" @ref="_rejillaAcciones"
+                            TextoVacio="Sin acciones.">
+                    <Columnas>
+                        <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="Código" ItemTextSelector="a => a.Codigo" />
+                        <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="Nombre" ItemTextSelector="a => a.Nombre" />
+                        <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="Orden" ItemTextSelector="a => a.Orden.ToString()" />
+                        <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="Estado"
+                                      ItemTextSelector="@(a => a.Activo ? "Activo" : "Inactivo")" />
+                        <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
+                            <ItemTemplate Context="a">
+                                @if (_puedeEscribir)
+                                {
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => AbrirAccion(a)">Editar</button>
+                                }
+                            </ItemTemplate>
+                        </HxGridColumn>
+                    </Columnas>
+                </AppRejilla>
+            </div>
+        </div>
+    </div>;
+}
+
+<HxModal @ref="_modalAccion" Title="Acción" Size="ModalSize.Regular">
+    <BodyTemplate>
+        @if (_accion is not null)
+        {
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <AppCampoTexto Etiqueta="Código" @bind-Valor="_accion.Codigo"
+                                   Deshabilitado="@(_accion.IdAccion is not null)" Requerido="true" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <AppCampoTexto Etiqueta="Nombre" @bind-Valor="_accion.Nombre" Requerido="true" />
+                </div>
+                <div class="col-6">
+                    <AppCampoNumero Etiqueta="Orden" @bind-Valor="_accionOrden" />
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="accActivo" @bind="_accion.Activo" />
+                        <label class="form-check-label" for="accActivo">Activo</label>
+                    </div>
+                </div>
+            </div>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modalAccion.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" disabled="@_guardando" @onclick="GuardarAccion">Guardar</button>
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Roles";
+    private const string Codigo = "PARAMETROS.ROLES";
+
+    private static readonly string[] TodasLasAcciones =
+        { "VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "EXPORTAR", "IMPRIMIR" };
+
+    private enum Tab { Roles, Catalogo, Acciones }
+    private Tab _tab = Tab.Roles;
+
+    private bool _puedeEscribir => Sesion.EsSuperAdministrador;
+    private bool _guardando;
+
+    // gate
+    private bool _passwordValidada;
+    private bool _validandoGate;
+    private string _passwordGate = string.Empty;
+
+    // roles
+    private AppRejilla<RolResumenDTO>? _rejillaRoles;
+    private HxModal _modalRol = default!;
+    private RolDetalleDTO? _rol;
+    private bool _rolEsNuevo;
+    private int _rolIdActual;
+
+    // catalogo
+    private List<ModuloCatalogoDTO>? _catalogo;
+    private HxModal _modalModulo = default!;
+    private ModuloCatalogoDTO? _modulo;
+    private int? _moduloOrden;
+    private HxModal _modalFuncion = default!;
+    private FuncionCatalogoDTO? _funcion;
+    private int? _funcionOrden;
+    private int _funcionIdPadre;
+    private int _funcionIdModulo;
+    private List<FuncionCatalogoDTO> _funcionesDelModulo = new();
+
+    // acciones
+    private AppRejilla<AccionCatalogoDTO>? _rejillaAcciones;
+    private HxModal _modalAccion = default!;
+    private AccionCatalogoDTO? _accion;
+    private int? _accionOrden;
+
+    // ---------- gate ----------
+    private async Task ValidarGate()
+    {
+        if (string.IsNullOrWhiteSpace(_passwordGate)) return;
+        _validandoGate = true;
+        var r = await Respuestas.DatoAsync(await Api.ValidarPasswordActual(_passwordGate), "validar la clave");
+        _validandoGate = false;
+        _passwordGate = string.Empty;
+        if (r is not null) _passwordValidada = true;
+    }
+
+    private async Task AbrirCatalogo()
+    {
+        _tab = Tab.Catalogo;
+        if (_catalogo is null) await RecargarCatalogo();
+    }
+
+    private void AbrirAcciones() => _tab = Tab.Acciones;
+
+    private async Task RecargarCatalogo()
+        => _catalogo = (await Respuestas.DatoAsync(await Api.Catalogo(), "consultar el catálogo"))?.ToList();
+
+    // ---------- roles ----------
+    private async Task<GridDataProviderResult<RolResumenDTO>> CargarRoles(GridDataProviderRequest<RolResumenDTO> p)
+    {
+        var r = await Respuestas.DatoAsync(await Api.Roles(), "consultar los roles");
+        return p.ApplyTo(r?.ToList() ?? new List<RolResumenDTO>());
+    }
+
+    private async Task NuevoRol()
+    {
+        _rolEsNuevo = true;
+        _rolIdActual = 0;
+        var cat = await Respuestas.DatoAsync(await Api.Catalogo(), "consultar el catálogo");
+        _rol = new RolDetalleDTO
+        {
+            Activo = true,
+            Funciones = (cat ?? new List<ModuloCatalogoDTO>())
+                .SelectMany(m => Aplanar(m.Funciones).Select(x => new RolFuncionPermisoDTO
+                {
+                    ModuloCodigo = m.Codigo,
+                    ModuloNombre = m.Nombre,
+                    FuncionCodigo = x.Funcion.Codigo,
+                    FuncionNombre = x.Funcion.Nombre,
+                    AccionesDisponibles = x.Funcion.AccionesDisponibles.ToList(),
+                    AccionesConcedidas = new List<string>()
+                }))
+                .ToList()
+        };
+        await _modalRol.ShowAsync();
+    }
+
+    private async Task EditarRol(RolResumenDTO resumen)
+    {
+        var detalle = await Respuestas.DatoAsync(await Api.Rol(resumen.IdRol), "consultar el rol");
+        if (detalle is null) return;
+        _rolEsNuevo = false;
+        _rolIdActual = detalle.IdRol ?? resumen.IdRol;
+        _rol = detalle;
+        await _modalRol.ShowAsync();
+    }
+
+    private void AlternarAccion(RolFuncionPermisoDTO f, string acc, bool marcado)
+    {
+        if (marcado) { if (!f.AccionesConcedidas.Contains(acc)) f.AccionesConcedidas.Add(acc); }
+        else f.AccionesConcedidas.Remove(acc);
+    }
+
+    private void MarcarModuloVer(IEnumerable<RolFuncionPermisoDTO> grupo)
+    {
+        const string acc = "VER";
+        foreach (var f in grupo.Where(f => f.AccionesDisponibles.Contains(acc) && !f.AccionesConcedidas.Contains(acc)))
+            f.AccionesConcedidas.Add(acc);
+    }
+
+    private void LimpiarModulo(IEnumerable<RolFuncionPermisoDTO> grupo)
+    {
+        foreach (var f in grupo) f.AccionesConcedidas.Clear();
+    }
+
+    private async Task GuardarRol()
+    {
+        if (_rol is null || _guardando) return;
+        if (string.IsNullOrWhiteSpace(_rol.Nombre))
+        {
+            Dialogos.ErrorBreve("Indique el nombre del rol.");
+            return;
+        }
+
+        _guardando = true;
+
+        var cabecera = _rolEsNuevo
+            ? await Api.CrearRol(_rol)
+            : await Api.EditarRol(_rolIdActual, _rol);
+        var guardado = await Respuestas.DatoAsync(cabecera, "guardar el rol");
+
+        var ok = guardado is not null;
+        if (ok)
+        {
+            var idRol = guardado!.IdRol ?? _rolIdActual;
+            var filas = _rol.Funciones
+                .Where(f => f.AccionesConcedidas.Count > 0)
+                .Select(f => new PermisoFilaDTO { FuncionCodigo = f.FuncionCodigo, Acciones = f.AccionesConcedidas.ToList() })
+                .ToList();
+            ok = await Respuestas.CorrectaAsync(await Api.GuardarPermisos(idRol, filas), "guardar los permisos");
+        }
+
+        _guardando = false;
+        if (ok)
+        {
+            await _modalRol.HideAsync();
+            Dialogos.Exito(_rolEsNuevo ? "Rol creado." : "Rol actualizado.");
+            if (_rejillaRoles is not null) await _rejillaRoles.RefrescarAsync();
+        }
+    }
+
+    // ---------- catalogo: modulos ----------
+    private void AbrirModulo(ModuloCatalogoDTO? m)
+    {
+        _modulo = m is null
+            ? new ModuloCatalogoDTO { Activo = true }
+            : new ModuloCatalogoDTO
+            {
+                IdModulo = m.IdModulo, Codigo = m.Codigo, Nombre = m.Nombre,
+                Orden = m.Orden, Icono = m.Icono, Activo = m.Activo
+            };
+        _moduloOrden = _modulo.Orden;
+        _modalModulo.ShowAsync();
+    }
+
+    private async Task GuardarModulo()
+    {
+        if (_modulo is null || _guardando) return;
+        _modulo.Orden = _moduloOrden ?? 0;
+        _guardando = true;
+        var ok = await Respuestas.CorrectaAsync(await Api.GuardarModulo(_modulo), "guardar el módulo");
+        _guardando = false;
+        if (ok)
+        {
+            await _modalModulo.HideAsync();
+            await RecargarCatalogo();
+        }
+    }
+
+    // ---------- catalogo: funciones ----------
+    private void AbrirFuncion(ModuloCatalogoDTO m, FuncionCatalogoDTO? f)
+    {
+        _funcionIdModulo = m.IdModulo ?? 0;
+        _funcionesDelModulo = Aplanar(m.Funciones).Select(x => x.Funcion).ToList();
+        _funcion = f is null
+            ? new FuncionCatalogoDTO { IdModulo = _funcionIdModulo, Activo = true, AccionesDisponibles = TodasLasAcciones.ToList() }
+            : new FuncionCatalogoDTO
+            {
+                IdFuncion = f.IdFuncion, IdModulo = f.IdModulo, IdFuncionPadre = f.IdFuncionPadre,
+                Codigo = f.Codigo, Nombre = f.Nombre, Ruta = f.Ruta, Orden = f.Orden, Activo = f.Activo,
+                AccionesDisponibles = f.AccionesDisponibles.ToList()
+            };
+        _funcionOrden = _funcion.Orden;
+        _funcionIdPadre = _funcion.IdFuncionPadre ?? 0;
+        _modalFuncion.ShowAsync();
+    }
+
+    private void AlternarDisponible(string acc, bool marcado)
+    {
+        if (_funcion is null) return;
+        if (marcado) { if (!_funcion.AccionesDisponibles.Contains(acc)) _funcion.AccionesDisponibles.Add(acc); }
+        else _funcion.AccionesDisponibles.Remove(acc);
+    }
+
+    private async Task GuardarFuncion()
+    {
+        if (_funcion is null || _guardando) return;
+        _funcion.Orden = _funcionOrden ?? 0;
+        _funcion.IdFuncionPadre = _funcionIdPadre > 0 ? _funcionIdPadre : null;
+        _funcion.IdModulo = _funcionIdModulo;
+        _guardando = true;
+        var ok = await Respuestas.CorrectaAsync(await Api.GuardarFuncion(_funcion), "guardar la función");
+        _guardando = false;
+        if (ok)
+        {
+            await _modalFuncion.HideAsync();
+            await RecargarCatalogo();
+        }
+    }
+
+    // ---------- acciones ----------
+    private async Task<GridDataProviderResult<AccionCatalogoDTO>> CargarAcciones(GridDataProviderRequest<AccionCatalogoDTO> p)
+    {
+        var r = await Respuestas.DatoAsync(await Api.Acciones(), "consultar las acciones");
+        return p.ApplyTo(r?.ToList() ?? new List<AccionCatalogoDTO>());
+    }
+
+    private void AbrirAccion(AccionCatalogoDTO? a)
+    {
+        _accion = a is null
+            ? new AccionCatalogoDTO { Activo = true }
+            : new AccionCatalogoDTO { IdAccion = a.IdAccion, Codigo = a.Codigo, Nombre = a.Nombre, Orden = a.Orden, Activo = a.Activo };
+        _accionOrden = _accion.Orden;
+        _modalAccion.ShowAsync();
+    }
+
+    private async Task GuardarAccion()
+    {
+        if (_accion is null || _guardando) return;
+        _accion.Orden = _accionOrden ?? 0;
+        _guardando = true;
+        var ok = await Respuestas.CorrectaAsync(await Api.GuardarAccion(_accion), "guardar la acción");
+        _guardando = false;
+        if (ok)
+        {
+            await _modalAccion.HideAsync();
+            if (_rejillaAcciones is not null) await _rejillaAcciones.RefrescarAsync();
+        }
+    }
+
+    // ---------- util ----------
+    private static IEnumerable<(FuncionCatalogoDTO Funcion, int Nivel)> Aplanar(
+        IEnumerable<FuncionCatalogoDTO> funciones, int nivel = 0)
+    {
+        foreach (var f in funciones.OrderBy(x => x.Orden).ThenBy(x => x.Nombre))
+        {
+            yield return (f, nivel);
+            foreach (var h in Aplanar(f.Hijas, nivel + 1))
+                yield return h;
+        }
+    }
+}
