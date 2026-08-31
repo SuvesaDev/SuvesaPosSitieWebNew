@@ -16,7 +16,18 @@ namespace SuvesaPosSitioAplicacion.Helpers;
 /// </summary>
 public static class Formato
 {
-    private static readonly CultureInfo Cultura = new("es-CR");
+    // ICU puede definir el separador de miles de es-CR como un espacio segun el
+    // sistema operativo. La aplicacion usa punto para miles y coma para decimales,
+    // asi que se fijan ambos valores para mantener el formato estable.
+    private static readonly CultureInfo Cultura = CrearCultura();
+
+    private static CultureInfo CrearCultura()
+    {
+        var cultura = (CultureInfo)new CultureInfo("es-CR").Clone();
+        cultura.NumberFormat.NumberGroupSeparator = ".";
+        cultura.NumberFormat.NumberDecimalSeparator = ",";
+        return cultura;
+    }
 
     /// <summary>Importe con dos decimales y separador de miles.</summary>
     public static string Importe(decimal valor) => valor.ToString("N2", Cultura);
