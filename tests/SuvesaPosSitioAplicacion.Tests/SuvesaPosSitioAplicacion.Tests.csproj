@@ -22,4 +22,10 @@
     <ProjectReference Include="..\..\src\SuvesaPosSitioAplicacion\SuvesaPosSitioAplicacion.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Copia de DevSuvesaPosWeb/ApiSuvesaPos/SecuritySystem/Seed/seed-seguridad.json.
+         Regenerar con tools/generar_semilla_seguridad.py en el repo del API. -->
+    <EmbeddedResource Include="Fixtures\seed-seguridad.json" />
+  </ItemGroup>
+
 </Project>

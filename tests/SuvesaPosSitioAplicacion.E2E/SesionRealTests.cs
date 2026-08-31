@@ -13,6 +13,7 @@ namespace SuvesaPosSitioAplicacion.E2E;
 /// No usa navegador: llama a la misma capa ApiConexion que usa el sitio.
 /// </summary>
 [Collection(ColeccionE2E.Nombre)]
+[Trait("Categoria", "RequiereCredenciales")]
 public class SesionRealTests
 {
     private readonly ITestOutputHelper _salida;
@@ -51,11 +52,10 @@ public class SesionRealTests
         Assert.NotNull(r.Responses);
         Assert.False(string.IsNullOrWhiteSpace(r.Responses!.Token));
 
-        var permisos = r.Responses.Rol?.Permisos ?? (ICollection<PermisosDTO>)Array.Empty<PermisosDTO>();
+        var permisos = r.Responses.Permisos ?? new();
 
         _salida.WriteLine($"usuario        : {r.Responses.Usuario}");
-        _salida.WriteLine($"administrador  : {r.Responses.Administrador}");
-        _salida.WriteLine($"rol            : {r.Responses.Rol?.NombreRol}");
+        _salida.WriteLine($"perfil         : {r.Responses.Perfil?.Codigo} (super={r.Responses.Perfil?.EsSuperAdministracion})");
         _salida.WriteLine($"permisos       : {permisos.Count}");
         _salida.WriteLine($"expiracion     : {r.Responses.Expiracion:O}");
         _salida.WriteLine($"tamano token   : {r.Responses.Token!.Length} caracteres");
@@ -81,59 +81,49 @@ public class SesionRealTests
     }
 
     /// <summary>
-    /// El riesgo que mas me preocupa del menu: los permisos casan por TITULO, no por
-    /// ruta. Si un NombrePantalla del API no coincide exactamente con el titulo del
-    /// menu, esa pantalla desaparece para todo el que no sea administrador.
+    /// Rediseno V2: los permisos casan por CODIGO de funcion. Todo codigo que el API
+    /// devuelve en <c>permisos[]</c> tiene que existir como codigo de nodo en el menu
+    /// del sitio (si no, esa concesion no abre nada). ASERCION: ya no solo informa.
     /// </summary>
     [HechoConCredenciales]
-    public async Task LosNombresDePantallaDelApiCoincidenConElMenu()
+    public async Task LosCodigosDeFuncionDelApiExistenEnElMenu()
     {
         var r = await CrearProxy().Login(CredencialesPrueba.Usuario!, CredencialesPrueba.Password!);
         Assert.True(r.EsCorrecta, r.Excepcion);
 
-        var delApi = (r.Responses!.Rol?.Permisos ?? (ICollection<PermisosDTO>)Array.Empty<PermisosDTO>())
-            .Select(p => p.NombrePantalla)
-            .Where(n => !string.IsNullOrWhiteSpace(n))
-            .Select(n => n!.Trim())
+        var delApi = (r.Responses!.Permisos ?? new())
+            .Select(p => p.FuncionCodigo)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Select(c => c!.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         if (delApi.Count == 0)
         {
-            _salida.WriteLine("El usuario no trae permisos por pantalla; nada que comparar.");
+            _salida.WriteLine("El usuario (¿SUPER_ADMIN?) no trae permisos por funcion; nada que comparar.");
             return;
         }
 
-        var delMenu = TitulosDelMenu().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var delMenu = CodigosDelMenu().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var huerfanos = delApi.Where(c => !delMenu.Contains(c)).OrderBy(c => c).ToList();
 
-        var huerfanos = delApi.Where(n => !delMenu.Contains(n)).OrderBy(n => n).ToList();
-        var sinPermiso = delMenu.Where(t => !delApi.Contains(t, StringComparer.OrdinalIgnoreCase))
-                                .OrderBy(t => t).ToList();
+        _salida.WriteLine($"funciones del API : {delApi.Count}");
+        _salida.WriteLine($"codigos del menu  : {delMenu.Count}");
+        foreach (var c in huerfanos) _salida.WriteLine($"   huerfano: {c}");
 
-        _salida.WriteLine($"pantallas del API  : {delApi.Count}");
-        _salida.WriteLine($"titulos del menu   : {delMenu.Count}");
-        _salida.WriteLine("");
-        _salida.WriteLine($"-- del API que NO estan en el menu ({huerfanos.Count}):");
-        foreach (var n in huerfanos) _salida.WriteLine($"     {n}");
-        _salida.WriteLine("");
-        _salida.WriteLine($"-- del menu que el API no menciona ({sinPermiso.Count}):");
-        foreach (var t in sinPermiso) _salida.WriteLine($"     {t}");
-
-        // No se afirma nada todavia: primero hay que ver el desfase real.
-        // Cuando se conozca, esto pasa a ser una asercion.
+        Assert.True(huerfanos.Count == 0,
+            "El API concede permiso sobre funciones que el menu no tiene: " + string.Join(", ", huerfanos) +
+            ". Regenera la semilla del API o corre tools/anotar_codigos_menu.py.");
     }
 
-    private static IEnumerable<string> TitulosDelMenu()
+    private static IEnumerable<string> CodigosDelMenu()
     {
         static IEnumerable<string> Recorrer(IEnumerable<Models.ItemMenu> ns)
         {
             foreach (var n in ns)
             {
-                yield return n.Titulo;
-                foreach (var h in Recorrer(n.Hijos))
-                {
-                    yield return h;
-                }
+                if (!string.IsNullOrWhiteSpace(n.Codigo)) yield return n.Codigo!;
+                foreach (var h in Recorrer(n.Hijos)) yield return h;
             }
         }
 

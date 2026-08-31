@@ -68,6 +68,41 @@ Si en algun momento se decide construirlos, son pantallas nuevas, no una migraci
 El shell (menu, pestanas, convivencia con la SPA React via YARP) y el sistema de
 diseno de la Ola 0 siguen como se describen abajo.
 
+## Rediseño de seguridad V2 — SUPERSEDE lo de "Sesion y permisos" de abajo
+
+Ver `docs/REDISENO_SEGURIDAD_USUARIOS_ROLES_WEB.md` (y su par en el repo del API).
+Estado: implementado en `feature/seguridad-usuarios-roles-web` (API en
+`DevSuvesaPosWeb`, rama `feature/seguridad-usuarios-roles-v2`), a la espera de
+regenerar los contratos NSwag contra el API nuevo desplegado.
+
+Cambios que ya mandan sobre el texto viejo de este archivo:
+
+- **Los permisos casan por CÓDIGO de función** (`MODULO.SLUG`), no por rótulo. Cada
+  nodo de `MenuSeePos.cs` lleva `Codigo` (generado por `tools/anotar_codigos_menu.py`
+  con el mismo algoritmo que la semilla del API). El claim de permiso es
+  `moduloCodigo|funcionCodigo|VER,CREAR,...` (`PermisoFuncion`, reemplaza a
+  `PermisoPantalla`). Las Views que aún pasan el título siguen funcionando porque
+  `ContextoSesion` lo resuelve con `MenuSeePos.ResolverCodigo`.
+- **`NombrePantalla.cs` borrado.** El parche de comparar títulos sin tildes ya no
+  hace falta; su normalizador de búsqueda vive ahora en `Helpers/Texto.cs`.
+- **Acciones**: VER/CREAR/EDITAR/BORRAR/**ACTIVAR/EXPORTAR/IMPRIMIR** (`AccionPantalla`;
+  `Modificar` es alias de `Editar`).
+- **Perfil** (tipo de cuenta): `SUPER_ADMIN` / `ADMIN` / `USUARIO` (catálogo
+  extensible). `SUPER_ADMIN` (`ClaimsSeePos.EsSuperAdministrador`, antes
+  `administrador`) ve todo y no pasa por rol. `ADMIN` gestiona usuarios y **lee** la
+  config de seguridad; sus permisos de negocio salen del rol, igual que `USUARIO`.
+  Las capacidades CostaPets/AgenteCostaPets se **heredan del perfil**.
+- **`SeePos:VerPantallasNoGobernadas` por defecto `false`**: el catálogo del API se
+  genera del mismo árbol que el menú, así que una función que el rol no menciona es
+  una denegación real.
+- **Pantallas**: `Views/Parametros/RolesPermisos.razor` (3 pestañas: Roles + matriz,
+  Catálogo, Acciones) reemplaza a `Roles.razor`. `Usuarios.razor` elige perfil desde
+  `/seguridad/perfiles` y cambia perfil/rol desde la tabla.
+- Proxies nuevos: `IRolesPermisos`, `IPerfiles`; `IRoles` retirado. Mientras no se
+  regeneren los contratos, `ApiConexion/SeguridadApiCliente.cs` + `DTOs/Seguridad/*`
+  son un cliente/DTOs escritos a mano que se sustituyen al correr
+  `./tools/actualizar-contratos.sh` contra el API nuevo.
+
 ## Diseño visual — pulido de Ola 6
 
 Revision visual sobre capturas reales, aplicada en `tema.css`/`tema.js` (un solo
@@ -118,6 +153,56 @@ Proxy nuevo en `IAlbaranes`: `PendientesDeFacturarFiltrado()` y `PruebasMedicas(
 ambos ya existian en el cliente generado (`IQvetApiCliente`) — solo faltaba
 envolverlos. Sin usuario de pruebas con datos de Qvet reales todavia no se
 verifico con datos reales, solo contra el build y las unitarias.
+
+## Bonificación — Cliente, Artículo y Facturación
+
+Portado de la rama `feature/bonificacion` del sistema actual (React), pero **no
+tal cual** — esa rama, comparada contra el swagger real de `devapi.pos2650.com`
+(hubo que descargarlo de nuevo; el cacheado en este repo estaba de antes de esta
+funcionalidad), tiene dos problemas confirmados:
+
+1. **Dos endpoints que React llama no existen en el API**:
+   `POST /ClienteBonificacion/CreateArticulo` y `GET /ClienteBonificacion/GetArticulos`.
+   Cualquier alta de "producto de bonificación" en la pantalla de Clientes del
+   sistema actual falla con 404 ahora mismo. El DTO real
+   (`ClienteBonificacionConfiguracionDTO`) ya trae `idArticulo`/`descripcionArticulo`
+   en el mismo registro que el tipo de bonificación — no hace falta una lista
+   separada de "productos". Blazor sigue el modelo real: **un solo formulario**
+   (tipo + artículo juntos), no las dos listas de React.
+2. **El modal de Facturación (`BillingBonificacionesModal.jsx`) esta a medio
+   hacer**: sus handlers (`handleSaveCorreos`, `closeModal`, etc.) son un
+   copy-paste del modal de correos de comprobante — el boton "Bonificar" no
+   aplica nada a la factura. El campo que si existiria para eso
+   (`FacturaDetallesDTO.esBonificacion`) no lo usa ninguna pantalla de React
+   todavia. Blazor construyo la parte informativa (mostrar la bonificacion del
+   cliente al elegirlo en Facturacion) y **no** inventa la logica de aplicar la
+   bonificacion a la factura — decision explicita, no pendiente por olvido.
+
+Lo que si se construyo, completo y contra los endpoints reales (`ArticuloBonificacion`,
+`ClienteBonificacion`, `ConfiguracionBonificacion` — los tres ya en el swagger,
+solo faltaba envolverlos):
+
+- **Cliente** (`Clientes/Consulta.razor`): checkbox "Bonificado" (gateado a
+  `Sesion.EsCostaPets`, igual que React) y pestaña "Bonificación" — visible solo
+  editando un cliente ya guardado, porque la bonificacion necesita un `idCliente`
+  real. CRUD completo (alta/edicion/baja reales, no solo en memoria como en React).
+- **Artículo** (`Inventario/Consulta.razor`): mismo patron para "Tipos de
+  bonificación" (`IArticuloBonificacion`, CRUD completo). Ademas, a diferencia
+  del cliente, el articulo si tiene una segunda lista real y funcional:
+  "Productos de regalo", que reutiliza el endpoint YA EXISTENTE de artículos
+  relacionados (`articulosRelacionados/GetRelacionadosBonificacion` y
+  `/putArticuloRelacionadoBonificacion`, agregados a `IArticulosRelacionados`)
+  marcando `esRelacionBonificacion`. Ese si funciona en React tal cual, solo que
+  ahi Editar/Eliminar son locales (no llaman al API); en Blazor son reales.
+- **Facturación**: al elegir un cliente con `TieneBonificacion`, se muestra un
+  bloque informativo con su configuracion. No agrega lineas ni descuentos a la
+  factura — ver el punto 2 de arriba.
+
+Contratos regenerados (`./tools/actualizar-contratos.sh`) para traer estos DTOs
+y clientes; no existian en el `SeePosDtos.cs`/`SeePosApiClientes.cs` que ya
+estaba en el repo. **Sin verificar contra datos reales de un cliente/articulo
+bonificado** — solo contra build limpio y unitarias; falta un usuario de
+pruebas con casos de bonificacion reales para revisar visualmente.
 
 ## Decisiones cerradas — no reabrir sin motivo nuevo
 

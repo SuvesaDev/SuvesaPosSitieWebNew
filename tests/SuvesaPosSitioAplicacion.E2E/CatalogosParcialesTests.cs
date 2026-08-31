@@ -9,6 +9,7 @@ namespace SuvesaPosSitioAplicacion.E2E;
 /// (sin edicion en un caso, escritura unificada en el otro). Se verifica que la
 /// lectura de ambos trae datos reales con la forma esperada.
 /// </summary>
+[Trait("Categoria", "RequiereCredenciales")]
 public class CatalogosParcialesTests
 {
     private static HttpClient Cliente(Uri url) => new(

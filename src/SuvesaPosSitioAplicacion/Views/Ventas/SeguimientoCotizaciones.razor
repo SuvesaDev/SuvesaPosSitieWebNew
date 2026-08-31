@@ -186,12 +186,12 @@
             _ => _todas.Where(c => !c.Anulado)
         };
 
-        var buscado = Security.NombrePantalla.Normalizar(_texto);
+        var buscado = Helpers.Texto.Normalizar(_texto);
 
         if (!string.IsNullOrWhiteSpace(buscado))
         {
             q = q.Where(c =>
-                Security.NombrePantalla.Normalizar(c.NombreCliente).Contains(buscado)
+                Helpers.Texto.Normalizar(c.NombreCliente).Contains(buscado)
                 || c.Cotizacion1.ToString().Contains(buscado));
         }
 

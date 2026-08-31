@@ -11,6 +11,7 @@ namespace SuvesaPosSitioAplicacion.E2E;
 /// el fallo estaba en el cableado y no en la logica.
 /// </summary>
 [Collection(ColeccionE2E.Nombre)]
+[Trait("Categoria", "RequiereCredenciales")]
 public class SesionE2ETests
 {
     private readonly AplicacionEnPruebas _app;

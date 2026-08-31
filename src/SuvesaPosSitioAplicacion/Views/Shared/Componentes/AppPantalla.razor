@@ -5,7 +5,9 @@
    repetiria 78 veces: comprobar el permiso, poner el titulo, y avisar cuando la
    pantalla no esta pensada para el ancho del dispositivo.
 
-   El permiso se comprueba por TITULO, que es como responde el API. *@
+   El permiso se comprueba por CODIGO de funcion (rediseno V2). Si la View no pasa
+   Codigo, se resuelve desde el titulo (MenuSeePos.ResolverCodigo). Las pantallas
+   con titulo ambiguo ("Devoluciones") deben pasar Codigo explicito. *@
 
 @if (!_cargada)
 {
@@ -15,7 +17,7 @@
         </div>
     </div>
 }
-else if (!Sesion.PuedeVer(Pantalla))
+else if (!Sesion.PuedeVer(Codigo ?? Pantalla))
 {
     <div class="alert alert-danger">
         <p class="h5 alert-heading">Sin permiso</p>
@@ -53,9 +55,15 @@ else
 }
 
 @code {
-    /// <summary>Titulo de la pantalla en el menu. Es tambien la llave de permisos.</summary>
+    /// <summary>Titulo de la pantalla en el menu (rotulo visible).</summary>
     [Parameter, EditorRequired]
     public string Pantalla { get; set; } = default!;
+
+    /// <summary>
+    /// Codigo de funcion para el permiso (MODULO.SLUG). Opcional: si no se pasa, se
+    /// resuelve desde <see cref="Pantalla"/>. Obligatorio en pantallas de titulo ambiguo.
+    /// </summary>
+    [Parameter] public string? Codigo { get; set; }
 
     /// <summary>Desde que ancho tiene sentido. Por debajo se avisa en lugar de romperse.</summary>
     [Parameter]

@@ -14,6 +14,12 @@ namespace SuvesaPosSitioAplicacion.E2E;
 /// </summary>
 public sealed class AplicacionEnPruebas : IAsyncLifetime
 {
+#if DEBUG
+    private const string ConfiguracionCompilacion = "Debug";
+#else
+    private const string ConfiguracionCompilacion = "Release";
+#endif
+
     private Process? _proceso;
     private readonly ConcurrentQueue<string> _salida = new();
 
@@ -42,6 +48,7 @@ public sealed class AplicacionEnPruebas : IAsyncLifetime
                 // Sin recompilar: si el SDK decide reconstruir a mitad de la suite,
                 // la aplicacion tarda en responder y las pruebas caducan navegando.
                 "--no-build",
+                "--configuration", ConfiguracionCompilacion,
                 "--project", Path.Combine(raiz, "src", "SuvesaPosSitioAplicacion"),
                 "--urls", Url
             },

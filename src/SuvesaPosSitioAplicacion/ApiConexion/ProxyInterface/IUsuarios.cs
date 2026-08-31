@@ -1,39 +1,37 @@
 using SuvesaPosSitioAplicacion.DTOs.Generated;
+using SuvesaPosSitioAplicacion.DTOs.Seguridad;
 using SuvesaPosSitioAplicacion.Helpers;
 
 namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 
 /// <summary>
-/// Administracion de usuarios del sistema.
+/// Administracion de usuarios del sistema (rediseno de seguridad V2).
 ///
-/// Se pasa siempre la clave en el cuerpo del DTO, nunca en la URL. El sistema
-/// actual valida la clave con GET /usuario/ValidarExisteContrasena?contrasena=...,
-/// que la manda en texto plano dentro de la URL (queda en logs de acceso del
-/// servidor). Esa llamada no se replica aqui.
+/// El alta pasa por <c>/seguridad/usuarios</c> con las compuertas del servidor
+/// (perfil del llamante, exigencia de rol, compuerta SUPER_ADMIN). El perfil y el
+/// rol de un usuario ya creado se cambian con endpoints propios
+/// (<see cref="CambiarPerfil"/> / <see cref="CambiarRol"/>).
+///
+/// La clave viaja siempre en el cuerpo, nunca en la URL.
 /// </summary>
 public interface IUsuarios
 {
     Task<ResponseGeneric<ICollection<BuscarUsuarioDTO>>> Buscar(string? texto);
 
     /// <summary>
-    /// El resultado de <see cref="Buscar"/> NO trae un identificador numerico, solo
-    /// el usuario de acceso (texto). El sistema actual pide el detalle con ESE texto
-    /// en el parametro "id" del endpoint (que el OpenAPI declara como numerico), y
-    /// solo tras esa respuesta obtiene el Id numerico real, que usa despues para
-    /// editar. Se replica ese mismo camino aqui.
-    ///
-    /// SIN VERIFICAR contra devapi.pos2650.com: la base de desarrollo no tiene
-    /// usuarios sembrados aparte del propio login de pruebas, asi que no hay forma
-    /// de confirmar el comportamiento con datos reales. Si al usarlo en desarrollo
-    /// esto falla, es la primera sospecha a revisar.
+    /// El resultado de <see cref="Buscar"/> NO trae id numerico, solo el usuario de
+    /// acceso (texto). El API pide el detalle con ESE texto en el parametro "id"
+    /// (que el OpenAPI declara numerico) y de ahi sale el Id real para editar.
     /// </summary>
-    Task<ResponseGeneric<UsuariosDTO>> ObtenerUno(string idUsuario);
+    Task<ResponseGeneric<UsuarioDetalleDTO>> ObtenerUno(string idUsuario);
 
-    Task<ResponseGeneric<UsuariosDTO>> Crear(UsuariosDTO usuario);
+    /// <summary>Alta contra <c>/seguridad/usuarios</c>. <c>IdPerfil</c> obligatorio.</summary>
+    Task<ResponseGeneric<UsuarioAltaDTO>> Crear(UsuarioAltaDTO usuario);
 
     Task<ResponseGeneric<UsuarioDTO>> Editar(long id, UsuarioDTO usuario);
 
-    Task<ResponseGeneric<ICollection<Perfil>>> ObtenerPerfiles();
+    /// <summary>Cambia el perfil de un usuario. La compuerta SUPER_ADMIN la aplica el API.</summary>
+    Task<ResponseGeneric<bool>> CambiarPerfil(long id, int idPerfil);
 
-    Task<ResponseGeneric<ICollection<Role>>> ObtenerRoles();
+    Task<ResponseGeneric<bool>> CambiarRol(long id, int? idRol);
 }

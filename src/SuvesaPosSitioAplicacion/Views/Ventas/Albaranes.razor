@@ -244,14 +244,14 @@
 
     private void Filtrar()
     {
-        var buscado = Security.NombrePantalla.Normalizar(_texto);
+        var buscado = Helpers.Texto.Normalizar(_texto);
 
         _filtrados = string.IsNullOrWhiteSpace(buscado)
             ? _todos
             : _todos.Where(a =>
-                  Security.NombrePantalla.Normalizar(a.Cliente).Contains(buscado)
-                  || Security.NombrePantalla.Normalizar(a.Cedula).Contains(buscado)
-                  || Security.NombrePantalla.Normalizar(a.Mascota).Contains(buscado))
+                  Helpers.Texto.Normalizar(a.Cliente).Contains(buscado)
+                  || Helpers.Texto.Normalizar(a.Cedula).Contains(buscado)
+                  || Helpers.Texto.Normalizar(a.Mascota).Contains(buscado))
               .ToList();
 
         _total = CalculoDocumento.Redondear(

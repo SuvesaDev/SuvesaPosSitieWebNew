@@ -18,6 +18,7 @@ namespace SuvesaPosSitioAplicacion.E2E;
 /// alguien puede llegar a ella.
 /// </summary>
 [Collection(ColeccionE2E.Nombre)]
+[Trait("Categoria", "RequiereCredenciales")]
 public class MenuAlcanzableTests
 {
     private readonly AplicacionEnPruebas _app;

@@ -12,6 +12,7 @@ namespace SuvesaPosSitioAplicacion.E2E;
 /// parametrizada cubre lo mismo y crece anadiendo una linea.
 /// </summary>
 [Collection(ColeccionE2E.Nombre)]
+[Trait("Categoria", "RequiereCredenciales")]
 public class PantallasMigradasTests
 {
     private readonly AplicacionEnPruebas _app;
@@ -67,11 +68,6 @@ public class PantallasMigradasTests
     [MemberData(nameof(Pantallas))]
     public async Task SeAbreSinErrores(string ruta, string textoEsperado)
     {
-        if (!CredencialesPrueba.Hay)
-        {
-            return;   // Sin usuario de pruebas no hay nada que abrir.
-        }
-
         var pagina = await EntrarAsync();
 
         var errores = new List<string>();

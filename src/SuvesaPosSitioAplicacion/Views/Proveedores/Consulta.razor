@@ -334,14 +334,14 @@
 
         // Filtrado en memoria: sin tildes ni mayusculas, para que "jose" encuentre
         // "José" como espera cualquiera que escriba deprisa.
-        var buscado = Security.NombrePantalla.Normalizar(_texto);
+        var buscado = Helpers.Texto.Normalizar(_texto);
 
         _filtrados = string.IsNullOrWhiteSpace(buscado)
             ? _todos
             : _todos.Where(p =>
-                  Security.NombrePantalla.Normalizar(p.Nombre).Contains(buscado)
-                  || Security.NombrePantalla.Normalizar(p.Cedula).Contains(buscado)
-                  || Security.NombrePantalla.Normalizar(p.Contacto).Contains(buscado))
+                  Helpers.Texto.Normalizar(p.Nombre).Contains(buscado)
+                  || Helpers.Texto.Normalizar(p.Cedula).Contains(buscado)
+                  || Helpers.Texto.Normalizar(p.Contacto).Contains(buscado))
               .ToList();
 
         if (_rejilla is not null)

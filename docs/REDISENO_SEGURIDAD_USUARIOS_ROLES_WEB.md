@@ -7,7 +7,21 @@
 > `Class/MenuSeePos.cs`, `Models/ItemMenu.cs`, proxies de `ApiConexion`, pantallas de
 > `Views/Parametros` (Usuarios, Roles) y pruebas.
 >
-> Estado: propuesta. No hay código escrito todavía.
+> Estado: **W2–W8 implementadas** en `feature/seguridad-usuarios-roles-web`. La
+> solución web compila y **64/64 unitarias en verde**. Falta desplegar el API nuevo y
+> verificar contra datos reales.
+>
+> | Fase | Qué | Estado |
+> |---|---|---|
+> | W1 | Regenerar contratos NSwag | ⏳ **pendiente** — necesita el API de `feature/seguridad-usuarios-roles-v2` desplegado. Se descartó regenerar en local: los contratos actuales vienen de otro despliegue (p. ej. `Presentacione` vs `PresentacioneDTO`) y romperían proxies ajenos. **Mientras tanto**: `ApiConexion/SeguridadApiCliente.cs` + `DTOs/Seguridad/*` son un cliente/DTOs a mano; al correr `./tools/actualizar-contratos.sh` contra el API nuevo se sustituyen por lo generado y los proxies solo cambian el `using`. |
+> | W2 | `PermisoFuncion` (reemplaza `PermisoPantalla`), `ClaimsSeePos` (`EsSuperAdministrador`, `PerfilCodigo`), `ServicioAutenticacion` lee `auth.Perfil`+`auth.Permisos` (`Autenticacion` extendido por `partial`), `AccionPantalla` +Activar/Exportar/Imprimir | ✅ |
+> | W3 | `ContextoSesion`/`FiltroMenu` por código; `ItemMenu.Codigo` + `MenuSeePos` regenerado (`tools/anotar_codigos_menu.py`); `NombrePantalla.cs` borrado → `Helpers/Texto.cs`. Las ~50 Views que pasan el título **no se tocaron**: `ContextoSesion` resuelve título→código con `MenuSeePos.ResolverCodigo`. `AppPantalla` gana `Codigo` opcional. | ✅ |
+> | W4 | `IRolesPermisos`/`RolesPermisos`, `IPerfiles`/`Perfiles`; `IUsuarios` (`Crear(UsuarioAltaDTO)`, `CambiarPerfil`, `CambiarRol`, `ObtenerUno`→`UsuarioDetalleDTO`). `IRoles` retirado. DI en `Program.cs`. | ✅ |
+> | W5 | `Views/Parametros/RolesPermisos.razor` (3 pestañas) reemplaza `Roles.razor`. | ✅ |
+> | W6 | `Usuarios.razor`: perfil desde `/seguridad/perfiles`, `SUPER_ADMIN` oculto salvo super admin, rol obligatorio según perfil, capacidades solo lectura, acción "Perfil / rol" por fila. | ✅ |
+> | W7 | `FiltroMenuTests` reescrito por código; `PermisoFuncionTests` (nuevo); `NombrePantallaTests`/`PermisoPantallaTests` borrados; `UsuariosTests` ajustado; `MenuCodigosTests` (drift menú↔semilla API); E2E `SesionRealTests` → **aserción** menú↔API por código. | ✅ |
+> | W8 | `SeePos:VerPantallasNoGobernadas = false` por defecto; `CLAUDE.md` actualizado. | ✅ |
+> | — | Regenerar contratos (W1), desplegar, verificar login/menú/matriz con datos reales, E2E con Playwright. | ⏳ |
 
 ---
 

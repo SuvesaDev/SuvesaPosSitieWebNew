@@ -11,6 +11,8 @@
 @inject IArticulosRelacionados Relacionados
 @inject IProduccionInventario Produccion
 @inject ICatalogosInventario Catalogos
+@inject ICatalogoBonificacion CatalogoBonificacion
+@inject IArticuloBonificacion ArticuloBonificacion
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -309,6 +311,10 @@
                     {
                         <button type="button" class="btn btn-sm @ClasePestanaLotes" @onclick="MostrarLotes">Lotes</button>
                     }
+                    @if (Sesion.EsCostaPets && _edicion.Bonificado && !_esNuevo)
+                    {
+                        <button type="button" class="btn btn-sm @ClasePestanaBonificacion" @onclick="MostrarBonificacion">Bonificación</button>
+                    }
                 </nav>
 
                 @if (_pestanaInventario == "generales")
@@ -400,6 +406,13 @@
                             <input id="articulo-mag" class="form-check-input" type="checkbox" @bind="_edicion.Mag" />
                             <label class="form-check-label" for="articulo-mag">MAG</label>
                         </div>
+                        @if (Sesion.EsCostaPets)
+                        {
+                            <div class="form-check">
+                                <input id="articulo-bonificado" class="form-check-input" type="checkbox" @bind="_edicion.Bonificado" />
+                                <label class="form-check-label" for="articulo-bonificado">Bonificado</label>
+                            </div>
+                        }
                     </div>
 
                 </div>
@@ -512,6 +525,52 @@
                         </div>
                     }
                 }
+                else if (_pestanaInventario == "bonificacion")
+                {
+                    <div class="row g-3">
+                        <div class="col-12"><h3 class="h6 mb-0">Tipos de bonificación</h3><p class="form-text">Comprar este artículo da derecho a la bonificación configurada.</p></div>
+                        <div class="col-12 col-md-8">
+                            <select class="form-select" @bind="_tipoBonificacionArticuloSeleccionado">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var tipo in _tiposBonificacionArticulo)
+                                {
+                                    <option value="@tipo.IdConfiguracionBonificacion">@tipo.Descripcion (@tipo.CantidadVenta lleva @tipo.CantidadBonificable)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4 d-grid">
+                            <button type="button" class="btn btn-success" @onclick="GuardarBonificacionArticulo" disabled="@_guardandoBonificacionArticulo">
+                                @(_idBonificacionArticuloEnEdicion > 0 ? "Guardar cambios" : "Agregar")
+                            </button>
+                        </div>
+                        @if (_bonificacionesArticulo.Count == 0)
+                        {
+                            <div class="col-12"><div class="alert alert-light border mb-0">No hay tipos de bonificación asignados.</div></div>
+                        }
+                        else
+                        {
+                            <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Tipo de bonificación</th><th></th></tr></thead><tbody>@foreach (var b in _bonificacionesArticulo) { <tr><td>@NombreTipoBonificacionArticulo(b.IdConfiguracionBonificacion)</td><td class="text-end text-nowrap"><button type="button" class="btn btn-sm btn-link" @onclick="() => EditarBonificacionArticulo(b)">Editar</button><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarBonificacionArticulo(b)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
+                        }
+
+                        <div class="col-12"><hr /><h3 class="h6 mb-0">Productos de regalo</h3><p class="form-text">Artículos que se entregan gratis al aplicar la bonificación.</p></div>
+                        <div class="col-12 col-md-6">
+                            <div class="input-group">
+                                <input class="form-control" disabled value="@_articuloRegaloSeleccionado?.Descripcion" placeholder="Ninguno seleccionado" />
+                                <button type="button" class="btn btn-outline-primary" @onclick="AbrirBuscadorRegalo"><i class="bi bi-search" aria-hidden="true"></i></button>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-3"><input type="number" min="0.001" step="0.001" class="form-control" placeholder="Cantidad" @bind="_cantidadRegalo" /></div>
+                        <div class="col-12 col-md-3 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="AgregarProductoRegalo">Agregar</button></div>
+                        @if (_productosRegalo.Count == 0)
+                        {
+                            <div class="col-12"><div class="alert alert-light border mb-0">No hay productos de regalo registrados.</div></div>
+                        }
+                        else
+                        {
+                            <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th><th></th></tr></thead><tbody>@foreach (var producto in _productosRegalo) { <tr><td><code>@producto.CodArticulo</code></td><td>@producto.Descripcion</td><td class="text-end">@Formato.Cantidad(producto.Cantidad)</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarProductoRegalo(producto)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
+                        }
+                    </div>
+                }
             </EditForm>
         }
     </BodyTemplate>
@@ -522,6 +581,8 @@
         </button>
     </FooterTemplate>
 </HxModal>
+
+<AppBuscadorArticulo @ref="_buscadorRegaloBonificacion" AlElegir="ElegirProductoRegalo" />
 
 <HxModal @ref="_modalCabys" Title="Buscar código CABYS" Size="ModalSize.Large">
     <BodyTemplate>
@@ -572,6 +633,16 @@
     private List<ArticulosRelacionadosDTO> _relacionados = new();
     private long? _codigoRelacionado;
     private float _cantidadRelacionada = 1;
+
+    private AppBuscadorArticulo _buscadorRegaloBonificacion = default!;
+    private List<ConfiguracionBonificacion> _tiposBonificacionArticulo = new();
+    private List<ArticuloBonificacionConfiguracion> _bonificacionesArticulo = new();
+    private int _tipoBonificacionArticuloSeleccionado;
+    private int _idBonificacionArticuloEnEdicion;
+    private bool _guardandoBonificacionArticulo;
+    private List<ArticulosRelacionadosDTO> _productosRegalo = new();
+    private InventarioDTO? _articuloRegaloSeleccionado;
+    private float _cantidadRegalo = 1;
     private string _nuevoCodigoBarras = string.Empty;
     private string _tarifaCodigoBarras = string.Empty;
     private string _pestanaInventario = "generales";
@@ -719,6 +790,19 @@
         {
             await CargarLotesEdicion();
         }
+        _tiposBonificacionArticulo = new List<ConfiguracionBonificacion>();
+        _bonificacionesArticulo = new List<ArticuloBonificacionConfiguracion>();
+        _productosRegalo = new List<ArticulosRelacionadosDTO>();
+        LimpiarFormularioBonificacionArticulo();
+        if (Sesion.EsCostaPets && _edicion.Bonificado)
+        {
+            _tiposBonificacionArticulo = (await Respuestas.DatoAsync(await CatalogoBonificacion.Disponibles(), "consultar los tipos de bonificación"))
+                ?.ToList() ?? new List<ConfiguracionBonificacion>();
+            _bonificacionesArticulo = (await Respuestas.DatoAsync(await ArticuloBonificacion.ObtenerPorArticulo(_edicion.Codigo), "consultar la bonificación del artículo"))
+                ?.ToList() ?? new List<ArticuloBonificacionConfiguracion>();
+            _productosRegalo = (await Respuestas.DatoAsync(await Relacionados.BuscarBonificacion(_edicion.Codigo), "consultar los productos de bonificación"))
+                ?.ToList() ?? new List<ArticulosRelacionadosDTO>();
+        }
         await _modal.ShowAsync();
     }
 
@@ -785,6 +869,7 @@
     private string ClasePestanaBarras => ClasePestana("barras");
     private string ClasePestanaFormula => ClasePestana("formula");
     private string ClasePestanaLotes => ClasePestana("lotes");
+    private string ClasePestanaBonificacion => ClasePestana("bonificacion");
 
     private string ClasePestana(string pestana)
         => _pestanaInventario == pestana ? "btn-primary" : "btn-outline-primary";
@@ -794,6 +879,106 @@
     private void MostrarBarras() => _pestanaInventario = "barras";
     private void MostrarFormula() => _pestanaInventario = "formula";
     private void MostrarLotes() => _pestanaInventario = "lotes";
+    private void MostrarBonificacion() => _pestanaInventario = "bonificacion";
+
+    private string NombreTipoBonificacionArticulo(int idConfiguracionBonificacion)
+        => _tiposBonificacionArticulo.FirstOrDefault(t => t.IdConfiguracionBonificacion == idConfiguracionBonificacion)?.Descripcion
+            ?? idConfiguracionBonificacion.ToString();
+
+    private void LimpiarFormularioBonificacionArticulo()
+    {
+        _tipoBonificacionArticuloSeleccionado = 0;
+        _idBonificacionArticuloEnEdicion = 0;
+        _articuloRegaloSeleccionado = null;
+        _cantidadRegalo = 1;
+    }
+
+    private void EditarBonificacionArticulo(ArticuloBonificacionConfiguracion bonificacion)
+    {
+        _idBonificacionArticuloEnEdicion = bonificacion.IdConfiguracion;
+        _tipoBonificacionArticuloSeleccionado = bonificacion.IdConfiguracionBonificacion;
+    }
+
+    private async Task GuardarBonificacionArticulo()
+    {
+        if (_edicion is null || _tipoBonificacionArticuloSeleccionado <= 0) return;
+
+        _guardandoBonificacionArticulo = true;
+
+        var configuracion = new ArticuloBonificacionConfiguracion
+        {
+            IdConfiguracion = _idBonificacionArticuloEnEdicion,
+            IdConfiguracionBonificacion = _tipoBonificacionArticuloSeleccionado,
+            IdInventario = _edicion.Codigo
+        };
+
+        var respuesta = _idBonificacionArticuloEnEdicion > 0
+            ? await ArticuloBonificacion.Editar(configuracion)
+            : await ArticuloBonificacion.Crear(configuracion);
+
+        var guardada = await Respuestas.DatoAsync(respuesta, "guardar la bonificación del artículo");
+        _guardandoBonificacionArticulo = false;
+
+        if (guardada is null) return;
+
+        if (_idBonificacionArticuloEnEdicion > 0)
+        {
+            var indice = _bonificacionesArticulo.FindIndex(b => b.IdConfiguracion == _idBonificacionArticuloEnEdicion);
+            if (indice >= 0) _bonificacionesArticulo[indice] = guardada;
+        }
+        else
+        {
+            _bonificacionesArticulo.Add(guardada);
+        }
+
+        _tipoBonificacionArticuloSeleccionado = 0;
+        _idBonificacionArticuloEnEdicion = 0;
+        Dialogos.Exito("Bonificación guardada.");
+    }
+
+    private async Task EliminarBonificacionArticulo(ArticuloBonificacionConfiguracion bonificacion)
+    {
+        if (!await Dialogos.ConfirmarPeligroAsync("¿Desea quitar esta bonificación del artículo?")) return;
+
+        if (await Respuestas.CorrectaAsync(await ArticuloBonificacion.Eliminar(bonificacion.IdConfiguracion), "quitar la bonificación"))
+        {
+            _bonificacionesArticulo.Remove(bonificacion);
+            Dialogos.Exito("Bonificación eliminada.");
+        }
+    }
+
+    private Task AbrirBuscadorRegalo() => _buscadorRegaloBonificacion.AbrirAsync();
+
+    private void ElegirProductoRegalo(InventarioDTO articulo) => _articuloRegaloSeleccionado = articulo;
+
+    private async Task AgregarProductoRegalo()
+    {
+        if (_edicion is null || _articuloRegaloSeleccionado is null || _cantidadRegalo <= 0) return;
+
+        if (await Respuestas.CorrectaAsync(
+            await Relacionados.GuardarBonificacion(_edicion.Codigo, _articuloRegaloSeleccionado.Codigo, _cantidadRegalo, true),
+            "agregar el producto de bonificación"))
+        {
+            _productosRegalo = (await Respuestas.DatoAsync(await Relacionados.BuscarBonificacion(_edicion.Codigo), "consultar los productos de bonificación"))
+                ?.ToList() ?? new List<ArticulosRelacionadosDTO>();
+            _articuloRegaloSeleccionado = null;
+            _cantidadRegalo = 1;
+            Dialogos.Exito("Producto de bonificación agregado.");
+        }
+    }
+
+    private async Task QuitarProductoRegalo(ArticulosRelacionadosDTO producto)
+    {
+        if (_edicion is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea quitar este producto de bonificación?")) return;
+
+        if (await Respuestas.CorrectaAsync(
+            await Relacionados.GuardarBonificacion(_edicion.Codigo, producto.Codigo, producto.Cantidad, false),
+            "quitar el producto de bonificación"))
+        {
+            _productosRegalo.Remove(producto);
+            Dialogos.Exito("Producto de bonificación quitado.");
+        }
+    }
 
     private float PrecioTarifaActual
     {
