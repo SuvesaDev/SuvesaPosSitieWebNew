@@ -7,7 +7,28 @@
 > `Class/MenuSeePos.cs`, `Models/ItemMenu.cs`, proxies de `ApiConexion`, pantallas de
 > `Views/Parametros` (Usuarios, Roles) y pruebas.
 >
-> Estado: propuesta. No hay código escrito todavía.
+> Estado: **parcial** en la rama `feature/seguridad-usuarios-roles-web`.
+>
+> **Hecho** (no depende de regenerar contratos): `ItemMenu.Codigo`; `MenuSeePos.cs`
+> regenerado con códigos (99 nodos) vía `tools/anotar_codigos_menu.py` — mismo algoritmo
+> de slug que la semilla del API; `AccionPantalla` gana `Editar/Activar/Exportar/Imprimir`
+> (`Modificar` = alias de `Editar`); `tests/MenuCodigosTests` (drift menú↔semilla del API)
+> — 72/72 unitarias en verde.
+>
+> **BLOQUEADO** — el resto (W2 salvo el enum, W4–W8) necesita **regenerar los contratos
+> NSwag contra el API nuevo ya desplegado**. Se intentó localmente y se descartó: los
+> contratos generados hoy (`DTOs/Generated/SeePosDtos.cs`) provienen de un API distinto
+> del código local de `DevSuvesaPosWeb` (p. ej. el schema `Presentacione` del sitio hoy es
+> `PresentacioneDTO` en el swagger del código local), así que regenerar desde el código
+> local rompe proxies ajenos. **Hay que desplegar el API de la rama
+> `feature/seguridad-usuarios-roles-v2` y correr `./tools/actualizar-contratos.sh` contra
+> él.** Tras eso, W2/W4–W8 son mecánicos siguiendo este documento.
+>
+> Tipos que traerá la regeneración (namespace `SuvesaPosSitioAplicacion.DTOs.Generated`):
+> `Autenticacion` (con `Perfil` + `Permisos`), `PerfilLoginDTO`, `PermisoLoginDTO`,
+> `ModuloDTO`, `FuncionDTO`, `AccionDTO`, `RolResumenDTO`, `RolDetalleDTO`,
+> `RolFuncionPermisoDTO`, `PermisoFilaDTO`, `PerfilDTO`, `UsuariosDTO` (con `IdPerfil`,
+> sin capacidades). Clientes en `SeePosApiClientes.cs` para `/seguridad/*`.
 
 ---
 
