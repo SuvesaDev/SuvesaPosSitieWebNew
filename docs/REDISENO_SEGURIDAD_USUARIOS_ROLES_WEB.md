@@ -54,6 +54,32 @@ Módulo→Función→Acción de 7 acciones), **casando por `Codigo` y no por ró
 
 ---
 
+## 2 bis. Decisiones resueltas (confirmadas por el usuario, 2026-08-31)
+
+Cierran §10. Mandan sobre cualquier "confirmar" del resto del documento.
+
+- **`SUPER_ADMIN`** (`perfil.esSuperAdministracion = true`): acceso total, **no** pasa
+  por rol, `permisos` llega vacío. En el sitio, `EsSuperAdministrador ⇒ Puede(...) = true`
+  siempre. Solo respeta `CostaPets` / `AgenteCostaPets` del perfil. Único que **escribe**
+  la config de seguridad y único que ve la opción `SUPER_ADMIN` en el desplegable de
+  perfiles.
+- **`ADMIN`**: sus permisos de negocio **salen del rol** (igual que `USUARIO`). Extra:
+  `perfil.gestionaUsuarios = true` ⇒ puede gestionar usuarios y **leer** (no editar) la
+  pantalla `RolesPermisos`.
+- **`USUARIO`**: permisos 100 % del rol.
+- **Nombre de la bandera de "acceso total"**: `EsSuperAdministrador` (no `AccesoTotal`).
+  En todo este documento, donde diga `AccesoTotal`/`EsAccesoTotal`, léase
+  **`EsSuperAdministrador`**. `EsAdministrador` (nombre viejo) queda como alias de
+  `EsSuperAdministrador`.
+- **Editar catálogo / roles / perfiles**: solo `EsSuperAdministrador`. `gestionaUsuarios`
+  habilita solo lectura.
+- **Rol obligatorio** al crear/editar usuario **salvo** perfil `SUPER_ADMIN`.
+- **Capacidades**: solo lectura en `Usuarios.razor` (vienen del perfil, sin override).
+- **`NombrePantalla.cs`**: se elimina. `Pantalla`/`Accione`/`Ventanas` desaparecen del API.
+- **Claims**: `seepos:esSuperAdmin` sustituye a `seepos:administrador`.
+
+---
+
 ## 3. Cambios de diseño en el sitio
 
 ### 3.1 `AccionPantalla` (enum, `Class/`)
