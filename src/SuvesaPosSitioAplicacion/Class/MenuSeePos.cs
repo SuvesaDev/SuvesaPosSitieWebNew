@@ -99,6 +99,11 @@ public static class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Bandeja Fiscal V4.4",
+                    Ruta = "/invoices/fiscal-tray",
+                },
+                new ItemMenu
+                {
                     Titulo = "Devoluciones",
                     Ruta = "/initial/repayment",
                 },
@@ -360,6 +365,61 @@ public static class MenuSeePos
                 {
                     Titulo = "Configuración",
                     Ruta = "/parameters/settings",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Tipos de Factura",
+                    Ruta = "/parameters/invoice-types",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Tipos de Identificación",
+                    Ruta = "/parameters/identification-types",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Impuestos",
+                    Ruta = "/parameters/taxes",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Tipos de Cobro",
+                    Ruta = "/parameters/collection-types",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Formas de Pago",
+                    Ruta = "/parameters/payment-methods",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Tipos de Exoneración",
+                    Ruta = "/parameters/exemption-types",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Monedas Fiscales",
+                    Ruta = "/parameters/currencies",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Denominaciones de Moneda",
+                    Ruta = "/parameters/currency-denominations",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Configuración de Plazos",
+                    Ruta = "/parameters/payment-terms",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Emisores",
+                    Ruta = "/parameters/issuers",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Series de Facturación",
+                    Ruta = "/parameters/invoice-series",
                 },
                 new ItemMenu
                 {

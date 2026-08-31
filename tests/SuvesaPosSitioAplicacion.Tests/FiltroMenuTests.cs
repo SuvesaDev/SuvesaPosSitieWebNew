@@ -165,8 +165,9 @@ public class FiltroMenuTests
             ns.Sum(n => 1 + Contar(n.Hijos));
 
         // 8 raices portadas de SidebarData.jsx mas Consignación, que se anadio
-        // porque sus rutas existian sin entrada de menu.
+        // porque sus rutas existian sin entrada de menu. Incluye los mantenimientos
+        // fiscales V4.4 y la bandeja fiscal agregados al sitio.
         Assert.Equal(9, MenuSeePos.Items.Count);
-        Assert.Equal(86, Contar(MenuSeePos.Items));
+        Assert.Equal(98, Contar(MenuSeePos.Items));
     }
 }

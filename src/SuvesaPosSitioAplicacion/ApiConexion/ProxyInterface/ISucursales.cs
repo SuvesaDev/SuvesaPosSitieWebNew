@@ -1,4 +1,5 @@
 using SuvesaPosSitioAplicacion.DTOs.Generated;
+using SuvesaPosSitioAplicacion.DTOs.Fiscal;
 using SuvesaPosSitioAplicacion.Helpers;
 
 namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
@@ -14,5 +15,7 @@ public interface ISucursales
 {
     Task<ResponseGeneric<ICollection<TipoIdentificacionDTO>>> TiposIdentificacion();
 
-    Task<ResponseGeneric<SucursalDTO>> Crear(SucursalDTO sucursal);
+    Task<ResponseGeneric<SucursalFiscalDTO>> Crear(SucursalFiscalDTO sucursal);
+    Task<ResponseGeneric<ICollection<SucursalFiscalDTO>>> Obtener();
+    Task<ResponseGeneric<SucursalFiscalDTO>> Actualizar(SucursalFiscalDTO sucursal);
 }

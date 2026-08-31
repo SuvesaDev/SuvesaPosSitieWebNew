@@ -1,5 +1,6 @@
 @page "/parameters/branch"
 @using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ISucursales Api
@@ -58,6 +59,10 @@
                             <div class="col-12 col-md-4">
                                 <AppCampoTexto Etiqueta="Correo electronico" @bind-Valor="_email" />
                             </div>
+                            <div class="col-12 col-md-4">
+                                <AppCampoTexto Etiqueta="Número de sucursal FE" @bind-Valor="_numeroSucursalFe" />
+                                <small class="text-secondary">Tres dígitos, por ejemplo 001.</small>
+                            </div>
                         </div>
 
                         <div class="mt-3">
@@ -69,8 +74,10 @@
                 }
             </div>
         </div>
+        <div class="card mt-3"><div class="card-header">Sucursales registradas</div><div class="card-body"><AppRejilla TItem="SucursalFiscalDTO" Datos="CargarSucursales" Nivel="NivelPantalla.Tableta" @ref="_grid"><Columnas><HxGridColumn TItem="SucursalFiscalDTO" HeaderText="Comercial" ItemTextSelector="x => x.NombreComercial"/><HxGridColumn TItem="SucursalFiscalDTO" HeaderText="Alias" ItemTextSelector="x => x.Alias"/><HxGridColumn TItem="SucursalFiscalDTO" HeaderText="Sucursal FE" ItemTextSelector="x => x.NumeroSucursalFE"/><HxGridColumn TItem="SucursalFiscalDTO" HeaderText=""><ItemTemplate Context="x">@if(Sesion.Puede(Titulo, AccionPantalla.Modificar)){<button class="btn btn-sm btn-link" @onclick="()=>Editar(x)">Editar</button>}</ItemTemplate></HxGridColumn></Columnas></AppRejilla></div></div>
     </ChildContent>
 </AppPantalla>
+<HxModal @ref="_modal" Title="Editar sucursal" Size="ModalSize.Large"><BodyTemplate>@if(_edicion is not null){<EditForm Model="_edicion" OnValidSubmit="GuardarEdicion" id="formEditarSucursal"><div class="row g-3"><div class="col-md-6"><AppCampoTexto Etiqueta="Nombre comercial" @bind-Valor="_edicion.NombreComercial"/></div><div class="col-md-6"><AppCampoTexto Etiqueta="Nombre fiscal" @bind-Valor="_edicion.NombreFiscal"/></div><div class="col-md-4"><label class="form-label">Tipo documento</label><input class="form-control" type="number" min="1" @bind="_edicion.TipoDocumento"/></div><div class="col-md-4"><AppCampoTexto Etiqueta="Documento" @bind-Valor="_edicion.NumeroDocumento"/></div><div class="col-md-4"><AppCampoTexto Etiqueta="Sucursal FE" @bind-Valor="_edicion.NumeroSucursalFE"/></div><div class="col-md-4"><AppCampoTexto Etiqueta="Alias" @bind-Valor="_edicion.Alias"/></div><div class="col-md-4"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono"/></div><div class="col-md-4"><AppCampoTexto Etiqueta="Correo" @bind-Valor="_edicion.Email"/></div></div></EditForm>}</BodyTemplate><FooterTemplate><button class="btn btn-outline-secondary" @onclick="()=>_modal.HideAsync()">Cancelar</button><button class="btn btn-primary" form="formEditarSucursal" type="submit">Guardar</button></FooterTemplate></HxModal>
 
 @code {
     private const string Titulo = "Surcursales";
@@ -84,7 +91,13 @@
     private string _alias = string.Empty;
     private string _telefono = string.Empty;
     private string _email = string.Empty;
+    private string _numeroSucursalFe = string.Empty;
     private bool _guardando;
+    private AppRejilla<SucursalFiscalDTO>? _grid;
+    private HxModal _modal = default!;
+    private List<SucursalFiscalDTO> _sucursales = new();
+    private SucursalFiscalDTO? _edicion;
+    private bool _sucursalesCargadas;
 
     protected override async Task OnInitializedAsync()
     {
@@ -111,9 +124,16 @@
             return;
         }
 
+        _numeroSucursalFe = _numeroSucursalFe.Trim();
+        if (_numeroSucursalFe.Length != 3 || !_numeroSucursalFe.All(char.IsDigit))
+        {
+            await Dialogos.ErrorAsync("El número de sucursal FE debe tener exactamente tres dígitos.");
+            return;
+        }
+
         _guardando = true;
 
-        var dto = new SucursalDTO
+        var dto = new SucursalFiscalDTO
         {
             NombreComercial = _nombreComercial,
             NombreFiscal = _nombreFiscal,
@@ -121,7 +141,8 @@
             NumeroDocumento = _numeroDocumento,
             Alias = _alias,
             Telefono = _telefono,
-            Email = _email
+            Email = _email,
+            NumeroSucursalFE = _numeroSucursalFe
         };
 
         var ok = await Respuestas.CorrectaAsync(await Api.Crear(dto), "crear la sucursal");
@@ -131,8 +152,14 @@
         if (ok)
         {
             Dialogos.Exito($"Sucursal {_nombreComercial} creada.");
-            _nombreComercial = _nombreFiscal = _numeroDocumento = _alias = _telefono = _email = string.Empty;
+            _nombreComercial = _nombreFiscal = _numeroDocumento = _alias = _telefono = _email = _numeroSucursalFe = string.Empty;
             _tipoDocumento = 0;
+            _sucursalesCargadas = false;
+            if (_grid is not null) await _grid.RefrescarAsync();
         }
     }
+
+    private async Task<GridDataProviderResult<SucursalFiscalDTO>> CargarSucursales(GridDataProviderRequest<SucursalFiscalDTO> request) { if (!_sucursalesCargadas) { _sucursales = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar las sucursales"))?.ToList() ?? new(); _sucursalesCargadas = true; } return request.ApplyTo(_sucursales); }
+    private async Task Editar(SucursalFiscalDTO sucursal) { _edicion = new() { Id=sucursal.Id, NombreComercial=sucursal.NombreComercial, NombreFiscal=sucursal.NombreFiscal, TipoDocumento=sucursal.TipoDocumento, NumeroDocumento=sucursal.NumeroDocumento, Alias=sucursal.Alias, Telefono=sucursal.Telefono, Email=sucursal.Email, NumeroSucursalFE=sucursal.NumeroSucursalFE }; await _modal.ShowAsync(); }
+    private async Task GuardarEdicion() { if (_edicion is null || _edicion.NumeroSucursalFE?.Trim().Length != 3 || !_edicion.NumeroSucursalFE.All(char.IsDigit)) { await Dialogos.ErrorAsync("El número de sucursal FE debe tener tres dígitos."); return; } if (await Respuestas.CorrectaAsync(await Api.Actualizar(_edicion), "actualizar la sucursal")) { await _modal.HideAsync(); _sucursalesCargadas=false; if(_grid is not null) await _grid.RefrescarAsync(); } }
 }

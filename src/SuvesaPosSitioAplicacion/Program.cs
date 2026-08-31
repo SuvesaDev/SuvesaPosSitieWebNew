@@ -184,6 +184,18 @@ builder.Services.AddScoped<IOrdenesCompra, OrdenesCompra>();
 builder.Services.AddScoped<IEntregasCuenta, EntregasCuenta>();
 builder.Services.AddScoped<ICobros, Cobros>();
 builder.Services.AddScoped<ICajaOperaciones, CajaOperaciones>();
+builder.Services.AddScoped<ITiposFactura, TiposFacturaFiscal>();
+builder.Services.AddScoped<ITiposIdentificacionFiscales, TiposIdentificacionFiscales>();
+builder.Services.AddScoped<IImpuestosFiscales, ImpuestosFiscales>();
+builder.Services.AddScoped<ITiposCobroFiscales, TiposCobroFiscales>();
+builder.Services.AddScoped<IFormasPagoFiscales, FormasPagoFiscales>();
+builder.Services.AddScoped<ITiposExoneracionFiscales, TiposExoneracionFiscales>();
+builder.Services.AddScoped<IMonedasFiscales, MonedasFiscales>();
+builder.Services.AddScoped<IDenominacionesMonedaFiscales, DenominacionesMonedaFiscales>();
+builder.Services.AddScoped<IConfiguracionPlazosFiscales, ConfiguracionPlazosFiscales>();
+builder.Services.AddScoped<IEmisoresFiscales, EmisoresFiscales>();
+builder.Services.AddScoped<ISeriesFacturacionFiscales, SeriesFacturacionFiscales>();
+builder.Services.AddScoped<IBandejaFiscal, BandejaFiscal>();
 
 var app = builder.Build();
 

@@ -1,0 +1,6 @@
+namespace SuvesaPosSitioAplicacion.DTOs.Fiscal;
+public sealed class FiltroBandejaFiscalDTO { public string? Clave { get; set; } public string? Estado { get; set; } public int Pagina { get; set; } = 1; public int TamanoPagina { get; set; } = 25; }
+public class ItemBandejaFiscalDTO { public long IdEmision { get; set; } public string Clave { get; set; } = string.Empty; public string TipoComprobante { get; set; } = string.Empty; public int? IdEmisor { get; set; } public string Estado { get; set; } = string.Empty; public string? CausaError { get; set; } public DateTime FechaCreacionUtc { get; set; } public int IntentosEnvio { get; set; } }
+public sealed class ResultadoBandejaFiscalDTO { public int Pagina { get; set; } public int TamanoPagina { get; set; } public int TotalRegistros { get; set; } public List<ItemBandejaFiscalDTO> Registros { get; set; } = []; }
+public sealed class DetalleBandejaFiscalDTO : ItemBandejaFiscalDTO { public string? UbicacionRespuesta { get; set; } public List<EventoBandejaFiscalDTO> Eventos { get; set; } = []; }
+public sealed class EventoBandejaFiscalDTO { public string TipoEvento { get; set; } = string.Empty; public string Estado { get; set; } = string.Empty; public int? CodigoHttp { get; set; } public string? Detalle { get; set; } public DateTime FechaUtc { get; set; } }

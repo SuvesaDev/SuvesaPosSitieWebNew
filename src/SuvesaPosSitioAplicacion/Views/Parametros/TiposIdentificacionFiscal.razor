@@ -1,0 +1,31 @@
+@page "/parameters/identification-types"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ITiposIdentificacionFiscales Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <Acciones><button class="btn btn-sm btn-primary" @onclick="Agregar">Agregar</button><button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">Recargar</button></Acciones>
+    <ChildContent><div class="card"><div class="card-body"><AppRejilla TItem="TipoIdentificacionFiscalDTO" Datos="Cargar" Nivel="NivelPantalla.Tableta" TextoVacio="No hay tipos de identificación registrados." @ref="_rejilla"><Columnas>
+        <HxGridColumn TItem="TipoIdentificacionFiscalDTO" HeaderText="Descripción" ItemTextSelector="t => t.Descripcion" SortKeySelector="t => t.Descripcion" />
+        <HxGridColumn TItem="TipoIdentificacionFiscalDTO" HeaderText="Código FE" ItemTextSelector="@(t => t.CodigoFe.ToString("00"))" SortKeySelector="t => t.CodigoFe" />
+        <HxGridColumn TItem="TipoIdentificacionFiscalDTO" HeaderText="Estado"><ItemTemplate Context="t"><span class="badge @(t.Activo ? "text-bg-success" : "text-bg-secondary")">@(t.Activo ? "Activo" : "Inactivo")</span></ItemTemplate></HxGridColumn>
+        <HxGridColumn TItem="TipoIdentificacionFiscalDTO" HeaderText=""><ItemTemplate Context="t"><button class="btn btn-sm btn-link" @onclick="() => Editar(t)">Editar</button>@if (t.Activo) { <button class="btn btn-sm btn-link text-danger" @onclick="() => Deshabilitar(t)">Deshabilitar</button> }</ItemTemplate></HxGridColumn>
+    </Columnas></AppRejilla></div></div></ChildContent>
+</AppPantalla>
+<HxModal @ref="_modal" Title="@TituloModal" Size="ModalSize.Regular"><BodyTemplate>@if (_edicion is not null) { <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formTipoIdentificacion"><DataAnnotationsValidator /><AppCampoTexto Etiqueta="Descripción" @bind-Valor="_edicion.Descripcion" /><div class="mt-3"><label class="form-label" for="codigoFe">Código FE</label><input id="codigoFe" type="number" min="1" max="99" class="form-control" @bind="_edicion.CodigoFe" /></div></EditForm> }</BodyTemplate><FooterTemplate><button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button><button class="btn btn-primary" form="formTipoIdentificacion" type="submit" disabled="@_guardando">Guardar</button></FooterTemplate></HxModal>
+
+@code {
+    private const string Titulo = "Tipos de Identificación";
+    private AppRejilla<TipoIdentificacionFiscalDTO>? _rejilla; private HxModal _modal = default!; private List<TipoIdentificacionFiscalDTO> _tipos = new(); private TipoIdentificacionFiscalDTO? _edicion; private bool _nuevo, _guardando, _cargado;
+    private string TituloModal => _nuevo ? "Nuevo tipo de identificación" : "Editar tipo de identificación";
+    private async Task<GridDataProviderResult<TipoIdentificacionFiscalDTO>> Cargar(GridDataProviderRequest<TipoIdentificacionFiscalDTO> solicitud) { if (!_cargado) { _tipos = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar los tipos de identificación"))?.ToList() ?? new(); _cargado = true; } return solicitud.ApplyTo(_tipos); }
+    private async Task Recargar() { _cargado = false; if (_rejilla is not null) await _rejilla.RefrescarAsync(); }
+    private async Task Agregar() { _nuevo = true; _edicion = new(); await _modal.ShowAsync(); }
+    private async Task Editar(TipoIdentificacionFiscalDTO tipo) { _nuevo = false; _edicion = new() { Id = tipo.Id, Descripcion = tipo.Descripcion, CodigoFe = tipo.CodigoFe, Activo = tipo.Activo }; await _modal.ShowAsync(); }
+    private async Task Guardar() { if (_edicion is null || _guardando) return; _edicion.Descripcion = _edicion.Descripcion?.Trim(); if (string.IsNullOrWhiteSpace(_edicion.Descripcion) || _edicion.CodigoFe is < 1 or > 99) { await Dialogos.ErrorAsync("Indique una descripción y un código FE entre 01 y 99."); return; } _guardando = true; var r = _nuevo ? await Api.Crear(_edicion) : await Api.Actualizar(_edicion); _guardando = false; if (await Respuestas.CorrectaAsync(r, "guardar el tipo de identificación")) { await _modal.HideAsync(); await Recargar(); } }
+    private async Task Deshabilitar(TipoIdentificacionFiscalDTO tipo) { var r = await Api.Deshabilitar(tipo); if (await Respuestas.CorrectaAsync(r, "deshabilitar el tipo de identificación")) await Recargar(); }
+}
