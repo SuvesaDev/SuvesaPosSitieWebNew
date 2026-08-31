@@ -67,58 +67,152 @@
                 </li>
             </ul>
 
-            @switch (_tab)
+            @* -------- PESTAÑA ROLES -------- *@
+            @if (_tab == Tab.Roles)
             {
-                case Tab.Roles:
-                    <RolesTab />
-                    break;
-                case Tab.Catalogo:
-                    <CatalogoTab />
-                    break;
-                case Tab.Acciones:
-                    <AccionesTab />
-                    break;
+                @if (_puedeEscribir)
+                {
+                    <div class="mb-3 text-end">
+                        <button class="btn btn-sm btn-primary" @onclick="NuevoRol">
+                            <i class="bi bi-plus-lg me-1"></i>Nuevo rol
+                        </button>
+                    </div>
+                }
+                <div class="card">
+                    <div class="card-body">
+                        <AppRejilla TItem="RolResumenDTO" Datos="CargarRoles" @ref="_rejillaRoles"
+                                    TextoVacio="No hay roles registrados.">
+                            <Columnas>
+                                <HxGridColumn TItem="RolResumenDTO" HeaderText="Rol" ItemTextSelector="r => r.Nombre" />
+                                <HxGridColumn TItem="RolResumenDTO" HeaderText="Descripción" ItemTextSelector="r => r.Descripcion" />
+                                <HxGridColumn TItem="RolResumenDTO" HeaderText="Estado"
+                                              ItemTextSelector="@(r => r.Activo ? "Activo" : "Inactivo")" />
+                                <HxGridColumn TItem="RolResumenDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
+                                    <ItemTemplate Context="r">
+                                        <button class="btn btn-sm btn-link p-0" @onclick="() => EditarRol(r)">
+                                            @(_puedeEscribir ? "Editar" : "Ver")
+                                        </button>
+                                    </ItemTemplate>
+                                </HxGridColumn>
+                            </Columnas>
+                        </AppRejilla>
+                    </div>
+                </div>
+            }
+
+            @* -------- PESTAÑA CATÁLOGO -------- *@
+            @if (_tab == Tab.Catalogo)
+            {
+                @if (_puedeEscribir)
+                {
+                    <div class="mb-3 text-end">
+                        <button class="btn btn-sm btn-primary" @onclick="() => AbrirModulo(null)">
+                            <i class="bi bi-plus-lg me-1"></i>Nuevo módulo
+                        </button>
+                    </div>
+                }
+                @if (_catalogo is null)
+                {
+                    <p class="text-body-secondary">Cargando catálogo...</p>
+                }
+                else if (_catalogo.Count == 0)
+                {
+                    <p class="text-body-secondary">El catálogo está vacío. Ejecute la semilla del API.</p>
+                }
+                else
+                {
+                    @foreach (var m in _catalogo)
+                    {
+                        <div class="card mb-2">
+                            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                                <span>
+                                    <strong>@m.Nombre</strong> <code class="small">@m.Codigo</code>
+                                    @if (!m.Activo)
+                                    {
+                                        <span class="badge text-bg-secondary ms-2">inactivo</span>
+                                    }
+                                </span>
+                                @if (_puedeEscribir)
+                                {
+                                    <span>
+                                        <button class="btn btn-sm btn-link p-0 me-3" @onclick="() => AbrirModulo(m)">Editar</button>
+                                        <button class="btn btn-sm btn-link p-0" @onclick="() => AbrirFuncion(m, null)">Nueva función</button>
+                                    </span>
+                                }
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm mb-0 align-middle">
+                                    <tbody>
+                                        @foreach (var f in Aplanar(m.Funciones))
+                                        {
+                                            <tr>
+                                                <td style="padding-left: @(1 + f.Nivel)rem">
+                                                    @f.Funcion.Nombre <code class="small">@f.Funcion.Codigo</code>
+                                                    @if (!f.Funcion.Activo)
+                                                    {
+                                                        <span class="badge text-bg-secondary ms-2">inactivo</span>
+                                                    }
+                                                </td>
+                                                <td class="small text-body-secondary">@string.Join(", ", f.Funcion.AccionesDisponibles)</td>
+                                                <td class="text-end">
+                                                    @if (_puedeEscribir)
+                                                    {
+                                                        <button class="btn btn-sm btn-link p-0" @onclick="() => AbrirFuncion(m, f.Funcion)">Editar</button>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    }
+                }
+            }
+
+            @* -------- PESTAÑA ACCIONES -------- *@
+            @if (_tab == Tab.Acciones)
+            {
+                <div class="alert alert-warning py-2 small">
+                    Este catálogo afecta a <strong>todo el sistema</strong>. Cambielo solo si sabe lo que hace.
+                </div>
+                @if (_puedeEscribir)
+                {
+                    <div class="mb-3 text-end">
+                        <button class="btn btn-sm btn-primary" @onclick="() => AbrirAccion(null)">
+                            <i class="bi bi-plus-lg me-1"></i>Nueva acción
+                        </button>
+                    </div>
+                }
+                <div class="card">
+                    <div class="card-body">
+                        <AppRejilla TItem="AccionCatalogoDTO" Datos="CargarAcciones" @ref="_rejillaAcciones"
+                                    TextoVacio="Sin acciones.">
+                            <Columnas>
+                                <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="Código" ItemTextSelector="a => a.Codigo" />
+                                <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="Nombre" ItemTextSelector="a => a.Nombre" />
+                                <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="Orden" ItemTextSelector="a => a.Orden.ToString()" />
+                                <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="Estado"
+                                              ItemTextSelector="@(a => a.Activo ? "Activo" : "Inactivo")" />
+                                <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
+                                    <ItemTemplate Context="a">
+                                        @if (_puedeEscribir)
+                                        {
+                                            <button class="btn btn-sm btn-link p-0" @onclick="() => AbrirAccion(a)">Editar</button>
+                                        }
+                                    </ItemTemplate>
+                                </HxGridColumn>
+                            </Columnas>
+                        </AppRejilla>
+                    </div>
+                </div>
             }
         }
 
     </ChildContent>
 </AppPantalla>
 
-@* =================== PESTAÑA ROLES =================== *@
-@{
-    RenderFragment RolesTab() =>
-    @<div>
-        @if (_puedeEscribir)
-        {
-            <div class="mb-3 text-end">
-                <button class="btn btn-sm btn-primary" @onclick="NuevoRol">
-                    <i class="bi bi-plus-lg me-1"></i>Nuevo rol
-                </button>
-            </div>
-        }
-        <div class="card">
-            <div class="card-body">
-                <AppRejilla TItem="RolResumenDTO" Datos="CargarRoles" @ref="_rejillaRoles"
-                            TextoVacio="No hay roles registrados.">
-                    <Columnas>
-                        <HxGridColumn TItem="RolResumenDTO" HeaderText="Rol" ItemTextSelector="r => r.Nombre" />
-                        <HxGridColumn TItem="RolResumenDTO" HeaderText="Descripción" ItemTextSelector="r => r.Descripcion" />
-                        <HxGridColumn TItem="RolResumenDTO" HeaderText="Estado"
-                                      ItemTextSelector="@(r => r.Activo ? "Activo" : "Inactivo")" />
-                        <HxGridColumn TItem="RolResumenDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
-                            <ItemTemplate Context="r">
-                                <button class="btn btn-sm btn-link p-0" @onclick="() => EditarRol(r)">
-                                    @(_puedeEscribir ? "Editar" : "Ver")
-                                </button>
-                            </ItemTemplate>
-                        </HxGridColumn>
-                    </Columnas>
-                </AppRejilla>
-            </div>
-        </div>
-    </div>;
-}
-
+@* =================== MODAL ROL + MATRIZ =================== *@
 <HxModal @ref="_modalRol" Title="@(_rolEsNuevo ? "Nuevo rol" : "Rol")" Size="ModalSize.ExtraLarge">
     <BodyTemplate>
         @if (_rol is not null)
@@ -142,6 +236,13 @@
             </div>
 
             <h6 class="seepos-form-seccion">Permisos</h6>
+            @if (_rol.Funciones.Count == 0)
+            {
+                <p class="text-body-secondary">
+                    No hay funciones en el catálogo. Créelas en la pestaña <strong>Catálogo</strong>
+                    o ejecute la semilla del API.
+                </p>
+            }
             @foreach (var grupo in _rol.Funciones.GroupBy(f => f.ModuloNombre))
             {
                 <div class="card mb-2">
@@ -205,68 +306,7 @@
     </FooterTemplate>
 </HxModal>
 
-@* =================== PESTAÑA CATÁLOGO =================== *@
-@{
-    RenderFragment CatalogoTab() =>
-    @<div>
-        @if (_puedeEscribir)
-        {
-            <div class="mb-3 text-end">
-                <button class="btn btn-sm btn-primary" @onclick="() => AbrirModulo(null)">
-                    <i class="bi bi-plus-lg me-1"></i>Nuevo módulo
-                </button>
-            </div>
-        }
-        @if (_catalogo is null)
-        {
-            <p class="text-body-secondary">Cargando catálogo...</p>
-        }
-        else
-        {
-            @foreach (var m in _catalogo)
-            {
-                <div class="card mb-2">
-                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
-                        <span>
-                            <strong>@m.Nombre</strong> <code class="small">@m.Codigo</code>
-                            @if (!m.Activo) { <span class="badge text-bg-secondary ms-2">inactivo</span> }
-                        </span>
-                        @if (_puedeEscribir)
-                        {
-                            <span>
-                                <button class="btn btn-sm btn-link p-0 me-3" @onclick="() => AbrirModulo(m)">Editar</button>
-                                <button class="btn btn-sm btn-link p-0" @onclick="() => AbrirFuncion(m, null)">Nueva función</button>
-                            </span>
-                        }
-                    </div>
-                    <div class="card-body p-0">
-                        <table class="table table-sm mb-0 align-middle">
-                            <tbody>
-                                @foreach (var f in Aplanar(m.Funciones))
-                                {
-                                    <tr>
-                                        <td style="padding-left: @(1 + f.Nivel)rem">
-                                            @f.Funcion.Nombre <code class="small">@f.Funcion.Codigo</code>
-                                            @if (!f.Funcion.Activo) { <span class="badge text-bg-secondary ms-2">inactivo</span> }
-                                        </td>
-                                        <td class="small text-body-secondary">@string.Join(", ", f.Funcion.AccionesDisponibles)</td>
-                                        <td class="text-end">
-                                            @if (_puedeEscribir)
-                                            {
-                                                <button class="btn btn-sm btn-link p-0" @onclick="() => AbrirFuncion(m, f.Funcion)">Editar</button>
-                                            }
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            }
-        }
-    </div>;
-}
-
+@* =================== MODAL MÓDULO =================== *@
 <HxModal @ref="_modalModulo" Title="Módulo" Size="ModalSize.Regular">
     <BodyTemplate>
         @if (_modulo is not null)
@@ -300,6 +340,7 @@
     </FooterTemplate>
 </HxModal>
 
+@* =================== MODAL FUNCIÓN =================== *@
 <HxModal @ref="_modalFuncion" Title="Función" Size="ModalSize.Large">
     <BodyTemplate>
         @if (_funcion is not null)
@@ -357,46 +398,7 @@
     </FooterTemplate>
 </HxModal>
 
-@* =================== PESTAÑA ACCIONES =================== *@
-@{
-    RenderFragment AccionesTab() =>
-    @<div>
-        <div class="alert alert-warning py-2 small">
-            Este catálogo afecta a <strong>todo el sistema</strong>. Cambielo solo si sabe lo que hace.
-        </div>
-        @if (_puedeEscribir)
-        {
-            <div class="mb-3 text-end">
-                <button class="btn btn-sm btn-primary" @onclick="() => AbrirAccion(null)">
-                    <i class="bi bi-plus-lg me-1"></i>Nueva acción
-                </button>
-            </div>
-        }
-        <div class="card">
-            <div class="card-body">
-                <AppRejilla TItem="AccionCatalogoDTO" Datos="CargarAcciones" @ref="_rejillaAcciones"
-                            TextoVacio="Sin acciones.">
-                    <Columnas>
-                        <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="Código" ItemTextSelector="a => a.Codigo" />
-                        <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="Nombre" ItemTextSelector="a => a.Nombre" />
-                        <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="Orden" ItemTextSelector="a => a.Orden.ToString()" />
-                        <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="Estado"
-                                      ItemTextSelector="@(a => a.Activo ? "Activo" : "Inactivo")" />
-                        <HxGridColumn TItem="AccionCatalogoDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
-                            <ItemTemplate Context="a">
-                                @if (_puedeEscribir)
-                                {
-                                    <button class="btn btn-sm btn-link p-0" @onclick="() => AbrirAccion(a)">Editar</button>
-                                }
-                            </ItemTemplate>
-                        </HxGridColumn>
-                    </Columnas>
-                </AppRejilla>
-            </div>
-        </div>
-    </div>;
-}
-
+@* =================== MODAL ACCIÓN =================== *@
 <HxModal @ref="_modalAccion" Title="Acción" Size="ModalSize.Regular">
     <BodyTemplate>
         @if (_accion is not null)
@@ -490,7 +492,8 @@
     private void AbrirAcciones() => _tab = Tab.Acciones;
 
     private async Task RecargarCatalogo()
-        => _catalogo = (await Respuestas.DatoAsync(await Api.Catalogo(), "consultar el catálogo"))?.ToList();
+        => _catalogo = (await Respuestas.DatoAsync(await Api.Catalogo(), "consultar el catálogo"))?.ToList()
+                       ?? new List<ModuloCatalogoDTO>();
 
     // ---------- roles ----------
     private async Task<GridDataProviderResult<RolResumenDTO>> CargarRoles(GridDataProviderRequest<RolResumenDTO> p)
