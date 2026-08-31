@@ -144,6 +144,9 @@ ClienteApi<IDevolucionVentasApiCliente, DevolucionVentasApiCliente>();
 ClienteApi<IDevolucionCompraApiCliente, DevolucionCompraApiCliente>();
 ClienteApi<ICobrosApiCliente, CobrosApiCliente>();
 ClienteApi<IFormasPagosApiCliente, FormasPagosApiCliente>();
+ClienteApi<IConfiguracionBonificacionApiCliente, ConfiguracionBonificacionApiCliente>();
+ClienteApi<IClienteBonificacionApiCliente, ClienteBonificacionApiCliente>();
+ClienteApi<IArticuloBonificacionApiCliente, ArticuloBonificacionApiCliente>();
 
 // ---------------------------------------------------------------------------
 // Convivencia: YARP sirve la SPA React bajo el mismo origen mientras queden
@@ -203,6 +206,9 @@ builder.Services.AddScoped<IEmisoresFiscales, EmisoresFiscales>();
 builder.Services.AddScoped<ISeriesFacturacionFiscales, SeriesFacturacionFiscales>();
 builder.Services.AddScoped<IBandejaFiscal, BandejaFiscal>();
 builder.Services.AddScoped<IGeografiaFiscal, GeografiaFiscal>();
+builder.Services.AddScoped<ICatalogoBonificacion, CatalogoBonificacion>();
+builder.Services.AddScoped<IClienteBonificacion, ClienteBonificacion>();
+builder.Services.AddScoped<IArticuloBonificacion, ArticuloBonificacion>();
 
 var app = builder.Build();
 

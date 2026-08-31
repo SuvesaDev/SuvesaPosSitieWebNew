@@ -8,6 +8,8 @@
 @inject IContextoSesion Sesion
 @inject ICartasExoneracion Cartas
 @inject IGeografia Geografia
+@inject ICatalogoBonificacion CatalogoBonificacion
+@inject IClienteBonificacion ClienteBonificacion
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -318,6 +320,10 @@
                         {
                             <button type="button" class="btn btn-sm @ClaseFacturacion" @onclick="AbrirFacturacion">Datos facturación</button>
                         }
+                        @if (Sesion.EsCostaPets && _edicion.TieneBonificacion && !_esNuevo)
+                        {
+                            <button type="button" class="btn btn-sm @ClaseBonificacion" @onclick="AbrirBonificacion">Bonificación</button>
+                        }
                     </div>
                 </nav>
 
@@ -375,6 +381,16 @@
                                 <div class="form-check"><input id="cliente-fallecido" class="form-check-input" type="checkbox" @bind="_edicion.Fallecido" /><label class="form-check-label" for="cliente-fallecido">Fallecido</label></div>
                             </div>
                         }
+                        @if (Sesion.EsCostaPets)
+                        {
+                            <div class="col-12 d-flex flex-wrap align-items-center gap-4 border-top pt-3">
+                                <div class="form-check"><input id="cliente-bonificado" class="form-check-input" type="checkbox" @bind="_edicion.TieneBonificacion" /><label class="form-check-label" for="cliente-bonificado">Bonificado</label></div>
+                                @if (_edicion.TieneBonificacion && _esNuevo)
+                                {
+                                    <span class="text-secondary small"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>La pestaña de Bonificación se habilita al guardar el cliente.</span>
+                                }
+                            </div>
+                        }
                     </div>
                 }
                 else if (_pestanaEdicion == "credito")
@@ -421,6 +437,64 @@
                     <div class="row g-3"><div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Sucursal" @bind-Valor="_datosSucursalEdicion.Sucursal" /></div><div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Nombre comercial" @bind-Valor="_datosSucursalEdicion.NombreComercial" /></div><div class="col-12 col-md-2"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_datosSucursalEdicion.Telefono" /></div><div class="col-12 col-md-2"><AppCampoTexto Etiqueta="Correo" @bind-Valor="_datosSucursalEdicion.Email" /></div><div class="col-12 col-md-2 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarDatosSucursal">Agregar</button></div><div class="col-12"><AppCampoTexto Etiqueta="Contacto" @bind-Valor="_datosSucursalEdicion.Contacto" /></div></div>
                     @if (_edicion.DatosSucursal is { Count: > 0 }) { <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Sucursal</th><th>Nombre comercial</th><th>Contacto</th><th></th></tr></thead><tbody>@foreach (var dato in _edicion.DatosSucursal) { <tr><td>@dato.Sucursal</td><td>@dato.NombreComercial</td><td>@dato.Contacto</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _edicion.DatosSucursal.Remove(dato)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div> }
                 }
+                else if (_pestanaEdicion == "bonificacion")
+                {
+                    @*  Un solo formulario (tipo + articulo juntos), no dos listas como en el
+                        sistema actual: el DTO real (ClienteBonificacionConfiguracionDTO) ya
+                        junta ambos en un registro, y el endpoint que el sistema actual usa
+                        para la lista de "productos" por separado (ClienteBonificacion/GetArticulos
+                        y /CreateArticulo) no existe en el API — cualquier alta ahi falla con 404. *@
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-md-5">
+                            <label class="form-label" for="cliente-bonificacion-tipo">Tipo de bonificación</label>
+                            <select id="cliente-bonificacion-tipo" class="form-select" @bind="_tipoBonificacionSeleccionado">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var tipo in _tiposBonificacion)
+                                {
+                                    <option value="@tipo.IdConfiguracionBonificacion">@tipo.Descripcion (@tipo.CantidadVenta lleva @tipo.CantidadBonificable)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-5">
+                            <label class="form-label" for="cliente-bonificacion-articulo">Artículo asociado</label>
+                            <div class="input-group">
+                                <input id="cliente-bonificacion-articulo" class="form-control" disabled value="@_articuloBonificacionSeleccionado?.Descripcion" placeholder="Ninguno seleccionado" />
+                                <button type="button" class="btn btn-outline-primary" @onclick="AbrirBuscadorBonificacion"><i class="bi bi-search" aria-hidden="true"></i></button>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-2 d-grid">
+                            <button type="button" class="btn btn-success" @onclick="GuardarBonificacionCliente" disabled="@_guardandoBonificacion">
+                                @(_idBonificacionEnEdicion > 0 ? "Guardar cambios" : "Agregar")
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (_bonificaciones.Count == 0)
+                    {
+                        <p class="text-secondary small mt-3 mb-0">Sin bonificaciones asignadas.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm align-middle">
+                                <thead><tr><th>Tipo de bonificación</th><th>Artículo</th><th></th></tr></thead>
+                                <tbody>
+                                    @foreach (var b in _bonificaciones)
+                                    {
+                                        <tr>
+                                            <td>@NombreTipoBonificacion(b.IdConfiguracionBonificacion)</td>
+                                            <td>@b.DescripcionArticulo</td>
+                                            <td class="text-end text-nowrap">
+                                                <button type="button" class="btn btn-sm btn-link" @onclick="() => EditarBonificacionCliente(b)">Editar</button>
+                                                <button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarBonificacionCliente(b)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                }
             </EditForm>
         }
     </BodyTemplate>
@@ -431,6 +505,8 @@
         </button>
     </FooterTemplate>
 </HxModal>
+
+<AppBuscadorArticulo @ref="_buscadorBonificacion" AlElegir="ElegirArticuloBonificacion" />
 
 @code {
     private const string Titulo = "Clientes";
@@ -462,6 +538,14 @@
     private List<ProvinciaDTO> _provincias = new();
     private List<CantonDTO> _cantones = new();
     private List<DistritoDTO> _distritos = new();
+
+    private AppBuscadorArticulo _buscadorBonificacion = default!;
+    private List<ConfiguracionBonificacion> _tiposBonificacion = new();
+    private List<ClienteBonificacionConfiguracionDTO> _bonificaciones = new();
+    private int _tipoBonificacionSeleccionado;
+    private InventarioDTO? _articuloBonificacionSeleccionado;
+    private int _idBonificacionEnEdicion;
+    private bool _guardandoBonificacion;
     private string _pestanaEdicion = "generales";
     private bool _variasSucursales;
 
@@ -596,6 +680,17 @@
         {
             await CargarCarta(cliente.Cedula);
         }
+        _tiposBonificacion = new List<ConfiguracionBonificacion>();
+        _bonificaciones = new List<ClienteBonificacionConfiguracionDTO>();
+        LimpiarFormularioBonificacion();
+        if (Sesion.EsCostaPets && _edicion.TieneBonificacion)
+        {
+            _tiposBonificacion = (await Respuestas.DatoAsync(await CatalogoBonificacion.Disponibles(), "consultar los tipos de bonificación"))
+                ?.ToList() ?? new List<ConfiguracionBonificacion>();
+            _bonificaciones = (await Respuestas.DatoAsync(
+                await ClienteBonificacion.ObtenerPorCliente(cliente.Cedula, cliente.Identificacion), "consultar la bonificación del cliente"))
+                ?.ToList() ?? new List<ClienteBonificacionConfiguracionDTO>();
+        }
         await _modal.ShowAsync();
     }
 
@@ -607,11 +702,88 @@
     private string ClaseCarta => ClasePestana("carta");
     private string ClaseAdjuntos => ClasePestana("adjuntos");
     private string ClaseFacturacion => ClasePestana("facturacion");
+    private string ClaseBonificacion => ClasePestana("bonificacion");
     private void AbrirGenerales() => _pestanaEdicion = "generales";
     private void AbrirCredito() => _pestanaEdicion = "credito";
     private void AbrirCarta() => _pestanaEdicion = "carta";
     private void AbrirAdjuntos() => _pestanaEdicion = "adjuntos";
     private void AbrirFacturacion() => _pestanaEdicion = "facturacion";
+    private void AbrirBonificacion() => _pestanaEdicion = "bonificacion";
+
+    private string NombreTipoBonificacion(int idConfiguracionBonificacion)
+        => _tiposBonificacion.FirstOrDefault(t => t.IdConfiguracionBonificacion == idConfiguracionBonificacion)?.Descripcion
+            ?? idConfiguracionBonificacion.ToString();
+
+    private void LimpiarFormularioBonificacion()
+    {
+        _tipoBonificacionSeleccionado = 0;
+        _articuloBonificacionSeleccionado = null;
+        _idBonificacionEnEdicion = 0;
+    }
+
+    private Task AbrirBuscadorBonificacion() => _buscadorBonificacion.AbrirAsync();
+
+    private void ElegirArticuloBonificacion(InventarioDTO articulo) => _articuloBonificacionSeleccionado = articulo;
+
+    private void EditarBonificacionCliente(ClienteBonificacionConfiguracionDTO bonificacion)
+    {
+        _idBonificacionEnEdicion = bonificacion.IdConfiguracion;
+        _tipoBonificacionSeleccionado = bonificacion.IdConfiguracionBonificacion;
+        _articuloBonificacionSeleccionado = new InventarioDTO
+        {
+            Codigo = bonificacion.IdArticulo,
+            Descripcion = bonificacion.DescripcionArticulo
+        };
+    }
+
+    private async Task GuardarBonificacionCliente()
+    {
+        if (_edicion is null || _tipoBonificacionSeleccionado <= 0 || _articuloBonificacionSeleccionado is null) return;
+
+        _guardandoBonificacion = true;
+
+        var configuracion = new ClienteBonificacionConfiguracionDTO
+        {
+            IdConfiguracion = _idBonificacionEnEdicion,
+            IdConfiguracionBonificacion = _tipoBonificacionSeleccionado,
+            IdCliente = _edicion.Identificacion,
+            IdArticulo = _articuloBonificacionSeleccionado.Codigo,
+            DescripcionArticulo = _articuloBonificacionSeleccionado.Descripcion
+        };
+
+        var respuesta = _idBonificacionEnEdicion > 0
+            ? await ClienteBonificacion.Editar(configuracion)
+            : await ClienteBonificacion.Crear(configuracion);
+
+        var guardada = await Respuestas.DatoAsync(respuesta, "guardar la bonificación");
+        _guardandoBonificacion = false;
+
+        if (guardada is null) return;
+
+        if (_idBonificacionEnEdicion > 0)
+        {
+            var indice = _bonificaciones.FindIndex(b => b.IdConfiguracion == _idBonificacionEnEdicion);
+            if (indice >= 0) _bonificaciones[indice] = guardada;
+        }
+        else
+        {
+            _bonificaciones.Add(guardada);
+        }
+
+        LimpiarFormularioBonificacion();
+        Dialogos.Exito("Bonificación guardada.");
+    }
+
+    private async Task EliminarBonificacionCliente(ClienteBonificacionConfiguracionDTO bonificacion)
+    {
+        if (!await Dialogos.ConfirmarPeligroAsync("¿Desea quitar esta bonificación del cliente?")) return;
+
+        if (await Respuestas.CorrectaAsync(await ClienteBonificacion.Eliminar(bonificacion.IdConfiguracion), "quitar la bonificación"))
+        {
+            _bonificaciones.Remove(bonificacion);
+            Dialogos.Exito("Bonificación eliminada.");
+        }
+    }
 
     private async Task CargarProvincias()
     {

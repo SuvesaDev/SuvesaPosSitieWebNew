@@ -154,6 +154,56 @@ ambos ya existian en el cliente generado (`IQvetApiCliente`) — solo faltaba
 envolverlos. Sin usuario de pruebas con datos de Qvet reales todavia no se
 verifico con datos reales, solo contra el build y las unitarias.
 
+## Bonificación — Cliente, Artículo y Facturación
+
+Portado de la rama `feature/bonificacion` del sistema actual (React), pero **no
+tal cual** — esa rama, comparada contra el swagger real de `devapi.pos2650.com`
+(hubo que descargarlo de nuevo; el cacheado en este repo estaba de antes de esta
+funcionalidad), tiene dos problemas confirmados:
+
+1. **Dos endpoints que React llama no existen en el API**:
+   `POST /ClienteBonificacion/CreateArticulo` y `GET /ClienteBonificacion/GetArticulos`.
+   Cualquier alta de "producto de bonificación" en la pantalla de Clientes del
+   sistema actual falla con 404 ahora mismo. El DTO real
+   (`ClienteBonificacionConfiguracionDTO`) ya trae `idArticulo`/`descripcionArticulo`
+   en el mismo registro que el tipo de bonificación — no hace falta una lista
+   separada de "productos". Blazor sigue el modelo real: **un solo formulario**
+   (tipo + artículo juntos), no las dos listas de React.
+2. **El modal de Facturación (`BillingBonificacionesModal.jsx`) esta a medio
+   hacer**: sus handlers (`handleSaveCorreos`, `closeModal`, etc.) son un
+   copy-paste del modal de correos de comprobante — el boton "Bonificar" no
+   aplica nada a la factura. El campo que si existiria para eso
+   (`FacturaDetallesDTO.esBonificacion`) no lo usa ninguna pantalla de React
+   todavia. Blazor construyo la parte informativa (mostrar la bonificacion del
+   cliente al elegirlo en Facturacion) y **no** inventa la logica de aplicar la
+   bonificacion a la factura — decision explicita, no pendiente por olvido.
+
+Lo que si se construyo, completo y contra los endpoints reales (`ArticuloBonificacion`,
+`ClienteBonificacion`, `ConfiguracionBonificacion` — los tres ya en el swagger,
+solo faltaba envolverlos):
+
+- **Cliente** (`Clientes/Consulta.razor`): checkbox "Bonificado" (gateado a
+  `Sesion.EsCostaPets`, igual que React) y pestaña "Bonificación" — visible solo
+  editando un cliente ya guardado, porque la bonificacion necesita un `idCliente`
+  real. CRUD completo (alta/edicion/baja reales, no solo en memoria como en React).
+- **Artículo** (`Inventario/Consulta.razor`): mismo patron para "Tipos de
+  bonificación" (`IArticuloBonificacion`, CRUD completo). Ademas, a diferencia
+  del cliente, el articulo si tiene una segunda lista real y funcional:
+  "Productos de regalo", que reutiliza el endpoint YA EXISTENTE de artículos
+  relacionados (`articulosRelacionados/GetRelacionadosBonificacion` y
+  `/putArticuloRelacionadoBonificacion`, agregados a `IArticulosRelacionados`)
+  marcando `esRelacionBonificacion`. Ese si funciona en React tal cual, solo que
+  ahi Editar/Eliminar son locales (no llaman al API); en Blazor son reales.
+- **Facturación**: al elegir un cliente con `TieneBonificacion`, se muestra un
+  bloque informativo con su configuracion. No agrega lineas ni descuentos a la
+  factura — ver el punto 2 de arriba.
+
+Contratos regenerados (`./tools/actualizar-contratos.sh`) para traer estos DTOs
+y clientes; no existian en el `SeePosDtos.cs`/`SeePosApiClientes.cs` que ya
+estaba en el repo. **Sin verificar contra datos reales de un cliente/articulo
+bonificado** — solo contra build limpio y unitarias; falta un usuario de
+pruebas con casos de bonificacion reales para revisar visualmente.
+
 ## Decisiones cerradas — no reabrir sin motivo nuevo
 
 | Tema | Decision | Por que |

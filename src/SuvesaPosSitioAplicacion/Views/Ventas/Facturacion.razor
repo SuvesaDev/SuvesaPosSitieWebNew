@@ -12,6 +12,7 @@
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
 @inject NavigationManager Navegacion
+@inject IClienteBonificacion ClienteBonificacion
 
 @* Port del flujo de Billing: cliente -> artículos/lotes -> totales -> emisión.
    Los cálculos se hacen en decimal en CalculoDocumento; el DTO se arma una única vez
@@ -61,7 +62,32 @@
                         }
                         @if (_cliente is not null)
                         {
-                            <div class="alert alert-light border mt-3 mb-0"><div class="d-flex justify-content-between"><strong>@_cliente.Nombre</strong><button type="button" class="btn btn-sm btn-link" @onclick="QuitarCliente">Cambiar</button></div><div class="small text-secondary">@_cliente.Cedula · @_cliente.Telefono_01 · @_cliente.E_Mail</div>@if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { <div class="small text-danger mt-1">Cliente con restricción de morosidad.</div> } @if (_cliente.OrdenCompra) { <div class="small text-warning mt-1">El cliente requiere orden de compra.</div> }</div>
+                            <div class="alert alert-light border mt-3 mb-0"><div class="d-flex justify-content-between"><strong>@_cliente.Nombre</strong><button type="button" class="btn btn-sm btn-link" @onclick="QuitarCliente">Cambiar</button></div><div class="small text-secondary">@_cliente.Cedula · @_cliente.Telefono_01 · @_cliente.E_Mail</div>@if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { <div class="small text-danger mt-1">Cliente con restricción de morosidad.</div> } @if (_cliente.OrdenCompra) { <div class="small text-warning mt-1">El cliente requiere orden de compra.</div> }
+                                @if (_cliente.TieneBonificacion)
+                                {
+                                    <div class="mt-2 pt-2 border-top">
+                                        <div class="d-flex align-items-center gap-2 small"><i class="bi bi-gift-fill text-success" aria-hidden="true"></i><strong>Cliente bonificado</strong></div>
+                                        @if (_cargandoBonificacionCliente)
+                                        {
+                                            <div class="spinner-border spinner-border-sm text-primary mt-1" role="status"><span class="visually-hidden">Cargando</span></div>
+                                        }
+                                        else if (_bonificacionesCliente.Count == 0)
+                                        {
+                                            <p class="text-secondary small mb-0 mt-1">Sin bonificaciones configuradas.</p>
+                                        }
+                                        else
+                                        {
+                                            <ul class="list-unstyled small mb-0 mt-1">
+                                                @foreach (var b in _bonificacionesCliente)
+                                                {
+                                                    <li>@b.DescripcionArticulo</li>
+                                                }
+                                            </ul>
+                                            <p class="text-secondary small mb-0 mt-1"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>Informativo. Agregue el producto de regalo manualmente si corresponde.</p>
+                                        }
+                                    </div>
+                                }
+                            </div>
                         }
                         <div class="row g-3 mt-0"><div class="col-12 col-md-6"><label class="form-label">Orden de compra</label><input class="form-control" @bind="_ordenCompra" /></div><div class="col-12 col-md-6"><label class="form-label">Observaciones</label><input class="form-control" @bind="_observaciones" /></div></div>
                     </div>
@@ -183,6 +209,8 @@
     private int _idEmpresa;
     private List<FiltranClienteDTO> _clientesEncontrados = new();
     private FiltranClienteDTO? _cliente;
+    private List<ClienteBonificacionConfiguracionDTO> _bonificacionesCliente = new();
+    private bool _cargandoBonificacionCliente;
     private InventarioDTO? _articuloPendiente;
     private List<StockLoteDTO> _lotesPendientes = new();
     private decimal _cantidadArticuloPendiente = 1;
@@ -350,8 +378,30 @@
 
         await BuscarClientes();
     }
-    private void ElegirCliente(FiltranClienteDTO cliente) { _cliente = cliente; _textoCliente = cliente.Nombre ?? cliente.Cedula ?? string.Empty; _clientesEncontrados.Clear(); if (_tipoFactura != 0 && !TiposDisponibles.Any(t => t.Codigo == _tipoFactura)) _tipoFactura = 0; RecalcularTodo(); }
-    private void QuitarCliente() { _cliente = null; _tipoFactura = 0; }
+    private async Task ElegirCliente(FiltranClienteDTO cliente)
+    {
+        _cliente = cliente;
+        _textoCliente = cliente.Nombre ?? cliente.Cedula ?? string.Empty;
+        _clientesEncontrados.Clear();
+        if (_tipoFactura != 0 && !TiposDisponibles.Any(t => t.Codigo == _tipoFactura)) _tipoFactura = 0;
+        RecalcularTodo();
+
+        _bonificacionesCliente = new List<ClienteBonificacionConfiguracionDTO>();
+        // Solo informativo: se muestra la configuracion del cliente, pero no se
+        // aplica nada a la factura. El sistema actual tampoco lo hace de verdad
+        // hoy — su boton "Bonificar" quedo enganchado al handler equivocado
+        // (copiado del modal de correos) y nunca llego a tocar la factura.
+        if (cliente.TieneBonificacion)
+        {
+            _cargandoBonificacionCliente = true;
+            _bonificacionesCliente = (await Respuestas.DatoAsync(
+                await ClienteBonificacion.ObtenerPorCliente(cliente.Cedula, cliente.Identificacion), "consultar la bonificación del cliente"))
+                ?.ToList() ?? new List<ClienteBonificacionConfiguracionDTO>();
+            _cargandoBonificacionCliente = false;
+        }
+    }
+
+    private void QuitarCliente() { _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); }
 
     private Task PrepararArticulo(InventarioDTO articulo) => PrepararArticulo(articulo, 1);
     private async Task PrepararArticulo(InventarioDTO articulo, decimal cantidad)
@@ -416,5 +466,5 @@
         var r = await Api.Crear(factura); _guardando = false;
         if (await Respuestas.CorrectaAsync(r, EsConsignacion ? "registrar la consignación" : "emitir la factura")) { Dialogos.Exito(EsConsignacion ? "Consignación registrada correctamente." : "Factura emitida correctamente."); Limpiar(); }
     }
-    private void Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _moneda = "CRC"; _lineas.Clear(); RecalcularTodo(); }
+    private void Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _moneda = "CRC"; _lineas.Clear(); _bonificacionesCliente.Clear(); RecalcularTodo(); }
 }
