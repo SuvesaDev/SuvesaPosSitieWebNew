@@ -23,12 +23,12 @@ Incorporar al sitio `SuvesaPosSitieWebNew` los mantenimientos fiscales ya expues
 - [x] Formas de pago, tipos de cobro y tipos de exoneración: altas y edición; los contratos V4.4 se mantienen aislados del cliente OpenAPI heredado.
 - [x] Monedas y denominaciones de moneda: pantallas, menú, altas, edición y deshabilitación validadas mediante compilación limpia.
 - [x] Configuración de plazos: mantenimiento completo validado mediante compilación limpia.
-- [~] Geografía fiscal: bloqueada por contrato del API. Las rutas de crear/editar exigen `CodigoFE` y relaciones padre, pero los listados existentes solo devuelven DTOs históricos sin `CodigoFE`; falta un listado de mantenimiento antes de habilitar edición segura en la WEB.
+- [x] Geografía fiscal: pantalla jerárquica provincia/cantón/distrito implementada sobre los nuevos listados del API y validada mediante compilación limpia.
 
 ### 2. Configuración de emisión
 
 - [x] Sucursales: alta, listado y edición V4.4 con número fiscal FE de tres dígitos, validados mediante compilación limpia.
-- [x] Emisores: actualización de datos públicos y formulario separado de credenciales/certificado, sin relectura de secretos; validado mediante compilación limpia.
+- [x] Emisores: alta disponible desde la pantalla mediante el formulario existente de empresa/emisor; actualización de datos públicos y formulario separado de credenciales/certificado, sin relectura de secretos; validado mediante compilación limpia.
 - [x] Series de facturación: mantenimiento validado con emisor, sucursal, terminal, tipo FE, secuencia y habilitación V4.4.
 
 ### 3. Bandeja fiscal V4.4

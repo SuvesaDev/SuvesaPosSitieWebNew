@@ -196,6 +196,7 @@ builder.Services.AddScoped<IConfiguracionPlazosFiscales, ConfiguracionPlazosFisc
 builder.Services.AddScoped<IEmisoresFiscales, EmisoresFiscales>();
 builder.Services.AddScoped<ISeriesFacturacionFiscales, SeriesFacturacionFiscales>();
 builder.Services.AddScoped<IBandejaFiscal, BandejaFiscal>();
+builder.Services.AddScoped<IGeografiaFiscal, GeografiaFiscal>();
 
 var app = builder.Build();
 

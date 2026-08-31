@@ -356,8 +356,15 @@ h1:focus {
 }
 
 .seepos-lateral-compacto .seepos-lista-menu {
-    flex-grow: 0 !important;
-    overflow: hidden !important;
+    /* El carril compacto sigue siendo flex-column (la variante grid solo aplica
+       a :not(.seepos-lateral-compacto)). La base es "flex: 1 1 0", asi que si
+       aqui se fija solo "flex-grow: 0" la lista se queda con flex-basis 0 y
+       altura cero: el "overflow: hidden" remata y desaparecen todos los iconos.
+       Debe ocupar el hueco entre la marca y el control, y hacer scroll si los
+       modulos no caben en pantallas bajas. */
+    flex: 1 1 auto !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
 }
 
 .seepos-lateral-compacto .nav-link {

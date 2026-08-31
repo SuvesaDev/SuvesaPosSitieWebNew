@@ -1,0 +1,4 @@
+using SuvesaPosSitioAplicacion.DTOs.Fiscal;
+using SuvesaPosSitioAplicacion.Helpers;
+namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
+public interface IGeografiaFiscal { Task<ResponseGeneric<ICollection<ProvinciaFiscalDTO>>> Provincias(); Task<ResponseGeneric<ICollection<CantonFiscalDTO>>> Cantones(int? idProvincia); Task<ResponseGeneric<ICollection<DistritoFiscalDTO>>> Distritos(int? idCanton); Task<ResponseGeneric<ProvinciaFiscalDTO>> Crear(ProvinciaFiscalDTO item); Task<ResponseGeneric<ProvinciaFiscalDTO>> Actualizar(ProvinciaFiscalDTO item); Task<ResponseGeneric<CantonFiscalDTO>> Crear(CantonFiscalDTO item); Task<ResponseGeneric<CantonFiscalDTO>> Actualizar(CantonFiscalDTO item); Task<ResponseGeneric<DistritoFiscalDTO>> Crear(DistritoFiscalDTO item); Task<ResponseGeneric<DistritoFiscalDTO>> Actualizar(DistritoFiscalDTO item); }

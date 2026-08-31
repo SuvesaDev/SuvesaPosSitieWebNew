@@ -413,6 +413,11 @@ public static class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Geografía Fiscal",
+                    Ruta = "/parameters/fiscal-geography",
+                },
+                new ItemMenu
+                {
                     Titulo = "Emisores",
                     Ruta = "/parameters/issuers",
                 },

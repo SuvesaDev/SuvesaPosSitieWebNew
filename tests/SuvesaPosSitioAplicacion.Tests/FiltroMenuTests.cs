@@ -168,6 +168,6 @@ public class FiltroMenuTests
         // porque sus rutas existian sin entrada de menu. Incluye los mantenimientos
         // fiscales V4.4 y la bandeja fiscal agregados al sitio.
         Assert.Equal(9, MenuSeePos.Items.Count);
-        Assert.Equal(98, Contar(MenuSeePos.Items));
+        Assert.Equal(99, Contar(MenuSeePos.Items));
     }
 }
