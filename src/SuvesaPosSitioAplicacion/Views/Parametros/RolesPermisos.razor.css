@@ -78,16 +78,40 @@
     border-bottom-right-radius: 0;
 }
 
+/* El cuerpo de cada modulo hace scroll horizontal si no cabe (muchas acciones). */
+.matriz-modulo .tabla-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.matriz-modulo .tabla-funciones {
+    width: auto;
+    min-width: 100%;
+}
+
 .matriz-modulo .tabla-funciones th {
     font-size: .7rem;
     letter-spacing: .04em;
     text-transform: uppercase;
     color: var(--bs-secondary-color);
-    text-align: center;
+    white-space: nowrap;
 }
 
-.matriz-modulo .tabla-funciones th:first-child {
+.matriz-modulo .tabla-funciones .col-funcion {
     text-align: start;
+    min-width: 11rem;
+    max-width: 18rem;
+}
+
+.matriz-modulo .tabla-funciones .col-accion {
+    text-align: center;
+    width: 2.6rem;
+    padding-left: .2rem;
+    padding-right: .2rem;
+}
+
+.matriz-modulo .tabla-funciones .form-switch {
+    padding-left: 2.1rem;
 }
 
 .rol-panel {

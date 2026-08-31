@@ -389,25 +389,24 @@
                         <details class="matriz matriz-modulo mb-2" open="@(!_modulosColapsados.Contains(grupo.Key ?? ""))">
                             <summary @onclick:preventDefault @onclick="() => AlternarColapso(grupo.Key)">
                                 <span><i class="bi bi-folder2 me-2"></i>@grupo.Key</span>
-                                <span class="small">
-                                    @if (_puedeEscribir)
-                                    {
+                                @if (_puedeEscribir)
+                                {
+                                    <span class="small fw-normal">
                                         <button class="btn btn-sm btn-link p-0 me-3"
                                                 @onclick:stopPropagation @onclick="() => MarcarModuloTodo(grupo)">Todo</button>
-                                        <button class="btn btn-sm btn-link p-0 me-3"
+                                        <button class="btn btn-sm btn-link p-0"
                                                 @onclick:stopPropagation @onclick="() => LimpiarModulo(grupo)">Nada</button>
-                                    }
-                                    <span class="badge badge-mod rounded-pill">@ConcedidasEnGrupo(grupo)/@(grupo.Count() * accionesModulo.Count)</span>
-                                </span>
+                                    </span>
+                                }
                             </summary>
-                            <div class="table-responsive border border-top-0 rounded-bottom">
+                            <div class="tabla-scroll border border-top-0 rounded-bottom">
                                 <table class="table table-sm tabla-funciones mb-0 align-middle">
                                     <thead>
                                         <tr>
-                                            <th style="min-width: 13rem">Función</th>
+                                            <th class="col-funcion">Función</th>
                                             @foreach (var acc in accionesModulo)
                                             {
-                                                <th>@Etiqueta(acc)</th>
+                                                <th class="col-accion">@Etiqueta(acc)</th>
                                             }
                                         </tr>
                                     </thead>
@@ -415,10 +414,10 @@
                                         @foreach (var f in grupo.OrderBy(x => x.FuncionNombre))
                                         {
                                             <tr>
-                                                <td>@f.FuncionNombre <code class="small">@f.FuncionCodigo</code></td>
+                                                <td class="col-funcion" title="@f.FuncionCodigo">@f.FuncionNombre</td>
                                                 @foreach (var acc in accionesModulo)
                                                 {
-                                                    <td class="text-center">
+                                                    <td class="col-accion text-center">
                                                         @if (f.AccionesDisponibles.Contains(acc))
                                                         {
                                                             <div class="form-check form-switch d-inline-block m-0">
@@ -713,9 +712,6 @@
             .Concat(set.Where(a => !OrdenAcciones.Contains(a)))
             .ToList();
     }
-
-    private static int ConcedidasEnGrupo(IEnumerable<RolFuncionPermisoDTO> grupo)
-        => grupo.Sum(f => f.AccionesConcedidas.Count(a => f.AccionesDisponibles.Contains(a)));
 
     private bool EsGranAdminModal()
         => _rol is not null && _rol.Funciones.Count > 0
