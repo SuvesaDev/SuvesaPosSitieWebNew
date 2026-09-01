@@ -444,13 +444,11 @@
                 }
                 else if (_pestanaEdicion == "bonificacion")
                 {
-                    @*  Un solo formulario (tipo + articulo juntos), no dos listas como en el
-                        sistema actual: el DTO real (ClienteBonificacionConfiguracionDTO) ya
-                        junta ambos en un registro, y el endpoint que el sistema actual usa
-                        para la lista de "productos" por separado (ClienteBonificacion/GetArticulos
-                        y /CreateArticulo) no existe en el API — cualquier alta ahi falla con 404. *@
+                    @*  §4.1: la asignación es sólo cliente ↔ tipo. El artículo se resuelve
+                        al facturar con la mezcla del artículo bonificable que agregue el
+                        cajero (el API quitó IdArticulo/DescripcionArticulo en §3.2). *@
                     <div class="row g-3 align-items-end">
-                        <div class="col-12 col-md-5">
+                        <div class="col-12 col-md-9">
                             <label class="form-label" for="cliente-bonificacion-tipo">Tipo de bonificación</label>
                             <select id="cliente-bonificacion-tipo" class="form-select" @bind="_tipoBonificacionSeleccionado">
                                 <option value="0">Seleccione...</option>
@@ -460,14 +458,7 @@
                                 }
                             </select>
                         </div>
-                        <div class="col-12 col-md-5">
-                            <label class="form-label" for="cliente-bonificacion-articulo">Artículo asociado</label>
-                            <div class="input-group">
-                                <input id="cliente-bonificacion-articulo" class="form-control" disabled value="@_articuloBonificacionSeleccionado?.Descripcion" placeholder="Ninguno seleccionado" />
-                                <button type="button" class="btn btn-outline-primary" @onclick="AbrirBuscadorBonificacion"><i class="bi bi-search" aria-hidden="true"></i></button>
-                            </div>
-                        </div>
-                        <div class="col-12 col-md-2 d-grid">
+                        <div class="col-12 col-md-3 d-grid">
                             <button type="button" class="btn btn-success" @onclick="GuardarBonificacionCliente" disabled="@_guardandoBonificacion">
                                 @(_idBonificacionEnEdicion > 0 ? "Guardar cambios" : "Agregar")
                             </button>
@@ -482,13 +473,12 @@
                     {
                         <div class="table-responsive mt-3">
                             <table class="table table-sm align-middle">
-                                <thead><tr><th>Tipo de bonificación</th><th>Artículo</th><th></th></tr></thead>
+                                <thead><tr><th>Tipo de bonificación</th><th></th></tr></thead>
                                 <tbody>
                                     @foreach (var b in _bonificaciones)
                                     {
                                         <tr>
                                             <td>@NombreTipoBonificacion(b.IdConfiguracionBonificacion)</td>
-                                            <td>@b.DescripcionArticulo</td>
                                             <td class="text-end text-nowrap">
                                                 <button type="button" class="btn btn-sm btn-link" @onclick="() => EditarBonificacionCliente(b)">Editar</button>
                                                 <button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarBonificacionCliente(b)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button>
@@ -511,7 +501,6 @@
     </FooterTemplate>
 </HxModal>
 
-<AppBuscadorArticulo @ref="_buscadorBonificacion" AlElegir="ElegirArticuloBonificacion" />
 
 @code {
     private const string Titulo = "Clientes";
@@ -544,11 +533,9 @@
     private List<CantonDTO> _cantones = new();
     private List<DistritoDTO> _distritos = new();
 
-    private AppBuscadorArticulo _buscadorBonificacion = default!;
     private List<ConfiguracionBonificacion> _tiposBonificacion = new();
     private List<ClienteBonificacionConfiguracionDTO> _bonificaciones = new();
     private int _tipoBonificacionSeleccionado;
-    private InventarioDTO? _articuloBonificacionSeleccionado;
     private int _idBonificacionEnEdicion;
     private bool _guardandoBonificacion;
     private string _pestanaEdicion = "generales";
@@ -768,28 +755,26 @@
     private void LimpiarFormularioBonificacion()
     {
         _tipoBonificacionSeleccionado = 0;
-        _articuloBonificacionSeleccionado = null;
         _idBonificacionEnEdicion = 0;
     }
-
-    private Task AbrirBuscadorBonificacion() => _buscadorBonificacion.AbrirAsync();
-
-    private void ElegirArticuloBonificacion(InventarioDTO articulo) => _articuloBonificacionSeleccionado = articulo;
 
     private void EditarBonificacionCliente(ClienteBonificacionConfiguracionDTO bonificacion)
     {
         _idBonificacionEnEdicion = bonificacion.IdConfiguracion;
         _tipoBonificacionSeleccionado = bonificacion.IdConfiguracionBonificacion;
-        _articuloBonificacionSeleccionado = new InventarioDTO
-        {
-            Codigo = bonificacion.IdArticulo,
-            Descripcion = bonificacion.DescripcionArticulo
-        };
     }
 
     private async Task GuardarBonificacionCliente()
     {
-        if (_edicion is null || _tipoBonificacionSeleccionado <= 0 || _articuloBonificacionSeleccionado is null) return;
+        if (_edicion is null || _tipoBonificacionSeleccionado <= 0) return;
+
+        // sin duplicar el mismo tipo (salvo que se esté editando ese registro)
+        if (_bonificaciones.Any(b => b.IdConfiguracionBonificacion == _tipoBonificacionSeleccionado
+                                     && b.IdConfiguracion != _idBonificacionEnEdicion))
+        {
+            await Dialogos.ErrorAsync("Ese tipo de bonificación ya está asignado al cliente.");
+            return;
+        }
 
         _guardandoBonificacion = true;
 
@@ -797,9 +782,7 @@
         {
             IdConfiguracion = _idBonificacionEnEdicion,
             IdConfiguracionBonificacion = _tipoBonificacionSeleccionado,
-            IdCliente = _edicion.Identificacion,
-            IdArticulo = _articuloBonificacionSeleccionado.Codigo,
-            DescripcionArticulo = _articuloBonificacionSeleccionado.Descripcion
+            IdCliente = _edicion.Identificacion
         };
 
         var respuesta = _idBonificacionEnEdicion > 0
