@@ -1,73 +1,83 @@
 @page "/"
+@page "/initial"
+@using SuvesaPosSitioAplicacion.Services
 @inject IContextoSesion Sesion
+@inject IEstadoEspacioTrabajo Espacio
+@inject NavigationManager Navegacion
 
-<PageTitle>SeePOS</PageTitle>
+<PageTitle>Inicio — SeePOS</PageTitle>
 
-<div class="row g-4">
-
-    <div class="col-12 col-lg-7">
-        <div class="card h-100">
-            <div class="card-body">
-                <h1 class="h5 card-title">Ola 0 &mdash; Cimientos</h1>
-                <p class="card-text text-secondary">
-                    Estructura base del sitio, con la organizacion estandar de la casa.
-                    Todavia no hay ninguna pantalla de negocio: eso empieza en la Ola 1.
-                </p>
-
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                        Semana 1 &mdash; Proyecto, estructura y contratos del API
-                        <span class="badge text-bg-success">hecho</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                        Semana 2 &mdash; Sesion, sucursal y permisos en servidor
-                        <span class="badge text-bg-success">hecho</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                        Semana 3 &mdash; Shell y espacio de trabajo por pestanas
-                        <span class="badge text-bg-light text-secondary">pendiente</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                        Semana 4 &mdash; Convivencia con la SPA React
-                        <span class="badge text-bg-light text-secondary">pendiente</span>
-                    </li>
-                </ul>
-            </div>
+<section class="seepos-inicio" aria-labelledby="inicio-titulo">
+    <header class="seepos-inicio-bienvenida">
+        <div>
+            <p class="seepos-inicio-eyebrow"><i class="bi bi-shop-window" aria-hidden="true"></i> @Sesion.NombreSucursal</p>
+            <h1 id="inicio-titulo">Inicio</h1>
+            <p class="mb-0">Hola@(string.IsNullOrWhiteSpace(Sesion.Usuario) ? string.Empty : $", {Sesion.Usuario}"). Seleccione una tarea para comenzar su jornada.</p>
         </div>
-    </div>
+        <i class="bi bi-grid-1x2-fill seepos-inicio-bienvenida-icono" aria-hidden="true"></i>
+    </header>
 
-    <div class="col-12 col-lg-5">
-        <div class="card h-100">
-            <div class="card-header">Sesion</div>
-            <div class="card-body">
-                <dl class="row mb-0 small">
-                    <dt class="col-5 text-secondary fw-normal">Usuario</dt>
-                    <dd class="col-7">@Sesion.Usuario</dd>
-
-                    <dt class="col-5 text-secondary fw-normal">Centro</dt>
-                    <dd class="col-7">@Sesion.NombreSucursal (@Sesion.IdSucursal)</dd>
-
-                    <dt class="col-5 text-secondary fw-normal">Administrador</dt>
-                    <dd class="col-7">@(Sesion.EsAdministrador ? "si" : "no")</dd>
-
-                    <dt class="col-5 text-secondary fw-normal">Menus</dt>
-                    <dd class="col-7">@Sesion.Menus.Count</dd>
-
-                    <dt class="col-5 text-secondary fw-normal">Pantallas</dt>
-                    <dd class="col-7">@Sesion.Permisos.Count</dd>
-                </dl>
-
-                <hr />
-                <p class="small text-secondary mb-0">
-                    El token del API no aparece aqui a proposito: vive en el ticket de
-                    sesion, en servidor, y el navegador solo tiene la llave.
-                </p>
+    <section aria-labelledby="tareas-frecuentes">
+        <div class="d-flex align-items-end justify-content-between gap-3 mb-3">
+            <div>
+                <h2 class="h5 mb-1" id="tareas-frecuentes">Tareas frecuentes</h2>
+                <p class="text-secondary small mb-0">Accesos directos a las operaciones más usadas.</p>
             </div>
+            @if (Espacio.Pestanas.Count > 0)
+            {
+                <span class="seepos-inicio-pestanas"><i class="bi bi-window-stack" aria-hidden="true"></i> @Espacio.Pestanas.Count abierta@(Espacio.Pestanas.Count == 1 ? string.Empty : "s")</span>
+            }
         </div>
-    </div>
 
-</div>
+        @if (AccionesDisponibles.Length > 0)
+        {
+            <div class="seepos-inicio-acciones">
+                @foreach (var accion in AccionesDisponibles)
+                {
+                <button type="button" class="seepos-inicio-accion" @onclick="() => Abrir(accion)">
+                    <span class="seepos-inicio-accion-icono"><i class="bi @accion.Icono" aria-hidden="true"></i></span>
+                    <span class="seepos-inicio-accion-texto">
+                        <strong>@accion.Titulo</strong>
+                        <small>@accion.Descripcion</small>
+                    </span>
+                    <i class="bi bi-arrow-right seepos-inicio-accion-flecha" aria-hidden="true"></i>
+                </button>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="seepos-inicio-sin-acciones mb-0">No tiene tareas frecuentes asignadas. Use el menú lateral para consultar las funciones disponibles.</p>
+        }
+    </section>
+
+    <section class="seepos-inicio-ayuda" aria-labelledby="inicio-ayuda">
+        <i class="bi bi-lightbulb-fill" aria-hidden="true"></i>
+        <div>
+            <h2 class="h6 mb-1" id="inicio-ayuda">Una navegación más rápida</h2>
+            <p class="mb-0">Use el menú lateral para todas las funciones disponibles; las pantallas que abra permanecerán en las pestañas superiores.</p>
+        </div>
+    </section>
+</section>
 
 @code {
+    private sealed record AccionInicio(string Titulo, string Descripcion, string Codigo, string Ruta, string Icono);
+
+    private static readonly AccionInicio[] Acciones =
+    {
+        new("Facturar", "Registrar una venta", "INICIO.FACTURACION", "/initial/billing", "bi-receipt"),
+        new("Abrir caja", "Iniciar la jornada de caja", "CAJA.APERTURA_CAJA", "/initial/cash/opencash", "bi-cash-stack"),
+        new("Clientes", "Consultar y mantener clientes", "INICIO.CLIENTES", "/initial/customers", "bi-people-fill"),
+        new("Inventario", "Buscar artículos y existencias", "INICIO.INVENTARIOS", "/initial/inventory", "bi-box-seam")
+    };
+
+    private AccionInicio[] AccionesDisponibles => Acciones.Where(a => Sesion.PuedeVer(a.Codigo)).ToArray();
+
     protected override async Task OnInitializedAsync() => await Sesion.CargarAsync();
+
+    private void Abrir(AccionInicio accion)
+    {
+        var pestana = Espacio.Abrir(accion.Titulo, accion.Ruta);
+        Navegacion.NavigateTo(pestana.Ruta);
+    }
 }

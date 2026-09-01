@@ -1255,6 +1255,144 @@
     flex-wrap: wrap;
 }
 
+/* ---------- Inicio operativo ----------
+   El inicio no repite el estado de la migracion: orienta al usuario hacia su
+   siguiente tarea y deja el resto de funciones en el menu lateral. */
+.seepos-inicio { width: min(100%, 68rem); margin-inline: auto; }
+
+.seepos-inicio-bienvenida {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    padding: clamp(1.25rem, 3vw, 2rem);
+    color: #fff;
+    background:
+        radial-gradient(circle at 100% 0, rgba(88, 186, 0, .42), transparent 15rem),
+        linear-gradient(112deg, var(--seepos-tierra-oscuro), var(--seepos-tierra));
+    border-radius: .95rem;
+    box-shadow: 0 .7rem 1.6rem rgba(62, 47, 35, .15);
+}
+
+.seepos-inicio-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    margin: 0 0 .45rem;
+    color: #dcffbf;
+    font-size: .74rem;
+    font-weight: 750;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+}
+
+.seepos-inicio-bienvenida h1 { margin-bottom: .35rem; font-size: clamp(1.35rem, 3vw, 1.85rem); font-weight: 800; letter-spacing: -.025em; }
+.seepos-inicio-bienvenida > div > p:not(.seepos-inicio-eyebrow) { color: rgba(255, 255, 255, .84); }
+.seepos-inicio-bienvenida-icono { flex: 0 0 auto; font-size: clamp(3.2rem, 8vw, 5.5rem); color: rgba(255, 255, 255, .15); }
+
+.seepos-inicio-pestanas {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    flex: 0 0 auto;
+    padding: .35rem .6rem;
+    color: var(--seepos-gris-texto);
+    font-size: .76rem;
+    font-weight: 700;
+    background: var(--seepos-gris-fondo);
+    border-radius: 99rem;
+}
+
+.seepos-inicio-acciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+
+.seepos-inicio-sin-acciones {
+    padding: 1rem;
+    color: var(--seepos-gris-texto);
+    font-size: .84rem;
+    background: var(--seepos-gris-fondo);
+    border: 1px dashed var(--bs-border-color);
+    border-radius: .75rem;
+}
+
+.seepos-inicio-accion {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    width: 100%;
+    min-height: 5.35rem;
+    padding: .85rem 1rem;
+    color: var(--bs-body-color);
+    text-align: left;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .8rem;
+    box-shadow: 0 .25rem .9rem rgba(62, 47, 35, .055);
+    transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.seepos-inicio-accion:hover,
+.seepos-inicio-accion:focus-visible {
+    border-color: color-mix(in srgb, var(--seepos-verde-accion) 55%, var(--bs-border-color));
+    box-shadow: 0 .45rem 1.1rem rgba(62, 47, 35, .1);
+    transform: translateY(-2px);
+}
+
+.seepos-inicio-accion:focus-visible { outline: .2rem solid var(--seepos-halo-verde); outline-offset: .12rem; }
+
+.seepos-inicio-accion-icono {
+    display: grid;
+    width: 2.8rem;
+    height: 2.8rem;
+    flex: 0 0 2.8rem;
+    place-items: center;
+    color: var(--seepos-verde-accion);
+    font-size: 1.2rem;
+    background: color-mix(in srgb, var(--seepos-verde) 14%, var(--bs-body-bg));
+    border-radius: .7rem;
+}
+
+.seepos-inicio-accion-texto { display: grid; gap: .15rem; min-width: 0; }
+.seepos-inicio-accion-texto strong { font-size: .9rem; }
+.seepos-inicio-accion-texto small { color: var(--seepos-gris-texto); font-size: .76rem; }
+.seepos-inicio-accion-flecha { margin-left: auto; color: var(--seepos-gris-texto); }
+
+.seepos-inicio-ayuda {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    margin-top: 1.5rem;
+    padding: .9rem 1rem;
+    color: var(--seepos-tierra);
+    background: color-mix(in srgb, var(--seepos-naranja) 8%, var(--bs-body-bg));
+    border: 1px solid color-mix(in srgb, var(--seepos-naranja) 26%, var(--bs-border-color));
+    border-radius: .75rem;
+}
+
+.seepos-inicio-ayuda > i { margin-top: .1rem; color: var(--seepos-naranja-oscuro); }
+.seepos-inicio-ayuda p { color: var(--seepos-gris-texto); font-size: .82rem; }
+
+/* Los iconos solos son rápidos para usuarios expertos, pero el rótulo visible
+   reduce la curva de aprendizaje en pantallas amplias. */
+.seepos-atajo-rotulo { display: none; margin-left: .3rem; }
+@media (min-width: 1400px) { .seepos-atajo-rotulo { display: inline; } }
+
+@media (max-width: 575.98px) {
+    .seepos-inicio-bienvenida { margin-bottom: 1.1rem; }
+    .seepos-inicio-bienvenida-icono { display: none; }
+    .seepos-inicio-acciones { grid-template-columns: 1fr; }
+
+    /* Una pantalla marcada como móvil se usa también con tacto: controles de
+       44 px como mínimo evitan pulsaciones imprecisas sin inflar las tablas. */
+    .seepos-nivel-a .form-control,
+    .seepos-nivel-a .form-select,
+    .seepos-nivel-a .input-group-text,
+    .seepos-nivel-a .seepos-encabezado-pagina-acciones .btn {
+        min-height: 2.75rem;
+    }
+}
+
 /* ---------- Panel de filtros (AppFiltros) ---------- */
 .seepos-panel-filtros {
     border: 1px solid var(--bs-border-color);

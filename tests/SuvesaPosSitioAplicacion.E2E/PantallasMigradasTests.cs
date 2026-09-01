@@ -29,7 +29,7 @@ public class PantallasMigradasTests
 
     public static TheoryData<string, string> Pantallas() => new()
     {
-        { "/", "Ola 0 — Cimientos" },
+        { "/", "Inicio" },
         { "/initial/inventory", "Inventarios" },
         { "/initial/customers", "Clientes" },
         { "/buys/buy", "Compra" },
