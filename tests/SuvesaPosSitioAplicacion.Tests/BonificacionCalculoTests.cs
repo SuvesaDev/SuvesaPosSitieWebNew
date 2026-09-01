@@ -23,6 +23,7 @@ public class BonificacionCalculoTests
         Assert.Equal(1, regalo.Cantidad);
         Assert.Equal(0m, regalo.Calculo.SubTotal);
         Assert.Equal(130m, regalo.Calculo.MontoImpuesto);   // 13% de 1000, aunque la linea es 0
+        Assert.Equal(1000m, regalo.PrecioUnit);             // conserva el precio de lista: base del impuesto en Facturacion
     }
 
     [Fact]
