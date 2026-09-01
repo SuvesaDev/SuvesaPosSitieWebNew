@@ -1421,3 +1421,55 @@
 .seepos-rejilla th.text-end {
     font-variant-numeric: tabular-nums;
 }
+
+/* ================================================================
+   Isla de MudBlazor (piloto MudDataGrid). Todo lo .mud-* vive aqui.
+   Solo dos cosas: (1) dar a la rejilla el marco de tarjeta de la app,
+   (2) blindar contra el reboot de Bootstrap lo que haga falta.
+   ================================================================ */
+.seepos-mud-isla {
+    display: block;
+    position: relative;
+}
+
+/* Marco de tarjeta, igual que .card del resto de la app. */
+.seepos-mud-isla .mud-table.seepos-mud-grid {
+    border: 0;
+    border-radius: .8rem;
+    box-shadow:
+        0 .0625rem .125rem rgba(62, 47, 35, .06),
+        0 .5rem 1.25rem rgba(62, 47, 35, .05);
+    overflow: hidden;
+}
+
+/* Cabecera de la rejilla con el gris de marca y mayusculas discretas. */
+.seepos-mud-isla .mud-table-head th,
+.seepos-mud-isla .mud-table-head .mud-table-cell {
+    background: var(--seepos-gris-fondo);
+    color: var(--seepos-gris-texto);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    font-size: .72rem;
+}
+
+/* Importes a la derecha y con cifras de ancho fijo. */
+.seepos-mud-isla .mud-table-cell.justify-end,
+.seepos-mud-isla .mud-table-cell.justify-end > .mud-table-cell-content {
+    justify-content: flex-end;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Bootstrap Reboot pone `table { border-color: inherit }` y algun `th` en negrita
+   a la izquierda; Mud ya trae lo suyo, pero fijamos el color de linea a la marca. */
+.seepos-mud-isla .mud-table-root,
+.seepos-mud-isla .mud-table-cell {
+    border-color: var(--bs-border-color);
+}
+
+/* El paginador de Mud usa un <select> nativo para "filas por pagina"; que no
+   herede el alto raro del form-select de Bootstrap dentro de la isla. */
+.seepos-mud-isla .mud-select .mud-input-slot {
+    min-height: 0;
+}

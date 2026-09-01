@@ -116,6 +116,27 @@ Sobre lo de la Ola 6, un pase de densidad y planitud en `tema.css`/`app.css`
 - Barra superior mas baja (`3.5rem`) y con sombra tenue; acento verde inferior mas fino.
 - `AppModal` estandariza el aspecto de todo modal de contenido (ver "Puntos unicos").
 
+### MudDataGrid — piloto en isla
+
+`MudBlazor` 9.9.0 esta referenciado **solo** por `MudDataGrid` en consultas pesadas.
+Para no reabrir la decision de stack:
+
+- **Sin `MudThemeProvider` global.** `Views/Shared/Componentes/MudIsla.razor` monta
+  `MudThemeProvider` (con la paleta de marca) + `MudPopoverProvider` y envuelve el
+  contenido `.mud-*`. Solo se renderiza en la pantalla que lo usa; el resto de la app
+  es Bootstrap/Havit intacto. El modo oscuro se lee de `data-bs-theme` al montar.
+- **Sin retirar Bootstrap.** `MudBlazor.min.css` se carga en `App.razor` *antes* de
+  `tema.css` para que la marca gane en selectores de elemento. `MudBlazor.min.js`
+  despues de `blazor.web.js`. `AddMudServices()` en `Program.cs`.
+- CSS de contencion en `tema.css`, bloque `.seepos-mud-isla` (marco de tarjeta,
+  cabecera con gris de marca, importes a la derecha, color de linea).
+- Pantallas piloto: `Inventario/ListaMag.razor` y `Compras/ConsultarPedidos.razor`
+  (antes `AppRejilla`/`HxGrid`). **Falta verificar en vivo** el choque de resets y el
+  recorte de popovers dentro de `<main overflow:auto>` — hace falta login con datos.
+- Si el piloto no convence, revertir es: quitar el `PackageReference`, `AddMudServices`,
+  las 2 lineas de `App.razor`, `MudIsla.razor`, el bloque CSS, y devolver las 2
+  pantallas a `AppRejilla` (git las tiene).
+
 ## Diseño visual — pulido de Ola 6
 
 Revision visual sobre capturas reales, aplicada en `tema.css`/`tema.js` (un solo
@@ -225,6 +246,7 @@ pruebas con casos de bonificacion reales para revisar visualmente.
 | Modelo de hosting | **Blazor Server** (`InteractiveServer`) | Es lo unico que permite un solo proyecto conservando ApiConexion, Security y Services como capas de servidor |
 | Componentes | **Bootstrap 5 + Havit.Blazor** (MIT) | Bootstrap 5 conserva la identidad visual. Havit da los componentes nativos sobre Bootstrap |
 | Rejillas y selects | **HxGrid, HxAutosuggest, HxMultiSelect** | Cubren lo de DataTables y Select2 sin jQuery: esos plugins mutan el DOM y chocan con el renderizador de Blazor |
+| MudBlazor | **Solo `MudDataGrid`, en isla** (piloto) | Para consultas pesadas donde `HxGrid` se queda corto (orden/filtro por columna, paginado). NO hay `MudThemeProvider` global ni se retira Bootstrap: los proveedores viven en `<MudIsla>` y solo se montan en las pantallas que lo piden. Ver abajo. |
 | Estado | Servicios con scope, **nunca Fluxor** | Portar 95 reducers uno a uno daria mas codigo del que hay hoy |
 | Seguridad | Token en `IContextoSesion`, con scope de circuito | El navegador nunca ve el token. Hoy el JWT y los permisos viven en localStorage y son editables desde la consola |
 | Aritmetica fiscal | `decimal`, en `Services/` | La app actual usa coma flotante en el navegador |
