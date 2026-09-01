@@ -1,39 +1,42 @@
+@using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
 @implements IDisposable
 @inject IEstadoEspacioTrabajo Espacio
 @inject NavigationManager Navegacion
 @inject IServicioDialogos Dialogos
 
-@* Barra de pestanas del espacio de trabajo. *@
+@* Barra de pestanas del espacio de trabajo. Estilo de pestanas reales (icono +
+   rotulo + cerrar), la activa conectada al contenido. *@
 
 @if (Espacio.Pestanas.Count > 0)
 {
-    <div class="seepos-pestanas border-bottom bg-body d-flex align-items-center gap-1 px-2">
-        <div class="d-flex align-items-center gap-1 overflow-auto flex-grow-1 py-1">
+    <div class="seepos-pestanas" role="tablist" aria-label="Pestañas abiertas">
+        <div class="seepos-pestanas-lista">
             @foreach (var p in Espacio.Pestanas)
             {
                 var activa = p.Id == Espacio.Actual?.Id;
 
-                <div class="btn-group btn-group-sm flex-shrink-0" role="group">
-                    <button type="button"
-                            class="btn @(activa ? "btn-primary" : "btn-outline-secondary")"
-                            @onclick="() => Seleccionar(p)">
-                        @p.Titulo
+                <div class="seepos-pestana @(activa ? "activa" : "")" role="tab" aria-selected="@activa">
+                    <button type="button" class="seepos-pestana-cuerpo"
+                            title="@p.Titulo" @onclick="() => Seleccionar(p)">
+                        <i class="bi @MenuSeePos.IconoDeRuta(p.Ruta) seepos-pestana-icono" aria-hidden="true"></i>
+                        <span class="seepos-pestana-rotulo">@p.Titulo</span>
                     </button>
-                    <button type="button"
-                            class="btn @(activa ? "btn-primary" : "btn-outline-secondary") px-2"
-                            aria-label="@($"Cerrar {p.Titulo}")"
-                            @onclick="() => Cerrar(p)">
-                        <i class="bi bi-x" aria-hidden="true"></i>
+                    <button type="button" class="seepos-pestana-cerrar"
+                            aria-label="@($"Cerrar {p.Titulo}")" @onclick="() => Cerrar(p)">
+                        <i class="bi bi-x-lg" aria-hidden="true"></i>
                     </button>
                 </div>
             }
         </div>
 
-        <button type="button" class="btn btn-sm btn-link text-secondary flex-shrink-0"
-                @onclick="CerrarTodas">
-            Cerrar todas
-        </button>
+        @if (Espacio.Pestanas.Count > 1)
+        {
+            <button type="button" class="seepos-pestanas-cerrar-todas"
+                    title="Cerrar todas las pestañas" @onclick="CerrarTodas">
+                <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Cerrar todas
+            </button>
+        }
     </div>
 }
 

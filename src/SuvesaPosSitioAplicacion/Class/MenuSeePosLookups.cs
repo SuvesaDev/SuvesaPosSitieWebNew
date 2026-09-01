@@ -64,6 +64,26 @@ public static partial class MenuSeePos
     public static string? CodigoDeRuta(string? ruta)
         => ruta is { Length: > 0 } && _codigoPorRuta.Value.TryGetValue(ruta.Trim('/'), out var c) ? c : null;
 
+    private static readonly Lazy<IReadOnlyDictionary<string, string>> _iconoPorModulo = new(() =>
+        Items.Where(m => !string.IsNullOrWhiteSpace(m.Codigo) && !string.IsNullOrWhiteSpace(m.Icono))
+             .ToDictionary(m => m.Codigo!, m => m.Icono!, StringComparer.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Icono (clase Bootstrap Icons) del modulo al que pertenece una ruta. Sirve para
+    /// que cada pestana del espacio de trabajo lleve el icono de su modulo.
+    /// </summary>
+    public static string IconoDeRuta(string? ruta)
+    {
+        var codigo = CodigoDeRuta(ruta);
+        if (codigo is null)
+        {
+            return "bi-window";
+        }
+
+        var modulo = codigo.Split('.', 2)[0];
+        return _iconoPorModulo.Value.TryGetValue(modulo, out var icono) ? icono : "bi-window";
+    }
+
     /// <summary>
     /// Normaliza una "clave de pantalla" a codigo de funcion: si ya trae un punto se
     /// asume que es un codigo (MODULO.SLUG); si no, se resuelve como titulo.

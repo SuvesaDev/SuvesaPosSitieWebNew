@@ -394,15 +394,156 @@ h1:focus {
     font-size: 1.1rem;
 }
 
+/* ---------- Barra de pestanas del espacio de trabajo ----------
+   Pestanas reales: la activa se conecta con el contenido de abajo. */
 .seepos-pestanas {
+    display: flex;
+    align-items: flex-end;
+    gap: .5rem;
     min-height: 2.75rem;
-    background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--seepos-naranja)) !important;
-    box-shadow: 0 .2rem .65rem rgba(64, 49, 39, .06);
+    padding: .35rem .6rem 0;
+    background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--seepos-naranja));
+    border-bottom: 1px solid var(--bs-border-color);
 }
 
-/* La barra de pestanas no debe romper el ancho de la pagina cuando hay muchas. */
-.seepos-pestanas > div:first-child {
+.seepos-pestanas-lista {
+    display: flex;
+    align-items: flex-end;
+    gap: .2rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
     scrollbar-width: thin;
+    padding-bottom: 0;
+}
+
+.seepos-pestanas-lista::-webkit-scrollbar { height: .3rem; }
+.seepos-pestanas-lista::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--seepos-tierra) 45%, transparent);
+    border-radius: 99rem;
+}
+
+.seepos-pestana {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    max-width: 15rem;
+    height: 2.2rem;
+    padding: 0 .35rem 0 .7rem;
+    border: 1px solid var(--bs-border-color);
+    border-bottom: none;
+    border-radius: .55rem .55rem 0 0;
+    background: color-mix(in srgb, var(--bs-body-bg) 55%, var(--seepos-gris-suave));
+    color: var(--seepos-gris-texto);
+    transition: background-color .14s ease, color .14s ease;
+}
+
+.seepos-pestana:hover {
+    background: color-mix(in srgb, var(--bs-body-bg) 80%, var(--seepos-gris-suave));
+    color: var(--bs-body-color);
+}
+
+/* La pestana activa "rompe" el borde inferior de la barra y se ve al frente. */
+.seepos-pestana.activa {
+    height: 2.45rem;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    border-color: var(--bs-border-color);
+    box-shadow: 0 -.15rem .5rem rgba(64, 49, 39, .07);
+    position: relative;
+}
+
+.seepos-pestana.activa::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: .18rem;
+    background: var(--seepos-verde-accion);
+    border-radius: .55rem .55rem 0 0;
+}
+
+.seepos-pestana.activa::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 1px;
+    background: var(--bs-body-bg);
+}
+
+.seepos-pestana-cuerpo {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font-size: .82rem;
+    font-weight: 600;
+}
+
+.seepos-pestana-icono {
+    flex: 0 0 auto;
+    font-size: .95rem;
+    color: var(--seepos-verde-accion);
+    opacity: .85;
+}
+
+.seepos-pestana:not(.activa) .seepos-pestana-icono { opacity: .55; }
+
+.seepos-pestana-rotulo {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.seepos-pestana-cerrar {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 1.4rem;
+    height: 1.4rem;
+    margin-left: .25rem;
+    padding: 0;
+    border: 0;
+    border-radius: .4rem;
+    background: none;
+    color: var(--seepos-gris-texto);
+    font-size: .7rem;
+    opacity: 0;
+    transition: opacity .12s ease, background-color .12s ease, color .12s ease;
+}
+
+.seepos-pestana:hover .seepos-pestana-cerrar,
+.seepos-pestana.activa .seepos-pestana-cerrar { opacity: .8; }
+
+.seepos-pestana-cerrar:hover {
+    background: color-mix(in srgb, var(--seepos-tierra) 16%, transparent);
+    color: var(--seepos-tierra-oscuro);
+    opacity: 1;
+}
+
+.seepos-pestanas-cerrar-todas {
+    flex: 0 0 auto;
+    align-self: center;
+    margin-bottom: .3rem;
+    padding: .2rem .55rem;
+    border: 0;
+    border-radius: .45rem;
+    background: none;
+    color: var(--seepos-gris-texto);
+    font-size: .78rem;
+    font-weight: 600;
+}
+
+.seepos-pestanas-cerrar-todas:hover {
+    background: color-mix(in srgb, var(--seepos-tierra) 12%, transparent);
+    color: var(--seepos-tierra-oscuro);
 }
 
 @media (max-width: 991.98px) {
