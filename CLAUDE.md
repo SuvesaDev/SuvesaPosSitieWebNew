@@ -302,10 +302,24 @@ lleva un id estable. Mismo comportamiento visible, sin la fragilidad.
 
 ## Menu
 
-`Class/MenuSeePos.cs`, **generado** desde `SidebarData.jsx`: 8 raices, 82 nodos, arbol
-de hasta cuatro niveles. Los titulos se conservan literalmente porque **son la llave de
-permisos**: el API responde por `Menu` (titulo de la raiz) y `NombrePantalla` (titulo
-de la hoja), no por ruta. Si el menu cambia en React, conviene regenerarlo.
+`Class/MenuSeePos.cs`, base **portada** de `SidebarData.jsx` y despues reorganizada:
+10 raices, 89 nodos, arbol de hasta cuatro niveles. Los titulos se conservan
+literalmente porque, junto con el `Codigo`, **son la llave de permisos**. Si se toca
+el arbol hay que correr `tools/anotar_codigos_menu.py` (sitio) y
+`tools/generar_semilla_seguridad.py` (API) — mismo algoritmo de slug, no pueden
+divergir; `MenuCodigosTests` y `FiltroMenuTests.ElMenuRealSeCargoCompleto` lo vigilan.
+
+Reorganizacion respecto a React (a peticion del usuario): modulo nuevo **"Catálogos"**
+(`CATALOGOS`, `bi-collection`) con los 19 catalogos de mantenimiento que estaban
+sueltos en "Parametros" (categorias, monedas, presentaciones, tipos de factura/cobro/
+identificacion/exoneracion, impuestos, formas de pago, monedas fiscales y sus
+denominaciones, plazos, geografia fiscal, bancos, clientes frecuentes, tarifas,
+ubicaciones, familias). "Parametros" queda con usuarios, roles, empresas, sucursales,
+series, configuracion, emisores y las pantallas mockup de bodega/areas/bloqueos.
+**"Caja" sale de "Inicio"** y **"Presupuestos" sale de "Ventas"** — sus rutas y
+pantallas siguen existiendo, pero al no estar en el arbol tampoco estan en el catalogo
+del API: con `VerPantallasNoGobernadas: false` quedan solo para SUPER_ADMIN hasta que
+se decida donde reubicarlas.
 
 `Security/FiltroMenu` decide que se ve. Un grupo se muestra si algun descendiente se
 muestra. **Mejora respecto al sistema actual**, donde el menu solo se filtra en la
