@@ -18,13 +18,22 @@ public sealed class Familias : ProxyBase, IFamilias
     private static readonly JsonSerializerOptions Opciones = new(JsonSerializerDefaults.Web);
 
     private readonly IFamiliasApiCliente _api;
-    private readonly ISubFamiliasApiCliente _subFamilias;
+    private readonly ISubFamiliasApiCliente? _subFamilias;
 
     public Familias(IFamiliasApiCliente api, ISubFamiliasApiCliente subFamilias, IContextoSesion sesion, ILogger<Familias> log)
         : base(sesion, log)
     {
         _api = api;
         _subFamilias = subFamilias;
+    }
+
+    // Conserva la firma usada por las pruebas de deserialización y por cualquier
+    // consumidor que solo necesite Familias. Las operaciones de sub-familias
+    // requieren el constructor completo registrado por DI.
+    public Familias(IFamiliasApiCliente api, IContextoSesion sesion, ILogger<Familias> log)
+        : base(sesion, log)
+    {
+        _api = api;
     }
 
     public Task<ResponseGeneric<ICollection<FamiliaDTO>>> Obtener()
@@ -67,7 +76,7 @@ public sealed class Familias : ProxyBase, IFamilias
     public Task<ResponseGeneric<ICollection<SubFamiliaDTO>>> ObtenerSubFamilias(int codigoFamilia)
         => Ejecutar(async () =>
         {
-            var r = await _subFamilias.GetSubFamiliasToFamiliasAsync(codigoFamilia);
+            var r = await SubFamilias().GetSubFamiliasToFamiliasAsync(codigoFamilia);
             if (r.Status != ResponseStatus._0)
             {
                 return EnvelopeApi.A<ICollection<SubFamiliaDTO>>(r.Status, r.CurrentException, r.ValidationErrors, null);
@@ -78,21 +87,21 @@ public sealed class Familias : ProxyBase, IFamilias
     public Task<ResponseGeneric<SubFamiliaDTO>> CrearSubFamilia(SubFamiliaDTO subFamilia)
         => Ejecutar(async () =>
         {
-            var r = await _subFamilias.PostCreateSubFamiliaAsync(subFamilia);
+            var r = await SubFamilias().PostCreateSubFamiliaAsync(subFamilia);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "crear la sub-familia");
 
     public Task<ResponseGeneric<SubFamiliaDTO>> EditarSubFamilia(SubFamiliaDTO subFamilia)
         => Ejecutar(async () =>
         {
-            var r = await _subFamilias.PutSubFamiliaAsync(subFamilia);
+            var r = await SubFamilias().PutSubFamiliaAsync(subFamilia);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "editar la sub-familia");
 
     public Task<ResponseGeneric<bool>> EliminarSubFamilia(int codigo)
         => Ejecutar(async () =>
         {
-            var r = await _subFamilias.DeleteSubFamiliaAsync(codigo);
+            var r = await SubFamilias().DeleteSubFamiliaAsync(codigo);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "eliminar la sub-familia");
 
@@ -116,4 +125,7 @@ public sealed class Familias : ProxyBase, IFamilias
         return JsonSerializer.Deserialize<List<SubFamiliaDTO>>(json, Opciones)
                ?? new List<SubFamiliaDTO>();
     }
+
+    private ISubFamiliasApiCliente SubFamilias() => _subFamilias
+        ?? throw new InvalidOperationException("El cliente de sub-familias no fue configurado.");
 }
