@@ -37,7 +37,7 @@
     <ChildContent>
         <section class="seepos-clientes">
 
-        <AppFiltros AlBuscar="RecargarDesdeApi" AlLimpiar="LimpiarFiltros" Buscando="_buscando"
+        <AppFiltros AlBuscar="Buscar" AlLimpiar="LimpiarFiltros" Buscando="_buscando"
                     Resumen="@ResumenConteo()">
             <div class="col-12 col-md-6">
                 <label class="form-label" for="fCliTexto">Cédula o nombre</label>
@@ -68,7 +68,11 @@
             <div class="d-md-none d-flex flex-column gap-2">
                 @if (_resultados.Count == 0)
                 {
-                    <p class="text-secondary small text-center py-4 mb-0">Ningún cliente coincide.</p>
+                    <p class="text-secondary small text-center py-4 mb-0">
+                        @(_modoBusqueda && _todos.Count == 0
+                            ? "Escriba y pulse Buscar."
+                            : "Ningún cliente coincide.")
+                    </p>
                 }
                 @foreach (var c in _resultados)
                 {
@@ -92,7 +96,8 @@
             <div class="d-none d-md-block card seepos-clientes-tabla">
                 <div class="card-body">
                     <AppRejilla TItem="FiltranClienteDTO" Datos="Servir"
-                                Nivel="NivelPantalla.Tableta" @ref="_rejilla">
+                                Nivel="NivelPantalla.Tableta" @ref="_rejilla"
+                                TextoVacio="@(_modoBusqueda && _todos.Count == 0 ? "Escriba y pulse Buscar." : "Ningún cliente coincide.")">
                         <Columnas>
                             <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Cedula"
                                           ItemTextSelector="c => c.Cedula"
@@ -545,15 +550,58 @@
     private string _pestanaEdicion = "generales";
     private bool _variasSucursales;
 
+    /// <summary>
+    /// true si el API devuelve el listado completo sin termino (carga al abrir).
+    /// false si exige un termino: entonces la pantalla funciona por busqueda.
+    /// </summary>
+    private bool _modoBusqueda;
+
     protected override async Task OnInitializedAsync() => await RecargarDesdeApi();
 
-    /// <summary>Trae el listado del API (lo que permita) y refiltra en cliente.</summary>
+    /// <summary>
+    /// Al abrir (y con "Buscar" sin termino) intenta traer el listado completo.
+    /// Si el API lo rechaza, cae a modo busqueda sin molestar con un error.
+    /// </summary>
     private async Task RecargarDesdeApi()
     {
         _buscando = true;
         StateHasChanged();
 
-        _todos = (await Respuestas.DatoAsync(await Api.Listar(), "cargar clientes"))
+        var r = await Api.Listar();
+        if (r.EsCorrecta && r.Responses is not null)
+        {
+            _todos = r.Responses.ToList();
+            _modoBusqueda = false;
+        }
+        else
+        {
+            _todos = new List<FiltranClienteDTO>();
+            _modoBusqueda = true;
+        }
+
+        _buscando = false;
+        Refiltrar();
+    }
+
+    /// <summary>Boton Buscar del panel: lista completa si se puede, si no busca por el texto.</summary>
+    private async Task Buscar()
+    {
+        if (!_modoBusqueda)
+        {
+            await RecargarDesdeApi();
+            return;
+        }
+
+        if (Helpers.Texto.Normalizar(_texto).Length < 2)
+        {
+            Dialogos.Advertencia("Escriba al menos dos caracteres para buscar.");
+            return;
+        }
+
+        _buscando = true;
+        StateHasChanged();
+
+        _todos = (await Respuestas.DatoAsync(await Api.Buscar(_texto), "buscar clientes"))
                  ?.ToList() ?? new List<FiltranClienteDTO>();
 
         _buscando = false;

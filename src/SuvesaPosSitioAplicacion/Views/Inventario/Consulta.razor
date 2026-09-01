@@ -55,7 +55,7 @@
     </Acciones>
     <ChildContent>
 
-        <AppFiltros AlBuscar="RecargarDesdeApi" AlLimpiar="LimpiarFiltros" Buscando="_buscando"
+        <AppFiltros AlBuscar="Buscar" AlLimpiar="LimpiarFiltros" Buscando="_buscando"
                     Resumen="@ResumenConteo()">
             <div class="col-12 col-md-5">
                 <label class="form-label" for="fInvTexto">Código o descripción</label>
@@ -94,7 +94,11 @@
             <div class="d-md-none d-flex flex-column gap-2">
                 @if (_resultados.Count == 0)
                 {
-                    <p class="text-secondary small text-center py-4 mb-0">Ningún artículo coincide.</p>
+                    <p class="text-secondary small text-center py-4 mb-0">
+                        @(_modoBusqueda && _todos.Count == 0
+                            ? "Escriba y pulse Buscar."
+                            : "Ningún artículo coincide.")
+                    </p>
                 }
                 @foreach (var a in _resultados)
                 {
@@ -120,7 +124,8 @@
             <div class="d-none d-md-block card">
                 <div class="card-body">
                     <AppRejilla TItem="InventarioDTO" Datos="Servir" Nivel="NivelPantalla.Tableta"
-                                @ref="_rejilla">
+                                @ref="_rejilla"
+                                TextoVacio="@(_modoBusqueda && _todos.Count == 0 ? "Escriba y pulse Buscar." : "Ningún artículo coincide.")">
                         <Columnas>
                             <HxGridColumn TItem="InventarioDTO" HeaderText="Codigo"
                                           ItemTextSelector="a => a.Cod_Articulo"
@@ -680,17 +685,60 @@
     private bool _cargandoLotes;
 
 
+    /// <summary>
+    /// true si el API devuelve el listado sin termino (carga al abrir); false si
+    /// exige un termino y la pantalla funciona por busqueda.
+    /// </summary>
+    private bool _modoBusqueda;
+
     protected override async Task OnInitializedAsync() => await RecargarDesdeApi();
 
     private bool IncluirInhabilitados => _estado != "A";
 
-    /// <summary>Trae el listado del API (todo lo que permita) y refiltra en cliente.</summary>
+    /// <summary>
+    /// Intenta traer el listado completo. Si el API lo rechaza, cae a modo busqueda
+    /// sin molestar con un error.
+    /// </summary>
     private async Task RecargarDesdeApi()
     {
         _buscando = true;
         StateHasChanged();
 
-        _todos = (await Respuestas.DatoAsync(await Api.Listar(IncluirInhabilitados), "cargar el inventario"))
+        var r = await Api.Listar(IncluirInhabilitados);
+        if (r.EsCorrecta && r.Responses is not null)
+        {
+            _todos = r.Responses.ToList();
+            _modoBusqueda = false;
+        }
+        else
+        {
+            _todos = new List<InventarioDTO>();
+            _modoBusqueda = true;
+        }
+
+        _buscando = false;
+        Refiltrar();
+    }
+
+    /// <summary>Boton Buscar: lista completa si se puede, si no busca por el texto.</summary>
+    private async Task Buscar()
+    {
+        if (!_modoBusqueda)
+        {
+            await RecargarDesdeApi();
+            return;
+        }
+
+        if (Helpers.Texto.Normalizar(_texto).Length < 2)
+        {
+            Dialogos.Advertencia("Escriba al menos dos caracteres para buscar.");
+            return;
+        }
+
+        _buscando = true;
+        StateHasChanged();
+
+        _todos = (await Respuestas.DatoAsync(await Api.Buscar(_texto, IncluirInhabilitados), "buscar en el inventario"))
                  ?.ToList() ?? new List<InventarioDTO>();
 
         _buscando = false;
@@ -706,10 +754,10 @@
 
     private async Task AlCambiarEstado()
     {
-        // "Activos" no necesita re-consultar; ver inhabilitados si.
-        if (IncluirInhabilitados && _todos.All(a => !a.Inhabilitado))
+        // Ver inhabilitados puede requerir re-consultar al API.
+        if (IncluirInhabilitados && (_modoBusqueda || _todos.All(a => !a.Inhabilitado)))
         {
-            await RecargarDesdeApi();
+            await Buscar();
         }
         else
         {
