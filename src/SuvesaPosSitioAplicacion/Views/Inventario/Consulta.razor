@@ -300,7 +300,7 @@
     </BodyTemplate>
 </HxOffcanvas>
 
-<HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo artículo" : "Editar artículo")" Size="ModalSize.Large">
+<HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo artículo" : "Editar artículo")" Size="ModalSize.Large" Scrollable="true">
     <BodyTemplate>
         @if (_edicion is not null)
         {

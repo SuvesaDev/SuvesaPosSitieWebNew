@@ -299,7 +299,7 @@
     </FooterTemplate>
 </HxModal>
 
-<HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo cliente" : "Editar cliente")" Size="ModalSize.Large">
+<HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo cliente" : "Editar cliente")" Size="ModalSize.Large" Scrollable="true">
     <BodyTemplate>
         @if (_edicion is not null)
         {
@@ -367,31 +367,35 @@
 
                         <div class="col-12 seepos-form-seccion">Facturación electrónica</div>
                         <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo de facturación electrónica" @bind-Valor="_edicion.CorreoComprobante" /></div>
-                        <div class="col-12 col-md-6 d-flex align-items-end gap-4">
-                            <div class="form-check"><input id="cliente-sucursales" class="form-check-input" type="checkbox" checked="@_variasSucursales" @onchange="AlCambiarSucursales" /><label class="form-check-label" for="cliente-sucursales">Varias sucursales</label></div>
-                            <div class="form-check"><input id="cliente-recibo" class="form-check-input" type="checkbox" @bind="_edicion.EnviarRecibo" /><label class="form-check-label" for="cliente-recibo">Enviar recibo al correo</label></div>
-                        </div>
                         @if (!_variasSucursales) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre fantasía" @bind-Valor="_edicion.NombreFantasia" /></div> }
                         @if (_edicion.EnviarRecibo) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo para recibos" @bind-Valor="_edicion.CorreoRecibo" /></div> }
-                        @if (!Sesion.EsCostaPets)
-                        {
-                            <div class="col-12 d-flex flex-wrap gap-4 border-top pt-3">
-                                <div class="form-check"><input id="cliente-empresa-general" class="form-check-input" type="checkbox" @bind="_edicion.Empresa" /><label class="form-check-label" for="cliente-empresa-general">Empresa</label></div>
-                                <div class="form-check"><input id="cliente-mag" class="form-check-input" type="checkbox" @bind="_edicion.Mag" /><label class="form-check-label" for="cliente-mag">Registrado en MAG</label></div>
-                                <div class="form-check"><input id="cliente-actualizado" class="form-check-input" type="checkbox" @bind="_edicion.Actualizado" /><label class="form-check-label" for="cliente-actualizado">Actualizado</label></div>
-                                <div class="form-check"><input id="cliente-fallecido" class="form-check-input" type="checkbox" @bind="_edicion.Fallecido" /><label class="form-check-label" for="cliente-fallecido">Fallecido</label></div>
+                        <div class="col-12">
+                            <div class="seepos-editor-marcas">
+                                <div class="form-check"><input id="cliente-sucursales" class="form-check-input" type="checkbox" checked="@_variasSucursales" @onchange="AlCambiarSucursales" /><label class="form-check-label" for="cliente-sucursales">Varias sucursales</label></div>
+                                <div class="form-check"><input id="cliente-recibo" class="form-check-input" type="checkbox" @bind="_edicion.EnviarRecibo" /><label class="form-check-label" for="cliente-recibo">Enviar recibo al correo</label></div>
                             </div>
-                        }
-                        @if (Sesion.EsCostaPets)
-                        {
-                            <div class="col-12 d-flex flex-wrap align-items-center gap-4 border-top pt-3">
-                                <div class="form-check"><input id="cliente-bonificado" class="form-check-input" type="checkbox" @bind="_edicion.TieneBonificacion" /><label class="form-check-label" for="cliente-bonificado">Bonificado</label></div>
-                                @if (_edicion.TieneBonificacion && _esNuevo)
+                        </div>
+
+                        <div class="col-12 seepos-form-seccion">Marcas</div>
+                        <div class="col-12">
+                            <div class="seepos-editor-marcas">
+                                @if (!Sesion.EsCostaPets)
                                 {
-                                    <span class="text-secondary small"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>La pestaña de Bonificación se habilita al guardar el cliente.</span>
+                                    <div class="form-check"><input id="cliente-empresa-general" class="form-check-input" type="checkbox" @bind="_edicion.Empresa" /><label class="form-check-label" for="cliente-empresa-general">Empresa</label></div>
+                                    <div class="form-check"><input id="cliente-mag" class="form-check-input" type="checkbox" @bind="_edicion.Mag" /><label class="form-check-label" for="cliente-mag">Registrado en MAG</label></div>
+                                    <div class="form-check"><input id="cliente-actualizado" class="form-check-input" type="checkbox" @bind="_edicion.Actualizado" /><label class="form-check-label" for="cliente-actualizado">Actualizado</label></div>
+                                    <div class="form-check"><input id="cliente-fallecido" class="form-check-input" type="checkbox" @bind="_edicion.Fallecido" /><label class="form-check-label" for="cliente-fallecido">Fallecido</label></div>
+                                }
+                                @if (Sesion.EsCostaPets)
+                                {
+                                    <div class="form-check"><input id="cliente-bonificado" class="form-check-input" type="checkbox" @bind="_edicion.TieneBonificacion" /><label class="form-check-label" for="cliente-bonificado">Bonificado</label></div>
                                 }
                             </div>
-                        }
+                            @if (Sesion.EsCostaPets && _edicion.TieneBonificacion && _esNuevo)
+                            {
+                                <p class="text-secondary small mt-2 mb-0"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>La pestaña de Bonificación se habilita al guardar el cliente.</p>
+                            }
+                        </div>
                     </div>
                 }
                 else if (_pestanaEdicion == "credito")

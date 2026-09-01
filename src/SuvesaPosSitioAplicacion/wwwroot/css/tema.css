@@ -328,55 +328,66 @@
    del POS y no como formularios sueltos. */
 .modal:has(.seepos-cliente-editor, .seepos-articulo-editor) .modal-content {
     overflow: hidden;
-    border: 1px solid color-mix(in srgb, var(--seepos-tierra) 38%, var(--bs-border-color));
-    border-radius: 1.15rem;
-    box-shadow: 0 1.2rem 3.5rem rgba(42, 28, 18, .24);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .85rem;
+    box-shadow: 0 1rem 3rem rgba(42, 28, 18, .18);
 }
 
 .modal:has(.seepos-cliente-editor, .seepos-articulo-editor) .modal-header {
-    padding: 1.1rem 1.35rem;
-    color: #fff;
-    background: linear-gradient(110deg, var(--seepos-tierra-oscuro), var(--seepos-tierra));
-    border-bottom: .2rem solid var(--seepos-verde);
+    padding: 1rem 1.35rem;
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    box-shadow: inset 0 -.16rem 0 var(--seepos-verde);
 }
 
 .modal:has(.seepos-cliente-editor, .seepos-articulo-editor) .modal-title {
-    font-size: 1.08rem;
-    font-weight: 800;
-}
-
-.modal:has(.seepos-cliente-editor, .seepos-articulo-editor) .btn-close {
-    filter: invert(1) grayscale(1) brightness(2);
+    font-size: 1.05rem;
+    font-weight: 700;
 }
 
 .modal:has(.seepos-cliente-editor, .seepos-articulo-editor) .modal-body {
-    padding: 1.3rem;
+    padding: 1.4rem 1.5rem;
     background: var(--bs-body-bg);
 }
 
 .modal:has(.seepos-cliente-editor, .seepos-articulo-editor) .modal-footer {
-    padding: .9rem 1.3rem;
-    background: var(--seepos-gris-fondo);
-    border-top-color: var(--bs-border-color);
+    padding: .85rem 1.5rem;
+    background: var(--bs-body-bg);
+    border-top: 1px solid var(--bs-border-color);
 }
 
-.seepos-editor-tabs {
-    padding: .38rem;
-    background: var(--seepos-gris-fondo);
-    border: 1px solid var(--bs-border-color);
-    border-radius: .8rem;
+/* Pestanas del editor: estilo "nav-tabs" plano, no una caja de pildoras. */
+.seepos-editor-tabs .nav {
+    gap: 0 !important;
+    border-bottom: 1px solid var(--bs-border-color);
 }
 
 .seepos-editor-tabs .btn {
-    min-height: 2.4rem;
-    padding: .42rem .75rem;
-    font-size: .78rem;
-    font-weight: 750;
-    border-radius: .55rem;
+    min-height: 2.5rem;
+    padding: .5rem .9rem;
+    margin-bottom: -1px;
+    font-size: .82rem;
+    font-weight: 650;
+    border: 0;
+    border-bottom: .16rem solid transparent;
+    border-radius: 0;
+    background: none;
+    color: var(--seepos-gris-texto);
+    box-shadow: none;
 }
 
-.seepos-editor-tabs .btn-primary {
-    box-shadow: 0 .25rem .55rem color-mix(in srgb, var(--seepos-verde-accion) 28%, transparent);
+.seepos-editor-tabs .btn:hover {
+    color: var(--bs-body-color);
+    background: color-mix(in srgb, var(--seepos-verde) 6%, transparent);
+}
+
+.seepos-editor-tabs .btn.btn-primary,
+.seepos-editor-tabs .btn.btn-primary:hover {
+    color: var(--seepos-verde-accion);
+    background: none;
+    border-bottom-color: var(--seepos-verde-accion);
+    box-shadow: none;
 }
 
 .seepos-articulo-editor .form-label,
@@ -402,31 +413,52 @@
    articulo): rompe la lista plana de campos en grupos que se escanean de un
    vistazo, sin meter otra tarjeta ni otro borde. */
 .seepos-form-seccion {
-    margin-top: .5rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--bs-border-color);
-    font-size: .76rem;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin-top: 1.4rem;
+    margin-bottom: .1rem;
+    font-size: .74rem;
     font-weight: 700;
-    letter-spacing: .05em;
+    letter-spacing: .06em;
     text-transform: uppercase;
-    color: var(--seepos-gris-texto);
+    color: var(--seepos-verde-accion);
 }
 
-.seepos-form-seccion:first-child {
-    margin-top: 0;
-    padding-top: 0;
-    border-top: none;
+.seepos-form-seccion::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--bs-border-color);
 }
+
+.seepos-form-seccion:first-child { margin-top: 0; }
 
 .seepos-articulo-editor .form-check,
 .seepos-cliente-editor .form-check {
-    padding: .48rem .65rem  .48rem 2rem;
+    padding: .5rem .8rem .5rem 2.2rem;
+    border: 1px solid var(--bs-border-color);
     border-radius: .55rem;
+    background: var(--bs-body-bg);
 }
 
+/* Casilla marcada: acento discreto, no un bloque de color. */
 .seepos-articulo-editor .form-check:has(.form-check-input:checked),
 .seepos-cliente-editor .form-check:has(.form-check-input:checked) {
-    background: color-mix(in srgb, var(--seepos-verde) 10%, transparent);
+    border-color: color-mix(in srgb, var(--seepos-verde-accion) 45%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--seepos-verde) 5%, var(--bs-body-bg));
+}
+
+.seepos-articulo-editor .form-check:has(.form-check-input:checked) .form-check-label,
+.seepos-cliente-editor .form-check:has(.form-check-input:checked) .form-check-label {
+    font-weight: 650;
+}
+
+/* Grupo de casillas "marcas" al pie de una seccion: rejilla ordenada. */
+.seepos-editor-marcas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: .5rem;
 }
 
 .seepos-articulo-editor .form-check-input,
