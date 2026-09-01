@@ -146,3 +146,28 @@ resto.
   cliente exige que el artículo tenga ese mismo tipo asignado, y si puede haber
   más de un tipo activo por factura) cambian directamente el diseño del punto
   4.3.b — no conviene construir esa pantalla hasta tener esas dos respuestas.
+
+---
+
+## 5. Bitácora de implementación (rama `feature/bonificaciones-web`)
+
+Todo contra el API de `feature/bonificaciones` (`localhost:5000`). El regen
+completo de contratos NSwag **no es viable** (rompe ~50 proxies: el API dejó de
+exponer schemas como `Moneda`/`Bodega` tras el desmontaje de `Datos`), así que se
+siguió la convención del repo: cliente/DTOs a mano en `ApiConexion/BonificacionApiCliente.cs`
+y `DTOs/Bonificacion/*` (partials + DTO), a sustituir cuando se regeneren.
+
+| Punto | Estado | Nota |
+|---|---|---|
+| §4.6 catálogo maestro | HECHO | `Views/Ventas/BonificacionCatalogo.razor` (`/sales/bonuses`). Falta el nodo de menú: `MenuCodigosTests` exige el código `CATALOGOS.CATALOGO_DE_BONIFICACIONES` en la semilla del API. |
+| §4.4 precio 0 + impuesto | HECHO | `CalculoDocumento.LineaBonificada`. Default #4: lo paga el cliente. |
+| §4.1 pestaña Cliente | HECHO | Sólo tipo↔cliente, sin buscador de artículo. |
+| §4.3 flujo de Facturación | HECHO | Defaults: tipo fijo por factura; el artículo bonificable sirve con su propia mezcla; la regla ("el más barato sale gratis" + tope) vive en `Services/BonificacionCalculo.cs` (§3.4 = frontend). Modales: tipo de cliente, tipo de artículo, selector de mezcla. Líneas de grupo readonly; sólo la principal se elimina (cascada). |
+| §4.5 devoluciones | HECHO | El grupo se devuelve entero a cantidad completa; la línea de regalo conserva los valores de la factura. |
+
+### Pendiente
+- **QA con la app corriendo** contra `localhost:5000` (click-through de los 3 flujos).
+- **Nodo de menú** para `/sales/bonuses` — coordinar el código de función con la semilla de seguridad del API.
+- **Regen de contratos NSwag** cuando el equipo web migre los ~50 proxies al contrato nuevo del API; ahí se borran `BonificacionApiCliente.cs` y `DTOs/Bonificacion/*`.
+- Sin probar: artículos con lote dentro de un grupo de bonificación (los bonificables suelen no manejar lote).
+- Respuestas de negocio #1/#2 (§4): si el tipo del cliente exige que el artículo lo tenga asignado, y si puede haber >1 tipo activo por factura — hoy se asume "no" y "no".
