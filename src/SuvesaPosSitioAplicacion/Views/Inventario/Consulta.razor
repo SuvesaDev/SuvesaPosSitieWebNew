@@ -710,8 +710,8 @@
     </FooterTemplate>
 </HxModal>
 
-<AppBuscadorArticulo @ref="_buscadorRegaloBonificacion" AlElegir="ElegirProductoRegalo" />
-<AppBuscadorArticulo @ref="_buscadorDescarga" AlElegir="ElegirArticuloDescarga" />
+<AppBuscadorArticulo @ref="_buscadorRegaloBonificacion" AlElegir="ElegirProductoRegalo" AlCerrar="ReabrirEdicionArticulo" />
+<AppBuscadorArticulo @ref="_buscadorDescarga" AlElegir="ElegirArticuloDescarga" AlCerrar="ReabrirEdicionArticulo" />
 
 <HxModal @ref="_modalCabys" Title="Buscar código CABYS" Size="ModalSize.Large">
     <BodyTemplate>
@@ -1264,6 +1264,14 @@
     private Task AbrirBuscadorRegalo() => _buscadorRegaloBonificacion.AbrirAsync();
 
     private void ElegirProductoRegalo(InventarioDTO articulo) => _articuloRegaloSeleccionado = articulo;
+
+    // HxModal solo deja un modal abierto: al abrir el buscador se cerró "Editar
+    // artículo". Se vuelve a mostrar (con su estado intacto) tanto al elegir como
+    // al cancelar la búsqueda. Igual que el patrón AlCerrar de Compra.razor.
+    private async Task ReabrirEdicionArticulo()
+    {
+        if (_edicion is not null) await _modal.ShowAsync();
+    }
 
     private async Task AgregarProductoRegalo()
     {
