@@ -9,12 +9,24 @@
 
 <AppPantalla Pantalla="Apertura Caja" Nivel="NivelPantalla.Tableta">
     <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="AbrirBuscador" disabled="@Bloqueada"><i class="bi bi-search me-1" aria-hidden="true"></i>Buscar</button>
         <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar" disabled="@(_cargando || Bloqueada)"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
-        <button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(Bloqueada || !_lista || _guardando)"><i class="bi bi-cash-stack me-1" aria-hidden="true"></i>@(_guardando ? "Registrando..." : "Registrar apertura")</button>
+        @if (_editando)
+        {
+            <button class="btn btn-sm btn-outline-danger" @onclick="Anular" disabled="@_guardando"><i class="bi bi-x-circle me-1" aria-hidden="true"></i>Anular</button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="CancelarEdicion" disabled="@_guardando">Cancelar edición</button>
+        }
+        <button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(Bloqueada || !_lista || _guardando || (!_editando && _numeroCaja == 0))"><i class="bi bi-cash-stack me-1" aria-hidden="true"></i>@(_guardando ? "Guardando..." : _editando ? "Guardar cambios" : "Registrar apertura")</button>
     </Acciones>
     <ChildContent>
         <AppDesbloqueoClave @ref="_bloqueo" Titulo="la apertura de caja" AlCambiar="AlDesbloquear" />
         <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
+        @if (_editando)
+        {
+            <div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
+                <span>Editando apertura <strong>#@_numeroAperturaEditando</strong>. Solo se puede corregir el desglose de denominaciones; el número de caja y las observaciones no se pueden cambiar desde aquí.</span>
+            </div>
+        }
         <div class="seepos-caja">
             <div class="card mb-3">
                 <div class="card-header"><strong>Datos del cajero</strong></div>
@@ -22,9 +34,9 @@
                     <div class="row g-3 align-items-end">
                         <div class="col-12 col-md-5"><label class="form-label">Cajero</label><input class="form-control" value="@Sesion.Usuario" disabled /></div>
                         <div class="col-12 col-md-3"><label class="form-label" for="caja">N.º de caja</label>
-                            <InputSelect id="caja" class="form-select" @bind-Value="_numeroCaja"><option value="0">Seleccione...</option>@foreach (var caja in _cajas) { <option value="@caja.NumCaja">Caja @caja.NumCaja</option> }</InputSelect>
+                            <InputSelect id="caja" class="form-select" @bind-Value="_numeroCaja" disabled="@_editando"><option value="0">Seleccione...</option>@foreach (var caja in _cajas) { <option value="@caja.NumCaja">Caja @caja.NumCaja</option> }</InputSelect>
                         </div>
-                        <div class="col-12 col-md-4"><label class="form-label" for="observaciones">Observaciones</label><InputText id="observaciones" class="form-control" @bind-Value="_observaciones" /></div>
+                        <div class="col-12 col-md-4"><label class="form-label" for="observaciones">Observaciones</label><InputText id="observaciones" class="form-control" @bind-Value="_observaciones" disabled="@_editando" /></div>
                     </div>
                 </div>
             </div>
@@ -49,18 +61,48 @@
     </ChildContent>
 </AppPantalla>
 
+<HxModal @ref="_modalBuscar" Title="Buscar aperturas" Size="ModalSize.Large">
+    <BodyTemplate>
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-6 col-md-3"><label class="form-label">Fecha desde</label><InputDate class="form-control" @bind-Value="_filtroDesde" /></div>
+            <div class="col-6 col-md-3"><label class="form-label">Fecha hasta</label><InputDate class="form-control" @bind-Value="_filtroHasta" /></div>
+            <div class="col-6 col-md-2"><label class="form-label">N.º apertura</label><InputNumber class="form-control" @bind-Value="_filtroNumero" /></div>
+            <div class="col-6 col-md-2"><label class="form-label">Usuario</label><InputText class="form-control" @bind-Value="_filtroUsuario" /></div>
+            <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="Buscar" disabled="@_buscando">Buscar</button></div>
+        </div>
+        @if (_buscando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Buscando</span></div></div>
+        }
+        else if (_encontradas.Count == 0)
+        {
+            <p class="text-secondary text-center py-4">Use uno de los filtros para consultar aperturas.</p>
+        }
+        else
+        {
+            <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>N.º</th><th>Usuario</th><th>Fecha</th><th>Caja</th><th></th></tr></thead><tbody>
+                @foreach (var a in _encontradas) { <tr><td>@a.NumeroApertura</td><td>@a.NomUsuario</td><td>@a.Fecha.ToString("dd/MM/yyyy HH:mm")</td><td>@a.Caja</td><td class="text-end"><button type="button" class="btn btn-sm btn-primary" @onclick="() => AbrirParaEditar((int)a.NumeroApertura)">Abrir</button></td></tr> }
+            </tbody></table></div>
+        }
+    </BodyTemplate>
+</HxModal>
+
 @code {
     private sealed class LineaDenominacion
     {
-        public required DenominacionMonedum Origen { get; init; }
-        public double Cantidad { get; set; }
-        public double Monto => Origen.Denominacion;
-        public string Moneda => Origen.CodMoneda == 1 ? "Colones" : "Dólares";
-        public string Tipo => Origen.Tipo ?? "—";
-        public double Total => Monto * Cantidad;
+        public long Id { get; set; }
+        public long IdDenominacion { get; set; }
+        public decimal Monto { get; set; }
+        public decimal Cantidad { get; set; }
+        public int CodMoneda { get; set; }
+        public string? Tipo { get; set; }
+        public string Moneda => CodMoneda == 1 ? "Colones" : "Dólares";
+        public decimal Total => Monto * Cantidad;
     }
+
     private readonly List<CajasCantidad> _cajas = new();
     private readonly List<LineaDenominacion> _denominaciones = new();
+    private readonly Dictionary<int, int> _idsTotalTope = new(); // CodMoneda -> IdTotalTope, solo en edicion
     private bool _cargando, _guardando, _lista;
     private AppDesbloqueoClave? _bloqueo;
     private long _numeroCaja;
@@ -68,8 +110,21 @@
     private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
     private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
 
-    private IEnumerable<(string Nombre, double Total, int Codigo)> TotalesPorMoneda => _denominaciones
-        .GroupBy(d => d.Origen.CodMoneda)
+    // Edicion: solo el API permite corregir denominaciones y su total/tope, no el
+    // numero de caja ni las observaciones (no hay endpoint de "editar el
+    // encabezado"). Ver docs/REVISION_PARIDAD_REACT_BLAZOR.md P1.1.
+    private bool _editando;
+    private int _numeroAperturaEditando;
+
+    private HxModal _modalBuscar = default!;
+    private readonly List<AperturaCajaFiltroResultadoDTO> _encontradas = new();
+    private DateTime? _filtroDesde, _filtroHasta;
+    private long? _filtroNumero;
+    private string? _filtroUsuario;
+    private bool _buscando;
+
+    private IEnumerable<(string Nombre, decimal Total, int Codigo)> TotalesPorMoneda => _denominaciones
+        .GroupBy(d => d.CodMoneda)
         .Select(g => (g.Key == 1 ? "Colones" : "Dólares", g.Sum(d => d.Total), g.Key));
 
     protected override Task OnInitializedAsync() => Recargar();
@@ -78,24 +133,109 @@
     {
         _cargando = true;
         var cajas = await Respuestas.DatoAsync(await Api.CajasDisponibles(), "consultar las cajas disponibles");
-        var denominaciones = await Respuestas.DatoAsync(await Api.Denominaciones(), "consultar las denominaciones");
         _cajas.Clear(); _cajas.AddRange(cajas ?? Array.Empty<CajasCantidad>());
-        _denominaciones.Clear();
-        _denominaciones.AddRange((denominaciones ?? Array.Empty<DenominacionMonedum>()).Select(d => new LineaDenominacion { Origen = d }));
+        if (!_editando)
+        {
+            var denominaciones = await Respuestas.DatoAsync(await Api.Denominaciones(), "consultar las denominaciones");
+            _denominaciones.Clear();
+            _denominaciones.AddRange((denominaciones ?? Array.Empty<DenominacionMonedum>())
+                .Select(d => new LineaDenominacion { IdDenominacion = d.Id, Monto = Formato.AImporte(d.Denominacion), CodMoneda = d.CodMoneda, Tipo = d.Tipo }));
+        }
         _lista = true; _cargando = false;
+    }
+
+    private async Task AbrirBuscador()
+    {
+        _encontradas.Clear(); _filtroDesde = _filtroHasta = null; _filtroNumero = null; _filtroUsuario = null;
+        await _modalBuscar.ShowAsync();
+    }
+
+    private async Task Buscar()
+    {
+        _buscando = true;
+        var filtro = new AperturaCajaFiltroDTO { Desde = _filtroDesde, Hasta = _filtroHasta, NumApertura = _filtroNumero, UsuarioApertura = _filtroUsuario };
+        var resultado = await Respuestas.DatoAsync(await Api.BuscarAperturas(filtro), "buscar las aperturas");
+        _encontradas.Clear(); _encontradas.AddRange(resultado ?? Array.Empty<AperturaCajaFiltroResultadoDTO>());
+        _buscando = false;
+    }
+
+    private async Task AbrirParaEditar(int numeroApertura)
+    {
+        var apertura = await Respuestas.DatoAsync(await Api.ObtenerApertura(numeroApertura), "consultar la apertura");
+        if (apertura is null) return;
+
+        _editando = true;
+        _numeroAperturaEditando = numeroApertura;
+        _numeroCaja = apertura.NumCaja;
+        _observaciones = apertura.Observaciones;
+
+        _denominaciones.Clear();
+        _denominaciones.AddRange((apertura.AperturaDenominacion ?? new List<AperturaDenominacionDTO>())
+            .Select(l => new LineaDenominacion { Id = l.Id, IdDenominacion = l.IdDenominacion, Monto = Formato.AImporte(l.Monto), Cantidad = Formato.AImporte(l.Cantidad), CodMoneda = l.CodMoneda, Tipo = l.Tipo }));
+
+        _idsTotalTope.Clear();
+        foreach (var t in apertura.AperturaTotalTope ?? new List<AperturaTotalTopeDTO>())
+        {
+            _idsTotalTope[t.CodMoneda] = t.IdTotalTope;
+        }
+
+        await _modalBuscar.HideAsync();
+    }
+
+    private void CancelarEdicion()
+    {
+        _editando = false; _numeroAperturaEditando = 0; _numeroCaja = 0; _observaciones = null; _idsTotalTope.Clear();
+        _ = Recargar();
+    }
+
+    private async Task Anular()
+    {
+        if (!_editando) return;
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Desea anular la apertura #{_numeroAperturaEditando}?", "Anular apertura")) return;
+        if (await Respuestas.CorrectaAsync(await Api.AnularApertura(_numeroAperturaEditando), "anular la apertura de caja"))
+        {
+            Dialogos.Exito("Apertura anulada.");
+            CancelarEdicion();
+        }
     }
 
     private async Task Guardar()
     {
-        if (_numeroCaja == 0) { await Dialogos.InformarAsync("Seleccione el número de caja antes de registrar la apertura."); return; }
-        if (!await Dialogos.ConfirmarAsync("¿Desea registrar la apertura de caja?", "Registrar apertura", "Registrar")) return;
+        if (!_editando && _numeroCaja == 0) { await Dialogos.InformarAsync("Seleccione el número de caja antes de registrar la apertura."); return; }
+        if (!await Dialogos.ConfirmarAsync(_editando ? "¿Desea guardar los cambios de esta apertura?" : "¿Desea registrar la apertura de caja?", _editando ? "Guardar cambios" : "Registrar apertura", "Guardar")) return;
+
         _guardando = true;
+
+        if (_editando)
+        {
+            foreach (var linea in _denominaciones)
+            {
+                await Api.EditarDenominacionApertura(new AperturaDenominacionDTO
+                {
+                    Id = linea.Id, IdApertura = _numeroAperturaEditando, IdDenominacion = linea.IdDenominacion,
+                    Monto = (double)linea.Monto, Cantidad = (double)linea.Cantidad, CodMoneda = linea.CodMoneda, Tipo = linea.Tipo
+                });
+            }
+            foreach (var total in TotalesPorMoneda)
+            {
+                await Api.EditarTotalTopeApertura(new AperturaTotalTopeDTO
+                {
+                    IdTotalTope = _idsTotalTope.GetValueOrDefault(total.Codigo), Napertura = _numeroAperturaEditando,
+                    CodMoneda = total.Codigo, MontoTope = (double)total.Total, MonedaNombre = total.Nombre
+                });
+            }
+            _guardando = false;
+            Dialogos.Exito($"Apertura #{_numeroAperturaEditando} actualizada correctamente.");
+            CancelarEdicion();
+            return;
+        }
+
         var apertura = new AperturaCajaDTO
         {
             Fecha = DateTime.Now.ToString("yyyy-MM-dd"), Nombre = Sesion.Usuario, Cedula = Sesion.Usuario,
             NumCaja = _numeroCaja, IdSucursal = Sesion.IdSucursal, Estado = "Abierta", Observaciones = _observaciones,
-            AperturaDenominacion = _denominaciones.Select(d => new AperturaDenominacionDTO { IdDenominacion = d.Origen.Id, Monto = d.Monto, Cantidad = d.Cantidad, CodMoneda = d.Origen.CodMoneda, Tipo = d.Origen.Tipo }).ToList(),
-            AperturaTotalTope = TotalesPorMoneda.Select(t => new AperturaTotalTopeDTO { CodMoneda = t.Codigo, MontoTope = t.Total, MonedaNombre = t.Nombre }).ToList()
+            AperturaDenominacion = _denominaciones.Select(d => new AperturaDenominacionDTO { IdDenominacion = d.IdDenominacion, Monto = (double)d.Monto, Cantidad = (double)d.Cantidad, CodMoneda = d.CodMoneda, Tipo = d.Tipo }).ToList(),
+            AperturaTotalTope = TotalesPorMoneda.Select(t => new AperturaTotalTopeDTO { CodMoneda = t.Codigo, MontoTope = (double)t.Total, MonedaNombre = t.Nombre }).ToList()
         };
         var creada = await Respuestas.DatoAsync(await Api.CrearApertura(apertura), "registrar la apertura de caja");
         _guardando = false;

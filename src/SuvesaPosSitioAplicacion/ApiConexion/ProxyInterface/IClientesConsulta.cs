@@ -25,4 +25,9 @@ public interface IClientesConsulta
     Task<ResponseGeneric<ClienteAdjuntoDTO>> EliminarAdjunto(long idAdjunto);
 
     Task<ResponseGeneric<ICollection<ClienteDatosSucursalDTO>>> DatosSucursal(long idCliente);
+
+    /// <summary>Correos a los que se envía el comprobante electrónico de este cliente.</summary>
+    Task<ResponseGeneric<CorreosComprobantes>> ObtenerCorreosComprobante(long idCliente);
+
+    Task<ResponseGeneric<CorreosComprobantes>> ActualizarCorreosComprobante(CorreosComprobantes correos);
 }

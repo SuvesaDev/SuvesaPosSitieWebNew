@@ -13,12 +13,14 @@ public sealed class Facturacion : ProxyBase, IFacturacion
     private readonly ITipoFacturaApiCliente _tipos;
     private readonly ICentrosApiCliente _centros;
     private readonly IUsuarioApiCliente _usuarios;
+    private readonly IAgenteventaApiCliente _agentes;
 
     public Facturacion(
         IVentaApiCliente ventas,
         ITipoFacturaApiCliente tipos,
         ICentrosApiCliente centros,
         IUsuarioApiCliente usuarios,
+        IAgenteventaApiCliente agentes,
         IContextoSesion sesion,
         ILogger<Facturacion> log)
         : base(sesion, log)
@@ -27,6 +29,7 @@ public sealed class Facturacion : ProxyBase, IFacturacion
         _tipos = tipos;
         _centros = centros;
         _usuarios = usuarios;
+        _agentes = agentes;
     }
 
     public Task<ResponseGeneric<ICollection<TipoFactura>>> Tipos()
@@ -65,4 +68,11 @@ public sealed class Facturacion : ProxyBase, IFacturacion
             var r = await _ventas.CrearFactura2Async(factura);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "crear la factura");
+
+    public Task<ResponseGeneric<ICollection<AgenteVendedorDTO>>> Agentes()
+        => Ejecutar(async () =>
+        {
+            var r = await _agentes.ObtenerAgentesVentasAsync();
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar los agentes de venta");
 }

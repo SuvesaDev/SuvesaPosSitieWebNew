@@ -8,6 +8,9 @@ public interface IProveedoresConsulta
 {
     Task<ResponseGeneric<ICollection<ProveedorDTO>>> Obtener();
 
+    /// <summary>Un proveedor completo, con sus cuentas bancarias registradas.</summary>
+    Task<ResponseGeneric<ProveedorDTO>> Uno(int codigo);
+
     Task<ResponseGeneric<ProveedorDTO>> Crear(ProveedorDTO proveedor);
 
     Task<ResponseGeneric<ProveedorDTO>> Editar(ProveedorDTO proveedor);

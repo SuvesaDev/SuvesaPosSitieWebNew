@@ -144,6 +144,7 @@ ClienteApi<ICategoriasApiCliente, CategoriasApiCliente>();
 ClienteApi<IPresentacionApiCliente, PresentacionApiCliente>();
 ClienteApi<IHaciendaApiCliente, HaciendaApiCliente>();
 ClienteApi<IStockLoteApiCliente, StockLoteApiCliente>();
+ClienteApi<IStocksApiCliente, StocksApiCliente>();
 ClienteApi<IIdentificacionApiCliente, IdentificacionApiCliente>();
 ClienteApi<IConfiguracionCostaPetsApiCliente, ConfiguracionCostaPetsApiCliente>();
 ClienteApi<IDevolucionVentasApiCliente, DevolucionVentasApiCliente>();
@@ -153,6 +154,7 @@ ClienteApi<IFormasPagosApiCliente, FormasPagosApiCliente>();
 ClienteApi<IConfiguracionBonificacionApiCliente, ConfiguracionBonificacionApiCliente>();
 ClienteApi<IClienteBonificacionApiCliente, ClienteBonificacionApiCliente>();
 ClienteApi<IArticuloBonificacionApiCliente, ArticuloBonificacionApiCliente>();
+ClienteApi<IAgenteventaApiCliente, AgenteventaApiCliente>();
 
 // ---------------------------------------------------------------------------
 // Convivencia: YARP sirve la SPA React bajo el mismo origen mientras queden

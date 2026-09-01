@@ -13,6 +13,7 @@
 @inject IContextoSesion Sesion
 @inject NavigationManager Navegacion
 @inject IClienteBonificacion ClienteBonificacion
+@inject ICompras Compras
 
 @* Port del flujo de Billing: cliente -> artículos/lotes -> totales -> emisión.
    Los cálculos se hacen en decimal en CalculoDocumento; el DTO se arma una única vez
@@ -50,10 +51,23 @@
                                 <label class="form-label">Tipo de factura</label>
                                 <select class="form-select" @bind="_tipoFactura"><option value="0">Seleccione...</option>@foreach (var tipo in TiposDisponibles) { <option value="@tipo.Codigo">@tipo.Descripcion</option> }</select>
                             </div>
-                            <div class="col-12 col-md-3"><label class="form-label">Moneda</label><select class="form-select" @bind="_moneda"><option value="CRC">Colón</option><option value="USD">Dólar</option></select></div>
+                            <div class="col-12 col-md-3"><label class="form-label">Moneda</label><select class="form-select" @bind="_moneda"><option value="0">Seleccione...</option>@foreach (var moneda in _monedas) { <option value="@moneda.CodMoneda">@moneda.MonedaNombre</option> }</select></div>
                             @if (!EsCostaPetsVenta)
                             {
                                 <div class="col-12 col-md-6"><label class="form-label">Empresa</label><select class="form-select" @bind="_idEmpresa"><option value="0">Seleccione...</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
+                                <div class="col-12 col-md-6">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <label class="form-label mb-0">Agente</label>
+                                        <div class="form-check">
+                                            <input id="factura-sin-agente" class="form-check-input" type="checkbox" @bind="_sinAgente" />
+                                            <label class="form-check-label" for="factura-sin-agente">Sin agente</label>
+                                        </div>
+                                    </div>
+                                    <select class="form-select" disabled="@_sinAgente" @bind="_codAgente">
+                                        <option value="0">Seleccione...</option>
+                                        @foreach (var agente in _agentesVenta) { <option value="@agente.Id">@agente.Name</option> }
+                                    </select>
+                                </div>
                             }
                         </div>
                         @if (_clientesEncontrados.Count > 0)
@@ -62,7 +76,7 @@
                         }
                         @if (_cliente is not null)
                         {
-                            <div class="alert alert-light border mt-3 mb-0"><div class="d-flex justify-content-between"><strong>@_cliente.Nombre</strong><button type="button" class="btn btn-sm btn-link" @onclick="QuitarCliente">Cambiar</button></div><div class="small text-secondary">@_cliente.Cedula · @_cliente.Telefono_01 · @_cliente.E_Mail</div>@if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { <div class="small text-danger mt-1">Cliente con restricción de morosidad.</div> } @if (_cliente.OrdenCompra) { <div class="small text-warning mt-1">El cliente requiere orden de compra.</div> }
+                            <div class="alert alert-light border mt-3 mb-0"><div class="d-flex justify-content-between"><strong>@_cliente.Nombre</strong><div><button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="AbrirCorreos"><i class="bi bi-envelope me-1" aria-hidden="true"></i>Correos del comprobante</button><button type="button" class="btn btn-sm btn-link" @onclick="QuitarCliente">Cambiar</button></div></div><div class="small text-secondary">@_cliente.Cedula · @_cliente.Telefono_01 · @_cliente.E_Mail</div>@if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { <div class="small text-danger mt-1">Cliente con restricción de morosidad.</div> } @if (_cliente.OrdenCompra) { <div class="small text-warning mt-1">El cliente requiere orden de compra.</div> }
                                 @if (_cliente.TieneBonificacion)
                                 {
                                     <div class="mt-2 pt-2 border-top">
@@ -169,6 +183,43 @@
     </BodyTemplate>
 </HxModal>
 
+<HxModal @ref="_modalCorreos" Title="Correos del comprobante" Size="ModalSize.Large">
+    <BodyTemplate>
+        <div class="row g-2 align-items-end mb-2">
+            <div class="col-12 col-md-8">
+                <label class="form-label">Correo electrónico</label>
+                <input class="form-control" placeholder="correo@dominio.com" @bind="_correoNuevo" @bind:event="oninput" @onkeydown="AgregarCorreoConEnter" />
+            </div>
+            <div class="col-12 col-md-4 d-flex gap-2">
+                <button type="button" class="btn @(_correoEditandoIndice is not null ? "btn-warning" : "btn-success") flex-fill" @onclick="AgregarOEditarCorreo">@(_correoEditandoIndice is not null ? "Editar" : "Agregar")</button>
+                <button type="button" class="btn btn-outline-danger" @onclick="LimpiarCorreos">Limpiar</button>
+            </div>
+        </div>
+        @if (_cargandoCorreos)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div></div>
+        }
+        else if (_correos.Count == 0)
+        {
+            <p class="text-secondary text-center py-3 mb-0">Sin correos registrados para este cliente.</p>
+        }
+        else
+        {
+            <table class="table table-sm align-middle mb-0"><thead><tr><th>Correo electrónico</th><th></th></tr></thead><tbody>
+                @for (var i = 0; i < _correos.Count; i++)
+                {
+                    var indice = i;
+                    <tr><td>@_correos[indice]</td><td class="text-end"><button type="button" class="btn btn-sm btn-link" @onclick="() => EditarCorreo(indice)">Editar</button><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarCorreo(indice)">Quitar</button></td></tr>
+                }
+            </tbody></table>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-primary" disabled="@_guardandoCorreos" @onclick="GuardarCorreos">@(_guardandoCorreos ? "Guardando..." : "Guardar")</button>
+        <button type="button" class="btn btn-outline-secondary" @onclick="() => _modalCorreos.HideAsync()">Cerrar</button>
+    </FooterTemplate>
+</HxModal>
+
 <AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="PrepararArticulo" />
 
 @code {
@@ -198,15 +249,27 @@
     private HxModal _modalCatalogo = default!;
     private HxModal _modalDesbloqueo = default!;
     private HxModal _modalLotes = default!;
+    private HxModal _modalCorreos = default!;
     private List<TipoFactura> _tipos = new();
     private List<EmpresaDTO> _empresas = new();
+    private List<Moneda> _monedas = new();
+    private List<AgenteVendedorDTO> _agentesVenta = new();
     private List<ProductoCatalogo> _catalogoImagenes = new();
     private Task<ResponseGeneric<ICollection<ArticulosImagenesCatalogoDTO>>>? _catalogoPendiente;
     private readonly List<LineaVenta> _lineas = new();
     private CalculoDocumento.TotalesDocumento _totales;
-    private string _textoCliente = string.Empty, _moneda = "CRC", _observaciones = string.Empty, _ordenCompra = string.Empty;
+    private string _textoCliente = string.Empty, _observaciones = string.Empty, _ordenCompra = string.Empty;
     private int _tipoFactura;
     private int _idEmpresa;
+    private int _moneda;
+    private bool _sinAgente;
+    private long _codAgente;
+    private readonly List<string> _correos = new();
+    private string _correoNuevo = string.Empty;
+    private int? _correoEditandoIndice;
+    private bool _guardandoCorreos, _cargandoCorreos;
+    private static readonly System.Text.RegularExpressions.Regex PatronCorreo =
+        new(@"^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$");
     private List<FiltranClienteDTO> _clientesEncontrados = new();
     private FiltranClienteDTO? _cliente;
     private List<ClienteBonificacionConfiguracionDTO> _bonificacionesCliente = new();
@@ -228,6 +291,9 @@
     {
         _esCostaPetsVenta = Sesion.EsCostaPets;
         _tipos = (await Respuestas.DatoAsync(await Api.Tipos(), "consultar los tipos de factura"))?.Where(t => !t.Compra).ToList() ?? new();
+        _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))?.ToList() ?? new();
+        if (_moneda == 0) _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0;
+        _agentesVenta = (await Respuestas.DatoAsync(await Api.Agentes(), "consultar los agentes de venta"))?.ToList() ?? new();
     }
 
     public void Dispose() => _pendienteCliente?.Cancel();
@@ -403,6 +469,73 @@
 
     private void QuitarCliente() { _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); }
 
+    private async Task AbrirCorreos()
+    {
+        if (_cliente is null) return;
+        _correos.Clear();
+        _correoNuevo = string.Empty;
+        _correoEditandoIndice = null;
+        _cargandoCorreos = true;
+        await _modalCorreos.ShowAsync();
+        // El sistema actual solo carga la lista cuando el API no devuelve un
+        // "mensaje" junto con los correos; si viene un mensaje, se deja la lista
+        // vacia sin mostrar error (igual que hace la ventana actual).
+        var respuesta = await Clientes.ObtenerCorreosComprobante(_cliente.Identificacion);
+        if (respuesta.EsCorrecta && respuesta.Responses?.Mensaje is null)
+        {
+            _correos.AddRange((respuesta.Responses?.Correos ?? Array.Empty<Correos>())
+                .Select(c => c.Correo)
+                .Where(c => !string.IsNullOrWhiteSpace(c))!);
+        }
+        _cargandoCorreos = false;
+    }
+
+    private async Task AgregarCorreoConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") { AgregarOEditarCorreo(); await Task.CompletedTask; } }
+
+    private void AgregarOEditarCorreo()
+    {
+        var correo = _correoNuevo.Trim();
+        if (correo.Length == 0 || !PatronCorreo.IsMatch(correo)) return;
+
+        if (_correoEditandoIndice is int indice)
+        {
+            _correos[indice] = correo;
+            _correoEditandoIndice = null;
+        }
+        else if (!_correos.Contains(correo, StringComparer.OrdinalIgnoreCase))
+        {
+            _correos.Add(correo);
+        }
+        _correoNuevo = string.Empty;
+    }
+
+    private void EditarCorreo(int indice) { _correoEditandoIndice = indice; _correoNuevo = _correos[indice]; }
+    private void QuitarCorreo(int indice)
+    {
+        _correos.RemoveAt(indice);
+        if (_correoEditandoIndice == indice) { _correoEditandoIndice = null; _correoNuevo = string.Empty; }
+    }
+    private void LimpiarCorreos() { _correos.Clear(); _correoEditandoIndice = null; _correoNuevo = string.Empty; }
+
+    private async Task GuardarCorreos()
+    {
+        if (_cliente is null) return;
+        if (!await Dialogos.ConfirmarAsync("¿Desea agregar estos correos?")) return;
+        _guardandoCorreos = true;
+        var correos = new CorreosComprobantes
+        {
+            IdCliente = _cliente.Identificacion,
+            Correos = _correos.Select(c => new Correos { Correo = c }).ToList()
+        };
+        var r = await Clientes.ActualizarCorreosComprobante(correos);
+        _guardandoCorreos = false;
+        if (await Respuestas.CorrectaAsync(r, "guardar los correos del comprobante"))
+        {
+            Dialogos.Exito("Correos del comprobante actualizados.");
+            await _modalCorreos.HideAsync();
+        }
+    }
+
     private Task PrepararArticulo(InventarioDTO articulo) => PrepararArticulo(articulo, 1);
     private async Task PrepararArticulo(InventarioDTO articulo, decimal cantidad)
     {
@@ -451,7 +584,7 @@
     private async Task Emitir()
     {
         if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
-        if (_cliente is null || _tipoFactura == 0 || _lineas.Count == 0) { await Dialogos.ErrorAsync("Seleccione cliente, tipo de factura y al menos un artículo."); return; }
+        if (_cliente is null || _tipoFactura == 0 || _moneda == 0 || _lineas.Count == 0) { await Dialogos.ErrorAsync("Seleccione cliente, tipo de factura, moneda y al menos un artículo."); return; }
         if (!EsCostaPetsVenta && _idEmpresa <= 0) { await Dialogos.ErrorAsync("Seleccione una empresa para registrar la facturación."); return; }
         if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { await Dialogos.ErrorAsync("El cliente tiene restricción de morosidad."); return; }
         if (_cliente.OrdenCompra && string.IsNullOrWhiteSpace(_ordenCompra)) { await Dialogos.ErrorAsync("El cliente requiere una orden de compra."); return; }
@@ -462,9 +595,9 @@
         if (!await Dialogos.ConfirmarAsync(EsConsignacion ? "Se registrará la consignación. ¿Desea continuar?" : "Se emitirá la factura y se afectará el inventario. ¿Desea continuar?")) return;
         _guardando = true;
         var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
-        var factura = new FacturaDTO { Tipo = _tipoFactura, CodCliente = _cliente.Cedula, NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = EsCostaPetsVenta ? 1 : _idEmpresa, Empresa = empresa?.Nombre, Preventa = false, EsConsignacion = EsConsignacion, SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = l.Articulo.Id_Bodega, Lote = l.IdLote, NumeroLote = l.Lote }).ToList() };
+        var factura = new FacturaDTO { Tipo = _tipoFactura, CodCliente = _cliente.Cedula, NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), Agente = !EsCostaPetsVenta && _sinAgente, Cod_agente = !EsCostaPetsVenta && !_sinAgente && _codAgente > 0 ? _codAgente : null, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = EsCostaPetsVenta ? 1 : _idEmpresa, Empresa = empresa?.Nombre, Preventa = false, EsConsignacion = EsConsignacion, SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = l.Articulo.Id_Bodega, Lote = l.IdLote, NumeroLote = l.Lote }).ToList() };
         var r = await Api.Crear(factura); _guardando = false;
         if (await Respuestas.CorrectaAsync(r, EsConsignacion ? "registrar la consignación" : "emitir la factura")) { Dialogos.Exito(EsConsignacion ? "Consignación registrada correctamente." : "Factura emitida correctamente."); Limpiar(); }
     }
-    private void Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _moneda = "CRC"; _lineas.Clear(); _bonificacionesCliente.Clear(); RecalcularTodo(); }
+    private void Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _sinAgente = false; _codAgente = 0; _lineas.Clear(); _bonificacionesCliente.Clear(); RecalcularTodo(); }
 }

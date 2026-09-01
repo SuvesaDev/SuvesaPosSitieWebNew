@@ -8,16 +8,35 @@
 
 <AppPantalla Pantalla="Arqueo Caja" Nivel="NivelPantalla.Escritorio">
     <Acciones>
+        <a class="btn btn-sm btn-outline-secondary" href="/initial/cash/deposits/predeposits" title="Se abre en Pre-depósitos, con el mismo desbloqueo de clave"><i class="bi bi-piggy-bank me-1" aria-hidden="true"></i>Agregar pre-depósito</a>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="AbrirBuscador" disabled="@Bloqueada"><i class="bi bi-search me-1" aria-hidden="true"></i>Buscar</button>
         <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" disabled="@(_cargando || Bloqueada)"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
-        <button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(Bloqueada || _guardando || _aperturaSeleccionada is null)"><i class="bi bi-clipboard-check me-1" aria-hidden="true"></i>@(_guardando ? "Guardando..." : "Registrar arqueo")</button>
+        @if (_editando)
+        {
+            <button class="btn btn-sm btn-outline-danger" @onclick="Anular" disabled="@_guardando"><i class="bi bi-x-circle me-1" aria-hidden="true"></i>Anular</button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="CancelarEdicion" disabled="@_guardando">Cancelar edición</button>
+        }
+        <button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(Bloqueada || _guardando || (!_editando && _aperturaSeleccionada is null))"><i class="bi bi-clipboard-check me-1" aria-hidden="true"></i>@(_guardando ? "Guardando..." : _editando ? "Guardar cambios" : "Registrar arqueo")</button>
     </Acciones>
     <ChildContent>
         <AppDesbloqueoClave @ref="_bloqueo" Titulo="el arqueo de caja" AlCambiar="AlDesbloquear" />
         <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
+        @if (_editando)
+        {
+            <div class="alert alert-info mb-3">Editando arqueo <strong>#@_idArqueoEditando</strong>.</div>
+        }
         <div class="seepos-caja">
             <div class="card mb-3"><div class="card-header"><strong>Apertura de caja</strong></div><div class="card-body"><div class="row g-3 align-items-end">
-                <div class="col-12 col-md-5"><label class="form-label" for="apertura">Apertura pendiente de arqueo</label><InputSelect id="apertura" class="form-select" @bind-Value="_idApertura" @bind-Value:after="SeleccionarApertura"><option value="0">Seleccione...</option>@foreach (var a in _aperturas) { <option value="@a.Napertura">#@a.Napertura · @a.Nombre · Caja @a.NumCaja</option> }</InputSelect></div>
-                <div class="col-12 col-md-3"><label class="form-label">Cajero</label><input class="form-control" value="@(_aperturaSeleccionada?.Nombre ?? string.Empty)" disabled /></div>
+                @if (_editando)
+                {
+                    <div class="col-12 col-md-5"><label class="form-label">Apertura</label><input class="form-control" value="@($"#{_idAperturaEditando}")" disabled /></div>
+                    <div class="col-12 col-md-3"><label class="form-label">Cajero</label><input class="form-control" value="@_cajeroEditando" disabled /></div>
+                }
+                else
+                {
+                    <div class="col-12 col-md-5"><label class="form-label" for="apertura">Apertura pendiente de arqueo</label><InputSelect id="apertura" class="form-select" @bind-Value="_idApertura" @bind-Value:after="SeleccionarApertura"><option value="0">Seleccione...</option>@foreach (var a in _aperturas) { <option value="@a.Napertura">#@a.Napertura · @a.Nombre · Caja @a.NumCaja</option> }</InputSelect></div>
+                    <div class="col-12 col-md-3"><label class="form-label">Cajero</label><input class="form-control" value="@(_aperturaSeleccionada?.Nombre ?? string.Empty)" disabled /></div>
+                }
                 <div class="col-12 col-md-4"><label class="form-label" for="observaciones">Observaciones</label><InputText id="observaciones" class="form-control" @bind-Value="_observaciones" /></div>
             </div></div></div>
 
@@ -28,56 +47,266 @@
                 <div class="col-12 col-xl-5"><div class="card h-100"><div class="card-header"><strong>Totales declarados</strong></div><div class="card-body"><div class="row g-3">
                     <div class="col-6"><label class="form-label">Efectivo colones</label><input class="form-control text-end" value="@Formato.Importe(EfectivoColones)" disabled /></div>
                     <div class="col-6"><label class="form-label">Efectivo dólares</label><input class="form-control text-end" value="@Formato.Importe(EfectivoDolares)" disabled /></div>
-                    <div class="col-6"><label class="form-label">Tarjetas colones</label><InputNumber class="form-control text-end" @bind-Value="_tarjetaColones" /></div>
-                    <div class="col-6"><label class="form-label">Tarjetas dólares</label><InputNumber class="form-control text-end" @bind-Value="_tarjetaDolares" /></div>
+                    <div class="col-6"><label class="form-label">Tarjetas colones</label><input class="form-control text-end" value="@Formato.Importe(TarjetaColones)" disabled /></div>
+                    <div class="col-6"><label class="form-label">Tarjetas dólares</label><input class="form-control text-end" value="@Formato.Importe(TarjetaDolares)" disabled /></div>
                     <div class="col-6"><label class="form-label">Cheques colones</label><InputNumber class="form-control text-end" @bind-Value="_cheques" /></div>
                     <div class="col-6"><label class="form-label">Cheques dólares</label><InputNumber class="form-control text-end" @bind-Value="_chequesDol" /></div>
-                    <div class="col-6"><label class="form-label">Depósitos colones</label><InputNumber class="form-control text-end" @bind-Value="_depositoCol" /></div>
+                    <div class="col-6">
+                        <label class="form-label">Depósitos colones</label><InputNumber class="form-control text-end" @bind-Value="_depositoCol" />
+                        @if (_depositoSistema is not null) { <div class="form-text">Sistema: @Formato.Importe(_depositoSistema.MontoTotal)</div> }
+                    </div>
                     <div class="col-6"><label class="form-label">Depósitos dólares</label><InputNumber class="form-control text-end" @bind-Value="_depositoDol" /></div>
+                    <div class="col-6"><label class="form-label">Tipo de cambio (dólar)</label><input class="form-control text-end" value="@_tipoCambio.ToString("N2")" disabled /></div>
                     <div class="col-12 border-top pt-3 d-flex justify-content-between"><span>Total arqueado</span><strong>@Formato.Importe(Total)</strong></div>
+                    @if (DolaresDeclarados > 0)
+                    {
+                        <div class="col-12"><p class="small text-secondary mb-0">Incluye @Formato.Importe(DolaresDeclarados) convertidos a colones al tipo de cambio de arriba.</p></div>
+                    }
                 </div></div></div></div>
+            </div>
+
+            <div class="row g-3 mt-0">
+                <div class="col-12 col-xl-5">
+                    <div class="card h-100"><div class="card-header"><strong>Tarjetas por tipo</strong><span class="text-secondary small ms-2">Indique lo que el cajero cuenta por cada tipo.</span></div>
+                        @if (_tarjetas.Count == 0)
+                        {
+                            <div class="card-body"><p class="text-secondary small mb-0">Seleccione una apertura para ver los tipos de tarjeta.</p></div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Forma de pago</th><th>Moneda</th><th style="width:9rem" class="text-end">Monto</th></tr></thead><tbody>
+                                @foreach (var t in _tarjetas) { <tr><td>@t.Descripcion</td><td>@t.Moneda</td><td><InputNumber class="form-control form-control-sm text-end" @bind-Value="t.Monto" /></td></tr> }
+                            </tbody></table></div>
+                        }
+                    </div>
+                </div>
+                <div class="col-12 col-xl-7">
+                    <div class="card h-100"><div class="card-header"><strong>Documentos del sistema</strong><span class="text-secondary small ms-2">Lo que el sistema registró durante esta apertura, para comparar.</span></div>
+                        @if (_cargandoDetalle)
+                        {
+                            <div class="card-body text-center"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando</span></div></div>
+                        }
+                        else if (_documentos.Count == 0)
+                        {
+                            <div class="card-body"><p class="text-secondary small mb-0">Seleccione una apertura para ver sus documentos.</p></div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive" style="max-height: 18rem; overflow-y: auto;"><table class="table table-sm align-middle mb-0"><thead class="sticky-top bg-body"><tr><th>Factura</th><th>Tipo</th><th>Moneda</th><th>Forma de pago</th><th class="text-end">Pago</th></tr></thead><tbody>
+                                @foreach (var d in _documentos) { <tr><td>@d.Factura</td><td>@d.Tipo</td><td>@d.Moneda</td><td>@d.FormaPago</td><td class="text-end">@Formato.Importe(d.Pago)</td></tr> }
+                            </tbody></table></div>
+                        }
+                    </div>
+                </div>
             </div>
         </div>
         </fieldset>
     </ChildContent>
 </AppPantalla>
 
+<HxModal @ref="_modalBuscar" Title="Buscar arqueos" Size="ModalSize.Large">
+    <BodyTemplate>
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-6 col-md-3"><label class="form-label">Fecha desde</label><InputDate class="form-control" @bind-Value="_filtroDesde" /></div>
+            <div class="col-6 col-md-3"><label class="form-label">Fecha hasta</label><InputDate class="form-control" @bind-Value="_filtroHasta" /></div>
+            <div class="col-6 col-md-2"><label class="form-label">N.º arqueo</label><InputNumber class="form-control" @bind-Value="_filtroNumero" /></div>
+            <div class="col-6 col-md-2"><label class="form-label">Usuario</label><InputText class="form-control" @bind-Value="_filtroUsuario" /></div>
+            <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="Buscar" disabled="@_buscando">Buscar</button></div>
+        </div>
+        @if (_buscando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Buscando</span></div></div>
+        }
+        else if (_encontradas.Count == 0)
+        {
+            <p class="text-secondary text-center py-4">Use uno de los filtros para consultar arqueos.</p>
+        }
+        else
+        {
+            <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>N.º</th><th>Usuario</th><th>Fecha</th><th>Caja</th><th></th></tr></thead><tbody>
+                @foreach (var a in _encontradas) { <tr><td>@a.NumeroArqueo</td><td>@a.NomUsuario</td><td>@a.Fecha.ToString("dd/MM/yyyy HH:mm")</td><td>@a.Caja</td><td class="text-end"><button type="button" class="btn btn-sm btn-primary" @onclick="() => AbrirParaEditar(a.NumeroArqueo)">Abrir</button></td></tr> }
+            </tbody></table></div>
+        }
+    </BodyTemplate>
+</HxModal>
+
 @code {
-    private sealed class Efectivo { public required DenominacionMonedum Origen { get; init; } public int Cantidad { get; set; } public double Monto => Origen.Denominacion; public double Total => Monto * Cantidad; public string Moneda => Origen.CodMoneda == 1 ? "Colones" : "Dólares"; public string Tipo => Origen.Tipo ?? "—"; }
+    // Dinero en decimal, no double (regla de la casa): el DTO que genera el API
+    // sigue siendo double (no se edita a mano), asi que se convierte solo en el
+    // borde, al armar el ArqueoCajaDTO en Guardar().
+    private sealed class Efectivo { public long IdDenominacion { get; set; } public decimal Monto { get; set; } public int Cantidad { get; set; } public int CodMoneda { get; set; } public string? Tipo { get; set; } public decimal Total => Monto * Cantidad; public string Moneda => CodMoneda == 1 ? "Colones" : "Dólares"; }
+    // Una fila por tipo de tarjeta/forma de pago (Caja/GetTipoTarjetum), no un
+    // total de tarjetas sin desglosar — asi lo hace el sistema actual.
+    private sealed class Tarjeta { public int Id { get; set; } public int IdTarjeta { get; set; } public string? Descripcion { get; set; } public int CodMoneda { get; set; } public string? Moneda { get; set; } public decimal Monto { get; set; } }
     private readonly List<ObtenerAperturaCajaDTO> _aperturas = new();
     private readonly List<Efectivo> _efectivo = new();
+    private readonly List<Tarjeta> _tarjetas = new();
     private ObtenerAperturaCajaDTO? _aperturaSeleccionada;
     private int _idApertura; private string? _observaciones; private bool _cargando, _guardando;
     private AppDesbloqueoClave? _bloqueo;
     private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
     private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
-    private double _tarjetaColones, _tarjetaDolares, _cheques, _chequesDol, _depositoCol, _depositoDol;
-    private double EfectivoColones => _efectivo.Where(e => e.Origen.CodMoneda == 1).Sum(e => e.Total);
-    private double EfectivoDolares => _efectivo.Where(e => e.Origen.CodMoneda != 1).Sum(e => e.Total);
-    private double Total => EfectivoColones + EfectivoDolares + _tarjetaColones + _tarjetaDolares + _cheques + _chequesDol + _depositoCol + _depositoDol;
+    private decimal _cheques, _chequesDol, _depositoCol, _depositoDol;
+    // Se toma del API (mismo tipo de cambio que usa el resto de la aplicacion,
+    // /moneda/ObtenerTipoCambio) al cargar; si no responde, 1 es el valor mas
+    // seguro (no infla ni desinfla los dolares silenciosamente hacia otro numero).
+    // Al editar un arqueo ya guardado se respeta el tipo de cambio con el que se
+    // registro, no el de hoy.
+    private decimal _tipoCambio = 1;
+    private decimal EfectivoColones => _efectivo.Where(e => e.CodMoneda == 1).Sum(e => e.Total);
+    private decimal EfectivoDolares => _efectivo.Where(e => e.CodMoneda != 1).Sum(e => e.Total);
+    private decimal TarjetaColones => _tarjetas.Where(t => t.CodMoneda == 1).Sum(t => t.Monto);
+    private decimal TarjetaDolares => _tarjetas.Where(t => t.CodMoneda != 1).Sum(t => t.Monto);
+    private decimal ColonesDeclarados => EfectivoColones + TarjetaColones + _cheques + _depositoCol;
+    private decimal DolaresDeclarados => EfectivoDolares + TarjetaDolares + _chequesDol + _depositoDol;
+    private decimal Total => CalculoArqueo.Total(ColonesDeclarados, DolaresDeclarados, _tipoCambio);
+
+    // Lo que el sistema tiene registrado durante esta apertura, para comparar
+    // contra lo que declara el cajero — el proposito real de un arqueo.
+    private readonly List<OpcionesDePagoCierreCaja> _documentos = new();
+    private ArqueoMontoDepositoDTO? _depositoSistema;
+    private bool _cargandoDetalle;
+
+    private bool _editando;
+    private long _idArqueoEditando;
+    private int _idAperturaEditando;
+    private string? _cajeroEditando;
+
+    private HxModal _modalBuscar = default!;
+    private readonly List<ArqueoCajaFiltroResultadoDTO> _encontradas = new();
+    private DateTime? _filtroDesde, _filtroHasta;
+    private long? _filtroNumero;
+    private string? _filtroUsuario;
+    private bool _buscando;
+
     protected override Task OnInitializedAsync() => Cargar();
 
     private async Task Cargar()
     {
         _cargando = true;
         var aperturas = await Respuestas.DatoAsync(await Api.AperturasSinArqueo(), "consultar las aperturas pendientes");
-        var denominaciones = await Respuestas.DatoAsync(await Api.Denominaciones(), "consultar las denominaciones");
         _aperturas.Clear(); _aperturas.AddRange(aperturas ?? Array.Empty<ObtenerAperturaCajaDTO>());
-        _efectivo.Clear(); _efectivo.AddRange((denominaciones ?? Array.Empty<DenominacionMonedum>()).Select(d => new Efectivo { Origen = d }));
+        if (!_editando)
+        {
+            var denominaciones = await Respuestas.DatoAsync(await Api.Denominaciones(), "consultar las denominaciones");
+            _efectivo.Clear();
+            _efectivo.AddRange((denominaciones ?? Array.Empty<DenominacionMonedum>())
+                .Select(d => new Efectivo { IdDenominacion = d.Id, Monto = Formato.AImporte(d.Denominacion), CodMoneda = d.CodMoneda, Tipo = d.Tipo }));
+            var tipos = await Respuestas.DatoAsync(await Api.TiposDeTarjeta(), "consultar los tipos de tarjeta");
+            _tarjetas.Clear();
+            _tarjetas.AddRange((tipos ?? Array.Empty<FormasPagoDTO>())
+                .Select(t => new Tarjeta { IdTarjeta = t.IdTarjeta ?? 0, Descripcion = t.Descripcion, CodMoneda = t.CodMoneda, Moneda = t.Moneda }));
+            var tipoCambio = await Respuestas.DatoAsync(await Api.TipoCambioDolar(), "consultar el tipo de cambio");
+            if (tipoCambio is not null && tipoCambio.ValorVenta > 0) _tipoCambio = Formato.AImporte(tipoCambio.ValorVenta);
+        }
         _cargando = false;
     }
-    private void SeleccionarApertura() => _aperturaSeleccionada = _aperturas.FirstOrDefault(a => a.Napertura == _idApertura);
+
+    private async Task SeleccionarApertura()
+    {
+        _aperturaSeleccionada = _aperturas.FirstOrDefault(a => a.Napertura == _idApertura);
+        await CargarDetalleSistema(_idApertura);
+    }
+
+    private async Task CargarDetalleSistema(long numeroApertura)
+    {
+        _documentos.Clear(); _depositoSistema = null;
+        if (numeroApertura <= 0) return;
+        _cargandoDetalle = true;
+        var documentos = await Respuestas.DatoAsync(await Api.DocumentosDeApertura(numeroApertura), "consultar los documentos de la apertura");
+        _documentos.AddRange(documentos ?? Array.Empty<OpcionesDePagoCierreCaja>());
+        _depositoSistema = await Respuestas.DatoAsync(await Api.MontoDepositosDeApertura((int)numeroApertura), "consultar los depósitos registrados");
+        _cargandoDetalle = false;
+    }
+
+    private async Task AbrirBuscador()
+    {
+        _encontradas.Clear(); _filtroDesde = _filtroHasta = null; _filtroNumero = null; _filtroUsuario = null;
+        await _modalBuscar.ShowAsync();
+    }
+
+    private async Task Buscar()
+    {
+        _buscando = true;
+        var filtro = new ArqueoCajaFiltroDTO { Desde = _filtroDesde, Hasta = _filtroHasta, NumArqueo = _filtroNumero, UsuarioApertura = _filtroUsuario };
+        var resultado = await Respuestas.DatoAsync(await Api.BuscarArqueos(filtro), "buscar los arqueos");
+        _encontradas.Clear(); _encontradas.AddRange(resultado ?? Array.Empty<ArqueoCajaFiltroResultadoDTO>());
+        _buscando = false;
+    }
+
+    private async Task AbrirParaEditar(long idArqueo)
+    {
+        var arqueo = await Respuestas.DatoAsync(await Api.ObtenerArqueo(idArqueo), "consultar el arqueo");
+        if (arqueo is null) return;
+
+        _editando = true;
+        _idArqueoEditando = arqueo.Id;
+        _idAperturaEditando = arqueo.IdApertura;
+        _cajeroEditando = arqueo.Cajero;
+        _observaciones = arqueo.Observaciones;
+        _cheques = Formato.AImporte(arqueo.Cheques);
+        _chequesDol = Formato.AImporte(arqueo.ChequesDol);
+        _depositoCol = Formato.AImporte(arqueo.DepositoCol);
+        _depositoDol = Formato.AImporte(arqueo.DepositoDol);
+        _tipoCambio = arqueo.TipoCambioD > 0 ? Formato.AImporte(arqueo.TipoCambioD) : 1;
+
+        _efectivo.Clear();
+        _efectivo.AddRange((arqueo.Efectivos ?? new List<ArqueoEfectivoDTO>())
+            .Select(e => new Efectivo { IdDenominacion = e.IdDenominacion, Monto = Formato.AImporte(e.Monto), Cantidad = e.Cantidad, CodMoneda = e.CodMoneda ?? 0, Tipo = e.Tipo }));
+
+        _tarjetas.Clear();
+        _tarjetas.AddRange((arqueo.Tarjeta ?? new List<ArqueoTarjetaDTO>())
+            .Select(t => new Tarjeta { Id = t.Id, IdTarjeta = t.IdTarjeta, Descripcion = t.TarjetaDescripcion, CodMoneda = t.CodMoneda ?? 0, Moneda = t.CodMoneda == 1 ? "Colones" : "Dólares", Monto = Formato.AImporte(t.Monto) }));
+
+        await CargarDetalleSistema(_idAperturaEditando);
+        await _modalBuscar.HideAsync();
+    }
+
+    private void CancelarEdicion()
+    {
+        _editando = false; _idArqueoEditando = 0; _idAperturaEditando = 0; _cajeroEditando = null;
+        _idApertura = 0; _aperturaSeleccionada = null; _observaciones = null;
+        _cheques = _chequesDol = _depositoCol = _depositoDol = 0;
+        _documentos.Clear(); _depositoSistema = null;
+        _ = Cargar();
+    }
+
+    private async Task Anular()
+    {
+        if (!_editando) return;
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Desea anular el arqueo #{_idArqueoEditando}?", "Anular arqueo")) return;
+        if (await Respuestas.CorrectaAsync(await Api.AnularArqueo(_idArqueoEditando), "anular el arqueo de caja"))
+        {
+            Dialogos.Exito("Arqueo anulado.");
+            CancelarEdicion();
+        }
+    }
+
     private async Task Guardar()
     {
-        if (_aperturaSeleccionada is null) { await Dialogos.InformarAsync("Seleccione una apertura para continuar."); return; }
-        if (!await Dialogos.ConfirmarAsync("¿Desea registrar este arqueo de caja?", "Registrar arqueo", "Registrar")) return;
+        if (!_editando && _aperturaSeleccionada is null) { await Dialogos.InformarAsync("Seleccione una apertura para continuar."); return; }
+        if (!await Dialogos.ConfirmarAsync(_editando ? "¿Desea guardar los cambios de este arqueo?" : "¿Desea registrar este arqueo de caja?", _editando ? "Guardar cambios" : "Registrar arqueo", "Guardar")) return;
         _guardando = true;
-        var arqueo = new ArqueoCajaDTO { IdApertura = _idApertura, Cajero = _aperturaSeleccionada.Nombre, Fecha = DateTime.Now.ToString("yyyy-MM-dd"), Observaciones = _observaciones, EfectivoColones = EfectivoColones, EfectivoDolares = EfectivoDolares, TarjetaColones = _tarjetaColones, TarjetaDolares = _tarjetaDolares, Cheques = _cheques, ChequesDol = _chequesDol, DepositoCol = _depositoCol, DepositoDol = _depositoDol, Total = Total, Efectivos = _efectivo.Select(e => new ArqueoEfectivoDTO { IdDenominacion = e.Origen.Id, Monto = e.Monto, Cantidad = e.Cantidad, CodMoneda = e.Origen.CodMoneda, Tipo = e.Origen.Tipo }).ToList() };
-        var creado = await Respuestas.DatoAsync(await Api.CrearArqueo(arqueo), "registrar el arqueo de caja");
+        var arqueo = new ArqueoCajaDTO
+        {
+            Id = _editando ? _idArqueoEditando : 0,
+            IdApertura = _editando ? _idAperturaEditando : _idApertura,
+            Cajero = _editando ? _cajeroEditando : _aperturaSeleccionada!.Nombre,
+            Fecha = DateTime.Now.ToString("yyyy-MM-dd"), Observaciones = _observaciones,
+            EfectivoColones = (double)EfectivoColones, EfectivoDolares = (double)EfectivoDolares,
+            TarjetaColones = (double)TarjetaColones, TarjetaDolares = (double)TarjetaDolares,
+            Cheques = (double)_cheques, ChequesDol = (double)_chequesDol,
+            DepositoCol = (double)_depositoCol, DepositoDol = (double)_depositoDol,
+            TipoCambioD = (double)_tipoCambio, Total = (double)Total,
+            Efectivos = _efectivo.Select(e => new ArqueoEfectivoDTO { IdDenominacion = e.IdDenominacion, Monto = (double)e.Monto, Cantidad = e.Cantidad, CodMoneda = e.CodMoneda, Tipo = e.Tipo }).ToList(),
+            Tarjeta = _tarjetas.Where(t => t.Monto != 0).Select(t => new ArqueoTarjetaDTO { Id = t.Id, IdArqueo = _editando ? _idArqueoEditando : 0, IdTarjeta = t.IdTarjeta, Monto = (double)t.Monto, CodMoneda = t.CodMoneda, TarjetaDescripcion = t.Descripcion }).ToList()
+        };
+        var resultado = _editando
+            ? await Respuestas.DatoAsync(await Api.EditarArqueo(arqueo), "editar el arqueo de caja")
+            : await Respuestas.DatoAsync(await Api.CrearArqueo(arqueo), "registrar el arqueo de caja");
         _guardando = false;
-        if (creado is null) return;
-        Dialogos.Exito("Arqueo registrado correctamente.");
-        _idApertura = 0; _aperturaSeleccionada = null; _observaciones = null; _tarjetaColones = _tarjetaDolares = _cheques = _chequesDol = _depositoCol = _depositoDol = 0; foreach (var e in _efectivo) e.Cantidad = 0;
-        await Cargar();
+        if (resultado is null) return;
+        Dialogos.Exito(_editando ? "Arqueo actualizado correctamente." : "Arqueo registrado correctamente.");
+        CancelarEdicion(); // limpia el formulario y recarga, sirva de alta o de edicion
     }
 }

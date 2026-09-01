@@ -327,6 +327,10 @@
                     {
                         <button type="button" class="btn btn-sm @ClasePestanaBonificacion" @onclick="MostrarBonificacion">Bonificación</button>
                     }
+                    @if (!Sesion.EsCostaPets)
+                    {
+                        <button type="button" class="btn btn-sm @ClasePestanaOtros" @onclick="MostrarOtros">Otros datos</button>
+                    }
                 </nav>
 
                 @if (_pestanaInventario == "generales")
@@ -394,14 +398,33 @@
                         </div>
                     }
                     <div class="col-12 seepos-form-seccion">Existencias</div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label" for="articulo-minima">Existencia mínima</label>
-                        <input id="articulo-minima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Minima" @bind:event="onchange" />
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label class="form-label" for="articulo-maxima">Existencia máxima</label>
-                        <input id="articulo-maxima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Maxima" @bind:event="onchange" />
-                    </div>
+                    @if (!Sesion.EsCostaPets)
+                    {
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="articulo-minima">Existencia mínima</label>
+                            <input id="articulo-minima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Minima" @bind:event="onchange" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="articulo-maxima">Existencia máxima</label>
+                            <input id="articulo-maxima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Maxima" @bind:event="onchange" />
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="articulo-existencia">Existencia actual</label>
+                            <input id="articulo-existencia" type="number" min="0" step="0.001" class="form-control" value="@_existenciaEditable" disabled="@(_esNuevo || _guardandoExistencia)"
+                                   @onchange="AlCambiarExistencia" />
+                            @if (_esNuevo)
+                            {
+                                <div class="form-text">Se habilita al guardar el artículo — hace falta un código para ajustar existencia.</div>
+                            }
+                            else
+                            {
+                                <div class="form-text">Ajuste directo: se guarda de inmediato, aparte del botón "Guardar".</div>
+                            }
+                        </div>
+                    }
                     <div class="col-12">
                         <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" />
                     </div>
@@ -417,6 +440,18 @@
                         <div class="form-check">
                             <input id="articulo-mag" class="form-check-input" type="checkbox" @bind="_edicion.Mag" />
                             <label class="form-check-label" for="articulo-mag">MAG</label>
+                        </div>
+                        <div class="form-check">
+                            <input id="articulo-promocon" class="form-check-input" type="checkbox" @bind="_edicion.PromoCON" />
+                            <label class="form-check-label" for="articulo-promocon">Promoción CON</label>
+                        </div>
+                        <div class="form-check">
+                            <input id="articulo-promocre" class="form-check-input" type="checkbox" @bind="_edicion.PromoCRE" />
+                            <label class="form-check-label" for="articulo-promocre">Promoción CRE</label>
+                        </div>
+                        <div class="form-check">
+                            <input id="articulo-receta" class="form-check-input" type="checkbox" @bind="_edicion.Receta" />
+                            <label class="form-check-label text-danger" for="articulo-receta">Solo con receta</label>
                         </div>
                         @if (Sesion.EsCostaPets)
                         {
@@ -445,6 +480,19 @@
                         <div class="col-12 col-md-4 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="CalcularPrecio">Calcular precio</button></div>
                         <div class="col-12 col-md-6"><label class="form-label">Precio sin impuesto</label><input type="number" min="0" step="0.01" class="form-control" @bind="PrecioTarifaActual" /></div>
                         <div class="col-12 col-md-6"><label class="form-label">Precio con impuesto</label><input type="text" readonly class="form-control" value="@PrecioConImpuestoTexto" /></div>
+
+                        <div class="col-12 seepos-form-seccion">Último costo</div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="articulo-moneda-costo">Moneda del costo</label>
+                            <select id="articulo-moneda-costo" class="form-select" @bind="_edicion.MonedaCosto">
+                                <option value="1">Colones</option>
+                                <option value="2">Dólares</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Costo (base + fletes + otros)</label>
+                            <input type="text" readonly class="form-control" value="@Formato.Importe(CostoCalculado)" />
+                        </div>
                     </div>
                 }
                 else if (_pestanaInventario == "barras")
@@ -583,6 +631,27 @@
                         }
                     </div>
                 }
+                else if (_pestanaInventario == "otros")
+                {
+                    <div class="row g-3">
+                        <div class="col-12"><h3 class="h6 mb-0">Rebaja otro artículo</h3><p class="form-text">Al vender este artículo, rebaja existencia de otro (por ejemplo, un combo que consume un componente).</p></div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Artículo a rebajar</label>
+                            <div class="input-group">
+                                <input class="form-control" disabled value="@(_articuloDescargaSeleccionado?.Descripcion ?? _edicion.CodigoDescarga)" placeholder="Ninguno seleccionado" />
+                                <button type="button" class="btn btn-outline-primary" @onclick="AbrirBuscadorDescarga"><i class="bi bi-search" aria-hidden="true"></i></button>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6"><label class="form-label">Código de presentación</label><input type="number" min="0" class="form-control" @bind="_edicion.Cod_PresentOtro" /></div>
+                        <div class="col-12 col-md-6"><label class="form-label">Cantidad de presentación</label><input type="number" min="0" step="0.001" class="form-control" @bind="_edicion.CantidadPresentOtro" /></div>
+                        <div class="col-12 col-md-6"><label class="form-label">Cantidad a descargar</label><input type="number" min="0" step="0.001" class="form-control" @bind="_edicion.CantidadDescarga" /></div>
+
+                        <div class="col-12"><hr /><h3 class="h6 mb-0">Información de proveedor</h3></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Código QVET</label><input type="number" min="0" class="form-control" @bind="_edicion.IdCodigoInternoQvet" /></div>
+                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Código de proveedor" @bind-Valor="_edicion.CodigoProveedor" /></div>
+                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Descripción de proveedor" @bind-Valor="_edicion.DescripcionProveedor" /></div>
+                    </div>
+                }
             </EditForm>
         }
     </BodyTemplate>
@@ -595,6 +664,7 @@
 </HxModal>
 
 <AppBuscadorArticulo @ref="_buscadorRegaloBonificacion" AlElegir="ElegirProductoRegalo" />
+<AppBuscadorArticulo @ref="_buscadorDescarga" AlElegir="ElegirArticuloDescarga" />
 
 <HxModal @ref="_modalCabys" Title="Buscar código CABYS" Size="ModalSize.Large">
     <BodyTemplate>
@@ -655,6 +725,11 @@
     private List<ArticulosRelacionadosDTO> _productosRegalo = new();
     private InventarioDTO? _articuloRegaloSeleccionado;
     private float _cantidadRegalo = 1;
+
+    private AppBuscadorArticulo _buscadorDescarga = default!;
+    private InventarioDTO? _articuloDescargaSeleccionado;
+    private float _existenciaEditable;
+    private bool _guardandoExistencia;
     private string _nuevoCodigoBarras = string.Empty;
     private string _tarifaCodigoBarras = string.Empty;
     private string _pestanaInventario = "generales";
@@ -840,6 +915,8 @@
             Estado = true,
             IdUsuarioCreacion = Sesion.Usuario
         };
+        _existenciaEditable = 0;
+        _articuloDescargaSeleccionado = null;
         await _modal.ShowAsync();
     }
 
@@ -848,6 +925,8 @@
         _esNuevo = false;
         var completo = await Respuestas.DatoAsync(await Api.Uno(articulo.Codigo), "abrir el artículo");
         _edicion = Copiar(completo ?? articulo);
+        _existenciaEditable = _edicion.Existencia;
+        _articuloDescargaSeleccionado = null;
         _nuevoCodigoBarras = string.Empty;
         _tarifaCodigoBarras = string.Empty;
         ReiniciarEditorProduccion();
@@ -941,6 +1020,7 @@
     private string ClasePestanaFormula => ClasePestana("formula");
     private string ClasePestanaLotes => ClasePestana("lotes");
     private string ClasePestanaBonificacion => ClasePestana("bonificacion");
+    private string ClasePestanaOtros => ClasePestana("otros");
 
     private string ClasePestana(string pestana)
         => _pestanaInventario == pestana ? "btn-primary" : "btn-outline-primary";
@@ -951,6 +1031,46 @@
     private void MostrarFormula() => _pestanaInventario = "formula";
     private void MostrarLotes() => _pestanaInventario = "lotes";
     private void MostrarBonificacion() => _pestanaInventario = "bonificacion";
+    private void MostrarOtros() => _pestanaInventario = "otros";
+
+    // Costo = base + fletes + otros cargos, igual que el sistema actual
+    // (InventoryBodyFeaturesUltimoCosto.jsx). Es un total de referencia para
+    // costeo, distinto del calculo de precio de venta de la pestaña "Precios".
+    private decimal CostoCalculado => Formato.AImporte(_edicion?.PrecioBase ?? 0)
+        + Formato.AImporte(_edicion?.Fletes ?? 0) + Formato.AImporte(_edicion?.OtrosCargos ?? 0);
+
+    private Task AbrirBuscadorDescarga() => _buscadorDescarga.AbrirAsync();
+
+    private void ElegirArticuloDescarga(InventarioDTO articulo)
+    {
+        _articuloDescargaSeleccionado = articulo;
+        if (_edicion is not null) _edicion.CodigoDescarga = articulo.Cod_Articulo;
+    }
+
+    // Ajuste directo de existencia (solo CostaPets): se guarda de inmediato
+    // contra /Stocks/ActualizarExistenciaArticulo, aparte del "Guardar" del
+    // articulo — igual que hace el sistema actual (startSetStockInventory).
+    private async Task AlCambiarExistencia(ChangeEventArgs e)
+    {
+        if (_edicion is null || _esNuevo) return;
+        if (!float.TryParse(e.Value?.ToString(), out var cantidad) || cantidad < 0) { _existenciaEditable = _edicion.Existencia; return; }
+        if (!await Dialogos.ConfirmarAsync("¿Desea actualizar el stock del inventario actual?", "Actualizar existencia", "Actualizar")) { _existenciaEditable = _edicion.Existencia; return; }
+
+        _guardandoExistencia = true;
+        var ok = await Respuestas.CorrectaAsync(await Api.ActualizarExistencia((int)_edicion.Codigo, cantidad), "actualizar la existencia");
+        _guardandoExistencia = false;
+
+        if (ok)
+        {
+            _existenciaEditable = cantidad;
+            _edicion.Existencia = cantidad;
+            Dialogos.Exito("Se cambió el stock correctamente.");
+        }
+        else
+        {
+            _existenciaEditable = _edicion.Existencia;
+        }
+    }
 
     private string NombreTipoBonificacionArticulo(int idConfiguracionBonificacion)
         => _tiposBonificacionArticulo.FirstOrDefault(t => t.IdConfiguracionBonificacion == idConfiguracionBonificacion)?.Descripcion

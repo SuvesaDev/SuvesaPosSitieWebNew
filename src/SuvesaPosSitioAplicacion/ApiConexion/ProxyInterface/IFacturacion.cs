@@ -10,4 +10,7 @@ public interface IFacturacion
     Task<ResponseGeneric<ICollection<EmpresaDTO>>> Empresas();
     Task<ResponseGeneric<Usuario>> ValidarClaveInterna(string contrasena);
     Task<ResponseGeneric<FacturaDTO>> Crear(FacturaDTO factura);
+
+    /// <summary>Catálogo de agentes de venta, para la condición "Agente" del encabezado.</summary>
+    Task<ResponseGeneric<ICollection<AgenteVendedorDTO>>> Agentes();
 }

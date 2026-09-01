@@ -126,4 +126,18 @@ public sealed class ClientesConsulta : ProxyBase, IClientesConsulta
             return EnvelopeApi.A<ICollection<ClienteDatosSucursalDTO>>(
                 r.Status, r.CurrentException, r.ValidationErrors, datos);
         }, "consultar los datos de facturación del cliente");
+
+    public Task<ResponseGeneric<CorreosComprobantes>> ObtenerCorreosComprobante(long idCliente)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ObtenerEmailsComprobantesAsync(idCliente);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar los correos del comprobante");
+
+    public Task<ResponseGeneric<CorreosComprobantes>> ActualizarCorreosComprobante(CorreosComprobantes correos)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ActualizarEmailsComprobantesAsync(correos);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "guardar los correos del comprobante");
 }

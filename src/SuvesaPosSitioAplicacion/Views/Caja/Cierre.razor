@@ -9,15 +9,35 @@
 
 <AppPantalla Pantalla="Cierre Caja" Nivel="NivelPantalla.Escritorio">
     <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="AbrirBuscador" disabled="@Bloqueada"><i class="bi bi-search me-1" aria-hidden="true"></i>Buscar</button>
         <button class="btn btn-sm btn-outline-secondary" @onclick="CargarAperturas" disabled="@(_cargando || Bloqueada)"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
-        <button class="btn btn-sm btn-primary" @onclick="CerrarCaja" disabled="@(Bloqueada || _datos is null || _guardando)"><i class="bi bi-lock-fill me-1" aria-hidden="true"></i>@(_guardando ? "Cerrando..." : "Registrar cierre")</button>
+        @if (_viendo)
+        {
+            <button class="btn btn-sm btn-outline-danger" @onclick="Anular" disabled="@_guardando"><i class="bi bi-x-circle me-1" aria-hidden="true"></i>Anular</button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="CerrarVista" disabled="@_guardando">Volver a registrar</button>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-primary" @onclick="CerrarCaja" disabled="@(Bloqueada || _datos is null || _guardando)"><i class="bi bi-lock-fill me-1" aria-hidden="true"></i>@(_guardando ? "Cerrando..." : "Registrar cierre")</button>
+        }
     </Acciones>
     <ChildContent>
         <AppDesbloqueoClave @ref="_bloqueo" Titulo="el cierre de caja" AlCambiar="AlDesbloquear" />
         <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
+        @if (_viendo)
+        {
+            <div class="alert alert-info mb-3">Consultando el cierre de la apertura <strong>#@_numeroAperturaViendo</strong>. Un cierre ya registrado no se puede editar, solo anular.</div>
+        }
         <div class="seepos-caja">
             <div class="card mb-3"><div class="card-header"><strong>Período y apertura</strong></div><div class="card-body"><div class="row g-3 align-items-end">
-                <div class="col-12 col-md-6"><label class="form-label" for="aperturaCierre">Apertura sin cerrar</label><InputSelect id="aperturaCierre" class="form-select" @bind-Value="_numeroApertura" @bind-Value:after="CargarDatos"><option value="0">Seleccione...</option>@foreach (var a in _aperturas) { <option value="@a.Napertura">#@a.Napertura · @a.Nombre · Caja @a.NumCaja</option> }</InputSelect></div>
+                @if (_viendo)
+                {
+                    <div class="col-12 col-md-6"><label class="form-label">Apertura</label><input class="form-control" value="@($"#{_numeroAperturaViendo}")" disabled /></div>
+                }
+                else
+                {
+                    <div class="col-12 col-md-6"><label class="form-label" for="aperturaCierre">Apertura sin cerrar</label><InputSelect id="aperturaCierre" class="form-select" @bind-Value="_numeroApertura" @bind-Value:after="CargarDatos"><option value="0">Seleccione...</option>@foreach (var a in _aperturas) { <option value="@a.Napertura">#@a.Napertura · @a.Nombre · Caja @a.NumCaja</option> }</InputSelect></div>
+                }
                 <div class="col-12 col-md-3"><label class="form-label">Fecha de apertura</label><input class="form-control" value="@(_datos?.FechaApertura.ToString("dd/MM/yyyy") ?? "")" disabled /></div>
                 <div class="col-12 col-md-3"><label class="form-label">Cajero</label><input class="form-control" value="@(_datos?.Nombre ?? "")" disabled /></div>
             </div></div></div>
@@ -40,6 +60,32 @@
     </ChildContent>
 </AppPantalla>
 
+<HxModal @ref="_modalBuscar" Title="Buscar cierres" Size="ModalSize.Large">
+    <BodyTemplate>
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-6 col-md-3"><label class="form-label">Fecha desde</label><InputDate class="form-control" @bind-Value="_filtroDesde" /></div>
+            <div class="col-6 col-md-3"><label class="form-label">Fecha hasta</label><InputDate class="form-control" @bind-Value="_filtroHasta" /></div>
+            <div class="col-6 col-md-2"><label class="form-label">N.º apertura</label><InputNumber class="form-control" @bind-Value="_filtroNumApertura" /></div>
+            <div class="col-6 col-md-2"><label class="form-label">Usuario</label><InputText class="form-control" @bind-Value="_filtroNombre" /></div>
+            <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="Buscar" disabled="@_buscando">Buscar</button></div>
+        </div>
+        @if (_buscando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Buscando</span></div></div>
+        }
+        else if (_encontrados.Count == 0)
+        {
+            <p class="text-secondary text-center py-4">Use uno de los filtros para consultar cierres.</p>
+        }
+        else
+        {
+            <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Apertura</th><th>Cajero</th><th>Fecha cierre</th><th></th></tr></thead><tbody>
+                @foreach (var c in _encontrados) { <tr><td>#@c.NumApertura</td><td>@c.CodigoCajero</td><td>@c.FechaCierre.ToString("dd/MM/yyyy HH:mm")</td><td class="text-end"><button type="button" class="btn btn-sm btn-primary" @onclick="() => AbrirParaVer(c)">Ver</button></td></tr> }
+            </tbody></table></div>
+        }
+    </BodyTemplate>
+</HxModal>
+
 @code {
     private readonly List<AperturaCajaDTO> _aperturas = new();
     private ObtenerDatosCierreCaja? _datos;
@@ -48,6 +94,18 @@
     private AppDesbloqueoClave? _bloqueo;
     private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
     private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
+
+    private bool _viendo;
+    private long _numeroAperturaViendo;
+    private long _idCierreViendo;
+
+    private HxModal _modalBuscar = default!;
+    private readonly List<FiltroCierreCajaBusquedaDTO> _encontrados = new();
+    private DateTime? _filtroDesde, _filtroHasta;
+    private long? _filtroNumApertura;
+    private string? _filtroNombre;
+    private bool _buscando;
+
     protected override Task OnInitializedAsync() => CargarAperturas();
     private async Task CargarAperturas()
     {
@@ -72,5 +130,50 @@
         _guardando = false;
         if (creado is null) return;
         Dialogos.Exito("Cierre de caja registrado correctamente."); _numeroApertura = 0; _datos = null; await CargarAperturas();
+    }
+
+    private async Task AbrirBuscador()
+    {
+        _encontrados.Clear(); _filtroDesde = _filtroHasta = null; _filtroNumApertura = null; _filtroNombre = null;
+        await _modalBuscar.ShowAsync();
+    }
+
+    private async Task Buscar()
+    {
+        _buscando = true;
+        var filtro = new BuscarCierreCajaDTO { DesdeFecha = _filtroDesde, HastaFecha = _filtroHasta, NumApertura = _filtroNumApertura, Nombre = _filtroNombre };
+        var resultado = await Respuestas.DatoAsync(await Api.BuscarCierres(filtro), "buscar los cierres");
+        _encontrados.Clear(); _encontrados.AddRange(resultado ?? Array.Empty<FiltroCierreCajaBusquedaDTO>());
+        _buscando = false;
+    }
+
+    private async Task AbrirParaVer(FiltroCierreCajaBusquedaDTO cierre)
+    {
+        var datos = await Respuestas.DatoAsync(await Api.DatosCierreRegistrado(cierre.NumApertura), "consultar el cierre registrado");
+        if (datos is null) return;
+
+        _viendo = true;
+        _numeroAperturaViendo = cierre.NumApertura;
+        _idCierreViendo = cierre.IdCierre;
+        _datos = datos;
+
+        await _modalBuscar.HideAsync();
+    }
+
+    private void CerrarVista()
+    {
+        _viendo = false; _numeroAperturaViendo = 0; _idCierreViendo = 0; _datos = null; _numeroApertura = 0;
+        _ = CargarAperturas();
+    }
+
+    private async Task Anular()
+    {
+        if (!_viendo) return;
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Desea anular el cierre de la apertura #{_numeroAperturaViendo}?", "Anular cierre")) return;
+        if (await Respuestas.CorrectaAsync(await Api.AnularCierre(_idCierreViendo), "anular el cierre de caja"))
+        {
+            Dialogos.Exito("Cierre anulado.");
+            CerrarVista();
+        }
     }
 }

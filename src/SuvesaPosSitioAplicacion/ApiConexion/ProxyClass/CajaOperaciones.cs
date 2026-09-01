@@ -15,11 +15,12 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
     private readonly IBancosApiCliente _bancos;
     private readonly ICentrosApiCliente _centros;
     private readonly IUsuarioApiCliente _usuarios;
+    private readonly IMonedaApiCliente _moneda;
 
     public CajaOperaciones(
         ICajaApiCliente caja, IArqueoApiCliente arqueo, ICierreCajaApiCliente cierre,
-        IBancosApiCliente bancos, ICentrosApiCliente centros, IUsuarioApiCliente usuarios, IContextoSesion sesion,
-        ILogger<CajaOperaciones> log) : base(sesion, log)
+        IBancosApiCliente bancos, ICentrosApiCliente centros, IUsuarioApiCliente usuarios, IMonedaApiCliente moneda,
+        IContextoSesion sesion, ILogger<CajaOperaciones> log) : base(sesion, log)
     {
         _caja = caja;
         _arqueo = arqueo;
@@ -27,6 +28,7 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         _bancos = bancos;
         _centros = centros;
         _usuarios = usuarios;
+        _moneda = moneda;
     }
 
     public Task<ResponseGeneric<Usuario>> ValidarClaveInterna(string contrasena) => Ejecutar(async () =>
@@ -144,4 +146,100 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         var r = await _bancos.CrearDepositoAsync(deposito);
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "crear el depósito");
+
+    public Task<ResponseGeneric<Moneda>> TipoCambioDolar() => Ejecutar(async () =>
+    {
+        var r = await _moneda.ObtenerTipoCambioAsync();
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "consultar el tipo de cambio del dólar");
+
+    public Task<ResponseGeneric<ICollection<AperturaCajaFiltroResultadoDTO>>> BuscarAperturas(AperturaCajaFiltroDTO filtro) => Ejecutar(async () =>
+    {
+        var r = await _caja.ObtenerFiltrosAperturaCajaAsync(filtro);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "buscar las aperturas de caja");
+
+    public Task<ResponseGeneric<AperturaCajaDTO>> ObtenerApertura(int numeroApertura) => Ejecutar(async () =>
+    {
+        var r = await _caja.ConsultarAperturaCajaAsync(numeroApertura);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "consultar la apertura de caja");
+
+    public Task<ResponseGeneric<AperturaDenominacionDTO>> EditarDenominacionApertura(AperturaDenominacionDTO linea) => Ejecutar(async () =>
+    {
+        var r = await _caja.EditarAperturaDenominacionAsync(linea);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "editar la denominación de la apertura");
+
+    public Task<ResponseGeneric<AperturaTotalTopeDTO>> EditarTotalTopeApertura(AperturaTotalTopeDTO linea) => Ejecutar(async () =>
+    {
+        var r = await _caja.EditarAperturaTotalTopeAsync(linea);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "editar el total tope de la apertura");
+
+    public Task<ResponseGeneric<AperturaCajaDTO>> AnularApertura(int numeroApertura) => Ejecutar(async () =>
+    {
+        var r = await _caja.DeleteAperturaCajaAsync(numeroApertura);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "anular la apertura de caja");
+
+    public Task<ResponseGeneric<ICollection<ArqueoCajaFiltroResultadoDTO>>> BuscarArqueos(ArqueoCajaFiltroDTO filtro) => Ejecutar(async () =>
+    {
+        var r = await _arqueo.ObtenerFiltrosArqueoCajaAsync(filtro);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "buscar los arqueos de caja");
+
+    public Task<ResponseGeneric<ArqueoCajaDTO>> ObtenerArqueo(long id) => Ejecutar(async () =>
+    {
+        var r = await _arqueo.ConsultarArqueoCajaAsync(id);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "consultar el arqueo de caja");
+
+    public Task<ResponseGeneric<ArqueoCajaDTO>> EditarArqueo(ArqueoCajaDTO arqueo) => Ejecutar(async () =>
+    {
+        var r = await _arqueo.EditarArqueoCajaAsync(arqueo);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "editar el arqueo de caja");
+
+    public Task<ResponseGeneric<ArqueoCajaDTO>> AnularArqueo(long id) => Ejecutar(async () =>
+    {
+        var r = await _arqueo.DeleteArqueoCajaAsync(id);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "anular el arqueo de caja");
+
+    public Task<ResponseGeneric<ICollection<FiltroCierreCajaBusquedaDTO>>> BuscarCierres(BuscarCierreCajaDTO filtro) => Ejecutar(async () =>
+    {
+        var r = await _cierre.BuscarCierreCajaAsync(filtro);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "buscar los cierres de caja");
+
+    public Task<ResponseGeneric<CierreCajaDTO>> AnularCierre(long idCierre) => Ejecutar(async () =>
+    {
+        var r = await _cierre.AnularCierreDeCajaAsync(idCierre);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "anular el cierre de caja");
+
+    public Task<ResponseGeneric<ObtenerDatosCierreCaja>> DatosCierreRegistrado(long numeroApertura) => Ejecutar(async () =>
+    {
+        var r = await _cierre.ObtenerDatosDelCierreCajaInsertadoAsync(numeroApertura);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "consultar el consolidado del cierre registrado");
+
+    public Task<ResponseGeneric<ICollection<OpcionesDePagoCierreCaja>>> DocumentosDeApertura(long numeroApertura) => Ejecutar(async () =>
+    {
+        var r = await _arqueo.ObtenerDocumentosEnArqueoCajaAsync(numeroApertura);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "consultar los documentos de la apertura");
+
+    public Task<ResponseGeneric<ArqueoMontoDepositoDTO>> MontoDepositosDeApertura(int numeroApertura) => Ejecutar(async () =>
+    {
+        var r = await _arqueo.ObtenerMontoDepositosCajaAsync(numeroApertura);
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "consultar el monto de depósitos registrados");
+
+    public Task<ResponseGeneric<ICollection<FormasPagoDTO>>> TiposDeTarjeta() => Ejecutar(async () =>
+    {
+        var r = await _caja.GetTipoTarjetumAsync();
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "consultar los tipos de tarjeta");
 }

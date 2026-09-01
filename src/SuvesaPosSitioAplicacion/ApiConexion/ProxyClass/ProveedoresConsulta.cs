@@ -30,6 +30,13 @@ public sealed class ProveedoresConsulta : ProxyBase, IProveedoresConsulta
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar los proveedores");
 
+    public Task<ResponseGeneric<ProveedorDTO>> Uno(int codigo)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ObtenerProveedorAsync(codigo);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar el proveedor");
+
     public Task<ResponseGeneric<ProveedorDTO>> Crear(ProveedorDTO proveedor)
         => Ejecutar(async () =>
         {

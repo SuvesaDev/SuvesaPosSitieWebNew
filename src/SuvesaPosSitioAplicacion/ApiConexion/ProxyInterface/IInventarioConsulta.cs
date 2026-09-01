@@ -36,4 +36,11 @@ public interface IInventarioConsulta
     Task<ResponseGeneric<InventarioDTO>> CambiarEstado(EliminarInventarioDTO articulo, bool activar);
 
     Task<ResponseGeneric<CodigoBarrasInventarioDTO>> EliminarCodigoBarras(CodigoBarrasInventarioDTO codigo);
+
+    /// <summary>
+    /// Ajuste directo de existencia (solo CostaPets, ver sistema actual). Es una
+    /// escritura inmediata, separada del "Guardar" del artículo — igual que hace
+    /// el sistema actual.
+    /// </summary>
+    Task<ResponseGeneric<bool>> ActualizarExistencia(int codArticulo, float cantidad, int codBodega = 0);
 }

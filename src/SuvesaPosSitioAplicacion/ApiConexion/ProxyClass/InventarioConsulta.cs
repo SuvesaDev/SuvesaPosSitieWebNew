@@ -11,17 +11,20 @@ public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
 {
     private readonly IInventarioApiCliente _api;
     private readonly IStockLoteApiCliente _lotes;
+    private readonly IStocksApiCliente _stocks;
     private readonly ILogger<InventarioConsulta> _log;
 
     public InventarioConsulta(
         IInventarioApiCliente api,
         IStockLoteApiCliente lotes,
+        IStocksApiCliente stocks,
         IContextoSesion sesion,
         ILogger<InventarioConsulta> log)
         : base(sesion, log)
     {
         _api = api;
         _lotes = lotes;
+        _stocks = stocks;
         _log = log;
     }
 
@@ -149,4 +152,11 @@ public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
             var r = await _api.EliminarCodigoBarrasInventarioAsync(codigo);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "eliminar el código de barras");
+
+    public Task<ResponseGeneric<bool>> ActualizarExistencia(int codArticulo, float cantidad, int codBodega = 0)
+        => Ejecutar(async () =>
+        {
+            var r = await _stocks.ActualizarExistenciaArticuloAsync(cantidad, codBodega, codArticulo);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "actualizar la existencia del artículo");
 }
