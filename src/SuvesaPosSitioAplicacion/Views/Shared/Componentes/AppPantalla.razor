@@ -41,6 +41,17 @@ else
         </div>
 
         <div class="seepos-solo-escritorio-contenido">
+            <nav class="seepos-miga" aria-label="Ubicación">
+                <span>Inicio</span>
+                @if (!string.IsNullOrWhiteSpace(ModuloNombre))
+                {
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                    <span>@ModuloNombre</span>
+                }
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                <span class="seepos-miga-actual">@Pantalla</span>
+            </nav>
+
             <header class="seepos-encabezado-pagina">
                 <div class="seepos-encabezado-pagina-info">
                     @if (!string.IsNullOrWhiteSpace(Icono))
@@ -95,6 +106,24 @@ else
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     private bool _cargada;
+
+    /// <summary>Nombre del modulo (raiz de menu) al que pertenece esta pantalla, para la miga.</summary>
+    private string? ModuloNombre
+    {
+        get
+        {
+            var codigo = Codigo ?? MenuSeePos.CodigoDeTitulo(Pantalla);
+            if (string.IsNullOrWhiteSpace(codigo) || !codigo.Contains('.'))
+            {
+                return null;
+            }
+
+            var moduloCodigo = codigo.Split('.', 2)[0];
+            var raiz = MenuSeePos.Items.FirstOrDefault(m =>
+                string.Equals(m.Codigo, moduloCodigo, StringComparison.OrdinalIgnoreCase));
+            return string.Equals(raiz?.Titulo, Pantalla, StringComparison.OrdinalIgnoreCase) ? null : raiz?.Titulo;
+        }
+    }
 
     private string ClaseNivel => Nivel switch
     {

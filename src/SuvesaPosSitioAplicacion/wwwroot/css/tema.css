@@ -1099,23 +1099,28 @@
    venta. Afecta a AppPantalla, AppRejilla y AppFiltros -> a toda la app.
    ============================================================================ */
 
-/* ---------- Encabezado de pagina (AppPantalla) ---------- */
+/* ---------- Miga de pan + encabezado de pagina (AppPantalla) ---------- */
+.seepos-miga {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    margin-bottom: .35rem;
+    font-size: .74rem;
+    color: var(--bs-secondary-color);
+}
+
+.seepos-miga .bi { font-size: .62rem; opacity: .7; }
+.seepos-miga-actual { color: var(--bs-body-color); font-weight: 600; }
+
 .seepos-encabezado-pagina {
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: .85rem;
-    margin-bottom: 1.1rem;
-    padding: .85rem 1.05rem;
-    border: 1px solid var(--bs-border-color);
-    border-left: .28rem solid var(--seepos-verde-accion);
-    border-radius: .9rem;
-    background:
-        linear-gradient(105deg,
-            color-mix(in srgb, var(--seepos-verde) 9%, var(--bs-body-bg)),
-            var(--bs-body-bg) 62%);
-    box-shadow: 0 .15rem .5rem rgba(64, 49, 39, .06);
+    margin-bottom: 1.25rem;
+    padding: 0 0 .9rem;
+    border-bottom: 1px solid var(--bs-border-color);
 }
 
 .seepos-encabezado-pagina-info {
@@ -1162,7 +1167,7 @@
 .seepos-panel-filtros {
     border: 1px solid var(--bs-border-color);
     border-radius: .9rem;
-    box-shadow: 0 .15rem .5rem rgba(64, 49, 39, .05);
+    box-shadow: 0 0 .875rem rgba(64, 49, 39, .05);
     overflow: hidden;
 }
 
@@ -1224,7 +1229,7 @@
     border: 1px solid var(--bs-border-color);
     border-radius: .9rem;
     overflow: hidden;
-    box-shadow: 0 .15rem .5rem rgba(64, 49, 39, .05);
+    box-shadow: 0 0 .875rem rgba(64, 49, 39, .05);
 }
 
 .seepos-rejilla table {
