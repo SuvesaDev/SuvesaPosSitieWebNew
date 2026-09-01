@@ -13,6 +13,11 @@
     <link href="_content/Havit.Blazor.Components.Web.Bootstrap/bootstrap.min.css" rel="stylesheet" />
     <link href="_content/Havit.Blazor.Components.Web.Bootstrap/defaults.css" rel="stylesheet" />
 
+    @* MudBlazor: solo lo consumen los componentes .mud-* de las pantallas que montan
+       <MudIsla> (piloto de MudDataGrid). Va antes de tema.css para que la marca
+       tenga la ultima palabra sobre selectores de elemento compartidos. *@
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+
     <link rel="stylesheet" href="@Assets["css/tema.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["SuvesaPosSitioAplicacion.styles.css"]" />
@@ -49,6 +54,7 @@
          toast), asi que el bundle tiene que cargarse ANTES que Blazor. -->
     <script src="lib/bootstrap/bootstrap.bundle.min.js"></script>
     <script src="_framework/blazor.web.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
 </body>
 
 </html>

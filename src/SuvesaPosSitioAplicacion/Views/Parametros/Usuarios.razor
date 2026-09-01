@@ -24,7 +24,7 @@
     - La clave viaja siempre en el cuerpo, nunca en la URL.
 *@
 
-<AppPantalla Pantalla="@Titulo" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio">
+<AppPantalla Pantalla="@Titulo" Codigo="@Codigo" Icono="bi-person-badge-fill" Subtitulo="Alta de usuarios y asignación de perfil y rol" Nivel="NivelPantalla.Escritorio">
     <Acciones>
         @if (Sesion.Puede(Codigo, AccionPantalla.Crear))
         {

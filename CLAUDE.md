@@ -103,6 +103,44 @@ Cambios que ya mandan sobre el texto viejo de este archivo:
   son un cliente/DTOs escritos a mano que se sustituyen al correr
   `./tools/actualizar-contratos.sh` contra el API nuevo.
 
+## Diseño visual — pase estilo panel de administracion
+
+Sobre lo de la Ola 6, un pase de densidad y planitud en `tema.css`/`app.css`
+(un solo sitio):
+
+- **Tipografia base a `0.875rem`** (`--bs-body-font-size`, antes `0.9375rem`).
+- **`.card` sin borde** (`--bs-card-border-width: 0`) — el relieve lo da una sombra
+  suave de dos capas, no una linea. Regla base en `.card` + la de `.seepos-nivel-*`.
+  Las pantallas con su propia sombra (facturacion, compras...) la conservan.
+- Cabecera de tarjeta plana (sin degradado), `.card-header` con borde fino.
+- Barra superior mas baja (`3.5rem`) y con sombra tenue; acento verde inferior mas fino.
+- `AppModal` estandariza el aspecto de todo modal de contenido (ver "Puntos unicos").
+
+### MudDataGrid — piloto en isla
+
+`MudBlazor` 9.9.0 esta referenciado **solo** por `MudDataGrid` en consultas pesadas.
+Para no reabrir la decision de stack:
+
+- **Sin `MudThemeProvider` global.** `Views/Shared/Componentes/MudIsla.razor` monta
+  `MudThemeProvider` (con la paleta de marca) + `MudPopoverProvider` y envuelve el
+  contenido `.mud-*`. Solo se renderiza en la pantalla que lo usa; el resto de la app
+  es Bootstrap/Havit intacto. El modo oscuro se lee de `data-bs-theme` al montar.
+- **Sin retirar Bootstrap.** `MudBlazor.min.css` se carga en `App.razor` *antes* de
+  `tema.css` para que la marca gane en selectores de elemento. `MudBlazor.min.js`
+  despues de `blazor.web.js`. `AddMudServices()` en `Program.cs`.
+- CSS de contencion en `tema.css`, bloque `.seepos-mud-isla` (marco de tarjeta,
+  cabecera con gris de marca, importes a la derecha, color de linea).
+- Pantallas piloto: `Inventario/Consulta.razor` (la consulta pesada de verdad — miles
+  de artículos, con filtro cliente + orden/filtro por columna de Mud), `Inventario/
+  ListaMag.razor` y `Compras/ConsultarPedidos.razor` (antes `AppRejilla`/`HxGrid`). La
+  vista móvil de tarjetas y todos los modales/offcanvas de esas pantallas siguen en
+  Bootstrap/Havit; solo la rejilla de escritorio es Mud. **Falta verificar en vivo** el
+  choque de resets y el recorte de popovers dentro de `<main overflow:auto>` — hace
+  falta login con datos.
+- Si el piloto no convence, revertir es: quitar el `PackageReference`, `AddMudServices`,
+  las 2 lineas de `App.razor`, `MudIsla.razor`, el bloque CSS, y devolver las 2
+  pantallas a `AppRejilla` (git las tiene).
+
 ## Diseño visual — pulido de Ola 6
 
 Revision visual sobre capturas reales, aplicada en `tema.css`/`tema.js` (un solo
@@ -212,6 +250,7 @@ pruebas con casos de bonificacion reales para revisar visualmente.
 | Modelo de hosting | **Blazor Server** (`InteractiveServer`) | Es lo unico que permite un solo proyecto conservando ApiConexion, Security y Services como capas de servidor |
 | Componentes | **Bootstrap 5 + Havit.Blazor** (MIT) | Bootstrap 5 conserva la identidad visual. Havit da los componentes nativos sobre Bootstrap |
 | Rejillas y selects | **HxGrid, HxAutosuggest, HxMultiSelect** | Cubren lo de DataTables y Select2 sin jQuery: esos plugins mutan el DOM y chocan con el renderizador de Blazor |
+| MudBlazor | **Solo `MudDataGrid`, en isla** (piloto) | Para consultas pesadas donde `HxGrid` se queda corto (orden/filtro por columna, paginado). NO hay `MudThemeProvider` global ni se retira Bootstrap: los proveedores viven en `<MudIsla>` y solo se montan en las pantallas que lo piden. Ver abajo. |
 | Estado | Servicios con scope, **nunca Fluxor** | Portar 95 reducers uno a uno daria mas codigo del que hay hoy |
 | Seguridad | Token en `IContextoSesion`, con scope de circuito | El navegador nunca ve el token. Hoy el JWT y los permisos viven en localStorage y son editables desde la consola |
 | Aritmetica fiscal | `decimal`, en `Services/` | La app actual usa coma flotante en el navegador |
@@ -302,10 +341,27 @@ lleva un id estable. Mismo comportamiento visible, sin la fragilidad.
 
 ## Menu
 
-`Class/MenuSeePos.cs`, **generado** desde `SidebarData.jsx`: 8 raices, 82 nodos, arbol
-de hasta cuatro niveles. Los titulos se conservan literalmente porque **son la llave de
-permisos**: el API responde por `Menu` (titulo de la raiz) y `NombrePantalla` (titulo
-de la hoja), no por ruta. Si el menu cambia en React, conviene regenerarlo.
+`Class/MenuSeePos.cs`, base **portada** de `SidebarData.jsx` y despues reorganizada:
+12 raices, 100 nodos, arbol de hasta cuatro niveles. Los titulos se conservan
+literalmente porque, junto con el `Codigo`, **son la llave de permisos**. Si se toca
+el arbol hay que correr `tools/anotar_codigos_menu.py` (sitio) y
+`tools/generar_semilla_seguridad.py` (API) — mismo algoritmo de slug, no pueden
+divergir; `MenuCodigosTests` y `FiltroMenuTests.ElMenuRealSeCargoCompleto` lo vigilan.
+
+Reorganizacion respecto a React (a peticion del usuario): modulo nuevo **"Catálogos"**
+(`CATALOGOS`, `bi-collection`) con los 19 catalogos de mantenimiento que estaban
+sueltos en "Parametros" (categorias, monedas, presentaciones, tipos de factura/cobro/
+identificacion/exoneracion, impuestos, formas de pago, monedas fiscales y sus
+denominaciones, plazos, geografia fiscal, bancos, clientes frecuentes, tarifas,
+ubicaciones, familias). "Parametros" queda con usuarios, roles, empresas, sucursales,
+series, configuracion, emisores y las pantallas mockup de bodega/areas/bloqueos.
+**"Caja"** (antes bajo "Inicio", `CAJA` / `bi-cash-stack`) y **"Presupuestos"** (antes
+bajo "Ventas", `PRESUPUESTOS` / `bi-file-earmark-text`) pasaron a ser **modulo propio**
+con todas sus funciones (`CAJA.APERTURA_CAJA`, `CAJA.DEPOSITOS.*`,
+`PRESUPUESTOS.PROFORMAS_O_COTIZACION`, ...). Siguen gobernadas por el catalogo del API.
+Los codigos viejos (`INICIO.CAJA*`, `VENTAS.PRESUPUESTOS*`) quedan en la BD como
+inactivos tras re-sembrar; la pestaña Catálogo de `RolesPermisos` los oculta salvo que
+se marque "Ver inactivos".
 
 `Security/FiltroMenu` decide que se ve. Un grupo se muestra si algun descendiente se
 muestra. **Mejora respecto al sistema actual**, donde el menu solo se filtra en la
@@ -385,7 +441,17 @@ para que no haya destello de tema claro. La eleccion se recuerda por navegador.
 | Confirmar, avisar, informar | `IServicioDialogos` | `IHxMessageBoxService`, `IHxMessengerService` |
 | Respuesta fallida del API | `IManejadorRespuestas` | Comprobar `EsCorrecta` a mano en cada pantalla |
 | Tabla de datos | `AppRejilla` | `HxGrid` directamente |
+| Modal de contenido/edicion | `AppModal` (cabecera+subtitulo, cuerpo scrollable, pie fijo Cancelar+Guardar con estado) | `HxModal` directamente |
+| Panel de filtros de una consulta | `AppFiltros` | Caja de busqueda a mano por pantalla |
 | Campos | `AppCampoTexto`, `AppCampoNumero`, `AppCampoMoneda`, `AppCampoFecha` | `HxInput*` directamente |
+
+`AppModal` (`Views/Shared/Componentes/`) envuelve `HxModal`; se abre/cierra con
+`MostrarAsync()` / `OcultarAsync()`. Migrados hasta ahora: los 4 modales de
+`RolesPermisos`. El resto de `HxModal` (~45) sigue pendiente de pasar. Para preguntas
+si/no o avisos NO se usa `AppModal`: se usa `IServicioDialogos`.
+
+`Views/Shared/Componentes` esta en `_Imports.razor`, asi que `App*` no necesita
+`@using` por pantalla.
 
 `IManejadorRespuestas` centraliza tambien la sesion caducada: ante un 401 avisa y
 manda a reingresar, en vez de ensenar el error tecnico.

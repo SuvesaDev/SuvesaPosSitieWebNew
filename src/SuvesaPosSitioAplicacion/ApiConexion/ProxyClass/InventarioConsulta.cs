@@ -86,6 +86,23 @@ public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
         }, $"buscar en el inventario con {limpio}");
     }
 
+    public Task<ResponseGeneric<ICollection<InventarioDTO>>> Listar(bool incluirInhabilitados = false)
+        => Ejecutar(async () =>
+        {
+            // Sin termino: se pide por descripcion con el filtro vacio. El API
+            // devuelve el listado (con su propio tope) y la pantalla filtra en cliente.
+            var peticion = new BuscarInventarioDTO
+            {
+                ValorFiltro = string.Empty,
+                Descripcion = string.Empty,
+                Cod_Articulo = null,
+                MostrarInhabilitados = incluirInhabilitados
+            };
+
+            var r = await _api.BuscarDescripcionAsync(peticion);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "listar el inventario");
+
     public async Task<ResponseGeneric<ICollection<InventarioDTO>>> BuscarMag(string texto)
     {
         var resultado = await Buscar(texto);

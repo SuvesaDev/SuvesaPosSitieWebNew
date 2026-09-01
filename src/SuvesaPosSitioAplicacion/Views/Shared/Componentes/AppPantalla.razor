@@ -41,13 +41,38 @@ else
         </div>
 
         <div class="seepos-solo-escritorio-contenido">
-            <div class="seepos-pantalla-encabezado d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                <h1 class="h5 mb-0">@Pantalla</h1>
+            <nav class="seepos-miga" aria-label="Ubicación">
+                <span>Inicio</span>
+                @if (!string.IsNullOrWhiteSpace(ModuloNombre))
+                {
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                    <span>@ModuloNombre</span>
+                }
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                <span class="seepos-miga-actual">@Pantalla</span>
+            </nav>
+
+            <header class="seepos-encabezado-pagina">
+                <div class="seepos-encabezado-pagina-info">
+                    @if (!string.IsNullOrWhiteSpace(Icono))
+                    {
+                        <span class="seepos-encabezado-pagina-icono" aria-hidden="true">
+                            <i class="bi @Icono"></i>
+                        </span>
+                    }
+                    <div>
+                        <h1>@Pantalla</h1>
+                        @if (!string.IsNullOrWhiteSpace(Subtitulo))
+                        {
+                            <p class="seepos-encabezado-pagina-sub">@Subtitulo</p>
+                        }
+                    </div>
+                </div>
                 @if (Acciones is not null)
                 {
-                    <div class="d-flex gap-2">@Acciones</div>
+                    <div class="seepos-encabezado-pagina-acciones">@Acciones</div>
                 }
-            </div>
+            </header>
 
             @ChildContent
         </div>
@@ -69,12 +94,36 @@ else
     [Parameter]
     public NivelPantalla Nivel { get; set; } = NivelPantalla.Escritorio;
 
+    /// <summary>Linea de contexto bajo el titulo. Opcional.</summary>
+    [Parameter] public string? Subtitulo { get; set; }
+
+    /// <summary>Clase de Bootstrap Icons para el encabezado (p.ej. "bi-people-fill"). Opcional.</summary>
+    [Parameter] public string? Icono { get; set; }
+
     /// <summary>Botones de la cabecera.</summary>
     [Parameter] public RenderFragment? Acciones { get; set; }
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     private bool _cargada;
+
+    /// <summary>Nombre del modulo (raiz de menu) al que pertenece esta pantalla, para la miga.</summary>
+    private string? ModuloNombre
+    {
+        get
+        {
+            var codigo = Codigo ?? MenuSeePos.CodigoDeTitulo(Pantalla);
+            if (string.IsNullOrWhiteSpace(codigo) || !codigo.Contains('.'))
+            {
+                return null;
+            }
+
+            var moduloCodigo = codigo.Split('.', 2)[0];
+            var raiz = MenuSeePos.Items.FirstOrDefault(m =>
+                string.Equals(m.Codigo, moduloCodigo, StringComparison.OrdinalIgnoreCase));
+            return string.Equals(raiz?.Titulo, Pantalla, StringComparison.OrdinalIgnoreCase) ? null : raiz?.Titulo;
+        }
+    }
 
     private string ClaseNivel => Nivel switch
     {

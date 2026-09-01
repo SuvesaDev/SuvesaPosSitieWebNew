@@ -3,12 +3,17 @@ using SuvesaPosSitioAplicacion.Models;
 namespace SuvesaPosSitioAplicacion.Class;
 
 /// <summary>
-/// Menu lateral del sistema. Portado tal cual desde SidebarData.jsx del sistema actual:
-/// 8 raices y 82 nodos en total. Los titulos se conservan literalmente
-/// porque son la llave contra la que el API devuelve los permisos.
+/// Menu lateral del sistema. Base portada de SidebarData.jsx del sistema actual y
+/// despues reorganizada: 12 raices y 100 nodos. Los titulos se conservan literalmente
+/// porque, junto con el Codigo, son la llave contra la que casan los permisos.
 ///
-/// GENERADO desde el arbol de React. Si el menu cambia alli, conviene regenerarlo
-/// en vez de editar a mano.
+/// Reorganizacion respecto a React: modulo nuevo "Catálogos" con los catalogos de
+/// mantenimiento que estaban sueltos en "Parametros"; "Caja" (antes bajo "Inicio") y
+/// "Presupuestos" (antes bajo "Ventas") promovidos a modulo propio con sus funciones.
+///
+/// Los Codigo se regeneran con tools/anotar_codigos_menu.py y deben casar con la
+/// semilla del API (tools/generar_semilla_seguridad.py, mismo algoritmo de slug).
+/// Si se toca este arbol, correr los dos scripts.
 /// </summary>
 public static partial class MenuSeePos
 {
@@ -33,60 +38,6 @@ public static partial class MenuSeePos
                     Titulo = "Inventarios",
                     Codigo = "INICIO.INVENTARIOS",
                     Ruta = "/initial/inventory",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Caja",
-                    Codigo = "INICIO.CAJA",
-                    Ruta = "/initial/cash/closecash",
-                    Hijos = new ItemMenu[]
-                    {
-                        new ItemMenu
-                        {
-                            Titulo = "Apertura Caja",
-                            Codigo = "INICIO.CAJA.APERTURA_CAJA",
-                            Ruta = "/initial/cash/opencash",
-                        },
-                        new ItemMenu
-                        {
-                            Titulo = "Arqueo Caja",
-                            Codigo = "INICIO.CAJA.ARQUEO_CAJA",
-                            Ruta = "/initial/cash/arqueocash",
-                        },
-                        new ItemMenu
-                        {
-                            Titulo = "Cierre Caja",
-                            Codigo = "INICIO.CAJA.CIERRE_CAJA",
-                            Ruta = "/initial/cash/closecash",
-                        },
-                        new ItemMenu
-                        {
-                            Titulo = "Depósitos",
-                            Codigo = "INICIO.CAJA.DEPOSITOS",
-                            Ruta = "/initial/cash/deposits",
-                            Hijos = new ItemMenu[]
-                            {
-                                new ItemMenu
-                                {
-                                    Titulo = "Pre Depósito",
-                                    Codigo = "INICIO.CAJA.DEPOSITOS.PRE_DEPOSITO",
-                                    Ruta = "/initial/cash/deposits/predeposits",
-                                },
-                                new ItemMenu
-                                {
-                                    Titulo = "Generar Depósito",
-                                    Codigo = "INICIO.CAJA.DEPOSITOS.GENERAR_DEPOSITO",
-                                    Ruta = "/initial/cash/deposits/generatedeposits",
-                                },
-                                new ItemMenu
-                                {
-                                    Titulo = "Consulta Depósitos",
-                                    Codigo = "INICIO.CAJA.DEPOSITOS.CONSULTA_DEPOSITOS",
-                                    Ruta = "/initial/cash/deposits/consultdeposits",
-                                }
-                            }
-                        }
-                    }
                 },
                 new ItemMenu
                 {
@@ -129,6 +80,63 @@ public static partial class MenuSeePos
                     Titulo = "Consulta Albaranes",
                     Codigo = "INICIO.CONSULTA_ALBARANES",
                     Ruta = "/initial/consultAlbaranes",
+                }
+            }
+        },
+        new ItemMenu
+        {
+            // Antes colgaba de "Inicio". Promovido a modulo propio (a peticion del
+            // usuario): sale del menu de Inicio pero conserva sus funciones.
+            Titulo = "Caja",
+            Codigo = "CAJA",
+            Ruta = "/initial/cash/closecash",
+            Icono = "bi-cash-stack",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Apertura Caja",
+                    Codigo = "CAJA.APERTURA_CAJA",
+                    Ruta = "/initial/cash/opencash",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Arqueo Caja",
+                    Codigo = "CAJA.ARQUEO_CAJA",
+                    Ruta = "/initial/cash/arqueocash",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Cierre Caja",
+                    Codigo = "CAJA.CIERRE_CAJA",
+                    Ruta = "/initial/cash/closecash",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Depósitos",
+                    Codigo = "CAJA.DEPOSITOS",
+                    Ruta = "/initial/cash/deposits",
+                    Hijos = new ItemMenu[]
+                    {
+                        new ItemMenu
+                        {
+                            Titulo = "Pre Depósito",
+                            Codigo = "CAJA.DEPOSITOS.PRE_DEPOSITO",
+                            Ruta = "/initial/cash/deposits/predeposits",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Generar Depósito",
+                            Codigo = "CAJA.DEPOSITOS.GENERAR_DEPOSITO",
+                            Ruta = "/initial/cash/deposits/generatedeposits",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Consulta Depósitos",
+                            Codigo = "CAJA.DEPOSITOS.CONSULTA_DEPOSITOS",
+                            Ruta = "/initial/cash/deposits/consultdeposits",
+                        }
+                    }
                 }
             }
         },
@@ -328,27 +336,6 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
-                    Titulo = "Presupuestos",
-                    Codigo = "VENTAS.PRESUPUESTOS",
-                    Ruta = "/sales/budgets/proforma",
-                    Hijos = new ItemMenu[]
-                    {
-                        new ItemMenu
-                        {
-                            Titulo = "Proformas o Cotización",
-                            Codigo = "VENTAS.PRESUPUESTOS.PROFORMAS_O_COTIZACION",
-                            Ruta = "/sales/budgets/proforma",
-                        },
-                        new ItemMenu
-                        {
-                            Titulo = "Seguimiento Cotizaciones",
-                            Codigo = "VENTAS.PRESUPUESTOS.SEGUIMIENTO_COTIZACIONES",
-                            Ruta = "/sales/budgets/seguimiento",
-                        }
-                    }
-                },
-                new ItemMenu
-                {
                     Titulo = "Agente de ventas",
                     Codigo = "VENTAS.AGENTE_DE_VENTAS",
                     Ruta = "/sales/salesagent",
@@ -370,6 +357,30 @@ public static partial class MenuSeePos
                     Titulo = "Devoluciones",
                     Codigo = "VENTAS.DEVOLUCIONES",
                     Ruta = "/sales/repayment",
+                }
+            }
+        },
+        new ItemMenu
+        {
+            // Antes colgaba de "Ventas". Promovido a modulo propio (a peticion del
+            // usuario): sale del menu de Ventas pero conserva sus funciones.
+            Titulo = "Presupuestos",
+            Codigo = "PRESUPUESTOS",
+            Ruta = "/sales/budgets/proforma",
+            Icono = "bi-file-earmark-text",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Proformas o Cotización",
+                    Codigo = "PRESUPUESTOS.PROFORMAS_O_COTIZACION",
+                    Ruta = "/sales/budgets/proforma",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Seguimiento Cotizaciones",
+                    Codigo = "PRESUPUESTOS.SEGUIMIENTO_COTIZACIONES",
+                    Ruta = "/sales/budgets/seguimiento",
                 }
             }
         },
@@ -415,90 +426,140 @@ public static partial class MenuSeePos
         },
         new ItemMenu
         {
+            // Modulo NUEVO (no viene de SidebarData.jsx). Reune los catalogos de
+            // mantenimiento que antes vivian sueltos dentro de "Parametros", para
+            // dejar "Parametros" solo con lo que configura el sistema (usuarios,
+            // roles, emisor electronico, series, plazos).
+            Titulo = "Catálogos",
+            Codigo = "CATALOGOS",
+            Ruta = "/parameters",
+            Icono = "bi-collection",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Categorias",
+                    Codigo = "CATALOGOS.CATEGORIAS",
+                    Ruta = "/parameters/category",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Monedas",
+                    Codigo = "CATALOGOS.MONEDAS",
+                    Ruta = "/parameters/coins",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Presentaciones",
+                    Codigo = "CATALOGOS.PRESENTACIONES",
+                    Ruta = "/parameters/presentations",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Tipos de Factura",
+                    Codigo = "CATALOGOS.TIPOS_DE_FACTURA",
+                    Ruta = "/parameters/invoice-types",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Tipos de Identificación",
+                    Codigo = "CATALOGOS.TIPOS_DE_IDENTIFICACION",
+                    Ruta = "/parameters/identification-types",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Impuestos",
+                    Codigo = "CATALOGOS.IMPUESTOS",
+                    Ruta = "/parameters/taxes",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Tipos de Cobro",
+                    Codigo = "CATALOGOS.TIPOS_DE_COBRO",
+                    Ruta = "/parameters/collection-types",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Formas de Pago",
+                    Codigo = "CATALOGOS.FORMAS_DE_PAGO",
+                    Ruta = "/parameters/payment-methods",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Tipos de Exoneración",
+                    Codigo = "CATALOGOS.TIPOS_DE_EXONERACION",
+                    Ruta = "/parameters/exemption-types",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Monedas Fiscales",
+                    Codigo = "CATALOGOS.MONEDAS_FISCALES",
+                    Ruta = "/parameters/currencies",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Denominaciones de Moneda",
+                    Codigo = "CATALOGOS.DENOMINACIONES_DE_MONEDA",
+                    Ruta = "/parameters/currency-denominations",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Denominación monedas",
+                    Codigo = "CATALOGOS.DENOMINACION_MONEDAS",
+                    Ruta = "/parameters/denominationcoins",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Configuración de Plazos",
+                    Codigo = "CATALOGOS.CONFIGURACION_DE_PLAZOS",
+                    Ruta = "/parameters/payment-terms",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Geografía Fiscal",
+                    Codigo = "CATALOGOS.GEOGRAFIA_FISCAL",
+                    Ruta = "/parameters/fiscal-geography",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Bancos",
+                    Codigo = "CATALOGOS.BANCOS",
+                    Ruta = "/parameters/bank",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Clientes Frecuentes",
+                    Codigo = "CATALOGOS.CLIENTES_FRECUENTES",
+                    Ruta = "/parameters/usualcustomers",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Tarifas",
+                    Codigo = "CATALOGOS.TARIFAS",
+                    Ruta = "/parameters/rates",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Ubicaciones",
+                    Codigo = "CATALOGOS.UBICACIONES",
+                    Ruta = "/parameters/locations",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Familias",
+                    Codigo = "CATALOGOS.FAMILIAS",
+                    Ruta = "/parameters/family",
+                }
+            }
+        },
+        new ItemMenu
+        {
             Titulo = "Parametros",
             Codigo = "PARAMETROS",
             Ruta = "/parameters",
             Icono = "bi-gear-fill",
             Hijos = new ItemMenu[]
             {
-                new ItemMenu
-                {
-                    Titulo = "Configuración",
-                    Codigo = "PARAMETROS.CONFIGURACION",
-                    Ruta = "/parameters/settings",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Tipos de Factura",
-                    Codigo = "PARAMETROS.TIPOS_DE_FACTURA",
-                    Ruta = "/parameters/invoice-types",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Tipos de Identificación",
-                    Codigo = "PARAMETROS.TIPOS_DE_IDENTIFICACION",
-                    Ruta = "/parameters/identification-types",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Impuestos",
-                    Codigo = "PARAMETROS.IMPUESTOS",
-                    Ruta = "/parameters/taxes",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Tipos de Cobro",
-                    Codigo = "PARAMETROS.TIPOS_DE_COBRO",
-                    Ruta = "/parameters/collection-types",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Formas de Pago",
-                    Codigo = "PARAMETROS.FORMAS_DE_PAGO",
-                    Ruta = "/parameters/payment-methods",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Tipos de Exoneración",
-                    Codigo = "PARAMETROS.TIPOS_DE_EXONERACION",
-                    Ruta = "/parameters/exemption-types",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Monedas Fiscales",
-                    Codigo = "PARAMETROS.MONEDAS_FISCALES",
-                    Ruta = "/parameters/currencies",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Denominaciones de Moneda",
-                    Codigo = "PARAMETROS.DENOMINACIONES_DE_MONEDA",
-                    Ruta = "/parameters/currency-denominations",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Configuración de Plazos",
-                    Codigo = "PARAMETROS.CONFIGURACION_DE_PLAZOS",
-                    Ruta = "/parameters/payment-terms",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Geografía Fiscal",
-                    Codigo = "PARAMETROS.GEOGRAFIA_FISCAL",
-                    Ruta = "/parameters/fiscal-geography",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Emisores",
-                    Codigo = "PARAMETROS.EMISORES",
-                    Ruta = "/parameters/issuers",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Series de Facturación",
-                    Codigo = "PARAMETROS.SERIES_DE_FACTURACION",
-                    Ruta = "/parameters/invoice-series",
-                },
                 new ItemMenu
                 {
                     Titulo = "Usuarios",
@@ -525,51 +586,27 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
-                    Titulo = "Bancos",
-                    Codigo = "PARAMETROS.BANCOS",
-                    Ruta = "/parameters/bank",
+                    Titulo = "Series de Facturación",
+                    Codigo = "PARAMETROS.SERIES_DE_FACTURACION",
+                    Ruta = "/parameters/invoice-series",
                 },
                 new ItemMenu
                 {
-                    Titulo = "Clientes Frecuentes",
-                    Codigo = "PARAMETROS.CLIENTES_FRECUENTES",
-                    Ruta = "/parameters/usualcustomers",
+                    Titulo = "Configuración",
+                    Codigo = "PARAMETROS.CONFIGURACION",
+                    Ruta = "/parameters/settings",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Emisores",
+                    Codigo = "PARAMETROS.EMISORES",
+                    Ruta = "/parameters/issuers",
                 },
                 new ItemMenu
                 {
                     Titulo = "Asignar Ficha Por Usuarios",
                     Codigo = "PARAMETROS.ASIGNAR_FICHA_POR_USUARIOS",
                     Ruta = "/parameters/assigntab",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Tarifas",
-                    Codigo = "PARAMETROS.TARIFAS",
-                    Ruta = "/parameters/rates",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Ubicaciones",
-                    Codigo = "PARAMETROS.UBICACIONES",
-                    Ruta = "/parameters/locations",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Presentaciones",
-                    Codigo = "PARAMETROS.PRESENTACIONES",
-                    Ruta = "/parameters/presentations",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Monedas",
-                    Codigo = "PARAMETROS.MONEDAS",
-                    Ruta = "/parameters/coins",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Denominación monedas",
-                    Codigo = "PARAMETROS.DENOMINACION_MONEDAS",
-                    Ruta = "/parameters/denominationcoins",
                 },
                 new ItemMenu
                 {
@@ -582,18 +619,6 @@ public static partial class MenuSeePos
                     Titulo = "Areas",
                     Codigo = "PARAMETROS.AREAS",
                     Ruta = "/parameters/areas",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Familias",
-                    Codigo = "PARAMETROS.FAMILIAS",
-                    Ruta = "/parameters/family",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Categorias",
-                    Codigo = "PARAMETROS.CATEGORIAS",
-                    Ruta = "/parameters/category",
                 },
                 new ItemMenu
                 {

@@ -19,7 +19,7 @@
     SUPER_ADMIN. El sitio ademas pide reconfirmar la propia clave antes de mostrar nada.
 *@
 
-<AppPantalla Pantalla="@Titulo" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio">
+<AppPantalla Pantalla="@Titulo" Codigo="@Codigo" Icono="bi-shield-lock-fill" Subtitulo="Roles, catálogo de módulos/funciones y acciones" Nivel="NivelPantalla.Escritorio">
     <ChildContent>
 
         @if (!_passwordValidada)
@@ -70,22 +70,14 @@
             @* -------- PESTAÑA ROLES -------- *@
             @if (_tab == Tab.Roles)
             {
-                <div class="roles-cabecera card mb-3">
-                    <div class="card-body d-flex justify-content-between align-items-start flex-wrap gap-2">
-                        <div>
-                            <h2 class="h5 mb-1"><i class="bi bi-people-fill me-2"></i>Gestión de Roles</h2>
-                            <p class="text-body-secondary mb-0 small">
-                                Administración de roles y configuración de permisos por módulo y función.
-                            </p>
-                        </div>
-                        @if (_puedeEscribir)
-                        {
-                            <button class="btn btn-primary" @onclick="NuevoRol">
-                                <i class="bi bi-plus-circle me-1"></i>Nuevo Rol
-                            </button>
-                        }
+                @if (_puedeEscribir)
+                {
+                    <div class="d-flex justify-content-end mb-3">
+                        <button class="btn btn-primary" @onclick="NuevoRol">
+                            <i class="bi bi-plus-circle me-1"></i>Nuevo rol
+                        </button>
                     </div>
-                </div>
+                }
 
                 <div class="row g-3 mb-3">
                     <div class="col-6 col-lg-3">
@@ -210,14 +202,21 @@
             @* -------- PESTAÑA CATÁLOGO -------- *@
             @if (_tab == Tab.Catalogo)
             {
-                @if (_puedeEscribir)
-                {
-                    <div class="mb-3 text-end">
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="verInactivosCat"
+                               @bind="_verInactivosCatalogo" />
+                        <label class="form-check-label small text-body-secondary" for="verInactivosCat">
+                            Ver inactivos
+                        </label>
+                    </div>
+                    @if (_puedeEscribir)
+                    {
                         <button class="btn btn-sm btn-primary" @onclick="() => AbrirModulo(null)">
                             <i class="bi bi-plus-lg me-1"></i>Nuevo módulo
                         </button>
-                    </div>
-                }
+                    }
+                </div>
                 @if (_catalogo is null)
                 {
                     <p class="text-body-secondary">Cargando catálogo...</p>
@@ -253,7 +252,7 @@
                             <div class="card-body p-0">
                                 <table class="table table-sm mb-0 align-middle">
                                     <tbody>
-                                        @foreach (var f in Aplanar(m.Funciones))
+                                        @foreach (var f in Aplanar(m.Funciones).Where(f => _verInactivosCatalogo || f.Funcion.Activo))
                                         {
                                             <tr>
                                                 <td style="padding-left: @(1 + f.Nivel)rem">
@@ -323,9 +322,13 @@
 </AppPantalla>
 
 @* =================== MODAL ROL + MATRIZ =================== *@
-<HxModal @ref="_modalRol" Title="@((_rolEsNuevo ? "Nuevo rol" : "Editar rol") + (string.IsNullOrWhiteSpace(_rol?.Nombre) ? "" : ": " + _rol!.Nombre))"
-         Size="ModalSize.ExtraLarge">
-    <BodyTemplate>
+<AppModal @ref="_modalRol"
+          Titulo="@(_rolEsNuevo ? "Nuevo rol" : "Editar rol")"
+          Subtitulo="@(string.IsNullOrWhiteSpace(_rol?.Nombre) ? null : _rol!.Nombre)"
+          Tamano="ModalSize.ExtraLarge"
+          AlGuardar="GuardarRol" Guardando="_guardando" PuedeGuardar="_puedeEscribir"
+          TextoGuardar="Guardar Rol">
+    <ChildContent>
         @if (_rol is not null)
         {
             <div class="row g-3">
@@ -443,21 +446,13 @@
                 </div>
             </div>
         }
-    </BodyTemplate>
-    <FooterTemplate>
-        <button class="btn btn-outline-secondary" @onclick="() => _modalRol.HideAsync()">Cancelar</button>
-        @if (_puedeEscribir)
-        {
-            <button class="btn btn-primary" disabled="@_guardando" @onclick="GuardarRol">
-                <i class="bi bi-check2-circle me-1"></i>@(_guardando ? "Guardando..." : "Guardar Rol")
-            </button>
-        }
-    </FooterTemplate>
-</HxModal>
+    </ChildContent>
+</AppModal>
 
 @* =================== MODAL MÓDULO =================== *@
-<HxModal @ref="_modalModulo" Title="Módulo" Size="ModalSize.Regular">
-    <BodyTemplate>
+<AppModal @ref="_modalModulo" Titulo="Módulo" Tamano="ModalSize.Regular"
+          AlGuardar="GuardarModulo" Guardando="_guardando">
+    <ChildContent>
         @if (_modulo is not null)
         {
             <div class="row g-3">
@@ -482,16 +477,13 @@
                 </div>
             </div>
         }
-    </BodyTemplate>
-    <FooterTemplate>
-        <button class="btn btn-outline-secondary" @onclick="() => _modalModulo.HideAsync()">Cancelar</button>
-        <button class="btn btn-primary" disabled="@_guardando" @onclick="GuardarModulo">Guardar</button>
-    </FooterTemplate>
-</HxModal>
+    </ChildContent>
+</AppModal>
 
 @* =================== MODAL FUNCIÓN =================== *@
-<HxModal @ref="_modalFuncion" Title="Función" Size="ModalSize.Large">
-    <BodyTemplate>
+<AppModal @ref="_modalFuncion" Titulo="Función" Tamano="ModalSize.Large"
+          AlGuardar="GuardarFuncion" Guardando="_guardando">
+    <ChildContent>
         @if (_funcion is not null)
         {
             <div class="row g-3">
@@ -540,16 +532,13 @@
                 </div>
             </div>
         }
-    </BodyTemplate>
-    <FooterTemplate>
-        <button class="btn btn-outline-secondary" @onclick="() => _modalFuncion.HideAsync()">Cancelar</button>
-        <button class="btn btn-primary" disabled="@_guardando" @onclick="GuardarFuncion">Guardar</button>
-    </FooterTemplate>
-</HxModal>
+    </ChildContent>
+</AppModal>
 
 @* =================== MODAL ACCIÓN =================== *@
-<HxModal @ref="_modalAccion" Title="Acción" Size="ModalSize.Regular">
-    <BodyTemplate>
+<AppModal @ref="_modalAccion" Titulo="Acción" Tamano="ModalSize.Regular"
+          AlGuardar="GuardarAccion" Guardando="_guardando">
+    <ChildContent>
         @if (_accion is not null)
         {
             <div class="row g-3">
@@ -571,12 +560,8 @@
                 </div>
             </div>
         }
-    </BodyTemplate>
-    <FooterTemplate>
-        <button class="btn btn-outline-secondary" @onclick="() => _modalAccion.HideAsync()">Cancelar</button>
-        <button class="btn btn-primary" disabled="@_guardando" @onclick="GuardarAccion">Guardar</button>
-    </FooterTemplate>
-</HxModal>
+    </ChildContent>
+</AppModal>
 
 @code {
     private const string Titulo = "Roles";
@@ -597,7 +582,7 @@
     private string _passwordGate = string.Empty;
 
     // roles
-    private HxModal _modalRol = default!;
+    private AppModal _modalRol = default!;
     private RolDetalleDTO? _rol;
     private bool _rolEsNuevo;
     private int _rolIdActual;
@@ -611,11 +596,12 @@
     private readonly HashSet<string> _modulosColapsados = new();
 
     // catalogo
+    private bool _verInactivosCatalogo;
     private List<ModuloCatalogoDTO>? _catalogo;
-    private HxModal _modalModulo = default!;
+    private AppModal _modalModulo = default!;
     private ModuloCatalogoDTO? _modulo;
     private int? _moduloOrden;
-    private HxModal _modalFuncion = default!;
+    private AppModal _modalFuncion = default!;
     private FuncionCatalogoDTO? _funcion;
     private int? _funcionOrden;
     private int _funcionIdPadre;
@@ -624,7 +610,7 @@
 
     // acciones
     private AppRejilla<AccionCatalogoDTO>? _rejillaAcciones;
-    private HxModal _modalAccion = default!;
+    private AppModal _modalAccion = default!;
     private AccionCatalogoDTO? _accion;
     private int? _accionOrden;
 
@@ -768,12 +754,14 @@
                        ?? new List<ModuloCatalogoDTO>();
 
     /// <summary>
-    /// Oculta los módulos LEGACY_* (relleno de la migración, no menú real). El seeder
-    /// del API también los desactiva; esto es por si el seeder aún no se ha ejecutado.
+    /// Oculta los módulos LEGACY_* (relleno de la migración, no menú real) y, salvo que
+    /// se pida "Ver inactivos", los que el seeder desactivó al quedar fuera del menú
+    /// (p.ej. INICIO.CAJA, VENTAS.PRESUPUESTOS, los PARAMETROS.* que pasaron a CATALOGOS.*).
     /// </summary>
     private List<ModuloCatalogoDTO> CatalogoVisible()
         => _catalogo?
                .Where(m => !(m.Codigo ?? string.Empty).StartsWith("LEGACY_", StringComparison.OrdinalIgnoreCase))
+               .Where(m => _verInactivosCatalogo || m.Activo)
                .OrderBy(m => m.Orden).ThenBy(m => m.Nombre)
                .ToList()
            ?? new List<ModuloCatalogoDTO>();
@@ -800,7 +788,7 @@
                 }))
                 .ToList()
         };
-        await _modalRol.ShowAsync();
+        await _modalRol.MostrarAsync();
     }
 
     private async Task EditarRol(RolResumenDTO resumen)
@@ -811,7 +799,7 @@
         _rolIdActual = detalle.IdRol ?? resumen.IdRol;
         _rol = detalle;
         _modulosColapsados.Clear();
-        await _modalRol.ShowAsync();
+        await _modalRol.MostrarAsync();
     }
 
     private void AlternarAccion(RolFuncionPermisoDTO f, string acc, bool marcado)
@@ -855,7 +843,7 @@
         _guardando = false;
         if (ok)
         {
-            await _modalRol.HideAsync();
+            await _modalRol.OcultarAsync();
             Dialogos.Exito(_rolEsNuevo ? "Rol creado." : "Rol actualizado.");
             await CargarRolesYResumen();
         }
@@ -872,7 +860,7 @@
                 Orden = m.Orden, Icono = m.Icono, Activo = m.Activo
             };
         _moduloOrden = _modulo.Orden;
-        _modalModulo.ShowAsync();
+        _modalModulo.MostrarAsync();
     }
 
     private async Task GuardarModulo()
@@ -884,7 +872,7 @@
         _guardando = false;
         if (ok)
         {
-            await _modalModulo.HideAsync();
+            await _modalModulo.OcultarAsync();
             await RecargarCatalogo();
         }
     }
@@ -904,7 +892,7 @@
             };
         _funcionOrden = _funcion.Orden;
         _funcionIdPadre = _funcion.IdFuncionPadre ?? 0;
-        _modalFuncion.ShowAsync();
+        _modalFuncion.MostrarAsync();
     }
 
     private void AlternarDisponible(string acc, bool marcado)
@@ -925,7 +913,7 @@
         _guardando = false;
         if (ok)
         {
-            await _modalFuncion.HideAsync();
+            await _modalFuncion.OcultarAsync();
             await RecargarCatalogo();
         }
     }
@@ -946,7 +934,7 @@
             ? new AccionCatalogoDTO { Activo = true }
             : new AccionCatalogoDTO { IdAccion = a.IdAccion, Codigo = a.Codigo, Nombre = a.Nombre, Orden = a.Orden, Activo = a.Activo };
         _accionOrden = _accion.Orden;
-        _modalAccion.ShowAsync();
+        _modalAccion.MostrarAsync();
     }
 
     private async Task GuardarAccion()
@@ -958,7 +946,7 @@
         _guardando = false;
         if (ok)
         {
-            await _modalAccion.HideAsync();
+            await _modalAccion.OcultarAsync();
             if (_rejillaAcciones is not null) await _rejillaAcciones.RefrescarAsync();
         }
     }

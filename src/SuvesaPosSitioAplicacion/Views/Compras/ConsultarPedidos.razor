@@ -1,9 +1,12 @@
 @page "/buys/orders/checkorders"
+@using MudBlazor
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IOrdenesCompraConsulta Api
 @inject IManejadorRespuestas Respuestas
+
+@* PILOTO MudDataGrid (2/2). Consulta con rango/numero y rejilla de 6 columnas. *@
 
 <AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
     <Acciones>
@@ -13,101 +16,104 @@
     </Acciones>
 
     <ChildContent>
-        <div class="card mb-3">
-            <div class="card-body">
-                <div class="row g-2 align-items-end">
-                    <div class="col-12 col-md-5">
-                        <label class="form-label" for="numero-pedido">Número de pedido</label>
-                        <input id="numero-pedido" type="number" min="1" class="form-control"
-                               @bind="_numero" @bind:event="onchange" />
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <div class="form-check mb-2">
-                            <input id="pedidos-anulados" class="form-check-input" type="checkbox" @bind="_anuladas" />
-                            <label class="form-check-label" for="pedidos-anulados">Incluir anuladas</label>
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-3 d-grid">
-                        <button class="btn btn-primary" @onclick="Buscar">Buscar</button>
+        <AppFiltros AlBuscar="Buscar" AlLimpiar="Limpiar" Buscando="_cargando"
+                    Resumen="@($"{_pedidos.Count} pedido(s)")">
+            <Encabezado>
+                <span class="small text-body-secondary">
+                    Sin número se muestran los pedidos recientes que publica el API.
+                </span>
+            </Encabezado>
+            <ChildContent>
+                <div class="col-12 col-md-5">
+                    <label class="form-label small" for="numero-pedido">Número de pedido</label>
+                    <input id="numero-pedido" type="number" min="1" class="form-control"
+                           @bind="_numero" @bind:event="onchange" />
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="form-check">
+                        <input id="pedidos-anulados" class="form-check-input" type="checkbox" @bind="_anuladas" />
+                        <label class="form-check-label" for="pedidos-anulados">Incluir anuladas</label>
                     </div>
                 </div>
-                <p class="form-text mb-0">Sin número se muestran los pedidos recientes que publica el API.</p>
-            </div>
-        </div>
+            </ChildContent>
+        </AppFiltros>
 
-        <div class="card">
-            <div class="card-body">
-                <AppRejilla TItem="OrdenCompraDTO" Datos="Cargar" Nivel="NivelPantalla.Tableta"
-                            TextoVacio="No hay pedidos para mostrar." @ref="_rejilla">
-                    <Columnas>
-                        <HxGridColumn TItem="OrdenCompraDTO" HeaderText="Pedido"
-                                      ItemTextSelector="@(p => p.Orden.ToString())" SortKeySelector="p => p.Orden" />
-                        <HxGridColumn TItem="OrdenCompraDTO" HeaderText="Fecha"
-                                      ItemTextSelector="@(p => p.Fecha.ToString("dd/MM/yyyy"))" SortKeySelector="p => p.Fecha" />
-                        <HxGridColumn TItem="OrdenCompraDTO" HeaderText="Proveedor"
-                                      ItemTextSelector="@(p => p.Proveedor.ToString())" SortKeySelector="p => p.Proveedor" />
-                        <HxGridColumn TItem="OrdenCompraDTO" HeaderText="Usuario"
-                                      ItemTextSelector="@(p => UsuarioTexto(p))" />
-                        <HxGridColumn TItem="OrdenCompraDTO" HeaderText="Total"
-                                      ItemTextSelector="@(p => Formato.Importe(p.Total))" SortKeySelector="p => p.Total"
-                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                        <HxGridColumn TItem="OrdenCompraDTO" HeaderText="Estado"
-                                      ItemTextSelector="@(p => EstadoTexto(p))" />
-                    </Columnas>
-                </AppRejilla>
-            </div>
-        </div>
+        <MudIsla>
+            <MudDataGrid T="OrdenCompraDTO" Items="_pedidos" Loading="_cargando"
+                         Dense="true" Hover="true" Bordered="false" Striped="true"
+                         Filterable="true" SortMode="SortMode.Multiple" Groupable="false"
+                         FixedHeader="true" Height="60vh" Class="seepos-mud-grid">
+                <NoRecordsContent>
+                    <div class="text-secondary small py-4">No hay pedidos para mostrar.</div>
+                </NoRecordsContent>
+                <Columns>
+                    <PropertyColumn Property="p => p.Orden" Title="Pedido" />
+                    <PropertyColumn Property="p => p.Fecha" Title="Fecha" Format="dd/MM/yyyy" />
+                    <PropertyColumn Property="p => p.Proveedor" Title="Proveedor" />
+                    <TemplateColumn Title="Usuario" Sortable="false">
+                        <CellTemplate>@UsuarioTexto(context.Item)</CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="p => p.Total" Title="Total"
+                                    CellClass="justify-end" HeaderClass="justify-end">
+                        <CellTemplate>@Formato.Importe(context.Item.Total)</CellTemplate>
+                    </PropertyColumn>
+                    <TemplateColumn Title="Estado">
+                        <CellTemplate>@EstadoTexto(context.Item)</CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+                <PagerContent>
+                    <MudDataGridPager T="OrdenCompraDTO" />
+                </PagerContent>
+            </MudDataGrid>
+        </MudIsla>
     </ChildContent>
 </AppPantalla>
 
 @code {
     private const string Titulo = "Consultar Pedidos";
 
-    private AppRejilla<OrdenCompraDTO>? _rejilla;
     private List<OrdenCompraDTO> _pedidos = new();
     private long? _numero;
     private bool _anuladas;
-    private bool _cargado;
+    private bool _cargando;
 
-    private async Task<GridDataProviderResult<OrdenCompraDTO>> Cargar(
-        GridDataProviderRequest<OrdenCompraDTO> peticion)
+    protected override Task OnInitializedAsync() => Consultar();
+
+    private Task Buscar() => Consultar();
+
+    private Task Recargar() => Consultar();
+
+    private void Limpiar()
     {
-        if (!_cargado)
-        {
-            await Consultar();
-        }
-
-        return peticion.ApplyTo(_pedidos);
-    }
-
-    private async Task Buscar()
-    {
-        _cargado = false;
-        await Recargar();
-    }
-
-    private async Task Recargar()
-    {
-        _cargado = false;
-
-        if (_rejilla is not null)
-        {
-            await _rejilla.RefrescarAsync();
-        }
+        _numero = null;
+        _anuladas = false;
+        _ = Consultar();
     }
 
     private async Task Consultar()
     {
-        var respuesta = _numero is > 0
-            ? await Api.Buscar(_numero.Value, _anuladas)
-            : await Api.Obtener();
+        if (_cargando)
+        {
+            return;
+        }
 
-        var pedidos = await Respuestas.DatoAsync(respuesta, "consultar los pedidos");
-        _pedidos = (pedidos ?? Array.Empty<OrdenCompraDTO>())
-            .Where(p => _anuladas || p.Anulado != true)
-            .OrderByDescending(p => p.Fecha)
-            .ToList();
-        _cargado = true;
+        _cargando = true;
+        try
+        {
+            var respuesta = _numero is > 0
+                ? await Api.Buscar(_numero.Value, _anuladas)
+                : await Api.Obtener();
+
+            var pedidos = await Respuestas.DatoAsync(respuesta, "consultar los pedidos");
+            _pedidos = (pedidos ?? Array.Empty<OrdenCompraDTO>())
+                .Where(p => _anuladas || p.Anulado != true)
+                .OrderByDescending(p => p.Fecha)
+                .ToList();
+        }
+        finally
+        {
+            _cargando = false;
+        }
     }
 
     private static string UsuarioTexto(OrdenCompraDTO pedido)

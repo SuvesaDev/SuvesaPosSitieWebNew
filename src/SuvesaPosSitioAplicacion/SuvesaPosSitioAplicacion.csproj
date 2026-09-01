@@ -9,6 +9,10 @@
 
   <ItemGroup>
     <PackageReference Include="Havit.Blazor.Components.Web.Bootstrap" Version="4.26.1" />
+    <!-- Solo para MudDataGrid en pantallas de consulta pesada (piloto). NO se usa
+         MudThemeProvider global ni se retira Bootstrap: los proveedores de Mud viven
+         dentro de <MudIsla> y solo se montan en las pantallas que lo piden. -->
+    <PackageReference Include="MudBlazor" Version="9.9.0" />
     <PackageReference Include="QuestPDF" Version="2026.8.0" />
     <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
   </ItemGroup>

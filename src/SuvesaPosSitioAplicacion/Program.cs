@@ -1,6 +1,7 @@
 using Havit.Blazor.Components.Web;
 using Havit.Blazor.Components.Web.Bootstrap;
 using Microsoft.AspNetCore.Authentication;
+using MudBlazor.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using SuvesaPosSitioAplicacion.ApiConexion;
 using SuvesaPosSitioAplicacion.ApiConexion.Generated;
@@ -21,6 +22,11 @@ builder.Services.AddRazorComponents()
 builder.Services.AddHxServices();
 builder.Services.AddHxMessenger();
 builder.Services.AddHxMessageBoxHost();
+
+// MudBlazor: solo por MudDataGrid en consultas pesadas. Registra sus servicios
+// (popover, resize, keyinterceptor); el CSS/JS y los proveedores van aparte, y
+// solo se activan en las pantallas que montan <MudIsla>.
+builder.Services.AddMudServices();
 
 // ---------------------------------------------------------------------------
 // Sesion y autorizacion
@@ -179,6 +185,7 @@ builder.Services.AddScoped<IAlbaranes, Albaranes>();
 builder.Services.AddScoped<IConsignaciones, Consignaciones>();
 builder.Services.AddScoped<IDepositosConsulta, DepositosConsulta>();
 builder.Services.AddScoped<IFamilias, Familias>();
+builder.Services.AddScoped<IMantenimientosInventario, MantenimientosInventario>();
 builder.Services.AddScoped<ICategorias, Categorias>();
 builder.Services.AddScoped<IPresentaciones, Presentaciones>();
 builder.Services.AddScoped<IUsuarios, Usuarios>();

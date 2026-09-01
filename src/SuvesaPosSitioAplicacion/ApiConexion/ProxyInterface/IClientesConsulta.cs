@@ -9,6 +9,9 @@ public interface IClientesConsulta
     /// <summary>Busca por cedula o por nombre, segun lo que se escriba.</summary>
     Task<ResponseGeneric<ICollection<FiltranClienteDTO>>> Buscar(string texto);
 
+    /// <summary>Listado de clientes sin termino (la pantalla lo carga al abrir y filtra en cliente).</summary>
+    Task<ResponseGeneric<ICollection<FiltranClienteDTO>>> Listar();
+
     Task<ResponseGeneric<ClienteDTO>> Crear(ClienteDTO cliente);
 
     Task<ResponseGeneric<ClienteDTO>> Editar(ClienteDTO cliente);

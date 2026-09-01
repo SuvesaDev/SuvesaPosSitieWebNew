@@ -107,139 +107,11 @@
           ]
         },
         {
-          "codigo": "INICIO.CAJA",
-          "nombre": "Caja",
-          "ruta": "/initial/cash/closecash",
-          "padre": null,
-          "orden": 3,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "INICIO.CAJA.APERTURA_CAJA",
-          "nombre": "Apertura Caja",
-          "ruta": "/initial/cash/opencash",
-          "padre": "INICIO.CAJA",
-          "orden": 1,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "INICIO.CAJA.ARQUEO_CAJA",
-          "nombre": "Arqueo Caja",
-          "ruta": "/initial/cash/arqueocash",
-          "padre": "INICIO.CAJA",
-          "orden": 2,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "INICIO.CAJA.CIERRE_CAJA",
-          "nombre": "Cierre Caja",
-          "ruta": "/initial/cash/closecash",
-          "padre": "INICIO.CAJA",
-          "orden": 3,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "INICIO.CAJA.DEPOSITOS",
-          "nombre": "Depósitos",
-          "ruta": "/initial/cash/deposits",
-          "padre": "INICIO.CAJA",
-          "orden": 4,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "INICIO.CAJA.DEPOSITOS.PRE_DEPOSITO",
-          "nombre": "Pre Depósito",
-          "ruta": "/initial/cash/deposits/predeposits",
-          "padre": "INICIO.CAJA.DEPOSITOS",
-          "orden": 1,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "INICIO.CAJA.DEPOSITOS.GENERAR_DEPOSITO",
-          "nombre": "Generar Depósito",
-          "ruta": "/initial/cash/deposits/generatedeposits",
-          "padre": "INICIO.CAJA.DEPOSITOS",
-          "orden": 2,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "INICIO.CAJA.DEPOSITOS.CONSULTA_DEPOSITOS",
-          "nombre": "Consulta Depósitos",
-          "ruta": "/initial/cash/deposits/consultdeposits",
-          "padre": "INICIO.CAJA.DEPOSITOS",
-          "orden": 3,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
           "codigo": "INICIO.FACTURACION",
           "nombre": "Facturación",
           "ruta": "/initial/billing",
           "padre": null,
-          "orden": 4,
+          "orden": 3,
           "acciones": [
             "VER",
             "CREAR",
@@ -255,7 +127,7 @@
           "nombre": "Cobrar",
           "ruta": "/initial/charge",
           "padre": null,
-          "orden": 5,
+          "orden": 4,
           "acciones": [
             "VER",
             "CREAR",
@@ -271,7 +143,7 @@
           "nombre": "Entrega a Cuenta",
           "ruta": "/initial/downPayment",
           "padre": null,
-          "orden": 6,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -287,7 +159,7 @@
           "nombre": "Documentos Emitidos",
           "ruta": "/initial/documents",
           "padre": null,
-          "orden": 7,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",
@@ -303,7 +175,7 @@
           "nombre": "Bandeja Fiscal V4.4",
           "ruta": "/invoices/fiscal-tray",
           "padre": null,
-          "orden": 8,
+          "orden": 7,
           "acciones": [
             "VER",
             "CREAR",
@@ -319,7 +191,7 @@
           "nombre": "Devoluciones",
           "ruta": "/initial/repayment",
           "padre": null,
-          "orden": 9,
+          "orden": 8,
           "acciones": [
             "VER",
             "CREAR",
@@ -335,7 +207,127 @@
           "nombre": "Consulta Albaranes",
           "ruta": "/initial/consultAlbaranes",
           "padre": null,
-          "orden": 10,
+          "orden": 9,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "CAJA",
+      "nombre": "Caja",
+      "orden": 2,
+      "icono": "bi-cash-stack",
+      "funciones": [
+        {
+          "codigo": "CAJA.APERTURA_CAJA",
+          "nombre": "Apertura Caja",
+          "ruta": "/initial/cash/opencash",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.ARQUEO_CAJA",
+          "nombre": "Arqueo Caja",
+          "ruta": "/initial/cash/arqueocash",
+          "padre": null,
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.CIERRE_CAJA",
+          "nombre": "Cierre Caja",
+          "ruta": "/initial/cash/closecash",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.DEPOSITOS",
+          "nombre": "Depósitos",
+          "ruta": "/initial/cash/deposits",
+          "padre": null,
+          "orden": 4,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.DEPOSITOS.PRE_DEPOSITO",
+          "nombre": "Pre Depósito",
+          "ruta": "/initial/cash/deposits/predeposits",
+          "padre": "CAJA.DEPOSITOS",
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.DEPOSITOS.GENERAR_DEPOSITO",
+          "nombre": "Generar Depósito",
+          "ruta": "/initial/cash/deposits/generatedeposits",
+          "padre": "CAJA.DEPOSITOS",
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.DEPOSITOS.CONSULTA_DEPOSITOS",
+          "nombre": "Consulta Depósitos",
+          "ruta": "/initial/cash/deposits/consultdeposits",
+          "padre": "CAJA.DEPOSITOS",
+          "orden": 3,
           "acciones": [
             "VER",
             "CREAR",
@@ -351,7 +343,7 @@
     {
       "codigo": "COMPRAS",
       "nombre": "Compras",
-      "orden": 2,
+      "orden": 3,
       "icono": "bi-cart-fill",
       "funciones": [
         {
@@ -695,7 +687,7 @@
     {
       "codigo": "CONSIGNACION",
       "nombre": "Consignación",
-      "orden": 3,
+      "orden": 4,
       "icono": null,
       "funciones": [
         {
@@ -751,7 +743,7 @@
     {
       "codigo": "VENTAS",
       "nombre": "Ventas",
-      "orden": 4,
+      "orden": 5,
       "icono": "bi-receipt",
       "funciones": [
         {
@@ -771,59 +763,11 @@
           ]
         },
         {
-          "codigo": "VENTAS.PRESUPUESTOS",
-          "nombre": "Presupuestos",
-          "ruta": "/sales/budgets/proforma",
-          "padre": null,
-          "orden": 2,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "VENTAS.PRESUPUESTOS.PROFORMAS_O_COTIZACION",
-          "nombre": "Proformas o Cotización",
-          "ruta": "/sales/budgets/proforma",
-          "padre": "VENTAS.PRESUPUESTOS",
-          "orden": 1,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "VENTAS.PRESUPUESTOS.SEGUIMIENTO_COTIZACIONES",
-          "nombre": "Seguimiento Cotizaciones",
-          "ruta": "/sales/budgets/seguimiento",
-          "padre": "VENTAS.PRESUPUESTOS",
-          "orden": 2,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
           "codigo": "VENTAS.AGENTE_DE_VENTAS",
           "nombre": "Agente de ventas",
           "ruta": "/sales/salesagent",
           "padre": null,
-          "orden": 3,
+          "orden": 2,
           "acciones": [
             "VER",
             "CREAR",
@@ -839,7 +783,7 @@
           "nombre": "Abono Cobrar",
           "ruta": "/sales/collect",
           "padre": null,
-          "orden": 4,
+          "orden": 3,
           "acciones": [
             "VER",
             "CREAR",
@@ -855,7 +799,7 @@
           "nombre": "Ajuste Cobrar",
           "ruta": "/sales/adjustmentcollect",
           "padre": null,
-          "orden": 5,
+          "orden": 4,
           "acciones": [
             "VER",
             "CREAR",
@@ -871,7 +815,47 @@
           "nombre": "Devoluciones",
           "ruta": "/sales/repayment",
           "padre": null,
-          "orden": 6,
+          "orden": 5,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "PRESUPUESTOS",
+      "nombre": "Presupuestos",
+      "orden": 6,
+      "icono": "bi-file-earmark-text",
+      "funciones": [
+        {
+          "codigo": "PRESUPUESTOS.PROFORMAS_O_COTIZACION",
+          "nombre": "Proformas o Cotización",
+          "ruta": "/sales/budgets/proforma",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "PRESUPUESTOS.SEGUIMIENTO_COTIZACIONES",
+          "nombre": "Seguimiento Cotizaciones",
+          "ruta": "/sales/budgets/seguimiento",
+          "padre": null,
+          "orden": 2,
           "acciones": [
             "VER",
             "CREAR",
@@ -887,7 +871,7 @@
     {
       "codigo": "UTILIDADES",
       "nombre": "Utilidades",
-      "orden": 5,
+      "orden": 7,
       "icono": "bi-tools",
       "funciones": [
         {
@@ -973,15 +957,15 @@
       ]
     },
     {
-      "codigo": "PARAMETROS",
-      "nombre": "Parametros",
-      "orden": 6,
-      "icono": "bi-gear-fill",
+      "codigo": "CATALOGOS",
+      "nombre": "Catálogos",
+      "orden": 8,
+      "icono": "bi-collection",
       "funciones": [
         {
-          "codigo": "PARAMETROS.CONFIGURACION",
-          "nombre": "Configuración",
-          "ruta": "/parameters/settings",
+          "codigo": "CATALOGOS.CATEGORIAS",
+          "nombre": "Categorias",
+          "ruta": "/parameters/category",
           "padre": null,
           "orden": 1,
           "acciones": [
@@ -995,9 +979,9 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.TIPOS_DE_FACTURA",
-          "nombre": "Tipos de Factura",
-          "ruta": "/parameters/invoice-types",
+          "codigo": "CATALOGOS.MONEDAS",
+          "nombre": "Monedas",
+          "ruta": "/parameters/coins",
           "padre": null,
           "orden": 2,
           "acciones": [
@@ -1011,9 +995,9 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.TIPOS_DE_IDENTIFICACION",
-          "nombre": "Tipos de Identificación",
-          "ruta": "/parameters/identification-types",
+          "codigo": "CATALOGOS.PRESENTACIONES",
+          "nombre": "Presentaciones",
+          "ruta": "/parameters/presentations",
           "padre": null,
           "orden": 3,
           "acciones": [
@@ -1027,9 +1011,9 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.IMPUESTOS",
-          "nombre": "Impuestos",
-          "ruta": "/parameters/taxes",
+          "codigo": "CATALOGOS.TIPOS_DE_FACTURA",
+          "nombre": "Tipos de Factura",
+          "ruta": "/parameters/invoice-types",
           "padre": null,
           "orden": 4,
           "acciones": [
@@ -1043,9 +1027,9 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.TIPOS_DE_COBRO",
-          "nombre": "Tipos de Cobro",
-          "ruta": "/parameters/collection-types",
+          "codigo": "CATALOGOS.TIPOS_DE_IDENTIFICACION",
+          "nombre": "Tipos de Identificación",
+          "ruta": "/parameters/identification-types",
           "padre": null,
           "orden": 5,
           "acciones": [
@@ -1059,9 +1043,9 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.FORMAS_DE_PAGO",
-          "nombre": "Formas de Pago",
-          "ruta": "/parameters/payment-methods",
+          "codigo": "CATALOGOS.IMPUESTOS",
+          "nombre": "Impuestos",
+          "ruta": "/parameters/taxes",
           "padre": null,
           "orden": 6,
           "acciones": [
@@ -1075,9 +1059,9 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.TIPOS_DE_EXONERACION",
-          "nombre": "Tipos de Exoneración",
-          "ruta": "/parameters/exemption-types",
+          "codigo": "CATALOGOS.TIPOS_DE_COBRO",
+          "nombre": "Tipos de Cobro",
+          "ruta": "/parameters/collection-types",
           "padre": null,
           "orden": 7,
           "acciones": [
@@ -1091,9 +1075,9 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.MONEDAS_FISCALES",
-          "nombre": "Monedas Fiscales",
-          "ruta": "/parameters/currencies",
+          "codigo": "CATALOGOS.FORMAS_DE_PAGO",
+          "nombre": "Formas de Pago",
+          "ruta": "/parameters/payment-methods",
           "padre": null,
           "orden": 8,
           "acciones": [
@@ -1107,9 +1091,9 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.DENOMINACIONES_DE_MONEDA",
-          "nombre": "Denominaciones de Moneda",
-          "ruta": "/parameters/currency-denominations",
+          "codigo": "CATALOGOS.TIPOS_DE_EXONERACION",
+          "nombre": "Tipos de Exoneración",
+          "ruta": "/parameters/exemption-types",
           "padre": null,
           "orden": 9,
           "acciones": [
@@ -1123,9 +1107,9 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.CONFIGURACION_DE_PLAZOS",
-          "nombre": "Configuración de Plazos",
-          "ruta": "/parameters/payment-terms",
+          "codigo": "CATALOGOS.MONEDAS_FISCALES",
+          "nombre": "Monedas Fiscales",
+          "ruta": "/parameters/currencies",
           "padre": null,
           "orden": 10,
           "acciones": [
@@ -1139,9 +1123,9 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.GEOGRAFIA_FISCAL",
-          "nombre": "Geografía Fiscal",
-          "ruta": "/parameters/fiscal-geography",
+          "codigo": "CATALOGOS.DENOMINACIONES_DE_MONEDA",
+          "nombre": "Denominaciones de Moneda",
+          "ruta": "/parameters/currency-denominations",
           "padre": null,
           "orden": 11,
           "acciones": [
@@ -1155,9 +1139,9 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.EMISORES",
-          "nombre": "Emisores",
-          "ruta": "/parameters/issuers",
+          "codigo": "CATALOGOS.DENOMINACION_MONEDAS",
+          "nombre": "Denominación monedas",
+          "ruta": "/parameters/denominationcoins",
           "padre": null,
           "orden": 12,
           "acciones": [
@@ -1171,9 +1155,9 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.SERIES_DE_FACTURACION",
-          "nombre": "Series de Facturación",
-          "ruta": "/parameters/invoice-series",
+          "codigo": "CATALOGOS.CONFIGURACION_DE_PLAZOS",
+          "nombre": "Configuración de Plazos",
+          "ruta": "/parameters/payment-terms",
           "padre": null,
           "orden": 13,
           "acciones": [
@@ -1187,11 +1171,115 @@
           ]
         },
         {
+          "codigo": "CATALOGOS.GEOGRAFIA_FISCAL",
+          "nombre": "Geografía Fiscal",
+          "ruta": "/parameters/fiscal-geography",
+          "padre": null,
+          "orden": 14,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CATALOGOS.BANCOS",
+          "nombre": "Bancos",
+          "ruta": "/parameters/bank",
+          "padre": null,
+          "orden": 15,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CATALOGOS.CLIENTES_FRECUENTES",
+          "nombre": "Clientes Frecuentes",
+          "ruta": "/parameters/usualcustomers",
+          "padre": null,
+          "orden": 16,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CATALOGOS.TARIFAS",
+          "nombre": "Tarifas",
+          "ruta": "/parameters/rates",
+          "padre": null,
+          "orden": 17,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CATALOGOS.UBICACIONES",
+          "nombre": "Ubicaciones",
+          "ruta": "/parameters/locations",
+          "padre": null,
+          "orden": 18,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CATALOGOS.FAMILIAS",
+          "nombre": "Familias",
+          "ruta": "/parameters/family",
+          "padre": null,
+          "orden": 19,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "PARAMETROS",
+      "nombre": "Parametros",
+      "orden": 9,
+      "icono": "bi-gear-fill",
+      "funciones": [
+        {
           "codigo": "PARAMETROS.USUARIOS",
           "nombre": "Usuarios",
           "ruta": "/parameters/users",
           "padre": null,
-          "orden": 14,
+          "orden": 1,
           "acciones": [
             "VER",
             "CREAR",
@@ -1207,7 +1295,7 @@
           "nombre": "Roles",
           "ruta": "/parameters/role",
           "padre": null,
-          "orden": 15,
+          "orden": 2,
           "acciones": [
             "VER",
             "CREAR",
@@ -1223,7 +1311,7 @@
           "nombre": "Empresas",
           "ruta": "/parameters/company",
           "padre": null,
-          "orden": 16,
+          "orden": 3,
           "acciones": [
             "VER",
             "CREAR",
@@ -1239,7 +1327,7 @@
           "nombre": "Surcursales",
           "ruta": "/parameters/branch",
           "padre": null,
-          "orden": 17,
+          "orden": 4,
           "acciones": [
             "VER",
             "CREAR",
@@ -1251,11 +1339,11 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.BANCOS",
-          "nombre": "Bancos",
-          "ruta": "/parameters/bank",
+          "codigo": "PARAMETROS.SERIES_DE_FACTURACION",
+          "nombre": "Series de Facturación",
+          "ruta": "/parameters/invoice-series",
           "padre": null,
-          "orden": 18,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -1267,11 +1355,27 @@
           ]
         },
         {
-          "codigo": "PARAMETROS.CLIENTES_FRECUENTES",
-          "nombre": "Clientes Frecuentes",
-          "ruta": "/parameters/usualcustomers",
+          "codigo": "PARAMETROS.CONFIGURACION",
+          "nombre": "Configuración",
+          "ruta": "/parameters/settings",
           "padre": null,
-          "orden": 19,
+          "orden": 6,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "PARAMETROS.EMISORES",
+          "nombre": "Emisores",
+          "ruta": "/parameters/issuers",
+          "padre": null,
+          "orden": 7,
           "acciones": [
             "VER",
             "CREAR",
@@ -1287,87 +1391,7 @@
           "nombre": "Asignar Ficha Por Usuarios",
           "ruta": "/parameters/assigntab",
           "padre": null,
-          "orden": 20,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "PARAMETROS.TARIFAS",
-          "nombre": "Tarifas",
-          "ruta": "/parameters/rates",
-          "padre": null,
-          "orden": 21,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "PARAMETROS.UBICACIONES",
-          "nombre": "Ubicaciones",
-          "ruta": "/parameters/locations",
-          "padre": null,
-          "orden": 22,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "PARAMETROS.PRESENTACIONES",
-          "nombre": "Presentaciones",
-          "ruta": "/parameters/presentations",
-          "padre": null,
-          "orden": 23,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "PARAMETROS.MONEDAS",
-          "nombre": "Monedas",
-          "ruta": "/parameters/coins",
-          "padre": null,
-          "orden": 24,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "PARAMETROS.DENOMINACION_MONEDAS",
-          "nombre": "Denominación monedas",
-          "ruta": "/parameters/denominationcoins",
-          "padre": null,
-          "orden": 25,
+          "orden": 8,
           "acciones": [
             "VER",
             "CREAR",
@@ -1383,7 +1407,7 @@
           "nombre": "Bodegas",
           "ruta": "/parameters/wineries",
           "padre": null,
-          "orden": 26,
+          "orden": 9,
           "acciones": [
             "VER",
             "CREAR",
@@ -1399,39 +1423,7 @@
           "nombre": "Areas",
           "ruta": "/parameters/areas",
           "padre": null,
-          "orden": 27,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "PARAMETROS.FAMILIAS",
-          "nombre": "Familias",
-          "ruta": "/parameters/family",
-          "padre": null,
-          "orden": 28,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "PARAMETROS.CATEGORIAS",
-          "nombre": "Categorias",
-          "ruta": "/parameters/category",
-          "padre": null,
-          "orden": 29,
+          "orden": 10,
           "acciones": [
             "VER",
             "CREAR",
@@ -1447,7 +1439,7 @@
           "nombre": "Registro de pantalla",
           "ruta": "/parameters/screenregister",
           "padre": null,
-          "orden": 30,
+          "orden": 11,
           "acciones": [
             "VER",
             "CREAR",
@@ -1463,7 +1455,7 @@
           "nombre": "Bloquea/Desbloquea bodega",
           "ruta": "/parameters/lockunlockwarehouse",
           "padre": null,
-          "orden": 31,
+          "orden": 12,
           "acciones": [
             "VER",
             "CREAR",
@@ -1479,7 +1471,7 @@
           "nombre": "Bloquea/desbloquea X Casa Comercial",
           "ruta": "/parameters/lock/unlockcommercialhouse",
           "padre": null,
-          "orden": 32,
+          "orden": 13,
           "acciones": [
             "VER",
             "CREAR",
@@ -1495,7 +1487,7 @@
           "nombre": "Translado entre puntos de venta",
           "ruta": "/parameters/lock/transferpointssale",
           "padre": null,
-          "orden": 33,
+          "orden": 14,
           "acciones": [
             "VER",
             "CREAR",
@@ -1511,7 +1503,7 @@
           "nombre": "Convertir Saco por Kilos",
           "ruta": "/parameters/bagskilos",
           "padre": null,
-          "orden": 34,
+          "orden": 15,
           "acciones": [
             "VER",
             "CREAR",
@@ -1527,7 +1519,7 @@
           "nombre": "Categoría de acción",
           "ruta": "/parameters/actions",
           "padre": null,
-          "orden": 35,
+          "orden": 16,
           "acciones": [
             "VER",
             "CREAR",
@@ -1543,7 +1535,7 @@
           "nombre": "Condicciones de Uso Firmado Contado",
           "ruta": "/parameters/terms",
           "padre": null,
-          "orden": 36,
+          "orden": 17,
           "acciones": [
             "VER",
             "CREAR",
@@ -1559,7 +1551,7 @@
     {
       "codigo": "MODULO_INVENTARIO",
       "nombre": "Módulo Inventario",
-      "orden": 7,
+      "orden": 10,
       "icono": "bi-boxes",
       "funciones": [
         {
@@ -1583,7 +1575,7 @@
     {
       "codigo": "MODULO_REPORTES",
       "nombre": "Módulo Reportes",
-      "orden": 8,
+      "orden": 11,
       "icono": "bi-bar-chart-fill",
       "funciones": [
         {
@@ -1607,7 +1599,7 @@
     {
       "codigo": "MODULO_FARMACIA",
       "nombre": "Módulo Farmacia",
-      "orden": 9,
+      "orden": 12,
       "icono": "bi-capsule",
       "funciones": [
         {

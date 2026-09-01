@@ -16,7 +16,7 @@
    anterior. El encabezado se valida antes de abrir el buscador y cada detalle
    conserva su costo compuesto para que el API actualice inventario y lotes. *@
 
-<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Escritorio">
+<AppPantalla Pantalla="@Titulo" Icono="bi-cart-plus-fill" Subtitulo="Registro de compras a proveedor" Nivel="NivelPantalla.Escritorio">
     <Acciones>
         <button class="btn btn-sm btn-outline-secondary" @onclick="NuevaCompra"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nueva compra</button>
         <button class="btn btn-sm btn-outline-primary" disabled="@(!_compraDesbloqueada)" @onclick="AbrirBuscadorCompras"><i class="bi bi-search me-1" aria-hidden="true"></i>Buscar</button>

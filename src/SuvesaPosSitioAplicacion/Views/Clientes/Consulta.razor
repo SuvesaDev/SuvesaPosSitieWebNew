@@ -25,7 +25,7 @@
     Solo cambian el proxy, los campos de la tarjeta y las columnas.
 *@
 
-<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+<AppPantalla Pantalla="@Titulo" Icono="bi-people-fill" Subtitulo="Consulta y alta de clientes y sus mascotas" Nivel="NivelPantalla.Movil">
     <Acciones>
         @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
         {
@@ -37,43 +37,43 @@
     <ChildContent>
         <section class="seepos-clientes">
 
-        <div class="seepos-clientes-busqueda mb-3">
-            <div class="input-group input-group-lg">
-                <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
-                <input type="search" class="form-control"
-                       placeholder="Cedula o nombre..."
-                       aria-label="Buscar cliente"
+        <AppFiltros AlBuscar="Buscar" AlLimpiar="LimpiarFiltros" Buscando="_buscando"
+                    Resumen="@ResumenConteo()">
+            <div class="col-12 col-md-6">
+                <label class="form-label" for="fCliTexto">Cédula o nombre</label>
+                <input id="fCliTexto" type="search" class="form-control" placeholder="Escriba para filtrar..."
                        value="@_texto" @oninput="AlEscribir" />
             </div>
-            <div class="form-text">
-                Escriba al menos dos caracteres. Solo digitos busca por cedula.
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="fCliEstado">Estado</label>
+                <select id="fCliEstado" class="form-select" @bind="_estado" @bind:after="Refiltrar">
+                    <option value="A">Activos</option>
+                    <option value="I">Inactivos</option>
+                    <option value="T">Todos</option>
+                </select>
             </div>
-        </div>
+        </AppFiltros>
 
         @if (_buscando)
         {
             <div class="d-flex justify-content-center py-4">
                 <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Buscando</span>
+                    <span class="visually-hidden">Cargando</span>
                 </div>
-            </div>
-        }
-        else if (_resultados.Count == 0)
-        {
-            <div class="text-center text-secondary py-5 small">
-                @(string.IsNullOrWhiteSpace(_texto)
-                    ? "Escriba para buscar un cliente."
-                    : "Ningun cliente coincide con la busqueda.")
             </div>
         }
         else
         {
-            <p class="seepos-clientes-resumen">
-                <i class="bi bi-people me-1" aria-hidden="true"></i>@_resultados.Count @(_resultados.Count == 1 ? "cliente encontrado" : "clientes encontrados")
-            </p>
-
             @* Movil: tarjetas. *@
             <div class="d-md-none d-flex flex-column gap-2">
+                @if (_resultados.Count == 0)
+                {
+                    <p class="text-secondary small text-center py-4 mb-0">
+                        @(_modoBusqueda && _todos.Count == 0
+                            ? "Escriba y pulse Buscar."
+                            : "Ningún cliente coincide.")
+                    </p>
+                }
                 @foreach (var c in _resultados)
                 {
                     <button type="button" class="card text-start border-0 shadow-sm p-0"
@@ -96,7 +96,8 @@
             <div class="d-none d-md-block card seepos-clientes-tabla">
                 <div class="card-body">
                     <AppRejilla TItem="FiltranClienteDTO" Datos="Servir"
-                                Nivel="NivelPantalla.Tableta" @ref="_rejilla">
+                                Nivel="NivelPantalla.Tableta" @ref="_rejilla"
+                                TextoVacio="@(_modoBusqueda && _todos.Count == 0 ? "Escriba y pulse Buscar." : "Ningún cliente coincide.")">
                         <Columnas>
                             <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Cedula"
                                           ItemTextSelector="c => c.Cedula"
@@ -298,7 +299,7 @@
     </FooterTemplate>
 </HxModal>
 
-<HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo cliente" : "Editar cliente")" Size="ModalSize.Large">
+<HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo cliente" : "Editar cliente")" Size="ModalSize.Large" Scrollable="true">
     <BodyTemplate>
         @if (_edicion is not null)
         {
@@ -366,31 +367,35 @@
 
                         <div class="col-12 seepos-form-seccion">Facturación electrónica</div>
                         <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo de facturación electrónica" @bind-Valor="_edicion.CorreoComprobante" /></div>
-                        <div class="col-12 col-md-6 d-flex align-items-end gap-4">
-                            <div class="form-check"><input id="cliente-sucursales" class="form-check-input" type="checkbox" checked="@_variasSucursales" @onchange="AlCambiarSucursales" /><label class="form-check-label" for="cliente-sucursales">Varias sucursales</label></div>
-                            <div class="form-check"><input id="cliente-recibo" class="form-check-input" type="checkbox" @bind="_edicion.EnviarRecibo" /><label class="form-check-label" for="cliente-recibo">Enviar recibo al correo</label></div>
-                        </div>
                         @if (!_variasSucursales) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre fantasía" @bind-Valor="_edicion.NombreFantasia" /></div> }
                         @if (_edicion.EnviarRecibo) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo para recibos" @bind-Valor="_edicion.CorreoRecibo" /></div> }
-                        @if (!Sesion.EsCostaPets)
-                        {
-                            <div class="col-12 d-flex flex-wrap gap-4 border-top pt-3">
-                                <div class="form-check"><input id="cliente-empresa-general" class="form-check-input" type="checkbox" @bind="_edicion.Empresa" /><label class="form-check-label" for="cliente-empresa-general">Empresa</label></div>
-                                <div class="form-check"><input id="cliente-mag" class="form-check-input" type="checkbox" @bind="_edicion.Mag" /><label class="form-check-label" for="cliente-mag">Registrado en MAG</label></div>
-                                <div class="form-check"><input id="cliente-actualizado" class="form-check-input" type="checkbox" @bind="_edicion.Actualizado" /><label class="form-check-label" for="cliente-actualizado">Actualizado</label></div>
-                                <div class="form-check"><input id="cliente-fallecido" class="form-check-input" type="checkbox" @bind="_edicion.Fallecido" /><label class="form-check-label" for="cliente-fallecido">Fallecido</label></div>
+                        <div class="col-12">
+                            <div class="seepos-editor-marcas">
+                                <div class="form-check"><input id="cliente-sucursales" class="form-check-input" type="checkbox" checked="@_variasSucursales" @onchange="AlCambiarSucursales" /><label class="form-check-label" for="cliente-sucursales">Varias sucursales</label></div>
+                                <div class="form-check"><input id="cliente-recibo" class="form-check-input" type="checkbox" @bind="_edicion.EnviarRecibo" /><label class="form-check-label" for="cliente-recibo">Enviar recibo al correo</label></div>
                             </div>
-                        }
-                        @if (Sesion.EsCostaPets)
-                        {
-                            <div class="col-12 d-flex flex-wrap align-items-center gap-4 border-top pt-3">
-                                <div class="form-check"><input id="cliente-bonificado" class="form-check-input" type="checkbox" @bind="_edicion.TieneBonificacion" /><label class="form-check-label" for="cliente-bonificado">Bonificado</label></div>
-                                @if (_edicion.TieneBonificacion && _esNuevo)
+                        </div>
+
+                        <div class="col-12 seepos-form-seccion">Marcas</div>
+                        <div class="col-12">
+                            <div class="seepos-editor-marcas">
+                                @if (!Sesion.EsCostaPets)
                                 {
-                                    <span class="text-secondary small"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>La pestaña de Bonificación se habilita al guardar el cliente.</span>
+                                    <div class="form-check"><input id="cliente-empresa-general" class="form-check-input" type="checkbox" @bind="_edicion.Empresa" /><label class="form-check-label" for="cliente-empresa-general">Empresa</label></div>
+                                    <div class="form-check"><input id="cliente-mag" class="form-check-input" type="checkbox" @bind="_edicion.Mag" /><label class="form-check-label" for="cliente-mag">Registrado en MAG</label></div>
+                                    <div class="form-check"><input id="cliente-actualizado" class="form-check-input" type="checkbox" @bind="_edicion.Actualizado" /><label class="form-check-label" for="cliente-actualizado">Actualizado</label></div>
+                                    <div class="form-check"><input id="cliente-fallecido" class="form-check-input" type="checkbox" @bind="_edicion.Fallecido" /><label class="form-check-label" for="cliente-fallecido">Fallecido</label></div>
+                                }
+                                @if (Sesion.EsCostaPets)
+                                {
+                                    <div class="form-check"><input id="cliente-bonificado" class="form-check-input" type="checkbox" @bind="_edicion.TieneBonificacion" /><label class="form-check-label" for="cliente-bonificado">Bonificado</label></div>
                                 }
                             </div>
-                        }
+                            @if (Sesion.EsCostaPets && _edicion.TieneBonificacion && _esNuevo)
+                            {
+                                <p class="text-secondary small mt-2 mb-0"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>La pestaña de Bonificación se habilita al guardar el cliente.</p>
+                            }
+                        </div>
                     </div>
                 }
                 else if (_pestanaEdicion == "credito")
@@ -511,14 +516,14 @@
 @code {
     private const string Titulo = "Clientes";
 
-    private static readonly TimeSpan Espera = TimeSpan.FromMilliseconds(400);
-
     private AppRejilla<FiltranClienteDTO>? _rejilla;
     private HxOffcanvas _detalle = default!;
     private HxModal _modal = default!;
     private HxModal _modalCarta = default!;
 
     private string _texto = string.Empty;
+    private string _estado = "A";   // "A" activos, "I" inactivos, "T" todos
+    private List<FiltranClienteDTO> _todos = new();
     private List<FiltranClienteDTO> _resultados = new();
     private FiltranClienteDTO? _elegido;
     private bool _buscando;
@@ -549,52 +554,98 @@
     private string _pestanaEdicion = "generales";
     private bool _variasSucursales;
 
-    private CancellationTokenSource? _pendiente;
+    /// <summary>
+    /// true si el API devuelve el listado completo sin termino (carga al abrir).
+    /// false si exige un termino: entonces la pantalla funciona por busqueda.
+    /// </summary>
+    private bool _modoBusqueda;
 
-    private async Task AlEscribir(ChangeEventArgs e)
-    {
-        _texto = e.Value?.ToString() ?? string.Empty;
+    protected override async Task OnInitializedAsync() => await RecargarDesdeApi();
 
-        _pendiente?.Cancel();
-        _pendiente = new CancellationTokenSource();
-        var token = _pendiente.Token;
-
-        try
-        {
-            await Task.Delay(Espera, token);
-        }
-        catch (TaskCanceledException)
-        {
-            return;
-        }
-
-        await Buscar(token);
-    }
-
-    private async Task Buscar(CancellationToken token)
+    /// <summary>
+    /// Al abrir (y con "Buscar" sin termino) intenta traer el listado completo.
+    /// Si el API lo rechaza, cae a modo busqueda sin molestar con un error.
+    /// </summary>
+    private async Task RecargarDesdeApi()
     {
         _buscando = true;
         StateHasChanged();
 
-        var r = await Api.Buscar(_texto);
-
-        if (token.IsCancellationRequested)
+        var r = await Api.Listar();
+        if (r.EsCorrecta && r.Responses is not null)
         {
+            _todos = r.Responses.ToList();
+            _modoBusqueda = false;
+        }
+        else
+        {
+            _todos = new List<FiltranClienteDTO>();
+            _modoBusqueda = true;
+        }
+
+        _buscando = false;
+        Refiltrar();
+    }
+
+    /// <summary>Boton Buscar del panel: lista completa si se puede, si no busca por el texto.</summary>
+    private async Task Buscar()
+    {
+        if (!_modoBusqueda)
+        {
+            await RecargarDesdeApi();
             return;
         }
 
-        _resultados = (await Respuestas.DatoAsync(r, "buscar clientes"))
-                      ?.ToList() ?? new List<FiltranClienteDTO>();
-
-        _buscando = false;
-
-        if (_rejilla is not null)
+        if (Helpers.Texto.Normalizar(_texto).Length < 2)
         {
-            await _rejilla.RefrescarAsync();
+            Dialogos.Advertencia("Escriba al menos dos caracteres para buscar.");
+            return;
         }
 
+        _buscando = true;
+        StateHasChanged();
+
+        _todos = (await Respuestas.DatoAsync(await Api.Buscar(_texto), "buscar clientes"))
+                 ?.ToList() ?? new List<FiltranClienteDTO>();
+
+        _buscando = false;
+        Refiltrar();
+    }
+
+    private void AlEscribir(ChangeEventArgs e)
+    {
+        _texto = e.Value?.ToString() ?? string.Empty;
+        Refiltrar();
+    }
+
+    private void LimpiarFiltros()
+    {
+        _texto = string.Empty;
+        _estado = "A";
+        Refiltrar();
+    }
+
+    private void Refiltrar()
+    {
+        var t = Helpers.Texto.Normalizar(_texto);
+        IEnumerable<FiltranClienteDTO> q = _todos;
+
+        if (_estado == "A") q = q.Where(c => !c.Anulado);
+        else if (_estado == "I") q = q.Where(c => c.Anulado);
+
+        if (t.Length > 0)
+            q = q.Where(c => Helpers.Texto.Normalizar(c.Nombre).Contains(t)
+                          || Helpers.Texto.Normalizar(c.Cedula).Contains(t)
+                          || Helpers.Texto.Normalizar(c.Telefono_01).Contains(t));
+
+        _resultados = q.ToList();
+        _rejilla?.RefrescarAsync();
         StateHasChanged();
     }
+
+    private string ResumenConteo()
+        => _resultados.Count == 0 ? "Sin resultados"
+           : $"{_resultados.Count} de {_todos.Count} cliente{(_todos.Count == 1 ? "" : "s")}";
 
     private Task<GridDataProviderResult<FiltranClienteDTO>> Servir(
         GridDataProviderRequest<FiltranClienteDTO> peticion)
@@ -942,7 +993,7 @@
 
     private async Task RefrescarResultados()
     {
-        await Buscar(CancellationToken.None);
+        await RecargarDesdeApi();
     }
 
     private static ClienteDTO ACliente(FiltranClienteDTO cliente) => new()
