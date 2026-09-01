@@ -659,22 +659,21 @@
                             <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Tipo de bonificación</th><th></th></tr></thead><tbody>@foreach (var b in _bonificacionesArticulo) { <tr><td>@NombreTipoBonificacionArticulo(b.IdConfiguracionBonificacion)</td><td class="text-end text-nowrap"><button type="button" class="btn btn-sm btn-link" @onclick="() => EditarBonificacionArticulo(b)">Editar</button><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarBonificacionArticulo(b)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
                         }
 
-                        <div class="col-12"><hr /><h3 class="h6 mb-0">Productos de regalo</h3><p class="form-text">Artículos que se entregan gratis al aplicar la bonificación.</p></div>
-                        <div class="col-12 col-md-6">
+                        <div class="col-12"><hr /><h3 class="h6 mb-0">Artículos para la mezcla</h3><p class="form-text">Artículos que se pueden combinar con este para completar la cantidad de cualquier tipo de bonificación. Sin mezcla configurada, sólo se puede usar consigo mismo. La cantidad de regalo la define el tipo de bonificación elegido, no estos artículos.</p></div>
+                        <div class="col-12 col-md-9">
                             <div class="input-group">
                                 <input class="form-control" disabled value="@_articuloRegaloSeleccionado?.Descripcion" placeholder="Ninguno seleccionado" />
                                 <button type="button" class="btn btn-outline-primary" @onclick="AbrirBuscadorRegalo"><i class="bi bi-search" aria-hidden="true"></i></button>
                             </div>
                         </div>
-                        <div class="col-12 col-md-3"><input type="number" min="0.001" step="0.001" class="form-control" placeholder="Cantidad" @bind="_cantidadRegalo" /></div>
                         <div class="col-12 col-md-3 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="AgregarProductoRegalo">Agregar</button></div>
                         @if (_productosRegalo.Count == 0)
                         {
-                            <div class="col-12"><div class="alert alert-light border mb-0">No hay productos de regalo registrados.</div></div>
+                            <div class="col-12"><div class="alert alert-light border mb-0">No hay artículos configurados para la mezcla.</div></div>
                         }
                         else
                         {
-                            <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th><th></th></tr></thead><tbody>@foreach (var producto in _productosRegalo) { <tr><td><code>@producto.CodArticulo</code></td><td>@producto.Descripcion</td><td class="text-end">@Formato.Cantidad(producto.Cantidad)</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarProductoRegalo(producto)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
+                            <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th></th></tr></thead><tbody>@foreach (var producto in _productosRegalo) { <tr><td><code>@producto.CodArticulo</code></td><td>@producto.Descripcion</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarProductoRegalo(producto)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
                         }
                     </div>
                 }
@@ -776,7 +775,6 @@
     private bool _guardandoBonificacionArticulo;
     private List<ArticulosRelacionadosDTO> _productosRegalo = new();
     private InventarioDTO? _articuloRegaloSeleccionado;
-    private float _cantidadRegalo = 1;
 
     private AppBuscadorArticulo _buscadorDescarga = default!;
     private InventarioDTO? _articuloDescargaSeleccionado;
@@ -1176,7 +1174,6 @@
         _tipoBonificacionArticuloSeleccionado = 0;
         _idBonificacionArticuloEnEdicion = 0;
         _articuloRegaloSeleccionado = null;
-        _cantidadRegalo = 1;
     }
 
     private async Task AlCambiarBonificado()
@@ -1275,27 +1272,26 @@
 
     private async Task AgregarProductoRegalo()
     {
-        if (_edicion is null || _articuloRegaloSeleccionado is null || _cantidadRegalo <= 0) return;
+        if (_edicion is null || _articuloRegaloSeleccionado is null) return;
 
         if (await Respuestas.CorrectaAsync(
-            await Relacionados.GuardarBonificacion(_edicion.Codigo, _articuloRegaloSeleccionado.Codigo, _cantidadRegalo, true),
-            "agregar el producto de bonificación"))
+            await Relacionados.GuardarBonificacion(_edicion.Codigo, _articuloRegaloSeleccionado.Codigo, 1, true),
+            "agregar el artículo a la mezcla"))
         {
             _productosRegalo = (await Respuestas.DatoAsync(await Relacionados.BuscarBonificacion(_edicion.Codigo), "consultar los productos de bonificación"))
                 ?.ToList() ?? new List<ArticulosRelacionadosDTO>();
             _articuloRegaloSeleccionado = null;
-            _cantidadRegalo = 1;
-            Dialogos.Exito("Producto de bonificación agregado.");
+            Dialogos.Exito("Artículo agregado a la mezcla.");
         }
     }
 
     private async Task QuitarProductoRegalo(ArticulosRelacionadosDTO producto)
     {
-        if (_edicion is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea quitar este producto de bonificación?")) return;
+        if (_edicion is null || !await Dialogos.ConfirmarPeligroAsync("¿Quitar este artículo de la mezcla?")) return;
 
         if (await Respuestas.CorrectaAsync(
-            await Relacionados.GuardarBonificacion(_edicion.Codigo, producto.Codigo, producto.Cantidad, false),
-            "quitar el producto de bonificación"))
+            await Relacionados.GuardarBonificacion(_edicion.Codigo, producto.Codigo, 1, false),
+            "quitar el artículo de la mezcla"))
         {
             _productosRegalo.Remove(producto);
             Dialogos.Exito("Producto de bonificación quitado.");
