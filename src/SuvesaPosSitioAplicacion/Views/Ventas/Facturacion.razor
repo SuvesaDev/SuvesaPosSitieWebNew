@@ -13,6 +13,9 @@
 @inject IContextoSesion Sesion
 @inject NavigationManager Navegacion
 @inject IClienteBonificacion ClienteBonificacion
+@inject ICatalogoBonificacion CatalogoBonificacion
+@inject IArticuloBonificacion ArticuloBonificacion
+@inject IArticulosRelacionados Relacionados
 @inject ICompras Compras
 
 @* Port del flujo de Billing: cliente -> artículos/lotes -> totales -> emisión.
@@ -89,15 +92,17 @@
                                         {
                                             <p class="text-secondary small mb-0 mt-1">Sin bonificaciones configuradas.</p>
                                         }
+                                        else if (_tipoBonificacionClienteActivo > 0)
+                                        {
+                                            <div class="d-flex align-items-center justify-content-between small mt-1">
+                                                <span>Bonificación activa: <strong>@NombreTipoBonificacion(_tipoBonificacionClienteActivo)</strong></span>
+                                                <button type="button" class="btn btn-sm btn-link p-0" @onclick="() => _tipoBonificacionClienteActivo = 0">Quitar</button>
+                                            </div>
+                                            <p class="text-secondary small mb-0 mt-1"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>Al agregar un artículo bonificable se aplicará este tipo.</p>
+                                        }
                                         else
                                         {
-                                            <ul class="list-unstyled small mb-0 mt-1">
-                                                @foreach (var b in _bonificacionesCliente)
-                                                {
-                                                    <li>@b.DescripcionArticulo</li>
-                                                }
-                                            </ul>
-                                            <p class="text-secondary small mb-0 mt-1"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>Informativo. Agregue el producto de regalo manualmente si corresponde.</p>
+                                            <button type="button" class="btn btn-sm btn-outline-success mt-1" @onclick="() => _modalBonificacionCliente.ShowAsync()">Usar una bonificación del cliente</button>
                                         }
                                     </div>
                                 }
@@ -116,7 +121,7 @@
             <div class="card-header d-flex justify-content-between align-items-center gap-2"><strong>Detalle</strong><div class="btn-group"><button type="button" class="btn btn-sm btn-outline-primary" @onclick="AbrirBuscadorArticulo"><i class="bi bi-list-ul me-1" aria-hidden="true"></i>Buscar artículo</button><button type="button" class="btn btn-sm btn-primary" @onclick="AbrirCatalogoImagenes"><i class="bi bi-camera me-1" aria-hidden="true"></i>Catálogo visual</button></div></div>
             <div class="card-body p-0">
                 @if (_lineas.Count == 0) { <p class="text-secondary text-center py-4 mb-0">Seleccione un cliente y agregue artículos a la factura.</p> }
-                else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Precio</th><th class="text-end">Desc. %</th><th class="text-end">Impuesto</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var linea in _lineas) { <tr><td><code>@linea.Articulo.Cod_Articulo</code></td><td>@linea.Articulo.Descripcion @if (!string.IsNullOrWhiteSpace(linea.Lote)) { <small class="text-secondary d-block">Lote: @linea.Lote</small> }</td><td style="min-width:6rem"><input type="number" min="1" step="0.001" class="form-control form-control-sm text-end" @bind="linea.Cantidad" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:7rem"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="linea.Precio" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:5rem"><input type="number" min="0" max="@linea.MaxDescuento" step="0.01" class="form-control form-control-sm text-end" @bind="linea.Descuento" @bind:after="() => RecalcularLinea(linea)" /></td><td class="text-end">@Formato.Importe(linea.Calculo.MontoImpuesto)</td><td class="text-end fw-semibold">@Formato.Importe(linea.Calculo.Total)</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(linea)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div> }
+                else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Precio</th><th class="text-end">Desc. %</th><th class="text-end">Impuesto</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var linea in _lineas) { <tr><td><code>@linea.Articulo.Cod_Articulo</code></td><td>@linea.Articulo.Descripcion @if (linea.EsDeGrupo) { <span class="badge text-bg-success ms-1">@(linea.EsBonificacion ? "Regalo" : "Bonificación")</span> } @if (!string.IsNullOrWhiteSpace(linea.Lote)) { <small class="text-secondary d-block">Lote: @linea.Lote</small> }</td><td style="min-width:6rem"><input type="number" min="1" step="0.001" class="form-control form-control-sm text-end" disabled="@linea.EsDeGrupo" @bind="linea.Cantidad" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:7rem"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" disabled="@linea.EsDeGrupo" @bind="linea.Precio" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:5rem"><input type="number" min="0" max="@linea.MaxDescuento" step="0.01" class="form-control form-control-sm text-end" disabled="@linea.EsDeGrupo" @bind="linea.Descuento" @bind:after="() => RecalcularLinea(linea)" /></td><td class="text-end">@Formato.Importe(linea.Calculo.MontoImpuesto)</td><td class="text-end fw-semibold">@Formato.Importe(linea.Calculo.Total)</td><td class="text-end">@if (!linea.EsDeGrupo || linea.EsLineaPrincipal) { <button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(linea)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button> } else { <span class="text-secondary small">—</span> }</td></tr> }</tbody></table></div> }
             </div>
         </div>
         </fieldset>
@@ -220,6 +225,81 @@
     </FooterTemplate>
 </HxModal>
 
+<HxModal @ref="_modalBonificacionCliente" Title="Bonificación del cliente" Size="ModalSize.Regular">
+    <BodyTemplate>
+        <p class="text-secondary">El cliente tiene bonificaciones disponibles. Elija cuál usar en esta factura (el tipo elegido manda sobre lo que tenga configurado cada artículo).</p>
+        <label class="form-label" for="bonif-cli-tipo">Tipo de bonificación</label>
+        <select id="bonif-cli-tipo" class="form-select" @bind="_tipoBonificacionElegido">
+            <option value="0">Seleccione...</option>
+            @foreach (var b in _bonificacionesCliente.Select(x => x.IdConfiguracionBonificacion).Distinct())
+            {
+                <option value="@b">@NombreTipoBonificacion(b)</option>
+            }
+        </select>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-outline-secondary" @onclick="OmitirBonificacionCliente">No usar bonificación</button>
+        <button type="button" class="btn btn-primary" @onclick="ConfirmarTipoBonificacionCliente">Usar</button>
+    </FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalBonificacionArticulo" Title="Bonificación del artículo" Size="ModalSize.Regular">
+    <BodyTemplate>
+        @if (_articuloBonificacionPendiente is not null)
+        {
+            <p class="text-secondary">@_articuloBonificacionPendiente.Descripcion es un artículo bonificable. ¿Desea aplicar una bonificación?</p>
+        }
+        <label class="form-label" for="bonif-art-tipo">Tipo de bonificación</label>
+        <select id="bonif-art-tipo" class="form-select" @bind="_tipoBonificacionElegido">
+            <option value="0">Seleccione...</option>
+            @foreach (var c in _tiposDelArticuloPendiente)
+            {
+                <option value="@c.IdConfiguracionBonificacion">@c.Descripcion (@c.CantidadVenta lleva @c.CantidadBonificable)</option>
+            }
+        </select>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-outline-secondary" @onclick="OmitirBonificacionArticulo">Agregar sin bonificación</button>
+        <button type="button" class="btn btn-primary" @onclick="ConfirmarBonificacionArticulo">Continuar</button>
+    </FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalMezclaBonificacion" Title="Bonificación — completar la cantidad" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_configMezclaActiva is not null)
+        {
+            <p class="text-secondary">
+                <strong>@_configMezclaActiva.Descripcion</strong>: por cada @_configMezclaActiva.CantidadVenta se regalan @_configMezclaActiva.CantidadBonificable.
+                @if (_mezclaOrigenCliente) { <span>(tipo elegido por el cliente)</span> }
+            </p>
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Artículo</th><th class="text-end">Precio</th><th class="text-end" style="width:9rem">Cantidad</th></tr></thead>
+                <tbody>
+                    @foreach (var item in _itemsMezcla)
+                    {
+                        <tr>
+                            <td>@item.Descripcion</td>
+                            <td class="text-end">@Formato.Importe(item.PrecioUnit)</td>
+                            <td><input type="number" min="0" step="1" class="form-control form-control-sm text-end" @bind="item.Cantidad" /></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="2" class="text-end">Total</th>
+                        <th class="text-end @(TotalMezcla > _configMezclaActiva.CantidadVenta ? "text-danger" : null)">@TotalMezcla / @_configMezclaActiva.CantidadVenta</th>
+                    </tr>
+                </tfoot>
+            </table>
+            <p class="text-secondary small mb-0"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>El artículo de menor precio entre los usados sale gratis (hasta @_configMezclaActiva.CantidadBonificable unidades).</p>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-outline-secondary" @onclick="CancelarMezcla">Cancelar</button>
+        <button type="button" class="btn btn-primary" disabled="@(_aplicandoBonificacion || _configMezclaActiva is null || TotalMezcla == 0 || TotalMezcla > _configMezclaActiva.CantidadVenta)" @onclick="AplicarGrupoBonificacion">@(_aplicandoBonificacion ? "Aplicando..." : "Aplicar bonificación")</button>
+    </FooterTemplate>
+</HxModal>
+
 <AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="PrepararArticulo" />
 
 @code {
@@ -235,8 +315,30 @@
         public decimal Impuesto { get; init; }
         public long IdLote { get; init; }
         public string? Lote { get; init; }
+
+        // §4.3 — agrupación de bonificación.
+        public int? IdGrupoBonificacion { get; set; }
+        public int? IdConfiguracionBonificacion { get; set; }
+        public bool EsBonificacion { get; set; }        // línea de regalo (precio 0, impuesto real)
+        public bool EsLineaPrincipal { get; set; }       // la única del grupo que se puede eliminar
+        public decimal PrecioReferencia { get; set; }    // precio de lista, base del impuesto en la línea de regalo
+
+        public bool EsDeGrupo => IdGrupoBonificacion is not null;
+
         public CalculoDocumento.LineaCalculada Calculo { get; private set; }
-        public void Recalcular() => Calculo = CalculoDocumento.Linea(Cantidad, Precio, Descuento, Impuesto);
+        public void Recalcular() => Calculo = EsBonificacion
+            ? CalculoDocumento.LineaBonificada(Cantidad, PrecioReferencia, Impuesto)
+            : CalculoDocumento.Linea(Cantidad, Precio, Descuento, Impuesto);
+    }
+
+    // Estado que arma el modal de mezcla mientras el cajero elige artículos y cantidades.
+    private sealed class ItemMezcla
+    {
+        public required long Codigo { get; init; }
+        public required string Descripcion { get; init; }
+        public required decimal PrecioUnit { get; init; }
+        public required decimal PorcentajeImpuesto { get; init; }
+        public int Cantidad { get; set; }
     }
     private sealed class ProductoCatalogo
     {
@@ -274,6 +376,21 @@
     private FiltranClienteDTO? _cliente;
     private List<ClienteBonificacionConfiguracionDTO> _bonificacionesCliente = new();
     private bool _cargandoBonificacionCliente;
+
+    // §4.3 — bonificación en curso.
+    private List<ConfiguracionBonificacion> _configsBonificacion = new();
+    private int _tipoBonificacionClienteActivo;              // 0 = ninguno; fijo hasta "Nueva factura"
+    private int _siguienteIdGrupo = 1;
+    private HxModal _modalBonificacionCliente = default!;
+    private HxModal _modalBonificacionArticulo = default!;
+    private HxModal _modalMezclaBonificacion = default!;
+    private int _tipoBonificacionElegido;                    // selección temporal en los modales de tipo
+    private InventarioDTO? _articuloBonificacionPendiente;   // artículo que disparó el flujo por artículo
+    private List<ConfiguracionBonificacion> _tiposDelArticuloPendiente = new();
+    private ConfiguracionBonificacion? _configMezclaActiva;
+    private List<ItemMezcla> _itemsMezcla = new();
+    private bool _mezclaOrigenCliente;                       // el tipo lo puso el cliente (manda) vs. el artículo
+    private bool _aplicandoBonificacion;
     private InventarioDTO? _articuloPendiente;
     private List<StockLoteDTO> _lotesPendientes = new();
     private decimal _cantidadArticuloPendiente = 1;
@@ -294,7 +411,11 @@
         _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))?.ToList() ?? new();
         if (_moneda == 0) _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0;
         _agentesVenta = (await Respuestas.DatoAsync(await Api.Agentes(), "consultar los agentes de venta"))?.ToList() ?? new();
+        _configsBonificacion = (await Respuestas.DatoAsync(await CatalogoBonificacion.Disponibles(), "consultar los tipos de bonificación"))?.ToList() ?? new();
     }
+
+    private ConfiguracionBonificacion? ConfigBonificacion(int id) => _configsBonificacion.FirstOrDefault(c => c.IdConfiguracionBonificacion == id);
+    private string NombreTipoBonificacion(int id) => ConfigBonificacion(id)?.Descripcion ?? id.ToString();
 
     public void Dispose() => _pendienteCliente?.Cancel();
 
@@ -453,10 +574,7 @@
         RecalcularTodo();
 
         _bonificacionesCliente = new List<ClienteBonificacionConfiguracionDTO>();
-        // Solo informativo: se muestra la configuracion del cliente, pero no se
-        // aplica nada a la factura. El sistema actual tampoco lo hace de verdad
-        // hoy — su boton "Bonificar" quedo enganchado al handler equivocado
-        // (copiado del modal de correos) y nunca llego a tocar la factura.
+        _tipoBonificacionClienteActivo = 0;
         if (cliente.TieneBonificacion)
         {
             _cargandoBonificacionCliente = true;
@@ -464,10 +582,30 @@
                 await ClienteBonificacion.ObtenerPorCliente(cliente.Cedula, cliente.Identificacion), "consultar la bonificación del cliente"))
                 ?.ToList() ?? new List<ClienteBonificacionConfiguracionDTO>();
             _cargandoBonificacionCliente = false;
+
+            // §4.3.a — preguntar (antes de agregar artículos) si se usa una de sus bonificaciones.
+            if (_bonificacionesCliente.Count > 0)
+            {
+                _tipoBonificacionElegido = _bonificacionesCliente.Count == 1 ? _bonificacionesCliente[0].IdConfiguracionBonificacion : 0;
+                await _modalBonificacionCliente.ShowAsync();
+            }
         }
     }
 
-    private void QuitarCliente() { _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); }
+    private async Task ConfirmarTipoBonificacionCliente()
+    {
+        if (_tipoBonificacionElegido <= 0) { await Dialogos.ErrorAsync("Seleccione el tipo de bonificación que usará el cliente."); return; }
+        _tipoBonificacionClienteActivo = _tipoBonificacionElegido;
+        await _modalBonificacionCliente.HideAsync();
+    }
+
+    private async Task OmitirBonificacionCliente()
+    {
+        _tipoBonificacionClienteActivo = 0;
+        await _modalBonificacionCliente.HideAsync();
+    }
+
+    private void QuitarCliente() { _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); _tipoBonificacionClienteActivo = 0; }
 
     private async Task AbrirCorreos()
     {
@@ -542,6 +680,10 @@
         if (_cliente is null) { await Dialogos.ErrorAsync("Seleccione primero el cliente."); return; }
         var completo = await Respuestas.DatoAsync(await Inventario.Uno(articulo.Codigo), "consultar el artículo");
         if (completo is null) return;
+
+        // §4.3.b — si el artículo es bonificable, resolver la bonificación en vez de agregar la línea directa.
+        if (completo.Bonificado && await IniciarBonificacion(completo, cantidad)) return;
+
         _articuloPendiente = completo;
         _cantidadArticuloPendiente = cantidad;
         if (completo.Lote)
@@ -568,6 +710,165 @@
         _lotesPendientes = (await Respuestas.DatoAsync(await Inventario.Lotes(pendiente.Articulo.Codigo), "consultar lotes"))?.ToList() ?? new();
         await _modalLotes.ShowAsync();
     }
+    // ======================= §4.3 — flujo de bonificación =======================
+
+    /// <returns>true si tomó el control (abrió un modal); false si no aplica y se debe agregar normal.</returns>
+    private async Task<bool> IniciarBonificacion(InventarioDTO articulo, decimal cantidad)
+    {
+        // El tipo elegido por el cliente manda sobre lo que tenga el artículo (regla de negocio).
+        if (_tipoBonificacionClienteActivo > 0)
+        {
+            var cfgCliente = ConfigBonificacion(_tipoBonificacionClienteActivo);
+            if (cfgCliente is null) return false;
+            await AbrirMezcla(articulo, cfgCliente, origenCliente: true, cantidadInicial: (int)Math.Max(1, cantidad));
+            return true;
+        }
+
+        // Sin tipo de cliente: preguntar si se usa la bonificación propia del artículo.
+        var tipos = (await Respuestas.DatoAsync(await ArticuloBonificacion.ObtenerPorArticulo(articulo.Codigo), "consultar la bonificación del artículo"))?.ToList()
+                    ?? new List<ArticuloBonificacionConfiguracion>();
+        _tiposDelArticuloPendiente = tipos
+            .Select(t => ConfigBonificacion(t.IdConfiguracionBonificacion))
+            .Where(c => c is not null).Select(c => c!).ToList();
+
+        if (_tiposDelArticuloPendiente.Count == 0) return false;   // marcado bonificable pero sin tipos -> línea normal
+
+        _articuloBonificacionPendiente = articulo;
+        _cantidadArticuloPendiente = cantidad;
+        _tipoBonificacionElegido = _tiposDelArticuloPendiente.Count == 1 ? _tiposDelArticuloPendiente[0].IdConfiguracionBonificacion : 0;
+        await _modalBonificacionArticulo.ShowAsync();
+        return true;
+    }
+
+    private async Task ConfirmarBonificacionArticulo()
+    {
+        if (_tipoBonificacionElegido <= 0) { await Dialogos.ErrorAsync("Seleccione el tipo de bonificación."); return; }
+        var cfg = ConfigBonificacion(_tipoBonificacionElegido);
+        if (cfg is null || _articuloBonificacionPendiente is null) return;
+        await _modalBonificacionArticulo.HideAsync();
+        await AbrirMezcla(_articuloBonificacionPendiente, cfg, origenCliente: false, cantidadInicial: (int)Math.Max(1, _cantidadArticuloPendiente));
+    }
+
+    private async Task OmitirBonificacionArticulo()
+    {
+        await _modalBonificacionArticulo.HideAsync();
+        var art = _articuloBonificacionPendiente;
+        _articuloBonificacionPendiente = null;
+        if (art is null) return;
+
+        if (art.Lote)
+        {
+            _articuloPendiente = art;
+            _lotesPendientes = (await Respuestas.DatoAsync(await Inventario.Lotes(art.Codigo), "consultar lotes"))?.ToList() ?? new();
+            await _modalLotes.ShowAsync();
+        }
+        else
+        {
+            AgregarArticulo(art, null, _cantidadArticuloPendiente);
+        }
+    }
+
+    private async Task AbrirMezcla(InventarioDTO principal, ConfiguracionBonificacion cfg, bool origenCliente, int cantidadInicial)
+    {
+        _configMezclaActiva = cfg;
+        _mezclaOrigenCliente = origenCliente;
+        _articuloBonificacionPendiente = principal;
+
+        var mezcla = (await Respuestas.DatoAsync(await Relacionados.BuscarBonificacion(principal.Codigo), "consultar los productos de bonificación"))?.ToList()
+                     ?? new List<ArticulosRelacionadosDTO>();
+
+        _itemsMezcla = new List<ItemMezcla>
+        {
+            new() { Codigo = principal.Codigo, Descripcion = principal.Descripcion ?? principal.Codigo.ToString(),
+                    PrecioUnit = PrecioCliente(principal), PorcentajeImpuesto = Formato.AImporte(principal.IVenta),
+                    Cantidad = Math.Min(cantidadInicial, cfg.CantidadVenta) }
+        };
+        foreach (var r in mezcla.Where(r => r.Codigo != principal.Codigo))
+        {
+            _itemsMezcla.Add(new ItemMezcla
+            {
+                Codigo = r.Codigo,
+                Descripcion = r.Descripcion ?? r.Codigo.ToString(),
+                // Precio de referencia cacheado del API; si no viene, se resuelve al aplicar.
+                PrecioUnit = Formato.AImporte(r.Precio ?? 0),
+                PorcentajeImpuesto = Formato.AImporte(principal.IVenta),
+                Cantidad = 0
+            });
+        }
+
+        await _modalMezclaBonificacion.ShowAsync();
+    }
+
+    private int TotalMezcla => _itemsMezcla.Sum(i => Math.Max(0, i.Cantidad));
+
+    private async Task AplicarGrupoBonificacion()
+    {
+        if (_configMezclaActiva is null || _articuloBonificacionPendiente is null || _aplicandoBonificacion) return;
+        _aplicandoBonificacion = true;
+
+        // 1. Resolver el InventarioDTO completo de cada artículo usado (precio vigente,
+        //    no el cacheado de ArticulosRelacionadosDTO que puede venir 0/null).
+        var articulosCache = new Dictionary<long, InventarioDTO> { [_articuloBonificacionPendiente.Codigo] = _articuloBonificacionPendiente };
+        var usados = new List<BonificacionCalculo.ArticuloUsado>();
+        foreach (var i in _itemsMezcla.Where(i => i.Cantidad > 0))
+        {
+            if (!articulosCache.TryGetValue(i.Codigo, out var art))
+            {
+                art = await Respuestas.DatoAsync(await Inventario.Uno(i.Codigo), "consultar el artículo de la mezcla");
+                if (art is null) { _aplicandoBonificacion = false; await Dialogos.ErrorAsync($"No se pudo cargar el artículo {i.Codigo}."); return; }
+                articulosCache[i.Codigo] = art;
+            }
+            usados.Add(new BonificacionCalculo.ArticuloUsado(i.Codigo, art.Descripcion ?? i.Descripcion, PrecioCliente(art), Formato.AImporte(art.IVenta), i.Cantidad));
+        }
+
+        var resultado = BonificacionCalculo.ResolverGrupo(_configMezclaActiva.CantidadVenta, _configMezclaActiva.CantidadBonificable, usados);
+        if (!resultado.Ok) { _aplicandoBonificacion = false; await Dialogos.ErrorAsync(resultado.Error!); return; }
+
+        var idGrupo = _siguienteIdGrupo++;
+        var idCfg = _configMezclaActiva.IdConfiguracionBonificacion;
+        bool principalMarcada = false;
+
+        foreach (var lg in resultado.Lineas)
+        {
+            var art = articulosCache[lg.Codigo];
+
+            var linea = new LineaVenta
+            {
+                Articulo = art,
+                Cantidad = lg.Cantidad,
+                Precio = lg.EsBonificacion ? 0m : lg.PrecioUnit,
+                Descuento = 0m,
+                MaxDescuento = 0m,
+                Impuesto = lg.PorcentajeImpuesto,
+                IdLote = 0,
+                Lote = null,
+                IdGrupoBonificacion = idGrupo,
+                IdConfiguracionBonificacion = idCfg,
+                EsBonificacion = lg.EsBonificacion,
+                PrecioReferencia = lg.PrecioUnit,
+                EsLineaPrincipal = !principalMarcada
+            };
+            principalMarcada = true;
+            linea.Recalcular();
+            _lineas.Add(linea);
+        }
+
+        RecalcularTodo();
+        _aplicandoBonificacion = false;
+        _articuloBonificacionPendiente = null;
+        _configMezclaActiva = null;
+        _itemsMezcla = new();
+        await _modalMezclaBonificacion.HideAsync();
+    }
+
+    private async Task CancelarMezcla()
+    {
+        _articuloBonificacionPendiente = null;
+        _configMezclaActiva = null;
+        _itemsMezcla = new();
+        await _modalMezclaBonificacion.HideAsync();
+    }
+
     private void AgregarArticulo(InventarioDTO articulo, StockLoteDTO? lote, decimal cantidad = 1)
     {
         var existente = _lineas.FirstOrDefault(l => l.Articulo.Codigo == articulo.Codigo && l.IdLote == (lote?.Id ?? 0));
@@ -577,8 +878,30 @@
         linea.Recalcular(); _lineas.Add(linea); RecalcularTodo();
     }
     private decimal PrecioCliente(InventarioDTO articulo) => (_cliente?.Tipoprecio ?? 1) switch { 2 when articulo.Precio_B > 0 => Formato.AImporte(articulo.Precio_B), 3 when articulo.Precio_C > 0 => Formato.AImporte(articulo.Precio_C), 4 when articulo.Precio_D > 0 => Formato.AImporte(articulo.Precio_D), _ => articulo.Promo_Activa && articulo.Promo_Inicio <= DateTime.Today && articulo.Promo_Finaliza >= DateTime.Today ? Formato.AImporte(articulo.Precio_Promo) : Formato.AImporte(articulo.Precio_A) };
-    private void RecalcularLinea(LineaVenta linea) { linea.Cantidad = Math.Max(1, linea.Cantidad); linea.Descuento = Math.Clamp(linea.Descuento, 0, linea.MaxDescuento); linea.Recalcular(); RecalcularTodo(); }
-    private void QuitarLinea(LineaVenta linea) { _lineas.Remove(linea); RecalcularTodo(); }
+    private void RecalcularLinea(LineaVenta linea)
+    {
+        // Las líneas de un grupo de bonificación no admiten editar precio ni descuento.
+        if (linea.EsDeGrupo) { linea.Descuento = 0m; if (linea.EsBonificacion) linea.Precio = 0m; }
+        linea.Cantidad = Math.Max(1, linea.Cantidad);
+        linea.Descuento = Math.Clamp(linea.Descuento, 0, linea.MaxDescuento);
+        linea.Recalcular();
+        RecalcularTodo();
+    }
+
+    private void QuitarLinea(LineaVenta linea)
+    {
+        // §4.3.g — solo la línea principal se puede eliminar; borra en cascada su grupo.
+        if (linea.EsDeGrupo)
+        {
+            if (!linea.EsLineaPrincipal) return;
+            _lineas.RemoveAll(l => l.IdGrupoBonificacion == linea.IdGrupoBonificacion);
+        }
+        else
+        {
+            _lineas.Remove(linea);
+        }
+        RecalcularTodo();
+    }
     private void RecalcularTodo() => _totales = CalculoDocumento.Totales(_lineas.Select(l => l.Calculo));
 
     private async Task Emitir()
@@ -595,9 +918,9 @@
         if (!await Dialogos.ConfirmarAsync(EsConsignacion ? "Se registrará la consignación. ¿Desea continuar?" : "Se emitirá la factura y se afectará el inventario. ¿Desea continuar?")) return;
         _guardando = true;
         var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
-        var factura = new FacturaDTO { Tipo = _tipoFactura, CodCliente = _cliente.Cedula, NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), Agente = !EsCostaPetsVenta && _sinAgente, Cod_agente = !EsCostaPetsVenta && !_sinAgente && _codAgente > 0 ? _codAgente : null, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = EsCostaPetsVenta ? 1 : _idEmpresa, Empresa = empresa?.Nombre, Preventa = false, EsConsignacion = EsConsignacion, SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = l.Articulo.Id_Bodega, Lote = l.IdLote, NumeroLote = l.Lote }).ToList() };
+        var factura = new FacturaDTO { Tipo = _tipoFactura, CodCliente = _cliente.Cedula, NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), Agente = !EsCostaPetsVenta && _sinAgente, Cod_agente = !EsCostaPetsVenta && !_sinAgente && _codAgente > 0 ? _codAgente : null, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = EsCostaPetsVenta ? 1 : _idEmpresa, Empresa = empresa?.Nombre, Preventa = false, EsConsignacion = EsConsignacion, SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = l.Articulo.Id_Bodega, Lote = l.IdLote, NumeroLote = l.Lote, EsBonificacion = l.EsBonificacion, IdGrupoBonificacion = l.IdGrupoBonificacion, IdConfiguracionBonificacion = l.IdConfiguracionBonificacion, EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null }).ToList() };
         var r = await Api.Crear(factura); _guardando = false;
         if (await Respuestas.CorrectaAsync(r, EsConsignacion ? "registrar la consignación" : "emitir la factura")) { Dialogos.Exito(EsConsignacion ? "Consignación registrada correctamente." : "Factura emitida correctamente."); Limpiar(); }
     }
-    private void Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _sinAgente = false; _codAgente = 0; _lineas.Clear(); _bonificacionesCliente.Clear(); RecalcularTodo(); }
+    private void Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _sinAgente = false; _codAgente = 0; _lineas.Clear(); _bonificacionesCliente.Clear(); _tipoBonificacionClienteActivo = 0; _siguienteIdGrupo = 1; RecalcularTodo(); }
 }
