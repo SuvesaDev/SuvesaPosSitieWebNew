@@ -12,4 +12,5 @@ public interface IPerfiles
     Task<ResponseGeneric<ICollection<PerfilSeguridadDTO>>> Listar();
     Task<ResponseGeneric<PerfilSeguridadDTO>> Crear(PerfilSeguridadDTO perfil);
     Task<ResponseGeneric<PerfilSeguridadDTO>> Editar(int idPerfil, PerfilSeguridadDTO perfil);
+    Task<ResponseGeneric<bool>> Desactivar(int idPerfil);
 }

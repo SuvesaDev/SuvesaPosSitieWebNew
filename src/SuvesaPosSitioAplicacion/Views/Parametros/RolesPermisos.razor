@@ -4,14 +4,16 @@
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IRolesPermisos Api
+@inject IPerfiles ApiPerfiles
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
 
 @*  Rediseno de seguridad V2 — mantenimiento unico de Roles y Permisos.
 
-    Tres pestanas:
+    Cuatro pestanas:
       - Roles: alta/edicion + matriz de permisos (Modulo -> Funcion -> Accion).
+      - Perfiles: alta/edicion/baja logica de capacidades base de usuarios.
       - Catalogo: alta/edicion de modulos y funciones, y que acciones expone cada funcion.
       - Acciones: catalogo global de tipos de accion.
 
@@ -19,7 +21,7 @@
     SUPER_ADMIN. El sitio ademas pide reconfirmar la propia clave antes de mostrar nada.
 *@
 
-<AppPantalla Pantalla="@Titulo" Codigo="@Codigo" Icono="bi-shield-lock-fill" Subtitulo="Roles, catálogo de módulos/funciones y acciones" Nivel="NivelPantalla.Escritorio">
+<AppPantalla Pantalla="@Titulo" Codigo="@Codigo" Icono="bi-shield-lock-fill" Subtitulo="Roles, perfiles, catálogo de módulos/funciones y acciones" Nivel="NivelPantalla.Escritorio">
     <ChildContent>
 
         @if (!_passwordValidada)
@@ -58,6 +60,9 @@
             <ul class="nav nav-pills mb-3">
                 <li class="nav-item">
                     <button class="nav-link @(_tab == Tab.Roles ? "active" : "")" @onclick="() => _tab = Tab.Roles">Roles</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link @(_tab == Tab.Perfiles ? "active" : "")" @onclick="AbrirPerfiles">Perfiles</button>
                 </li>
                 <li class="nav-item">
                     <button class="nav-link @(_tab == Tab.Catalogo ? "active" : "")" @onclick="AbrirCatalogo">Catálogo</button>
@@ -199,6 +204,80 @@
                 </div>
             }
 
+            @* -------- PESTAÑA PERFILES -------- *@
+            @if (_tab == Tab.Perfiles)
+            {
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h2 class="h5 mb-0">Perfiles de seguridad</h2>
+                        <p class="small text-body-secondary mb-0">Definen las capacidades base de cada tipo de cuenta.</p>
+                    </div>
+                    @if (_puedeEscribir)
+                    {
+                        <button class="btn btn-primary" @onclick="NuevoPerfil">
+                            <i class="bi bi-plus-circle me-1"></i>Nuevo perfil
+                        </button>
+                    }
+                </div>
+
+                <div class="card">
+                    <div class="card-body p-0">
+                        @if (_cargandoPerfiles)
+                        {
+                            <p class="text-body-secondary p-3 mb-0">Cargando perfiles...</p>
+                        }
+                        else if (_perfiles.Count == 0)
+                        {
+                            <p class="text-body-secondary p-3 mb-0">No hay perfiles configurados.</p>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Codigo</th>
+                                            <th>Descripcion</th>
+                                            <th>Capacidades</th>
+                                            <th>Estado</th>
+                                            <th class="text-end">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var perfil in _perfiles.OrderBy(p => p.Descripcion, StringComparer.OrdinalIgnoreCase))
+                                        {
+                                            <tr>
+                                                <td><code>@perfil.Codigo</code></td>
+                                                <td class="fw-semibold">@perfil.Descripcion</td>
+                                                <td class="small">@string.Join(" · ", CapacidadesPerfil(perfil))</td>
+                                                <td>
+                                                    <span class="badge @(perfil.Activo ? "text-bg-success" : "text-bg-secondary")">
+                                                        @(perfil.Activo ? "Activo" : "Inactivo")
+                                                    </span>
+                                                </td>
+                                                <td class="text-end">
+                                                    <button class="btn btn-sm btn-outline-primary" title="@(_puedeEscribir ? "Editar" : "Ver")"
+                                                            @onclick="() => EditarPerfil(perfil)">
+                                                        <i class="bi @(_puedeEscribir ? "bi-pencil-square" : "bi-eye")"></i>
+                                                    </button>
+                                                    @if (_puedeEscribir && perfil.Activo)
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-danger ms-2" title="Desactivar"
+                                                                @onclick="() => DesactivarPerfil(perfil)">
+                                                            <i class="bi bi-person-x"></i>
+                                                        </button>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
             @* -------- PESTAÑA CATÁLOGO -------- *@
             @if (_tab == Tab.Catalogo)
             {
@@ -320,6 +399,55 @@
 
     </ChildContent>
 </AppPantalla>
+
+@* =================== MODAL PERFIL =================== *@
+<AppModal @ref="_modalPerfil"
+          Titulo="@(_perfilEsNuevo ? "Nuevo perfil" : "Editar perfil")"
+          Subtitulo="@(_perfil?.Descripcion)"
+          Tamano="ModalSize.Regular"
+          AlGuardar="GuardarPerfil" Guardando="_guardando" PuedeGuardar="_puedeEscribir"
+          TextoGuardar="Guardar perfil">
+    <ChildContent>
+        @if (_perfil is not null)
+        {
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <AppCampoTexto Etiqueta="Codigo" @bind-Valor="_perfil.Codigo"
+                                   Deshabilitado="@(!_perfilEsNuevo || !_puedeEscribir)" Requerido="true" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <AppCampoTexto Etiqueta="Descripcion" @bind-Valor="_perfil.Descripcion"
+                                   Deshabilitado="@(!_puedeEscribir)" Requerido="true" />
+                </div>
+                <div class="col-12">
+                    <div class="text-uppercase small text-body-secondary mb-2">Capacidades</div>
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6"><div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="perfilSuper" @bind="_perfil.EsSuperAdministracion" disabled="@(!_puedeEscribir)" />
+                            <label class="form-check-label" for="perfilSuper">Super Administracion</label>
+                        </div></div>
+                        <div class="col-12 col-md-6"><div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="perfilGestionaUsuarios" @bind="_perfil.GestionaUsuarios" disabled="@(!_puedeEscribir)" />
+                            <label class="form-check-label" for="perfilGestionaUsuarios">Gestiona usuarios</label>
+                        </div></div>
+                        <div class="col-12 col-md-6"><div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="perfilCostaPets" @bind="_perfil.CostaPets" disabled="@(!_puedeEscribir)" />
+                            <label class="form-check-label" for="perfilCostaPets">Costa Pets</label>
+                        </div></div>
+                        <div class="col-12 col-md-6"><div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="perfilAgenteCostaPets" @bind="_perfil.AgenteCostaPets" disabled="@(!_puedeEscribir)" />
+                            <label class="form-check-label" for="perfilAgenteCostaPets">Agente Costa Pets</label>
+                        </div></div>
+                        <div class="col-12 col-md-6"><div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="perfilAceptaConsignacion" @bind="_perfil.AceptaConsignacion" disabled="@(!_puedeEscribir)" />
+                            <label class="form-check-label" for="perfilAceptaConsignacion">Acepta consignacion</label>
+                        </div></div>
+                    </div>
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppModal>
 
 @* =================== MODAL ROL + MATRIZ =================== *@
 <AppModal @ref="_modalRol"
@@ -564,13 +692,13 @@
 </AppModal>
 
 @code {
-    private const string Titulo = "Roles";
+    private const string Titulo = "Roles y perfiles";
     private const string Codigo = "PARAMETROS.ROLES";
 
     private static readonly string[] TodasLasAcciones =
         { "VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "EXPORTAR", "IMPRIMIR" };
 
-    private enum Tab { Roles, Catalogo, Acciones }
+    private enum Tab { Roles, Perfiles, Catalogo, Acciones }
     private Tab _tab = Tab.Roles;
 
     private bool _puedeEscribir => Sesion.EsSuperAdministrador;
@@ -594,6 +722,13 @@
     private string _filtroTexto = string.Empty;
     private string _filtroTipo = string.Empty;
     private readonly HashSet<string> _modulosColapsados = new();
+
+    // perfiles
+    private readonly List<PerfilSeguridadDTO> _perfiles = new();
+    private bool _cargandoPerfiles;
+    private AppModal _modalPerfil = default!;
+    private PerfilSeguridadDTO? _perfil;
+    private bool _perfilEsNuevo;
 
     // catalogo
     private bool _verInactivosCatalogo;
@@ -847,6 +982,100 @@
             Dialogos.Exito(_rolEsNuevo ? "Rol creado." : "Rol actualizado.");
             await CargarRolesYResumen();
         }
+    }
+
+    // ---------- perfiles ----------
+    private async Task AbrirPerfiles()
+    {
+        _tab = Tab.Perfiles;
+        await CargarPerfiles();
+    }
+
+    private async Task CargarPerfiles()
+    {
+        _cargandoPerfiles = true;
+        _perfiles.Clear();
+        _perfiles.AddRange((await Respuestas.DatoAsync(await ApiPerfiles.Listar(), "consultar los perfiles"))
+            ?.OrderBy(p => p.Descripcion, StringComparer.OrdinalIgnoreCase)
+            ?? Enumerable.Empty<PerfilSeguridadDTO>());
+        _cargandoPerfiles = false;
+    }
+
+    private void NuevoPerfil()
+    {
+        _perfilEsNuevo = true;
+        _perfil = new PerfilSeguridadDTO { Activo = true };
+        _modalPerfil.MostrarAsync();
+    }
+
+    private void EditarPerfil(PerfilSeguridadDTO origen)
+    {
+        _perfilEsNuevo = false;
+        _perfil = new PerfilSeguridadDTO
+        {
+            IdPerfil = origen.IdPerfil,
+            Codigo = origen.Codigo,
+            Descripcion = origen.Descripcion,
+            EsSuperAdministracion = origen.EsSuperAdministracion,
+            GestionaUsuarios = origen.GestionaUsuarios,
+            CostaPets = origen.CostaPets,
+            AgenteCostaPets = origen.AgenteCostaPets,
+            AceptaConsignacion = origen.AceptaConsignacion,
+            Activo = origen.Activo
+        };
+        _modalPerfil.MostrarAsync();
+    }
+
+    private async Task GuardarPerfil()
+    {
+        if (_perfil is null || _guardando) return;
+        if (string.IsNullOrWhiteSpace(_perfil.Codigo) || string.IsNullOrWhiteSpace(_perfil.Descripcion))
+        {
+            Dialogos.ErrorBreve("Indique el código y la descripción del perfil.");
+            return;
+        }
+
+        _guardando = true;
+        var respuesta = _perfilEsNuevo
+            ? await ApiPerfiles.Crear(_perfil)
+            : await ApiPerfiles.Editar(_perfil.IdPerfil ?? 0, _perfil);
+        var guardado = await Respuestas.DatoAsync(respuesta, _perfilEsNuevo ? "crear el perfil" : "editar el perfil");
+        _guardando = false;
+
+        if (guardado is not null)
+        {
+            await _modalPerfil.OcultarAsync();
+            Dialogos.Exito(_perfilEsNuevo ? "Perfil creado." : "Perfil actualizado.");
+            await CargarPerfiles();
+        }
+    }
+
+    private async Task DesactivarPerfil(PerfilSeguridadDTO perfil)
+    {
+        var idPerfil = perfil.IdPerfil ?? 0;
+        if (idPerfil <= 0 || !perfil.Activo) return;
+
+        if (!await Dialogos.ConfirmarPeligroAsync(
+                $"¿Desactivar el perfil '{perfil.Descripcion}'? Ya no podrá asignarse a nuevos usuarios.",
+                "Desactivar perfil")) return;
+
+        if (await Respuestas.CorrectaAsync(await ApiPerfiles.Desactivar(idPerfil), "desactivar el perfil"))
+        {
+            Dialogos.Exito("Perfil desactivado.");
+            await CargarPerfiles();
+        }
+    }
+
+    private static IEnumerable<string> CapacidadesPerfil(PerfilSeguridadDTO perfil)
+    {
+        if (perfil.EsSuperAdministracion) yield return "Super administración";
+        if (perfil.GestionaUsuarios) yield return "Gestiona usuarios";
+        if (perfil.CostaPets) yield return "Costa Pets";
+        if (perfil.AgenteCostaPets) yield return "Agente Costa Pets";
+        if (perfil.AceptaConsignacion) yield return "Acepta consignación";
+        if (!perfil.EsSuperAdministracion && !perfil.GestionaUsuarios && !perfil.CostaPets
+            && !perfil.AgenteCostaPets && !perfil.AceptaConsignacion)
+            yield return "Sin capacidades especiales";
     }
 
     // ---------- catalogo: modulos ----------

@@ -38,6 +38,7 @@ public interface ISeguridadApiCliente
     Task<SeguridadEnvelope<List<PerfilSeguridadDTO>>> PerfilesAsync();
     Task<SeguridadEnvelope<PerfilSeguridadDTO>> GuardarPerfilAsync(PerfilSeguridadDTO dto);
     Task<SeguridadEnvelope<PerfilSeguridadDTO>> EditarPerfilAsync(int idPerfil, PerfilSeguridadDTO dto);
+    Task<SeguridadEnvelope<bool>> DesactivarPerfilAsync(int idPerfil);
 
     Task<SeguridadEnvelope<UsuarioAltaDTO>> CrearUsuarioAsync(UsuarioAltaDTO dto);
     Task<SeguridadEnvelope<bool>> CambiarPerfilAsync(long idUsuario, int idPerfil);
@@ -146,6 +147,9 @@ public sealed class SeguridadApiCliente : ISeguridadApiCliente
 
     public Task<SeguridadEnvelope<PerfilSeguridadDTO>> EditarPerfilAsync(int idPerfil, PerfilSeguridadDTO dto)
         => EnviarAsync<PerfilSeguridadDTO>(HttpMethod.Put, $"seguridad/perfiles/{idPerfil}", dto);
+
+    public Task<SeguridadEnvelope<bool>> DesactivarPerfilAsync(int idPerfil)
+        => EnviarAsync<bool>(HttpMethod.Delete, $"seguridad/perfiles/{idPerfil}");
 
     public Task<SeguridadEnvelope<UsuarioAltaDTO>> CrearUsuarioAsync(UsuarioAltaDTO dto)
         => EnviarAsync<UsuarioAltaDTO>(HttpMethod.Post, "seguridad/usuarios", dto);

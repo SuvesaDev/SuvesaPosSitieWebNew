@@ -37,4 +37,11 @@ public sealed class Perfiles : ProxyBase, IPerfiles
             var r = await _api.EditarPerfilAsync(idPerfil, perfil);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "editar el perfil");
+
+    public Task<ResponseGeneric<bool>> Desactivar(int idPerfil)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.DesactivarPerfilAsync(idPerfil);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "desactivar el perfil");
 }

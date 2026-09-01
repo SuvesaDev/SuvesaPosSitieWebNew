@@ -52,5 +52,6 @@ public sealed class ImagenesArticulo : ProxyBase, IImagenesArticulo
         }, "consultar el catálogo visual de artículos");
 
     public Task<ResponseGeneric<ArticulosImagenesDTO>> Guardar(ArticulosImagenesDTO imagen) => Ejecutar(async () => { var r = await _api.InsertarArticuloImagenAsync(imagen); return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses); }, "guardar la imagen del artículo");
+    public Task<ResponseGeneric<ArticulosImagenesDTO>> Actualizar(ArticulosImagenesDTO imagen) => Ejecutar(async () => { var r = await _api.ActualizarImagenArticuloAsync(imagen); return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses); }, "actualizar la imagen del artículo");
     public Task<ResponseGeneric<ArticulosImagenesDTO>> Eliminar(long idImagen) => Ejecutar(async () => { var r = await _api.EliminarArticuloImagenAsync(idImagen); return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses); }, "eliminar la imagen del artículo");
 }

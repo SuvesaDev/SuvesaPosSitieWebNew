@@ -292,7 +292,7 @@
             {
                 @if (!string.IsNullOrWhiteSpace(_imagen?.Imagen))
                 {
-                    <img class="img-fluid rounded border mb-2" style="max-height: 180px" src="@_imagen.Imagen" alt="Imagen de @_elegido.Descripcion" />
+                    <img class="img-fluid rounded border mb-2" style="max-height: 180px" src="@FuenteImagen(_imagen)" alt="Imagen de @_elegido.Descripcion" />
                     @if (Sesion.Puede(Titulo, AccionPantalla.Borrar))
                     {
                         <button class="btn btn-sm btn-link text-danger d-block p-0 mb-2" @onclick="EliminarImagen">Eliminar imagen</button>
@@ -315,7 +315,11 @@
                     <button type="button" class="btn btn-sm @ClasePestanaGenerales" @onclick="MostrarGenerales">Datos generales</button>
                     <button type="button" class="btn btn-sm @ClasePestanaPrecios" @onclick="MostrarPrecios">Precios</button>
                     <button type="button" class="btn btn-sm @ClasePestanaBarras" @onclick="MostrarBarras">Códigos de barras</button>
-                    @if (Sesion.EsCostaPets && _tipoArticulo == 3)
+                    @if (Sesion.EsCostaPets)
+                    {
+                        <button type="button" class="btn btn-sm @ClasePestanaImagen" @onclick="MostrarImagen">Imagen</button>
+                    }
+                    @if (Sesion.EsCostaPets && !_esNuevo && _tipoArticulo == 3)
                     {
                         <button type="button" class="btn btn-sm @ClasePestanaFormula" @onclick="MostrarFormula">Fórmula y conversión</button>
                     }
@@ -453,13 +457,15 @@
                             <input id="articulo-receta" class="form-check-input" type="checkbox" @bind="_edicion.Receta" />
                             <label class="form-check-label text-danger" for="articulo-receta">Solo con receta</label>
                         </div>
-                        @if (Sesion.EsCostaPets)
-                        {
-                            <div class="form-check">
-                                <input id="articulo-bonificado" class="form-check-input" type="checkbox" @bind="_edicion.Bonificado" />
-                                <label class="form-check-label" for="articulo-bonificado">Bonificado</label>
-                            </div>
-                        }
+                        @* React siempre muestra este indicador; solo puede cambiarse
+                           cuando el artículo ya tiene código. La pestaña de detalle
+                           sigue siendo una capacidad exclusiva de CostaPets. *@
+                        <div class="form-check">
+                            <input id="articulo-bonificado" class="form-check-input" type="checkbox"
+                                   @bind="_edicion.Bonificado" @bind:after="AlCambiarBonificado"
+                                   disabled="@_esNuevo" />
+                            <label class="form-check-label" for="articulo-bonificado">Bonificado</label>
+                        </div>
                     </div>
 
                 </div>
@@ -518,6 +524,39 @@
                         }
                     </div>
                 }
+                else if (_pestanaInventario == "imagen")
+                {
+                    <div class="row g-3">
+                        <div class="col-12"><h3 class="h6 mb-0">Imagen del artículo</h3><p class="form-text">Seleccione una imagen para el artículo. Se guardará junto con los demás cambios de la ficha.</p></div>
+                        @if (!string.IsNullOrWhiteSpace(_errorImagenEditor))
+                        {
+                            <div class="col-12"><div class="alert alert-danger mb-0" role="alert">@_errorImagenEditor</div></div>
+                        }
+                        <div class="col-12 col-md-5">
+                            @if (!string.IsNullOrWhiteSpace(FuenteImagen(_imagenEditor)))
+                            {
+                                <img class="img-fluid rounded border" style="max-height: 220px" src="@FuenteImagen(_imagenEditor)" alt="Vista previa de la imagen del artículo" />
+                            }
+                            else
+                            {
+                                <div class="border rounded p-4 text-center text-secondary"><i class="bi bi-card-image fs-1 d-block mb-2" aria-hidden="true"></i>No hay imagen seleccionada.</div>
+                            }
+                        </div>
+                        <div class="col-12 col-md-7">
+                            <label class="form-label" for="articulo-imagen">Archivo de imagen</label>
+                            <InputFile id="articulo-imagen" class="form-control" accept=".jpg,.jpeg,.png,.webp" OnChange="SeleccionarImagenEditor" />
+                            <p class="form-text">JPG, PNG o WebP; máximo 5 MB.</p>
+                            @if (_imagenEditor is not null)
+                            {
+                                <button type="button" class="btn btn-outline-danger" @onclick="QuitarImagenEditor"><i class="bi bi-trash" aria-hidden="true"></i> Quitar imagen</button>
+                            }
+                            @if (_imagenEditorModificada)
+                            {
+                                <p class="form-text text-primary mt-2 mb-0">El cambio de imagen se aplicará al guardar el artículo.</p>
+                            }
+                        </div>
+                    </div>
+                }
                 else if (_pestanaInventario == "formula")
                 {
                     @if (_esNuevo)
@@ -528,6 +567,10 @@
                     {
                     <div class="row g-3">
                         <div class="col-12"><h3 class="h6 mb-0">Fórmula de producción</h3><p class="form-text">Agregue los insumos del producto terminado. La conversión descuenta los lotes seleccionados.</p></div>
+                        @if (!string.IsNullOrWhiteSpace(_errorFormula))
+                        {
+                            <div class="col-12"><div class="alert alert-danger mb-0" role="alert">@_errorFormula</div></div>
+                        }
                         <div class="col-12 col-md-5"><label class="form-label">Código del insumo</label><input type="number" min="1" class="form-control" @bind="_codigoFormula" /></div>
                         <div class="col-12 col-md-4"><label class="form-label">Cantidad por unidad</label><input type="number" min="0.0001" step="0.0001" class="form-control" @bind="_cantidadFormula" /></div>
                         <div class="col-12 col-md-3 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarFormula">Agregar insumo</button></div>
@@ -541,14 +584,18 @@
                         }
 
                         <div class="col-12"><hr /><h3 class="h6 mb-0">Lotes que se consumirán</h3><p class="form-text">Debe seleccionar al menos un lote para cada insumo de la fórmula antes de calcular.</p></div>
+                        @if (!string.IsNullOrWhiteSpace(_errorLotesFormula))
+                        {
+                            <div class="col-12"><div class="alert alert-danger mb-0" role="alert">@_errorLotesFormula</div></div>
+                        }
                         <div class="col-12 col-md-4"><label class="form-label">Insumo</label><select class="form-select" @bind="_articuloLoteFormula" @bind:after="CargarLotesFormula"><option value="0">Seleccione...</option>@foreach (var item in _formula) { <option value="@item.Codigo">@item.CodArticulo — @item.Descripcion</option> }</select></div>
-                        <div class="col-12 col-md-4"><label class="form-label">Lote</label><select class="form-select" @bind="_loteFormula"><option value="0">Seleccione...</option>@foreach (var lote in _lotesFormula) { <option value="@lote.Id">@lote.Lote (@lote.Cantidad:N2)</option> }</select></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Lote</label><select class="form-select" @bind="_loteFormula"><option value="0">Seleccione...</option>@foreach (var lote in _lotesFormula) { <option value="@lote.Id">@lote.Lote (@lote.Cantidad.ToString("N2"))</option> }</select></div>
                         <div class="col-12 col-md-4"><label class="form-label">Bodega</label><select class="form-select" @bind="_bodegaFormula"><option value="0">Seleccione...</option>@foreach (var bodega in _bodegas) { <option value="@bodega.IdBodega">@bodega.NombreBodega</option> }</select></div>
                         <div class="col-12 col-md-4"><label class="form-label">Cantidad del lote</label><input type="number" min="1" step="1" class="form-control" @bind="_cantidadLoteFormula" /></div>
                         <div class="col-12 col-md-4 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarLoteFormula">Agregar lote</button></div>
                         @if (_seleccionLotesFormula.Count > 0)
                         {
-                            <div class="col-12 table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Insumo</th><th>Lote</th><th>Bodega</th><th class="text-end">Disponible</th><th class="text-end">A consumir</th><th></th></tr></thead><tbody>@foreach (var lote in _seleccionLotesFormula) { <tr><td>@lote.Articulo</td><td>@lote.Lote</td><td>@lote.Bodega</td><td class="text-end">@lote.Disponible:N2</td><td class="text-end">@lote.Cantidad</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _seleccionLotesFormula.Remove(lote)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
+                            <div class="col-12 table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Insumo</th><th>Lote</th><th>Bodega</th><th class="text-end">Disponible</th><th class="text-end">A consumir</th><th></th></tr></thead><tbody>@foreach (var lote in _seleccionLotesFormula) { <tr><td>@lote.Articulo</td><td>@lote.Lote</td><td>@lote.Bodega</td><td class="text-end">@lote.Disponible.ToString("N2")</td><td class="text-end">@lote.Cantidad</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _seleccionLotesFormula.Remove(lote)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
                         }
                         <div class="col-12 col-md-6 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="CalcularProduccion">Calcular producción disponible</button></div>
                         @if (_produccionDisponible is not null)
@@ -712,6 +759,11 @@
     private bool _guardando;
     private ArticulosImagenesDTO? _imagen;
     private bool _cargandoImagen;
+    private ArticulosImagenesDTO? _imagenEditor;
+    private bool _imagenEditorModificada;
+    private bool _eliminarImagenEditor;
+    private long _idImagenEditorAEliminar;
+    private string? _errorImagenEditor;
     private List<ArticulosRelacionadosDTO> _relacionados = new();
     private long? _codigoRelacionado;
     private float _cantidadRelacionada = 1;
@@ -748,6 +800,8 @@
     private List<StockLoteDTO> _lotesFormula = new();
     private List<LoteFormulaSeleccionado> _seleccionLotesFormula = new();
     private int? _produccionDisponible;
+    private string? _errorFormula;
+    private string? _errorLotesFormula;
     private List<StockLoteDTO> _lotesEdicion = new();
     private string _nuevoLote = string.Empty;
     private DateTime _vencimientoLote = DateTime.Today;
@@ -770,7 +824,14 @@
     /// </summary>
     private bool _modoBusqueda;
 
-    protected override async Task OnInitializedAsync() => await RecargarDesdeApi();
+    protected override async Task OnInitializedAsync()
+    {
+        // Las pestañas dependen de capacidades de la sesión. Cargarlas antes de
+        // pintar la consulta evita que el primer render interactivo se quede con
+        // los valores por defecto (CostaPets = false) del circuito.
+        await Sesion.CargarAsync();
+        await RecargarDesdeApi();
+    }
 
     private bool IncluirInhabilitados => _estado != "A";
 
@@ -888,8 +949,7 @@
         await _detalle.ShowAsync();
 
         // Los lotes se piden aparte: la busqueda de inventario no los trae.
-        _lotes = (await Respuestas.DatoAsync(await Api.Lotes(articulo.Codigo), "consultar los lotes"))
-                 ?.OrderBy(l => l.Vencimiento).ToList() ?? new List<StockLoteDTO>();
+        _lotes = await ConsultarLotes(articulo.Codigo);
 
         _cargandoLotes = false;
         _imagen = await Respuestas.DatoAsync(await Imagenes.Obtener(articulo.Codigo), "consultar la imagen del artículo");
@@ -901,10 +961,37 @@
     /// <summary>Un lote vencido sigue apareciendo, pero marcado: es informacion util.</summary>
     private static bool Vencido(StockLoteDTO l) => l.Vencimiento.Date < DateTime.Today;
 
+    /// <summary>
+    /// El API usa "No tiene lotes" como respuesta de negocio (también lo hace la
+    /// SPA React), no como error de transporte. No debe convertirse en el modal
+    /// técnico "No se pudo consultar los lotes del artículo".
+    /// </summary>
+    private async Task<List<StockLoteDTO>> ConsultarLotes(long codigoArticulo, bool avisarSiNoHay = false)
+    {
+        var respuesta = await Api.Lotes(codigoArticulo);
+        if (respuesta.EsCorrecta)
+        {
+            return respuesta.Responses?.OrderBy(l => l.Vencimiento).ToList() ?? new List<StockLoteDTO>();
+        }
+
+        if (string.Equals(respuesta.Excepcion?.Trim(), "No tiene lotes", StringComparison.OrdinalIgnoreCase))
+        {
+            if (avisarSiNoHay)
+            {
+                await Dialogos.InformarAsync("Este producto no tiene lotes registrados.", "Lotes");
+            }
+            return new List<StockLoteDTO>();
+        }
+
+        await Respuestas.DatoAsync(respuesta, "consultar los lotes del artículo");
+        return new List<StockLoteDTO>();
+    }
+
     private async Task Agregar()
     {
         _esNuevo = true;
         ReiniciarEditorProduccion();
+        ReiniciarImagenEditor();
         await CargarCatalogosInventario();
         _edicion = new InventarioDTO
         {
@@ -922,6 +1009,9 @@
 
     private async Task Editar(InventarioDTO articulo)
     {
+        // También se asegura al abrir el modal: una pestaña ya abierta puede
+        // restaurarse antes de que MainLayout termine de inicializar su sesión.
+        await Sesion.CargarAsync();
         _esNuevo = false;
         var completo = await Respuestas.DatoAsync(await Api.Uno(articulo.Codigo), "abrir el artículo");
         _edicion = Copiar(completo ?? articulo);
@@ -930,11 +1020,16 @@
         _nuevoCodigoBarras = string.Empty;
         _tarifaCodigoBarras = string.Empty;
         ReiniciarEditorProduccion();
+        ReiniciarImagenEditor();
         await CargarCatalogosInventario();
-        _tipoArticulo = _edicion.EsPadre == true ? 2 : 1;
+        // El React clasifica cualquier artículo que no sea materia prima como
+        // producto terminado al abrirlo. Antes se inicializaba como "Normal" y
+        // por eso nunca se habilitaba Fórmula para artículos existentes.
+        _tipoArticulo = _edicion.EsPadre == true ? 2 : 3;
         if (Sesion.EsCostaPets)
         {
             await CargarProduccion();
+            await CargarImagenEditor(_edicion.Codigo);
         }
         if (_edicion.Lote)
         {
@@ -945,14 +1040,7 @@
         _productosRegalo = new List<ArticulosRelacionadosDTO>();
         LimpiarFormularioBonificacionArticulo();
         if (Sesion.EsCostaPets && _edicion.Bonificado)
-        {
-            _tiposBonificacionArticulo = (await Respuestas.DatoAsync(await CatalogoBonificacion.Disponibles(), "consultar los tipos de bonificación"))
-                ?.ToList() ?? new List<ConfiguracionBonificacion>();
-            _bonificacionesArticulo = (await Respuestas.DatoAsync(await ArticuloBonificacion.ObtenerPorArticulo(_edicion.Codigo), "consultar la bonificación del artículo"))
-                ?.ToList() ?? new List<ArticuloBonificacionConfiguracion>();
-            _productosRegalo = (await Respuestas.DatoAsync(await Relacionados.BuscarBonificacion(_edicion.Codigo), "consultar los productos de bonificación"))
-                ?.ToList() ?? new List<ArticulosRelacionadosDTO>();
-        }
+            await CargarBonificacionArticulo();
         await _modal.ShowAsync();
     }
 
@@ -981,8 +1069,13 @@
 
         if (await Respuestas.CorrectaAsync(respuesta, _esNuevo ? "crear el artículo" : "editar el artículo"))
         {
+            var codigoArticulo = respuesta.Responses?.Codigo > 0 ? respuesta.Responses.Codigo : _edicion.Codigo;
+            var imagenGuardada = !_imagenEditorModificada
+                || (codigoArticulo > 0 && await GuardarCambiosImagen(codigoArticulo));
             await _modal.HideAsync();
-            Dialogos.Exito(_esNuevo ? "Artículo creado." : "Artículo actualizado.");
+            Dialogos.Exito(imagenGuardada
+                ? (_esNuevo ? "Artículo creado." : "Artículo actualizado.")
+                : (_esNuevo ? "Artículo creado, pero no se pudo guardar la imagen." : "Artículo actualizado, pero no se pudo guardar la imagen."));
             await RecargarDesdeApi();
         }
     }
@@ -1017,6 +1110,7 @@
     private string ClasePestanaGenerales => ClasePestana("generales");
     private string ClasePestanaPrecios => ClasePestana("precios");
     private string ClasePestanaBarras => ClasePestana("barras");
+    private string ClasePestanaImagen => ClasePestana("imagen");
     private string ClasePestanaFormula => ClasePestana("formula");
     private string ClasePestanaLotes => ClasePestana("lotes");
     private string ClasePestanaBonificacion => ClasePestana("bonificacion");
@@ -1028,6 +1122,7 @@
     private void MostrarGenerales() => _pestanaInventario = "generales";
     private void MostrarPrecios() => _pestanaInventario = "precios";
     private void MostrarBarras() => _pestanaInventario = "barras";
+    private void MostrarImagen() => _pestanaInventario = "imagen";
     private void MostrarFormula() => _pestanaInventario = "formula";
     private void MostrarLotes() => _pestanaInventario = "lotes";
     private void MostrarBonificacion() => _pestanaInventario = "bonificacion";
@@ -1082,6 +1177,34 @@
         _idBonificacionArticuloEnEdicion = 0;
         _articuloRegaloSeleccionado = null;
         _cantidadRegalo = 1;
+    }
+
+    private async Task AlCambiarBonificado()
+    {
+        if (_edicion is null || _esNuevo || !Sesion.EsCostaPets || !_edicion.Bonificado)
+        {
+            if (_pestanaInventario == "bonificacion") _pestanaInventario = "generales";
+            return;
+        }
+
+        // Al marcarlo durante esta misma edición la pestaña aparece de inmediato,
+        // con sus catálogos cargados; no obliga a cerrar y abrir el formulario.
+        await CargarBonificacionArticulo();
+    }
+
+    private async Task CargarBonificacionArticulo()
+    {
+        if (_edicion is null) return;
+
+        _tiposBonificacionArticulo = (await Respuestas.DatoAsync(
+            await CatalogoBonificacion.Disponibles(), "consultar los tipos de bonificación"))
+            ?.ToList() ?? new List<ConfiguracionBonificacion>();
+        _bonificacionesArticulo = (await Respuestas.DatoAsync(
+            await ArticuloBonificacion.ObtenerPorArticulo(_edicion.Codigo), "consultar la bonificación del artículo"))
+            ?.ToList() ?? new List<ArticuloBonificacionConfiguracion>();
+        _productosRegalo = (await Respuestas.DatoAsync(
+            await Relacionados.BuscarBonificacion(_edicion.Codigo), "consultar los productos de bonificación"))
+            ?.ToList() ?? new List<ArticulosRelacionadosDTO>();
     }
 
     private void EditarBonificacionArticulo(ArticuloBonificacionConfiguracion bonificacion)
@@ -1235,6 +1358,8 @@
         _lotesFormula = new();
         _seleccionLotesFormula = new();
         _produccionDisponible = null;
+        _errorFormula = null;
+        _errorLotesFormula = null;
         _lotesEdicion = new();
         _nuevoLote = string.Empty;
         _vencimientoLote = DateTime.Today;
@@ -1245,9 +1370,31 @@
     {
         if (_edicion is null || _esNuevo || !Sesion.EsCostaPets) return;
         _bodegas = (await Respuestas.DatoAsync(await Produccion.Bodegas(true), "consultar las bodegas"))?.ToList() ?? new();
-        _formula = (await Respuestas.DatoAsync(await Produccion.Formula(_edicion.Codigo), "consultar la fórmula"))?.ToList() ?? new();
+        _formula = await ConsultarFormula(_edicion.Codigo);
         // En el sistema anterior una fórmula existente identifica un producto terminado.
         if (_formula.Count > 0) _tipoArticulo = 3;
+    }
+
+    /// <summary>
+    /// El endpoint heredado de fórmulas devuelve estado fallido con el texto
+    /// <c>"0"</c> cuando todavía no hay componentes. Es una colección vacía de
+    /// negocio, no un fallo que deba impedir abrir un producto terminado.
+    /// </summary>
+    private async Task<List<ArticulosRelacionadosDTO>> ConsultarFormula(long codigoArticulo)
+    {
+        var respuesta = await Produccion.Formula(codigoArticulo);
+        if (respuesta.EsCorrecta)
+        {
+            return respuesta.Responses?.ToList() ?? new List<ArticulosRelacionadosDTO>();
+        }
+
+        if (string.Equals(respuesta.Excepcion?.Trim(), "0", StringComparison.Ordinal))
+        {
+            return new List<ArticulosRelacionadosDTO>();
+        }
+
+        await Respuestas.DatoAsync(respuesta, "consultar la fórmula");
+        return new List<ArticulosRelacionadosDTO>();
     }
 
     /// <summary>Los selectores usan las proyecciones de inventario, no los catálogos administrativos genéricos.</summary>
@@ -1317,7 +1464,7 @@
     private async Task CargarLotesEdicion()
     {
         if (_edicion is null || _esNuevo) return;
-        _lotesEdicion = (await Respuestas.DatoAsync(await Api.Lotes(_edicion.Codigo), "consultar los lotes del artículo"))?.OrderBy(x => x.Vencimiento).ToList() ?? new();
+        _lotesEdicion = await ConsultarLotes(_edicion.Codigo);
     }
 
     private async Task AgregarLote()
@@ -1364,26 +1511,27 @@
     {
         if (_edicion is null || _codigoFormula <= 0 || _cantidadFormula <= 0)
         {
-            await Dialogos.ErrorAsync("Indique un código y una cantidad válida para el insumo.");
+            ErrorFormula("Indique un código y una cantidad válida para el insumo.");
             return;
         }
         if (_codigoFormula == _edicion.Codigo || _formula.Any(x => x.Codigo == _codigoFormula))
         {
-            await Dialogos.ErrorAsync("El insumo ya está en la fórmula o corresponde al producto terminado.");
+            ErrorFormula("El insumo ya está en la fórmula o corresponde al producto terminado.");
             return;
         }
         var insumo = await Respuestas.DatoAsync(await Api.Uno(_codigoFormula), "consultar el insumo");
         if (insumo is null)
         {
-            await Dialogos.ErrorAsync("No existe un artículo con ese código.");
+            ErrorFormula("No existe un artículo con ese código.");
             return;
         }
         if (await Respuestas.CorrectaAsync(await Produccion.GuardarFormula(_edicion.Codigo, _codigoFormula, _cantidadFormula, true), "agregar el insumo a la fórmula"))
         {
-            _formula = (await Respuestas.DatoAsync(await Produccion.Formula(_edicion.Codigo), "actualizar la fórmula"))?.ToList() ?? new();
+            _formula = await ConsultarFormula(_edicion.Codigo);
             _codigoFormula = 0;
             _cantidadFormula = 1;
             _produccionDisponible = null;
+            _errorFormula = null;
             Dialogos.Exito("Insumo agregado a la fórmula.");
         }
     }
@@ -1403,9 +1551,16 @@
     private async Task CargarLotesFormula()
     {
         _loteFormula = 0;
+        _errorLotesFormula = null;
         _lotesFormula = _articuloLoteFormula <= 0
             ? new()
-            : (await Respuestas.DatoAsync(await Api.Lotes(_articuloLoteFormula), "consultar los lotes del insumo"))?.Where(x => x.Activo != false).ToList() ?? new();
+            : (await ConsultarLotes(_articuloLoteFormula))
+                .Where(x => x.Activo != false).ToList();
+
+        if (_articuloLoteFormula > 0 && _lotesFormula.Count == 0)
+        {
+            ErrorLotesFormula("El insumo seleccionado no tiene lotes activos disponibles.");
+        }
     }
 
     private async Task AgregarLoteFormula()
@@ -1415,23 +1570,24 @@
         var bodega = _bodegas.FirstOrDefault(x => x.IdBodega == _bodegaFormula);
         if (lote is null || insumo is null || bodega is null || _cantidadLoteFormula <= 0)
         {
-            await Dialogos.ErrorAsync("Seleccione el insumo, lote, bodega y una cantidad válida.");
+            ErrorLotesFormula("Seleccione el insumo, lote, bodega y una cantidad válida.");
             return;
         }
         if (_cantidadLoteFormula > lote.Cantidad)
         {
-            await Dialogos.ErrorAsync("La cantidad a consumir no puede exceder la disponibilidad del lote.");
+            ErrorLotesFormula("La cantidad a consumir no puede exceder la disponibilidad del lote.");
             return;
         }
         if (_seleccionLotesFormula.Any(x => x.IdArticulo == insumo.Codigo && x.IdLote == lote.Id))
         {
-            await Dialogos.ErrorAsync("Ese lote ya fue agregado para este insumo.");
+            ErrorLotesFormula("Ese lote ya fue agregado para este insumo.");
             return;
         }
         _seleccionLotesFormula.Add(new LoteFormulaSeleccionado(insumo.Codigo, lote.Id, bodega.IdBodega, insumo.Descripcion ?? insumo.CodArticulo ?? "Insumo", lote.Lote ?? "Sin lote", bodega.NombreBodega ?? "Bodega", lote.Cantidad, _cantidadLoteFormula));
         _loteFormula = 0;
         _cantidadLoteFormula = 1;
         _produccionDisponible = null;
+        _errorLotesFormula = null;
     }
 
     private bool FormulaCompleta()
@@ -1456,18 +1612,25 @@
     {
         if (!FormulaCompleta())
         {
-            await Dialogos.ErrorAsync("Seleccione al menos un lote para cada insumo de la fórmula.");
+            ErrorLotesFormula("Seleccione al menos un lote para cada insumo de la fórmula.");
             return;
         }
         _produccionDisponible = await Respuestas.DatoAsync(await Produccion.Calcular(SolicitudProduccion(false, 0)), "calcular la producción disponible");
-        if (_produccionDisponible is 0) await Dialogos.ErrorAsync("Los lotes seleccionados no permiten producir unidades completas.");
+        if (_produccionDisponible is 0)
+        {
+            ErrorLotesFormula("Los lotes seleccionados no permiten producir unidades completas.");
+        }
+        else
+        {
+            _errorLotesFormula = null;
+        }
     }
 
     private async Task ConvertirProduccion()
     {
         if (_produccionDisponible is null || _cantidadConvertir <= 0 || _cantidadConvertir > _produccionDisponible)
         {
-            await Dialogos.ErrorAsync("Indique una cantidad mayor que cero y no superior a la producción disponible.");
+            ErrorLotesFormula("Indique una cantidad mayor que cero y no superior a la producción disponible.");
             return;
         }
         if (!await Dialogos.ConfirmarPeligroAsync($"Se convertirán {_cantidadConvertir} unidades y se descontarán los lotes seleccionados. ¿Desea continuar?")) return;
@@ -1476,9 +1639,14 @@
             _seleccionLotesFormula.Clear();
             _produccionDisponible = null;
             _cantidadConvertir = 0;
+            _errorLotesFormula = null;
             Dialogos.Exito("Conversión registrada correctamente.");
         }
     }
+
+    private void ErrorFormula(string mensaje) => _errorFormula = mensaje;
+
+    private void ErrorLotesFormula(string mensaje) => _errorLotesFormula = mensaje;
 
     private async Task AgregarCodigoBarras()
     {
@@ -1530,6 +1698,88 @@
         }
     }
 
+    private void ReiniciarImagenEditor()
+    {
+        _imagenEditor = null;
+        _imagenEditorModificada = false;
+        _eliminarImagenEditor = false;
+        _idImagenEditorAEliminar = 0;
+        _errorImagenEditor = null;
+    }
+
+    // El API entrega solo Base64; el navegador necesita un data URI para mostrarlo.
+    private static string? FuenteImagen(ArticulosImagenesDTO? imagen)
+    {
+        if (string.IsNullOrWhiteSpace(imagen?.Imagen)) return null;
+        if (imagen.Imagen.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) return imagen.Imagen;
+        var tipo = string.Equals(imagen.Tipo, "jpg", StringComparison.OrdinalIgnoreCase) ? "jpeg" : imagen.Tipo;
+        return $"data:image/{tipo};base64,{imagen.Imagen}";
+    }
+
+    private async Task CargarImagenEditor(long codigoArticulo)
+    {
+        var respuesta = await Imagenes.Obtener(codigoArticulo);
+        _imagenEditor = respuesta.EsCorrecta ? respuesta.Responses : null;
+    }
+
+    private async Task SeleccionarImagenEditor(InputFileChangeEventArgs evento)
+    {
+        var archivo = evento.File;
+        const long maximo = 5 * 1024 * 1024;
+        var extension = Path.GetExtension(archivo.Name).ToLowerInvariant();
+        if (archivo.Size > maximo || extension is not (".jpg" or ".jpeg" or ".png" or ".webp"))
+        {
+            _errorImagenEditor = "La imagen debe ser JPG, PNG o WebP y no superar 5 MB.";
+            return;
+        }
+
+        await using var entrada = archivo.OpenReadStream(maximo);
+        await using var memoria = new MemoryStream();
+        await entrada.CopyToAsync(memoria);
+        _imagenEditor = new ArticulosImagenesDTO
+        {
+            IdImagenArticulo = _imagenEditor?.IdImagenArticulo ?? 0,
+            IdInventario = _edicion?.Codigo ?? 0,
+            Imagen = Convert.ToBase64String(memoria.ToArray()),
+            Tipo = extension.TrimStart('.'),
+            Extencion = archivo.Name
+        };
+        _eliminarImagenEditor = false;
+        _imagenEditorModificada = true;
+        _errorImagenEditor = null;
+    }
+
+    private void QuitarImagenEditor()
+    {
+        _idImagenEditorAEliminar = _imagenEditor?.IdImagenArticulo ?? 0;
+        _eliminarImagenEditor = _idImagenEditorAEliminar > 0;
+        _imagenEditor = null;
+        _imagenEditorModificada = true;
+        _errorImagenEditor = null;
+    }
+
+    private async Task<bool> GuardarCambiosImagen(long codigoArticulo)
+    {
+        if (!_imagenEditorModificada) return true;
+
+        if (_eliminarImagenEditor)
+        {
+            return await Respuestas.CorrectaAsync(await Imagenes.Eliminar(_idImagenEditorAEliminar), "eliminar la imagen");
+        }
+
+        if (_imagenEditor is null) return true;
+
+        _imagenEditor.IdInventario = codigoArticulo;
+        var respuesta = _imagenEditor.IdImagenArticulo > 0
+            ? await Imagenes.Actualizar(_imagenEditor)
+            : await Imagenes.Guardar(_imagenEditor);
+        if (!await Respuestas.CorrectaAsync(respuesta, "guardar la imagen")) return false;
+
+        _imagenEditor = respuesta.Responses ?? _imagenEditor;
+        _imagenEditorModificada = false;
+        return true;
+    }
+
     private async Task GuardarImagen(InputFileChangeEventArgs evento)
     {
         if (_elegido is null) return;
@@ -1537,9 +1787,19 @@
         const long maximo = 5 * 1024 * 1024;
         var extension = Path.GetExtension(archivo.Name).ToLowerInvariant();
         if (archivo.Size > maximo || extension is not (".jpg" or ".jpeg" or ".png" or ".webp")) { await Dialogos.ErrorAsync("La imagen debe ser JPG, PNG o WebP y no superar 5 MB."); return; }
-        await using var entrada = archivo.OpenReadStream(maximo); await using var memoria = new MemoryStream(); await entrada.CopyToAsync(memoria);
-        var imagen = new ArticulosImagenesDTO { IdInventario = _elegido.Codigo, Imagen = $"data:{archivo.ContentType};base64,{Convert.ToBase64String(memoria.ToArray())}", Tipo = extension.TrimStart('.'), Extencion = archivo.Name };
-        if (await Respuestas.CorrectaAsync(await Imagenes.Guardar(imagen), "guardar la imagen")) { _imagen = imagen; Dialogos.Exito("Imagen guardada."); }
+        await using var entrada = archivo.OpenReadStream(maximo);
+        await using var memoria = new MemoryStream();
+        await entrada.CopyToAsync(memoria);
+        var imagen = new ArticulosImagenesDTO
+        {
+            IdImagenArticulo = _imagen?.IdImagenArticulo ?? 0,
+            IdInventario = _elegido.Codigo,
+            Imagen = Convert.ToBase64String(memoria.ToArray()),
+            Tipo = extension.TrimStart('.'),
+            Extencion = archivo.Name
+        };
+        var respuesta = imagen.IdImagenArticulo > 0 ? await Imagenes.Actualizar(imagen) : await Imagenes.Guardar(imagen);
+        if (await Respuestas.CorrectaAsync(respuesta, "guardar la imagen")) { _imagen = respuesta.Responses ?? imagen; Dialogos.Exito("Imagen guardada."); }
     }
 
     private async Task EliminarImagen()
