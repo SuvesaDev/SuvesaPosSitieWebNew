@@ -52,6 +52,15 @@ public sealed class ClientesConsulta : ProxyBase, IClientesConsulta
         }, $"buscar clientes con {limpio}");
     }
 
+    public Task<ResponseGeneric<ICollection<FiltranClienteDTO>>> Listar()
+        => Ejecutar(async () =>
+        {
+            // Sin termino: se pide por nombre con el filtro vacio; el API devuelve
+            // el listado con su propio tope y la pantalla filtra en cliente.
+            var r = await _api.BuscarNombreAsync(new BuscarClienteDTO { Nombre = string.Empty, Cedula = null });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "listar clientes");
+
     public Task<ResponseGeneric<ClienteDTO>> Crear(ClienteDTO cliente)
         => Ejecutar(async () =>
         {

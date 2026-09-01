@@ -37,43 +37,39 @@
     <ChildContent>
         <section class="seepos-clientes">
 
-        <div class="seepos-clientes-busqueda mb-3">
-            <div class="input-group input-group-lg">
-                <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
-                <input type="search" class="form-control"
-                       placeholder="Cedula o nombre..."
-                       aria-label="Buscar cliente"
+        <AppFiltros AlBuscar="RecargarDesdeApi" AlLimpiar="LimpiarFiltros" Buscando="_buscando"
+                    Resumen="@ResumenConteo()">
+            <div class="col-12 col-md-6">
+                <label class="form-label" for="fCliTexto">Cédula o nombre</label>
+                <input id="fCliTexto" type="search" class="form-control" placeholder="Escriba para filtrar..."
                        value="@_texto" @oninput="AlEscribir" />
             </div>
-            <div class="form-text">
-                Escriba al menos dos caracteres. Solo digitos busca por cedula.
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="fCliEstado">Estado</label>
+                <select id="fCliEstado" class="form-select" @bind="_estado" @bind:after="Refiltrar">
+                    <option value="A">Activos</option>
+                    <option value="I">Inactivos</option>
+                    <option value="T">Todos</option>
+                </select>
             </div>
-        </div>
+        </AppFiltros>
 
         @if (_buscando)
         {
             <div class="d-flex justify-content-center py-4">
                 <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Buscando</span>
+                    <span class="visually-hidden">Cargando</span>
                 </div>
-            </div>
-        }
-        else if (_resultados.Count == 0)
-        {
-            <div class="text-center text-secondary py-5 small">
-                @(string.IsNullOrWhiteSpace(_texto)
-                    ? "Escriba para buscar un cliente."
-                    : "Ningun cliente coincide con la busqueda.")
             </div>
         }
         else
         {
-            <p class="seepos-clientes-resumen">
-                <i class="bi bi-people me-1" aria-hidden="true"></i>@_resultados.Count @(_resultados.Count == 1 ? "cliente encontrado" : "clientes encontrados")
-            </p>
-
             @* Movil: tarjetas. *@
             <div class="d-md-none d-flex flex-column gap-2">
+                @if (_resultados.Count == 0)
+                {
+                    <p class="text-secondary small text-center py-4 mb-0">Ningún cliente coincide.</p>
+                }
                 @foreach (var c in _resultados)
                 {
                     <button type="button" class="card text-start border-0 shadow-sm p-0"
@@ -511,14 +507,14 @@
 @code {
     private const string Titulo = "Clientes";
 
-    private static readonly TimeSpan Espera = TimeSpan.FromMilliseconds(400);
-
     private AppRejilla<FiltranClienteDTO>? _rejilla;
     private HxOffcanvas _detalle = default!;
     private HxModal _modal = default!;
     private HxModal _modalCarta = default!;
 
     private string _texto = string.Empty;
+    private string _estado = "A";   // "A" activos, "I" inactivos, "T" todos
+    private List<FiltranClienteDTO> _todos = new();
     private List<FiltranClienteDTO> _resultados = new();
     private FiltranClienteDTO? _elegido;
     private bool _buscando;
@@ -549,52 +545,55 @@
     private string _pestanaEdicion = "generales";
     private bool _variasSucursales;
 
-    private CancellationTokenSource? _pendiente;
+    protected override async Task OnInitializedAsync() => await RecargarDesdeApi();
 
-    private async Task AlEscribir(ChangeEventArgs e)
-    {
-        _texto = e.Value?.ToString() ?? string.Empty;
-
-        _pendiente?.Cancel();
-        _pendiente = new CancellationTokenSource();
-        var token = _pendiente.Token;
-
-        try
-        {
-            await Task.Delay(Espera, token);
-        }
-        catch (TaskCanceledException)
-        {
-            return;
-        }
-
-        await Buscar(token);
-    }
-
-    private async Task Buscar(CancellationToken token)
+    /// <summary>Trae el listado del API (lo que permita) y refiltra en cliente.</summary>
+    private async Task RecargarDesdeApi()
     {
         _buscando = true;
         StateHasChanged();
 
-        var r = await Api.Buscar(_texto);
-
-        if (token.IsCancellationRequested)
-        {
-            return;
-        }
-
-        _resultados = (await Respuestas.DatoAsync(r, "buscar clientes"))
-                      ?.ToList() ?? new List<FiltranClienteDTO>();
+        _todos = (await Respuestas.DatoAsync(await Api.Listar(), "cargar clientes"))
+                 ?.ToList() ?? new List<FiltranClienteDTO>();
 
         _buscando = false;
+        Refiltrar();
+    }
 
-        if (_rejilla is not null)
-        {
-            await _rejilla.RefrescarAsync();
-        }
+    private void AlEscribir(ChangeEventArgs e)
+    {
+        _texto = e.Value?.ToString() ?? string.Empty;
+        Refiltrar();
+    }
 
+    private void LimpiarFiltros()
+    {
+        _texto = string.Empty;
+        _estado = "A";
+        Refiltrar();
+    }
+
+    private void Refiltrar()
+    {
+        var t = Helpers.Texto.Normalizar(_texto);
+        IEnumerable<FiltranClienteDTO> q = _todos;
+
+        if (_estado == "A") q = q.Where(c => !c.Anulado);
+        else if (_estado == "I") q = q.Where(c => c.Anulado);
+
+        if (t.Length > 0)
+            q = q.Where(c => Helpers.Texto.Normalizar(c.Nombre).Contains(t)
+                          || Helpers.Texto.Normalizar(c.Cedula).Contains(t)
+                          || Helpers.Texto.Normalizar(c.Telefono_01).Contains(t));
+
+        _resultados = q.ToList();
+        _rejilla?.RefrescarAsync();
         StateHasChanged();
     }
+
+    private string ResumenConteo()
+        => _resultados.Count == 0 ? "Sin resultados"
+           : $"{_resultados.Count} de {_todos.Count} cliente{(_todos.Count == 1 ? "" : "s")}";
 
     private Task<GridDataProviderResult<FiltranClienteDTO>> Servir(
         GridDataProviderRequest<FiltranClienteDTO> peticion)
@@ -942,7 +941,7 @@
 
     private async Task RefrescarResultados()
     {
-        await Buscar(CancellationToken.None);
+        await RecargarDesdeApi();
     }
 
     private static ClienteDTO ACliente(FiltranClienteDTO cliente) => new()

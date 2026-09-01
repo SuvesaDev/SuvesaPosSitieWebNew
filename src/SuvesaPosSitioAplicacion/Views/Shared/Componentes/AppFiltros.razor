@@ -48,6 +48,10 @@
                 </button>
             }
 
+            @if (!string.IsNullOrWhiteSpace(Resumen))
+            {
+                <span class="ms-auto small text-body-secondary">@Resumen</span>
+            }
             @if (PieExtra is not null)
             {
                 <span class="ms-auto">@PieExtra</span>
@@ -72,6 +76,9 @@
     /// <summary>Contenido a la derecha del titulo (p.ej. un conmutador de vista).</summary>
     [Parameter] public RenderFragment? Encabezado { get; set; }
 
-    /// <summary>Contenido a la derecha del pie (p.ej. "1-25 de 2567").</summary>
+    /// <summary>Texto de resumen a la derecha del pie (p.ej. "25 de 2567 articulos").</summary>
+    [Parameter] public string? Resumen { get; set; }
+
+    /// <summary>Contenido libre a la derecha del pie, si el texto de <see cref="Resumen"/> no basta.</summary>
     [Parameter] public RenderFragment? PieExtra { get; set; }
 }

@@ -55,45 +55,47 @@
     </Acciones>
     <ChildContent>
 
-        <div class="mb-3">
-            <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
-                <input type="search"
-                       class="form-control"
-                       placeholder="Codigo o descripcion..."
-                       aria-label="Buscar articulo"
-                       value="@_texto"
-                       @oninput="AlEscribir" />
+        <AppFiltros AlBuscar="RecargarDesdeApi" AlLimpiar="LimpiarFiltros" Buscando="_buscando"
+                    Resumen="@ResumenConteo()">
+            <div class="col-12 col-md-5">
+                <label class="form-label" for="fInvTexto">Código o descripción</label>
+                <input id="fInvTexto" type="search" class="form-control" placeholder="Escriba para filtrar..."
+                       value="@_texto" @oninput="AlEscribir" />
             </div>
-            <div class="form-text">
-                Escriba al menos dos caracteres. Solo digitos busca por codigo.
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="fInvTipo">Tipo</label>
+                <select id="fInvTipo" class="form-select" @bind="_tipo" @bind:after="Refiltrar">
+                    <option value="">Todos</option>
+                    <option value="A">Artículo</option>
+                    <option value="S">Servicio</option>
+                </select>
             </div>
-        </div>
+            <div class="col-6 col-md-4">
+                <label class="form-label" for="fInvEstado">Estado</label>
+                <select id="fInvEstado" class="form-select" @bind="_estado" @bind:after="AlCambiarEstado">
+                    <option value="A">Activos</option>
+                    <option value="I">Inhabilitados</option>
+                    <option value="T">Todos</option>
+                </select>
+            </div>
+        </AppFiltros>
 
         @if (_buscando)
         {
             <div class="d-flex justify-content-center py-4">
                 <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Buscando</span>
+                    <span class="visually-hidden">Cargando</span>
                 </div>
-            </div>
-        }
-        else if (_resultados.Count == 0)
-        {
-            <div class="text-center text-secondary py-5 small">
-                @(string.IsNullOrWhiteSpace(_texto)
-                    ? "Escriba para buscar en el inventario."
-                    : "Ningun articulo coincide con la busqueda.")
             </div>
         }
         else
         {
-            <p class="text-secondary small">
-                @_resultados.Count @(_resultados.Count == 1 ? "articulo" : "articulos")
-            </p>
-
             @* Movil: tarjetas. Una tabla de siete columnas no se lee en 360 px. *@
             <div class="d-md-none d-flex flex-column gap-2">
+                @if (_resultados.Count == 0)
+                {
+                    <p class="text-secondary small text-center py-4 mb-0">Ningún artículo coincide.</p>
+                }
                 @foreach (var a in _resultados)
                 {
                     <button type="button" class="card text-start border-0 shadow-sm p-0"
@@ -613,8 +615,6 @@
 @code {
     private const string Titulo = "Inventarios";
 
-    /// <summary>Lo que se espera desde la ultima tecla antes de consultar al API.</summary>
-    private static readonly TimeSpan Espera = TimeSpan.FromMilliseconds(400);
 
     private AppRejilla<InventarioDTO>? _rejilla;
     private HxOffcanvas _detalle = default!;
@@ -622,6 +622,9 @@
     private HxModal _modalCabys = default!;
 
     private string _texto = string.Empty;
+    private string _tipo = string.Empty;      // "" todos, "A" articulo, "S" servicio
+    private string _estado = "A";             // "A" activos, "I" inhabilitados, "T" todos
+    private List<InventarioDTO> _todos = new();
     private List<InventarioDTO> _resultados = new();
     private InventarioDTO? _elegido;
     private bool _buscando;
@@ -676,56 +679,78 @@
     private List<StockLoteDTO> _lotes = new();
     private bool _cargandoLotes;
 
-    private CancellationTokenSource? _pendiente;
 
-    private async Task AlEscribir(ChangeEventArgs e)
-    {
-        _texto = e.Value?.ToString() ?? string.Empty;
+    protected override async Task OnInitializedAsync() => await RecargarDesdeApi();
 
-        // Cada tecla cancela la busqueda anterior: solo se consulta cuando el
-        // usuario para. Sin esto, escribir "shampoo" serian siete llamadas.
-        _pendiente?.Cancel();
-        _pendiente = new CancellationTokenSource();
-        var token = _pendiente.Token;
+    private bool IncluirInhabilitados => _estado != "A";
 
-        try
-        {
-            await Task.Delay(Espera, token);
-        }
-        catch (TaskCanceledException)
-        {
-            return;
-        }
-
-        await Buscar(token);
-    }
-
-    private async Task Buscar(CancellationToken token)
+    /// <summary>Trae el listado del API (todo lo que permita) y refiltra en cliente.</summary>
+    private async Task RecargarDesdeApi()
     {
         _buscando = true;
         StateHasChanged();
 
-        var r = await Api.Buscar(_texto);
-
-        if (token.IsCancellationRequested)
-        {
-            return;
-        }
-
-        _resultados = (await Respuestas.DatoAsync(r, "buscar en el inventario"))
-                      ?.ToList() ?? new List<InventarioDTO>();
+        _todos = (await Respuestas.DatoAsync(await Api.Listar(IncluirInhabilitados), "cargar el inventario"))
+                 ?.ToList() ?? new List<InventarioDTO>();
 
         _buscando = false;
+        Refiltrar();
+    }
 
-        if (_rejilla is not null)
+    /// <summary>Al escribir se filtra en memoria (los datos ya estan cargados).</summary>
+    private void AlEscribir(ChangeEventArgs e)
+    {
+        _texto = e.Value?.ToString() ?? string.Empty;
+        Refiltrar();
+    }
+
+    private async Task AlCambiarEstado()
+    {
+        // "Activos" no necesita re-consultar; ver inhabilitados si.
+        if (IncluirInhabilitados && _todos.All(a => !a.Inhabilitado))
         {
-            await _rejilla.RefrescarAsync();
+            await RecargarDesdeApi();
         }
+        else
+        {
+            Refiltrar();
+        }
+    }
 
+    private void LimpiarFiltros()
+    {
+        _texto = string.Empty;
+        _tipo = string.Empty;
+        _estado = "A";
+        Refiltrar();
+    }
+
+    private void Refiltrar()
+    {
+        var t = Helpers.Texto.Normalizar(_texto);
+        IEnumerable<InventarioDTO> q = _todos;
+
+        if (_estado == "A") q = q.Where(a => !a.Inhabilitado);
+        else if (_estado == "I") q = q.Where(a => a.Inhabilitado);
+
+        if (_tipo == "A") q = q.Where(a => !a.Servicio);
+        else if (_tipo == "S") q = q.Where(a => a.Servicio);
+
+        if (t.Length > 0)
+            q = q.Where(a => Helpers.Texto.Normalizar(a.Descripcion).Contains(t)
+                          || Helpers.Texto.Normalizar(a.Cod_Articulo).Contains(t)
+                          || Helpers.Texto.Normalizar(a.Barras).Contains(t));
+
+        _resultados = q.ToList();
+        _rejilla?.RefrescarAsync();
         StateHasChanged();
     }
 
-    /// <summary>La rejilla sirve de lo ya consultado; no vuelve a llamar al API.</summary>
+    private string ResumenConteo()
+        => _resultados.Count == 0 ? "Sin resultados"
+           : $"{_resultados.Count} de {_todos.Count} artículo{(_todos.Count == 1 ? "" : "s")}";
+
+    /// <summary>La rejilla sirve de lo ya filtrado; no vuelve a llamar al API.</summary>
     private Task<GridDataProviderResult<InventarioDTO>> Servir(
         GridDataProviderRequest<InventarioDTO> peticion)
         => Task.FromResult(peticion.ApplyTo(_resultados));
@@ -833,7 +858,7 @@
         {
             await _modal.HideAsync();
             Dialogos.Exito(_esNuevo ? "Artículo creado." : "Artículo actualizado.");
-            await Buscar(CancellationToken.None);
+            await RecargarDesdeApi();
         }
     }
 
@@ -857,7 +882,7 @@
         {
             await _detalle.HideAsync();
             Dialogos.Exito(activar ? "Artículo activado." : "Artículo desactivado.");
-            await Buscar(CancellationToken.None);
+            await RecargarDesdeApi();
         }
     }
 
