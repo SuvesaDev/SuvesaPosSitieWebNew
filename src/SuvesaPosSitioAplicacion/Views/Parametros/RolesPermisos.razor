@@ -202,14 +202,21 @@
             @* -------- PESTAÑA CATÁLOGO -------- *@
             @if (_tab == Tab.Catalogo)
             {
-                @if (_puedeEscribir)
-                {
-                    <div class="mb-3 text-end">
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="verInactivosCat"
+                               @bind="_verInactivosCatalogo" />
+                        <label class="form-check-label small text-body-secondary" for="verInactivosCat">
+                            Ver inactivos
+                        </label>
+                    </div>
+                    @if (_puedeEscribir)
+                    {
                         <button class="btn btn-sm btn-primary" @onclick="() => AbrirModulo(null)">
                             <i class="bi bi-plus-lg me-1"></i>Nuevo módulo
                         </button>
-                    </div>
-                }
+                    }
+                </div>
                 @if (_catalogo is null)
                 {
                     <p class="text-body-secondary">Cargando catálogo...</p>
@@ -245,7 +252,7 @@
                             <div class="card-body p-0">
                                 <table class="table table-sm mb-0 align-middle">
                                     <tbody>
-                                        @foreach (var f in Aplanar(m.Funciones))
+                                        @foreach (var f in Aplanar(m.Funciones).Where(f => _verInactivosCatalogo || f.Funcion.Activo))
                                         {
                                             <tr>
                                                 <td style="padding-left: @(1 + f.Nivel)rem">
@@ -603,6 +610,7 @@
     private readonly HashSet<string> _modulosColapsados = new();
 
     // catalogo
+    private bool _verInactivosCatalogo;
     private List<ModuloCatalogoDTO>? _catalogo;
     private HxModal _modalModulo = default!;
     private ModuloCatalogoDTO? _modulo;
@@ -760,12 +768,14 @@
                        ?? new List<ModuloCatalogoDTO>();
 
     /// <summary>
-    /// Oculta los módulos LEGACY_* (relleno de la migración, no menú real). El seeder
-    /// del API también los desactiva; esto es por si el seeder aún no se ha ejecutado.
+    /// Oculta los módulos LEGACY_* (relleno de la migración, no menú real) y, salvo que
+    /// se pida "Ver inactivos", los que el seeder desactivó al quedar fuera del menú
+    /// (p.ej. INICIO.CAJA, VENTAS.PRESUPUESTOS, los PARAMETROS.* que pasaron a CATALOGOS.*).
     /// </summary>
     private List<ModuloCatalogoDTO> CatalogoVisible()
         => _catalogo?
                .Where(m => !(m.Codigo ?? string.Empty).StartsWith("LEGACY_", StringComparison.OrdinalIgnoreCase))
+               .Where(m => _verInactivosCatalogo || m.Activo)
                .OrderBy(m => m.Orden).ThenBy(m => m.Nombre)
                .ToList()
            ?? new List<ModuloCatalogoDTO>();

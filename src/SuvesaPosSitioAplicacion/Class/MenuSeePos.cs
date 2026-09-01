@@ -4,12 +4,12 @@ namespace SuvesaPosSitioAplicacion.Class;
 
 /// <summary>
 /// Menu lateral del sistema. Base portada de SidebarData.jsx del sistema actual y
-/// despues reorganizada: 10 raices y 89 nodos. Los titulos se conservan literalmente
+/// despues reorganizada: 12 raices y 100 nodos. Los titulos se conservan literalmente
 /// porque, junto con el Codigo, son la llave contra la que casan los permisos.
 ///
 /// Reorganizacion respecto a React: modulo nuevo "Catálogos" con los catalogos de
-/// mantenimiento que estaban sueltos en "Parametros"; "Caja" sale de "Inicio" y
-/// "Presupuestos" sale de "Ventas" (sus rutas siguen existiendo).
+/// mantenimiento que estaban sueltos en "Parametros"; "Caja" (antes bajo "Inicio") y
+/// "Presupuestos" (antes bajo "Ventas") promovidos a modulo propio con sus funciones.
 ///
 /// Los Codigo se regeneran con tools/anotar_codigos_menu.py y deben casar con la
 /// semilla del API (tools/generar_semilla_seguridad.py, mismo algoritmo de slug).
@@ -80,6 +80,63 @@ public static partial class MenuSeePos
                     Titulo = "Consulta Albaranes",
                     Codigo = "INICIO.CONSULTA_ALBARANES",
                     Ruta = "/initial/consultAlbaranes",
+                }
+            }
+        },
+        new ItemMenu
+        {
+            // Antes colgaba de "Inicio". Promovido a modulo propio (a peticion del
+            // usuario): sale del menu de Inicio pero conserva sus funciones.
+            Titulo = "Caja",
+            Codigo = "CAJA",
+            Ruta = "/initial/cash/closecash",
+            Icono = "bi-cash-stack",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Apertura Caja",
+                    Codigo = "CAJA.APERTURA_CAJA",
+                    Ruta = "/initial/cash/opencash",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Arqueo Caja",
+                    Codigo = "CAJA.ARQUEO_CAJA",
+                    Ruta = "/initial/cash/arqueocash",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Cierre Caja",
+                    Codigo = "CAJA.CIERRE_CAJA",
+                    Ruta = "/initial/cash/closecash",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Depósitos",
+                    Codigo = "CAJA.DEPOSITOS",
+                    Ruta = "/initial/cash/deposits",
+                    Hijos = new ItemMenu[]
+                    {
+                        new ItemMenu
+                        {
+                            Titulo = "Pre Depósito",
+                            Codigo = "CAJA.DEPOSITOS.PRE_DEPOSITO",
+                            Ruta = "/initial/cash/deposits/predeposits",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Generar Depósito",
+                            Codigo = "CAJA.DEPOSITOS.GENERAR_DEPOSITO",
+                            Ruta = "/initial/cash/deposits/generatedeposits",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Consulta Depósitos",
+                            Codigo = "CAJA.DEPOSITOS.CONSULTA_DEPOSITOS",
+                            Ruta = "/initial/cash/deposits/consultdeposits",
+                        }
+                    }
                 }
             }
         },
@@ -300,6 +357,30 @@ public static partial class MenuSeePos
                     Titulo = "Devoluciones",
                     Codigo = "VENTAS.DEVOLUCIONES",
                     Ruta = "/sales/repayment",
+                }
+            }
+        },
+        new ItemMenu
+        {
+            // Antes colgaba de "Ventas". Promovido a modulo propio (a peticion del
+            // usuario): sale del menu de Ventas pero conserva sus funciones.
+            Titulo = "Presupuestos",
+            Codigo = "PRESUPUESTOS",
+            Ruta = "/sales/budgets/proforma",
+            Icono = "bi-file-earmark-text",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Proformas o Cotización",
+                    Codigo = "PRESUPUESTOS.PROFORMAS_O_COTIZACION",
+                    Ruta = "/sales/budgets/proforma",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Seguimiento Cotizaciones",
+                    Codigo = "PRESUPUESTOS.SEGUIMIENTO_COTIZACIONES",
+                    Ruta = "/sales/budgets/seguimiento",
                 }
             }
         },

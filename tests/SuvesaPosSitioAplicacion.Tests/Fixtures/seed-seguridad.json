@@ -221,9 +221,129 @@
       ]
     },
     {
+      "codigo": "CAJA",
+      "nombre": "Caja",
+      "orden": 2,
+      "icono": "bi-cash-stack",
+      "funciones": [
+        {
+          "codigo": "CAJA.APERTURA_CAJA",
+          "nombre": "Apertura Caja",
+          "ruta": "/initial/cash/opencash",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.ARQUEO_CAJA",
+          "nombre": "Arqueo Caja",
+          "ruta": "/initial/cash/arqueocash",
+          "padre": null,
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.CIERRE_CAJA",
+          "nombre": "Cierre Caja",
+          "ruta": "/initial/cash/closecash",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.DEPOSITOS",
+          "nombre": "Depósitos",
+          "ruta": "/initial/cash/deposits",
+          "padre": null,
+          "orden": 4,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.DEPOSITOS.PRE_DEPOSITO",
+          "nombre": "Pre Depósito",
+          "ruta": "/initial/cash/deposits/predeposits",
+          "padre": "CAJA.DEPOSITOS",
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.DEPOSITOS.GENERAR_DEPOSITO",
+          "nombre": "Generar Depósito",
+          "ruta": "/initial/cash/deposits/generatedeposits",
+          "padre": "CAJA.DEPOSITOS",
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.DEPOSITOS.CONSULTA_DEPOSITOS",
+          "nombre": "Consulta Depósitos",
+          "ruta": "/initial/cash/deposits/consultdeposits",
+          "padre": "CAJA.DEPOSITOS",
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        }
+      ]
+    },
+    {
       "codigo": "COMPRAS",
       "nombre": "Compras",
-      "orden": 2,
+      "orden": 3,
       "icono": "bi-cart-fill",
       "funciones": [
         {
@@ -567,7 +687,7 @@
     {
       "codigo": "CONSIGNACION",
       "nombre": "Consignación",
-      "orden": 3,
+      "orden": 4,
       "icono": null,
       "funciones": [
         {
@@ -623,7 +743,7 @@
     {
       "codigo": "VENTAS",
       "nombre": "Ventas",
-      "orden": 4,
+      "orden": 5,
       "icono": "bi-receipt",
       "funciones": [
         {
@@ -709,9 +829,49 @@
       ]
     },
     {
+      "codigo": "PRESUPUESTOS",
+      "nombre": "Presupuestos",
+      "orden": 6,
+      "icono": "bi-file-earmark-text",
+      "funciones": [
+        {
+          "codigo": "PRESUPUESTOS.PROFORMAS_O_COTIZACION",
+          "nombre": "Proformas o Cotización",
+          "ruta": "/sales/budgets/proforma",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "PRESUPUESTOS.SEGUIMIENTO_COTIZACIONES",
+          "nombre": "Seguimiento Cotizaciones",
+          "ruta": "/sales/budgets/seguimiento",
+          "padre": null,
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        }
+      ]
+    },
+    {
       "codigo": "UTILIDADES",
       "nombre": "Utilidades",
-      "orden": 5,
+      "orden": 7,
       "icono": "bi-tools",
       "funciones": [
         {
@@ -799,7 +959,7 @@
     {
       "codigo": "CATALOGOS",
       "nombre": "Catálogos",
-      "orden": 6,
+      "orden": 8,
       "icono": "bi-collection",
       "funciones": [
         {
@@ -1111,7 +1271,7 @@
     {
       "codigo": "PARAMETROS",
       "nombre": "Parametros",
-      "orden": 7,
+      "orden": 9,
       "icono": "bi-gear-fill",
       "funciones": [
         {
@@ -1391,7 +1551,7 @@
     {
       "codigo": "MODULO_INVENTARIO",
       "nombre": "Módulo Inventario",
-      "orden": 8,
+      "orden": 10,
       "icono": "bi-boxes",
       "funciones": [
         {
@@ -1415,7 +1575,7 @@
     {
       "codigo": "MODULO_REPORTES",
       "nombre": "Módulo Reportes",
-      "orden": 9,
+      "orden": 11,
       "icono": "bi-bar-chart-fill",
       "funciones": [
         {
@@ -1439,7 +1599,7 @@
     {
       "codigo": "MODULO_FARMACIA",
       "nombre": "Módulo Farmacia",
-      "orden": 10,
+      "orden": 12,
       "icono": "bi-capsule",
       "funciones": [
         {
