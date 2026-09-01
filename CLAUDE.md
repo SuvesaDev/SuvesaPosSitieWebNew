@@ -130,9 +130,13 @@ Para no reabrir la decision de stack:
   despues de `blazor.web.js`. `AddMudServices()` en `Program.cs`.
 - CSS de contencion en `tema.css`, bloque `.seepos-mud-isla` (marco de tarjeta,
   cabecera con gris de marca, importes a la derecha, color de linea).
-- Pantallas piloto: `Inventario/ListaMag.razor` y `Compras/ConsultarPedidos.razor`
-  (antes `AppRejilla`/`HxGrid`). **Falta verificar en vivo** el choque de resets y el
-  recorte de popovers dentro de `<main overflow:auto>` — hace falta login con datos.
+- Pantallas piloto: `Inventario/Consulta.razor` (la consulta pesada de verdad — miles
+  de artículos, con filtro cliente + orden/filtro por columna de Mud), `Inventario/
+  ListaMag.razor` y `Compras/ConsultarPedidos.razor` (antes `AppRejilla`/`HxGrid`). La
+  vista móvil de tarjetas y todos los modales/offcanvas de esas pantallas siguen en
+  Bootstrap/Havit; solo la rejilla de escritorio es Mud. **Falta verificar en vivo** el
+  choque de resets y el recorte de popovers dentro de `<main overflow:auto>` — hace
+  falta login con datos.
 - Si el piloto no convence, revertir es: quitar el `PackageReference`, `AddMudServices`,
   las 2 lineas de `App.razor`, `MudIsla.razor`, el bloque CSS, y devolver las 2
   pantallas a `AppRejilla` (git las tiene).

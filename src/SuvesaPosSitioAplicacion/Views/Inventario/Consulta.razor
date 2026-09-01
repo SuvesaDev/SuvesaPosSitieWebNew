@@ -1,4 +1,5 @@
 @page "/initial/inventory"
+@using MudBlazor
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
@@ -120,41 +121,45 @@
                 }
             </div>
 
-            @* Escritorio y tableta: rejilla. *@
-            <div class="d-none d-md-block card">
-                <div class="card-body">
-                    <AppRejilla TItem="InventarioDTO" Datos="Servir" Nivel="NivelPantalla.Tableta"
-                                @ref="_rejilla"
-                                TextoVacio="@(_modoBusqueda && _todos.Count == 0 ? "Escriba y pulse Buscar." : "Ningún artículo coincide.")">
-                        <Columnas>
-                            <HxGridColumn TItem="InventarioDTO" HeaderText="Codigo"
-                                          ItemTextSelector="a => a.Cod_Articulo"
-                                          SortKeySelector="a => a.Cod_Articulo" />
-                            <HxGridColumn TItem="InventarioDTO" HeaderText="Descripcion"
-                                          ItemTextSelector="a => a.Descripcion"
-                                          SortKeySelector="a => a.Descripcion" />
-                            <HxGridColumn TItem="InventarioDTO" HeaderText="Ubicacion"
-                                          ItemTextSelector="a => a.SubUbicacion" />
-                            <HxGridColumn TItem="InventarioDTO" HeaderText="Existencia"
-                                          ItemTextSelector="@(a => Formato.Cantidad(a.Existencia))"
-                                          SortKeySelector="a => a.Existencia"
-                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                            <HxGridColumn TItem="InventarioDTO" HeaderText="Precio"
-                                          ItemTextSelector="@(a => Formato.Importe(a.Precio_A))"
-                                          SortKeySelector="a => a.Precio_A"
-                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                            <HxGridColumn TItem="InventarioDTO" HeaderText="">
-                                <ItemTemplate Context="a">
-                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(a)">Ver</button>
+            @* Escritorio y tableta: rejilla (piloto MudDataGrid en isla). *@
+            <div class="d-none d-md-block">
+                <MudIsla>
+                    <MudDataGrid T="InventarioDTO" Items="_resultados"
+                                 Dense="true" Hover="true" Bordered="false" Striped="true"
+                                 Filterable="true" SortMode="SortMode.Multiple" Groupable="false"
+                                 FixedHeader="true" Height="60vh" Class="seepos-mud-grid">
+                        <NoRecordsContent>
+                            <div class="text-secondary small py-4">
+                                @(_modoBusqueda && _todos.Count == 0 ? "Escriba y pulse Buscar." : "Ningún artículo coincide.")
+                            </div>
+                        </NoRecordsContent>
+                        <Columns>
+                            <PropertyColumn Property="a => a.Cod_Articulo" Title="Código" />
+                            <PropertyColumn Property="a => a.Descripcion" Title="Descripción" />
+                            <PropertyColumn Property="a => a.SubUbicacion" Title="Ubicación" />
+                            <PropertyColumn Property="a => a.Existencia" Title="Existencia"
+                                            CellClass="justify-end" HeaderClass="justify-end">
+                                <CellTemplate>@Formato.Cantidad(context.Item.Existencia)</CellTemplate>
+                            </PropertyColumn>
+                            <PropertyColumn Property="a => a.Precio_A" Title="Precio"
+                                            CellClass="justify-end" HeaderClass="justify-end">
+                                <CellTemplate>@Formato.Importe(context.Item.Precio_A)</CellTemplate>
+                            </PropertyColumn>
+                            <TemplateColumn Title="" Sortable="false" Filterable="false">
+                                <CellTemplate>
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(context.Item)">Ver</button>
                                     @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
                                     {
-                                        <button class="btn btn-sm btn-link p-0 ms-3" @onclick="() => Editar(a)">Editar</button>
+                                        <button class="btn btn-sm btn-link p-0 ms-3" @onclick="() => Editar(context.Item)">Editar</button>
                                     }
-                                </ItemTemplate>
-                            </HxGridColumn>
-                        </Columnas>
-                    </AppRejilla>
-                </div>
+                                </CellTemplate>
+                            </TemplateColumn>
+                        </Columns>
+                        <PagerContent>
+                            <MudDataGridPager T="InventarioDTO" PageSizeOptions="new[] { 25, 50, 100 }" />
+                        </PagerContent>
+                    </MudDataGrid>
+                </MudIsla>
             </div>
         }
 
@@ -621,7 +626,6 @@
     private const string Titulo = "Inventarios";
 
 
-    private AppRejilla<InventarioDTO>? _rejilla;
     private HxOffcanvas _detalle = default!;
     private HxModal _modal = default!;
     private HxModal _modalCabys = default!;
@@ -790,18 +794,12 @@
                           || Helpers.Texto.Normalizar(a.Barras).Contains(t));
 
         _resultados = q.ToList();
-        _rejilla?.RefrescarAsync();
         StateHasChanged();
     }
 
     private string ResumenConteo()
         => _resultados.Count == 0 ? "Sin resultados"
            : $"{_resultados.Count} de {_todos.Count} artículo{(_todos.Count == 1 ? "" : "s")}";
-
-    /// <summary>La rejilla sirve de lo ya filtrado; no vuelve a llamar al API.</summary>
-    private Task<GridDataProviderResult<InventarioDTO>> Servir(
-        GridDataProviderRequest<InventarioDTO> peticion)
-        => Task.FromResult(peticion.ApplyTo(_resultados));
 
     private async Task Ver(InventarioDTO articulo)
     {

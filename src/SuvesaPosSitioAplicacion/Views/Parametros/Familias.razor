@@ -7,64 +7,37 @@
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
 
-@*  Replica del ARQUETIPO 01 (CRUD de catalogo). Mismo molde que
-    Views/Parametros/Bancos.razor.
-
-    UNICA DIFERENCIA: GetFamiliasAsync devuelve la respuesta como `object`, no
-    tipada; ApiConexion/ProxyClass/Familias.cs la reinterpreta a mano. Verificado
-    con datos reales antes de construir esta pantalla (ver
-    FamiliasDeserializacionTests). El resto es identico al arquetipo.
-*@
-
-<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+<AppPantalla Pantalla="Familias y Sub-Familias" Nivel="NivelPantalla.Tableta">
     <Acciones>
-        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
-        {
-            <button class="btn btn-sm btn-primary" @onclick="Agregar">
-                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
-            </button>
-        }
-        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
-            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
-        </button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="RecargarTodo"><i class="bi bi-arrow-clockwise me-1"></i>Actualizar</button>
     </Acciones>
-
     <ChildContent>
-        <div class="card">
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <strong>Familias</strong>
+                @if (Sesion.Puede(Codigo, AccionPantalla.Crear))
+                {
+                    <button class="btn btn-sm btn-light" @onclick="AgregarFamilia"><i class="bi bi-plus-lg me-1"></i>Nueva familia</button>
+                }
+            </div>
             <div class="card-body">
-                <AppRejilla TItem="FamiliaDTO"
-                            Datos="Cargar"
-                            Nivel="NivelPantalla.Tableta"
-                            TextoVacio="No hay familias registradas."
-                            @ref="_rejilla">
+                <p class="text-muted small mb-3">Seleccione una familia para administrar sus sub-familias.</p>
+                <AppRejilla TItem="FamiliaDTO" Datos="CargarFamilias" @ref="_rejillaFamilias" TextoVacio="No hay familias registradas.">
                     <Columnas>
-                        <HxGridColumn TItem="FamiliaDTO" HeaderText="Codigo"
-                                      ItemTextSelector="@(f => f.Codigo.ToString())"
-                                      SortKeySelector="f => f.Codigo" />
-
-                        <HxGridColumn TItem="FamiliaDTO" HeaderText="Descripcion"
-                                      ItemTextSelector="f => f.Descripcion"
-                                      SortKeySelector="f => f.Descripcion" />
-
-                        <HxGridColumn TItem="FamiliaDTO" HeaderText="Observaciones"
-                                      ItemTextSelector="f => f.Observaciones" />
-
-                        <HxGridColumn TItem="FamiliaDTO" HeaderText="Estado"
-                                      SortKeySelector="f => f.Estado">
+                        <HxGridColumn TItem="FamiliaDTO" HeaderText="Descripción" ItemTextSelector="f => f.Descripcion" SortKeySelector="f => f.Descripcion" />
+                        <HxGridColumn TItem="FamiliaDTO" HeaderText="Observaciones" ItemTextSelector="f => f.Observaciones" />
+                        <HxGridColumn TItem="FamiliaDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
                             <ItemTemplate Context="f">
-                                <span class="badge @((f.Estado ?? true) ? "text-bg-success" : "text-bg-secondary")">
-                                    @((f.Estado ?? true) ? "Activa" : "Inactiva")
-                                </span>
-                            </ItemTemplate>
-                        </HxGridColumn>
-
-                        <HxGridColumn TItem="FamiliaDTO" HeaderText=""
-                                      HeaderCssClass="text-end" ItemCssClass="text-end">
-                            <ItemTemplate Context="f">
-                                @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                <button class="btn btn-sm @(EsSeleccionada(f) ? "btn-primary" : "btn-outline-primary") me-2" @onclick="() => SeleccionarFamilia(f)">
+                                    @(EsSeleccionada(f) ? "Seleccionada" : "Ver sub-familias")
+                                </button>
+                                @if (Sesion.Puede(Codigo, AccionPantalla.Modificar))
                                 {
-                                    <button class="btn btn-sm btn-link p-0 me-3"
-                                            @onclick="() => Editar(f)">Editar</button>
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => EditarFamilia(f)">Editar</button>
+                                }
+                                @if (Sesion.Puede(Codigo, AccionPantalla.Borrar))
+                                {
+                                    <button class="btn btn-sm btn-link text-danger p-0 ms-2" @onclick="() => EliminarFamilia(f)">Eliminar</button>
                                 }
                             </ItemTemplate>
                         </HxGridColumn>
@@ -72,108 +45,210 @@
                 </AppRejilla>
             </div>
         </div>
+
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <div><strong>Sub-Familias</strong>@if (_familiaSeleccionada is not null) { <span class="ms-2 small">de @_familiaSeleccionada.Descripcion</span> }</div>
+                @if (Sesion.Puede(Codigo, AccionPantalla.Crear))
+                {
+                    <button class="btn btn-sm btn-light" disabled="@(_familiaSeleccionada is null)" @onclick="AgregarSubFamilia"><i class="bi bi-plus-lg me-1"></i>Nueva sub-familia</button>
+                }
+            </div>
+            <div class="card-body">
+                @if (_familiaSeleccionada is null)
+                {
+                    <div class="text-muted">Seleccione primero una familia.</div>
+                }
+                else
+                {
+                    <AppRejilla TItem="SubFamiliaDTO" Datos="CargarSubFamilias" @ref="_rejillaSubFamilias" TextoVacio="La familia seleccionada no tiene sub-familias.">
+                        <Columnas>
+                            <HxGridColumn TItem="SubFamiliaDTO" HeaderText="Código" ItemTextSelector="s => s.SubCodigo" SortKeySelector="s => s.SubCodigo" />
+                            <HxGridColumn TItem="SubFamiliaDTO" HeaderText="Descripción" ItemTextSelector="s => s.Descripcion" SortKeySelector="s => s.Descripcion" />
+                            <HxGridColumn TItem="SubFamiliaDTO" HeaderText="Observaciones" ItemTextSelector="s => s.Observaciones" />
+                            <HxGridColumn TItem="SubFamiliaDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
+                                <ItemTemplate Context="s">
+                                    @if (Sesion.Puede(Codigo, AccionPantalla.Modificar))
+                                    {
+                                        <button class="btn btn-sm btn-link p-0" @onclick="() => EditarSubFamilia(s)">Editar</button>
+                                    }
+                                    @if (Sesion.Puede(Codigo, AccionPantalla.Borrar))
+                                    {
+                                        <button class="btn btn-sm btn-link text-danger p-0 ms-2" @onclick="() => EliminarSubFamilia(s)">Eliminar</button>
+                                    }
+                                </ItemTemplate>
+                            </HxGridColumn>
+                        </Columnas>
+                    </AppRejilla>
+                }
+            </div>
+        </div>
     </ChildContent>
 </AppPantalla>
 
-<HxModal @ref="_modal" Title="@(_edicion?.Codigo > 0 ? "Editar familia" : "Nueva familia")" Size="ModalSize.Regular">
+<HxModal @ref="_modalFamilia" Title="@(_familiaEdicion?.Codigo > 0 ? "Editar familia" : "Nueva familia")" Size="ModalSize.Regular">
     <BodyTemplate>
-        @if (_edicion is not null)
+        @if (_familiaEdicion is not null)
         {
-            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formFamilia">
+            <EditForm Model="_familiaEdicion" OnValidSubmit="GuardarFamilia" id="formFamilia">
                 <DataAnnotationsValidator />
-                <div class="mb-3">
-                    <AppCampoTexto Etiqueta="Descripcion" @bind-Valor="_edicion.Descripcion" />
-                </div>
-                <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" />
+                <div class="mb-3"><AppCampoTexto Etiqueta="Descripción" @bind-Valor="_familiaEdicion.Descripcion" Requerido="true" /></div>
+                <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_familiaEdicion.Observaciones" />
             </EditForm>
         }
     </BodyTemplate>
     <FooterTemplate>
-        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
-        <button class="btn btn-primary" type="submit" form="formFamilia" disabled="@_guardando">
-            @(_guardando ? "Guardando..." : "Guardar")
-        </button>
+        <button class="btn btn-outline-secondary" @onclick="() => _modalFamilia.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" type="submit" form="formFamilia" disabled="@_guardando">@(_guardando ? "Guardando..." : "Guardar")</button>
+    </FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalSubFamilia" Title="@(_subFamiliaEdicion?.Codigo > 0 ? "Editar sub-familia" : "Nueva sub-familia")" Size="ModalSize.Regular">
+    <BodyTemplate>
+        @if (_subFamiliaEdicion is not null)
+        {
+            <EditForm Model="_subFamiliaEdicion" OnValidSubmit="GuardarSubFamilia" id="formSubFamilia">
+                <DataAnnotationsValidator />
+                <div class="mb-3"><AppCampoTexto Etiqueta="Código" @bind-Valor="_subFamiliaEdicion.SubCodigo" Requerido="true" /></div>
+                <div class="mb-3"><AppCampoTexto Etiqueta="Descripción" @bind-Valor="_subFamiliaEdicion.Descripcion" Requerido="true" /></div>
+                <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_subFamiliaEdicion.Observaciones" />
+            </EditForm>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modalSubFamilia.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" type="submit" form="formSubFamilia" disabled="@_guardando">@(_guardando ? "Guardando..." : "Guardar")</button>
     </FooterTemplate>
 </HxModal>
 
 @code {
-    private const string Titulo = "Familias";
-
-    private AppRejilla<FamiliaDTO>? _rejilla;
-    private HxModal _modal = default!;
-
+    private const string Codigo = "PARAMETROS.FAMILIAS";
+    private AppRejilla<FamiliaDTO>? _rejillaFamilias;
+    private AppRejilla<SubFamiliaDTO>? _rejillaSubFamilias;
+    private HxModal _modalFamilia = default!;
+    private HxModal _modalSubFamilia = default!;
     private List<FamiliaDTO> _familias = new();
-    private FamiliaDTO? _edicion;
+    private List<SubFamiliaDTO> _subFamilias = new();
+    private FamiliaDTO? _familiaSeleccionada;
+    private FamiliaDTO? _familiaEdicion;
+    private SubFamiliaDTO? _subFamiliaEdicion;
+    private bool _familiasCargadas;
+    private bool _subFamiliasCargadas;
     private bool _guardando;
-    private bool _cargado;
 
-    private async Task<GridDataProviderResult<FamiliaDTO>> Cargar(
-        GridDataProviderRequest<FamiliaDTO> peticion)
+    private async Task<GridDataProviderResult<FamiliaDTO>> CargarFamilias(GridDataProviderRequest<FamiliaDTO> peticion)
     {
-        if (!_cargado)
+        if (!_familiasCargadas)
         {
-            _familias = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar las familias"))
-                        ?.ToList() ?? new List<FamiliaDTO>();
-            _cargado = true;
+            _familias = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar las familias"))?.ToList() ?? new();
+            _familiasCargadas = true;
+            _familiaSeleccionada ??= _familias.FirstOrDefault();
         }
-
         return peticion.ApplyTo(_familias);
     }
 
-    private async Task Recargar()
+    private async Task<GridDataProviderResult<SubFamiliaDTO>> CargarSubFamilias(GridDataProviderRequest<SubFamiliaDTO> peticion)
     {
-        _cargado = false;
-        if (_rejilla is not null)
+        if (_familiaSeleccionada is not null && !_subFamiliasCargadas)
         {
-            await _rejilla.RefrescarAsync();
+            _subFamilias = (await Respuestas.DatoAsync(await Api.ObtenerSubFamilias(_familiaSeleccionada.Codigo), "consultar las sub-familias"))?.ToList() ?? new();
+            _subFamiliasCargadas = true;
         }
+        return peticion.ApplyTo(_subFamilias);
     }
 
-    private async Task Agregar()
+    private bool EsSeleccionada(FamiliaDTO familia) => _familiaSeleccionada?.Codigo == familia.Codigo;
+
+    private async Task SeleccionarFamilia(FamiliaDTO familia)
     {
-        _edicion = new FamiliaDTO { Estado = true };
-        await _modal.ShowAsync();
+        _familiaSeleccionada = familia;
+        _subFamilias = new();
+        _subFamiliasCargadas = false;
+        if (_rejillaSubFamilias is not null) await _rejillaSubFamilias.RefrescarAsync();
     }
 
-    private async Task Editar(FamiliaDTO familia)
+    private async Task RecargarTodo()
     {
-        // Se edita una copia: si el guardado falla, la fila de la rejilla no queda tocada.
-        _edicion = new FamiliaDTO
-        {
-            Codigo = familia.Codigo,
-            Descripcion = familia.Descripcion,
-            Observaciones = familia.Observaciones,
-            Estado = familia.Estado
-        };
-
-        await _modal.ShowAsync();
+        _familiasCargadas = false;
+        _subFamiliasCargadas = false;
+        _subFamilias = new();
+        if (_rejillaFamilias is not null) await _rejillaFamilias.RefrescarAsync();
+        if (_rejillaSubFamilias is not null) await _rejillaSubFamilias.RefrescarAsync();
     }
 
-    private async Task Guardar()
+    private async Task AgregarFamilia()
     {
-        if (_edicion is null || _guardando)
-        {
-            return;
-        }
+        _familiaEdicion = new FamiliaDTO { Estado = true };
+        await _modalFamilia.ShowAsync();
+    }
 
-        if (string.IsNullOrWhiteSpace(_edicion.Descripcion))
-        {
-            await Dialogos.ErrorAsync("Indique la descripcion de la familia.");
-            return;
-        }
+    private async Task EditarFamilia(FamiliaDTO familia)
+    {
+        _familiaEdicion = new FamiliaDTO { Codigo = familia.Codigo, Descripcion = familia.Descripcion, Observaciones = familia.Observaciones, Estado = familia.Estado };
+        await _modalFamilia.ShowAsync();
+    }
 
+    private async Task GuardarFamilia()
+    {
+        if (_familiaEdicion is null || _guardando) return;
+        if (string.IsNullOrWhiteSpace(_familiaEdicion.Descripcion)) { await Dialogos.ErrorAsync("Indique la descripción de la familia."); return; }
         _guardando = true;
-
-        var esNuevo = _edicion.Codigo == 0;
-        var r = esNuevo ? await Api.Crear(_edicion) : await Api.Editar(_edicion);
-
+        var nueva = _familiaEdicion.Codigo == 0;
+        var respuesta = nueva ? await Api.Crear(_familiaEdicion) : await Api.Editar(_familiaEdicion);
         _guardando = false;
-
-        if (await Respuestas.CorrectaAsync(r, esNuevo ? "crear la familia" : "editar la familia"))
+        if (await Respuestas.CorrectaAsync(respuesta, nueva ? "crear la familia" : "editar la familia"))
         {
-            await _modal.HideAsync();
-            Dialogos.Exito(esNuevo ? "Familia creada." : "Familia actualizada.");
-            await Recargar();
+            await _modalFamilia.HideAsync();
+            await RecargarTodo();
+        }
+    }
+
+    private async Task EliminarFamilia(FamiliaDTO familia)
+    {
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Eliminar la familia '{familia.Descripcion}'?", "Eliminar familia")) return;
+        if (await Respuestas.CorrectaAsync(await Api.Eliminar(familia.Codigo), "eliminar la familia"))
+        {
+            if (_familiaSeleccionada?.Codigo == familia.Codigo) _familiaSeleccionada = null;
+            await RecargarTodo();
+        }
+    }
+
+    private async Task AgregarSubFamilia()
+    {
+        if (_familiaSeleccionada is null) return;
+        _subFamiliaEdicion = new SubFamiliaDTO { CodigoFamilia = _familiaSeleccionada.Codigo, Estado = true, FechaCreacion = DateTime.Now };
+        await _modalSubFamilia.ShowAsync();
+    }
+
+    private async Task EditarSubFamilia(SubFamiliaDTO subFamilia)
+    {
+        _subFamiliaEdicion = new SubFamiliaDTO { Codigo = subFamilia.Codigo, CodigoFamilia = subFamilia.CodigoFamilia, SubCodigo = subFamilia.SubCodigo, Descripcion = subFamilia.Descripcion, Observaciones = subFamilia.Observaciones, Estado = subFamilia.Estado, IdUsuarioCreacion = subFamilia.IdUsuarioCreacion, FechaCreacion = subFamilia.FechaCreacion };
+        await _modalSubFamilia.ShowAsync();
+    }
+
+    private async Task GuardarSubFamilia()
+    {
+        if (_subFamiliaEdicion is null || _guardando) return;
+        if (string.IsNullOrWhiteSpace(_subFamiliaEdicion.SubCodigo) || string.IsNullOrWhiteSpace(_subFamiliaEdicion.Descripcion)) { await Dialogos.ErrorAsync("Indique el código y la descripción de la sub-familia."); return; }
+        _guardando = true;
+        var nueva = _subFamiliaEdicion.Codigo == 0;
+        var respuesta = nueva ? await Api.CrearSubFamilia(_subFamiliaEdicion) : await Api.EditarSubFamilia(_subFamiliaEdicion);
+        _guardando = false;
+        if (await Respuestas.CorrectaAsync(respuesta, nueva ? "crear la sub-familia" : "editar la sub-familia"))
+        {
+            await _modalSubFamilia.HideAsync();
+            _subFamiliasCargadas = false;
+            if (_rejillaSubFamilias is not null) await _rejillaSubFamilias.RefrescarAsync();
+        }
+    }
+
+    private async Task EliminarSubFamilia(SubFamiliaDTO subFamilia)
+    {
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Eliminar la sub-familia '{subFamilia.Descripcion}'?", "Eliminar sub-familia")) return;
+        if (await Respuestas.CorrectaAsync(await Api.EliminarSubFamilia(subFamilia.Codigo), "eliminar la sub-familia"))
+        {
+            _subFamiliasCargadas = false;
+            if (_rejillaSubFamilias is not null) await _rejillaSubFamilias.RefrescarAsync();
         }
     }
 }

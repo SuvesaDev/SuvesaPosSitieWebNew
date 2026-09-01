@@ -18,11 +18,13 @@ public sealed class Familias : ProxyBase, IFamilias
     private static readonly JsonSerializerOptions Opciones = new(JsonSerializerDefaults.Web);
 
     private readonly IFamiliasApiCliente _api;
+    private readonly ISubFamiliasApiCliente _subFamilias;
 
-    public Familias(IFamiliasApiCliente api, IContextoSesion sesion, ILogger<Familias> log)
+    public Familias(IFamiliasApiCliente api, ISubFamiliasApiCliente subFamilias, IContextoSesion sesion, ILogger<Familias> log)
         : base(sesion, log)
     {
         _api = api;
+        _subFamilias = subFamilias;
     }
 
     public Task<ResponseGeneric<ICollection<FamiliaDTO>>> Obtener()
@@ -62,6 +64,38 @@ public sealed class Familias : ProxyBase, IFamilias
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "eliminar la familia");
 
+    public Task<ResponseGeneric<ICollection<SubFamiliaDTO>>> ObtenerSubFamilias(int codigoFamilia)
+        => Ejecutar(async () =>
+        {
+            var r = await _subFamilias.GetSubFamiliasToFamiliasAsync(codigoFamilia);
+            if (r.Status != ResponseStatus._0)
+            {
+                return EnvelopeApi.A<ICollection<SubFamiliaDTO>>(r.Status, r.CurrentException, r.ValidationErrors, null);
+            }
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, ASubFamilias(r.Responses));
+        }, "consultar las sub-familias");
+
+    public Task<ResponseGeneric<SubFamiliaDTO>> CrearSubFamilia(SubFamiliaDTO subFamilia)
+        => Ejecutar(async () =>
+        {
+            var r = await _subFamilias.PostCreateSubFamiliaAsync(subFamilia);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "crear la sub-familia");
+
+    public Task<ResponseGeneric<SubFamiliaDTO>> EditarSubFamilia(SubFamiliaDTO subFamilia)
+        => Ejecutar(async () =>
+        {
+            var r = await _subFamilias.PutSubFamiliaAsync(subFamilia);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "editar la sub-familia");
+
+    public Task<ResponseGeneric<bool>> EliminarSubFamilia(int codigo)
+        => Ejecutar(async () =>
+        {
+            var r = await _subFamilias.DeleteSubFamiliaAsync(codigo);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "eliminar la sub-familia");
+
     private static ICollection<FamiliaDTO> ADatos(object? responses)
     {
         if (responses is null)
@@ -73,5 +107,13 @@ public sealed class Familias : ProxyBase, IFamilias
         var json = JsonSerializer.Serialize(responses, Opciones);
         return JsonSerializer.Deserialize<List<FamiliaDTO>>(json, Opciones)
                ?? new List<FamiliaDTO>();
+    }
+
+    private static ICollection<SubFamiliaDTO> ASubFamilias(object? responses)
+    {
+        if (responses is null) return new List<SubFamiliaDTO>();
+        var json = JsonSerializer.Serialize(responses, Opciones);
+        return JsonSerializer.Deserialize<List<SubFamiliaDTO>>(json, Opciones)
+               ?? new List<SubFamiliaDTO>();
     }
 }

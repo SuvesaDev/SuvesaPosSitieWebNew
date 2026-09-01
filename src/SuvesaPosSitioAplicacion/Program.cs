@@ -185,6 +185,7 @@ builder.Services.AddScoped<IAlbaranes, Albaranes>();
 builder.Services.AddScoped<IConsignaciones, Consignaciones>();
 builder.Services.AddScoped<IDepositosConsulta, DepositosConsulta>();
 builder.Services.AddScoped<IFamilias, Familias>();
+builder.Services.AddScoped<IMantenimientosInventario, MantenimientosInventario>();
 builder.Services.AddScoped<ICategorias, Categorias>();
 builder.Services.AddScoped<IPresentaciones, Presentaciones>();
 builder.Services.AddScoped<IUsuarios, Usuarios>();

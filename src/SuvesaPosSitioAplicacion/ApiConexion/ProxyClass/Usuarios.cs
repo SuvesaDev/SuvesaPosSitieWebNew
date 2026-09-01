@@ -33,7 +33,9 @@ public sealed class Usuarios : ProxyBase, IUsuarios
         {
             var r = await _api.BuscarUsuariosAsync(new BuscarUsuarioDTO
             {
-                Nombre = string.IsNullOrWhiteSpace(texto) ? null : texto
+                // El API interpreta Nombre nulo como "sin criterio" y devuelve una
+                // lista vacía. Una cadena vacía conserva el filtro y trae todos.
+                Nombre = texto ?? string.Empty
             });
 
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);

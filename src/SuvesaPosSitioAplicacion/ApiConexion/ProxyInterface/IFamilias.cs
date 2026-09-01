@@ -13,4 +13,12 @@ public interface IFamilias
     Task<ResponseGeneric<FamiliaDTO>> Editar(FamiliaDTO familia);
 
     Task<ResponseGeneric<bool>> Eliminar(int codigo);
+
+    Task<ResponseGeneric<ICollection<SubFamiliaDTO>>> ObtenerSubFamilias(int codigoFamilia);
+
+    Task<ResponseGeneric<SubFamiliaDTO>> CrearSubFamilia(SubFamiliaDTO subFamilia);
+
+    Task<ResponseGeneric<SubFamiliaDTO>> EditarSubFamilia(SubFamiliaDTO subFamilia);
+
+    Task<ResponseGeneric<bool>> EliminarSubFamilia(int codigo);
 }
