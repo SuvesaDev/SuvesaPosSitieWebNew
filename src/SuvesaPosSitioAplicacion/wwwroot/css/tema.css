@@ -1093,3 +1093,234 @@
     .seepos-desbloqueo-clave { align-items: stretch; flex-wrap: wrap; }
     .seepos-desbloqueo-clave-campo { width: 100%; flex-basis: 100%; }
 }
+
+/* ============================================================================
+   Pulido de nivel POS (capa compartida). Marca CostaVet, densidad de punto de
+   venta. Afecta a AppPantalla, AppRejilla y AppFiltros -> a toda la app.
+   ============================================================================ */
+
+/* ---------- Encabezado de pagina (AppPantalla) ---------- */
+.seepos-encabezado-pagina {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .85rem;
+    margin-bottom: 1.1rem;
+    padding: .85rem 1.05rem;
+    border: 1px solid var(--bs-border-color);
+    border-left: .28rem solid var(--seepos-verde-accion);
+    border-radius: .9rem;
+    background:
+        linear-gradient(105deg,
+            color-mix(in srgb, var(--seepos-verde) 9%, var(--bs-body-bg)),
+            var(--bs-body-bg) 62%);
+    box-shadow: 0 .15rem .5rem rgba(64, 49, 39, .06);
+}
+
+.seepos-encabezado-pagina-info {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    min-width: 0;
+}
+
+.seepos-encabezado-pagina-icono {
+    display: grid;
+    place-items: center;
+    flex: 0 0 2.6rem;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: .7rem;
+    font-size: 1.2rem;
+    color: var(--seepos-verde-accion);
+    background: color-mix(in srgb, var(--seepos-verde) 15%, transparent);
+}
+
+.seepos-encabezado-pagina h1 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+}
+
+.seepos-encabezado-pagina-sub {
+    margin: .15rem 0 0;
+    font-size: .82rem;
+    color: var(--seepos-gris-texto);
+}
+
+.seepos-encabezado-pagina-acciones {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+/* ---------- Panel de filtros (AppFiltros) ---------- */
+.seepos-panel-filtros {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .9rem;
+    box-shadow: 0 .15rem .5rem rgba(64, 49, 39, .05);
+    overflow: hidden;
+}
+
+.seepos-panel-filtros-cab {
+    display: flex;
+    align-items: center;
+    padding: .6rem 1rem;
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--seepos-gris-texto);
+    background: var(--seepos-gris-fondo);
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.seepos-panel-filtros .card-body { padding: 1.05rem 1.1rem; }
+
+.seepos-panel-filtros .form-label {
+    margin-bottom: .3rem;
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    color: var(--seepos-gris-texto);
+}
+
+.seepos-panel-filtros-pie {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    margin-top: 1rem;
+    padding-top: .9rem;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.seepos-panel-filtros-limpiar {
+    --bs-btn-color: var(--seepos-gris-texto);
+    --bs-btn-hover-color: var(--seepos-verde-accion);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+/* Boton de busqueda redondo, como el FAB de QVET. */
+.seepos-fab-buscar {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    padding: 0;
+    border-radius: 999rem;
+    font-size: 1.15rem;
+    box-shadow: 0 .35rem .9rem color-mix(in srgb, var(--seepos-verde-accion) 30%, transparent);
+}
+
+.seepos-fab-buscar:active { transform: translateY(1px); }
+
+/* ---------- Rejilla (AppRejilla / HxGrid) ---------- */
+.seepos-rejilla {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .9rem;
+    overflow: hidden;
+    box-shadow: 0 .15rem .5rem rgba(64, 49, 39, .05);
+}
+
+.seepos-rejilla table {
+    margin-bottom: 0;
+    font-size: .875rem;
+}
+
+.seepos-rejilla thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: .6rem .8rem;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--seepos-gris-texto);
+    background: var(--seepos-gris-fondo);
+    border-bottom: 2px solid var(--bs-border-color) !important;
+    white-space: nowrap;
+}
+
+.seepos-rejilla tbody td {
+    padding: .5rem .8rem;
+    vertical-align: middle;
+    border-color: color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+}
+
+.seepos-rejilla tbody tr {
+    transition: background-color .12s ease;
+}
+
+.seepos-rejilla tbody tr:nth-child(odd) td {
+    background: color-mix(in srgb, var(--seepos-gris-fondo) 45%, transparent);
+}
+
+.seepos-rejilla tbody tr:hover td {
+    background: color-mix(in srgb, var(--seepos-verde) 9%, transparent);
+}
+
+/* Fila seleccionada (HxGrid SelectionEnabled). */
+.seepos-rejilla tbody tr.hx-grid-row-selected td,
+.seepos-rejilla tbody tr[aria-selected="true"] td {
+    background: color-mix(in srgb, var(--seepos-verde) 15%, transparent);
+    box-shadow: inset .18rem 0 0 var(--seepos-verde-accion);
+}
+
+/* Cabeceras ordenables: el cursor y un realce al pasar. */
+.seepos-rejilla thead th:has(button),
+.seepos-rejilla thead th[role="button"],
+.seepos-rejilla thead th.hx-grid-sortable {
+    cursor: pointer;
+}
+
+.seepos-rejilla thead th:has(button):hover {
+    color: var(--seepos-verde-accion);
+}
+
+/* Paginador (Havit HxPager -> .pagination de Bootstrap). */
+.seepos-rejilla .pagination,
+.seepos-paginacion .pagination {
+    margin: 0;
+    padding: .55rem .8rem;
+    background: var(--bs-body-bg);
+    border-top: 1px solid var(--bs-border-color);
+    justify-content: flex-end;
+    gap: .15rem;
+}
+
+.seepos-rejilla .page-link {
+    min-width: 2.1rem;
+    text-align: center;
+    border: 1px solid transparent;
+    border-radius: .5rem !important;
+    color: var(--seepos-gris-texto);
+    font-size: .82rem;
+    font-weight: 600;
+}
+
+.seepos-rejilla .page-link:hover {
+    background: var(--seepos-gris-suave);
+    color: var(--seepos-verde-accion);
+}
+
+.seepos-rejilla .page-item.active .page-link {
+    background: var(--seepos-verde-accion);
+    border-color: var(--seepos-verde-accion);
+    color: #fff;
+}
+
+.seepos-rejilla .page-item.disabled .page-link {
+    color: var(--bs-border-color);
+    background: transparent;
+}
+
+.seepos-rejilla td.text-end,
+.seepos-rejilla th.text-end {
+    font-variant-numeric: tabular-nums;
+}

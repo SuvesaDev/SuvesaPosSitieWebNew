@@ -41,13 +41,27 @@ else
         </div>
 
         <div class="seepos-solo-escritorio-contenido">
-            <div class="seepos-pantalla-encabezado d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                <h1 class="h5 mb-0">@Pantalla</h1>
+            <header class="seepos-encabezado-pagina">
+                <div class="seepos-encabezado-pagina-info">
+                    @if (!string.IsNullOrWhiteSpace(Icono))
+                    {
+                        <span class="seepos-encabezado-pagina-icono" aria-hidden="true">
+                            <i class="bi @Icono"></i>
+                        </span>
+                    }
+                    <div>
+                        <h1>@Pantalla</h1>
+                        @if (!string.IsNullOrWhiteSpace(Subtitulo))
+                        {
+                            <p class="seepos-encabezado-pagina-sub">@Subtitulo</p>
+                        }
+                    </div>
+                </div>
                 @if (Acciones is not null)
                 {
-                    <div class="d-flex gap-2">@Acciones</div>
+                    <div class="seepos-encabezado-pagina-acciones">@Acciones</div>
                 }
-            </div>
+            </header>
 
             @ChildContent
         </div>
@@ -68,6 +82,12 @@ else
     /// <summary>Desde que ancho tiene sentido. Por debajo se avisa en lugar de romperse.</summary>
     [Parameter]
     public NivelPantalla Nivel { get; set; } = NivelPantalla.Escritorio;
+
+    /// <summary>Linea de contexto bajo el titulo. Opcional.</summary>
+    [Parameter] public string? Subtitulo { get; set; }
+
+    /// <summary>Clase de Bootstrap Icons para el encabezado (p.ej. "bi-people-fill"). Opcional.</summary>
+    [Parameter] public string? Icono { get; set; }
 
     /// <summary>Botones de la cabecera.</summary>
     [Parameter] public RenderFragment? Acciones { get; set; }

@@ -1,0 +1,77 @@
+@* Panel de filtros de una consulta: una tarjeta con una rejilla de campos y un
+   pie con el boton Buscar (redondo, primario) y Limpiar. Punto unico para que
+   todas las consultas del POS se vean igual.
+
+   Uso:
+     <AppFiltros Titulo="Filtros" AlBuscar="Buscar" AlLimpiar="Limpiar" Buscando="_buscando">
+         <div class="col-12 col-md-4">...campo...</div>
+         ...
+     </AppFiltros>
+*@
+
+<section class="seepos-panel-filtros card mb-3">
+    @if (!string.IsNullOrWhiteSpace(Titulo))
+    {
+        <div class="seepos-panel-filtros-cab">
+            <span><i class="bi bi-funnel me-2" aria-hidden="true"></i>@Titulo</span>
+            @if (Encabezado is not null)
+            {
+                <span class="ms-auto">@Encabezado</span>
+            }
+        </div>
+    }
+
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            @ChildContent
+        </div>
+
+        <div class="seepos-panel-filtros-pie">
+            <button type="button" class="btn btn-primary seepos-fab-buscar"
+                    disabled="@Buscando" title="Buscar" aria-label="Buscar"
+                    @onclick="AlBuscar">
+                @if (Buscando)
+                {
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                }
+                else
+                {
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                }
+            </button>
+
+            @if (AlLimpiar.HasDelegate)
+            {
+                <button type="button" class="btn btn-link seepos-panel-filtros-limpiar"
+                        @onclick="AlLimpiar">
+                    <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Limpiar
+                </button>
+            }
+
+            @if (PieExtra is not null)
+            {
+                <span class="ms-auto">@PieExtra</span>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter] public string? Titulo { get; set; } = "Filtros";
+
+    [Parameter, EditorRequired] public RenderFragment ChildContent { get; set; } = default!;
+
+    /// <summary>Se dispara al pulsar Buscar (y con Enter si la pantalla lo conecta).</summary>
+    [Parameter] public EventCallback AlBuscar { get; set; }
+
+    /// <summary>Si se pasa, aparece el enlace "Limpiar".</summary>
+    [Parameter] public EventCallback AlLimpiar { get; set; }
+
+    [Parameter] public bool Buscando { get; set; }
+
+    /// <summary>Contenido a la derecha del titulo (p.ej. un conmutador de vista).</summary>
+    [Parameter] public RenderFragment? Encabezado { get; set; }
+
+    /// <summary>Contenido a la derecha del pie (p.ej. "1-25 de 2567").</summary>
+    [Parameter] public RenderFragment? PieExtra { get; set; }
+}
