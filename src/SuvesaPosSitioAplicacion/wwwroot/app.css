@@ -45,10 +45,10 @@ h1:focus {
 }
 
 .seepos-barra-superior {
-    min-height: 3.9rem;
+    min-height: 3.5rem;
     background: linear-gradient(105deg, var(--seepos-tierra-oscuro), var(--seepos-tierra)) !important;
-    border-bottom: .2rem solid var(--seepos-verde);
-    box-shadow: 0 .25rem 1.25rem rgba(51, 34, 23, .18);
+    border-bottom: .15rem solid var(--seepos-verde);
+    box-shadow: 0 .0625rem .5rem rgba(51, 34, 23, .12);
 }
 
 .seepos-boton-menu {

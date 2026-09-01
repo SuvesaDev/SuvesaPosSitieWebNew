@@ -103,6 +103,19 @@ Cambios que ya mandan sobre el texto viejo de este archivo:
   son un cliente/DTOs escritos a mano que se sustituyen al correr
   `./tools/actualizar-contratos.sh` contra el API nuevo.
 
+## Diseño visual — pase estilo panel de administracion
+
+Sobre lo de la Ola 6, un pase de densidad y planitud en `tema.css`/`app.css`
+(un solo sitio):
+
+- **Tipografia base a `0.875rem`** (`--bs-body-font-size`, antes `0.9375rem`).
+- **`.card` sin borde** (`--bs-card-border-width: 0`) — el relieve lo da una sombra
+  suave de dos capas, no una linea. Regla base en `.card` + la de `.seepos-nivel-*`.
+  Las pantallas con su propia sombra (facturacion, compras...) la conservan.
+- Cabecera de tarjeta plana (sin degradado), `.card-header` con borde fino.
+- Barra superior mas baja (`3.5rem`) y con sombra tenue; acento verde inferior mas fino.
+- `AppModal` estandariza el aspecto de todo modal de contenido (ver "Puntos unicos").
+
 ## Diseño visual — pulido de Ola 6
 
 Revision visual sobre capturas reales, aplicada en `tema.css`/`tema.js` (un solo
@@ -402,7 +415,17 @@ para que no haya destello de tema claro. La eleccion se recuerda por navegador.
 | Confirmar, avisar, informar | `IServicioDialogos` | `IHxMessageBoxService`, `IHxMessengerService` |
 | Respuesta fallida del API | `IManejadorRespuestas` | Comprobar `EsCorrecta` a mano en cada pantalla |
 | Tabla de datos | `AppRejilla` | `HxGrid` directamente |
+| Modal de contenido/edicion | `AppModal` (cabecera+subtitulo, cuerpo scrollable, pie fijo Cancelar+Guardar con estado) | `HxModal` directamente |
+| Panel de filtros de una consulta | `AppFiltros` | Caja de busqueda a mano por pantalla |
 | Campos | `AppCampoTexto`, `AppCampoNumero`, `AppCampoMoneda`, `AppCampoFecha` | `HxInput*` directamente |
+
+`AppModal` (`Views/Shared/Componentes/`) envuelve `HxModal`; se abre/cierra con
+`MostrarAsync()` / `OcultarAsync()`. Migrados hasta ahora: los 4 modales de
+`RolesPermisos`. El resto de `HxModal` (~45) sigue pendiente de pasar. Para preguntas
+si/no o avisos NO se usa `AppModal`: se usa `IServicioDialogos`.
+
+`Views/Shared/Componentes` esta en `_Imports.razor`, asi que `App*` no necesita
+`@using` por pantalla.
 
 `IManejadorRespuestas` centraliza tambien la sesion caducada: ante un 401 avisa y
 manda a reingresar, en vez de ensenar el error tecnico.

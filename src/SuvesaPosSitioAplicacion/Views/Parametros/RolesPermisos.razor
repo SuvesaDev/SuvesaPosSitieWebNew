@@ -322,9 +322,13 @@
 </AppPantalla>
 
 @* =================== MODAL ROL + MATRIZ =================== *@
-<HxModal @ref="_modalRol" Title="@((_rolEsNuevo ? "Nuevo rol" : "Editar rol") + (string.IsNullOrWhiteSpace(_rol?.Nombre) ? "" : ": " + _rol!.Nombre))"
-         Size="ModalSize.ExtraLarge">
-    <BodyTemplate>
+<AppModal @ref="_modalRol"
+          Titulo="@(_rolEsNuevo ? "Nuevo rol" : "Editar rol")"
+          Subtitulo="@(string.IsNullOrWhiteSpace(_rol?.Nombre) ? null : _rol!.Nombre)"
+          Tamano="ModalSize.ExtraLarge"
+          AlGuardar="GuardarRol" Guardando="_guardando" PuedeGuardar="_puedeEscribir"
+          TextoGuardar="Guardar Rol">
+    <ChildContent>
         @if (_rol is not null)
         {
             <div class="row g-3">
@@ -442,21 +446,13 @@
                 </div>
             </div>
         }
-    </BodyTemplate>
-    <FooterTemplate>
-        <button class="btn btn-outline-secondary" @onclick="() => _modalRol.HideAsync()">Cancelar</button>
-        @if (_puedeEscribir)
-        {
-            <button class="btn btn-primary" disabled="@_guardando" @onclick="GuardarRol">
-                <i class="bi bi-check2-circle me-1"></i>@(_guardando ? "Guardando..." : "Guardar Rol")
-            </button>
-        }
-    </FooterTemplate>
-</HxModal>
+    </ChildContent>
+</AppModal>
 
 @* =================== MODAL MÓDULO =================== *@
-<HxModal @ref="_modalModulo" Title="Módulo" Size="ModalSize.Regular">
-    <BodyTemplate>
+<AppModal @ref="_modalModulo" Titulo="Módulo" Tamano="ModalSize.Regular"
+          AlGuardar="GuardarModulo" Guardando="_guardando">
+    <ChildContent>
         @if (_modulo is not null)
         {
             <div class="row g-3">
@@ -481,16 +477,13 @@
                 </div>
             </div>
         }
-    </BodyTemplate>
-    <FooterTemplate>
-        <button class="btn btn-outline-secondary" @onclick="() => _modalModulo.HideAsync()">Cancelar</button>
-        <button class="btn btn-primary" disabled="@_guardando" @onclick="GuardarModulo">Guardar</button>
-    </FooterTemplate>
-</HxModal>
+    </ChildContent>
+</AppModal>
 
 @* =================== MODAL FUNCIÓN =================== *@
-<HxModal @ref="_modalFuncion" Title="Función" Size="ModalSize.Large">
-    <BodyTemplate>
+<AppModal @ref="_modalFuncion" Titulo="Función" Tamano="ModalSize.Large"
+          AlGuardar="GuardarFuncion" Guardando="_guardando">
+    <ChildContent>
         @if (_funcion is not null)
         {
             <div class="row g-3">
@@ -539,16 +532,13 @@
                 </div>
             </div>
         }
-    </BodyTemplate>
-    <FooterTemplate>
-        <button class="btn btn-outline-secondary" @onclick="() => _modalFuncion.HideAsync()">Cancelar</button>
-        <button class="btn btn-primary" disabled="@_guardando" @onclick="GuardarFuncion">Guardar</button>
-    </FooterTemplate>
-</HxModal>
+    </ChildContent>
+</AppModal>
 
 @* =================== MODAL ACCIÓN =================== *@
-<HxModal @ref="_modalAccion" Title="Acción" Size="ModalSize.Regular">
-    <BodyTemplate>
+<AppModal @ref="_modalAccion" Titulo="Acción" Tamano="ModalSize.Regular"
+          AlGuardar="GuardarAccion" Guardando="_guardando">
+    <ChildContent>
         @if (_accion is not null)
         {
             <div class="row g-3">
@@ -570,12 +560,8 @@
                 </div>
             </div>
         }
-    </BodyTemplate>
-    <FooterTemplate>
-        <button class="btn btn-outline-secondary" @onclick="() => _modalAccion.HideAsync()">Cancelar</button>
-        <button class="btn btn-primary" disabled="@_guardando" @onclick="GuardarAccion">Guardar</button>
-    </FooterTemplate>
-</HxModal>
+    </ChildContent>
+</AppModal>
 
 @code {
     private const string Titulo = "Roles";
@@ -596,7 +582,7 @@
     private string _passwordGate = string.Empty;
 
     // roles
-    private HxModal _modalRol = default!;
+    private AppModal _modalRol = default!;
     private RolDetalleDTO? _rol;
     private bool _rolEsNuevo;
     private int _rolIdActual;
@@ -612,10 +598,10 @@
     // catalogo
     private bool _verInactivosCatalogo;
     private List<ModuloCatalogoDTO>? _catalogo;
-    private HxModal _modalModulo = default!;
+    private AppModal _modalModulo = default!;
     private ModuloCatalogoDTO? _modulo;
     private int? _moduloOrden;
-    private HxModal _modalFuncion = default!;
+    private AppModal _modalFuncion = default!;
     private FuncionCatalogoDTO? _funcion;
     private int? _funcionOrden;
     private int _funcionIdPadre;
@@ -624,7 +610,7 @@
 
     // acciones
     private AppRejilla<AccionCatalogoDTO>? _rejillaAcciones;
-    private HxModal _modalAccion = default!;
+    private AppModal _modalAccion = default!;
     private AccionCatalogoDTO? _accion;
     private int? _accionOrden;
 
@@ -802,7 +788,7 @@
                 }))
                 .ToList()
         };
-        await _modalRol.ShowAsync();
+        await _modalRol.MostrarAsync();
     }
 
     private async Task EditarRol(RolResumenDTO resumen)
@@ -813,7 +799,7 @@
         _rolIdActual = detalle.IdRol ?? resumen.IdRol;
         _rol = detalle;
         _modulosColapsados.Clear();
-        await _modalRol.ShowAsync();
+        await _modalRol.MostrarAsync();
     }
 
     private void AlternarAccion(RolFuncionPermisoDTO f, string acc, bool marcado)
@@ -857,7 +843,7 @@
         _guardando = false;
         if (ok)
         {
-            await _modalRol.HideAsync();
+            await _modalRol.OcultarAsync();
             Dialogos.Exito(_rolEsNuevo ? "Rol creado." : "Rol actualizado.");
             await CargarRolesYResumen();
         }
@@ -874,7 +860,7 @@
                 Orden = m.Orden, Icono = m.Icono, Activo = m.Activo
             };
         _moduloOrden = _modulo.Orden;
-        _modalModulo.ShowAsync();
+        _modalModulo.MostrarAsync();
     }
 
     private async Task GuardarModulo()
@@ -886,7 +872,7 @@
         _guardando = false;
         if (ok)
         {
-            await _modalModulo.HideAsync();
+            await _modalModulo.OcultarAsync();
             await RecargarCatalogo();
         }
     }
@@ -906,7 +892,7 @@
             };
         _funcionOrden = _funcion.Orden;
         _funcionIdPadre = _funcion.IdFuncionPadre ?? 0;
-        _modalFuncion.ShowAsync();
+        _modalFuncion.MostrarAsync();
     }
 
     private void AlternarDisponible(string acc, bool marcado)
@@ -927,7 +913,7 @@
         _guardando = false;
         if (ok)
         {
-            await _modalFuncion.HideAsync();
+            await _modalFuncion.OcultarAsync();
             await RecargarCatalogo();
         }
     }
@@ -948,7 +934,7 @@
             ? new AccionCatalogoDTO { Activo = true }
             : new AccionCatalogoDTO { IdAccion = a.IdAccion, Codigo = a.Codigo, Nombre = a.Nombre, Orden = a.Orden, Activo = a.Activo };
         _accionOrden = _accion.Orden;
-        _modalAccion.ShowAsync();
+        _modalAccion.MostrarAsync();
     }
 
     private async Task GuardarAccion()
@@ -960,7 +946,7 @@
         _guardando = false;
         if (ok)
         {
-            await _modalAccion.HideAsync();
+            await _modalAccion.OcultarAsync();
             if (_rejillaAcciones is not null) await _rejillaAcciones.RefrescarAsync();
         }
     }

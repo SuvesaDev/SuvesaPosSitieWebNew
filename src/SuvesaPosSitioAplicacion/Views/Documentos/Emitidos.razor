@@ -16,39 +16,34 @@
 <AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
     <ChildContent>
 
-        <div class="card mb-3">
-            <div class="card-body">
-                <div class="row g-2 align-items-end">
-                    <div class="col-6 col-md-3">
-                        <label class="form-label small" for="desde">Desde</label>
-                        <input id="desde" type="date" class="form-control form-control-sm"
-                               value="@_desde.ToString("yyyy-MM-dd")"
-                               @onchange="e => _desde = Fecha(e, _desde)" />
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <label class="form-label small" for="hasta">Hasta</label>
-                        <input id="hasta" type="date" class="form-control form-control-sm"
-                               value="@_hasta.ToString("yyyy-MM-dd")"
-                               @onchange="e => _hasta = Fecha(e, _hasta)" />
-                    </div>
-                    <div class="col-12 col-md-3">
-                        <label class="form-label small" for="numero">Numero</label>
-                        <input id="numero" type="search" class="form-control form-control-sm"
-                               placeholder="Opcional"
-                               value="@_numero" @onchange="e => _numero = Texto(e)" />
-                    </div>
-                    <div class="col-12 col-md-3">
-                        <button class="btn btn-primary btn-sm w-100" @onclick="Buscar"
-                                disabled="@_buscando">
-                            @(_buscando ? "Buscando..." : "Buscar")
-                        </button>
-                    </div>
+        <AppFiltros AlBuscar="Buscar" AlLimpiar="LimpiarFiltros" Buscando="_buscando"
+                    Resumen="@(_hayBusqueda ? $"{_documentos.Count} documento(s)" : null)">
+            <Encabezado>
+                <span class="small text-body-secondary">
+                    Con número se busca ese documento; si no, por el rango de fechas.
+                </span>
+            </Encabezado>
+            <ChildContent>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small" for="desde">Desde</label>
+                    <input id="desde" type="date" class="form-control"
+                           value="@_desde.ToString("yyyy-MM-dd")"
+                           @onchange="e => _desde = Fecha(e, _desde)" />
                 </div>
-                <div class="form-text mt-2">
-                    Con numero se busca ese documento; si no, por el rango de fechas.
+                <div class="col-6 col-md-3">
+                    <label class="form-label small" for="hasta">Hasta</label>
+                    <input id="hasta" type="date" class="form-control"
+                           value="@_hasta.ToString("yyyy-MM-dd")"
+                           @onchange="e => _hasta = Fecha(e, _hasta)" />
                 </div>
-            </div>
-        </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small" for="numero">Número</label>
+                    <input id="numero" type="search" class="form-control"
+                           placeholder="Opcional"
+                           value="@_numero" @onchange="e => _numero = Texto(e)" />
+                </div>
+            </ChildContent>
+        </AppFiltros>
 
         @if (_buscando)
         {
@@ -231,6 +226,15 @@
         await Task.Delay(1500);
         _claveCopiada = false;
         StateHasChanged();
+    }
+
+    private void LimpiarFiltros()
+    {
+        _desde = DateTime.Today.AddDays(-7);
+        _hasta = DateTime.Today;
+        _numero = string.Empty;
+        _documentos = new();
+        _hayBusqueda = false;
     }
 
     private static DateTime Fecha(ChangeEventArgs e, DateTime actual)
