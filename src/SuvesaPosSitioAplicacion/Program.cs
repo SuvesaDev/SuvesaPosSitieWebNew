@@ -122,6 +122,8 @@ builder.Services.AddHttpClient<ILotesApiCliente, LotesApiCliente>(c => c.BaseAdd
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 builder.Services.AddHttpClient<IProduccionApiCliente, ProduccionApiCliente>(c => c.BaseAddress = new Uri(urlApi))
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+builder.Services.AddHttpClient<IConsignacionInvApiCliente, ConsignacionInvApiCliente>(c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 ClienteApi<ICentrosApiCliente, CentrosApiCliente>();
 ClienteApi<IBancosApiCliente, BancosApiCliente>();
 ClienteApi<IInventarioApiCliente, InventarioApiCliente>();
