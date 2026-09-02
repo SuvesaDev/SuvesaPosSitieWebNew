@@ -293,8 +293,18 @@ para que el API use `InsertarLineaCompra` (decide por config + upsert). La
 hereda `IdStockLote` del lote de la venta/compra original y lo manda en el
 detalle. (Selector explícito de lote para ventas multi-lote: follow-up.)
 
-### Follow-ups menores
+### Follow-ups menores — HECHOS
 
-- Quitar del todo la sección "Existencias" de la pestaña Generales de Inventario.
-- Mini-tabla multi-lote por línea en Compras y selector de lote en Devoluciones.
-- Guard de existencia negativa en cliente para líneas sin lote (hoy sólo el API).
+- **Existencias fuera de Generales**: `Inventario/Consulta.razor` — se quitó el
+  input de existencia-actual (y su método `AlCambiarExistencia`); min/max pasan a
+  "Niveles de reposición"; un aviso remite a las pestañas Existencias/Movimientos.
+- **Multi-lote en Compras**: `Compra.razor` alta manual — repetidor "+ Otro lote"
+  bajo el lote principal; al agregar la línea se arma `LineaCompra.Lotes` y el
+  primer lote absorbe el resto para cuadrar con la cantidad. Emit prefiere
+  `l.Lotes`.
+- **Guard de existencia negativa (sin lote)**: `Facturacion.razor` — al agregar
+  un artículo sin lote, si el perfil no permite negativo, consulta
+  `ExistenciaConsolidada` y bloquea si `total − ya_en_detalle − cantidad < 0`.
+- **No hecho (a propósito)**: selector explícito de lote en Devolución de venta
+  para ventas multi-lote — caso muy de borde; hoy la devolución hereda el lote de
+  la venta original y el API cae en lote único / sin lote si no se manda.

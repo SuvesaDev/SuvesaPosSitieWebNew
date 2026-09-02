@@ -3,10 +3,12 @@
 @implements IDisposable
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.ApiConexion
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IFacturacion Api
 @inject IClientesConsulta Clientes
 @inject IInventarioConsulta Inventario
+@inject ILotesApiCliente Lotes2
 @inject IImagenesArticulo Imagenes
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
@@ -685,6 +687,22 @@
             _lotesPendientes = (await Respuestas.DatoAsync(await Inventario.Lotes(completo.Codigo), "consultar lotes"))?.ToList() ?? new();
             await _modalLotes.ShowAsync();
             return;
+        }
+
+        // Follow-up — guard de existencia negativa para líneas SIN lote (las de lote
+        // ya se topan en el reparto). El API igual valida; esto es aviso temprano.
+        if (!Sesion.PermitirExistenciaNegativa)
+        {
+            var ex = await Lotes2.ExistenciaConsolidadaAsync(completo.Codigo);
+            if (ex.Status == DTOs.Generated.ResponseStatus._0 && ex.Responses is { } consol)
+            {
+                var yaEnDetalle = _lineas.Where(l => l.Articulo.Codigo == completo.Codigo && l.Lotes is null && !l.EsBonificacion).Sum(l => l.Cantidad);
+                if ((decimal)consol.ExistenciaTotal - yaEnDetalle - cantidad < 0)
+                {
+                    await Dialogos.ErrorAsync($"No hay existencia suficiente de {completo.Descripcion} (disponible {consol.ExistenciaTotal:N2}).");
+                    return;
+                }
+            }
         }
         AgregarArticulo(completo, null, cantidad);
     }

@@ -90,6 +90,21 @@
                                 @if (_articuloActual.Lote)
                                 {
                                     <div class="col-12 col-md-4"><label class="form-label">Número de lote</label><input class="form-control" @bind="_lote" /></div><div class="col-12 col-md-3"><label class="form-label">Vencimiento de lote</label><input type="date" class="form-control" @bind="_venceLote" /></div>
+                                    <div class="col-12">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="form-text mb-0">¿La compra trae varios lotes de este artículo? Agréguelos aquí (la suma debe dar @Formato.Cantidad(_cantidad)).</span>
+                                            <button type="button" class="btn btn-sm btn-link" @onclick="() => _lotesExtra.Add(new LoteExtra())">+ Otro lote</button>
+                                        </div>
+                                        @foreach (var le in _lotesExtra)
+                                        {
+                                            <div class="row g-2 align-items-end mt-1">
+                                                <div class="col-5"><input class="form-control form-control-sm" placeholder="Número" @bind="le.Numero" /></div>
+                                                <div class="col-4"><input type="date" class="form-control form-control-sm" @bind="le.Vence" /></div>
+                                                <div class="col-2"><input type="number" min="0.001" step="0.001" class="form-control form-control-sm text-end" placeholder="Cant." @bind="le.Cantidad" /></div>
+                                                <div class="col-1"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _lotesExtra.Remove(le)"><i class="bi bi-trash" aria-hidden="true"></i></button></div>
+                                            </div>
+                                        }
+                                    </div>
                                 }
                                 <div class="col-12 col-md-auto d-flex align-items-end"><button type="button" class="btn btn-success w-100" @onclick="AgregarOActualizarLinea"><i class="bi bi-plus-circle me-1" aria-hidden="true"></i>@(_indiceEdicion is null ? "Agregar" : "Actualizar")</button></div>
                             </div>
@@ -209,6 +224,8 @@
         public decimal Impuesto { get; set; }
         public string Lote { get; set; } = string.Empty;
         public DateTime VenceLote { get; set; } = DateTime.Today;
+        /// <summary>§6 — reparto en varios lotes (null/vacío = un solo lote por Lote/VenceLote).</summary>
+        public List<DTOs.Lotes.LoteIngresoCompra>? Lotes { get; set; }
         public decimal Costo => Base + Flete + Otros;
         public CalculoDocumento.LineaCalculada Calculo { get; private set; }
         public void Recalcular() => Calculo = CalculoDocumento.Linea(Cantidad, Costo, Descuento, Impuesto);
@@ -265,6 +282,8 @@
     private Usuario? _usuarioCompra;
     private CalculoDocumento.TotalesDocumento _totales;
     private string _textoProveedor = string.Empty, _numeroFactura = string.Empty, _claveInterna = string.Empty, _lote = string.Empty;
+    private sealed class LoteExtra { public string Numero = string.Empty; public DateTime Vence = DateTime.Today; public decimal Cantidad; }
+    private readonly List<LoteExtra> _lotesExtra = new();
     private string _nuevoProveedorCedula = string.Empty, _nuevoProveedorNombre = string.Empty, _nuevoProveedorTelefono = string.Empty;
     private string _filtroFactura = string.Empty, _filtroProveedor = string.Empty;
     private DateTime _fecha = DateTime.Today, _vence = DateTime.Today, _venceLote = DateTime.Today;
@@ -430,24 +449,39 @@
         if (_articuloActual is null) return;
         RecalcularEditor();
         if (_articuloActual.Lote && (string.IsNullOrWhiteSpace(_lote) || _venceLote.Date < _fecha.Date)) { await Dialogos.ErrorAsync("Indique un lote y una fecha de vencimiento válida."); return; }
-        var linea = new LineaCompra { Articulo = _articuloActual, Cabys = _articuloActual.Codcabys, Cantidad = _cantidad, Regalias = EsCostaPetsCompra ? 0 : Math.Max(0, _regalias), Base = _base, Flete = EsCostaPetsCompra ? 0 : _flete, Otros = EsCostaPetsCompra ? 0 : _otros, Descuento = _descuento, Impuesto = _impuesto, Lote = _lote.Trim(), VenceLote = _venceLote };
+
+        List<DTOs.Lotes.LoteIngresoCompra>? lotes = null;
+        if (_articuloActual.Lote && _lotesExtra.Count > 0)
+        {
+            lotes = new() { new DTOs.Lotes.LoteIngresoCompra { Numero = _lote.Trim(), Vencimiento = DateOnly.FromDateTime(_venceLote), Cantidad = (double)_cantidad } };
+            foreach (var le in _lotesExtra)
+            {
+                if (string.IsNullOrWhiteSpace(le.Numero) || le.Cantidad <= 0) { await Dialogos.ErrorAsync("Complete número y cantidad de cada lote extra."); return; }
+                lotes.Add(new DTOs.Lotes.LoteIngresoCompra { Numero = le.Numero.Trim(), Vencimiento = DateOnly.FromDateTime(le.Vence), Cantidad = (double)le.Cantidad });
+            }
+            // el primer lote toma el resto para cuadrar con la cantidad de la línea
+            lotes[0].Cantidad = (double)_cantidad - _lotesExtra.Sum(x => (double)x.Cantidad);
+            if (lotes[0].Cantidad <= 0) { await Dialogos.ErrorAsync("Los lotes extra suman más que la cantidad de la línea."); return; }
+        }
+
+        var linea = new LineaCompra { Articulo = _articuloActual, Cabys = _articuloActual.Codcabys, Cantidad = _cantidad, Regalias = EsCostaPetsCompra ? 0 : Math.Max(0, _regalias), Base = _base, Flete = EsCostaPetsCompra ? 0 : _flete, Otros = EsCostaPetsCompra ? 0 : _otros, Descuento = _descuento, Impuesto = _impuesto, Lote = _lote.Trim(), VenceLote = _venceLote, Lotes = lotes };
         linea.Recalcular();
         if (_indiceEdicion is int indice) _lineas[indice] = linea; else _lineas.Add(linea);
-        LimpiarEditor(); RecalcularTotales();
+        _lotesExtra.Clear(); LimpiarEditor(); RecalcularTotales();
     }
     private void EditarLinea(int indice)
     {
         var l = _lineas[indice]; _articuloActual = l.Articulo; _indiceEdicion = indice; _cantidad = l.Cantidad; _regalias = l.Regalias; _base = l.Base; _flete = l.Flete; _otros = l.Otros; _descuento = l.Descuento; _impuesto = l.Impuesto; _lote = l.Lote; _venceLote = l.VenceLote;
     }
     private void QuitarLinea(int indice) { _lineas.RemoveAt(indice); LimpiarEditor(); RecalcularTotales(); }
-    private void LimpiarEditor() { _articuloActual = null; _indiceEdicion = null; _cantidad = 1; _regalias = _base = _flete = _otros = _descuento = _impuesto = 0; _lote = string.Empty; _venceLote = DateTime.Today; }
+    private void LimpiarEditor() { _articuloActual = null; _lotesExtra.Clear(); _indiceEdicion = null; _cantidad = 1; _regalias = _base = _flete = _otros = _descuento = _impuesto = 0; _lote = string.Empty; _venceLote = DateTime.Today; }
     private void RecalcularTotales() => _totales = CalculoDocumento.Totales(_lineas.Select(l => l.Calculo));
 
     private FacturaCompraDTO ArmarCompra() => new()
     {
         IdCompra = _idCompra, Factura = _numeroFactura.Trim(), CodigoProv = _proveedor!.CodigoProv, NombreProveedor = _proveedor.Nombre, SubTotalGravado = (double)TotalGravado, SubTotalExento = (double)TotalExento, Descuento = (double)_totales.Descuento, Impuesto = (double)_totales.Impuesto, TotalFactura = (double)_totales.Total,
         Fecha = _fecha.ToString("yyyy-MM-dd"), Vence = _vence.ToString("yyyy-MM-dd"), FechaIngreso = _fecha.ToString("yyyy-MM-dd"), MotivoGasto = string.Empty, Compra1 = true, Contabilizado = false, Consignacion = false, Asiento = 0, ContaInve = false, AsientoInve = 0, TipoCompra = _tipoCompra, CedulaUsuario = _usuarioCompra?.IdUsuario ?? Sesion.Usuario, CodMonedaCompra = _moneda, FacturaCancelado = false, Gasto = false, TipoCambio = 0, CambioImpuesto = 0, Taller = false, Mascotas = false, NumOrden = 0, Fec = false, CodigoActividad = string.Empty, EnviadoDgt = false, EstadoDgt = string.Empty, ConsecutivoDgt = string.Empty, ClaveDgt = string.Empty, Trans = false, NumTrans = string.Empty, Prepagada = false, PreAbono = 0, IdEmpresa = (EsCostaPetsCompra ? 1 : _empresa).ToString(),
-        Detalle = _lineas.Select(l => new FacturaCompraDetalleDTO { IdArticuloComprados = l.IdArticuloComprados, Codigo = l.Articulo.Codigo, CodArticulo = l.Articulo.Cod_Articulo, Descripcion = l.Articulo.Descripcion, Base = (double)l.Base, MontoFlete = (double)l.Flete, OtrosCargos = (double)l.Otros, Costo = (double)l.Costo, Cantidad = (double)l.Cantidad, Regalias = (double)l.Regalias, Gravado = l.Impuesto > 0 ? (double)l.Calculo.SubTotal : 0, Exento = l.Impuesto <= 0 ? (double)l.Calculo.SubTotal : 0, DescuentoP = (double)l.Descuento, Descuento = (double)l.Calculo.MontoDescuento, ImpuestoP = (double)l.Impuesto, Impuesto = (double)l.Calculo.MontoImpuesto, Total = (double)l.Calculo.Total, Devoluciones = 0, PrecioA = l.Articulo.Precio_A, PrecioB = l.Articulo.Precio_B, PrecioC = l.Articulo.Precio_C, PrecioD = l.Articulo.Precio_D, CodMonedaVenta = l.Articulo.MonedaVenta, NuevoCostoBase = 0, Lote = l.Lote, Bonificado = false, CodigoBonificado = 0, CantidadBonificado = 0, CostoBonificado = 0, SubTotalBonificado = 0, CodArticuloBonificacion = string.Empty, CodCabys = l.Cabys ?? l.Articulo.Codcabys, IdBodega = _bodega, EstadoLinea = l.IdArticuloComprados.HasValue ? 2 : 1, LoteArticulo = new StockLoteDTO { Id = 0, Lote = l.Lote, Vencimiento = l.VenceLote, IdArticulo = l.Articulo.Codigo, Activo = true, Cantidad = (double)l.Cantidad }, Lotes = l.Articulo.Lote && !string.IsNullOrWhiteSpace(l.Lote) ? new() { new DTOs.Lotes.LoteIngresoCompra { Numero = l.Lote, Vencimiento = DateOnly.FromDateTime(l.VenceLote), Cantidad = (double)l.Cantidad } } : null }).ToList()
+        Detalle = _lineas.Select(l => new FacturaCompraDetalleDTO { IdArticuloComprados = l.IdArticuloComprados, Codigo = l.Articulo.Codigo, CodArticulo = l.Articulo.Cod_Articulo, Descripcion = l.Articulo.Descripcion, Base = (double)l.Base, MontoFlete = (double)l.Flete, OtrosCargos = (double)l.Otros, Costo = (double)l.Costo, Cantidad = (double)l.Cantidad, Regalias = (double)l.Regalias, Gravado = l.Impuesto > 0 ? (double)l.Calculo.SubTotal : 0, Exento = l.Impuesto <= 0 ? (double)l.Calculo.SubTotal : 0, DescuentoP = (double)l.Descuento, Descuento = (double)l.Calculo.MontoDescuento, ImpuestoP = (double)l.Impuesto, Impuesto = (double)l.Calculo.MontoImpuesto, Total = (double)l.Calculo.Total, Devoluciones = 0, PrecioA = l.Articulo.Precio_A, PrecioB = l.Articulo.Precio_B, PrecioC = l.Articulo.Precio_C, PrecioD = l.Articulo.Precio_D, CodMonedaVenta = l.Articulo.MonedaVenta, NuevoCostoBase = 0, Lote = l.Lote, Bonificado = false, CodigoBonificado = 0, CantidadBonificado = 0, CostoBonificado = 0, SubTotalBonificado = 0, CodArticuloBonificacion = string.Empty, CodCabys = l.Cabys ?? l.Articulo.Codcabys, IdBodega = _bodega, EstadoLinea = l.IdArticuloComprados.HasValue ? 2 : 1, LoteArticulo = new StockLoteDTO { Id = 0, Lote = l.Lote, Vencimiento = l.VenceLote, IdArticulo = l.Articulo.Codigo, Activo = true, Cantidad = (double)l.Cantidad }, Lotes = l.Lotes ?? (l.Articulo.Lote && !string.IsNullOrWhiteSpace(l.Lote) ? new() { new DTOs.Lotes.LoteIngresoCompra { Numero = l.Lote, Vencimiento = DateOnly.FromDateTime(l.VenceLote), Cantidad = (double)l.Cantidad } } : null) }).ToList()
     };
     private async Task Guardar()
     {
