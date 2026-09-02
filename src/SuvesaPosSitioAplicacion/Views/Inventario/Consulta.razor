@@ -446,9 +446,20 @@
                             <label class="form-check-label" for="articulo-servicio">Servicio</label>
                         </div>
                         <div class="form-check">
-                            <input id="articulo-lote" class="form-check-input" type="checkbox" @bind="_edicion.Lote" @bind:after="AlCambiarLotes" />
-                            <label class="form-check-label" for="articulo-lote">Maneja lotes</label>
+                            <input id="articulo-lote" class="form-check-input" type="checkbox" @bind="_edicion.Lote" @bind:after="AlCambiarLotes"
+                                   disabled="@(_tipoArticulo is 2 or 3 || _edicion.LoteUnicoFijado)" />
+                            <label class="form-check-label" for="articulo-lote">Maneja lotes @(_tipoArticulo is 2 or 3 ? "(obligatorio)" : "")</label>
                         </div>
+                        @if (_tipoArticulo == 2)
+                        {
+                            <div class="form-check">
+                                <input id="articulo-lote-unico" class="form-check-input" type="checkbox" @bind="_edicion.LoteUnico"
+                                       disabled="@_edicion.LoteUnicoFijado" />
+                                <label class="form-check-label" for="articulo-lote-unico">
+                                    Lote único (sin vencimiento) @(_edicion.LoteUnicoFijado ? "🔒 fijado" : "")
+                                </label>
+                            </div>
+                        }
                         <div class="form-check">
                             <input id="articulo-mag" class="form-check-input" type="checkbox" @bind="_edicion.Mag" />
                             <label class="form-check-label" for="articulo-mag">MAG</label>
@@ -1143,10 +1154,12 @@
         ReiniciarEditorProduccion();
         ReiniciarImagenEditor();
         await CargarCatalogosInventario();
-        // El React clasifica cualquier artículo que no sea materia prima como
-        // producto terminado al abrirlo. Antes se inicializaba como "Normal" y
-        // por eso nunca se habilitaba Fórmula para artículos existentes.
-        _tipoArticulo = _edicion.EsPadre == true ? 2 : 3;
+        // §3 lotes — el tipo lo trae el DTO (1=Normal, 2=MP, 3=PT). Compat: si el
+        // artículo aún no tiene tipo migrado, se infiere de EsPadre.
+        _tipoArticulo = _edicion.TipoArticulo is 1 or 2 or 3
+            ? _edicion.TipoArticulo
+            : (_edicion.EsPadre == true ? 2 : 3);
+        _edicion.TipoArticulo = _tipoArticulo;
         if (Sesion.EsCostaPets)
         {
             await CargarProduccion();
@@ -1685,7 +1698,13 @@
 
     private Task AlCambiarTipoArticulo()
     {
-        if (_edicion is not null) _edicion.EsPadre = _tipoArticulo == 2;
+        if (_edicion is not null)
+        {
+            _edicion.TipoArticulo = _tipoArticulo;
+            _edicion.EsPadre = _tipoArticulo == 2;          // compat
+            if (_tipoArticulo is 2 or 3) _edicion.Lote = true;   // MP y PT obligan lote
+            if (_tipoArticulo != 2) _edicion.LoteUnico = false;  // lote único sólo en MP
+        }
         if (_tipoArticulo != 3 && _pestanaInventario == "formula") _pestanaInventario = "generales";
         return Task.CompletedTask;
     }
