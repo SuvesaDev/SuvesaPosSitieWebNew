@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.DTOs.Lotes;
+using SuvesaPosSitioAplicacion.Security;
 
 namespace SuvesaPosSitioAplicacion.ApiConexion;
 
@@ -35,10 +36,31 @@ public sealed class LotesApiCliente : ILotesApiCliente
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private readonly HttpClient _http;
+    private readonly IContextoSesion _sesion;
 
-    public LotesApiCliente(HttpClient http) => _http = http;
+    public LotesApiCliente(HttpClient http, IContextoSesion sesion)
+    {
+        _http = http;
+        _sesion = sesion;
+    }
 
     private async Task<LoteEnvelope<T>> EnviarAsync<T>(HttpMethod metodo, string ruta, object? cuerpo = null)
+    {
+        // Como los proxies de ProxyBase: dejar el token al alcance del handler
+        // (IHttpClientFactory no resuelve handlers desde el ámbito de la petición).
+        await _sesion.CargarAsync();
+        ContextoLlamada.Token = _sesion.Token;
+        try
+        {
+            return await EnviarInternoAsync<T>(metodo, ruta, cuerpo);
+        }
+        finally
+        {
+            ContextoLlamada.Token = null;
+        }
+    }
+
+    private async Task<LoteEnvelope<T>> EnviarInternoAsync<T>(HttpMethod metodo, string ruta, object? cuerpo)
     {
         using var req = new HttpRequestMessage(metodo, ruta);
         if (cuerpo is not null) req.Content = JsonContent.Create(cuerpo, options: Json);
