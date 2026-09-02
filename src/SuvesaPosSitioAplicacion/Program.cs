@@ -129,7 +129,6 @@ ClienteApi<IBancosApiCliente, BancosApiCliente>();
 ClienteApi<IInventarioApiCliente, InventarioApiCliente>();
 ClienteApi<ISubFamiliasApiCliente, SubFamiliasApiCliente>();
 ClienteApi<IBodegaApiCliente, BodegaApiCliente>();
-ClienteApi<ICalculadoraProduccionLotesApiCliente, CalculadoraProduccionLotesApiCliente>();
 ClienteApi<IArticulosImagenesApiCliente, ArticulosImagenesApiCliente>();
 ClienteApi<IArticulosRelacionadosApiCliente, ArticulosRelacionadosApiCliente>();
 ClienteApi<ICartaExoneracionApiCliente, CartaExoneracionApiCliente>();
