@@ -14,6 +14,7 @@
 @inject IClientesConsulta Clientes
 @inject IInventarioConsulta Inventario
 @inject IServicioDialogos Dialogos
+@inject NavigationManager Nav
 
 <AppPantalla Pantalla="Inventario Físico de Consignación" Codigo="CONSIGNACION.INVENTARIO_FISICO" Icono="bi-clipboard-check"
              Subtitulo="Conteo del agente: vendido = consignado − físico" Nivel="NivelPantalla.Tableta">
@@ -71,8 +72,13 @@
 
     @if (_conteo is not null)
     {
-      <div class="card"><div class="card-header text-bg-success">Conteo #@_conteo.Id — @_conteo.EstadoDescripcion</div><div class="card-body">
-        <p class="form-text">La prefactura y la facturación se harán desde <strong>Consignación → Facturación de Consignaciones</strong> (en preparación).</p>
+      <div class="card"><div class="card-header text-bg-success d-flex justify-content-between align-items-center">
+        <span>Conteo #@_conteo.Id — @_conteo.EstadoDescripcion</span>
+        @if (_conteo.Estado == 1 && _conteo.Lineas.Any(l => l.Vendido > 0))
+        {
+          <button class="btn btn-sm btn-light" @onclick="IrAPrefactura">Generar prefactura</button>
+        }
+      </div><div class="card-body">
         <table class="table table-sm mb-0">
           <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Consignado</th><th class="text-end">Físico</th><th class="text-end">Vendido</th><th class="text-end">Sobrante</th></tr></thead>
           <tbody>@foreach (var l in _conteo.Lineas)
@@ -151,6 +157,11 @@
          Fisico = _fisico
      });
      _artSel = null; _texArt = ""; _loteSel = 0; _lotes = new(); _fisico = 0;
+ }
+
+ private void IrAPrefactura()
+ {
+     if (_conteo is not null) Nav.NavigateTo($"/consignment/prebill/from/{_conteo.Id}");
  }
 
  private async Task Guardar()

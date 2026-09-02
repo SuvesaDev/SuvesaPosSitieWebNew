@@ -1,11 +1,14 @@
 @page "/initial/billing"
 @page "/buys/consignment/register"
+@page "/consignment/prebill/from/{ConteoId:long}"
 @implements IDisposable
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Consignacion
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IFacturacion Api
+@inject IConsignacionInvApiCliente ConsignacionApi
 @inject IClientesConsulta Clientes
 @inject IInventarioConsulta Inventario
 @inject ILotesApiCliente Lotes2
@@ -45,8 +48,16 @@
         <div class="row g-3">
             <div class="col-12 col-lg-8">
                 <div class="card h-100 seepos-facturacion-cabecera">
-                                <div class="card-header"><strong>@(EsConsignacion ? "Registro de consignación" : "Factura de venta")</strong></div>
+                                <div class="card-header"><strong>@(EsPrefacturaConsignacion ? "Prefactura de consignación" : EsConsignacion ? "Registro de consignación" : "Factura de venta")</strong></div>
                     <div class="card-body">
+                        @if (EsPrefacturaConsignacion)
+                        {
+                            <div class="alert alert-info py-2">
+                                Prefactura desde el <strong>conteo #@ConteoId</strong>@(_conteoPref is not null ? $" — {_conteoPref.NombreCliente}" : "").
+                                Ajuste precios y bonificaciones; la condición (contado/crédito) se elige al facturar.
+                                @if (_cargandoPref) { <span class="spinner-border spinner-border-sm ms-2"></span> }
+                            </div>
+                        }
                         <div class="row g-3">
                             <div class="col-12 col-md-5">
                                 <label class="form-label">Buscar cliente</label>
@@ -113,7 +124,7 @@
                 </div>
             </div>
             <div class="col-12 col-lg-4">
-                <div class="card h-100 seepos-facturacion-totales"><div class="card-header"><strong>Totales de la venta</strong></div><div class="card-body"><dl class="row mb-0"><dt class="col-7 fw-normal text-secondary">Subtotal</dt><dd class="col-5 text-end">@Formato.Importe(_totales.SubTotal)</dd><dt class="col-7 fw-normal text-secondary">Descuento</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Descuento)</dd><dt class="col-7 fw-normal text-secondary">Impuesto</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Impuesto)</dd><dt class="col-7">Total</dt><dd class="col-5 text-end fs-5">@Formato.Importe(_totales.Total)</dd></dl><button class="btn btn-primary w-100 mt-3" disabled="@(_guardando || _lineas.Count == 0)" @onclick="Emitir"><i class="bi bi-receipt-cutoff me-2" aria-hidden="true"></i>@(_guardando ? "Registrando..." : EsConsignacion ? "Registrar consignación" : "Emitir factura")</button></div></div>
+                <div class="card h-100 seepos-facturacion-totales"><div class="card-header"><strong>Totales de la venta</strong></div><div class="card-body"><dl class="row mb-0"><dt class="col-7 fw-normal text-secondary">Subtotal</dt><dd class="col-5 text-end">@Formato.Importe(_totales.SubTotal)</dd><dt class="col-7 fw-normal text-secondary">Descuento</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Descuento)</dd><dt class="col-7 fw-normal text-secondary">Impuesto</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Impuesto)</dd><dt class="col-7">Total</dt><dd class="col-5 text-end fs-5">@Formato.Importe(_totales.Total)</dd></dl><button class="btn btn-primary w-100 mt-3" disabled="@(_guardando || _lineas.Count == 0)" @onclick="Emitir"><i class="bi bi-receipt-cutoff me-2" aria-hidden="true"></i>@(_guardando ? "Registrando..." : EsPrefacturaConsignacion ? "Generar prefactura" : EsConsignacion ? "Registrar consignación" : "Emitir factura")</button></div></div>
             </div>
         </div>
 
@@ -317,8 +328,12 @@
 <AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="PrepararArticulo" />
 
 @code {
-    private string Titulo => EsConsignacion ? "Registro de Consignaciones" : "Facturación";
-    private bool EsConsignacion => Navegacion.Uri.Contains("/buys/consignment/register", StringComparison.OrdinalIgnoreCase);
+    [Parameter] public long ConteoId { get; set; }
+    private bool EsPrefacturaConsignacion => ConteoId > 0;
+    private string Titulo => EsPrefacturaConsignacion ? "Prefactura de Consignación" : EsConsignacion ? "Registro de Consignaciones" : "Facturación";
+    private bool EsConsignacion => EsPrefacturaConsignacion || Navegacion.Uri.Contains("/buys/consignment/register", StringComparison.OrdinalIgnoreCase);
+    private ConteoConsignacion? _conteoPref;
+    private bool _cargandoPref;
     private sealed class LineaVenta
     {
         public required InventarioDTO Articulo { get; init; }
@@ -432,6 +447,59 @@
 
     private ConfiguracionBonificacion? ConfigBonificacion(int id) => _configsBonificacion.FirstOrDefault(c => c.IdConfiguracionBonificacion == id);
     private string NombreTipoBonificacion(int id) => ConfigBonificacion(id)?.Descripcion ?? id.ToString();
+
+    // --- Prefactura de consignación desde un conteo (CONSIGNACION_WEB.md §6b) ---
+    protected override async Task OnParametersSetAsync()
+    {
+        if (EsPrefacturaConsignacion && (_conteoPref is null || _conteoPref.Id != ConteoId))
+            await CargarConteoPrefactura();
+    }
+
+    private async Task CargarConteoPrefactura()
+    {
+        _cargandoPref = true;
+        try
+        {
+            var r = await ConsignacionApi.ConteoAsync(ConteoId);
+            if (r.Status != DTOs.Generated.ResponseStatus._0 || r.Responses is null)
+            {
+                await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo cargar el conteo.");
+                return;
+            }
+            _conteoPref = r.Responses;
+
+            _cliente = await BuscarClienteConsignacion(_conteoPref.IdCliente, _conteoPref.NombreCliente);
+            if (_cliente is null) { await Dialogos.ErrorAsync("No se encontró el cliente del conteo."); return; }
+
+            _lineas.Clear();
+            foreach (var l in _conteoPref.Lineas.Where(x => x.Vendido > 0.000001))
+            {
+                var ri = await Inventario.Uno(l.IdArticulo);
+                if (!ri.EsCorrecta || ri.Responses is null) continue;
+
+                if (l.IdStockLote is > 0)
+                    AgregarArticuloConLotes(ri.Responses,
+                        new List<DTOs.Lotes.LoteConsumoVenta> { new() { IdStockLote = l.IdStockLote.Value, Cantidad = l.Vendido } },
+                        (decimal)l.Vendido);
+                else
+                    AgregarArticulo(ri.Responses, null, (decimal)l.Vendido);
+
+                var linea = _lineas.LastOrDefault();
+                if (linea is not null && l.PrecioUnitario > 0) { linea.Precio = (decimal)l.PrecioUnitario; linea.Recalcular(); }
+            }
+            RecalcularTodo();
+        }
+        finally { _cargandoPref = false; }
+    }
+
+    private async Task<FiltranClienteDTO?> BuscarClienteConsignacion(long idCliente, string? nombre)
+    {
+        var r1 = await Clientes.Buscar(idCliente.ToString());
+        var c = r1.EsCorrecta ? (r1.Responses ?? new List<FiltranClienteDTO>()).FirstOrDefault(x => x.Identificacion == idCliente) : null;
+        if (c is not null || string.IsNullOrWhiteSpace(nombre)) return c;
+        var r2 = await Clientes.Buscar(nombre);
+        return r2.EsCorrecta ? (r2.Responses ?? new List<FiltranClienteDTO>()).FirstOrDefault(x => x.Identificacion == idCliente) : null;
+    }
 
     public void Dispose() => _pendienteCliente?.Cancel();
 
@@ -959,16 +1027,33 @@
         if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
         if (_cliente is null || _tipoFactura == 0 || _moneda == 0 || _lineas.Count == 0) { await Dialogos.ErrorAsync("Seleccione cliente, tipo de factura, moneda y al menos un artículo."); return; }
         if (!EsCostaPetsVenta && _idEmpresa <= 0) { await Dialogos.ErrorAsync("Seleccione una empresa para registrar la facturación."); return; }
-        if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { await Dialogos.ErrorAsync("El cliente tiene restricción de morosidad."); return; }
-        if (_cliente.OrdenCompra && string.IsNullOrWhiteSpace(_ordenCompra)) { await Dialogos.ErrorAsync("El cliente requiere una orden de compra."); return; }
-        var tipo = _tipos.First(t => t.Codigo == _tipoFactura);
-        if (tipo.Credito && !_cliente.Abierto && !_cliente.Sinrestriccion) { await Dialogos.ErrorAsync("El cliente no tiene crédito habilitado."); return; }
-        if (_lineas.Any(l => l.Articulo.SoloContado) && tipo.Credito) { await Dialogos.ErrorAsync("La factura contiene artículos solo de contado."); return; }
-        if (_lineas.Any(l => l.Articulo.SoloConExistencia && l.Cantidad > Formato.AImporte(l.Articulo.Existencia))) { await Dialogos.ErrorAsync("Una línea supera la existencia disponible."); return; }
-        if (!await Dialogos.ConfirmarAsync(EsConsignacion ? "Se registrará la consignación. ¿Desea continuar?" : "Se emitirá la factura y se afectará el inventario. ¿Desea continuar?")) return;
+        if (!EsPrefacturaConsignacion)
+        {
+            // En la prefactura de consignación no se validan crédito / morosidad / orden
+            // de compra: la condición (contado/crédito) se elige al facturar.
+            if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { await Dialogos.ErrorAsync("El cliente tiene restricción de morosidad."); return; }
+            if (_cliente.OrdenCompra && string.IsNullOrWhiteSpace(_ordenCompra)) { await Dialogos.ErrorAsync("El cliente requiere una orden de compra."); return; }
+            var tipoDoc = _tipos.First(t => t.Codigo == _tipoFactura);
+            if (tipoDoc.Credito && !_cliente.Abierto && !_cliente.Sinrestriccion) { await Dialogos.ErrorAsync("El cliente no tiene crédito habilitado."); return; }
+            if (_lineas.Any(l => l.Articulo.SoloContado) && tipoDoc.Credito) { await Dialogos.ErrorAsync("La factura contiene artículos solo de contado."); return; }
+            if (_lineas.Any(l => l.Articulo.SoloConExistencia && l.Cantidad > Formato.AImporte(l.Articulo.Existencia))) { await Dialogos.ErrorAsync("Una línea supera la existencia disponible."); return; }
+        }
+        if (!await Dialogos.ConfirmarAsync(EsPrefacturaConsignacion ? "Se generará la prefactura de consignación desde el conteo. ¿Desea continuar?" : EsConsignacion ? "Se registrará la consignación. ¿Desea continuar?" : "Se emitirá la factura y se afectará el inventario. ¿Desea continuar?")) return;
         _guardando = true;
         var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
-        var factura = new FacturaDTO { Tipo = _tipoFactura, CodCliente = _cliente.Cedula, NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), Agente = !EsCostaPetsVenta && _sinAgente, Cod_agente = !EsCostaPetsVenta && !_sinAgente && _codAgente > 0 ? _codAgente : null, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = EsCostaPetsVenta ? 1 : _idEmpresa, Empresa = empresa?.Nombre, Preventa = false, EsConsignacion = EsConsignacion, SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = l.Articulo.Id_Bodega, Lote = l.IdLote, NumeroLote = l.Lote, Lotes = l.Lotes, EsBonificacion = l.EsBonificacion, IdGrupoBonificacion = l.IdGrupoBonificacion, IdConfiguracionBonificacion = l.IdConfiguracionBonificacion, EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null }).ToList() };
+        var factura = new FacturaDTO { Tipo = _tipoFactura, CodCliente = _cliente.Cedula, NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), Agente = !EsCostaPetsVenta && _sinAgente, Cod_agente = !EsCostaPetsVenta && !_sinAgente && _codAgente > 0 ? _codAgente : null, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = EsCostaPetsVenta ? 1 : _idEmpresa, Empresa = empresa?.Nombre, Preventa = EsPrefacturaConsignacion, EsConsignacion = EsConsignacion, SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = l.Articulo.Id_Bodega, Lote = l.IdLote, NumeroLote = l.Lote, Lotes = l.Lotes, EsBonificacion = l.EsBonificacion, IdGrupoBonificacion = l.IdGrupoBonificacion, IdConfiguracionBonificacion = l.IdConfiguracionBonificacion, EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null }).ToList() };
+        if (EsPrefacturaConsignacion)
+        {
+            var rp = await ConsignacionApi.GenerarPrefacturaAsync(new GenerarPrefacturaConsignacion { IdConteo = ConteoId, Factura = factura });
+            _guardando = false;
+            if (rp.Status == DTOs.Generated.ResponseStatus._0 && rp.Responses is not null)
+            {
+                Dialogos.Exito($"Prefactura de consignación #{rp.Responses.Id} generada.");
+                Navegacion.NavigateTo($"/consignment/prebill?id={rp.Responses.Id}");
+            }
+            else await Dialogos.ErrorAsync(rp.CurrentException ?? rp.ValidationErrors?.FirstOrDefault() ?? "No se pudo generar la prefactura.");
+            return;
+        }
         var r = await Api.Crear(factura); _guardando = false;
         if (await Respuestas.CorrectaAsync(r, EsConsignacion ? "registrar la consignación" : "emitir la factura")) { Dialogos.Exito(EsConsignacion ? "Consignación registrada correctamente." : "Factura emitida correctamente."); Limpiar(); }
     }
