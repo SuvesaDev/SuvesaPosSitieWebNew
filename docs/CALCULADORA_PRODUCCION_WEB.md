@@ -301,4 +301,20 @@ Si el API también expone permiso de seed para el endpoint (como
 
 ## 6. Bitácora
 
-- _(pendiente: registrar aquí cada commit / paso con su verificación.)_
+Rama `feature/bonificaciones-web`. Verificación: `dotnet build` del sitio + `dotnet test`
+(72 pruebas).
+
+| Paso | Commit | Qué entró | Verificación |
+|---|---|---|---|
+| §1 | `0b667b8` | `DTOs/Produccion/ProduccionDTOs.cs` (espejo completo del API: PT, componente, request/respuesta de cálculo, reporte con anulación, filtro, `AnularProduccion`). `ApiConexion/ProduccionApiCliente.cs` (`IProduccionApiCliente` + impl, patrón `LotesApiCliente`: `LoteEnvelope<T>`, setea `ContextoLlamada.Token`; 9 métodos incl. `BodegasAsync`). Registro `AddHttpClient<IProduccionApiCliente,…>` en `Program.cs`. | build |
+| §2 | `0b667b8` | Nodo de menú `INICIO.CALCULADORA_PRODUCCION` (`/initial/production-calculator`) en `Class/MenuSeePos.cs`. Código en `tests/…/Fixtures/seed-seguridad.json` y en el seed del API (`SecuritySystem/Seed/seed-seguridad.json`). `FiltroMenuTests` +1 nodo. | `MenuCodigosTests` + `FiltroMenuTests` verdes |
+| §3-§6 | `0b667b8` | `Views/Inicio/CalculadoraProduccion.razor` completa: selector de **bodega** obligatorio (limpia selección al cambiar); lista de PT con buscador; editor de fórmula con buscador **filtrado a Materia prima** (`TipoArticulo==2`) + validación en `GuardarInsumo`; cantidad a producir + lotes a consumir con **consumo estricto** (`InsumoCuadra` / `TodoCuadra`, no repetir lote, tope por existencia en bodega); `Calcular` (habilita convertir sólo si cuadra y `MaximoAProducir==CantidadAProducir`); `Convertir` pide lote + vencimiento **obligatorios** con confirmación; reporte de la producción; **bitácora** con filtros fecha/artículo, **Anular** por fila (modal con motivo + `ConfirmarPeligroAsync`), filas anuladas tachadas; **Exportar CSV** cabeceras + detalle (helper JS `seepos.descargarTexto` agregado en `App.razor`). | build + 72 tests |
+| §7 | `0b667b8` | Pestaña "Fórmula y conversión" **eliminada** de `Views/Inventario/Consulta.razor` (−310 líneas). Proxy viejo `IProduccionInventario` / `ProduccionInventario` **borrado**. | build limpio (0 warnings) |
+
+### Pendiente / notas
+
+- `Program.cs:130` aún registra `ICalculadoraProduccionLotesApiCliente` (cliente NSwag
+  generado del endpoint viejo). Ya no lo usa código a mano; se retira junto con la
+  regeneración NSwag / la limpieza §8 del API. Inofensivo mientras tanto.
+- El cliente usa `Bodega/ObtenerBodegas` (todas las bodegas). Si el despliegue es
+  CostaPets-only y se quiere filtrar, cambiar a `ObtenerBodegasCostaPets`.
