@@ -623,15 +623,16 @@
                                     <div class="list-group position-absolute shadow w-100" style="z-index: 5; max-height: 14rem; overflow-y: auto;">
                                         @foreach (var i in _insumosFormula)
                                         {
-                                            <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirInsumoFormula(i)">
-                                                <strong>@i.Cod_Articulo</strong> <span class="text-secondary">@i.Descripcion</span>
+                                            <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center @(i.TipoArticulo == 2 ? "" : "list-group-item-warning")" @onclick="() => ElegirInsumoFormula(i)">
+                                                <span><strong>@i.Cod_Articulo</strong> <span class="text-secondary">@i.Descripcion</span></span>
+                                                <span class="badge @(i.TipoArticulo == 2 ? "text-bg-success" : "text-bg-secondary")">@TipoArticuloTexto(i.TipoArticulo)</span>
                                             </button>
                                         }
                                     </div>
                                 }
                                 else if (_insumoFormulaBuscado && !string.IsNullOrWhiteSpace(_textoInsumoFormula))
                                 {
-                                    <div class="form-text text-danger">Sin materias primas para esa búsqueda.</div>
+                                    <div class="form-text text-danger">Sin artículos para esa búsqueda.</div>
                                 }
                                 @if (_codigoFormula > 0)
                                 {
@@ -1554,7 +1555,18 @@
             : new();
     }
 
-    /// <summary>Busca artículos de tipo Materia prima (TipoArticulo == 2) para la fórmula.</summary>
+    private static string TipoArticuloTexto(int tipo) => tipo switch
+    {
+        2 => "Materia prima",
+        3 => "Prod. terminado",
+        _ => "Normal"
+    };
+
+    /// <summary>
+    /// Busca artículos para la fórmula. No filtra por tipo en el cliente (la data
+    /// puede no estar migrada); marca cuáles son Materia prima y el API valida al
+    /// guardar. Ordena las Materias primas primero.
+    /// </summary>
     private async Task BuscarInsumoFormula()
     {
         _codigoFormula = 0;
@@ -1572,9 +1584,9 @@
         _insumoFormulaBuscado = true;
         _insumosFormula = r.EsCorrecta && r.Responses is not null
             ? r.Responses
-                .Where(x => x.TipoArticulo == 2
-                            && x.Codigo != _edicion!.Codigo
-                            && _formula.All(f => f.IdInsumo != x.Codigo))
+                .Where(x => x.Codigo != _edicion!.Codigo && _formula.All(f => f.IdInsumo != x.Codigo))
+                .OrderByDescending(x => x.TipoArticulo == 2)
+                .ThenBy(x => x.Descripcion)
                 .Take(20)
                 .ToList()
             : new();
@@ -1610,7 +1622,8 @@
         }
         if (insumo.TipoArticulo != 2)
         {
-            _errorFormula = "La fórmula de un producto terminado sólo admite insumos de tipo Materia prima.";
+            _errorFormula = $"«{insumo.Descripcion}» es {TipoArticuloTexto(insumo.TipoArticulo)}. " +
+                            "La fórmula sólo admite Materia prima; cambie el tipo del artículo en su ficha si corresponde.";
             return;
         }
         var r = await ProduccionApi.GuardarComponenteAsync(new SuvesaPosSitioAplicacion.DTOs.Produccion.GuardarComponenteFormula
