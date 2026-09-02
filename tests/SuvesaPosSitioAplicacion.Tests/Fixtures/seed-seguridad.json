@@ -753,6 +753,38 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "CONSIGNACION.BODEGAS",
+          "nombre": "Bodegas de Consignación",
+          "ruta": "/consignment/warehouses",
+          "padre": null,
+          "orden": 4,
+          "acciones": ["VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "EXPORTAR", "IMPRIMIR"]
+        },
+        {
+          "codigo": "CONSIGNACION.AJUSTE",
+          "nombre": "Ajuste de Bodega de Consignación",
+          "ruta": "/consignment/adjust",
+          "padre": null,
+          "orden": 5,
+          "acciones": ["VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "EXPORTAR", "IMPRIMIR"]
+        },
+        {
+          "codigo": "CONSIGNACION.INVENTARIO_FISICO",
+          "nombre": "Inventario Físico de Consignación",
+          "ruta": "/consignment/count",
+          "padre": null,
+          "orden": 6,
+          "acciones": ["VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "EXPORTAR", "IMPRIMIR"]
+        },
+        {
+          "codigo": "CONSIGNACION.KARDEX",
+          "nombre": "Kardex de Consignación",
+          "ruta": "/consignment/ledger",
+          "padre": null,
+          "orden": 7,
+          "acciones": ["VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "EXPORTAR", "IMPRIMIR"]
         }
       ]
     },

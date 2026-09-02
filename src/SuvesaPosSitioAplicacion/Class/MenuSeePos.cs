@@ -323,6 +323,33 @@ public static partial class MenuSeePos
                     Titulo = "Seguimiento de Consignaciones",
                     Codigo = "CONSIGNACION.SEGUIMIENTO_DE_CONSIGNACIONES",
                     Ruta = "/buys/consignment/following",
+                },
+                // Modelo nuevo de bodega de consignación por cliente
+                // (CONSIGNACION_WEB.md). Conviven con las 3 rutas legacy de arriba
+                // hasta que el API retire sus endpoints viejos.
+                new ItemMenu
+                {
+                    Titulo = "Bodegas de Consignación",
+                    Codigo = "CONSIGNACION.BODEGAS",
+                    Ruta = "/consignment/warehouses",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Ajuste de Bodega de Consignación",
+                    Codigo = "CONSIGNACION.AJUSTE",
+                    Ruta = "/consignment/adjust",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Inventario Físico de Consignación",
+                    Codigo = "CONSIGNACION.INVENTARIO_FISICO",
+                    Ruta = "/consignment/count",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Kardex de Consignación",
+                    Codigo = "CONSIGNACION.KARDEX",
+                    Ruta = "/consignment/ledger",
                 }
             }
         },
