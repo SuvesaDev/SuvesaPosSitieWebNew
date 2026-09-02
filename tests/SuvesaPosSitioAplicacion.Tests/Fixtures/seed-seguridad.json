@@ -1265,6 +1265,22 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "CATALOGOS.TIPOS_DE_BONIFICACION",
+          "nombre": "Tipos de Bonificación",
+          "ruta": "/parameters/bonus-types",
+          "padre": null,
+          "orden": 20,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
         }
       ]
     },

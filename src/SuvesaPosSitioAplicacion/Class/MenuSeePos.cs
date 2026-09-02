@@ -549,6 +549,12 @@ public static partial class MenuSeePos
                     Titulo = "Familias",
                     Codigo = "CATALOGOS.FAMILIAS",
                     Ruta = "/parameters/family",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Tipos de Bonificación",
+                    Codigo = "CATALOGOS.TIPOS_DE_BONIFICACION",
+                    Ruta = "/parameters/bonus-types",
                 }
             }
         },
