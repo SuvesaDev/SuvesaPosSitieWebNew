@@ -6,6 +6,7 @@
 @using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
 @using SuvesaPosSitioAplicacion.DTOs.Consignacion
 @using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Helpers
 @using SuvesaPosSitioAplicacion.DTOs.Lotes
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
@@ -13,6 +14,7 @@
 @inject ILotesApiCliente LotesApi
 @inject IClientesConsulta Clientes
 @inject IInventarioConsulta Inventario
+@inject IUsuarios Usuarios
 @inject IServicioDialogos Dialogos
 @inject NavigationManager Nav
 
@@ -32,7 +34,11 @@
         </div>
       }
     </div>
-    <div class="col-md-4"><label class="form-label">Agente visitador</label><input class="form-control" @bind="_agente" /></div>
+    <div class="col-md-4"><label class="form-label">Agente visitador</label>
+      <select class="form-select" @bind="_agente">
+        <option value="">Seleccione...</option>
+        @foreach (var u in _usuarios) { <option value="@(u.Nombre ?? u.IdUsuario)">@(u.Nombre ?? u.IdUsuario)</option> }
+      </select></div>
   </div></div>
 
   @if (_idCliente > 0)
@@ -108,6 +114,14 @@
  private bool _guardando;
  private readonly List<ConteoConsignacionLinea> _lineas = new();
  private ConteoConsignacion? _conteo;
+ private List<BuscarUsuarioDTO> _usuarios = new();
+
+ protected override async Task OnInitializedAsync()
+ {
+     var r = await Usuarios.Buscar(null);
+     if (r.EsCorrecta) _usuarios = (r.Responses ?? new List<BuscarUsuarioDTO>())
+         .OrderBy(u => u.Nombre ?? u.IdUsuario).ToList();
+ }
 
  private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
 
