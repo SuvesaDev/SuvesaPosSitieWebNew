@@ -223,4 +223,27 @@ Verificación: `dotnet build src/SuvesaPosSitioAplicacion/SuvesaPosSitioAplicaci
 
 ## 6. Bitácora
 
-- _(pendiente: registrar aquí cada commit / paso con su verificación.)_
+Rama `feature/bonificaciones-web`. Verificación: `dotnet build` del sitio + `dotnet test`
+(72 pruebas). **Decisiones §5 resueltas** (espejo de `CONSIGNACION_API.md §7`): prefactura =
+`Venta` con flag, bonificación = motor de facturación, condición al facturar, kardex de
+`Stocks`, consignaciones legacy se migran, menú = módulo propio (opción 2, coexiste con
+las 3 rutas legacy), Ajuste = una pantalla con pestañas.
+
+| Paso | Commit | Qué entró | Verificación |
+|---|---|---|---|
+| §1 | `95d95f8` | `DTOs/Consignacion/ConsignacionInvDTOs.cs` (espejo del API) + `ApiConexion/ConsignacionInvApiCliente.cs` (`IConsignacionInvApiCliente`, patrón `LotesApiCliente`: `LoteEnvelope`, setea `ContextoLlamada.Token`; AbrirBodega, Bodegas, RegistrarBoleta, Boleta, AnularBoleta, RegistrarConteo, Conteo, Kardex). Registro en `Program.cs`. | build |
+| §2 | `b8c4631` | 4 sub-items bajo "Consignación": `CONSIGNACION.BODEGAS` (`/consignment/warehouses`), `.AJUSTE` (`/consignment/adjust`), `.INVENTARIO_FISICO` (`/consignment/count`), `.KARDEX` (`/consignment/ledger`). Coexisten con las 3 rutas legacy. Fixture seed + seed del API + `FiltroMenuTests` (13 raíz / 109 nodos). | `MenuCodigosTests` + `FiltroMenuTests` + `SeedSeguridad*` verdes |
+| §3-§7 | `5a93f70` | `Views/Consignacion/`: **Bodegas.razor** (lista + estado + "Abrir bodega"), **Ajuste.razor** (pestañas Entrada/Salida, buscador cliente + artículo + lote, cierre total, muestra boleta), **InventarioFisico.razor** (conteo por artículo+lote → respuesta con consignado/vendido/sobrante), **Kardex.razor** (movimientos + badge "Consignación cerrada" + export CSV). | build + 72 tests |
+| §6 (prefactura) | — | **Pendiente**: `Prefactura.razor` / facturar. Necesita armar un `FacturaDTO` con el contexto de la sesión (empresa/sucursal/caja/moneda) y el detalle con **bonificación ya expandida** por el mismo mecanismo que la pantalla de Facturación — chunk dedicado. Endpoints API listos (`GenerarPrefactura` / `EditarPrefactura` / `AprobarPrefactura` / `FacturarPrefactura` / `AnularPrefactura` / `Prefactura`). |
+| §8 | — | **Pendiente**: retirar `Seguimiento.razor` + proxy `IConsignaciones` cuando el API retire sus endpoints legacy. |
+
+### Notas
+
+- El `IConsignacionInvApiCliente` no incluye todavía los métodos de prefactura;
+  se agregan con `Prefactura.razor`.
+- Para **Salida** y **Inventario físico**, la selección de lote usa
+  `ExistenciaConsolidada` (stock `Tipo=1`), que no refleja la existencia de
+  consignación (`Tipo=2`); sólo aporta ids de lote válidos. El API valida la
+  existencia real y devuelve el mensaje. Si se quiere mostrar la existencia de
+  consignación por lote en la pantalla, agregar un endpoint de existencia por bodega
+  de consignación en el API.
