@@ -589,7 +589,7 @@
                             }
                             else
                             {
-                                <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Lote</th><th>Vencimiento</th><th class="text-end">Existencia</th><th></th></tr></thead><tbody>@foreach (var lote in _lotesEdicion) { <tr><td>@lote.Lote</td><td>@(lote.Vencimiento?.ToString("dd/MM/yyyy") ?? "—")</td><td class="text-end">@lote.Cantidad:N2</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarLote(lote)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
+                                <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Lote</th><th>Vencimiento</th><th class="text-end">Existencia</th><th></th></tr></thead><tbody>@foreach (var lote in _lotesEdicion) { <tr><td>@lote.Lote</td><td>@(lote.Vencimiento?.ToString("dd/MM/yyyy") ?? "—")</td><td class="text-end">@lote.Cantidad.ToString("N2")</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarLote(lote)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
                             }
                         </div>
                     }
