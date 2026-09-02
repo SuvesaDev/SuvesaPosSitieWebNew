@@ -601,12 +601,6 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
-                    Titulo = "Empresas",
-                    Codigo = "PARAMETROS.EMPRESAS",
-                    Ruta = "/parameters/company",
-                },
-                new ItemMenu
-                {
                     Titulo = "Surcursales",
                     Codigo = "PARAMETROS.SURCURSALES",
                     Ruta = "/parameters/branch",

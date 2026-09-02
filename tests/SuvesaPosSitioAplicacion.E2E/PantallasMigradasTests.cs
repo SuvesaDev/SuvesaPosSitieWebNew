@@ -57,7 +57,6 @@ public class PantallasMigradasTests
         { "/parameters/users", "Usuarios" },
         { "/parameters/role", "Roles" },
         { "/parameters/branch", "Surcursales" },
-        { "/parameters/company", "Empresas" },
         { "/parameters/settings", "Configuración" },
         { "/buys/orders/checkorders", "Consultar Pedidos" },
         { "/utilities/magitemslist", "Lista articulos MAG" },
