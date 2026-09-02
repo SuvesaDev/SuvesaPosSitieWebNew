@@ -181,6 +181,7 @@
         public decimal Descuento { get; init; }
         public decimal Impuesto { get; init; }
         public int IdBodega { get; init; }
+        public long? IdStockLote { get; init; }
 
         // §4.5 — bonificación heredada de la factura original.
         public bool EsBonificacion { get; init; }
@@ -342,7 +343,8 @@
             PrecioUnit = Formato.AImporte(linea.PrecioUnit),
             Descuento = Formato.AImporte(linea.Descuento),
             Impuesto = linea.Impuesto,
-            IdBodega = linea.IdBodega
+            IdBodega = linea.IdBodega,
+            IdStockLote = linea.Lote > 0 ? linea.Lote : null
         };
         nueva.Calculo = CalculoDocumento.Linea(nueva.Cantidad, nueva.PrecioUnit, nueva.Descuento, nueva.Impuesto);
         _lineas.Add(nueva);
@@ -448,6 +450,7 @@
                 SubTotal = (double)l.Calculo.SubTotal,
                 IdArticuloV = l.IdVentaDetalle.ToString(),
                 IdBodega = l.IdBodega,
+                IdStockLote = l.IdStockLote,
                 EsBonificacion = l.EsBonificacion,
                 IdGrupoBonificacion = l.IdGrupoBonificacion,
                 IdConfiguracionBonificacion = l.IdConfiguracionBonificacion,

@@ -126,6 +126,7 @@
         public decimal Descuento { get; init; }
         public decimal Impuesto { get; init; }
         public int IdBodega { get; init; }
+        public long? IdStockLote { get; init; }
         public CalculoDocumento.LineaCalculada Calculo { get; set; }
     }
 
@@ -222,7 +223,8 @@
             Otros = Formato.AImporte(linea.OtrosCargos),
             Descuento = Formato.AImporte(linea.DescuentoP),
             Impuesto = Formato.AImporte(linea.ImpuestoP),
-            IdBodega = idBodega
+            IdBodega = idBodega,
+            IdStockLote = linea.LoteArticulo?.Id > 0 ? linea.LoteArticulo.Id : null
         };
         nueva.Calculo = CalculoDocumento.Linea(nueva.Cantidad, nueva.Costo, nueva.Descuento, nueva.Impuesto);
         _lineas.Add(nueva);
@@ -284,7 +286,8 @@
                 SubTotalExcento = l.Impuesto == 0 ? (double)l.Calculo.SubTotal : 0,
                 SubTotal = (double)l.Calculo.SubTotal,
                 Numero = string.Empty,
-                IdBodega = l.IdBodega
+                IdBodega = l.IdBodega,
+                IdStockLote = l.IdStockLote
             }).ToList()
         };
 

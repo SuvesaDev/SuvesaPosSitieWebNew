@@ -262,12 +262,39 @@ reserva**; consignación `Stock.Tipo=2`.
 - Nodo de menú `COMPRAS.TOMA_FISICA` (Compras) + `seed-seguridad.json`
   (fixture y API). `FiltroMenuTests` conteo 101 → 102.
 
-### Pendientes (pasos 3-6)
+### Paso 3 — Tipo de artículo + lote único — HECHO
 
-- **Paso 3** — UI de tipo de artículo / lote único en Inventario (config).
-- **Paso 4** — Facturación multi-lote (modal de reparto) + guard de existencia
-  negativa (`Sesion.PermitirExistenciaNegativa`) + filtro cliente de vencidos.
-- **Paso 5** — Compras multi-lote (alta manual + import XML).
-- **Paso 6** — Devoluciones con selección de lote.
-- El API acepta el payload actual de un solo lote como compat, así que la app
-  sigue funcionando mientras tanto.
+`InventarioDTO.Lotes.cs` partial (`TipoArticulo`/`LoteUnico`/`LoteUnicoFijado`).
+`Inventario/Consulta.razor`: el tipo se toma del DTO (1=Normal, 2=MP, 3=PT), con
+fallback a `EsPadre`. MP/PT → "Maneja lotes" forzado. MP → checkbox "Lote único
+(sin vencimiento)". `LoteUnicoFijado` → todo de sólo lectura con candado.
+`AlCambiarTipoArticulo` sincroniza `Lote`/`LoteUnico`/`EsPadre`/`TipoArticulo`.
+(El API alineó su enum a esta numeración — commit `4d66f5e2`.)
+
+### Paso 4 — Facturación multi-lote — HECHO
+
+`FacturaDetallesDTO.Lotes.cs` partial. `_modalLotes` pasa de "elegí uno" a un
+**reparto**: tabla de lotes con "a consumir" por fila, valida `Σ == cantidad` y
+`≤ existencia` (input `max`). Filtra vencidos en cliente. `LineaVenta.Lotes` +
+`AgregarArticuloConLotes`; `Emitir` manda `Lotes`. El guard de negativo lo hace
+el API (devuelve el mensaje).
+
+### Paso 5 — Compras — HECHO (parcial)
+
+`FacturaCompraDetalleDTO.Lotes.cs` partial. `Compra.razor` emit manda `Lotes`
+con un elemento cuando el artículo lleva lote (además de `loteArticulo` compat),
+para que el API use `InsertarLineaCompra` (decide por config + upsert). La
+**mini-tabla multi-lote por línea** en la UI queda de follow-up.
+
+### Paso 6 — Devoluciones con lote — HECHO
+
+`DevolucionDetalle.Lotes.cs` partial (`IdStockLote?` en venta y compra).
+`DevolucionesVenta.razor` / `DevolucionesCompra.razor`: la línea de devolución
+hereda `IdStockLote` del lote de la venta/compra original y lo manda en el
+detalle. (Selector explícito de lote para ventas multi-lote: follow-up.)
+
+### Follow-ups menores
+
+- Quitar del todo la sección "Existencias" de la pestaña Generales de Inventario.
+- Mini-tabla multi-lote por línea en Compras y selector de lote en Devoluciones.
+- Guard de existencia negativa en cliente para líneas sin lote (hoy sólo el API).
