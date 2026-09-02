@@ -241,3 +241,33 @@ reserva**; consignación `Stock.Tipo=2`.
 - Build 0 errores, 72/72 tests.
 - **Pendiente de contrato:** partials para `FacturaDetallesDTO.Lotes` y
   `FacturaCompraDetalleDTO.Lotes` (se añaden en los pasos 4/5).
+
+### Paso 2 — Inventario: pestañas Existencias y Movimientos — HECHO
+
+- `Views/Inventario/Consulta.razor` (+ `@inject ILotesApiCliente`):
+  - Pestaña **Existencias**: `ExistenciaConsolidada` — total, por bodega y por
+    lote (vencido/único/bloqueado). Ajuste de existencia por bodega/lote vía
+    `ActualizarExistencia`; los lotes bloqueados sólo dejan tocar la existencia.
+  - Pestaña **Movimientos**: `Movimientos` paginada, filtro por fechas, columnas
+    fecha/tipo/documento/usuario/contraparte/lote/anterior-cantidad-nueva.
+- La sección "Existencias" de la pestaña Generales se deja como está (moverla
+  del todo es un follow-up menor).
+
+### Paso 7 — Toma física — HECHO
+
+- `Views/Compras/TomaFisica.razor` (`/buys/physical-count` + `/buys/take`):
+  filtro, tabla responsive con existencia del sistema + input contado +
+  diferencia en vivo; guardar → reporte (ajustados / ganadas / perdidas /
+  costeo) en modal. `ILotesApiCliente` (`TomaFisica/*`).
+- Nodo de menú `COMPRAS.TOMA_FISICA` (Compras) + `seed-seguridad.json`
+  (fixture y API). `FiltroMenuTests` conteo 101 → 102.
+
+### Pendientes (pasos 3-6)
+
+- **Paso 3** — UI de tipo de artículo / lote único en Inventario (config).
+- **Paso 4** — Facturación multi-lote (modal de reparto) + guard de existencia
+  negativa (`Sesion.PermitirExistenciaNegativa`) + filtro cliente de vencidos.
+- **Paso 5** — Compras multi-lote (alta manual + import XML).
+- **Paso 6** — Devoluciones con selección de lote.
+- El API acepta el payload actual de un solo lote como compat, así que la app
+  sigue funcionando mientras tanto.
