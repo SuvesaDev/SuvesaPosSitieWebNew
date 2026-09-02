@@ -2,9 +2,12 @@
 @using MudBlazor
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Lotes
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @using System.Text.Json
 @inject IInventarioConsulta Api
+@inject ILotesApiCliente Lotes2
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
@@ -326,6 +329,11 @@
                     @if (_edicion.Lote)
                     {
                         <button type="button" class="btn btn-sm @ClasePestanaLotes" @onclick="MostrarLotes">Lotes</button>
+                    }
+                    @if (!_esNuevo)
+                    {
+                        <button type="button" class="btn btn-sm @ClasePestanaExistencias" @onclick="MostrarExistencias">Existencias</button>
+                        <button type="button" class="btn btn-sm @ClasePestanaMovimientos" @onclick="MostrarMovimientos">Movimientos</button>
                     }
                     @if (Sesion.EsCostaPets && _edicion.Bonificado && !_esNuevo)
                     {
@@ -697,6 +705,121 @@
                         <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Código de proveedor" @bind-Valor="_edicion.CodigoProveedor" /></div>
                         <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Descripción de proveedor" @bind-Valor="_edicion.DescripcionProveedor" /></div>
                     </div>
+                }
+                else if (_pestanaInventario == "existencias")
+                {
+                    @*  §3.1b — Existencias por bodega y por lote. Lote único: sólo se
+                        actualiza la existencia, no los datos del lote. *@
+                    @if (_cargandoExistencias)
+                    {
+                        <div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>
+                    }
+                    else if (_existenciaConsol is null)
+                    {
+                        <div class="alert alert-light border mb-0">No se pudo consultar la existencia.</div>
+                    }
+                    else
+                    {
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div><span class="text-secondary small d-block">Existencia total</span><span class="h5 mb-0">@_existenciaConsol.ExistenciaTotal.ToString("N2")</span></div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CargarExistencias">Refrescar</button>
+                        </div>
+
+                        @if (!_existenciaConsol.ManejaLote)
+                        {
+                            <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                                <thead><tr><th>Bodega</th><th class="text-end">Existencia</th><th class="text-end" style="min-width:11rem">Ajustar a</th></tr></thead>
+                                <tbody>
+                                @foreach (var b in _existenciaConsol.PorBodega)
+                                {
+                                    <tr>
+                                        <td>@b.NombreBodega</td>
+                                        <td class="text-end">@b.Existencia.ToString("N2")</td>
+                                        <td class="text-end"><div class="input-group input-group-sm">
+                                            <input type="number" step="0.001" class="form-control text-end" @bind="_ajusteExistencia" />
+                                            <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(b.IdBodega, null)">Aplicar</button>
+                                        </div></td>
+                                    </tr>
+                                }
+                                @if (_existenciaConsol.PorBodega.Count == 0)
+                                {
+                                    <tr><td colspan="3" class="text-secondary">Sin movimientos registrados.</td></tr>
+                                }
+                                </tbody>
+                            </table></div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                                <thead><tr><th>Lote</th><th>Vence</th><th class="text-end">Existencia</th><th class="text-end" style="min-width:11rem">Ajustar a</th></tr></thead>
+                                <tbody>
+                                @foreach (var l in _existenciaConsol.Lotes)
+                                {
+                                    <tr class="@(l.Vencido ? "table-danger" : null)">
+                                        <td>@l.Numero @(l.EsUnico ? "(único)" : "") @(l.Bloqueado ? "🔒" : "")</td>
+                                        <td>@(l.Vencimiento?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                        <td class="text-end">@l.ExistenciaTotal.ToString("N2")</td>
+                                        <td class="text-end"><div class="input-group input-group-sm">
+                                            <input type="number" step="0.001" class="form-control text-end" @bind="_ajusteExistencia" />
+                                            <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(l.PorBodega.FirstOrDefault()?.IdBodega ?? 0, l.Id)">Aplicar</button>
+                                        </div></td>
+                                    </tr>
+                                }
+                                @if (_existenciaConsol.Lotes.Count == 0)
+                                {
+                                    <tr><td colspan="4" class="text-secondary">El artículo maneja lotes pero no tiene lotes activos.</td></tr>
+                                }
+                                </tbody>
+                            </table></div>
+                            <p class="form-text mb-0">Los lotes bloqueados (lote único) sólo permiten ajustar la existencia, no su número ni vencimiento.</p>
+                        }
+                    }
+                }
+                else if (_pestanaInventario == "movimientos")
+                {
+                    @*  §3.1c — Movimientos del inventario del artículo. *@
+                    <div class="row g-2 align-items-end mb-2">
+                        <div class="col-6 col-md-3"><label class="form-label">Desde</label><input type="date" class="form-control form-control-sm" @bind="_movDesde" /></div>
+                        <div class="col-6 col-md-3"><label class="form-label">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_movHasta" /></div>
+                        <div class="col-12 col-md-3 d-grid"><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => CargarMovimientos(1)">Filtrar</button></div>
+                    </div>
+                    @if (_cargandoMovimientos)
+                    {
+                        <div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>
+                    }
+                    else if (_movimientos is null || _movimientos.Movimientos.Count == 0)
+                    {
+                        <div class="alert alert-light border mb-0">Sin movimientos para el filtro indicado.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Fecha</th><th>Tipo</th><th>Documento</th><th>Usuario</th><th>Prov./Cliente</th><th>Lote</th><th class="text-end">Anterior</th><th class="text-end">Cantidad</th><th class="text-end">Nueva</th></tr></thead>
+                            <tbody>
+                            @foreach (var m in _movimientos.Movimientos)
+                            {
+                                <tr>
+                                    <td>@m.Fecha.ToString("dd/MM/yy HH:mm")</td>
+                                    <td>@m.MovimientoDescripcion @(m.EsReseteoToma ? "(reseteo)" : "")</td>
+                                    <td>@m.Documento</td>
+                                    <td>@m.Usuario</td>
+                                    <td>@m.NombreContraparte</td>
+                                    <td>@m.NumeroLote</td>
+                                    <td class="text-end">@m.ExistenciaAnterior.ToString("N2")</td>
+                                    <td class="text-end @(m.Cantidad < 0 ? "text-danger" : "text-success")">@m.Cantidad.ToString("N2")</td>
+                                    <td class="text-end fw-semibold">@m.ExistenciaNueva.ToString("N2")</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table></div>
+                        <div class="d-flex justify-content-between align-items-center mt-2 small">
+                            <span class="text-secondary">@_movimientos.Total movimiento(s)</span>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-secondary" disabled="@(_movPagina <= 1)" @onclick="() => CargarMovimientos(_movPagina - 1)">Anterior</button>
+                                <button type="button" class="btn btn-outline-secondary" disabled="@(_movPagina * 50 >= _movimientos.Total)" @onclick="() => CargarMovimientos(_movPagina + 1)">Siguiente</button>
+                            </div>
+                        </div>
+                    }
                 }
             </EditForm>
         }
@@ -1113,6 +1236,8 @@
     private string ClasePestanaLotes => ClasePestana("lotes");
     private string ClasePestanaBonificacion => ClasePestana("bonificacion");
     private string ClasePestanaOtros => ClasePestana("otros");
+    private string ClasePestanaExistencias => ClasePestana("existencias");
+    private string ClasePestanaMovimientos => ClasePestana("movimientos");
 
     private string ClasePestana(string pestana)
         => _pestanaInventario == pestana ? "btn-primary" : "btn-outline-primary";
@@ -1125,6 +1250,78 @@
     private void MostrarLotes() => _pestanaInventario = "lotes";
     private void MostrarBonificacion() => _pestanaInventario = "bonificacion";
     private void MostrarOtros() => _pestanaInventario = "otros";
+
+    // ---- §3.1b/c — pestañas Existencias y Movimientos ----
+    private ExistenciaConsolidada? _existenciaConsol;
+    private MovimientoInventarioPagina? _movimientos;
+    private bool _cargandoExistencias, _cargandoMovimientos;
+    private double _ajusteExistencia;
+    private int _movPagina = 1;
+    private DateTime? _movDesde, _movHasta;
+
+    private async Task MostrarExistencias()
+    {
+        _pestanaInventario = "existencias";
+        await CargarExistencias();
+    }
+
+    private async Task MostrarMovimientos()
+    {
+        _pestanaInventario = "movimientos";
+        await CargarMovimientos(1);
+    }
+
+    private async Task CargarExistencias()
+    {
+        if (_edicion is null) return;
+        _cargandoExistencias = true;
+        var r = await Lotes2.ExistenciaConsolidadaAsync(_edicion.Codigo);
+        _cargandoExistencias = false;
+        _existenciaConsol = r.Status == DTOs.Generated.ResponseStatus._0 ? r.Responses : null;
+        if (_existenciaConsol is null && !string.IsNullOrWhiteSpace(r.CurrentException))
+            await Dialogos.ErrorAsync(r.CurrentException);
+    }
+
+    private async Task CargarMovimientos(int pagina)
+    {
+        if (_edicion is null) return;
+        _movPagina = pagina < 1 ? 1 : pagina;
+        _cargandoMovimientos = true;
+        var r = await Lotes2.MovimientosAsync(new MovimientoInventarioFiltro
+        {
+            IdArticulo = _edicion.Codigo,
+            Desde = _movDesde,
+            Hasta = _movHasta,
+            Pagina = _movPagina,
+            TamanoPagina = 50
+        });
+        _cargandoMovimientos = false;
+        _movimientos = r.Status == DTOs.Generated.ResponseStatus._0 ? r.Responses : null;
+        if (_movimientos is null && !string.IsNullOrWhiteSpace(r.CurrentException))
+            await Dialogos.ErrorAsync(r.CurrentException);
+    }
+
+    private async Task AjustarExistencia(int bodega, long? idStockLote)
+    {
+        if (_edicion is null) return;
+        if (!await Dialogos.ConfirmarAsync($"Se fijará la existencia en {_ajusteExistencia:N2} y quedará registrado el movimiento.", "Ajustar existencia"))
+            return;
+        var r = await Lotes2.ActualizarExistenciaAsync(new ActualizarExistencia
+        {
+            IdArticulo = _edicion.Codigo,
+            Bodega = bodega,
+            IdStockLote = idStockLote,
+            Cantidad = _ajusteExistencia,
+            Observaciones = "Ajuste manual desde inventario"
+        });
+        if (r.Status != DTOs.Generated.ResponseStatus._0)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo ajustar la existencia.");
+            return;
+        }
+        Dialogos.Exito("Existencia ajustada.");
+        await CargarExistencias();
+    }
 
     // Costo = base + fletes + otros cargos, igual que el sistema actual
     // (InventoryBodyFeaturesUltimoCosto.jsx). Es un total de referencia para
