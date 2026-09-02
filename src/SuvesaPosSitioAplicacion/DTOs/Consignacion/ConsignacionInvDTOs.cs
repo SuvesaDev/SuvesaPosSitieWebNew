@@ -179,3 +179,67 @@ public sealed class KardexConsignacion
     public string Estado { get; set; } = "Activa";
     public List<KardexConsignacionMovimiento> Movimientos { get; set; } = new();
 }
+
+// --- Prefactura (es una Venta con estado) ---
+
+public sealed class GenerarPrefacturaConsignacion
+{
+    public long IdConteo { get; set; }
+    /// <summary>La arma el sitio con el contexto de facturación (empresa/sucursal/caja/moneda) y el detalle con bonificación.</summary>
+    public SuvesaPosSitioAplicacion.DTOs.Generated.FacturaDTO Factura { get; set; } = new();
+}
+
+public sealed class EditarPrefacturaConsignacion
+{
+    public long IdPrefactura { get; set; }
+    public SuvesaPosSitioAplicacion.DTOs.Generated.FacturaDTO Factura { get; set; } = new();
+}
+
+public sealed class FacturarPrefacturaConsignacion
+{
+    public long IdPrefactura { get; set; }
+    /// <summary>1 = Contado, 2 = Crédito.</summary>
+    public int Condicion { get; set; }
+    public int? IdPlazo { get; set; }
+}
+
+public sealed class AnularPrefacturaConsignacion
+{
+    public long IdPrefactura { get; set; }
+    public string Motivo { get; set; } = "";
+}
+
+public sealed class PrefacturaConsignacionLinea
+{
+    public long IdArticulo { get; set; }
+    public string CodArticulo { get; set; } = "";
+    public string Descripcion { get; set; } = "";
+    public string? Lote { get; set; }
+    public double Cantidad { get; set; }
+    public double PrecioUnit { get; set; }
+    public double Descuento { get; set; }
+    public double MontoDescuento { get; set; }
+    public double MontoImpuesto { get; set; }
+    public double SubTotal { get; set; }
+    public bool EsBonificacion { get; set; }
+}
+
+public sealed class PrefacturaConsignacion
+{
+    public long Id { get; set; }
+    public double NumFactura { get; set; }
+    public long IdCliente { get; set; }
+    public string NombreCliente { get; set; } = "";
+    public long? IdConteoConsignacion { get; set; }
+    public DateTime Fecha { get; set; }
+    public int Estado { get; set; }
+    public string EstadoDescripcion { get; set; } = "";
+    public int Condicion { get; set; }
+    public int? IdPlazo { get; set; }
+    public double SubTotal { get; set; }
+    public double Descuento { get; set; }
+    public double ImpVenta { get; set; }
+    public double Total { get; set; }
+    public string? Observaciones { get; set; }
+    public List<PrefacturaConsignacionLinea> Lineas { get; set; } = new();
+}

@@ -25,6 +25,13 @@ public interface IConsignacionInvApiCliente
     Task<LoteEnvelope<ConteoConsignacion>> ConteoAsync(long id);
 
     Task<LoteEnvelope<KardexConsignacion>> KardexAsync(KardexConsignacionFiltro req);
+
+    Task<LoteEnvelope<PrefacturaConsignacion>> GenerarPrefacturaAsync(GenerarPrefacturaConsignacion req);
+    Task<LoteEnvelope<PrefacturaConsignacion>> EditarPrefacturaAsync(EditarPrefacturaConsignacion req);
+    Task<LoteEnvelope<PrefacturaConsignacion>> AprobarPrefacturaAsync(long idPrefactura);
+    Task<LoteEnvelope<PrefacturaConsignacion>> FacturarPrefacturaAsync(FacturarPrefacturaConsignacion req);
+    Task<LoteEnvelope<PrefacturaConsignacion>> AnularPrefacturaAsync(AnularPrefacturaConsignacion req);
+    Task<LoteEnvelope<PrefacturaConsignacion>> PrefacturaAsync(long id);
 }
 
 public sealed class ConsignacionInvApiCliente : IConsignacionInvApiCliente
@@ -90,4 +97,22 @@ public sealed class ConsignacionInvApiCliente : IConsignacionInvApiCliente
 
     public Task<LoteEnvelope<KardexConsignacion>> KardexAsync(KardexConsignacionFiltro req)
         => EnviarAsync<KardexConsignacion>(HttpMethod.Post, "ConsignacionInventario/Kardex", req);
+
+    public Task<LoteEnvelope<PrefacturaConsignacion>> GenerarPrefacturaAsync(GenerarPrefacturaConsignacion req)
+        => EnviarAsync<PrefacturaConsignacion>(HttpMethod.Post, "ConsignacionInventario/GenerarPrefactura", req);
+
+    public Task<LoteEnvelope<PrefacturaConsignacion>> EditarPrefacturaAsync(EditarPrefacturaConsignacion req)
+        => EnviarAsync<PrefacturaConsignacion>(HttpMethod.Put, "ConsignacionInventario/EditarPrefactura", req);
+
+    public Task<LoteEnvelope<PrefacturaConsignacion>> AprobarPrefacturaAsync(long idPrefactura)
+        => EnviarAsync<PrefacturaConsignacion>(HttpMethod.Post, $"ConsignacionInventario/AprobarPrefactura?idPrefactura={idPrefactura}");
+
+    public Task<LoteEnvelope<PrefacturaConsignacion>> FacturarPrefacturaAsync(FacturarPrefacturaConsignacion req)
+        => EnviarAsync<PrefacturaConsignacion>(HttpMethod.Post, "ConsignacionInventario/FacturarPrefactura", req);
+
+    public Task<LoteEnvelope<PrefacturaConsignacion>> AnularPrefacturaAsync(AnularPrefacturaConsignacion req)
+        => EnviarAsync<PrefacturaConsignacion>(HttpMethod.Post, "ConsignacionInventario/AnularPrefactura", req);
+
+    public Task<LoteEnvelope<PrefacturaConsignacion>> PrefacturaAsync(long id)
+        => EnviarAsync<PrefacturaConsignacion>(HttpMethod.Get, $"ConsignacionInventario/Prefactura?id={id}");
 }

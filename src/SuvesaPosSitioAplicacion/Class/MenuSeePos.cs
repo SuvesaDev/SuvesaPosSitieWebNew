@@ -316,7 +316,7 @@ public static partial class MenuSeePos
                 {
                     Titulo = "Facturacion de Consignaciones",
                     Codigo = "CONSIGNACION.FACTURACION_DE_CONSIGNACIONES",
-                    Ruta = "/buys/consignment/billing",
+                    Ruta = "/consignment/prebill",
                 },
                 new ItemMenu
                 {
