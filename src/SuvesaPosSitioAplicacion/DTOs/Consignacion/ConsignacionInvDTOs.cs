@@ -224,6 +224,27 @@ public sealed class PrefacturaConsignacionLinea
     public bool EsBonificacion { get; set; }
 }
 
+public sealed class PrefacturasConsignacionFiltro
+{
+    /// <summary>1 Editable, 2 Aprobada, 3 Facturada, 4 Anulada. null = todas.</summary>
+    public int? Estado { get; set; }
+    public long? IdCliente { get; set; }
+    public DateTime? Desde { get; set; }
+    public DateTime? Hasta { get; set; }
+}
+
+public sealed class PrefacturaConsignacionResumen
+{
+    public long Id { get; set; }
+    public double NumFactura { get; set; }
+    public long IdCliente { get; set; }
+    public string NombreCliente { get; set; } = "";
+    public DateTime Fecha { get; set; }
+    public int Estado { get; set; }
+    public string EstadoDescripcion { get; set; } = "";
+    public double Total { get; set; }
+}
+
 public sealed class PrefacturaConsignacion
 {
     public long Id { get; set; }

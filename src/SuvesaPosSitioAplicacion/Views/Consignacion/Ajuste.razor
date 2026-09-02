@@ -85,10 +85,19 @@
       </div>
     </div></div>
 
+    <div class="card mb-3"><div class="card-body row g-2 align-items-end">
+      <div class="col-md-3"><label class="form-label">Anular boleta por N.º</label><input type="number" class="form-control" @bind="_idBoletaBuscar" /></div>
+      <div class="col-md-2 d-grid"><button class="btn btn-outline-secondary" @onclick="() => AbrirBoleta(_idBoletaBuscar)" disabled="@(_idBoletaBuscar <= 0)">Abrir</button></div>
+    </div></div>
+
     @if (_boleta is not null)
     {
-      <div class="card"><div class="card-header text-bg-success">Boleta @_boleta.TipoDescripcion #@_boleta.Id</div><div class="card-body">
-        <p class="mb-2"><strong>@_boleta.NombreCliente</strong> · @_boleta.Fecha.ToString("dd/MM/yyyy HH:mm") · costo @_boleta.CostoTotal.ToString("N2")</p>
+      <div class="card"><div class="card-header d-flex justify-content-between align-items-center @(_boleta.Anulada ? "text-bg-secondary" : "text-bg-success")">
+        <span>Boleta @_boleta.TipoDescripcion #@_boleta.Id @(_boleta.Anulada ? "· ANULADA" : "")</span>
+        @if (!_boleta.Anulada) { <button class="btn btn-sm btn-light" @onclick="AbrirAnular">Anular</button> }
+      </div><div class="card-body">
+        <p class="mb-2"><strong>@_boleta.NombreCliente</strong> · @_boleta.Fecha.ToString("dd/MM/yyyy HH:mm") · costo @_boleta.CostoTotal.ToString("N2")
+          @if (_boleta.Anulada) { <span class="text-danger d-block small">Anulada: @_boleta.MotivoAnulacion (@_boleta.UsuarioAnulacion, @_boleta.FechaAnulacion?.ToString("dd/MM/yyyy"))</span> }</p>
         <table class="table table-sm mb-0"><thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Cantidad</th></tr></thead>
           <tbody>@foreach (var l in _boleta.Lineas){<tr><td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@l.NumeroLote</td><td class="text-end">@l.Cantidad.ToString("N3")</td></tr>}</tbody></table>
       </div></div>
@@ -96,6 +105,17 @@
   }
  </ChildContent>
 </AppPantalla>
+
+<HxModal @ref="_modalAnular" Title="Anular boleta">
+ <BodyTemplate>
+  <label class="form-label">Motivo <span class="text-danger">*</span></label>
+  <textarea class="form-control" @bind="_motivoAnular"></textarea>
+ </BodyTemplate>
+ <FooterTemplate>
+  <button class="btn btn-secondary" @onclick="() => _modalAnular.HideAsync()">Cancelar</button>
+  <button class="btn btn-danger" @onclick="ConfirmarAnular">Anular</button>
+ </FooterTemplate>
+</HxModal>
 
 @code {
  private List<FiltranClienteDTO> _clientes = new();
@@ -111,6 +131,29 @@
  private bool _cierreTotal, _guardando;
  private readonly List<BoletaConsignacionLinea> _lineas = new();
  private BoletaConsignacion? _boleta;
+ private long _idBoletaBuscar;
+ private HxModal _modalAnular = default!;
+ private string _motivoAnular = "";
+
+ private async Task AbrirBoleta(long id)
+ {
+     if (id <= 0) return;
+     _error = "";
+     var r = await Api.BoletaAsync(id);
+     if (Ok(r)) _boleta = r.Responses;
+     else { _boleta = null; await Fallo(r, "No se pudo abrir la boleta."); }
+ }
+
+ private async Task AbrirAnular() { _motivoAnular = ""; await _modalAnular.ShowAsync(); }
+
+ private async Task ConfirmarAnular()
+ {
+     if (_boleta is null) return;
+     if (string.IsNullOrWhiteSpace(_motivoAnular)) { await Dialogos.ErrorAsync("Indique el motivo."); return; }
+     var r = await Api.AnularBoletaAsync(new AnularBoletaConsignacion { IdBoleta = _boleta.Id, Motivo = _motivoAnular.Trim() });
+     if (Ok(r)) { await _modalAnular.HideAsync(); _boleta = r.Responses; Dialogos.Exito("Boleta anulada."); }
+     else await Fallo(r, "No se pudo anular la boleta.");
+ }
 
  private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
 

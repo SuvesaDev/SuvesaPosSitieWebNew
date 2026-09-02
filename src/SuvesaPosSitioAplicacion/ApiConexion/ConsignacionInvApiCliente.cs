@@ -32,6 +32,7 @@ public interface IConsignacionInvApiCliente
     Task<LoteEnvelope<PrefacturaConsignacion>> FacturarPrefacturaAsync(FacturarPrefacturaConsignacion req);
     Task<LoteEnvelope<PrefacturaConsignacion>> AnularPrefacturaAsync(AnularPrefacturaConsignacion req);
     Task<LoteEnvelope<PrefacturaConsignacion>> PrefacturaAsync(long id);
+    Task<LoteEnvelope<List<PrefacturaConsignacionResumen>>> PrefacturasAsync(PrefacturasConsignacionFiltro req);
 }
 
 public sealed class ConsignacionInvApiCliente : IConsignacionInvApiCliente
@@ -115,4 +116,7 @@ public sealed class ConsignacionInvApiCliente : IConsignacionInvApiCliente
 
     public Task<LoteEnvelope<PrefacturaConsignacion>> PrefacturaAsync(long id)
         => EnviarAsync<PrefacturaConsignacion>(HttpMethod.Get, $"ConsignacionInventario/Prefactura?id={id}");
+
+    public Task<LoteEnvelope<List<PrefacturaConsignacionResumen>>> PrefacturasAsync(PrefacturasConsignacionFiltro req)
+        => EnviarAsync<List<PrefacturaConsignacionResumen>>(HttpMethod.Post, "ConsignacionInventario/Prefacturas", req);
 }
