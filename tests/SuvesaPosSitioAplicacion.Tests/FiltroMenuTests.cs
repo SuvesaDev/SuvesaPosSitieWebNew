@@ -28,6 +28,7 @@ public class FiltroMenuTests
         public string? PerfilCodigo => EsSuperAdministrador ? "SUPER_ADMIN" : "USUARIO";
         public bool EsCostaPets => false;
         public bool EsAgenteCostaPets => false;
+        public bool PermitirExistenciaNegativa => false;
         public int IdSucursal => 1;
         public string? NombreSucursal => "Central";
         public bool TieneSucursal => true;

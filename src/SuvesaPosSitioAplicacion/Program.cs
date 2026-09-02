@@ -117,6 +117,9 @@ builder.Services.AddHttpClient<ISeguridadApiCliente, SeguridadApiCliente>(c => c
 // Cliente hecho a mano para el CRUD de /ConfiguracionBonificacion/* (§3.1, contratos NSwag no regenerables en local).
 builder.Services.AddHttpClient<IBonificacionApiCliente, BonificacionApiCliente>(c => c.BaseAddress = new Uri(urlApi))
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+// Cliente a mano para lotes / movimientos / toma física (MEJORA_LOTES_API.md).
+builder.Services.AddHttpClient<ILotesApiCliente, LotesApiCliente>(c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 ClienteApi<ICentrosApiCliente, CentrosApiCliente>();
 ClienteApi<IBancosApiCliente, BancosApiCliente>();
 ClienteApi<IInventarioApiCliente, InventarioApiCliente>();

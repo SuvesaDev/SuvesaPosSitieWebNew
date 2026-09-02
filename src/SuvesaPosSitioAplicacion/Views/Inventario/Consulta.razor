@@ -248,7 +248,7 @@
                                             <span class="badge text-bg-warning ms-1">Vencido</span>
                                         }
                                     </td>
-                                    <td>@l.Vencimiento.ToString("dd/MM/yyyy")</td>
+                                    <td>@(l.Vencimiento?.ToString("dd/MM/yyyy") ?? "—")</td>
                                     <td class="seepos-importe">@Formato.Cantidad(l.Cantidad)</td>
                                 </tr>
                             }
@@ -627,7 +627,7 @@
                             }
                             else
                             {
-                                <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Lote</th><th>Vencimiento</th><th class="text-end">Existencia</th><th></th></tr></thead><tbody>@foreach (var lote in _lotesEdicion) { <tr><td>@lote.Lote</td><td>@lote.Vencimiento.ToString("dd/MM/yyyy")</td><td class="text-end">@lote.Cantidad:N2</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarLote(lote)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
+                                <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Lote</th><th>Vencimiento</th><th class="text-end">Existencia</th><th></th></tr></thead><tbody>@foreach (var lote in _lotesEdicion) { <tr><td>@lote.Lote</td><td>@(lote.Vencimiento?.ToString("dd/MM/yyyy") ?? "—")</td><td class="text-end">@lote.Cantidad:N2</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarLote(lote)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
                             }
                         </div>
                     }
@@ -957,7 +957,7 @@
     }
 
     /// <summary>Un lote vencido sigue apareciendo, pero marcado: es informacion util.</summary>
-    private static bool Vencido(StockLoteDTO l) => l.Vencimiento.Date < DateTime.Today;
+    private static bool Vencido(StockLoteDTO l) => l.Vencimiento is {} v && v.Date < DateTime.Today;
 
     /// <summary>
     /// El API usa "No tiene lotes" como respuesta de negocio (también lo hace la
@@ -969,7 +969,7 @@
         var respuesta = await Api.Lotes(codigoArticulo);
         if (respuesta.EsCorrecta)
         {
-            return respuesta.Responses?.OrderBy(l => l.Vencimiento).ToList() ?? new List<StockLoteDTO>();
+            return respuesta.Responses?.OrderBy(l => l.Vencimiento ?? DateTimeOffset.MaxValue).ToList() ?? new List<StockLoteDTO>();
         }
 
         if (string.Equals(respuesta.Excepcion?.Trim(), "No tiene lotes", StringComparison.OrdinalIgnoreCase))

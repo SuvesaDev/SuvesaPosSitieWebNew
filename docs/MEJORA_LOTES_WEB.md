@@ -221,4 +221,23 @@ Cada paso: `dotnet build` 0 errores, `dotnet test` verde, y click-through manual
 
 ## 7. Bitácora
 
-- _(pendiente: registrar aquí cada paso de §5 al implementarlo — commit, archivos, verificación.)_
+Decisiones del API (§6) resueltas: `TipoArticulo` = enum fijo; **multi-bodega
+real**; devolución de venta suma; costeo por `Inventario.Costo`; **preventa =
+reserva**; consignación `Stock.Tipo=2`.
+
+### Paso 1 — Contratos y sesión — HECHO
+
+- `IContextoSesion.PermitirExistenciaNegativa` + claim `seepos:permiteExistenciaNegativa`
+  (escrito en `ServicioAutenticacion.ConstruirClaims`; añadido a `PerfilLoginDTO`,
+  `PerfilDTO` y `Autenticacion` planos). Test doubles de `IContextoSesion` actualizados.
+- `DTOs/Generated/SeePosDtos.cs`: `StockLoteDTO.Vencimiento` → `DateTimeOffset?`
+  (lote único no vence) + `EsUnico`/`Bloqueado`. Call sites de `.Vencimiento`
+  ajustados a nullable en Facturacion/Inventario/Compra.
+- `DTOs/Lotes/LotesDTOs.cs` (a mano): movimientos, existencia consolidada,
+  actualizar existencia, consumo/ingreso de lote, toma física.
+- `ApiConexion/LotesApiCliente.cs` (`ILotesApiCliente`): `Movimientos`,
+  `ExistenciaConsolidada`, `ActualizarExistencia`, `TomaArticulos`,
+  `TomaGuardar`, `TomaReporte`. Registrado en `Program.cs` con `ApiAuthHeaderHandler`.
+- Build 0 errores, 72/72 tests.
+- **Pendiente de contrato:** partials para `FacturaDetallesDTO.Lotes` y
+  `FacturaCompraDetalleDTO.Lotes` (se añaden en los pasos 4/5).

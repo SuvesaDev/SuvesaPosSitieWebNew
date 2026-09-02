@@ -20,6 +20,7 @@ public sealed class SesionFija : IContextoSesion
     public string? PerfilCodigo => "SUPER_ADMIN";
     public bool EsCostaPets => false;
     public bool EsAgenteCostaPets => false;
+        public bool PermitirExistenciaNegativa => false;
     public int IdSucursal => 0;
     public string? NombreSucursal => null;
     public bool TieneSucursal => false;

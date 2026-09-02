@@ -805,7 +805,7 @@
         foreach (var d in compra.Detalle ?? Array.Empty<FacturaCompraDetalleDTO>())
         {
             var articulo = new InventarioDTO { Codigo = d.Codigo, Cod_Articulo = d.CodArticulo, Descripcion = d.Descripcion, Codcabys = d.CodCabys, Precio_A = (float)d.PrecioA, Precio_B = (float)d.PrecioB, Precio_C = (float)d.PrecioC, Precio_D = (float)d.PrecioD, MonedaVenta = d.CodMonedaVenta, Lote = !string.IsNullOrWhiteSpace(d.Lote) };
-            var linea = new LineaCompra { Articulo = articulo, IdArticuloComprados = d.IdArticuloComprados, Cabys = d.CodCabys, Cantidad = Formato.AImporte(d.Cantidad), Regalias = Formato.AImporte(d.Regalias), Base = Formato.AImporte(d.Base), Flete = Formato.AImporte(d.MontoFlete), Otros = Formato.AImporte(d.OtrosCargos), Descuento = Formato.AImporte(d.DescuentoP), Impuesto = Formato.AImporte(d.ImpuestoP), Lote = d.Lote ?? string.Empty, VenceLote = d.LoteArticulo?.Vencimiento.DateTime ?? DateTime.Today };
+            var linea = new LineaCompra { Articulo = articulo, IdArticuloComprados = d.IdArticuloComprados, Cabys = d.CodCabys, Cantidad = Formato.AImporte(d.Cantidad), Regalias = Formato.AImporte(d.Regalias), Base = Formato.AImporte(d.Base), Flete = Formato.AImporte(d.MontoFlete), Otros = Formato.AImporte(d.OtrosCargos), Descuento = Formato.AImporte(d.DescuentoP), Impuesto = Formato.AImporte(d.ImpuestoP), Lote = d.Lote ?? string.Empty, VenceLote = d.LoteArticulo?.Vencimiento?.DateTime ?? DateTime.Today };
             linea.Recalcular(); _lineas.Add(linea); if (_bodega == 0) _bodega = d.IdBodega;
         }
         RecalcularTotales(); LimpiarEditor(); await _modalBuscarCompras.HideAsync();
