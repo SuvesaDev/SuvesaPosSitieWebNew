@@ -8,6 +8,7 @@
 @using System.Text.Json
 @inject IInventarioConsulta Api
 @inject ILotesApiCliente Lotes2
+@inject IProduccionApiCliente ProduccionApi
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
@@ -325,6 +326,10 @@
                     {
                         <button type="button" class="btn btn-sm @ClasePestanaLotes" @onclick="MostrarLotes">Lotes</button>
                     }
+                    @if (Sesion.EsCostaPets && !_esNuevo && _tipoArticulo == 3)
+                    {
+                        <button type="button" class="btn btn-sm @ClasePestanaFormula" @onclick="MostrarFormula">Fórmula</button>
+                    }
                     @if (!_esNuevo)
                     {
                         <button type="button" class="btn btn-sm @ClasePestanaExistencias" @onclick="MostrarExistencias">Existencias</button>
@@ -585,6 +590,34 @@
                             else
                             {
                                 <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Lote</th><th>Vencimiento</th><th class="text-end">Existencia</th><th></th></tr></thead><tbody>@foreach (var lote in _lotesEdicion) { <tr><td>@lote.Lote</td><td>@(lote.Vencimiento?.ToString("dd/MM/yyyy") ?? "—")</td><td class="text-end">@lote.Cantidad:N2</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarLote(lote)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
+                            }
+                        </div>
+                    }
+                }
+                else if (_pestanaInventario == "formula")
+                {
+                    @if (_esNuevo)
+                    {
+                        <div class="alert alert-info mb-0">Guarde primero el producto terminado. Después podrá definir su fórmula de producción.</div>
+                    }
+                    else
+                    {
+                        <div class="row g-3">
+                            <div class="col-12"><h3 class="h6 mb-0">Fórmula de producción</h3><p class="form-text">Agregue los insumos del producto terminado. Sólo se admiten artículos de tipo <strong>Materia prima</strong>. El consumo por lote y la conversión se hacen desde <strong>Producción → Calculadora</strong>.</p></div>
+                            @if (!string.IsNullOrWhiteSpace(_errorFormula))
+                            {
+                                <div class="col-12"><div class="alert alert-danger mb-0" role="alert">@_errorFormula</div></div>
+                            }
+                            <div class="col-12 col-md-5"><label class="form-label">Código del insumo</label><input type="number" min="1" class="form-control" @bind="_codigoFormula" /></div>
+                            <div class="col-12 col-md-4"><label class="form-label">Cantidad por unidad</label><input type="number" min="0.0001" step="0.0001" class="form-control" @bind="_cantidadFormula" /></div>
+                            <div class="col-12 col-md-3 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarFormula">Agregar insumo</button></div>
+                            @if (_formula.Count == 0)
+                            {
+                                <div class="col-12"><div class="alert alert-light border mb-0">Aún no hay insumos en la fórmula.</div></div>
+                            }
+                            else
+                            {
+                                <div class="col-12 table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Insumo</th><th class="text-end">Cantidad</th><th></th></tr></thead><tbody>@foreach (var item in _formula) { <tr><td><strong>@item.CodArticulo</strong><br /><span class="small text-secondary">@item.Descripcion</span></td><td class="text-end">@item.CantidadPorUnidad.ToString("N4")</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarFormula(item)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
                             }
                         </div>
                     }
@@ -856,6 +889,10 @@
     private string _tarifaPrecio = "A";
     private float _utilidadPrecio;
     private int _tipoArticulo = 1;
+    private List<SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente> _formula = new();
+    private int _codigoFormula;
+    private double _cantidadFormula = 1;
+    private string? _errorFormula;
     private List<StockLoteDTO> _lotesEdicion = new();
     private string _nuevoLote = string.Empty;
     private DateTime _vencimientoLote = DateTime.Today;
@@ -1083,6 +1120,7 @@
         if (Sesion.EsCostaPets)
         {
             await CargarImagenEditor(_edicion.Codigo);
+            await CargarFormula();
         }
         if (_edicion.Lote)
         {
@@ -1164,6 +1202,7 @@
     private string ClasePestanaPrecios => ClasePestana("precios");
     private string ClasePestanaBarras => ClasePestana("barras");
     private string ClasePestanaImagen => ClasePestana("imagen");
+    private string ClasePestanaFormula => ClasePestana("formula");
     private string ClasePestanaLotes => ClasePestana("lotes");
     private string ClasePestanaBonificacion => ClasePestana("bonificacion");
     private string ClasePestanaOtros => ClasePestana("otros");
@@ -1177,6 +1216,7 @@
     private void MostrarPrecios() => _pestanaInventario = "precios";
     private void MostrarBarras() => _pestanaInventario = "barras";
     private void MostrarImagen() => _pestanaInventario = "imagen";
+    private void MostrarFormula() => _pestanaInventario = "formula";
     private void MostrarLotes() => _pestanaInventario = "lotes";
     private void MostrarBonificacion() => _pestanaInventario = "bonificacion";
     private void MostrarOtros() => _pestanaInventario = "otros";
@@ -1453,10 +1493,83 @@
         _tarifaPrecio = "A";
         _utilidadPrecio = 0;
         _tipoArticulo = 1;
+        _formula = new();
+        _codigoFormula = 0;
+        _cantidadFormula = 1;
+        _errorFormula = null;
         _lotesEdicion = new();
         _nuevoLote = string.Empty;
         _vencimientoLote = DateTime.Today;
         _cantidadNuevoLote = 0;
+    }
+
+    private async Task CargarFormula()
+    {
+        if (_edicion is null || _esNuevo || _tipoArticulo != 3) { _formula = new(); return; }
+        var r = await ProduccionApi.FormulaAsync(_edicion.Codigo);
+        _formula = r.Status == DTOs.Generated.ResponseStatus._0
+            ? (r.Responses ?? new List<SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente>())
+            : new();
+    }
+
+    private async Task AgregarFormula()
+    {
+        _errorFormula = null;
+        if (_edicion is null || _codigoFormula <= 0 || _cantidadFormula <= 0)
+        {
+            _errorFormula = "Indique un código y una cantidad válida para el insumo.";
+            return;
+        }
+        if (_codigoFormula == _edicion.Codigo || _formula.Any(x => x.IdInsumo == _codigoFormula))
+        {
+            _errorFormula = "El insumo ya está en la fórmula o corresponde al producto terminado.";
+            return;
+        }
+        var insumo = await Respuestas.DatoAsync(await Api.Uno(_codigoFormula), "consultar el insumo");
+        if (insumo is null)
+        {
+            _errorFormula = "No existe un artículo con ese código.";
+            return;
+        }
+        if (insumo.TipoArticulo != 2)
+        {
+            _errorFormula = "La fórmula de un producto terminado sólo admite insumos de tipo Materia prima.";
+            return;
+        }
+        var r = await ProduccionApi.GuardarComponenteAsync(new SuvesaPosSitioAplicacion.DTOs.Produccion.GuardarComponenteFormula
+        {
+            IdArticuloTerminado = _edicion.Codigo,
+            IdInsumo = _codigoFormula,
+            Cantidad = _cantidadFormula,
+            Activo = true
+        });
+        if (r.Status != DTOs.Generated.ResponseStatus._0)
+        {
+            _errorFormula = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? "No se pudo agregar el insumo a la fórmula.";
+            return;
+        }
+        await CargarFormula();
+        _codigoFormula = 0;
+        _cantidadFormula = 1;
+        Dialogos.Exito("Insumo agregado a la fórmula.");
+    }
+
+    private async Task QuitarFormula(SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente item)
+    {
+        if (_edicion is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea quitar este insumo de la fórmula?")) return;
+        var r = await ProduccionApi.GuardarComponenteAsync(new SuvesaPosSitioAplicacion.DTOs.Produccion.GuardarComponenteFormula
+        {
+            IdArticuloTerminado = _edicion.Codigo,
+            IdInsumo = item.IdInsumo,
+            Activo = false
+        });
+        if (r.Status != DTOs.Generated.ResponseStatus._0)
+        {
+            _errorFormula = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? "No se pudo quitar el insumo de la fórmula.";
+            return;
+        }
+        await CargarFormula();
+        Dialogos.Exito("Insumo quitado de la fórmula.");
     }
 
 
@@ -1512,6 +1625,7 @@
             _edicion.EsPadre = _tipoArticulo == 2;          // compat
             if (_tipoArticulo is 2 or 3) _edicion.Lote = true;   // MP y PT obligan lote
             if (_tipoArticulo != 2) _edicion.LoteUnico = false;  // lote único sólo en MP
+            if (_tipoArticulo != 3 && _pestanaInventario == "formula") _pestanaInventario = "generales";
         }
         return Task.CompletedTask;
     }

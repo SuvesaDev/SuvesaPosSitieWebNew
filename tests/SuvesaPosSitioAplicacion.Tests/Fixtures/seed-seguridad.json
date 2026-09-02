@@ -217,14 +217,6 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
-        },
-        {
-          "codigo": "INICIO.CALCULADORA_PRODUCCION",
-          "nombre": "Calculadora de Producción",
-          "ruta": "/initial/production-calculator",
-          "padre": null,
-          "orden": 10,
-          "acciones": ["VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "EXPORTAR", "IMPRIMIR"]
         }
       ]
     },
@@ -1648,6 +1640,46 @@
           "ruta": "/moduloFarmacia",
           "padre": null,
           "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "PRODUCCION",
+      "nombre": "Producción",
+      "orden": 13,
+      "icono": "bi-hammer",
+      "funciones": [
+        {
+          "codigo": "PRODUCCION.CALCULADORA",
+          "nombre": "Calculadora",
+          "ruta": "/production/calculator",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "PRODUCCION.BITACORA",
+          "nombre": "Bitácora",
+          "ruta": "/production/log",
+          "padre": null,
+          "orden": 2,
           "acciones": [
             "VER",
             "CREAR",

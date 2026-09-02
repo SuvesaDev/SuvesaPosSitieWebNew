@@ -1,0 +1,287 @@
+@page "/production/calculator"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.DTOs.Lotes
+@using SuvesaPosSitioAplicacion.DTOs.Produccion
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IProduccionApiCliente Api
+@inject ILotesApiCliente LotesApi
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Calculadora de Producción" Codigo="PRODUCCION.CALCULADORA" Icono="bi-calculator"
+             Subtitulo="Elija un producto terminado y produzca contra sus lotes" Nivel="NivelPantalla.Escritorio">
+ <ChildContent>
+  <div class="card mb-3"><div class="card-body row g-2 align-items-end">
+    <div class="col-md-5"><label class="form-label">Bodega <span class="text-danger">*</span></label>
+      <select class="form-select" @bind="_bodega" @bind:after="CambiarBodega"><option value="0">Seleccione...</option>@foreach (var b in _bodegas){<option value="@b.IdBodega">@b.NombreBodega</option>}</select></div>
+    <div class="col-md-7"><label class="form-label">Buscar producto terminado</label>
+      <div class="input-group"><input class="form-control" @bind="_texto" @bind:event="oninput" placeholder="Código o descripción" />
+        <button class="btn btn-outline-primary" @onclick="CargarTerminados">Buscar</button></div></div>
+  </div></div>
+
+  @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+
+  <div class="card"><div class="card-header">Productos terminados</div><div class="table-responsive"><table class="table table-sm mb-0">
+    <thead><tr><th>Código</th><th>Descripción</th><th>Fórmula</th><th></th></tr></thead>
+    <tbody>
+      @foreach (var pt in _terminados)
+      {
+        <tr>
+          <td><code>@pt.CodArticulo</code></td><td>@pt.Descripcion</td>
+          <td>@(pt.TieneFormula ? "Sí" : "No")</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-primary" @onclick="() => Producir(pt)" disabled="@(_bodega == 0 || !pt.TieneFormula)">Producir</button>
+          </td>
+        </tr>
+      }
+      @if (!_terminados.Any()) { <tr><td colspan="4" class="text-secondary">No hay productos cargados.</td></tr> }
+    </tbody></table></div>
+    @if (_bodega == 0) { <div class="card-footer text-secondary small">Seleccione una bodega para habilitar la producción.</div> }
+  </div>
+ </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modal" Size="ModalSize.Large" Scrollable="true" Title="@_tituloModal">
+ <BodyTemplate>
+  @if (_pt is not null)
+  {
+    @if (!string.IsNullOrWhiteSpace(_errorModal)) { <div class="alert alert-danger">@_errorModal</div> }
+
+    @if (_reporte is null)
+    {
+      <h3 class="h6">Fórmula</h3>
+      <table class="table table-sm"><thead><tr><th>Insumo</th><th class="text-end">Cantidad / unidad</th></tr></thead>
+        <tbody>@foreach (var c in _formula){<tr><td><code>@c.CodArticulo</code> @c.Descripcion</td><td class="text-end">@c.CantidadPorUnidad.ToString("N3")</td></tr>}
+          @if (!_formula.Any()){<tr><td colspan="2" class="text-secondary">Este producto no tiene fórmula. Configúrela desde la ficha del artículo.</td></tr>}</tbody></table>
+
+      <div class="row mb-3"><div class="col-md-4"><label class="form-label">Cantidad a producir <span class="text-danger">*</span></label>
+        <input type="number" min="1" class="form-control" @bind="_cantidadAProducir" @bind:after="InvalidarCalculo" /></div></div>
+
+      @foreach (var c in _formula)
+      {
+        var disponibles = LotesDe(c.IdInsumo);
+        <div class="border rounded p-3 mb-3">
+          <div class="d-flex justify-content-between"><strong>@c.CodArticulo — @c.Descripcion</strong>
+            <span class="@(InsumoCuadra(c) ? "text-success" : "text-danger")">@Seleccionado(c).ToString("N3") / @Requerido(c).ToString("N3")</span></div>
+          <div class="row g-2 mt-1">
+            <div class="col-md-6"><select class="form-select" @bind="_loteElegido[c.IdInsumo]"><option value="0">Seleccione lote...</option>
+              @foreach (var l in disponibles){ var ex = l.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0; <option value="@l.Id">@l.Numero · @ex.ToString("N3")</option> }</select></div>
+            <div class="col-md-3"><input class="form-control" type="number" min="0.001" step="0.001" @bind="_cantidadLote[c.IdInsumo]" /></div>
+            <div class="col-md-3 d-grid"><button class="btn btn-outline-primary" @onclick="() => AgregarLote(c)" disabled="@LoteYaSeleccionado(c)">Agregar lote</button></div>
+          </div>
+          @if (_seleccion.TryGetValue(c.IdInsumo, out var sel) && sel.Any())
+          {
+            <table class="table table-sm mt-2 mb-0"><tbody>@foreach (var l in sel){<tr><td>@l.Numero</td><td class="text-end">@l.Cantidad.ToString("N3")</td>
+              <td class="text-end"><button class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLote(c.IdInsumo, l.IdStockLote)">Quitar</button></td></tr>}</tbody></table>
+          }
+          <small class="@(InsumoCuadra(c) ? "text-success" : "text-danger")">@(InsumoCuadra(c) ? "Cantidad exacta seleccionada." : $"Faltan o sobran {Math.Abs(Requerido(c) - Seleccionado(c)):N3} unidades.")</small>
+        </div>
+      }
+
+      <button class="btn btn-primary" @onclick="Calcular" disabled="@(!TodoCuadra() || _calculando)">@(_calculando ? "Calculando..." : "Calcular disponibles")</button>
+
+      @if (_calculo is not null)
+      {
+        <div class="mt-3"><strong>Máximo a producir: @_calculo.MaximoAProducir</strong>
+          <table class="table table-sm mt-2"><thead><tr><th>Insumo</th><th class="text-end">Requerido</th><th class="text-end">Seleccionado</th><th class="text-end">Disponible</th></tr></thead>
+            <tbody>@foreach (var d in _calculo.Insumos){<tr><td>@d.Descripcion</td><td class="text-end">@d.RequeridoTotal.ToString("N3")</td>
+              <td class="text-end">@d.TotalSeleccionado.ToString("N3")</td><td class="text-end">@d.ExistenciaTotalDisponible.ToString("N3")</td></tr>}</tbody></table>
+        </div>
+        <hr />
+        <div class="row g-2 align-items-end">
+          <div class="col-md-5"><label class="form-label">Lote del producto terminado <span class="text-danger">*</span></label>
+            <input class="form-control" @bind="_loteProducido" /></div>
+          <div class="col-md-4"><label class="form-label">Vencimiento <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" @bind="_vencimientoProducido" /></div>
+          <div class="col-md-3 d-grid"><button class="btn btn-success" @onclick="Convertir" disabled="@(!PuedeConvertir || _convirtiendo)">@(_convirtiendo ? "Convirtiendo..." : "Convertir")</button></div>
+        </div>
+      }
+    }
+    else
+    {
+      <div class="alert alert-success">Producción registrada <strong>#@_reporte.Id</strong>.</div>
+      <div class="row mb-2">
+        <div class="col-md-4"><strong>Lote:</strong> @_reporte.NumeroLoteProducido</div>
+        <div class="col-md-4"><strong>Cantidad:</strong> @_reporte.CantidadProducida</div>
+        <div class="col-md-4"><strong>Costo total:</strong> @_reporte.CostoTotalInsumos.ToString("N2")</div>
+      </div>
+      <table class="table table-sm"><thead><tr><th>Insumo</th><th>Lote</th><th class="text-end">Cantidad</th><th class="text-end">Costo línea</th></tr></thead>
+        <tbody>@foreach (var l in _reporte.Lineas){<tr><td><code>@l.CodArticuloInsumo</code> @l.DescripcionInsumo</td><td>@l.NumeroLote</td>
+          <td class="text-end">@l.CantidadConsumida.ToString("N3")</td><td class="text-end">@l.CostoLinea.ToString("N2")</td></tr>}</tbody></table>
+    }
+  }
+ </BodyTemplate>
+ <FooterTemplate>
+  <button class="btn btn-secondary" @onclick="() => _modal.HideAsync()">Cerrar</button>
+ </FooterTemplate>
+</HxModal>
+
+@code {
+ private List<Bodega> _bodegas = new();
+ private List<ProductoTerminado> _terminados = new();
+ private ProductoTerminado? _pt;
+ private List<FormulaComponente> _formula = new();
+ private readonly Dictionary<long, List<LoteExistencia>> _lotes = new();
+ private readonly Dictionary<long, List<LoteSeleccionado>> _seleccion = new();
+ private readonly Dictionary<long, long> _loteElegido = new();
+ private readonly Dictionary<long, double> _cantidadLote = new();
+ private int _bodega, _cantidadAProducir = 1;
+ private string _texto = "", _loteProducido = "", _error = "", _errorModal = "";
+ private DateOnly? _vencimientoProducido;
+ private CalculoProduccion? _calculo;
+ private ProduccionReporte? _reporte;
+ private bool _calculando, _convirtiendo;
+ private HxModal _modal = default!;
+ private string _tituloModal = "Producir";
+
+ protected override async Task OnInitializedAsync()
+ {
+     var r = await Api.BodegasAsync();
+     if (Ok(r)) _bodegas = r.Responses ?? new();
+     await CargarTerminados();
+ }
+
+ private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
+
+ private async Task Fallo<T>(LoteEnvelope<T> r, string alterno, bool modal = false)
+ {
+     var msg = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? alterno;
+     if (modal) _errorModal = msg; else _error = msg;
+     await Dialogos.ErrorAsync(msg);
+ }
+
+ private async Task CargarTerminados()
+ {
+     _error = "";
+     var r = await Api.ProductosTerminadosAsync(string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim());
+     if (Ok(r)) _terminados = r.Responses ?? new();
+     else await Fallo(r, "No se pudieron cargar los productos terminados.");
+ }
+
+ private async Task Producir(ProductoTerminado pt)
+ {
+     _pt = pt;
+     _tituloModal = $"Producir — {pt.CodArticulo} {pt.Descripcion}";
+     _errorModal = "";
+     _reporte = null;
+     _calculo = null;
+     _cantidadAProducir = 1;
+     _loteProducido = "";
+     _vencimientoProducido = null;
+     _seleccion.Clear();
+     _lotes.Clear();
+     _loteElegido.Clear();
+     _cantidadLote.Clear();
+
+     var r = await Api.FormulaAsync(pt.Codigo);
+     if (Ok(r))
+     {
+         _formula = r.Responses ?? new();
+         foreach (var c in _formula) { _loteElegido[c.IdInsumo] = 0; _cantidadLote[c.IdInsumo] = 1; await CargarLotes(c.IdInsumo); }
+     }
+     else { _formula = new(); await Fallo(r, "No se pudo cargar la fórmula.", modal: true); }
+
+     await _modal.ShowAsync();
+ }
+
+ private async Task CargarLotes(long idInsumo)
+ {
+     var r = await LotesApi.ExistenciaConsolidadaAsync(idInsumo);
+     if (Ok(r))
+         _lotes[idInsumo] = (r.Responses?.Lotes ?? new())
+             .Where(l => !l.Vencido && !l.Bloqueado && (l.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0) > 0)
+             .ToList();
+ }
+
+ private async Task CambiarBodega()
+ {
+     if (_pt is null) return;
+     _seleccion.Clear();
+     _calculo = null;
+     foreach (var c in _formula) await CargarLotes(c.IdInsumo);
+ }
+
+ private List<LoteExistencia> LotesDe(long id) => _lotes.TryGetValue(id, out var l) ? l : new();
+ private double Requerido(FormulaComponente c) => c.CantidadPorUnidad * _cantidadAProducir;
+ private double Seleccionado(FormulaComponente c) => _seleccion.TryGetValue(c.IdInsumo, out var l) ? l.Sum(x => x.Cantidad) : 0;
+ private bool InsumoCuadra(FormulaComponente c) => Math.Abs(Seleccionado(c) - Requerido(c)) < 1e-6;
+ private bool TodoCuadra() => _bodega > 0 && _cantidadAProducir >= 1 && _formula.Any() && _formula.All(InsumoCuadra);
+ private bool LoteYaSeleccionado(FormulaComponente c)
+     => _loteElegido.GetValueOrDefault(c.IdInsumo) > 0
+        && _seleccion.TryGetValue(c.IdInsumo, out var lista)
+        && lista.Any(x => x.IdStockLote == _loteElegido[c.IdInsumo]);
+ private void InvalidarCalculo() => _calculo = null;
+
+ private async Task AgregarLote(FormulaComponente c)
+ {
+     var id = _loteElegido.GetValueOrDefault(c.IdInsumo);
+     var cantidad = _cantidadLote.GetValueOrDefault(c.IdInsumo);
+     var lote = LotesDe(c.IdInsumo).FirstOrDefault(x => x.Id == id);
+     if (lote is null || cantidad <= 0) { await Dialogos.ErrorAsync("Seleccione un lote y una cantidad válida."); return; }
+     var existencia = lote.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0;
+     var lista = _seleccion.GetValueOrDefault(c.IdInsumo) ?? new();
+     if (lista.Any(x => x.IdStockLote == id)) { await Dialogos.ErrorAsync("Ese lote ya fue agregado para este insumo."); return; }
+     if (cantidad > existencia) { await Dialogos.ErrorAsync("La cantidad supera la existencia del lote en la bodega."); return; }
+     _seleccion[c.IdInsumo] = lista;
+     lista.Add(new LoteSeleccionado(id, lote.Numero, cantidad));
+     _loteElegido[c.IdInsumo] = 0;
+     _cantidadLote[c.IdInsumo] = 1;
+     _calculo = null;
+ }
+
+ private void QuitarLote(long insumo, long lote)
+ {
+     if (_seleccion.TryGetValue(insumo, out var l)) l.RemoveAll(x => x.IdStockLote == lote);
+     _calculo = null;
+ }
+
+ private CalculoProduccionRequest Solicitud(bool convertir = false) => new()
+ {
+     IdArticuloTerminado = _pt!.Codigo,
+     Bodega = _bodega,
+     Convertir = convertir,
+     CantidadAProducir = _cantidadAProducir,
+     NumeroLoteProducido = _loteProducido.Trim(),
+     VencimientoLoteProducido = _vencimientoProducido,
+     Insumos = _formula.Select(c => new ConsumoInsumo
+     {
+         IdArticuloInsumo = c.IdInsumo,
+         Lotes = _seleccion.GetValueOrDefault(c.IdInsumo)?.Select(l => new LoteConsumo { IdStockLote = l.IdStockLote, Cantidad = l.Cantidad }).ToList() ?? new()
+     }).ToList()
+ };
+
+ private async Task Calcular()
+ {
+     if (!TodoCuadra()) return;
+     _errorModal = "";
+     _calculando = true;
+     var r = await Api.CalcularAsync(Solicitud());
+     _calculando = false;
+     if (Ok(r) && r.Responses!.MaximoAProducir == _cantidadAProducir && r.Responses.Insumos.All(x => x.Cuadra))
+         _calculo = r.Responses;
+     else { _calculo = null; await Fallo(r, "La selección no permite producir la cantidad indicada.", modal: true); }
+ }
+
+ private bool PuedeConvertir => _calculo is not null && TodoCuadra()
+     && !string.IsNullOrWhiteSpace(_loteProducido) && _vencimientoProducido is not null;
+
+ private async Task Convertir()
+ {
+     if (!PuedeConvertir) return;
+     if (!await Dialogos.ConfirmarAsync(
+         $"Se descontarán los insumos y se creará el lote {_loteProducido.Trim()} del terminado con vencimiento {_vencimientoProducido:dd/MM/yyyy}.",
+         "Convertir producción", "Convertir")) return;
+     _convirtiendo = true;
+     var r = await Api.ConvertirAsync(Solicitud(true));
+     _convirtiendo = false;
+     if (!Ok(r)) { await Fallo(r, "No se pudo convertir la producción.", modal: true); return; }
+     _reporte = r.Responses;
+     Dialogos.Exito("Producción registrada correctamente.");
+ }
+
+ private sealed record LoteSeleccionado(long IdStockLote, string Numero, double Cantidad);
+}

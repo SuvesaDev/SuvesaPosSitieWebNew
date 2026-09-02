@@ -80,12 +80,6 @@ public static partial class MenuSeePos
                     Titulo = "Consulta Albaranes",
                     Codigo = "INICIO.CONSULTA_ALBARANES",
                     Ruta = "/initial/consultAlbaranes",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Calculadora de Producción",
-                    Codigo = "INICIO.CALCULADORA_PRODUCCION",
-                    Ruta = "/initial/production-calculator",
                 }
             }
         },
@@ -702,6 +696,30 @@ public static partial class MenuSeePos
             Codigo = "MODULO_FARMACIA.MODULO_FARMACIA",
             Ruta = "/moduloFarmacia",
             Icono = "bi-capsule",
+        },
+        new ItemMenu
+        {
+            // Modulo propio (a peticion del usuario): la Calculadora de Produccion y
+            // la Bitacora salen de "Inicio" a su propio modulo.
+            Titulo = "Producción",
+            Codigo = "PRODUCCION",
+            Ruta = "/production/calculator",
+            Icono = "bi-hammer",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Calculadora",
+                    Codigo = "PRODUCCION.CALCULADORA",
+                    Ruta = "/production/calculator",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Bitácora",
+                    Codigo = "PRODUCCION.BITACORA",
+                    Ruta = "/production/log",
+                }
+            }
         }
     };
 }
