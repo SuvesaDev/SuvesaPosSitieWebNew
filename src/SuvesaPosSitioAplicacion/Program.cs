@@ -120,6 +120,8 @@ builder.Services.AddHttpClient<IBonificacionApiCliente, BonificacionApiCliente>(
 // Cliente a mano para lotes / movimientos / toma física (MEJORA_LOTES_API.md).
 builder.Services.AddHttpClient<ILotesApiCliente, LotesApiCliente>(c => c.BaseAddress = new Uri(urlApi))
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+builder.Services.AddHttpClient<IProduccionApiCliente, ProduccionApiCliente>(c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 ClienteApi<ICentrosApiCliente, CentrosApiCliente>();
 ClienteApi<IBancosApiCliente, BancosApiCliente>();
 ClienteApi<IInventarioApiCliente, InventarioApiCliente>();
@@ -175,7 +177,6 @@ builder.Services.AddScoped<ISeguridad, Seguridad>();
 builder.Services.AddScoped<IBancos, Bancos>();
 builder.Services.AddScoped<IInventarioConsulta, InventarioConsulta>();
 builder.Services.AddScoped<ICatalogosInventario, CatalogosInventario>();
-builder.Services.AddScoped<IProduccionInventario, ProduccionInventario>();
 builder.Services.AddScoped<IImagenesArticulo, ImagenesArticulo>();
 builder.Services.AddScoped<IArticulosRelacionados, ArticulosRelacionados>();
 builder.Services.AddScoped<ICartasExoneracion, CartasExoneracion>();

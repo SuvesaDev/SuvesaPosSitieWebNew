@@ -80,6 +80,12 @@ public static partial class MenuSeePos
                     Titulo = "Consulta Albaranes",
                     Codigo = "INICIO.CONSULTA_ALBARANES",
                     Ruta = "/initial/consultAlbaranes",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Calculadora de Producción",
+                    Codigo = "INICIO.CALCULADORA_PRODUCCION",
+                    Ruta = "/initial/production-calculator",
                 }
             }
         },

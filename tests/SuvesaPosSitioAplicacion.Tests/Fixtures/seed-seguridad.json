@@ -217,6 +217,14 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "INICIO.CALCULADORA_PRODUCCION",
+          "nombre": "Calculadora de Producción",
+          "ruta": "/initial/production-calculator",
+          "padre": null,
+          "orden": 10,
+          "acciones": ["VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "EXPORTAR", "IMPRIMIR"]
         }
       ]
     },

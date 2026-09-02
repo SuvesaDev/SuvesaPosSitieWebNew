@@ -30,6 +30,12 @@
        prefers-color-scheme por su cuenta. Va en el head y sin esperar a Blazor
        para que no haya un destello de tema claro al cargar. *@
     <script>
+        window.seepos = window.seepos || {};
+        window.seepos.descargarTexto = function (nombre, texto, tipo) {
+            var enlace = document.createElement('a');
+            enlace.href = URL.createObjectURL(new Blob([texto], { type: tipo }));
+            enlace.download = nombre; enlace.click(); URL.revokeObjectURL(enlace.href);
+        };
         (function () {
             try {
                 var guardado = localStorage.getItem('seepos.tema');

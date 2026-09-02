@@ -13,7 +13,6 @@
 @inject IContextoSesion Sesion
 @inject IImagenesArticulo Imagenes
 @inject IArticulosRelacionados Relacionados
-@inject IProduccionInventario Produccion
 @inject ICatalogosInventario Catalogos
 @inject ICatalogoBonificacion CatalogoBonificacion
 @inject IArticuloBonificacion ArticuloBonificacion
@@ -322,10 +321,6 @@
                     {
                         <button type="button" class="btn btn-sm @ClasePestanaImagen" @onclick="MostrarImagen">Imagen</button>
                     }
-                    @if (Sesion.EsCostaPets && !_esNuevo && _tipoArticulo == 3)
-                    {
-                        <button type="button" class="btn btn-sm @ClasePestanaFormula" @onclick="MostrarFormula">Fórmula y conversión</button>
-                    }
                     @if (_edicion.Lote)
                     {
                         <button type="button" class="btn btn-sm @ClasePestanaLotes" @onclick="MostrarLotes">Lotes</button>
@@ -568,56 +563,6 @@
                             }
                         </div>
                     </div>
-                }
-                else if (_pestanaInventario == "formula")
-                {
-                    @if (_esNuevo)
-                    {
-                        <div class="alert alert-info mb-0">Guarde primero el producto terminado. Después podrá definir su fórmula y convertir existencias.</div>
-                    }
-                    else
-                    {
-                    <div class="row g-3">
-                        <div class="col-12"><h3 class="h6 mb-0">Fórmula de producción</h3><p class="form-text">Agregue los insumos del producto terminado. La conversión descuenta los lotes seleccionados.</p></div>
-                        @if (!string.IsNullOrWhiteSpace(_errorFormula))
-                        {
-                            <div class="col-12"><div class="alert alert-danger mb-0" role="alert">@_errorFormula</div></div>
-                        }
-                        <div class="col-12 col-md-5"><label class="form-label">Código del insumo</label><input type="number" min="1" class="form-control" @bind="_codigoFormula" /></div>
-                        <div class="col-12 col-md-4"><label class="form-label">Cantidad por unidad</label><input type="number" min="0.0001" step="0.0001" class="form-control" @bind="_cantidadFormula" /></div>
-                        <div class="col-12 col-md-3 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarFormula">Agregar insumo</button></div>
-                        @if (_formula.Count == 0)
-                        {
-                            <div class="col-12"><div class="alert alert-light border mb-0">Aún no hay insumos en la fórmula.</div></div>
-                        }
-                        else
-                        {
-                            <div class="col-12 table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Insumo</th><th class="text-end">Cantidad</th><th></th></tr></thead><tbody>@foreach (var item in _formula) { <tr><td><strong>@item.CodArticulo</strong><br /><span class="small text-secondary">@item.Descripcion</span></td><td class="text-end">@item.Cantidad</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarFormula(item)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
-                        }
-
-                        <div class="col-12"><hr /><h3 class="h6 mb-0">Lotes que se consumirán</h3><p class="form-text">Debe seleccionar al menos un lote para cada insumo de la fórmula antes de calcular.</p></div>
-                        @if (!string.IsNullOrWhiteSpace(_errorLotesFormula))
-                        {
-                            <div class="col-12"><div class="alert alert-danger mb-0" role="alert">@_errorLotesFormula</div></div>
-                        }
-                        <div class="col-12 col-md-4"><label class="form-label">Insumo</label><select class="form-select" @bind="_articuloLoteFormula" @bind:after="CargarLotesFormula"><option value="0">Seleccione...</option>@foreach (var item in _formula) { <option value="@item.Codigo">@item.CodArticulo — @item.Descripcion</option> }</select></div>
-                        <div class="col-12 col-md-4"><label class="form-label">Lote</label><select class="form-select" @bind="_loteFormula"><option value="0">Seleccione...</option>@foreach (var lote in _lotesFormula) { <option value="@lote.Id">@lote.Lote (@lote.Cantidad.ToString("N2"))</option> }</select></div>
-                        <div class="col-12 col-md-4"><label class="form-label">Bodega</label><select class="form-select" @bind="_bodegaFormula"><option value="0">Seleccione...</option>@foreach (var bodega in _bodegas) { <option value="@bodega.IdBodega">@bodega.NombreBodega</option> }</select></div>
-                        <div class="col-12 col-md-4"><label class="form-label">Cantidad del lote</label><input type="number" min="1" step="1" class="form-control" @bind="_cantidadLoteFormula" /></div>
-                        <div class="col-12 col-md-4 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarLoteFormula">Agregar lote</button></div>
-                        @if (_seleccionLotesFormula.Count > 0)
-                        {
-                            <div class="col-12 table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Insumo</th><th>Lote</th><th>Bodega</th><th class="text-end">Disponible</th><th class="text-end">A consumir</th><th></th></tr></thead><tbody>@foreach (var lote in _seleccionLotesFormula) { <tr><td>@lote.Articulo</td><td>@lote.Lote</td><td>@lote.Bodega</td><td class="text-end">@lote.Disponible.ToString("N2")</td><td class="text-end">@lote.Cantidad</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _seleccionLotesFormula.Remove(lote)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
-                        }
-                        <div class="col-12 col-md-6 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="CalcularProduccion">Calcular producción disponible</button></div>
-                        @if (_produccionDisponible is not null)
-                        {
-                            <div class="col-12"><div class="alert alert-info mb-0">Con los lotes seleccionados puede producir <strong>@_produccionDisponible</strong> unidades.</div></div>
-                            <div class="col-12 col-md-6"><label class="form-label">Unidades por convertir</label><input type="number" min="1" max="@_produccionDisponible" class="form-control" @bind="_cantidadConvertir" /></div>
-                            <div class="col-12 col-md-6 d-grid align-self-end"><button type="button" class="btn btn-primary" @onclick="ConvertirProduccion">Convertir inventario</button></div>
-                        }
-                    </div>
-                    }
                 }
                 else if (_pestanaInventario == "lotes")
                 {
@@ -911,20 +856,6 @@
     private string _tarifaPrecio = "A";
     private float _utilidadPrecio;
     private int _tipoArticulo = 1;
-    private List<Bodega> _bodegas = new();
-    private List<ArticulosRelacionadosDTO> _formula = new();
-    private int _codigoFormula;
-    private float _cantidadFormula = 1;
-    private int _articuloLoteFormula;
-    private long _loteFormula;
-    private int _bodegaFormula;
-    private int _cantidadLoteFormula = 1;
-    private int _cantidadConvertir;
-    private List<StockLoteDTO> _lotesFormula = new();
-    private List<LoteFormulaSeleccionado> _seleccionLotesFormula = new();
-    private int? _produccionDisponible;
-    private string? _errorFormula;
-    private string? _errorLotesFormula;
     private List<StockLoteDTO> _lotesEdicion = new();
     private string _nuevoLote = string.Empty;
     private DateTime _vencimientoLote = DateTime.Today;
@@ -1151,7 +1082,6 @@
         _edicion.TipoArticulo = _tipoArticulo;
         if (Sesion.EsCostaPets)
         {
-            await CargarProduccion();
             await CargarImagenEditor(_edicion.Codigo);
         }
         if (_edicion.Lote)
@@ -1234,7 +1164,6 @@
     private string ClasePestanaPrecios => ClasePestana("precios");
     private string ClasePestanaBarras => ClasePestana("barras");
     private string ClasePestanaImagen => ClasePestana("imagen");
-    private string ClasePestanaFormula => ClasePestana("formula");
     private string ClasePestanaLotes => ClasePestana("lotes");
     private string ClasePestanaBonificacion => ClasePestana("bonificacion");
     private string ClasePestanaOtros => ClasePestana("otros");
@@ -1248,7 +1177,6 @@
     private void MostrarPrecios() => _pestanaInventario = "precios";
     private void MostrarBarras() => _pestanaInventario = "barras";
     private void MostrarImagen() => _pestanaInventario = "imagen";
-    private void MostrarFormula() => _pestanaInventario = "formula";
     private void MostrarLotes() => _pestanaInventario = "lotes";
     private void MostrarBonificacion() => _pestanaInventario = "bonificacion";
     private void MostrarOtros() => _pestanaInventario = "otros";
@@ -1525,97 +1453,12 @@
         _tarifaPrecio = "A";
         _utilidadPrecio = 0;
         _tipoArticulo = 1;
-        _formula = new();
-        _bodegas = new();
-        _codigoFormula = 0;
-        _cantidadFormula = 1;
-        _articuloLoteFormula = 0;
-        _loteFormula = 0;
-        _bodegaFormula = 0;
-        _cantidadLoteFormula = 1;
-        _cantidadConvertir = 0;
-        _lotesFormula = new();
-        _seleccionLotesFormula = new();
-        _produccionDisponible = null;
-        _errorFormula = null;
-        _errorLotesFormula = null;
         _lotesEdicion = new();
         _nuevoLote = string.Empty;
         _vencimientoLote = DateTime.Today;
         _cantidadNuevoLote = 0;
     }
 
-    private async Task CargarProduccion()
-    {
-        if (_edicion is null || _esNuevo || !Sesion.EsCostaPets) return;
-        _bodegas = (await Respuestas.DatoAsync(await Produccion.Bodegas(true), "consultar las bodegas"))?.ToList() ?? new();
-        _formula = await ConsultarFormula(_edicion.Codigo);
-        // En el sistema anterior una fórmula existente identifica un producto terminado.
-        if (_formula.Count > 0)
-        {
-            _tipoArticulo = 3;
-            await VerificarCostoFormula();
-        }
-    }
-
-    /// <summary>
-    /// Igual que el sistema actual: al abrir un artículo de fórmula, se compara
-    /// el costo guardado contra lo que realmente cuesta armarlo hoy con sus
-    /// insumos, y si quedó desactualizado (por debajo del real) se ofrece
-    /// corregirlo. Solo avisa cuando el calculado es mayor — un costo guardado
-    /// más alto que el calculado no es el caso que React resuelve acá.
-    /// </summary>
-    private async Task VerificarCostoFormula()
-    {
-        if (_edicion is null || string.IsNullOrWhiteSpace(_edicion.Cod_Articulo)) return;
-
-        // Si la consulta falla, DatoAsync ya avisó el error y devuelve 0 — con
-        // costo actual normalmente positivo, la comparación de abajo no
-        // dispara la confirmación, así que no hace falta distinguir el caso.
-        var calculado = await Respuestas.DatoAsync(
-            await Relacionados.CostoCalculado(_edicion.Cod_Articulo), "consultar el costo calculado del artículo");
-
-        var costoActual = Formato.AImporte(_edicion.Costo);
-        var costoCalculado = Formato.AImporte(calculado);
-        if (costoCalculado <= costoActual) return;
-
-        var nombre = _edicion.Descripcion ?? _edicion.Cod_Articulo;
-        if (!await Dialogos.ConfirmarAsync(
-            $"El artículo {nombre} tiene un costo actual de {Formato.Importe(costoActual)} y el costo calculado es de {Formato.Importe(costoCalculado)}. ¿Desea cambiarlo?",
-            "Costo desactualizado", "Cambiar"))
-        {
-            return;
-        }
-
-        if (await Respuestas.CorrectaAsync(
-            await Api.ActualizarCosto(_edicion.Cod_Articulo, (double)costoCalculado), "actualizar el costo del artículo"))
-        {
-            _edicion.Costo = (float)costoCalculado;
-            Dialogos.Exito($"Se cambió el costo del artículo {nombre}.");
-        }
-    }
-
-    /// <summary>
-    /// El endpoint heredado de fórmulas devuelve estado fallido con el texto
-    /// <c>"0"</c> cuando todavía no hay componentes. Es una colección vacía de
-    /// negocio, no un fallo que deba impedir abrir un producto terminado.
-    /// </summary>
-    private async Task<List<ArticulosRelacionadosDTO>> ConsultarFormula(long codigoArticulo)
-    {
-        var respuesta = await Produccion.Formula(codigoArticulo);
-        if (respuesta.EsCorrecta)
-        {
-            return respuesta.Responses?.ToList() ?? new List<ArticulosRelacionadosDTO>();
-        }
-
-        if (string.Equals(respuesta.Excepcion?.Trim(), "0", StringComparison.Ordinal))
-        {
-            return new List<ArticulosRelacionadosDTO>();
-        }
-
-        await Respuestas.DatoAsync(respuesta, "consultar la fórmula");
-        return new List<ArticulosRelacionadosDTO>();
-    }
 
     /// <summary>Los selectores usan las proyecciones de inventario, no los catálogos administrativos genéricos.</summary>
     private async Task CargarCatalogosInventario()
@@ -1670,7 +1513,6 @@
             if (_tipoArticulo is 2 or 3) _edicion.Lote = true;   // MP y PT obligan lote
             if (_tipoArticulo != 2) _edicion.LoteUnico = false;  // lote único sólo en MP
         }
-        if (_tipoArticulo != 3 && _pestanaInventario == "formula") _pestanaInventario = "generales";
         return Task.CompletedTask;
     }
 
@@ -1732,147 +1574,6 @@
             Dialogos.Exito("Lote quitado.");
         }
     }
-
-    private async Task AgregarFormula()
-    {
-        if (_edicion is null || _codigoFormula <= 0 || _cantidadFormula <= 0)
-        {
-            ErrorFormula("Indique un código y una cantidad válida para el insumo.");
-            return;
-        }
-        if (_codigoFormula == _edicion.Codigo || _formula.Any(x => x.Codigo == _codigoFormula))
-        {
-            ErrorFormula("El insumo ya está en la fórmula o corresponde al producto terminado.");
-            return;
-        }
-        var insumo = await Respuestas.DatoAsync(await Api.Uno(_codigoFormula), "consultar el insumo");
-        if (insumo is null)
-        {
-            ErrorFormula("No existe un artículo con ese código.");
-            return;
-        }
-        if (await Respuestas.CorrectaAsync(await Produccion.GuardarFormula(_edicion.Codigo, _codigoFormula, _cantidadFormula, true), "agregar el insumo a la fórmula"))
-        {
-            _formula = await ConsultarFormula(_edicion.Codigo);
-            _codigoFormula = 0;
-            _cantidadFormula = 1;
-            _produccionDisponible = null;
-            _errorFormula = null;
-            Dialogos.Exito("Insumo agregado a la fórmula.");
-        }
-    }
-
-    private async Task QuitarFormula(ArticulosRelacionadosDTO item)
-    {
-        if (_edicion is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea quitar este insumo de la fórmula?")) return;
-        if (await Respuestas.CorrectaAsync(await Produccion.GuardarFormula(_edicion.Codigo, item.Codigo, item.Cantidad, false), "quitar el insumo de la fórmula"))
-        {
-            _formula.Remove(item);
-            _seleccionLotesFormula.RemoveAll(lote => lote.IdArticulo == item.Codigo);
-            _produccionDisponible = null;
-            Dialogos.Exito("Insumo quitado de la fórmula.");
-        }
-    }
-
-    private async Task CargarLotesFormula()
-    {
-        _loteFormula = 0;
-        _errorLotesFormula = null;
-        _lotesFormula = _articuloLoteFormula <= 0
-            ? new()
-            : (await ConsultarLotes(_articuloLoteFormula))
-                .Where(x => x.Activo != false).ToList();
-
-        if (_articuloLoteFormula > 0 && _lotesFormula.Count == 0)
-        {
-            ErrorLotesFormula("El insumo seleccionado no tiene lotes activos disponibles.");
-        }
-    }
-
-    private async Task AgregarLoteFormula()
-    {
-        var lote = _lotesFormula.FirstOrDefault(x => x.Id == _loteFormula);
-        var insumo = _formula.FirstOrDefault(x => x.Codigo == _articuloLoteFormula);
-        var bodega = _bodegas.FirstOrDefault(x => x.IdBodega == _bodegaFormula);
-        if (lote is null || insumo is null || bodega is null || _cantidadLoteFormula <= 0)
-        {
-            ErrorLotesFormula("Seleccione el insumo, lote, bodega y una cantidad válida.");
-            return;
-        }
-        if (_cantidadLoteFormula > lote.Cantidad)
-        {
-            ErrorLotesFormula("La cantidad a consumir no puede exceder la disponibilidad del lote.");
-            return;
-        }
-        if (_seleccionLotesFormula.Any(x => x.IdArticulo == insumo.Codigo && x.IdLote == lote.Id))
-        {
-            ErrorLotesFormula("Ese lote ya fue agregado para este insumo.");
-            return;
-        }
-        _seleccionLotesFormula.Add(new LoteFormulaSeleccionado(insumo.Codigo, lote.Id, bodega.IdBodega, insumo.Descripcion ?? insumo.CodArticulo ?? "Insumo", lote.Lote ?? "Sin lote", bodega.NombreBodega ?? "Bodega", lote.Cantidad, _cantidadLoteFormula));
-        _loteFormula = 0;
-        _cantidadLoteFormula = 1;
-        _produccionDisponible = null;
-        _errorLotesFormula = null;
-    }
-
-    private bool FormulaCompleta()
-        => _formula.Count > 0 && _formula.All(item => _seleccionLotesFormula.Any(lote => lote.IdArticulo == item.Codigo));
-
-    private CalculadoraDTO SolicitudProduccion(bool convertir, int cantidad)
-        => new()
-        {
-            IdArticuloPrincipal = _edicion!.Codigo,
-            ConvertirCantidad = convertir,
-            CantidadConvertir = cantidad,
-            ListaDeLotes = _seleccionLotesFormula.Select(lote => new LotesCalcularDTO
-            {
-                IdArticulo = lote.IdArticulo,
-                IdLote = lote.IdLote,
-                IdBodega = lote.IdBodega,
-                CantidadLote = lote.Cantidad
-            }).ToList()
-        };
-
-    private async Task CalcularProduccion()
-    {
-        if (!FormulaCompleta())
-        {
-            ErrorLotesFormula("Seleccione al menos un lote para cada insumo de la fórmula.");
-            return;
-        }
-        _produccionDisponible = await Respuestas.DatoAsync(await Produccion.Calcular(SolicitudProduccion(false, 0)), "calcular la producción disponible");
-        if (_produccionDisponible is 0)
-        {
-            ErrorLotesFormula("Los lotes seleccionados no permiten producir unidades completas.");
-        }
-        else
-        {
-            _errorLotesFormula = null;
-        }
-    }
-
-    private async Task ConvertirProduccion()
-    {
-        if (_produccionDisponible is null || _cantidadConvertir <= 0 || _cantidadConvertir > _produccionDisponible)
-        {
-            ErrorLotesFormula("Indique una cantidad mayor que cero y no superior a la producción disponible.");
-            return;
-        }
-        if (!await Dialogos.ConfirmarPeligroAsync($"Se convertirán {_cantidadConvertir} unidades y se descontarán los lotes seleccionados. ¿Desea continuar?")) return;
-        if (await Respuestas.CorrectaAsync(await Produccion.Calcular(SolicitudProduccion(true, _cantidadConvertir)), "convertir la producción"))
-        {
-            _seleccionLotesFormula.Clear();
-            _produccionDisponible = null;
-            _cantidadConvertir = 0;
-            _errorLotesFormula = null;
-            Dialogos.Exito("Conversión registrada correctamente.");
-        }
-    }
-
-    private void ErrorFormula(string mensaje) => _errorFormula = mensaje;
-
-    private void ErrorLotesFormula(string mensaje) => _errorLotesFormula = mensaje;
 
     private async Task AgregarCodigoBarras()
     {
@@ -2033,17 +1734,6 @@
         if (_imagen is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea eliminar la imagen del artículo?")) return;
         if (await Respuestas.CorrectaAsync(await Imagenes.Eliminar(_imagen.IdImagenArticulo), "eliminar la imagen")) { _imagen = null; Dialogos.Exito("Imagen eliminada."); }
     }
-
-    /// <summary>Lote elegido temporalmente para una conversión; no se guarda hasta confirmar.</summary>
-    private sealed record LoteFormulaSeleccionado(
-        long IdArticulo,
-        long IdLote,
-        int IdBodega,
-        string Articulo,
-        string Lote,
-        string Bodega,
-        double Disponible,
-        int Cantidad);
 
     private async Task AgregarRelacionado() { if (_elegido is null || _codigoRelacionado is not > 0 || _cantidadRelacionada <= 0) { await Dialogos.ErrorAsync("Indique un código y cantidad válidos."); return; } if (await Respuestas.CorrectaAsync(await Relacionados.Guardar(_elegido.Codigo, _codigoRelacionado.Value, _cantidadRelacionada, true), "agregar el artículo relacionado")) { _relacionados = (await Respuestas.DatoAsync(await Relacionados.Buscar(_elegido.Codigo), "consultar los artículos relacionados"))?.ToList() ?? new(); _codigoRelacionado = null; _cantidadRelacionada = 1; Dialogos.Exito("Artículo relacionado agregado."); } }
     private async Task QuitarRelacionado(ArticulosRelacionadosDTO relacionado) { if (_elegido is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea quitar este artículo relacionado?")) return; if (await Respuestas.CorrectaAsync(await Relacionados.Guardar(_elegido.Codigo, relacionado.Codigo, relacionado.Cantidad, false), "quitar el artículo relacionado")) { _relacionados.Remove(relacionado); Dialogos.Exito("Artículo relacionado quitado."); } }
