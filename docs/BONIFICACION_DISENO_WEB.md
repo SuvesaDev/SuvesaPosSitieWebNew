@@ -165,9 +165,32 @@ y `DTOs/Bonificacion/*` (partials + DTO), a sustituir cuando se regeneren.
 | §4.3 flujo de Facturación | HECHO | Defaults: tipo fijo por factura; el artículo bonificable sirve con su propia mezcla; la regla ("el más barato sale gratis" + tope) vive en `Services/BonificacionCalculo.cs` (§3.4 = frontend). Modales: tipo de cliente, tipo de artículo, selector de mezcla. Líneas de grupo readonly; sólo la principal se elimina (cascada). |
 | §4.5 devoluciones | HECHO | El grupo se devuelve entero a cantidad completa; la línea de regalo conserva los valores de la factura. |
 
+### 5.9 — REVIERTE §4.1: la asignación del cliente vuelve a llevar artículo
+Pedido de negocio posterior. Cada asignación `cliente → tipo` se amarra a **un
+artículo** (`Bonificado`) más una **nota corta**; el cliente puede tener varias,
+una por artículo distinto.
+
+- API §5.9: `ClienteBonificacionConfiguracionDTO` recupera `IdArticulo` y gana
+  `Descripcion` (+ `DescripcionArticulo` de sólo lectura para pintar el nombre).
+  Web: partial `DTOs/Bonificacion/ClienteBonificacionConfiguracionDTO.Bonificacion.cs`
+  añade `Descripcion` (el resto ya venía en el generado).
+- `Views/Clientes/Consulta.razor` pestaña "Bonificación": vuelve el buscador de
+  artículo (`AppBuscadorArticulo`, `AlCerrar` reabre el modal del cliente) +
+  campo Descripción. Rechaza artículos sin `Bonificado`. Guard de duplicados
+  **por artículo** (uno por `(cliente, artículo)`).
+- `Views/Ventas/Facturacion.razor`: se elimina el modal "elegí un tipo para toda
+  la factura" (`_modalBonificacionCliente`, `_tipoBonificacionClienteActivo`,
+  `ConfirmarTipoBonificacionCliente`, `OmitirBonificacionCliente`). `IniciarBonificacion`
+  busca una asignación del cliente con `IdArticulo == articulo.Codigo`; si hay,
+  aplica su tipo (mezcla sembrada con ese artículo); si no, sigue el flujo
+  genérico (tipos propios del artículo → línea normal). Pueden dispararse varias
+  bonificaciones en una misma factura, una por artículo. El indicador "Cliente
+  bonificado" pasa a listar las asignaciones (tipo · artículo — nota).
+
 ### Pendiente
 - **QA con la app corriendo** contra `localhost:5000` (click-through de los 3 flujos).
-- **Nodo de menú** para `/sales/bonuses` — coordinar el código de función con la semilla de seguridad del API.
+- **Nodo de menú**: HECHO — `CATALOGOS.TIPOS_DE_BONIFICACION`, ruta canónica
+  `/parameters/bonus-types` (alias `/sales/bonuses`), en menú Catálogos + semilla del API.
 - **Regen de contratos NSwag** cuando el equipo web migre los ~50 proxies al contrato nuevo del API; ahí se borran `BonificacionApiCliente.cs` y `DTOs/Bonificacion/*`.
 - Sin probar: artículos con lote dentro de un grupo de bonificación (los bonificables suelen no manejar lote).
 - Respuestas de negocio #1/#2 (§4): si el tipo del cliente exige que el artículo lo tenga asignado, y si puede haber >1 tipo activo por factura — hoy se asume "no" y "no".

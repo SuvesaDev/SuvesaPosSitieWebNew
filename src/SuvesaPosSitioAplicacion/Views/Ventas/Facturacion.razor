@@ -92,17 +92,15 @@
                                         {
                                             <p class="text-secondary small mb-0 mt-1">Sin bonificaciones configuradas.</p>
                                         }
-                                        else if (_tipoBonificacionClienteActivo > 0)
-                                        {
-                                            <div class="d-flex align-items-center justify-content-between small mt-1">
-                                                <span>Bonificación activa: <strong>@NombreTipoBonificacion(_tipoBonificacionClienteActivo)</strong></span>
-                                                <button type="button" class="btn btn-sm btn-link p-0" @onclick="() => _tipoBonificacionClienteActivo = 0">Quitar</button>
-                                            </div>
-                                            <p class="text-secondary small mb-0 mt-1"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>Al agregar un artículo bonificable se aplicará este tipo.</p>
-                                        }
                                         else
                                         {
-                                            <button type="button" class="btn btn-sm btn-outline-success mt-1" @onclick="() => _modalBonificacionCliente.ShowAsync()">Usar una bonificación del cliente</button>
+                                            <ul class="small text-secondary mb-0 mt-1 ps-3">
+                                                @foreach (var b in _bonificacionesCliente)
+                                                {
+                                                    <li>@NombreTipoBonificacion(b.IdConfiguracionBonificacion) · <strong>@(string.IsNullOrWhiteSpace(b.DescripcionArticulo) ? b.IdArticulo.ToString() : b.DescripcionArticulo)</strong>@(string.IsNullOrWhiteSpace(b.Descripcion) ? "" : $" — {b.Descripcion}")</li>
+                                                }
+                                            </ul>
+                                            <p class="text-secondary small mb-0 mt-1"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>Se aplica automáticamente al agregar el artículo indicado.</p>
                                         }
                                     </div>
                                 }
@@ -222,24 +220,6 @@
     <FooterTemplate>
         <button type="button" class="btn btn-primary" disabled="@_guardandoCorreos" @onclick="GuardarCorreos">@(_guardandoCorreos ? "Guardando..." : "Guardar")</button>
         <button type="button" class="btn btn-outline-secondary" @onclick="() => _modalCorreos.HideAsync()">Cerrar</button>
-    </FooterTemplate>
-</HxModal>
-
-<HxModal @ref="_modalBonificacionCliente" Title="Bonificación del cliente" Size="ModalSize.Regular">
-    <BodyTemplate>
-        <p class="text-secondary">El cliente tiene bonificaciones disponibles. Elija cuál usar en esta factura (el tipo elegido manda sobre lo que tenga configurado cada artículo).</p>
-        <label class="form-label" for="bonif-cli-tipo">Tipo de bonificación</label>
-        <select id="bonif-cli-tipo" class="form-select" @bind="_tipoBonificacionElegido">
-            <option value="0">Seleccione...</option>
-            @foreach (var b in _bonificacionesCliente.Select(x => x.IdConfiguracionBonificacion).Distinct())
-            {
-                <option value="@b">@NombreTipoBonificacion(b)</option>
-            }
-        </select>
-    </BodyTemplate>
-    <FooterTemplate>
-        <button type="button" class="btn btn-outline-secondary" @onclick="OmitirBonificacionCliente">No usar bonificación</button>
-        <button type="button" class="btn btn-primary" @onclick="ConfirmarTipoBonificacionCliente">Usar</button>
     </FooterTemplate>
 </HxModal>
 
@@ -377,14 +357,13 @@
     private List<ClienteBonificacionConfiguracionDTO> _bonificacionesCliente = new();
     private bool _cargandoBonificacionCliente;
 
-    // §4.3 — bonificación en curso.
+    // §4.3 / §5.9 — bonificación en curso. La del cliente se resuelve por artículo
+    // (cada asignación amarra un tipo a un IdArticulo); no hay "tipo activo" global.
     private List<ConfiguracionBonificacion> _configsBonificacion = new();
-    private int _tipoBonificacionClienteActivo;              // 0 = ninguno; fijo hasta "Nueva factura"
     private int _siguienteIdGrupo = 1;
-    private HxModal _modalBonificacionCliente = default!;
     private HxModal _modalBonificacionArticulo = default!;
     private HxModal _modalMezclaBonificacion = default!;
-    private int _tipoBonificacionElegido;                    // selección temporal en los modales de tipo
+    private int _tipoBonificacionElegido;                    // selección temporal en el modal de tipo del artículo
     private InventarioDTO? _articuloBonificacionPendiente;   // artículo que disparó el flujo por artículo
     private List<ConfiguracionBonificacion> _tiposDelArticuloPendiente = new();
     private ConfiguracionBonificacion? _configMezclaActiva;
@@ -574,7 +553,6 @@
         RecalcularTodo();
 
         _bonificacionesCliente = new List<ClienteBonificacionConfiguracionDTO>();
-        _tipoBonificacionClienteActivo = 0;
         if (cliente.TieneBonificacion)
         {
             _cargandoBonificacionCliente = true;
@@ -582,30 +560,10 @@
                 await ClienteBonificacion.ObtenerPorCliente(cliente.Cedula, cliente.Identificacion), "consultar la bonificación del cliente"))
                 ?.ToList() ?? new List<ClienteBonificacionConfiguracionDTO>();
             _cargandoBonificacionCliente = false;
-
-            // §4.3.a — preguntar (antes de agregar artículos) si se usa una de sus bonificaciones.
-            if (_bonificacionesCliente.Count > 0)
-            {
-                _tipoBonificacionElegido = _bonificacionesCliente.Count == 1 ? _bonificacionesCliente[0].IdConfiguracionBonificacion : 0;
-                await _modalBonificacionCliente.ShowAsync();
-            }
         }
     }
 
-    private async Task ConfirmarTipoBonificacionCliente()
-    {
-        if (_tipoBonificacionElegido <= 0) { await Dialogos.ErrorAsync("Seleccione el tipo de bonificación que usará el cliente."); return; }
-        _tipoBonificacionClienteActivo = _tipoBonificacionElegido;
-        await _modalBonificacionCliente.HideAsync();
-    }
-
-    private async Task OmitirBonificacionCliente()
-    {
-        _tipoBonificacionClienteActivo = 0;
-        await _modalBonificacionCliente.HideAsync();
-    }
-
-    private void QuitarCliente() { _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); _tipoBonificacionClienteActivo = 0; }
+    private void QuitarCliente() { _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); }
 
     private async Task AbrirCorreos()
     {
@@ -715,16 +673,20 @@
     /// <returns>true si tomó el control (abrió un modal); false si no aplica y se debe agregar normal.</returns>
     private async Task<bool> IniciarBonificacion(InventarioDTO articulo, decimal cantidad)
     {
-        // El tipo elegido por el cliente manda sobre lo que tenga el artículo (regla de negocio).
-        if (_tipoBonificacionClienteActivo > 0)
+        // §5.9 — ¿el cliente tiene una asignación para justo este artículo? Su tipo
+        // manda sobre lo que tenga configurado el artículo.
+        var asignacion = _bonificacionesCliente.FirstOrDefault(b => b.IdArticulo == articulo.Codigo);
+        if (asignacion is not null)
         {
-            var cfgCliente = ConfigBonificacion(_tipoBonificacionClienteActivo);
-            if (cfgCliente is null) return false;
-            await AbrirMezcla(articulo, cfgCliente, origenCliente: true, cantidadInicial: (int)Math.Max(1, cantidad));
-            return true;
+            var cfgCliente = ConfigBonificacion(asignacion.IdConfiguracionBonificacion);
+            if (cfgCliente is not null)
+            {
+                await AbrirMezcla(articulo, cfgCliente, origenCliente: true, cantidadInicial: (int)Math.Max(1, cantidad));
+                return true;
+            }
         }
 
-        // Sin tipo de cliente: preguntar si se usa la bonificación propia del artículo.
+        // Cualquier otro artículo: preguntar si se usa la bonificación propia del artículo.
         var tipos = (await Respuestas.DatoAsync(await ArticuloBonificacion.ObtenerPorArticulo(articulo.Codigo), "consultar la bonificación del artículo"))?.ToList()
                     ?? new List<ArticuloBonificacionConfiguracion>();
         _tiposDelArticuloPendiente = tipos
@@ -922,5 +884,5 @@
         var r = await Api.Crear(factura); _guardando = false;
         if (await Respuestas.CorrectaAsync(r, EsConsignacion ? "registrar la consignación" : "emitir la factura")) { Dialogos.Exito(EsConsignacion ? "Consignación registrada correctamente." : "Factura emitida correctamente."); Limpiar(); }
     }
-    private void Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _sinAgente = false; _codAgente = 0; _lineas.Clear(); _bonificacionesCliente.Clear(); _tipoBonificacionClienteActivo = 0; _siguienteIdGrupo = 1; RecalcularTodo(); }
+    private void Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _sinAgente = false; _codAgente = 0; _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; RecalcularTodo(); }
 }

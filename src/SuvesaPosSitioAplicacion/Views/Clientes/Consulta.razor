@@ -444,15 +444,15 @@
                 }
                 else if (_pestanaEdicion == "bonificacion")
                 {
-                    @*  §4.1: la asignación es sólo cliente ↔ tipo. El artículo se resuelve
-                        al facturar con la mezcla del artículo bonificable que agregue el
-                        cajero (el API quitó IdArticulo/DescripcionArticulo en §3.2). *@
+                    @*  §5.9: cada asignación amarra un tipo a UN artículo (con "Bonificado"
+                        activo) más una nota corta. El cliente puede tener varias, una por
+                        artículo. Al facturar, el tipo sólo aplica para ese mismo artículo. *@
                     @if (_tiposBonificacion.Count == 0)
                     {
-                        <div class="alert alert-warning">No hay tipos de bonificación activos. Créelos primero en <strong>Ventas &rsaquo; Bonificaciones</strong> (<code>/sales/bonuses</code>).</div>
+                        <div class="alert alert-warning">No hay tipos de bonificación activos. Créelos primero en <strong>Catálogos &rsaquo; Tipos de Bonificación</strong> (<code>/parameters/bonus-types</code>).</div>
                     }
                     <div class="row g-3 align-items-end">
-                        <div class="col-12 col-md-9">
+                        <div class="col-12 col-md-6">
                             <label class="form-label" for="cliente-bonificacion-tipo">Tipo de bonificación</label>
                             <select id="cliente-bonificacion-tipo" class="form-select" @bind="_tipoBonificacionSeleccionado">
                                 <option value="0">Seleccione...</option>
@@ -461,6 +461,17 @@
                                     <option value="@tipo.IdConfiguracionBonificacion">@tipo.Descripcion (@tipo.CantidadVenta lleva @tipo.CantidadBonificable)</option>
                                 }
                             </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Artículo bonificable</label>
+                            <div class="input-group">
+                                <input class="form-control" disabled value="@_articuloBonificacionSeleccionado?.Descripcion" placeholder="Ninguno seleccionado" />
+                                <button type="button" class="btn btn-outline-primary" @onclick="AbrirBuscadorArticuloBonificacion"><i class="bi bi-search" aria-hidden="true"></i></button>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-9">
+                            <label class="form-label" for="cliente-bonificacion-desc">Descripción</label>
+                            <input id="cliente-bonificacion-desc" class="form-control" maxlength="160" @bind="_descripcionBonificacion" placeholder="Nota corta de la promoción" />
                         </div>
                         <div class="col-12 col-md-3 d-grid">
                             <button type="button" class="btn btn-success" @onclick="GuardarBonificacionCliente" disabled="@_guardandoBonificacion">
@@ -477,12 +488,14 @@
                     {
                         <div class="table-responsive mt-3">
                             <table class="table table-sm align-middle">
-                                <thead><tr><th>Tipo de bonificación</th><th></th></tr></thead>
+                                <thead><tr><th>Tipo de bonificación</th><th>Artículo</th><th>Descripción</th><th></th></tr></thead>
                                 <tbody>
                                     @foreach (var b in _bonificaciones)
                                     {
                                         <tr>
                                             <td>@NombreTipoBonificacion(b.IdConfiguracionBonificacion)</td>
+                                            <td>@(string.IsNullOrWhiteSpace(b.DescripcionArticulo) ? b.IdArticulo.ToString() : b.DescripcionArticulo)</td>
+                                            <td>@b.Descripcion</td>
                                             <td class="text-end text-nowrap">
                                                 <button type="button" class="btn btn-sm btn-link" @onclick="() => EditarBonificacionCliente(b)">Editar</button>
                                                 <button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => EliminarBonificacionCliente(b)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button>
@@ -504,6 +517,8 @@
         </button>
     </FooterTemplate>
 </HxModal>
+
+<AppBuscadorArticulo @ref="_buscadorBonificacion" AlElegir="ElegirArticuloBonificacion" AlCerrar="ReabrirModalCliente" />
 
 
 @code {
@@ -542,6 +557,9 @@
     private int _tipoBonificacionSeleccionado;
     private int _idBonificacionEnEdicion;
     private bool _guardandoBonificacion;
+    private AppBuscadorArticulo _buscadorBonificacion = default!;
+    private InventarioDTO? _articuloBonificacionSeleccionado;
+    private string _descripcionBonificacion = string.Empty;
     private string _pestanaEdicion = "generales";
     private bool _variasSucursales;
 
@@ -776,23 +794,61 @@
     {
         _tipoBonificacionSeleccionado = 0;
         _idBonificacionEnEdicion = 0;
+        _articuloBonificacionSeleccionado = null;
+        _descripcionBonificacion = string.Empty;
+    }
+
+    private Task AbrirBuscadorArticuloBonificacion() => _buscadorBonificacion.AbrirAsync();
+
+    private async Task ReabrirModalCliente()
+    {
+        if (_edicion is not null) await _modal.ShowAsync();
+    }
+
+    private async Task ElegirArticuloBonificacion(InventarioDTO articulo)
+    {
+        if (articulo.Bonificado != true)
+        {
+            await Dialogos.ErrorAsync("El artículo elegido no está marcado como bonificable. Actívelo en Inventario para poder asignarle una bonificación.");
+            return;
+        }
+        _articuloBonificacionSeleccionado = articulo;
     }
 
     private void EditarBonificacionCliente(ClienteBonificacionConfiguracionDTO bonificacion)
     {
         _idBonificacionEnEdicion = bonificacion.IdConfiguracion;
         _tipoBonificacionSeleccionado = bonificacion.IdConfiguracionBonificacion;
+        _descripcionBonificacion = bonificacion.Descripcion ?? string.Empty;
+        _articuloBonificacionSeleccionado = new InventarioDTO
+        {
+            Codigo = bonificacion.IdArticulo,
+            Descripcion = bonificacion.DescripcionArticulo,
+            Bonificado = true
+        };
     }
 
     private async Task GuardarBonificacionCliente()
     {
         if (_edicion is null || _tipoBonificacionSeleccionado <= 0) return;
 
-        // sin duplicar el mismo tipo (salvo que se esté editando ese registro)
-        if (_bonificaciones.Any(b => b.IdConfiguracionBonificacion == _tipoBonificacionSeleccionado
+        if (_articuloBonificacionSeleccionado is null)
+        {
+            await Dialogos.ErrorAsync("Seleccione el artículo bonificable.");
+            return;
+        }
+        var descripcion = _descripcionBonificacion?.Trim() ?? string.Empty;
+        if (descripcion.Length == 0)
+        {
+            await Dialogos.ErrorAsync("Indique una descripción para la bonificación.");
+            return;
+        }
+
+        // una sola asignación por artículo (salvo que se esté editando ese registro)
+        if (_bonificaciones.Any(b => b.IdArticulo == _articuloBonificacionSeleccionado.Codigo
                                      && b.IdConfiguracion != _idBonificacionEnEdicion))
         {
-            await Dialogos.ErrorAsync("Ese tipo de bonificación ya está asignado al cliente.");
+            await Dialogos.ErrorAsync("Ese artículo ya tiene una bonificación asignada a este cliente.");
             return;
         }
 
@@ -802,7 +858,9 @@
         {
             IdConfiguracion = _idBonificacionEnEdicion,
             IdConfiguracionBonificacion = _tipoBonificacionSeleccionado,
-            IdCliente = _edicion.Identificacion
+            IdCliente = _edicion.Identificacion,
+            IdArticulo = _articuloBonificacionSeleccionado.Codigo,
+            Descripcion = descripcion
         };
 
         var respuesta = _idBonificacionEnEdicion > 0
@@ -813,6 +871,9 @@
         _guardandoBonificacion = false;
 
         if (guardada is null) return;
+
+        // el API sólo rellena DescripcionArticulo en las lecturas; aquí ya lo tenemos.
+        guardada.DescripcionArticulo = _articuloBonificacionSeleccionado.Descripcion;
 
         if (_idBonificacionEnEdicion > 0)
         {
