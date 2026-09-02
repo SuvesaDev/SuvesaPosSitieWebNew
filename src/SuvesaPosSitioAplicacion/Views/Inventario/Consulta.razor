@@ -608,9 +608,38 @@
                             {
                                 <div class="col-12"><div class="alert alert-danger mb-0" role="alert">@_errorFormula</div></div>
                             }
-                            <div class="col-12 col-md-5"><label class="form-label">Código del insumo</label><input type="number" min="1" class="form-control" @bind="_codigoFormula" /></div>
+                            <div class="col-12 col-md-5 position-relative">
+                                <label class="form-label">Buscar materia prima</label>
+                                <div class="input-group">
+                                    <input class="form-control" @bind="_textoInsumoFormula" @bind:event="oninput" @bind:after="BuscarInsumoFormula" placeholder="Código o descripción" />
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="BuscarInsumoFormula">Buscar</button>
+                                </div>
+                                @if (_buscandoInsumoFormula)
+                                {
+                                    <div class="form-text">Buscando…</div>
+                                }
+                                else if (_insumosFormula.Count > 0)
+                                {
+                                    <div class="list-group position-absolute shadow w-100" style="z-index: 5; max-height: 14rem; overflow-y: auto;">
+                                        @foreach (var i in _insumosFormula)
+                                        {
+                                            <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirInsumoFormula(i)">
+                                                <strong>@i.Cod_Articulo</strong> <span class="text-secondary">@i.Descripcion</span>
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                                else if (_insumoFormulaBuscado && !string.IsNullOrWhiteSpace(_textoInsumoFormula))
+                                {
+                                    <div class="form-text text-danger">Sin materias primas para esa búsqueda.</div>
+                                }
+                                @if (_codigoFormula > 0)
+                                {
+                                    <div class="form-text">Seleccionado: <strong>@_insumoFormulaEtiqueta</strong></div>
+                                }
+                            </div>
                             <div class="col-12 col-md-4"><label class="form-label">Cantidad por unidad</label><input type="number" min="0.0001" step="0.0001" class="form-control" @bind="_cantidadFormula" /></div>
-                            <div class="col-12 col-md-3 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarFormula">Agregar insumo</button></div>
+                            <div class="col-12 col-md-3 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarFormula" disabled="@(_codigoFormula <= 0)">Agregar insumo</button></div>
                             @if (_formula.Count == 0)
                             {
                                 <div class="col-12"><div class="alert alert-light border mb-0">Aún no hay insumos en la fórmula.</div></div>
@@ -890,9 +919,13 @@
     private float _utilidadPrecio;
     private int _tipoArticulo = 1;
     private List<SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente> _formula = new();
-    private int _codigoFormula;
+    private long _codigoFormula;
     private double _cantidadFormula = 1;
     private string? _errorFormula;
+    private string _textoInsumoFormula = string.Empty;
+    private List<InventarioDTO> _insumosFormula = new();
+    private bool _buscandoInsumoFormula, _insumoFormulaBuscado;
+    private string _insumoFormulaEtiqueta = string.Empty;
     private List<StockLoteDTO> _lotesEdicion = new();
     private string _nuevoLote = string.Empty;
     private DateTime _vencimientoLote = DateTime.Today;
@@ -1497,6 +1530,10 @@
         _codigoFormula = 0;
         _cantidadFormula = 1;
         _errorFormula = null;
+        _textoInsumoFormula = string.Empty;
+        _insumosFormula = new();
+        _insumoFormulaBuscado = false;
+        _insumoFormulaEtiqueta = string.Empty;
         _lotesEdicion = new();
         _nuevoLote = string.Empty;
         _vencimientoLote = DateTime.Today;
@@ -1505,6 +1542,11 @@
 
     private async Task CargarFormula()
     {
+        _textoInsumoFormula = string.Empty;
+        _insumosFormula = new();
+        _insumoFormulaBuscado = false;
+        _codigoFormula = 0;
+        _insumoFormulaEtiqueta = string.Empty;
         if (_edicion is null || _esNuevo || _tipoArticulo != 3) { _formula = new(); return; }
         var r = await ProduccionApi.FormulaAsync(_edicion.Codigo);
         _formula = r.Status == DTOs.Generated.ResponseStatus._0
@@ -1512,12 +1554,47 @@
             : new();
     }
 
+    /// <summary>Busca artículos de tipo Materia prima (TipoArticulo == 2) para la fórmula.</summary>
+    private async Task BuscarInsumoFormula()
+    {
+        _codigoFormula = 0;
+        _insumoFormulaEtiqueta = string.Empty;
+        var texto = _textoInsumoFormula?.Trim() ?? string.Empty;
+        if (texto.Length < 2)
+        {
+            _insumosFormula = new();
+            _insumoFormulaBuscado = false;
+            return;
+        }
+        _buscandoInsumoFormula = true;
+        var r = await Api.Buscar(texto);
+        _buscandoInsumoFormula = false;
+        _insumoFormulaBuscado = true;
+        _insumosFormula = r.EsCorrecta && r.Responses is not null
+            ? r.Responses
+                .Where(x => x.TipoArticulo == 2
+                            && x.Codigo != _edicion!.Codigo
+                            && _formula.All(f => f.IdInsumo != x.Codigo))
+                .Take(20)
+                .ToList()
+            : new();
+    }
+
+    private void ElegirInsumoFormula(InventarioDTO item)
+    {
+        _codigoFormula = item.Codigo;
+        _insumoFormulaEtiqueta = $"{item.Cod_Articulo} — {item.Descripcion}";
+        _textoInsumoFormula = item.Cod_Articulo ?? string.Empty;
+        _insumosFormula = new();
+        _errorFormula = null;
+    }
+
     private async Task AgregarFormula()
     {
         _errorFormula = null;
         if (_edicion is null || _codigoFormula <= 0 || _cantidadFormula <= 0)
         {
-            _errorFormula = "Indique un código y una cantidad válida para el insumo.";
+            _errorFormula = "Busque y seleccione una materia prima e indique una cantidad válida.";
             return;
         }
         if (_codigoFormula == _edicion.Codigo || _formula.Any(x => x.IdInsumo == _codigoFormula))
@@ -1549,7 +1626,6 @@
             return;
         }
         await CargarFormula();
-        _codigoFormula = 0;
         _cantidadFormula = 1;
         Dialogos.Exito("Insumo agregado a la fórmula.");
     }
