@@ -679,6 +679,102 @@ que solo afectan al despliegue genérico): `TipoCliente` (físico/jurídico),
 
 ---
 
+### P2.7 · ~~Inventario: falta la alerta de "costo desactualizado" en artículos con fórmula~~ RESUELTO (2026-09-01)
+
+**Resuelto.** Al abrir (consultar/editar) un artículo de tipo Fórmula
+(`_tipoArticulo == 3`, bajo `Sesion.EsCostaPets`), justo después de resolver
+que tiene insumos (`CargarProduccion()`, `Views/Inventario/Consulta.razor`), se
+agregó `VerificarCostoFormula()`: consulta el costo calculado a partir de la
+fórmula (`IArticulosRelacionados.CostoCalculado`, nuevo, envuelve
+`GetObtenerCostoRelacionadosAsync`), lo compara contra `_edicion.Costo`, y si
+el calculado es mayor, ofrece la misma confirmación que React
+("El artículo {nombre} tiene un costo actual de {actual} y el costo calculado
+es de {calculado}. ¿Desea cambiarlo?") vía `Dialogos.ConfirmarAsync`. Si se
+confirma, llama `IInventarioConsulta.ActualizarCosto` (nuevo, envuelve
+`PutActualizarCostoAsync`) y actualiza `_edicion.Costo` en memoria.
+
+La comparación se hizo en `decimal` (`Formato.AImporte`), no con los `float`
+crudos del DTO, para evitar falsos positivos por ruido de punto flotante —
+coherente con la regla de la casa de nunca comparar/calcular dinero en
+`float`/`double`.
+
+**Detalle de implementación:** `IManejadorRespuestas.DatoAsync<T>` devuelve
+`T?`, pero para un `T` no acotado como `double` eso no se vuelve
+`Nullable<double>` en tiempo de compilación — sigue siendo `double` a secas
+(el `?` no hace nada sobre un genérico sin `where T : struct`). Si la consulta
+del costo calculado falla, `DatoAsync` ya avisa el error por su cuenta y
+devuelve `default(double)` (`0`), así que no hace falta un `if (calculado is
+null)` — con un costo actual normalmente positivo, un `0` calculado nunca
+supera al actual y la comparación simplemente no dispara la confirmación.
+
+No hizo falta tocar el API — ambos endpoints ya estaban vivos en el swagger, y
+sus clientes generados ya estaban inyectados en proxies existentes
+(`ArticulosRelacionados.cs`, `InventarioConsulta.cs`), así que tampoco hubo que
+registrar nada nuevo en `Program.cs`.
+
+<details>
+<summary>Hallazgo original (antes de la corrección)</summary>
+
+**Evidencia:** `actions/inventory.js` — `startGetOneInventory(codigo)` (la
+acción que carga un artículo para consultarlo/editarlo), función privada
+`GetCostoArticulo(codArticulo, costoArt, nombreArt)` (líneas ~2777-2837):
+
+```js
+if( responses.esPadre === false ) {
+    // Se realiza el tema de costo
+    await GetCostoArticulo(codArt, costArt, nombreArt);
+}
+```
+
+`GetCostoArticulo` llama `POST /articulosRelacionados/getObtenerCostoRelacionados?CodArticulo={cod_Articulo}`
+(el costo que da armar el artículo a partir de su fórmula/insumos, sumando los
+costos de sus componentes) y lo compara contra `responses.costo` (el costo
+guardado en el artículo). Si el costo guardado es **menor** que el calculado —
+es decir, quedó desactualizado por debajo de lo que realmente cuesta hoy armar
+el artículo —, muestra una confirmación:
+
+> "¿El artículo {nombre} tiene un costo actual de {costoArt} y el costo
+> calculado es de {costoCalculado} desea cambiarlo?"
+
+Si se confirma, llama `PUT /inventario/putActualizarCosto?CodigoArticulo={cod_Articulo}&CostoNuevo={costoCalculado}`
+para persistir el nuevo costo.
+
+Esto se dispara siempre que `esPadre === false` — es decir, cuando el artículo
+es de **tipo Fórmula** (tiene insumos), no cuando es "Padre" (agrupador simple)
+ni "Simple". En Blazor esto corresponde exactamente a la condición que ya
+existe para mostrar la pestaña "Fórmula y conversión":
+`Sesion.EsCostaPets && !_esNuevo && _tipoArticulo == 3`
+(`Views/Inventario/Consulta.razor`), y al mismo punto donde ya se calcula
+`_tipoArticulo = 3` al detectar que el artículo tiene insumos
+(`_formula = await ConsultarFormula(_edicion.Codigo); if (_formula.Count > 0) _tipoArticulo = 3;`).
+
+**Blazor no tiene nada de esto** — ni la comparación, ni la alerta, ni la
+llamada para actualizar el costo. La pestaña "Fórmula y conversión" ya gestiona
+los insumos y el consumo de lotes, pero nunca revisa si el costo del artículo
+padre-de-fórmula quedó desactualizado.
+
+**A favor de construirlo — no hace falta inventar nada del lado del API:**
+ambos endpoints ya existen y están vivos en el swagger actual, y sus clientes
+generados ya están inyectados en proxies existentes, así que no hace falta
+registrar nada nuevo en `Program.cs`:
+
+- `IArticulosRelacionadosApiCliente.GetObtenerCostoRelacionadosAsync(string? codArticulo)`
+  → `DoubleResponseGeneric` — mismo cliente que ya usa
+  `ApiConexion/ProxyClass/ArticulosRelacionados.cs`.
+- `IInventarioApiCliente.PutActualizarCostoAsync(string? codigoArticulo, double? costoNuevo)`
+  → `BooleanResponseGeneric` — mismo cliente que ya usa
+  `ApiConexion/ProxyClass/InventarioConsulta.cs`.
+
+**Cuidado con el parámetro:** ambos endpoints reciben el código **de negocio**
+del artículo (`Cod_Articulo`, `string`), no el `Codigo` numérico interno —
+React lo arma así explícitamente (`const codArt = responses.cod_Articulo;`).
+Confirmado que `InventarioDTO.Cod_Articulo` (string) y `InventarioDTO.Costo`
+(float) existen tal cual en el DTO de Blazor.
+
+</details>
+
+---
+
 ## P3 — Detalles y divergencias a confirmar
 
 ### P3.1 · Apertura de caja: el cajero es siempre el de la sesión
@@ -766,6 +862,9 @@ Para que nadie "arregle" lo que ya funciona:
    mal. Consultar abonos ya hechos y el tipo/número de documento del pago
    quedan fuera, no eran el alcance pedido.
 8. **P1.4** Bonificaciones: solo cuando el API publique el CRUD del catálogo.
+9. ~~**P2.7** Inventario: alerta de costo desactualizado en artículos con
+   fórmula.~~ **Hecho** (2026-09-01). No hizo falta tocar el API — ambos
+   endpoints ya estaban vivos y sus clientes ya estaban inyectados.
 
 ---
 

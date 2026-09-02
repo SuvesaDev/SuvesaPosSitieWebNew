@@ -43,4 +43,11 @@ public interface IInventarioConsulta
     /// el sistema actual.
     /// </summary>
     Task<ResponseGeneric<bool>> ActualizarExistencia(int codArticulo, float cantidad, int codBodega = 0);
+
+    /// <summary>
+    /// Actualiza el costo guardado de un artículo (por su código de negocio,
+    /// no el código interno). Se usa cuando el costo calculado a partir de la
+    /// fórmula del artículo quedó por encima del costo guardado.
+    /// </summary>
+    Task<ResponseGeneric<bool>> ActualizarCosto(string codArticulo, double costoNuevo);
 }

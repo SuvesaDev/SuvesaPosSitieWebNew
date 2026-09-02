@@ -1376,7 +1376,48 @@
         _bodegas = (await Respuestas.DatoAsync(await Produccion.Bodegas(true), "consultar las bodegas"))?.ToList() ?? new();
         _formula = await ConsultarFormula(_edicion.Codigo);
         // En el sistema anterior una fórmula existente identifica un producto terminado.
-        if (_formula.Count > 0) _tipoArticulo = 3;
+        if (_formula.Count > 0)
+        {
+            _tipoArticulo = 3;
+            await VerificarCostoFormula();
+        }
+    }
+
+    /// <summary>
+    /// Igual que el sistema actual: al abrir un artículo de fórmula, se compara
+    /// el costo guardado contra lo que realmente cuesta armarlo hoy con sus
+    /// insumos, y si quedó desactualizado (por debajo del real) se ofrece
+    /// corregirlo. Solo avisa cuando el calculado es mayor — un costo guardado
+    /// más alto que el calculado no es el caso que React resuelve acá.
+    /// </summary>
+    private async Task VerificarCostoFormula()
+    {
+        if (_edicion is null || string.IsNullOrWhiteSpace(_edicion.Cod_Articulo)) return;
+
+        // Si la consulta falla, DatoAsync ya avisó el error y devuelve 0 — con
+        // costo actual normalmente positivo, la comparación de abajo no
+        // dispara la confirmación, así que no hace falta distinguir el caso.
+        var calculado = await Respuestas.DatoAsync(
+            await Relacionados.CostoCalculado(_edicion.Cod_Articulo), "consultar el costo calculado del artículo");
+
+        var costoActual = Formato.AImporte(_edicion.Costo);
+        var costoCalculado = Formato.AImporte(calculado);
+        if (costoCalculado <= costoActual) return;
+
+        var nombre = _edicion.Descripcion ?? _edicion.Cod_Articulo;
+        if (!await Dialogos.ConfirmarAsync(
+            $"El artículo {nombre} tiene un costo actual de {Formato.Importe(costoActual)} y el costo calculado es de {Formato.Importe(costoCalculado)}. ¿Desea cambiarlo?",
+            "Costo desactualizado", "Cambiar"))
+        {
+            return;
+        }
+
+        if (await Respuestas.CorrectaAsync(
+            await Api.ActualizarCosto(_edicion.Cod_Articulo, (double)costoCalculado), "actualizar el costo del artículo"))
+        {
+            _edicion.Costo = (float)costoCalculado;
+            Dialogos.Exito($"Se cambió el costo del artículo {nombre}.");
+        }
     }
 
     /// <summary>

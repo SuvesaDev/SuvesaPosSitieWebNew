@@ -159,4 +159,11 @@ public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
             var r = await _stocks.ActualizarExistenciaArticuloAsync(cantidad, codBodega, codArticulo);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "actualizar la existencia del artículo");
+
+    public Task<ResponseGeneric<bool>> ActualizarCosto(string codArticulo, double costoNuevo)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.PutActualizarCostoAsync(codArticulo, costoNuevo);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "actualizar el costo del artículo");
 }
