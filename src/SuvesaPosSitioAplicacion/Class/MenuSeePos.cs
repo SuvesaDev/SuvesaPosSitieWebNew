@@ -306,27 +306,9 @@ public static partial class MenuSeePos
             Codigo = "CONSIGNACION",
             Hijos = new ItemMenu[]
             {
-                new ItemMenu
-                {
-                    Titulo = "Registro de Consignaciones",
-                    Codigo = "CONSIGNACION.REGISTRO_DE_CONSIGNACIONES",
-                    Ruta = "/buys/consignment/register",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Facturacion de Consignaciones",
-                    Codigo = "CONSIGNACION.FACTURACION_DE_CONSIGNACIONES",
-                    Ruta = "/consignment/prebill",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Seguimiento de Consignaciones",
-                    Codigo = "CONSIGNACION.SEGUIMIENTO_DE_CONSIGNACIONES",
-                    Ruta = "/buys/consignment/following",
-                },
-                // Modelo nuevo de bodega de consignación por cliente
-                // (CONSIGNACION_WEB.md). Conviven con las 3 rutas legacy de arriba
-                // hasta que el API retire sus endpoints viejos.
+                // Modelo de bodega de consignación por cliente (CONSIGNACION_WEB.md).
+                // El flujo viejo (Registro/Seguimiento sobre ConsignacionController) se
+                // retiró junto con sus endpoints en el API (§8).
                 new ItemMenu
                 {
                     Titulo = "Bodegas de Consignación",
@@ -350,6 +332,12 @@ public static partial class MenuSeePos
                     Titulo = "Kardex de Consignación",
                     Codigo = "CONSIGNACION.KARDEX",
                     Ruta = "/consignment/ledger",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Facturacion de Consignaciones",
+                    Codigo = "CONSIGNACION.FACTURACION_DE_CONSIGNACIONES",
+                    Ruta = "/consignment/prebill",
                 }
             }
         },

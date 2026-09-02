@@ -1,5 +1,4 @@
 @page "/initial/billing"
-@page "/buys/consignment/register"
 @page "/consignment/prebill/from/{ConteoId:long}"
 @implements IDisposable
 @using SuvesaPosSitioAplicacion.Class
@@ -331,7 +330,7 @@
     [Parameter] public long ConteoId { get; set; }
     private bool EsPrefacturaConsignacion => ConteoId > 0;
     private string Titulo => EsPrefacturaConsignacion ? "Prefactura de Consignación" : EsConsignacion ? "Registro de Consignaciones" : "Facturación";
-    private bool EsConsignacion => EsPrefacturaConsignacion || Navegacion.Uri.Contains("/buys/consignment/register", StringComparison.OrdinalIgnoreCase);
+    private bool EsConsignacion => EsPrefacturaConsignacion;
     private ConteoConsignacion? _conteoPref;
     private bool _cargandoPref;
     private sealed class LineaVenta
