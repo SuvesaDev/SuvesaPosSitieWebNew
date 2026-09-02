@@ -267,6 +267,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Toma Física",
+                    Codigo = "COMPRAS.TOMA_FISICA",
+                    Ruta = "/buys/physical-count",
+                },
+                new ItemMenu
+                {
                     Titulo = "Abono Pagar",
                     Codigo = "COMPRAS.ABONO_PAGAR",
                     Ruta = "/buys/pay",

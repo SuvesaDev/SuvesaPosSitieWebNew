@@ -681,6 +681,22 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "COMPRAS.TOMA_FISICA",
+          "nombre": "Toma Física",
+          "ruta": "/buys/physical-count",
+          "padre": null,
+          "orden": 15,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
         }
       ]
     },
