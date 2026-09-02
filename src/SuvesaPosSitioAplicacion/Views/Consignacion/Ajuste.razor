@@ -1,0 +1,195 @@
+@page "/consignment/adjust"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Consignacion
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.DTOs.Lotes
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IConsignacionInvApiCliente Api
+@inject ILotesApiCliente LotesApi
+@inject IClientesConsulta Clientes
+@inject IInventarioConsulta Inventario
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Ajuste de Bodega de Consignación" Codigo="CONSIGNACION.AJUSTE" Icono="bi-box-arrow-in-down"
+             Subtitulo="Boletas de ingreso y de salida / retiro (sin facturación)" Nivel="NivelPantalla.Tableta">
+ <ChildContent>
+  @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+
+  <div class="card mb-3"><div class="card-body">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-6 position-relative">
+        <label class="form-label">Cliente <span class="text-danger">*</span></label>
+        <input class="form-control" @bind="_texCliente" @bind:event="oninput" @bind:after="BuscarCliente" placeholder="Cédula o nombre" />
+        @if (_clientes.Count > 0)
+        {
+          <div class="list-group position-absolute shadow w-100" style="z-index:5; max-height:14rem; overflow-y:auto;">
+            @foreach (var c in _clientes) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirCliente(c)"><strong>@c.Cedula</strong> @c.Nombre</button> }
+          </div>
+        }
+        @if (_idCliente > 0) { <div class="form-text">Seleccionado: <strong>@_nombreCliente</strong></div> }
+      </div>
+      <div class="col-md-6">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn @(_tipo == 1 ? "btn-primary" : "btn-outline-primary")" @onclick="() => CambiarTipo(1)">Entrada</button>
+          <button type="button" class="btn @(_tipo == 2 ? "btn-danger" : "btn-outline-danger")" @onclick="() => CambiarTipo(2)">Salida / retiro</button>
+        </div>
+      </div>
+    </div>
+  </div></div>
+
+  @if (_idCliente > 0)
+  {
+    <div class="card mb-3"><div class="card-header">@(_tipo == 1 ? "Ingreso de mercadería" : "Salida / retiro de mercadería")</div><div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4 position-relative">
+          <label class="form-label">Artículo</label>
+          <input class="form-control" @bind="_texArt" @bind:event="oninput" @bind:after="BuscarArt" placeholder="Código o descripción" />
+          @if (_arts.Count > 0)
+          {
+            <div class="list-group position-absolute shadow w-100" style="z-index:5; max-height:14rem; overflow-y:auto;">
+              @foreach (var a in _arts) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirArt(a)"><strong>@a.Cod_Articulo</strong> @a.Descripcion</button> }
+            </div>
+          }
+        </div>
+        <div class="col-md-3"><label class="form-label">Lote</label>
+          <select class="form-select" @bind="_loteSel"><option value="0">Sin lote</option>@foreach (var l in _lotes){<option value="@l.Id">@l.Numero</option>}</select></div>
+        <div class="col-md-2"><label class="form-label">Cantidad</label><input type="number" min="0.001" step="0.001" class="form-control" @bind="_cant" /></div>
+        <div class="col-md-3 d-grid"><button class="btn btn-outline-primary" @onclick="AgregarLinea" disabled="@(_artSel is null || _cant <= 0)">Agregar</button></div>
+      </div>
+
+      <table class="table table-sm mt-3">
+        <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Cantidad</th><th></th></tr></thead>
+        <tbody>
+          @foreach (var l in _lineas)
+          {
+            <tr><td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@l.NumeroLote</td><td class="text-end">@l.Cantidad.ToString("N3")</td>
+              <td class="text-end"><button class="btn btn-sm btn-link text-danger" @onclick="() => _lineas.Remove(l)">Quitar</button></td></tr>
+          }
+          @if (!_lineas.Any()) { <tr><td colspan="4" class="text-secondary">Aún no hay líneas.</td></tr> }
+        </tbody>
+      </table>
+
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4"><label class="form-label">Documento / boleta</label><input class="form-control" @bind="_documento" /></div>
+        <div class="col-md-4"><label class="form-label">Motivo</label><input class="form-control" @bind="_motivo" placeholder="@(_tipo == 2 ? "devolución parcial, cierre..." : "reposición, entrega inicial...")" /></div>
+        @if (_tipo == 2)
+        {
+          <div class="col-md-2 form-check mt-4 ms-2"><input class="form-check-input" type="checkbox" id="cierre" @bind="_cierreTotal" /><label class="form-check-label" for="cierre">Cierre total</label></div>
+        }
+        <div class="col-md-2 d-grid"><button class="btn @(_tipo == 2 ? "btn-danger" : "btn-primary")" @onclick="Guardar" disabled="@(!_lineas.Any() || _guardando)">@(_guardando ? "Guardando..." : "Guardar boleta")</button></div>
+      </div>
+    </div></div>
+
+    @if (_boleta is not null)
+    {
+      <div class="card"><div class="card-header text-bg-success">Boleta @_boleta.TipoDescripcion #@_boleta.Id</div><div class="card-body">
+        <p class="mb-2"><strong>@_boleta.NombreCliente</strong> · @_boleta.Fecha.ToString("dd/MM/yyyy HH:mm") · costo @_boleta.CostoTotal.ToString("N2")</p>
+        <table class="table table-sm mb-0"><thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Cantidad</th></tr></thead>
+          <tbody>@foreach (var l in _boleta.Lineas){<tr><td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@l.NumeroLote</td><td class="text-end">@l.Cantidad.ToString("N3")</td></tr>}</tbody></table>
+      </div></div>
+    }
+  }
+ </ChildContent>
+</AppPantalla>
+
+@code {
+ private List<FiltranClienteDTO> _clientes = new();
+ private long _idCliente;
+ private string _nombreCliente = "", _texCliente = "";
+ private int _tipo = 1;
+ private List<InventarioDTO> _arts = new();
+ private InventarioDTO? _artSel;
+ private List<LoteExistencia> _lotes = new();
+ private long _loteSel;
+ private double _cant = 1;
+ private string _texArt = "", _documento = "", _motivo = "", _error = "";
+ private bool _cierreTotal, _guardando;
+ private readonly List<BoletaConsignacionLinea> _lineas = new();
+ private BoletaConsignacion? _boleta;
+
+ private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
+
+ private async Task Fallo<T>(LoteEnvelope<T> r, string alterno)
+ {
+     _error = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? alterno;
+     await Dialogos.ErrorAsync(_error);
+ }
+
+ private void CambiarTipo(int t) { _tipo = t; _lineas.Clear(); _boleta = null; _cierreTotal = false; }
+
+ private async Task BuscarCliente()
+ {
+     var t = _texCliente?.Trim() ?? "";
+     _idCliente = 0;
+     if (t.Length < 2) { _clientes = new(); return; }
+     var r = await Clientes.Buscar(t);
+     _clientes = r.EsCorrecta ? (r.Responses ?? new List<FiltranClienteDTO>()).Take(20).ToList() : new();
+ }
+
+ private void ElegirCliente(FiltranClienteDTO c)
+ {
+     _idCliente = c.Identificacion; _nombreCliente = $"{c.Cedula} — {c.Nombre}"; _texCliente = _nombreCliente;
+     _clientes = new(); _lineas.Clear(); _boleta = null;
+ }
+
+ private async Task BuscarArt()
+ {
+     var t = _texArt?.Trim() ?? "";
+     _artSel = null;
+     if (t.Length < 2) { _arts = new(); return; }
+     var r = await Inventario.Buscar(t);
+     _arts = r.EsCorrecta ? (r.Responses ?? new List<InventarioDTO>()).Take(20).ToList() : new();
+ }
+
+ private async Task ElegirArt(InventarioDTO a)
+ {
+     _artSel = a; _texArt = $"{a.Cod_Articulo} — {a.Descripcion}"; _arts = new(); _loteSel = 0; _lotes = new();
+     var r = await LotesApi.ExistenciaConsolidadaAsync(a.Codigo);
+     if (Ok(r)) _lotes = (r.Responses?.Lotes ?? new()).Where(l => !l.Vencido && !l.Bloqueado).ToList();
+ }
+
+ private void AgregarLinea()
+ {
+     if (_artSel is null || _cant <= 0) return;
+     if (_lineas.Any(x => x.IdArticulo == _artSel.Codigo && x.IdStockLote == (_loteSel > 0 ? _loteSel : null)))
+     { _ = Dialogos.ErrorAsync("Ese artículo/lote ya está en la lista."); return; }
+     _lineas.Add(new BoletaConsignacionLinea
+     {
+         IdArticulo = _artSel.Codigo,
+         CodArticulo = _artSel.Cod_Articulo ?? "",
+         Descripcion = _artSel.Descripcion ?? "",
+         IdStockLote = _loteSel > 0 ? _loteSel : null,
+         NumeroLote = _loteSel > 0 ? _lotes.FirstOrDefault(l => l.Id == _loteSel)?.Numero : null,
+         Cantidad = _cant
+     });
+     _artSel = null; _texArt = ""; _loteSel = 0; _lotes = new(); _cant = 1;
+ }
+
+ private async Task Guardar()
+ {
+     if (!_lineas.Any()) return;
+     if (_tipo == 2 && !await Dialogos.ConfirmarPeligroAsync(
+         _cierreTotal ? "Cierre total: se retirará todo el inventario de la bodega de consignación." : "Se retirará el inventario indicado de la bodega de consignación.",
+         "Salida de consignación")) return;
+     _guardando = true;
+     var r = await Api.RegistrarBoletaAsync(new BoletaConsignacionRequest
+     {
+         Tipo = _tipo,
+         IdCliente = _idCliente,
+         Documento = string.IsNullOrWhiteSpace(_documento) ? null : _documento.Trim(),
+         Motivo = string.IsNullOrWhiteSpace(_motivo) ? null : _motivo.Trim(),
+         CierreTotal = _tipo == 2 && _cierreTotal,
+         Lineas = _lineas.Select(l => new BoletaConsignacionLineaEntrada { IdArticulo = l.IdArticulo, IdStockLote = l.IdStockLote, Cantidad = l.Cantidad }).ToList()
+     });
+     _guardando = false;
+     if (!Ok(r)) { await Fallo(r, "No se pudo registrar la boleta."); return; }
+     _boleta = r.Responses;
+     _lineas.Clear(); _documento = ""; _motivo = ""; _cierreTotal = false;
+     Dialogos.Exito($"Boleta {_boleta!.TipoDescripcion} #{_boleta.Id} registrada.");
+ }
+}

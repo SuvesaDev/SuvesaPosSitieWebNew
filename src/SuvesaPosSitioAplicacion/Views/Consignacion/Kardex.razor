@@ -1,0 +1,114 @@
+@page "/consignment/ledger"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Consignacion
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IConsignacionInvApiCliente Api
+@inject IClientesConsulta Clientes
+@inject IServicioDialogos Dialogos
+@inject IJSRuntime JS
+
+<AppPantalla Pantalla="Kardex de Consignación" Codigo="CONSIGNACION.KARDEX" Icono="bi-journal-text"
+             Subtitulo="Movimientos de la bodega de consignación de un cliente" Nivel="NivelPantalla.Tableta">
+ <Acciones>
+  <button class="btn btn-sm btn-outline-secondary" @onclick="Exportar" disabled="@(_kardex is null || !_kardex.Movimientos.Any())">Exportar CSV</button>
+ </Acciones>
+ <ChildContent>
+  @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+
+  <div class="card mb-3"><div class="card-body row g-2 align-items-end">
+    <div class="col-md-5 position-relative">
+      <label class="form-label">Cliente <span class="text-danger">*</span></label>
+      <input class="form-control" @bind="_texCliente" @bind:event="oninput" @bind:after="BuscarCliente" placeholder="Cédula o nombre" />
+      @if (_clientes.Count > 0)
+      {
+        <div class="list-group position-absolute shadow w-100" style="z-index:5; max-height:14rem; overflow-y:auto;">
+          @foreach (var c in _clientes) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirCliente(c)"><strong>@c.Cedula</strong> @c.Nombre</button> }
+        </div>
+      }
+    </div>
+    <div class="col-md-2"><label class="form-label">Desde</label><input type="date" class="form-control" @bind="_desde" /></div>
+    <div class="col-md-2"><label class="form-label">Hasta</label><input type="date" class="form-control" @bind="_hasta" /></div>
+    <div class="col-md-2 d-grid"><button class="btn btn-primary" @onclick="Cargar" disabled="@(_idCliente <= 0)">Consultar</button></div>
+  </div></div>
+
+  @if (_kardex is not null)
+  {
+    <div class="card mb-3"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><strong>@_kardex.NombreCliente</strong> — existencia total <strong>@_kardex.ExistenciaTotal.ToString("N3")</strong></div>
+      <span class="badge @(_kardex.Estado == "Cerrada" ? "text-bg-secondary" : "text-bg-success")">@(_kardex.Estado == "Cerrada" ? "Consignación cerrada" : "Activa")</span>
+    </div></div>
+
+    <div class="card"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Fecha</th><th>Movimiento</th><th>Documento</th><th>Artículo</th><th>Lote</th><th class="text-end">Ex. ant.</th><th class="text-end">Cantidad</th><th class="text-end">Ex. nueva</th><th>Usuario</th></tr></thead>
+      <tbody>
+        @foreach (var m in _kardex.Movimientos)
+        {
+          <tr>
+            <td>@m.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+            <td>@m.MovimientoDescripcion</td>
+            <td>@m.Documento</td>
+            <td><code>@m.CodArticulo</code> @m.Descripcion</td>
+            <td>@m.NumeroLote</td>
+            <td class="text-end">@m.ExistenciaAnterior.ToString("N3")</td>
+            <td class="text-end">@m.Cantidad.ToString("N3")</td>
+            <td class="text-end">@m.ExistenciaNueva.ToString("N3")</td>
+            <td>@m.Usuario</td>
+          </tr>
+        }
+        @if (!_kardex.Movimientos.Any()) { <tr><td colspan="9" class="text-secondary">Sin movimientos para el rango indicado.</td></tr> }
+      </tbody>
+    </table></div></div>
+  }
+ </ChildContent>
+</AppPantalla>
+
+@code {
+ private List<FiltranClienteDTO> _clientes = new();
+ private long _idCliente;
+ private string _texCliente = "", _error = "";
+ private DateTime? _desde, _hasta;
+ private KardexConsignacion? _kardex;
+
+ private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
+
+ private async Task BuscarCliente()
+ {
+     var t = _texCliente?.Trim() ?? "";
+     _idCliente = 0; _kardex = null;
+     if (t.Length < 2) { _clientes = new(); return; }
+     var r = await Clientes.Buscar(t);
+     _clientes = r.EsCorrecta ? (r.Responses ?? new List<FiltranClienteDTO>()).Take(20).ToList() : new();
+ }
+
+ private void ElegirCliente(FiltranClienteDTO c)
+ {
+     _idCliente = c.Identificacion;
+     _texCliente = $"{c.Cedula} — {c.Nombre}";
+     _clientes = new();
+ }
+
+ private async Task Cargar()
+ {
+     if (_idCliente <= 0) return;
+     _error = "";
+     var r = await Api.KardexAsync(new KardexConsignacionFiltro { IdCliente = _idCliente, Desde = _desde, Hasta = _hasta });
+     if (Ok(r)) _kardex = r.Responses;
+     else { _kardex = null; _error = r.CurrentException ?? "No se pudo cargar el kardex."; await Dialogos.ErrorAsync(_error); }
+ }
+
+ private async Task Exportar()
+ {
+     if (_kardex is null) return;
+     static string Q(string? x) => "\"" + (x ?? "").Replace("\"", "\"\"") + "\"";
+     var csv = "Fecha,Movimiento,Documento,Codigo,Descripcion,Lote,ExistenciaAnterior,Cantidad,ExistenciaNueva,Usuario,Observaciones\n"
+         + string.Join("\n", _kardex.Movimientos.Select(m =>
+             $"{m.Fecha:yyyy-MM-dd HH:mm},{Q(m.MovimientoDescripcion)},{Q(m.Documento)},{Q(m.CodArticulo)},{Q(m.Descripcion)},{Q(m.NumeroLote)},{m.ExistenciaAnterior},{m.Cantidad},{m.ExistenciaNueva},{Q(m.Usuario)},{Q(m.Observaciones)}"));
+     await JS.InvokeVoidAsync("seepos.descargarTexto", $"kardex-consignacion-{_idCliente}.csv", csv, "text/csv;charset=utf-8");
+ }
+}
