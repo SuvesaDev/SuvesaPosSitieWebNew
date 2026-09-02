@@ -310,6 +310,19 @@ Rama `feature/bonificaciones-web`. Verificación: `dotnet build` del sitio + `do
 | §2 | `0b667b8` | Nodo de menú `INICIO.CALCULADORA_PRODUCCION` (`/initial/production-calculator`) en `Class/MenuSeePos.cs`. Código en `tests/…/Fixtures/seed-seguridad.json` y en el seed del API (`SecuritySystem/Seed/seed-seguridad.json`). `FiltroMenuTests` +1 nodo. | `MenuCodigosTests` + `FiltroMenuTests` verdes |
 | §3-§6 | `0b667b8` | `Views/Inicio/CalculadoraProduccion.razor` completa: selector de **bodega** obligatorio (limpia selección al cambiar); lista de PT con buscador; editor de fórmula con buscador **filtrado a Materia prima** (`TipoArticulo==2`) + validación en `GuardarInsumo`; cantidad a producir + lotes a consumir con **consumo estricto** (`InsumoCuadra` / `TodoCuadra`, no repetir lote, tope por existencia en bodega); `Calcular` (habilita convertir sólo si cuadra y `MaximoAProducir==CantidadAProducir`); `Convertir` pide lote + vencimiento **obligatorios** con confirmación; reporte de la producción; **bitácora** con filtros fecha/artículo, **Anular** por fila (modal con motivo + `ConfirmarPeligroAsync`), filas anuladas tachadas; **Exportar CSV** cabeceras + detalle (helper JS `seepos.descargarTexto` agregado en `App.razor`). | build + 72 tests |
 | §7 | `0b667b8` | Pestaña "Fórmula y conversión" **eliminada** de `Views/Inventario/Consulta.razor` (−310 líneas). Proxy viejo `IProduccionInventario` / `ProduccionInventario` **borrado**. | build limpio (0 warnings) |
+| Reestructura | `8f347c2` | **A pedido del usuario** (ver más abajo): (1) la **fórmula vuelve a la ficha** — pestaña "Fórmula" en `Consulta.razor` para PT (`TipoArticulo==3`), agregar/quitar componentes por código contra `Produccion/GuardarComponente` (valida Materia prima + INSERT); sin cálculo/conversión. (2) `Views/Produccion/Calculadora.razor` (`/production/calculator`): lista de PT con acción **"Producir"** → `HxModal` con fórmula (solo lectura) + cantidad + lotes (consumo estricto) + Calcular + Convertir. (3) `Views/Produccion/Bitacora.razor` (`/production/log`): función **aparte** — filtros, tabla, Anular, export CSV. (4) Menú: sale de "Inicio"; **módulo raíz `PRODUCCION`** con `PRODUCCION.CALCULADORA` y `PRODUCCION.BITACORA` (`MenuSeePos` + fixture seed + seed API; `FiltroMenuTests` 13 raíz / 105 nodos). `Views/Inicio/CalculadoraProduccion.razor` eliminado. | build + 72 tests |
+
+### Cambio de estructura (post-`0b667b8`, commit `8f347c2`)
+
+El §3.2–§3.5 originales de este doc quedan **superados** por lo que pidió el usuario:
+
+- **Fórmula:** se configura desde la **ficha del artículo** (pestaña), no en la
+  calculadora. La calculadora sólo la muestra en modo lectura.
+- **Calculadora:** pantalla = lista de PT + botón **"Producir"** por fila → **modal**
+  con toda la selección de lotes y validación (como el flujo viejo, pero en modal).
+- **Bitácora:** pantalla **independiente**, no una sección de la calculadora.
+- **Menú:** módulo propio **"Producción"** (fuera de "Inicio") con sub-items
+  **"Calculadora"** y **"Bitácora"**.
 
 ### Pendiente / notas
 
