@@ -5,7 +5,7 @@ namespace SuvesaPosSitioAplicacion.Class;
 /// <summary>
 /// Menu lateral del sistema. Base portada de SidebarData.jsx del sistema actual y
 /// despues reorganizada, y luego podada de las entradas que nunca se implementaron
-/// (no tenian pantalla ni funcion): 12 raices y 80 nodos. Los titulos se conservan
+/// (no tenian pantalla ni funcion): 12 raices y 79 nodos. Los titulos se conservan
 /// literalmente porque, junto con el Codigo, son la llave contra la que casan los
 /// permisos.
 ///
@@ -187,14 +187,16 @@ public static partial class MenuSeePos
                 {
                     Titulo = "Toma",
                     Codigo = "COMPRAS.TOMA",
-                    Ruta = "/buys/pretake",
+                    Ruta = "/buys/physical-count",
                     Hijos = new ItemMenu[]
                     {
                         new ItemMenu
                         {
-                            Titulo = "Toma",
-                            Codigo = "COMPRAS.TOMA.TOMA",
-                            Ruta = "/buys/take",
+                            // La pantalla (TomaFisica.razor) se gatea con COMPRAS.TOMA_FISICA;
+                            // el item vive bajo el grupo "Toma" para que se lea Toma > Toma Física.
+                            Titulo = "Toma Física",
+                            Codigo = "COMPRAS.TOMA_FISICA",
+                            Ruta = "/buys/physical-count",
                         }
                     }
                 },
@@ -209,12 +211,6 @@ public static partial class MenuSeePos
                     Titulo = "Devoluciones compra",
                     Codigo = "COMPRAS.DEVOLUCIONES_COMPRA",
                     Ruta = "/buys/purchasereturns",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Toma Física",
-                    Codigo = "COMPRAS.TOMA_FISICA",
-                    Ruta = "/buys/physical-count",
                 },
                 new ItemMenu
                 {

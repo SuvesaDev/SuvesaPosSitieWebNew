@@ -429,25 +429,9 @@
         {
           "codigo": "COMPRAS.TOMA",
           "nombre": "Toma",
-          "ruta": "/buys/pretake",
+          "ruta": "/buys/physical-count",
           "padre": null,
           "orden": 6,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "COMPRAS.TOMA.TOMA",
-          "nombre": "Toma",
-          "ruta": "/buys/take",
-          "padre": "COMPRAS.TOMA",
-          "orden": 1,
           "acciones": [
             "VER",
             "CREAR",
@@ -510,7 +494,7 @@
           "codigo": "COMPRAS.TOMA_FISICA",
           "nombre": "Toma Física",
           "ruta": "/buys/physical-count",
-          "padre": null,
+          "padre": "COMPRAS.TOMA",
           "orden": 15,
           "acciones": [
             "VER",
