@@ -442,6 +442,10 @@
                             <input class="form-check-input" type="checkbox" id="perfilAceptaConsignacion" @bind="_perfil.AceptaConsignacion" disabled="@(!_puedeEscribir)" />
                             <label class="form-check-label" for="perfilAceptaConsignacion">Acepta consignacion</label>
                         </div></div>
+                        <div class="col-12 col-md-6"><div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="perfilPermiteExistenciaNegativa" @bind="_perfil.PermiteExistenciaNegativa" disabled="@(!_puedeEscribir)" />
+                            <label class="form-check-label" for="perfilPermiteExistenciaNegativa">Permite existencia negativa</label>
+                        </div></div>
                     </div>
                 </div>
             </div>
@@ -1021,6 +1025,7 @@
             CostaPets = origen.CostaPets,
             AgenteCostaPets = origen.AgenteCostaPets,
             AceptaConsignacion = origen.AceptaConsignacion,
+            PermiteExistenciaNegativa = origen.PermiteExistenciaNegativa,
             Activo = origen.Activo
         };
         _modalPerfil.MostrarAsync();
@@ -1073,8 +1078,9 @@
         if (perfil.CostaPets) yield return "Costa Pets";
         if (perfil.AgenteCostaPets) yield return "Agente Costa Pets";
         if (perfil.AceptaConsignacion) yield return "Acepta consignación";
+        if (perfil.PermiteExistenciaNegativa) yield return "Permite existencia negativa";
         if (!perfil.EsSuperAdministracion && !perfil.GestionaUsuarios && !perfil.CostaPets
-            && !perfil.AgenteCostaPets && !perfil.AceptaConsignacion)
+            && !perfil.AgenteCostaPets && !perfil.AceptaConsignacion && !perfil.PermiteExistenciaNegativa)
             yield return "Sin capacidades especiales";
     }
 
