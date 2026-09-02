@@ -76,7 +76,7 @@
             <div class="col-md-6"><select class="form-select" @bind="_loteElegido[c.IdInsumo]" @bind:after="() => LoteElegidoCambio(c)"><option value="0">Seleccione lote...</option>
               @foreach (var l in disponibles){ var ex = l.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0; <option value="@l.Id">Lote @l.Numero · existencia @ex.ToString("N3")</option> }</select></div>
             <div class="col-md-3"><input class="form-control" type="number" min="0.001" step="0.001" @bind="_cantidadLote[c.IdInsumo]" /></div>
-            <div class="col-md-3 d-grid"><button class="btn btn-outline-primary" @onclick="() => AgregarLote(c)" disabled="@(_loteElegido.GetValueOrDefault(c.IdInsumo) <= 0 || LoteYaSeleccionado(c))">Agregar lote</button></div>
+            <div class="col-md-3 d-grid"><button class="btn btn-outline-primary" @onclick="() => AgregarLote(c)" disabled="@(_loteElegido.GetValueOrDefault(c.IdInsumo) <= 0 || _cantidadLote.GetValueOrDefault(c.IdInsumo) <= 0 || LoteYaSeleccionado(c))">Agregar lote</button></div>
           </div>
           @if (_seleccion.TryGetValue(c.IdInsumo, out var sel) && sel.Any())
           {
@@ -250,7 +250,8 @@
      var id = _loteElegido.GetValueOrDefault(c.IdInsumo);
      var cantidad = _cantidadLote.GetValueOrDefault(c.IdInsumo);
      var lote = LotesDe(c.IdInsumo).FirstOrDefault(x => x.Id == id);
-     if (lote is null || cantidad <= 0) { await Dialogos.ErrorAsync("Seleccione un lote y una cantidad válida."); return; }
+     if (lote is null) { await Dialogos.ErrorAsync("Seleccione un lote."); return; }
+     if (cantidad <= 0) { await Dialogos.ErrorAsync("Indique la cantidad a consumir de ese lote."); return; }
      var existencia = lote.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0;
      var lista = _seleccion.GetValueOrDefault(c.IdInsumo) ?? new();
      if (lista.Any(x => x.IdStockLote == id)) { await Dialogos.ErrorAsync("Ese lote ya fue agregado para este insumo."); return; }
