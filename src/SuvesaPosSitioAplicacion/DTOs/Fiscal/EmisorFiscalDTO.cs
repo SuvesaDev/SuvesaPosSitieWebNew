@@ -11,6 +11,11 @@ public sealed class EmisorFiscalDTO
     public string? Sucursal { get; set; }
     public int Distrito { get; set; }
     public string? OtrasSeñas { get; set; }
+    /// <summary>
+    /// Metadato NO secreto que devuelve el API: vencimiento del certificado si hay
+    /// credenciales configuradas. null = sin credenciales cargadas.
+    /// </summary>
+    public DateTime? VenceCertificado { get; set; }
 }
 
 public sealed class CredencialesHaciendaFiscalDTO
