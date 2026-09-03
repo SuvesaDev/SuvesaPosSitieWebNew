@@ -1,18 +1,26 @@
 @page "/parameters/wineries"
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
 @using SuvesaPosSitioAplicacion.DTOs.Lotes
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ILotesApiCliente Api
+@inject ISucursales Sucursales
 @inject IServicioDialogos Dialogos
 @inject SuvesaPosSitioAplicacion.Security.IContextoSesion Sesion
 
-@*  Solo lectura: el API no tiene alta/edición/baja de bodegas todavía.
-    Muestra el centro de cada bodega (§3.1). Las bodegas de consignación no
-    aparecen aquí (viven en el módulo de consignación, requisito #6). *@
+@*  Mantenimiento de bodegas (§3.1). Las bodegas de consignación no aparecen aquí
+    (viven en el módulo de consignación, requisito #6). El alta/edición usa
+    api/mantenimientos/bodegas: requiere el API nuevo desplegado. *@
 
 <AppPantalla Pantalla="Bodegas" Codigo="PARAMETROS.BODEGAS" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        @if (Sesion.Puede("Bodegas", AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Nueva"><i class="bi bi-plus-lg me-1"></i>Nueva bodega</button>
+        }
+    </Acciones>
     <ChildContent>
         <div class="card">
             <div class="card-body">
@@ -31,7 +39,7 @@
                 else
                 {
                     <div class="table-responsive"><table class="table table-sm align-middle mb-0">
-                        <thead><tr><th>Bodega</th><th>Centro</th><th>Observaciones</th><th>Estado</th><th>Bloqueada</th><th>CostaPets</th></tr></thead>
+                        <thead><tr><th>Bodega</th><th>Centro</th><th>Observaciones</th><th>Estado</th><th>Bloqueada</th><th>CostaPets</th><th></th></tr></thead>
                         <tbody>
                             @foreach (var b in _bodegas)
                             {
@@ -42,9 +50,19 @@
                                     <td><span class="badge @((b.Estado ?? false) ? "text-bg-success" : "text-bg-secondary")">@((b.Estado ?? false) ? "Activa" : "Inactiva")</span></td>
                                     <td>@((b.Bloqueada ?? false) ? "Sí" : "No")</td>
                                     <td>@((b.EsCostaPets ?? false) ? "Sí" : "No")</td>
+                                    <td class="text-end text-nowrap">
+                                        @if (Sesion.Puede("Bodegas", AccionPantalla.Modificar))
+                                        {
+                                            <button class="btn btn-sm btn-link p-0" @onclick="() => Editar(b)">Editar</button>
+                                        }
+                                        @if ((b.Estado ?? false) && Sesion.Puede("Bodegas", AccionPantalla.Borrar))
+                                        {
+                                            <button class="btn btn-sm btn-link text-danger p-0 ms-2" @onclick="() => Desactivar(b)">Desactivar</button>
+                                        }
+                                    </td>
                                 </tr>
                             }
-                            @if (_bodegas.Count == 0) { <tr><td colspan="6" class="text-secondary">No hay bodegas para el filtro indicado.</td></tr> }
+                            @if (_bodegas.Count == 0) { <tr><td colspan="7" class="text-secondary">No hay bodegas para el filtro indicado.</td></tr> }
                         </tbody>
                     </table></div>
                 }
@@ -53,11 +71,43 @@
     </ChildContent>
 </AppPantalla>
 
+<AppModal @ref="_modal" Titulo="@(_edicion?.IdBodega > 0 ? "Editar bodega" : "Nueva bodega")" Tamano="ModalSize.Regular"
+          AlGuardar="Guardar" Guardando="_guardando">
+    @if (_edicion is not null)
+    {
+        <div class="row g-3">
+            <div class="col-12"><label class="form-label">Nombre <span class="text-danger">*</span></label>
+                <input class="form-control" @bind="_edicion.NombreBodega" maxlength="100" /></div>
+            <div class="col-12"><label class="form-label">Observaciones</label>
+                <input class="form-control" @bind="_edicion.Observaciones" maxlength="255" /></div>
+            <div class="col-12 col-md-8"><label class="form-label">Centro</label>
+                <select class="form-select" @bind="_centroSel">
+                    <option value="0">— Global (todos los centros) —</option>
+                    @foreach (var s in _centros) { <option value="@s.Id">@s.NombreComercial</option> }
+                </select></div>
+            <div class="col-12 d-flex gap-4">
+                <div class="form-check"><input class="form-check-input" type="checkbox" id="bm-bloq" @bind="_edicion.Bloqueada" /><label class="form-check-label" for="bm-bloq">Bloqueada</label></div>
+                <div class="form-check"><input class="form-check-input" type="checkbox" id="bm-cp" @bind="_edicionEsCostaPets" /><label class="form-check-label" for="bm-cp">CostaPets</label></div>
+            </div>
+        </div>
+    }
+</AppModal>
+
 @code {
     private List<BodegaOperativa> _bodegas = new();
-    private bool _cargando, _todosCentros;
+    private List<SuvesaPosSitioAplicacion.DTOs.Fiscal.SucursalFiscalDTO> _centros = new();
+    private bool _cargando, _todosCentros, _guardando;
+    private AppModal _modal = default!;
+    private BodegaOperativa? _edicion;
+    private int _centroSel;
+    private bool _edicionEsCostaPets;
 
-    protected override Task OnInitializedAsync() => Recargar();
+    protected override async Task OnInitializedAsync()
+    {
+        var rs = await Sucursales.Obtener();
+        _centros = rs.EsCorrecta ? (rs.Responses ?? new List<SuvesaPosSitioAplicacion.DTOs.Fiscal.SucursalFiscalDTO>()).ToList() : new();
+        await Recargar();
+    }
 
     private async Task Recargar()
     {
@@ -72,5 +122,59 @@
             return;
         }
         _bodegas = (r.Responses ?? new()).OrderBy(b => b.NombreBodega).ToList();
+    }
+
+    private async Task Nueva()
+    {
+        _edicion = new BodegaOperativa { NombreBodega = "", Estado = true };
+        _centroSel = Sesion.IdSucursal > 0 ? Sesion.IdSucursal : 0;
+        _edicionEsCostaPets = false;
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Editar(BodegaOperativa b)
+    {
+        _edicion = new BodegaOperativa
+        {
+            IdBodega = b.IdBodega, NombreBodega = b.NombreBodega, Observaciones = b.Observaciones,
+            Bloqueada = b.Bloqueada, Estado = b.Estado, IdSucursal = b.IdSucursal
+        };
+        _centroSel = b.IdSucursal ?? 0;
+        _edicionEsCostaPets = b.EsCostaPets ?? false;
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null) return;
+        if (string.IsNullOrWhiteSpace(_edicion.NombreBodega)) { await Dialogos.ErrorAsync("Indique el nombre de la bodega."); return; }
+        _edicion.IdSucursal = _centroSel > 0 ? _centroSel : (int?)null;
+        _edicion.EsCostaPets = _edicionEsCostaPets;
+        _guardando = true;
+        var r = _edicion.IdBodega > 0
+            ? await Api.BodegaActualizarAsync(_edicion.IdBodega, _edicion)
+            : await Api.BodegaCrearAsync(_edicion);
+        _guardando = false;
+        if (r.Status != DTOs.Generated.ResponseStatus._0)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? "No se pudo guardar la bodega.");
+            return;
+        }
+        await _modal.OcultarAsync();
+        Dialogos.Exito(_edicion.IdBodega > 0 ? "Bodega actualizada." : "Bodega creada.");
+        await Recargar();
+    }
+
+    private async Task Desactivar(BodegaOperativa b)
+    {
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Desactivar la bodega «{b.NombreBodega}»?", "Desactivar bodega")) return;
+        var r = await Api.BodegaDesactivarAsync(b.IdBodega);
+        if (r.Status != DTOs.Generated.ResponseStatus._0)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo desactivar la bodega.");
+            return;
+        }
+        Dialogos.Exito("Bodega desactivada.");
+        await Recargar();
     }
 }

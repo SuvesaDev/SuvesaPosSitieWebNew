@@ -24,6 +24,10 @@ public interface ILotesApiCliente
 
     // Bodegas por centro (§3.1). idSucursal null = todas (el API igual excluye consignación).
     Task<LoteEnvelope<List<BodegaOperativa>>> BodegasOperativasAsync(int? idSucursal);
+    // Mantenimiento (api/mantenimientos/bodegas). Requiere el API nuevo desplegado.
+    Task<LoteEnvelope<BodegaOperativa>> BodegaCrearAsync(BodegaOperativa bodega);
+    Task<LoteEnvelope<BodegaOperativa>> BodegaActualizarAsync(int idBodega, BodegaOperativa bodega);
+    Task<LoteEnvelope<bool>> BodegaDesactivarAsync(int idBodega);
 
     // Traslado de bodega a bodega (§3.4).
     Task<LoteEnvelope<TrasladoBodega>> TrasladoRegistrarAsync(TrasladoBodegaRequest req);
@@ -112,6 +116,15 @@ public sealed class LotesApiCliente : ILotesApiCliente
     public Task<LoteEnvelope<List<BodegaOperativa>>> BodegasOperativasAsync(int? idSucursal)
         => EnviarAsync<List<BodegaOperativa>>(HttpMethod.Post,
             idSucursal is > 0 ? $"bodega/ObtenerBodegas?idSucursal={idSucursal}" : "bodega/ObtenerBodegas");
+
+    public Task<LoteEnvelope<BodegaOperativa>> BodegaCrearAsync(BodegaOperativa bodega)
+        => EnviarAsync<BodegaOperativa>(HttpMethod.Post, "api/mantenimientos/bodegas", bodega);
+
+    public Task<LoteEnvelope<BodegaOperativa>> BodegaActualizarAsync(int idBodega, BodegaOperativa bodega)
+        => EnviarAsync<BodegaOperativa>(HttpMethod.Put, $"api/mantenimientos/bodegas/{idBodega}", bodega);
+
+    public Task<LoteEnvelope<bool>> BodegaDesactivarAsync(int idBodega)
+        => EnviarAsync<bool>(HttpMethod.Delete, $"api/mantenimientos/bodegas/{idBodega}");
 
     public Task<LoteEnvelope<TrasladoBodega>> TrasladoRegistrarAsync(TrasladoBodegaRequest req)
         => EnviarAsync<TrasladoBodega>(HttpMethod.Post, "TrasladoBodega/Registrar", req);
