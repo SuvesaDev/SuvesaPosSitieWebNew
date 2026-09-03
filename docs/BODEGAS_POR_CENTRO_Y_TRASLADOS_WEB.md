@@ -37,6 +37,23 @@ Ver `BODEGAS_POR_CENTRO_Y_TRASLADOS_API.md §0`. Resumen de lo que toca al **sit
 
 ---
 
+## 0bis. Cobertura de los 8 puntos (checklist)
+
+| # | Punto | Secciones que lo cubren | Estado de partida en el sitio |
+|---|---|---|---|
+| 1 | Bodegas filtradas por el centro de la sesión + mantenimiento con centro | §1.1, §1.2, §2·1, §3.1, §5·1 | `Sesion.IdSucursal` ya existe; `bodega/ObtenerBodegas` trae todo |
+| 2 | Selector de bodega en venta/compra/preventa | §1.2, §1.5, §2·2, §3.2, §4, §5·3 | **no existe**; se manda `IdBodega = 0` |
+| 3 | Ficha de movimientos por bodega + **toma física por bodega** (actualizar existencia ya es por bodega) | §1.3, §1.3b, §2·3, §2·3b, §3.3, §3.3b, §5·2, §5·2b | pestaña Existencias ya multi‑bodega; Movimientos sin bodega; TomaFisica manda `Bodega = 0` fijo |
+| 4 | Pantalla de traslado bodega ↔ bodega | §1.5, §2·4, §3.4, §4, §5·4, §5bis | no hay pantalla ni nodo de menú |
+| 5 | Ajuste de consignación explicado como traslado desde/hacia la central | §2·5, §3.5, §5·5 | `Ajuste.razor` no menciona la central |
+| 6 | Bodegas de consignación fuera de todo selector salvo el módulo | §1.5, §2·6, §3.1, §3.6, §5·7 | ninguna fuente filtrada hoy |
+| 7 | Al ingresar productos: se ve "‑N central / +N cliente" y se bloquea si la central no tiene | §2·7, §3.5, §5bis | no se ve efecto ni validación |
+| 8 | Inventario físico de consignación: precargar artículos+lotes del cliente + validar "todo contado" | §1.4, §1.5, §2·8, §3.7, §4, §5·6 | conteo manual, sin precarga ni validación |
+
+Ningún punto queda sin diseño, contrato a escribir y lugar en el orden de implementación.
+
+---
+
 ## 1. Estado actual (mapa)
 
 ### 1.1 Sesión y centro
