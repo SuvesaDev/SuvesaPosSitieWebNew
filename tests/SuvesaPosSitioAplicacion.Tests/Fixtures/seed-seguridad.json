@@ -124,26 +124,10 @@
         },
         {
           "codigo": "INICIO.DOCUMENTOS_EMITIDOS",
-          "nombre": "Documentos Emitidos",
+          "nombre": "Bandeja de documentos",
           "ruta": "/initial/documents",
           "padre": null,
           "orden": 6,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "INICIO.BANDEJA_FISCAL_V4_4",
-          "nombre": "Bandeja Fiscal V4.4",
-          "ruta": "/invoices/fiscal-tray",
-          "padre": null,
-          "orden": 7,
           "acciones": [
             "VER",
             "CREAR",

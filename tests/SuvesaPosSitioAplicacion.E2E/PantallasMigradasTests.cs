@@ -45,7 +45,7 @@ public class PantallasMigradasTests
         { "/buys/purchaseorder", "Orden de compra manual" },
         { "/sales/budgets/seguimiento", "Seguimiento Cotizaciones" },
         { "/moduloReportes", "Módulo Reportes" },
-        { "/initial/documents", "Documentos Emitidos" },
+        { "/initial/documents", "Bandeja de documentos" },
         { "/initial/consultAlbaranes", "Consulta Albaranes" },
         { "/initial/repayment", "Devoluciones" },
         { "/sales/repayment", "Devoluciones" },

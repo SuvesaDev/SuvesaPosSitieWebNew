@@ -190,7 +190,7 @@ builder.Services.AddScoped<ICuentasPorCobrar, CuentasPorCobrar>();
 builder.Services.AddScoped<IReportes, Reportes>();
 builder.Services.AddScoped<IFacturacion, Facturacion>();
 builder.Services.AddScoped<ICompras, Compras>();
-builder.Services.AddScoped<IDocumentosEmitidos, DocumentosEmitidos>();
+builder.Services.AddScoped<IBandejaDocumentos, BandejaDocumentos>();
 builder.Services.AddScoped<IAlbaranes, Albaranes>();
 builder.Services.AddScoped<IDepositosConsulta, DepositosConsulta>();
 builder.Services.AddScoped<IFamilias, Familias>();

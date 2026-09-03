@@ -8,6 +8,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject NavigationManager Navegacion
 
 @*  Ola 5 — el menu React tiene "Devoluciones" dos veces (/initial/repayment y
     /sales/repayment) porque el enrutador de la SPA manda ambas rutas al MISMO
@@ -203,6 +204,7 @@
     private List<PersonalDTO> _personal = new();
 
     private string _numeroFactura = string.Empty;
+    private bool _prefillPendiente;
     private FacturaDTO? _factura;
     private long _idVentaDetalleSeleccionado;
     private FacturaDetallesDTO? _lineaSeleccionada;
@@ -225,6 +227,19 @@
     private DateTime? _filtroDevolucionFecha;
     private List<DevolucionVentaDTO> _devolucionesEncontradas = new();
 
+    protected override void OnInitialized()
+    {
+        // La bandeja de documentos abre esta pantalla con ?factura=<nº> para
+        // arrancar la devolución de esa factura una vez desbloqueada.
+        var uri = Navegacion.ToAbsoluteUri(Navegacion.Uri);
+        var q = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (q.TryGetValue("factura", out var valor) && !string.IsNullOrWhiteSpace(valor))
+        {
+            _numeroFactura = valor.ToString();
+            _prefillPendiente = true;
+        }
+    }
+
     private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
 
     private async Task Desbloquear()
@@ -246,6 +261,13 @@
 
         _tipos = (await Respuestas.DatoAsync(await Facturas.Tipos(), "consultar los tipos de factura"))?.ToList() ?? new();
         _personal = (await Respuestas.DatoAsync(await Api.Personal(), "consultar el personal"))?.Where(p => p.Activo).ToList() ?? new();
+
+        if (_prefillPendiente && !string.IsNullOrWhiteSpace(_numeroFactura))
+        {
+            _prefillPendiente = false;
+            var factura = await Respuestas.DatoAsync(await Api.BuscarFacturaPorNumero(_numeroFactura), "buscar la factura");
+            CargarFactura(factura);
+        }
     }
 
     private async Task BuscarPorNumeroConEnter(KeyboardEventArgs e)

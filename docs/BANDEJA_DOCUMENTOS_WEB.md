@@ -127,47 +127,53 @@ contratos que divergieron): `BandejaDocumentosFiltro`,
       pantalla va **bajo "Inicio"** y **reutiliza el código `INICIO.DOCUMENTOS_EMITIDOS`**
       (se retira `INICIO.BANDEJA_FISCAL_V4_4`). Pendiente: si el filtro de sucursal
       se fuerza a la de la sesión.
-- [ ] **§2** DTOs espejo + `IBandejaDocumentos` + implementación de proxy +
-      registro en DI (`Program.cs`/módulo de `ApiConexion`).
-- [ ] **§3** `Views/Documentos/Bandeja.razor` con `nav-tabs` y estado de pestaña;
-      un `AppRejilla<T>` por pestaña con carga server-side y filtro
-      (rango fechas + texto + combo estado Hacienda en Facturas/NC).
-- [ ] **§4** Pestaña **Preventas**: columnas comunes + acciones (Ver, Facturar,
-      Anular). "Facturar" navega a `Facturacion.razor` con la preventa.
-- [ ] **§5** Pestaña **Facturas**: columnas comunes + 4 fiscales + badge de estado
-      con color; acciones (Ver, Realizar devolución, XML, Respuesta, Reintentar,
-      Consultar estado). Gatear acciones de modificación con
-      `Sesion.Puede(Titulo, AccionPantalla.Modificar)`.
-- [ ] **§6** Pestaña **Notas de Crédito**: columnas comunes + 4 fiscales;
-      acciones fiscales iguales a Facturas (sin "Realizar devolución", **sin anular**).
-- [ ] **§7** Pestaña **Consignaciones**: columnas comunes; fuente = **prefacturas
-      de consignación** (`ConsignacionInvApiCliente.Prefacturas`); reusar sus
-      flujos (Aprobar/Editar/Facturar/Anular prefactura) para las acciones.
-- [ ] **§8** Modal/offcanvas de **detalle** (común + bloque fiscal + líneas).
-      Reusar el patrón de "copiar clave" de `Emitidos.razor` y el modal de
-      detalle fiscal de `BandejaFiscal.razor`.
-- [ ] **§9** `DevolucionesVenta.razor`: leer query param (`?factura=` / `?id=`)
-      en `OnInitializedAsync` y autoseleccionar la factura (usa
-      `BuscarFacturaPorNumero` / `BuscarFacturaPorId` ya existentes).
-- [ ] **§10** Menú (`Class/MenuSeePos.cs`), grupo **Inicio**: renombrar la entrada
-      **"Documentos Emitidos"** a **"Bandeja de documentos"** conservando
-      `Codigo = "INICIO.DOCUMENTOS_EMITIDOS"` y `Ruta = "/initial/documents"`;
-      **quitar** la entrada **"Bandeja Fiscal V4.4"** (`INICIO.BANDEJA_FISCAL_V4_4`,
-      `/invoices/fiscal-tray`). Ajustar `FiltroMenuTests` (baja 1 nodo) y
-      `PantallasMigradasTests` (quitar `/invoices/fiscal-tray`; el título de
-      `/initial/documents` pasa a "Bandeja de documentos").
-- [ ] **§11** Semilla de seguridad: `tests/.../Fixtures/seed-seguridad.json` debe
-      quedar igual que la del API (se retira solo `INICIO.BANDEJA_FISCAL_V4_4`;
-      `INICIO.DOCUMENTOS_EMITIDOS` se conserva, quizá con `nombre`/`ruta`
-      actualizados). `MenuCodigosTests` exige que todo código del menú exista en
-      la semilla.
-- [ ] **§12** Borrar `Views/Documentos/Emitidos.razor`,
-      `Views/Facturacion/BandejaFiscal.razor` y sus proxies/DTOs si quedan sin
-      uso (o dejarlos un ciclo y borrarlos después). `IBandejaFiscal` se
-      **conserva** (lo reusa la bandeja nueva para XML/respuesta/reintento).
-- [ ] **§13** `PantallasMigradasTests` (E2E): actualizar la ruta y el título.
-- [ ] **§14** Build + `dotnet test` (unit) verdes; revisar `FiltroMenuTests`,
-      `MenuCodigosTests`, `FiltroMenuTests.ElMenuRealSeCargoCompleto`.
+- [x] **§2** DTOs espejo (`DTOs/Bandeja/BandejaDocumentosDTOs.cs`) +
+      `IBandejaDocumentos` + `ProxyClass/BandejaDocumentos` (estilo envelope, como
+      `EmisoresFiscales`) + registro en `Program.cs`. `IBandejaFiscal` gana
+      `ConsultarEstado(clave)`.
+- [x] **§3** `Views/Documentos/Bandeja.razor` (+ `.razor.cs`) en `@page "/initial/documents"`
+      con `nav-tabs`, filtro común (rango fechas + texto + estado Hacienda en
+      Facturas/NC + "incluir anulados") y tabla + paginador Anterior/Siguiente
+      (server-side), como `BandejaFiscal`.
+- [x] **§4** Pestaña **Preventas**: columnas comunes; acción **Ver** (offcanvas con
+      los datos de la fila). "Facturar / Anular preventa" → **follow-up** (flujo
+      aparte, no incluido en v1).
+- [x] **§5** Pestaña **Facturas**: columnas comunes + 4 fiscales + badge de estado
+      con color (`ClaseEstado`); acciones **Ver** (detalle con líneas), **Devolución**
+      (navega a `/sales/repayment?factura=<nº>`), **Fiscal** (modal: XML firmado,
+      respuesta Hacienda, consultar estado, reintentar emisión).
+- [x] **§6** Pestaña **Notas de Crédito**: columnas comunes + 4 fiscales; acciones
+      **Ver** + **Fiscal** (sin devolución, sin anular).
+- [x] **§7** Pestaña **Consignaciones**: columnas comunes + `EstadoDescripcion`;
+      acción **Ver**. Aprobar/Editar/Facturar/Anular prefactura se siguen haciendo
+      desde las pantallas de consignación → **follow-up**.
+- [x] **§8** Offcanvas de **detalle** (común + bloque fiscal + líneas) para
+      factura y NC; para preventa/consignación muestra los datos de la fila.
+      Modal de acciones fiscales aparte.
+- [x] **§9** `DevolucionesVenta.razor`: `OnInitialized` lee `?factura=<nº>`
+      (`QueryHelpers`), prefija `_numeroFactura` y, tras desbloquear, autocarga
+      la factura con `BuscarFacturaPorNumero`.
+- [x] **§10** Menú: "Documentos Emitidos" → **"Bandeja de documentos"**
+      (`INICIO.DOCUMENTOS_EMITIDOS` / `/initial/documents` intactos); quitada
+      "Bandeja Fiscal V4.4". `FiltroMenuTests` 78 → 77. `PantallasMigradasTests`
+      (E2E) título actualizado (nunca tuvo fila de `/invoices/fiscal-tray`).
+- [x] **§11** Semilla: `INICIO.BANDEJA_FISCAL_V4_4` retirada de
+      `SecuritySystem/Seed/seed-seguridad.json` y de la copia de test del sitio
+      (idénticas); `INICIO.DOCUMENTOS_EMITIDOS` conservada con `nombre` nuevo.
+      `SeedSeguridadTests` umbral 70 → 60.
+- [x] **§12** Borradas `Views/Documentos/Emitidos.razor`,
+      `Views/Facturacion/BandejaFiscal.razor`, `IDocumentosEmitidos` +
+      `DocumentosEmitidos` (y su registro DI). `IBandejaFiscal` **conservada**.
+- [x] **§13** `PantallasMigradasTests` (E2E) actualizado.
+- [x] **§14** Build web limpio (0 warnings). Unit `dotnet test` 72/72
+      (`FiltroMenuTests`, `MenuCodigosTests` incluidos). API smoke 418/418.
+
+### Follow-ups (no en v1)
+- Preventas: acción "Facturar" (→ `Facturacion.razor`) y "Anular preventa".
+- Consignaciones: acciones de prefactura (aprobar/editar/facturar/anular) desde
+  la propia bandeja en vez de las pantallas de consignación.
+- Combo de estados de Hacienda con vocabulario normalizado (hoy es texto libre).
+- Vista responsive en tarjetas para móvil (hoy solo tabla con scroll).
 
 ---
 
