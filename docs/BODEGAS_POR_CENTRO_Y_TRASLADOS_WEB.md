@@ -330,8 +330,8 @@ Rama `feature/ola-0-cimientos`. Verificación por commit: `dotnet build` del sit
 **Estado: §3.1, §3.2, §3.3, §3.3b, §3.4, §3.5, §3.7 + pendientes implementados.** Ya hecho: mantenimiento
 `Parametros/Bodegas.razor` con columna **Centro** + filtros ("Ver todos los centros" / "Ver bodegas de
 consignación", vía `MantenimientoBodegasAsync`); "Reponer bodega central" (`<details>` en `Ajuste.razor` →
-`ConsignacionInventario/ReponerCentral`). Proxy `IMantenimientosInventario` retirado (ya no se usa). Sólo
-queda —si negocio lo pide— recordar la última bodega por cajero.
+`ConsignacionInventario/ReponerCentral`). Proxy `IMantenimientosInventario` retirado (ya no se usa).
+**Nada pendiente** — recordar la última bodega por cajero se descartó por decisión del usuario.
 Auditoría §3.6: los selectores nuevos (Movimientos, Toma Física, Traslado) usan `BodegasOperativasAsync`, que
 el API filtra `!EsConsignacion`; no queda ningún `<select>` de bodegas de consignación fuera de
 `Views/Consignacion/*`.
