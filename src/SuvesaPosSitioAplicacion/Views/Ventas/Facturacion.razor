@@ -8,6 +8,7 @@
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IFacturacion Api
 @inject IConsignacionInvApiCliente ConsignacionApi
+@inject IEmpresas Empresas
 @inject IClientesConsulta Clientes
 @inject IInventarioConsulta Inventario
 @inject ILotesApiCliente Lotes2
@@ -96,6 +97,20 @@
                         @if (_cliente is not null)
                         {
                             <div class="alert alert-light border mt-3 mb-0"><div class="d-flex justify-content-between"><strong>@_cliente.Nombre</strong><div><button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="AbrirCorreos"><i class="bi bi-envelope me-1" aria-hidden="true"></i>Correos del comprobante</button><button type="button" class="btn btn-sm btn-link" @onclick="QuitarCliente">Cambiar</button></div></div><div class="small text-secondary">@_cliente.Cedula · @_cliente.Telefono_01 · @_cliente.E_Mail</div>@if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { <div class="small text-danger mt-1">Cliente con restricción de morosidad.</div> } @if (_cliente.OrdenCompra) { <div class="small text-warning mt-1">El cliente requiere orden de compra.</div> }
+                                <div class="mt-2 pt-2 border-top">
+                                    <label class="form-label small mb-1">Actividad económica del cliente</label>
+                                    @if (_buscandoActsCliente)
+                                    {
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando</span></div>
+                                    }
+                                    else
+                                    {
+                                        <select class="form-select form-select-sm" @bind="_codActividadCliente" disabled="@(_actividadesCliente.Count == 0)">
+                                            <option value="">@(_actividadesCliente.Count == 0 ? "Sin actividades registradas en Hacienda" : "Seleccione...")</option>
+                                            @foreach (var act in _actividadesCliente) { <option value="@act.Codigo">@act.Codigo — @act.Descripcion</option> }
+                                        </select>
+                                    }
+                                </div>
                                 @if (_cliente.TieneBonificacion)
                                 {
                                     <div class="mt-2 pt-2 border-top">
@@ -399,6 +414,9 @@
     private int _idEmpresa;
     private string _codActividad = string.Empty;
     private List<ActividadesEmisorDTO> _actividadesEmpresa = new();
+    private string _codActividadCliente = string.Empty;
+    private List<ActividadesEmpresaDTO> _actividadesCliente = new();
+    private bool _buscandoActsCliente;
     private int _moneda;
     private bool _sinAgente;
     private long _codAgente;
@@ -471,6 +489,7 @@
 
             _cliente = await BuscarClienteConsignacion(_conteoPref.IdCliente, _conteoPref.NombreCliente);
             if (_cliente is null) { await Dialogos.ErrorAsync("No se encontró el cliente del conteo."); return; }
+            await CargarActividadesCliente(_cliente);
 
             _lineas.Clear();
             foreach (var l in _conteoPref.Lineas.Where(x => x.Vendido > 0.000001))
@@ -661,6 +680,7 @@
         _clientesEncontrados.Clear();
         if (_tipoFactura != 0 && !TiposDisponibles.Any(t => t.Codigo == _tipoFactura)) _tipoFactura = 0;
         RecalcularTodo();
+        await CargarActividadesCliente(cliente);
 
         _bonificacionesCliente = new List<ClienteBonificacionConfiguracionDTO>();
         if (cliente.TieneBonificacion)
@@ -673,7 +693,26 @@
         }
     }
 
-    private void QuitarCliente() { _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); }
+    private void QuitarCliente() { _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); _actividadesCliente = new(); _codActividadCliente = string.Empty; }
+
+    // Al elegir cliente se consultan sus actividades económicas en Hacienda (por
+    // cédula) para escoger bajo cuál se factura; se preselecciona la que el
+    // cliente tiene guardada (Cliente.CodigoActividad) si aparece en la lista.
+    private async Task CargarActividadesCliente(FiltranClienteDTO cliente)
+    {
+        _actividadesCliente = new();
+        _codActividadCliente = string.Empty;
+        if (string.IsNullOrWhiteSpace(cliente.Cedula)) return;
+
+        _buscandoActsCliente = true;
+        _actividadesCliente = (await Respuestas.DatoAsync(await Empresas.ActividadesHacienda(cliente.Cedula), "consultar las actividades del cliente"))?.ToList() ?? new();
+        _buscandoActsCliente = false;
+
+        var guardada = cliente.CodigoActividad;
+        _codActividadCliente = !string.IsNullOrWhiteSpace(guardada) && _actividadesCliente.Any(a => a.Codigo == guardada)
+            ? guardada!
+            : _actividadesCliente.FirstOrDefault()?.Codigo ?? guardada ?? string.Empty;
+    }
 
     private async Task AbrirCorreos()
     {
