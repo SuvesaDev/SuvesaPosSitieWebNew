@@ -39,18 +39,19 @@ Ver `BODEGAS_POR_CENTRO_Y_TRASLADOS_API.md §0`. Resumen de lo que toca al **sit
 
 ## 0bis. Cobertura de los 8 puntos (checklist)
 
-| # | Punto | Secciones que lo cubren | Estado de partida en el sitio |
-|---|---|---|---|
-| 1 | Bodegas filtradas por el centro de la sesión + mantenimiento con centro | §1.1, §1.2, §2·1, §3.1, §5·1 | `Sesion.IdSucursal` ya existe; `bodega/ObtenerBodegas` trae todo |
-| 2 | Selector de bodega en venta/compra/preventa | §1.2, §1.5, §2·2, §3.2, §4, §5·3 | **no existe**; se manda `IdBodega = 0` |
-| 3 | Ficha de movimientos por bodega + **toma física por bodega** (actualizar existencia ya es por bodega) | §1.3, §1.3b, §2·3, §2·3b, §3.3, §3.3b, §5·2, §5·2b | pestaña Existencias ya multi‑bodega; Movimientos sin bodega; TomaFisica manda `Bodega = 0` fijo |
-| 4 | Pantalla de traslado bodega ↔ bodega | §1.5, §2·4, §3.4, §4, §5·4, §5bis | no hay pantalla ni nodo de menú |
-| 5 | Ajuste de consignación explicado como traslado desde/hacia la central | §2·5, §3.5, §5·5 | `Ajuste.razor` no menciona la central |
-| 6 | Bodegas de consignación fuera de todo selector salvo el módulo | §1.5, §2·6, §3.1, §3.6, §5·7 | ninguna fuente filtrada hoy |
-| 7 | Al ingresar productos: se ve "‑N central / +N cliente" y se bloquea si la central no tiene | §2·7, §3.5, §5bis | no se ve efecto ni validación |
-| 8 | Inventario físico de consignación: precargar artículos+lotes del cliente + validar "todo contado" | §1.4, §1.5, §2·8, §3.7, §4, §5·6 | conteo manual, sin precarga ni validación |
+| # | Punto | Secciones | Commit(s) sitio | Estado |
+|---|---|---|---|---|
+| 1 | Bodegas filtradas por el centro de la sesión | §3.1 | `46c3a5f` | ✅ hecho (`ILotesApiCliente.BodegasOperativasAsync(idSucursal?)` + `BodegaOperativa`; lo usan los selectores nuevos). Polish pendiente: columna/selector de centro en el mantenimiento `Parametros/Bodegas.razor` |
+| 2 | Selector de bodega en venta/compra/preventa | §3.2 | `f80a550` | ✅ hecho (`Facturacion.razor` selector nuevo + guard + `IdBodega` por línea; `Compra.razor` ya tenía selector, ahora centro‑filtrado; `Proforma.razor` N/A — cotización sin inventario) |
+| 3 | Ficha de movimientos por bodega + toma física por bodega | §3.3, §3.3b | `46c3a5f` | ✅ hecho (pestaña Movimientos: `<select>` + columna Bodega; `Compras/TomaFisica.razor`: `<select>` Bodega obligatorio, quitado `Bodega=0`). Pestaña Existencias ya era multi‑bodega |
+| 4 | Pantalla de traslado bodega ↔ bodega | §3.4 | `e2da8e5` (+ API seed `8b83b256`) | ✅ hecho (`Views/Inventario/Traslado.razor`, ruta `/buys/warehouse-transfer`, nodo `COMPRAS.TRASLADO_ENTRE_BODEGAS`; Origen/Destino sólo del centro; Registrar / Ver / Anular; `FiltroMenuTests` 77→78) |
+| 5 | Ajuste de consignación explicado como traslado desde/hacia la central | §3.5 | `93d73ac` | ✅ hecho (rótulos "traslada desde/hacia la bodega de consignación central" en Entrada/Salida) |
+| 6 | Bodegas de consignación fuera de todo selector salvo el módulo | §3.6 | `46c3a5f`, `e2da8e5`, `f80a550` | ✅ hecho (todos los `<select>` de bodega usan `BodegasOperativasAsync`; el API filtra `!EsConsignacion`; no queda ninguno fuera de `Views/Consignacion/*`) |
+| 7 | Al ingresar productos: se ve el efecto y se bloquea si la central no tiene | §3.5 | `93d73ac` (+ API `7f5be728`) | ✅ hecho (el bloqueo del API se muestra por el `_error` existente en `Ajuste.razor`; el API rechaza la boleta) |
+| 8 | Inventario físico de consignación: precargar artículos+lotes del cliente + "todo contado" | §3.7 | `93d73ac` | ✅ hecho (`IConsignacionInvApiCliente.ExistenciaAsync` + `ConteoConsignacionRequest.Completo`; `InventarioFisico.razor` reescrito: precarga, contador "contados X/Y", "Guardar" bloqueado hasta contar todo) |
 
-Ningún punto queda sin diseño, contrato a escribir y lugar en el orden de implementación.
+**Todos los puntos implementados.** Verificación en cada commit: `dotnet build` del sitio 0 err ·
+`dotnet test` 72/72 · (al tocar menú) `FiltroMenuTests` / `MenuCodigosTests` + seeds de ambos repos.
 
 ---
 
