@@ -5,6 +5,7 @@
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.ApiConexion
 @using SuvesaPosSitioAplicacion.DTOs.Consignacion
+@using SuvesaPosSitioAplicacion.DTOs.Lotes
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IFacturacion Api
 @inject IConsignacionInvApiCliente ConsignacionApi
@@ -68,6 +69,14 @@
                                 <select class="form-select" @bind="_tipoFactura"><option value="0">Seleccione...</option>@foreach (var tipo in TiposDisponibles) { <option value="@tipo.Codigo">@tipo.Descripcion</option> }</select>
                             </div>
                             <div class="col-12 col-md-3"><label class="form-label">Moneda</label><select class="form-select" @bind="_moneda"><option value="0">Seleccione...</option>@foreach (var moneda in _monedas) { <option value="@moneda.CodMoneda">@moneda.MonedaNombre</option> }</select></div>
+                            @if (!EsConsignacion)
+                            {
+                                <div class="col-12 col-md-3"><label class="form-label">Bodega</label>
+                                    <select class="form-select" @bind="_bodega">
+                                        <option value="0">Seleccione...</option>
+                                        @foreach (var b in _bodegas) { <option value="@b.IdBodega">@b.NombreBodega</option> }
+                                    </select></div>
+                            }
                             <div class="col-12 col-md-6"><label class="form-label">Empresa</label><select class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarEmpresa"><option value="0">Seleccione...</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
                                 <div class="col-12 col-md-6">
                                     <label class="form-label">Actividad económica</label>
@@ -412,6 +421,8 @@
     private string _textoCliente = string.Empty, _observaciones = string.Empty, _ordenCompra = string.Empty;
     private int _tipoFactura;
     private int _idEmpresa;
+    private int _bodega;
+    private List<BodegaOperativa> _bodegas = new();
     private string _codActividad = string.Empty;
     private List<ActividadesEmisorDTO> _actividadesEmpresa = new();
     private string _codActividadCliente = string.Empty;
@@ -462,6 +473,9 @@
         if (_moneda == 0) _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0;
         _agentesVenta = (await Respuestas.DatoAsync(await Api.Agentes(), "consultar los agentes de venta"))?.ToList() ?? new();
         _configsBonificacion = (await Respuestas.DatoAsync(await CatalogoBonificacion.Disponibles(), "consultar los tipos de bonificación"))?.ToList() ?? new();
+        var rb = await Lotes2.BodegasOperativasAsync(Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null);
+        _bodegas = rb.Status == DTOs.Generated.ResponseStatus._0 ? (rb.Responses ?? new()) : new();
+        if (_bodega == 0) _bodega = _bodegas.FirstOrDefault()?.IdBodega ?? 0;
     }
 
     private ConfiguracionBonificacion? ConfigBonificacion(int id) => _configsBonificacion.FirstOrDefault(c => c.IdConfiguracionBonificacion == id);
@@ -1071,6 +1085,7 @@
         if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
         if (_cliente is null || _tipoFactura == 0 || _moneda == 0 || _lineas.Count == 0) { await Dialogos.ErrorAsync("Seleccione cliente, tipo de factura, moneda y al menos un artículo."); return; }
         if (_idEmpresa <= 0) { await Dialogos.ErrorAsync("Seleccione una empresa para registrar la facturación."); return; }
+        if (!EsConsignacion && _bodega <= 0) { await Dialogos.ErrorAsync("Seleccione la bodega de la que sale el inventario."); return; }
         if (!EsPrefacturaConsignacion)
         {
             // En la prefactura de consignación no se validan crédito / morosidad / orden
@@ -1085,7 +1100,7 @@
         if (!await Dialogos.ConfirmarAsync(EsPrefacturaConsignacion ? "Se generará la prefactura de consignación desde el conteo. ¿Desea continuar?" : EsConsignacion ? "Se registrará la consignación. ¿Desea continuar?" : "Se emitirá la factura y se afectará el inventario. ¿Desea continuar?")) return;
         _guardando = true;
         var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
-        var factura = new FacturaDTO { Tipo = _tipoFactura, CodCliente = _cliente.Cedula, NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), Agente = _sinAgente, Cod_agente = !_sinAgente && _codAgente > 0 ? _codAgente : null, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = _idEmpresa, Empresa = empresa?.Nombre, CodigoActividadEmisor = string.IsNullOrWhiteSpace(_codActividad) ? null : _codActividad, CodigoActividadReceptor = string.IsNullOrWhiteSpace(_codActividadCliente) ? null : _codActividadCliente, Preventa = EsPrefacturaConsignacion, EsConsignacion = EsConsignacion, SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = l.Articulo.Id_Bodega, Lote = l.IdLote, NumeroLote = l.Lote, Lotes = l.Lotes, EsBonificacion = l.EsBonificacion, IdGrupoBonificacion = l.IdGrupoBonificacion, IdConfiguracionBonificacion = l.IdConfiguracionBonificacion, EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null }).ToList() };
+        var factura = new FacturaDTO { Tipo = _tipoFactura, CodCliente = _cliente.Cedula, NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), Agente = _sinAgente, Cod_agente = !_sinAgente && _codAgente > 0 ? _codAgente : null, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = _idEmpresa, Empresa = empresa?.Nombre, CodigoActividadEmisor = string.IsNullOrWhiteSpace(_codActividad) ? null : _codActividad, CodigoActividadReceptor = string.IsNullOrWhiteSpace(_codActividadCliente) ? null : _codActividadCliente, Preventa = EsPrefacturaConsignacion, EsConsignacion = EsConsignacion, SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = EsConsignacion ? l.Articulo.Id_Bodega : _bodega, Lote = l.IdLote, NumeroLote = l.Lote, Lotes = l.Lotes, EsBonificacion = l.EsBonificacion, IdGrupoBonificacion = l.IdGrupoBonificacion, IdConfiguracionBonificacion = l.IdConfiguracionBonificacion, EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null }).ToList() };
         if (EsPrefacturaConsignacion)
         {
             var rp = await ConsignacionApi.GenerarPrefacturaAsync(new GenerarPrefacturaConsignacion { IdConteo = ConteoId, Factura = factura });

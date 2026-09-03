@@ -3,8 +3,11 @@
 @using System.Xml.Linq
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Lotes
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ICompras Api
+@inject ILotesApiCliente Lotes2
 @inject IProveedoresConsulta Proveedores
 @inject IInventarioConsulta Inventario
 @inject IManejadorRespuestas Respuestas
@@ -275,7 +278,7 @@
     private List<ProveedorDTO> _proveedores = new(), _proveedoresEncontrados = new();
     private List<EmpresaDTO> _empresas = new();
     private List<Moneda> _monedas = new();
-    private List<Bodega> _bodegas = new();
+    private List<BodegaOperativa> _bodegas = new();
     private List<FacturaCompraDTO> _comprasEncontradas = new();
     private ProveedorDTO? _proveedor;
     private InventarioDTO? _articuloActual;
@@ -359,12 +362,14 @@
 
     private async Task CargarCatalogos()
     {
-        var proveedores = Proveedores.Obtener(); var empresas = Api.Empresas(); var monedas = Api.Monedas(); var bodegas = Api.Bodegas(EsCostaPetsCompra);
+        var proveedores = Proveedores.Obtener(); var empresas = Api.Empresas(); var monedas = Api.Monedas();
+        var bodegas = Lotes2.BodegasOperativasAsync(Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null);
         await Task.WhenAll(proveedores, empresas, monedas, bodegas);
         _proveedores = (await Respuestas.DatoAsync(await proveedores, "consultar los proveedores"))?.Where(p => p.Inhabilitado != true).OrderBy(p => p.Nombre).ToList() ?? new();
         _empresas = (await Respuestas.DatoAsync(await empresas, "consultar las empresas"))?.ToList() ?? new();
         _monedas = (await Respuestas.DatoAsync(await monedas, "consultar las monedas"))?.Where(m => m.Estado).ToList() ?? new();
-        _bodegas = (await Respuestas.DatoAsync(await bodegas, "consultar las bodegas"))?.Where(b => b.Estado && b.Bloqueada != true).ToList() ?? new();
+        var rb = await bodegas;
+        _bodegas = rb.Status == DTOs.Generated.ResponseStatus._0 ? (rb.Responses ?? new()).Where(b => b.Estado == true && b.Bloqueada != true).ToList() : new();
         if (_moneda == 0) _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0;
         if (EsCostaPetsCompra) _empresa = 1;
     }

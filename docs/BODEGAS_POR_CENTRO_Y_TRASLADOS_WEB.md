@@ -326,17 +326,16 @@ al tocar el menú, subir el conteo de `FiltroMenuTests` y actualizar los dos see
 Rama `feature/ola-0-cimientos`. Verificación por commit: `dotnet build` del sitio + `dotnet test` (72) +
 (al tocar menú) `FiltroMenuTests` / `MenuCodigosTests` / seeds de ambos repos.
 
-**Estado: §3.1, §3.3, §3.3b, §3.4, §3.5, §3.7 implementados.** Pendiente: **§3.2** (selector de bodega en
-`Facturacion.razor`/`Compra.razor`/`Proforma.razor`) — depende de que el API termine de propagar
-`IdBodega`/`IdSucursalContexto` por `VentasManager`/`ComprasManager`/preventa (doc API §3.2, marcado como
-follow-up con pruebas reales); mantenimiento de bodegas con columna/selector de centro (polish, §3.1 · el
-mantenimiento hoy ya funciona porque el API filtra `!EsConsignacion` sin necesidad de `idSucursal`).
+**Estado: §3.1, §3.2, §3.3, §3.3b, §3.4, §3.5, §3.7 implementados.** Pendiente sólo polish: mantenimiento de
+bodegas con columna/selector de centro (§3.1 · ya funciona porque el API filtra `!EsConsignacion`), y —si
+negocio lo pide— recordar la última bodega usada por cajero.
 Auditoría §3.6: los selectores nuevos (Movimientos, Toma Física, Traslado) usan `BodegasOperativasAsync`, que
 el API filtra `!EsConsignacion`; no queda ningún `<select>` de bodegas de consignación fuera de
 `Views/Consignacion/*`.
 
 | Paso | Commit | Qué entró | Verificación |
 |---|---|---|---|
+| §3.2 | _(este)_ | `Facturacion.razor`: `<select>` **Bodega** en la cabecera (oculto en modo consignación), cargado con `Lotes2.BodegasOperativasAsync(Sesion.IdSucursal)`, default = primera; guard en `Emitir` (no consignación ⇒ bodega obligatoria); cada `FacturaDetallesDTO.IdBodega = _bodega` (venta y preventa/prefactura). `Compra.razor`: ya tenía selector de bodega — se cambió la fuente de `Api.Bodegas(costaPets)` a `Lotes2.BodegasOperativasAsync(Sesion.IdSucursal)` (centro-filtrado, sin consignación); `FacturaCompraDetalleDTO.IdBodega = _bodega` ya estaba. `Proforma.razor`: **N/A** — la cotización es un presupuesto puro (`DetalleCotizacionDTO` sin bodega, no toca inventario); la reserva de preventa con bodega la cubre `Facturacion` (`Preventa=true`). API: `BodegaPorDefecto()` de ventas excluye consignación (DevSuvesaPosWeb `dc9adaaf`). | `dotnet build` 0 err · `dotnet test` 72/72 |
 | §3.5 + §3.7 | `93d73ac` | **§3.5** `Consignacion/Ajuste.razor`: rótulos "traslada desde/hacia la **bodega de consignación central**" en Entrada/Salida; el bloqueo del API (central sin disponible) se muestra vía el `_error` existente. **§3.7** `IConsignacionInvApiCliente.ExistenciaAsync` + DTOs `ExistenciaConsignacion(+Linea)`; `ConteoConsignacionRequest.Completo`. `Consignacion/InventarioFisico.razor` reescrito: al elegir cliente **precarga** una fila por artículo+lote de su bodega (consignado sólo lectura, input Físico), buscador sólo para sobrantes, contador "contados X / Y", "Guardar" deshabilitado hasta que todas las filas tengan físico (0 vale); manda `Completo=true`. | `dotnet build` 0 err · `dotnet test` 72/72 |
 | §3.4 | `e2da8e5` | `Views/Inventario/Traslado.razor` (`/buys/warehouse-transfer`, código `COMPRAS.TRASLADO_ENTRE_BODEGAS`): selects Origen/Destino **sólo del centro de la sesión**, buscador de artículo + lote, tabla de líneas, "Registrar traslado" → `LotesApi.TrasladoRegistrarAsync`, "Traslados recientes" con Ver / Anular (modal de motivo). Nodo de menú bajo Compras + fixture `seed-seguridad.json` (site) + `SecuritySystem/Seed/seed-seguridad.json` (API, commit `8b83b256`) + `FiltroMenuTests` 77→78. | `dotnet build` 0 err · `dotnet test` 72/72 |
 | §3.1/§3.3/§3.3b | `46c3a5f` | `DTOs/Lotes/LotesDTOs.cs`: `MovimientoInventarioFiltro.Bodega?`, `MovimientoInventarioConsulta.IdBodega`/`NombreBodega`, nuevo `BodegaOperativa` + DTOs de traslado. `ILotesApiCliente` gana `BodegasOperativasAsync(idSucursal?)` (→ `bodega/ObtenerBodegas?idSucursal=`) y `Traslado*Async`. `Inventario/Consulta.razor` pestaña Movimientos: `<select>` Bodega (del centro de la sesión) + columna **Bodega**. `Compras/TomaFisica.razor`: `<select>` **Bodega** obligatorio (una a la vez, centro de la sesión), se manda en `TomaArticulosAsync`/`TomaGuardarAsync` (quitado `Bodega = 0`). | `dotnet build` sitio 0 err · `dotnet test` 72/72 |
