@@ -188,6 +188,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Traslado entre bodegas",
+                    Codigo = "COMPRAS.TRASLADO_ENTRE_BODEGAS",
+                    Ruta = "/buys/warehouse-transfer",
+                },
+                new ItemMenu
+                {
                     Titulo = "Orden de compra manual",
                     Codigo = "COMPRAS.ORDEN_DE_COMPRA_MANUAL",
                     Ruta = "/buys/purchaseorder",

@@ -457,6 +457,22 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "COMPRAS.TRASLADO_ENTRE_BODEGAS",
+          "nombre": "Traslado entre bodegas",
+          "ruta": "/buys/warehouse-transfer",
+          "padre": null,
+          "orden": 16,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
         }
       ]
     },

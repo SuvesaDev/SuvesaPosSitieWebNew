@@ -108,6 +108,6 @@ public class FiltroMenuTests
     {
         static int Contar(IEnumerable<ItemMenu> ns) => ns.Sum(n => 1 + Contar(n.Hijos));
         Assert.Equal(12, MenuSeePos.Items.Count);
-        Assert.Equal(77, Contar(MenuSeePos.Items));
+        Assert.Equal(78, Contar(MenuSeePos.Items));
     }
 }
