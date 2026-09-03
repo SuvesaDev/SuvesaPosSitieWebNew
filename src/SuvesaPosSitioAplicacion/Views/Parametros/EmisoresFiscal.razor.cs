@@ -1,11 +1,88 @@
 using Havit.Blazor.Components.Web.Bootstrap;
 using Microsoft.AspNetCore.Components.Forms;
+using SuvesaPosSitioAplicacion.DTOs.Fiscal;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 
 namespace SuvesaPosSitioAplicacion.Views.Parametros;
 
 public partial class EmisoresFiscal
 {
+    // ---- Actividades económicas en el modal de datos públicos (edición) ----
+    private string _actCodigo = string.Empty;
+    private string _actDescripcion = string.Empty;
+    private bool _buscandoActsEmisor;
+
+    private void AgregarActividad()
+    {
+        if (_publico is null || string.IsNullOrWhiteSpace(_actCodigo))
+        {
+            return;
+        }
+
+        var codigo = _actCodigo.Trim();
+        if (_publico.Actividades.Any(a => string.Equals(a.Codigo, codigo, StringComparison.OrdinalIgnoreCase)))
+        {
+            _actCodigo = _actDescripcion = string.Empty;
+            return;
+        }
+
+        _publico.Actividades.Add(new ActividadEconomicaEmisorDTO
+        {
+            Codigo = codigo,
+            Descripcion = _actDescripcion.Trim(),
+            Activo = true,
+            Principal = _publico.Actividades.Count == 0
+        });
+        _actCodigo = _actDescripcion = string.Empty;
+    }
+
+    private void MarcarPrincipal(ActividadEconomicaEmisorDTO actividad)
+    {
+        if (_publico is null)
+        {
+            return;
+        }
+
+        foreach (var a in _publico.Actividades)
+        {
+            a.Principal = ReferenceEquals(a, actividad);
+        }
+    }
+
+    private async Task BuscarActividadesEmisorHacienda()
+    {
+        if (_publico is null || string.IsNullOrWhiteSpace(_publico.Identificacion))
+        {
+            Dialogos.ErrorBreve("Indique la identificación del emisor antes de consultar Hacienda.");
+            return;
+        }
+
+        _buscandoActsEmisor = true;
+        var r = await Respuestas.DatoAsync(await Empresas.ActividadesHacienda(_publico.Identificacion), "consultar las actividades en Hacienda");
+        _buscandoActsEmisor = false;
+
+        if (r is null)
+        {
+            return;
+        }
+
+        foreach (var a in r)
+        {
+            if (_publico.Actividades.Any(x => string.Equals(x.Codigo, a.Codigo, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            _publico.Actividades.Add(new ActividadEconomicaEmisorDTO
+            {
+                Codigo = a.Codigo,
+                Descripcion = a.Descripcion,
+                Activo = a.Estado,
+                Principal = a.Tipo
+            });
+        }
+    }
+
     // ---- Alta del emisor: antes era la pantalla /parameters/company ("Empresas").
     // Ahora vive aca como un modal con pestanas para no tener dos entradas de menu
     // que confunden. El API de alta sigue siendo el mismo (IEmpresas.Crear).
