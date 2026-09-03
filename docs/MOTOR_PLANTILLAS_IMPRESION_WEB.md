@@ -50,6 +50,17 @@
 4. Plantillas **ligadas a la Serie de facturación** para los documentos de serie.
 5. Toma física: mostrar un **consecutivo = `Id` de la toma**.
 
+### 2.bis Decisiones confirmadas (2026-09-03)
+- **D1** — el render vive en el API; la web solo edita plantillas y muestra
+  botones que abren el PDF del API.
+- **D2** — “inventarios” son **dos** tipos: **Inventario · toma general** e
+  **Inventario · ajuste**. El `<select>` de tipo tiene **11 opciones**.
+- **D3** — el PDF se adjunta al correo desde la fase 1 (no afecta a la web salvo
+  que la columna “Correo” de la bandeja ya asume adjunto PDF presente).
+- **D4** — **térmico 80 mm dentro del alcance**: el editor tiene selector de
+  **Formato (A4 / Térmico 80 mm)** por plantilla y la previsualización renderiza
+  ambos.
+
 ---
 
 ## 3. Pantalla — Diseño de plantillas de impresión
@@ -59,12 +70,13 @@
 Componentes `Views/Parametros/PlantillasImpresion.razor(.cs)` (+ `.razor.css`).
 
 ### 3.1 Estructura
-- **Barra superior**: `<select>` Emisor · `<select>` Tipo de documento (10
-  opciones) · si el tipo **usa serie** (`factura`, `tiquete`, `nota-credito`):
-  `<select>` Serie (del catálogo de series del emisor). Botón **“Nueva
-  plantilla”**, lista de plantillas existentes (`AppRejilla`: Nombre · Serie ·
-  Predeterminada · Activa) con acciones Editar / Marcar predeterminada /
-  Desactivar.
+- **Barra superior**: `<select>` Emisor · `<select>` Tipo de documento
+  (**11 opciones**, incluye *Inventario · toma general* e *Inventario · ajuste*
+  — D2) · `<select>` **Formato** (*A4* / *Térmico 80 mm* — D4) · si el tipo
+  **usa serie** (`factura`, `tiquete`, `nota-credito`): `<select>` Serie (del
+  catálogo de series del emisor). Botón **“Nueva plantilla”**, lista de
+  plantillas existentes (`AppRejilla`: Nombre · Serie · Formato · Predeterminada
+  · Activa) con acciones Editar / Marcar predeterminada / Desactivar.
 - **Editor** (2 columnas):
   - **Izquierda — zonas** (acordeón): Encabezado · Receptor · Meta del documento ·
     Detalle (columnas) · Totales · Pie de página · Leyendas · Márgenes y fuente.
@@ -83,12 +95,13 @@ Componentes `Views/Parametros/PlantillasImpresion.razor(.cs)` (+ `.razor.css`).
 | **Meta** | lista ordenable (drag) de campos (`consecutivo`, `fechaEmision`, `condicionVenta`, `fechaVencimiento`, `medioPago`, `diasCredito`, `claveNumerica`): visible + etiqueta + orden. `claveNumerica` solo aparece en electrónicos. |
 | **Detalle** | tabla de columnas **del catálogo del tipo** (`GET /api/plantillas-impresion/catalogo/{tipo}`): visible + etiqueta + ancho relativo + alineación + reordenar. No se agregan columnas fuera del catálogo. |
 | **Totales** | filas activables (`subtotal`, `descuentos`, `impuesto`, `total`, extras del tipo): visible + etiqueta. |
-| **Pie** | N líneas de texto libre; switch “Mostrar texto de resolución” + textarea; switch “Datos bancarios”; switch “Numerar páginas”. |
+| **Pie** | N líneas de texto libre; switch “Mostrar texto de resolución” + textarea; switch “Datos bancarios”; switch “Numerar páginas” (deshabilitado si Formato = Térmico). |
 | **Leyendas** | textos “ORIGINAL” / “COPIA”. |
-| **Márgenes y fuente** | 4 márgenes (mm), familia y tamaño base. |
+| **Formato y página** | **Formato (A4 / Térmico 80 mm)**; si Térmico: ancho de rollo (58 / 80 mm) y aviso de que se aplica un perfil de columnas reducido; si A4: 4 márgenes (mm). Familia y tamaño de fuente base (en Térmico el API fuerza 7–8 pt). |
 
 El editor **construye/lee el JSON**; no hay campos libres fuera del esquema (V3
-del doc API).
+del doc API). Al cambiar **Formato** el editor oculta/deshabilita las opciones
+que no apliquen y vuelve a pedir previsualización.
 
 ### 3.3 Proxy y DTOs
 - `IPlantillasImpresion` / `PlantillasImpresion : ProxyBase`:
@@ -120,11 +133,15 @@ endpoint exige JWT, se resuelve con un pequeño proxy que trae el `byte[]` y hac
 | `CuentasPorPagar.razor` | “Imprimir recibo de pago” (`recibo-pago`). |
 | Proformas/Cotización | “Imprimir presupuesto”. |
 | Consignación boletas | “Imprimir boleta”. |
-| Inventario / Ajustes | “Imprimir inventario”. |
+| Inventario · toma general | “Imprimir inventario” → `inventario-toma-general`. |
+| Inventario · ajuste | “Imprimir ajuste” → `inventario-ajuste`. |
 | Traslados de bodega | “Imprimir traslado”. |
 | `TomaFisica.razor` | “Imprimir toma física” + mostrar **“Consecutivo N.º {Id:D8}”** en el encabezado de la pantalla (además del PDF). |
 
-Gate por permiso de cada pantalla (`Sesion.Puede(Titulo, Imprimir/Consultar)`).
+- Para **Factura/Tiquete desde el POS** el botón pide `?formato=termico80`
+  (usa la plantilla térmica); la Bandeja y la reimpresión piden `A4`. El correo
+  adjunta siempre `A4` (D3/D4).
+- Gate por permiso de cada pantalla (`Sesion.Puede(Titulo, Imprimir/Consultar)`).
 
 ---
 
@@ -151,12 +168,15 @@ Subir el conteo en `FiltroMenuTests`; revisar `MenuCodigosTests`,
 - [ ] **1. Proxy** `IPlantillasImpresion` + DTOs `DTOs/Impresion/*` (partials,
       sin regen NSwag) + registro en `Program.cs`.
 - [ ] **2. Pantalla** `PlantillasImpresion.razor(.cs/.css)`: barra
-      emisor/tipo/serie, lista, editor por zonas, previsualización en `<iframe>`.
+      emisor/tipo/**formato**/serie, lista, editor por zonas, previsualización en
+      `<iframe>` (renderiza A4 y Térmico — D4).
 - [ ] **3. Editor de zonas** que construye/lee el `ConfiguracionJson` según el
-      catálogo (`GET .../catalogo/{tipo}`); reordenamiento de campos/columnas.
-- [ ] **4. Endpoint local** `/documentos/{tipo}/{id}/pdf` (minimal-API,
+      catálogo (`GET .../catalogo/{tipo}`); reordenamiento de campos/columnas;
+      opciones condicionadas al **Formato**.
+- [ ] **4. Endpoint local** `/documentos/{tipo}/{id}/pdf?formato=` (minimal-API,
       reenvía con token) o proxy `blob:`.
-- [ ] **5. Botones Imprimir/PDF** en las 10 pantallas de la tabla §4 (gateados).
+- [ ] **5. Botones Imprimir/PDF** en las **11 pantallas** de la tabla §4
+      (gateados); POS pide `termico80`, Bandeja/reimpresión piden `a4`.
 - [ ] **6. Toma física**: mostrar “Consecutivo N.º {Id:D8}” en
       `TomaFisica.razor`.
 - [ ] **7. Nota** en el comentario de `IGeneradorPdf` (documentos → API).
@@ -170,13 +190,19 @@ Subir el conteo en `FiltroMenuTests`; revisar `MenuCodigosTests`,
 ---
 
 ## 8. Preguntas abiertas
+
+**Resueltas (2026-09-03):** render en API (D1) · “inventarios” = toma general +
+ajuste, 11 tipos (D2) · PDF al correo desde fase 1 (D3) · térmico 80 mm en
+alcance con selector de formato (D4).
+
+Pendientes:
 1. ¿Previsualización como **PDF embebido** (más fiel) o **HTML** (más ágil)? El
    plan asume PDF embebido vía `previsualizar`.
 2. ¿La descarga/impresión abre **pestaña nueva** con el PDF o fuerza descarga?
    (recomendado: pestaña nueva, `Content-Disposition: inline`).
-3. ¿El editor permite **varias plantillas** por (emisor, tipo, serie) con una
-   marcada predeterminada, o **una sola**? El plan asume varias + predeterminada.
+3. ¿El editor permite **varias plantillas** por (emisor, tipo, serie, formato)
+   con una predeterminada, o **una sola**? El plan asume varias + predeterminada.
 4. ¿Quién puede editar plantillas: solo administrador o un permiso propio
    (`PARAMETROS.PLANTILLAS_IMPRESION`)? El plan asume permiso propio.
-5. Confirmar el término “**inventarios**” (qué pantalla/entidad) para nombrar la
-   opción y el `{tipo}`.
+5. Para el POS: ¿el tiquete se imprime por este endpoint (`termico80`) o el POS
+   conserva su impresión propia y este motor cubre reimpresión + correo?

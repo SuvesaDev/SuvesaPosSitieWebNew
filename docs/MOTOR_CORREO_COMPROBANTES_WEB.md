@@ -54,6 +54,12 @@
 4. Que **llegue alerta al usuario administrador** sobre los problemas reportados
    por Hacienda (rechazos) — visible en la web.
 
+### 2.bis Decisión confirmada (2026-09-03)
+- **D3** — el correo lleva **PDF adjunto** (además de los 2 XML) desde la fase 1.
+  En la web: la acción **“Ver detalle”** de la bandeja de envíos lista siempre los
+  3 adjuntos (XML firmado · XML respuesta · PDF) y marca cuáles se incluyeron
+  (`AdjuntoPdf = 0` si el render falló, con su alerta).
+
 ---
 
 ## 3. Pantalla 1 — Configuración de correo por emisor
