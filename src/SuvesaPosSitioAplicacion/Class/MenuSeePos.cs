@@ -49,18 +49,6 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
-                    Titulo = "Cobrar",
-                    Codigo = "INICIO.COBRAR",
-                    Ruta = "/initial/charge",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Entrega a Cuenta",
-                    Codigo = "INICIO.ENTREGA_A_CUENTA",
-                    Ruta = "/initial/downPayment",
-                },
-                new ItemMenu
-                {
                     Titulo = "Documentos Emitidos",
                     Codigo = "INICIO.DOCUMENTOS_EMITIDOS",
                     Ruta = "/initial/documents",
@@ -112,6 +100,19 @@ public static partial class MenuSeePos
                     Titulo = "Cierre Caja",
                     Codigo = "CAJA.CIERRE_CAJA",
                     Ruta = "/initial/cash/closecash",
+                },
+                new ItemMenu
+                {
+                    // Antes bajo "Inicio"; movidas aquí a petición del usuario.
+                    Titulo = "Cobrar",
+                    Codigo = "CAJA.COBRAR",
+                    Ruta = "/initial/charge",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Entrega a Cuenta",
+                    Codigo = "CAJA.ENTREGA_A_CUENTA",
+                    Ruta = "/initial/downPayment",
                 },
                 new ItemMenu
                 {

@@ -123,38 +123,6 @@
           ]
         },
         {
-          "codigo": "INICIO.COBRAR",
-          "nombre": "Cobrar",
-          "ruta": "/initial/charge",
-          "padre": null,
-          "orden": 4,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "INICIO.ENTREGA_A_CUENTA",
-          "nombre": "Entrega a Cuenta",
-          "ruta": "/initial/downPayment",
-          "padre": null,
-          "orden": 5,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
           "codigo": "INICIO.DOCUMENTOS_EMITIDOS",
           "nombre": "Documentos Emitidos",
           "ruta": "/initial/documents",
@@ -264,6 +232,38 @@
           "ruta": "/initial/cash/closecash",
           "padre": null,
           "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.COBRAR",
+          "nombre": "Cobrar",
+          "ruta": "/initial/charge",
+          "padre": null,
+          "orden": 5,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CAJA.ENTREGA_A_CUENTA",
+          "nombre": "Entrega a Cuenta",
+          "ruta": "/initial/downPayment",
+          "padre": null,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",
