@@ -1,32 +1,38 @@
 @page "/parameters/wineries"
 @using SuvesaPosSitioAplicacion.Class
-@using SuvesaPosSitioAplicacion.DTOs.Parametros
+@using SuvesaPosSitioAplicacion.DTOs.Generated
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IMantenimientosInventario Api
 @inject IManejadorRespuestas Respuestas
-@inject IServicioDialogos Dialogos
-@inject IContextoSesion Sesion
+
+@* Solo lectura: el API real no tiene alta/edición/baja de bodegas, solo el listado
+   (bodega/ObtenerBodegas). Ver ApiConexion/ProxyClass/MantenimientosInventario.cs. *@
 
 <AppPantalla Pantalla="Bodegas" Codigo="PARAMETROS.BODEGAS" Nivel="NivelPantalla.Tableta">
-    <Acciones><button class="btn btn-sm btn-primary" @onclick="Nueva"><i class="bi bi-plus-lg me-1"></i>Nueva bodega</button></Acciones>
     <ChildContent><div class="card"><div class="card-body">
-        <AppRejilla TItem="BodegaMantenimientoDTO" Datos="Cargar" @ref="_rejilla" TextoVacio="No hay bodegas registradas."><Columnas>
-            <HxGridColumn TItem="BodegaMantenimientoDTO" HeaderText="Bodega" ItemTextSelector="b => b.NombreBodega" SortKeySelector="b => b.NombreBodega" />
-            <HxGridColumn TItem="BodegaMantenimientoDTO" HeaderText="Estado"><ItemTemplate Context="b"><span class="badge @((b.Estado ?? false) ? "text-bg-success" : "text-bg-secondary")">@((b.Estado ?? false) ? "Activa" : "Inactiva")</span></ItemTemplate></HxGridColumn>
-            <HxGridColumn TItem="BodegaMantenimientoDTO" HeaderText="Bloqueada"><ItemTemplate Context="b">@((b.Bloqueada ?? false) ? "Sí" : "No")</ItemTemplate></HxGridColumn>
-            <HxGridColumn TItem="BodegaMantenimientoDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end"><ItemTemplate Context="b"><button class="btn btn-sm btn-link p-0" @onclick="() => Editar(b)">Editar</button>@if (b.Estado ?? false) { <button class="btn btn-sm btn-link text-danger p-0 ms-2" @onclick="() => Desactivar(b)">Desactivar</button> }</ItemTemplate></HxGridColumn>
+        <AppRejilla TItem="Bodega" Datos="Cargar" @ref="_rejilla" TextoVacio="No hay bodegas registradas."><Columnas>
+            <HxGridColumn TItem="Bodega" HeaderText="Bodega" ItemTextSelector="b => b.NombreBodega" SortKeySelector="b => b.NombreBodega" />
+            <HxGridColumn TItem="Bodega" HeaderText="Observaciones" ItemTextSelector="b => b.Observaciones" />
+            <HxGridColumn TItem="Bodega" HeaderText="Estado"><ItemTemplate Context="b"><span class="badge @(b.Estado ? "text-bg-success" : "text-bg-secondary")">@(b.Estado ? "Activa" : "Inactiva")</span></ItemTemplate></HxGridColumn>
+            <HxGridColumn TItem="Bodega" HeaderText="Bloqueada"><ItemTemplate Context="b">@((b.Bloqueada ?? false) ? "Sí" : "No")</ItemTemplate></HxGridColumn>
+            <HxGridColumn TItem="Bodega" HeaderText="CostaPets"><ItemTemplate Context="b">@((b.EsCostaPets ?? false) ? "Sí" : "No")</ItemTemplate></HxGridColumn>
         </Columnas></AppRejilla>
     </div></div></ChildContent>
 </AppPantalla>
 
-<HxModal @ref="_modal" Title="@(_edicion?.IdBodega > 0 ? "Editar bodega" : "Nueva bodega")" Size="ModalSize.Regular"><BodyTemplate>@if (_edicion is not null) { <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formBodega"><DataAnnotationsValidator /><div class="mb-3"><AppCampoTexto Etiqueta="Nombre" @bind-Valor="_edicion.NombreBodega" Requerido="true" /></div><div class="mb-3"><AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" /></div><div class="form-check"><input class="form-check-input" type="checkbox" id="bloqueada" @bind="_edicion.Bloqueada" /><label class="form-check-label" for="bloqueada">Bloqueada</label></div><div class="form-check"><input class="form-check-input" type="checkbox" id="costaPets" @bind="_edicion.EsCostaPets" /><label class="form-check-label" for="costaPets">CostaPets</label></div></EditForm> }</BodyTemplate><FooterTemplate><button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button><button class="btn btn-primary" form="formBodega" type="submit" disabled="@_guardando">Guardar</button></FooterTemplate></HxModal>
-
 @code {
-    private AppRejilla<BodegaMantenimientoDTO>? _rejilla; private HxModal _modal = default!; private List<BodegaMantenimientoDTO> _bodegas = new(); private BodegaMantenimientoDTO? _edicion; private bool _cargado; private bool _guardando;
-    private async Task<GridDataProviderResult<BodegaMantenimientoDTO>> Cargar(GridDataProviderRequest<BodegaMantenimientoDTO> p) { if (!_cargado) { _bodegas = (await Respuestas.DatoAsync(await Api.Bodegas(), "consultar las bodegas"))?.ToList() ?? new(); _cargado = true; } return p.ApplyTo(_bodegas); }
-    private async Task Nueva() { _edicion = new BodegaMantenimientoDTO { Estado = true }; await _modal.ShowAsync(); }
-    private async Task Editar(BodegaMantenimientoDTO b) { _edicion = new BodegaMantenimientoDTO { IdBodega = b.IdBodega, NombreBodega = b.NombreBodega, Observaciones = b.Observaciones, Bloqueada = b.Bloqueada, Estado = b.Estado, EsCostaPets = b.EsCostaPets }; await _modal.ShowAsync(); }
-    private async Task Guardar() { if (_edicion is null || _guardando) return; if (string.IsNullOrWhiteSpace(_edicion.NombreBodega)) { await Dialogos.ErrorAsync("Indique el nombre de la bodega."); return; } _guardando = true; var nueva = _edicion.IdBodega == 0; var r = nueva ? await Api.CrearBodega(_edicion) : await Api.EditarBodega(_edicion); _guardando = false; if (await Respuestas.CorrectaAsync(r, nueva ? "crear la bodega" : "editar la bodega")) { await _modal.HideAsync(); _cargado = false; if (_rejilla is not null) await _rejilla.RefrescarAsync(); } }
-    private async Task Desactivar(BodegaMantenimientoDTO b) { if (!await Dialogos.ConfirmarPeligroAsync($"¿Desactivar la bodega '{b.NombreBodega}'?", "Desactivar bodega")) return; if (await Respuestas.CorrectaAsync(await Api.DesactivarBodega(b.IdBodega), "desactivar la bodega")) { _cargado = false; if (_rejilla is not null) await _rejilla.RefrescarAsync(); } }
+    private AppRejilla<Bodega>? _rejilla;
+    private List<Bodega> _bodegas = new();
+    private bool _cargado;
+
+    private async Task<GridDataProviderResult<Bodega>> Cargar(GridDataProviderRequest<Bodega> p)
+    {
+        if (!_cargado)
+        {
+            _bodegas = (await Respuestas.DatoAsync(await Api.Bodegas(), "consultar las bodegas"))?.ToList() ?? new();
+            _cargado = true;
+        }
+        return p.ApplyTo(_bodegas);
+    }
 }

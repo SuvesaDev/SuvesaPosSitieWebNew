@@ -12,14 +12,17 @@ public sealed class ClientesConsulta : ProxyBase, IClientesConsulta
 {
     private static readonly JsonSerializerOptions Opciones = new(JsonSerializerDefaults.Web);
     private readonly IClienteApiCliente _api;
+    private readonly IHttpClientFactory _clientes;
 
     public ClientesConsulta(
         IClienteApiCliente api,
+        IHttpClientFactory clientes,
         IContextoSesion sesion,
         ILogger<ClientesConsulta> log)
         : base(sesion, log)
     {
         _api = api;
+        _clientes = clientes;
     }
 
     public async Task<ResponseGeneric<ICollection<FiltranClienteDTO>>> Buscar(string texto)
@@ -52,13 +55,41 @@ public sealed class ClientesConsulta : ProxyBase, IClientesConsulta
         }, $"buscar clientes con {limpio}");
     }
 
+    // Tope del listado inicial. Debe coincidir con el maximo que acepta el API
+    // (cliente/Listar lo recorta a 2000; 500 es su valor por defecto).
+    private const int TopeListado = 500;
+
     public Task<ResponseGeneric<ICollection<FiltranClienteDTO>>> Listar()
         => Ejecutar(async () =>
         {
-            // Sin termino: se pide por nombre con el filtro vacio; el API devuelve
-            // el listado con su propio tope y la pantalla filtra en cliente.
-            var r = await _api.BuscarNombreAsync(new BuscarClienteDTO { Nombre = string.Empty, Cedula = null });
-            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+            // Sin termino: cliente/Listar devuelve los primeros N clientes por
+            // nombre, sin exigir filtro (a diferencia de BuscarNombre/BuscarCedula/
+            // Buscar, que rechazan el vacio con "Nombre/Cedula incorrecta"). La
+            // pantalla filtra en cliente sobre ese lote; para clientes fuera del
+            // tope se usa la busqueda.
+            //
+            // TEMPORAL — llamada a mano: cliente/Listar es nuevo y todavia no esta
+            // en los contratos NSwag del sitio. Al regenerarlos
+            // (./tools/actualizar-contratos.sh contra el API desplegado) esto pasa
+            // a _api.ListarAsync(TopeListado) y se borra el bloque manual.
+            var http = _clientes.CreateClient("SeePosApi");
+            using var resp = await http.GetAsync($"cliente/Listar?tope={TopeListado}");
+            var cuerpo = await resp.Content.ReadAsStringAsync();
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                return new ResponseGeneric<ICollection<FiltranClienteDTO>>(
+                    $"El API respondio {(int)resp.StatusCode} al listar clientes.");
+            }
+
+            var envelope = JsonSerializer.Deserialize<SeguridadEnvelope<ICollection<FiltranClienteDTO>>>(cuerpo, Opciones)
+                           ?? new SeguridadEnvelope<ICollection<FiltranClienteDTO>>
+                           {
+                               Status = ResponseStatus._1,
+                               CurrentException = "Respuesta vacia del API al listar clientes."
+                           };
+
+            return EnvelopeApi.A(envelope.Status, envelope.CurrentException, envelope.ValidationErrors, envelope.Responses);
         }, "listar clientes");
 
     public Task<ResponseGeneric<ClienteDTO>> Crear(ClienteDTO cliente)
