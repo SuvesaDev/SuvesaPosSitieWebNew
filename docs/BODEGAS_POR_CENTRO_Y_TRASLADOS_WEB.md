@@ -58,11 +58,15 @@ Ningún punto queda sin diseño, contrato a escribir y lugar en el orden de impl
 
 ### 1.1 Sesión y centro
 
-- El **centro se pide siempre justo después del login** (`/cuenta/sucursal`) y a partir de ahí el
-  **`idSucursal` vive en la sesión/token**: `IContextoSesion.IdSucursal` / `NombreSucursal`
-  (claims `seepos:idSucursal` / `seepos:nombreSucursal`). `MainLayout` obliga a tenerlo antes de operar.
-  **Las pantallas sólo lo leen (`Sesion.IdSucursal`); nunca lo piden de nuevo.** El API lo recibe en el token
-  en cada request.
+- El **centro se pide siempre justo después del login** (`/cuenta/sucursal`) y vive en la **cookie del sitio**:
+  `IContextoSesion.IdSucursal` / `NombreSucursal` (claims `seepos:idSucursal` / `seepos:nombreSucursal`).
+  `MainLayout` obliga a tenerlo antes de operar. **Las pantallas sólo lo leen (`Sesion.IdSucursal`); nunca lo
+  piden de nuevo.**
+- **El token de la API NO lleva el centro** (`construirToken` sólo emite `Usuario` y
+  `PermiteExistenciaNegativa`). Por eso **el sitio debe MANDAR `idSucursal`** en cada llamada que lo necesite
+  (query string en los GET de bodegas / toma física / traslado; campo del body en los POST), igual que ya
+  manda `FacturaDTO.IdSucursal`. El proxy de bodegas (`Bodegas.DeMiCentroAsync()`, §3.1) lo pone solo desde
+  `Sesion.IdSucursal`.
 
 ### 1.2 Bodegas
 
