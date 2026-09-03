@@ -234,6 +234,9 @@ builder.Services.AddScoped<IAlertasAdministrador, AlertasAdministrador>();
 builder.Services.AddScoped<IPlantillasImpresion, PlantillasImpresion>();
 builder.Services.AddScoped<IImpresionDocumentos, ImpresionDocumentos>();
 
+// Abono Cobrar — preventas pendientes + emisión síncrona (ABONO_COBRAR_PREVENTAS_WEB.md).
+builder.Services.AddScoped<IAbonoCobrarPreventas, AbonoCobrarPreventas>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

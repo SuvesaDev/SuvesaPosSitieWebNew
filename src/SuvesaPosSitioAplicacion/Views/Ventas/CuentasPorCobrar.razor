@@ -1,113 +1,194 @@
 @page "/sales/collect"
 @using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.DTOs.Ventas
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
-@inject ICuentasPorCobrar Api
+@using Havit.Blazor.Components.Web.Bootstrap
+@inject ICobros Api
+@inject ICajaOperaciones Caja
+@inject ICompras Compras
+@inject IAbonoCobrarPreventas Preventas
 @inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+@inject IJSRuntime JS
 
-@*  OLA 1 — replica del ARQUETIPO 05, sin el PDF.
-    Misma forma que Views/Compras/CuentasPorPagar.razor: el API devuelve clientes con
-    sus facturas dentro y aqui se aplana a filas. Los saldos se convierten a decimal
-    en el borde y se suman en decimal.
-*@
+@*  ABONO_COBRAR_PREVENTAS_WEB.md — el cajero cobra las preventas pendientes de un
+    cliente (1 o varias), contra su caja abierta y con varias formas de pago; al
+    cobrar cada preventa se factura, se pregunta si imprimir (plantilla ligada a la
+    serie) y se emite a Hacienda. Los documentos salen en la Bandeja. *@
 
-<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+<AppPantalla Pantalla="@Titulo" Codigo="VENTAS.ABONO_COBRAR" Nivel="NivelPantalla.Escritorio">
     <Acciones>
-        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
-            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
-        </button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nuevo</button>
     </Acciones>
-
     <ChildContent>
-        <div class="card">
-            <div class="card-body">
-                <AppRejilla TItem="FilaCobro" Datos="Cargar" Nivel="NivelPantalla.Tableta"
-                            TextoVacio="No hay facturas pendientes de cobro."
-                            @ref="_rejilla">
-                    <Columnas>
-                        <HxGridColumn TItem="FilaCobro" HeaderText="Cliente"
-                                      ItemTextSelector="f => f.Cliente"
-                                      SortKeySelector="f => f.Cliente" />
-                        <HxGridColumn TItem="FilaCobro" HeaderText="Cedula"
-                                      ItemTextSelector="f => f.Cedula" />
-                        <HxGridColumn TItem="FilaCobro" HeaderText="Factura"
-                                      ItemTextSelector="f => f.Factura"
-                                      SortKeySelector="f => f.Factura" />
-                        <HxGridColumn TItem="FilaCobro" HeaderText="Fecha"
-                                      ItemTextSelector="@(f => f.Fecha.ToString("dd/MM/yyyy"))"
-                                      SortKeySelector="f => f.Fecha" />
-                        <HxGridColumn TItem="FilaCobro" HeaderText="Monto"
-                                      ItemTextSelector="@(f => Formato.Importe(f.Monto))"
-                                      SortKeySelector="f => f.Monto"
-                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                        <HxGridColumn TItem="FilaCobro" HeaderText="Saldo"
-                                      ItemTextSelector="@(f => Formato.Importe(f.Saldo))"
-                                      SortKeySelector="f => f.Saldo"
-                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                    </Columnas>
-                </AppRejilla>
-
-                @if (_filas.Count > 0)
-                {
-                    <div class="d-flex justify-content-end gap-4 border-top pt-3 mt-3">
-                        <span class="text-secondary small">@_filas.Count facturas pendientes</span>
-                        <span class="fw-semibold">
-                            Total: <span class="seepos-importe">@Formato.Importe(_total)</span>
-                        </span>
-                    </div>
-                }
-            </div>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-3 border rounded bg-body-tertiary">
+            @if (_desbloqueado)
+            {
+                <div><strong><i class="bi bi-unlock-fill me-2 text-success"></i>Desbloqueado</strong><span class="text-secondary ms-2">Cajero: @_usuario?.Nombre · Apertura @_numApertura</span></div>
+            }
+            else
+            {
+                <div><strong><i class="bi bi-lock-fill me-2 text-warning"></i>Bloqueado</strong><span class="text-secondary ms-2">Ingrese la clave interna del cajero con caja abierta.</span></div>
+                <button type="button" class="btn btn-sm btn-primary" @onclick="() => _modalDesbloqueo.ShowAsync()">Desbloquear</button>
+            }
         </div>
+
+        <fieldset disabled="@(!_desbloqueado)" class="border-0 p-0 m-0">
+            <div class="card mb-3">
+                <div class="card-body row g-3 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">Cédula del cliente</label>
+                        <input class="form-control" @bind="_cedula" @onkeydown="BuscarConEnter" />
+                    </div>
+                    <div class="col-12 col-md-2 d-grid">
+                        <button type="button" class="btn btn-outline-primary" @onclick="Buscar" disabled="@_buscando">
+                            @(_buscando ? "Buscando..." : "Buscar preventas")
+                        </button>
+                    </div>
+                    @if (_cliente is not null)
+                    {
+                        <div class="col-12 col-md-6"><span class="text-secondary">Cliente:</span> <strong>@_cliente</strong></div>
+                    }
+                </div>
+            </div>
+
+            @if (_preventas.Count > 0)
+            {
+                <div class="row g-3">
+                    <div class="col-12 col-lg-7">
+                        <div class="card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <strong>Preventas pendientes de pago</strong>
+                                <div class="form-check mb-0">
+                                    <input id="chk-todas" class="form-check-input" type="checkbox"
+                                           checked="@TodasSeleccionadas" @onchange="AlternarTodas" />
+                                    <label class="form-check-label small" for="chk-todas">Todas</label>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:2.5rem"></th>
+                                            <th>Consecutivo</th><th>Fecha</th><th>Tipo</th>
+                                            <th>Serie</th><th>Moneda</th><th class="text-end">Total</th><th>FE</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var p in _preventas)
+                                        {
+                                            <tr class="@(_seleccion.Contains(p.Id) ? "table-active" : null)">
+                                                <td><input class="form-check-input" type="checkbox"
+                                                           checked="@_seleccion.Contains(p.Id)"
+                                                           @onchange="() => Alternar(p.Id)" /></td>
+                                                <td><code>@p.NumFactura</code></td>
+                                                <td class="small">@p.Fecha.ToString("dd/MM/yyyy")</td>
+                                                <td class="small">@(p.TipoFacturaDescripcion ?? "—") @(p.EsCredito ? "(crédito)" : "(contado)")</td>
+                                                <td class="small">@p.IdSerie</td>
+                                                <td class="small">@(p.Moneda ?? "CRC")</td>
+                                                <td class="text-end seepos-importe">@Formato.Importe((decimal)p.Total)</td>
+                                                <td class="small">@(p.CodigoFe ?? "—")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="border-top">
+                                            <td colspan="6" class="text-end fw-semibold">Seleccionado</td>
+                                            <td class="text-end fw-semibold seepos-importe">@Formato.Importe(_aCobrar)</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-lg-5">
+                        <div class="card h-100">
+                            <div class="card-header"><strong>Formas de pago</strong></div>
+                            <div class="card-body">
+                                @if (_seleccion.Count == 0)
+                                {
+                                    <p class="text-secondary small mb-0">Seleccione al menos una preventa.</p>
+                                }
+                                else
+                                {
+                                    <table class="table table-sm align-middle mb-3">
+                                        <thead><tr><th>Forma de pago</th><th class="text-end">Monto</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var f in _formasPago)
+                                            {
+                                                <tr>
+                                                    <td>@f.Descripcion</td>
+                                                    <td style="min-width:8rem">
+                                                        <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end"
+                                                               @bind="_montos[f.Codigo!]" @bind:after="Recalcular" />
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                    <dl class="row mb-0">
+                                        <dt class="col-6 fw-normal text-secondary">A cobrar</dt><dd class="col-6 text-end">@Formato.Importe(_aCobrar)</dd>
+                                        <dt class="col-6 fw-normal text-secondary">Entregado</dt><dd class="col-6 text-end">@Formato.Importe(_entregado)</dd>
+                                        <dt class="col-6">Cambio</dt><dd class="col-6 text-end fw-semibold">@Formato.Importe(_cambio)</dd>
+                                    </dl>
+
+                                    <button class="btn btn-primary w-100 mt-3" disabled="@(_procesando || _entregado < _aCobrar || _aCobrar <= 0)" @onclick="CobrarYFacturar">
+                                        <i class="bi bi-cash-coin me-2"></i>@(_procesando ? "Procesando..." : "Cobrar y facturar")
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (_cliente is not null && !_buscando)
+            {
+                <div class="alert alert-info">Este cliente no tiene preventas pendientes de pago.</div>
+            }
+
+            @if (_resultados.Count > 0)
+            {
+                <div class="card mt-3">
+                    <div class="card-header"><strong>Resultado</strong></div>
+                    <div class="card-body">
+                        <table class="table table-sm align-middle">
+                            <thead><tr><th>Preventa</th><th>Factura</th><th>Hacienda</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach (var r in _resultados)
+                                {
+                                    <tr>
+                                        <td><code>@r.NumFactura</code></td>
+                                        <td class="small">@(r.Facturada ? "Facturada" : "—")@(r.Error is null ? "" : $" · {r.Error}")</td>
+                                        <td class="small">@(r.EstadoHacienda ?? "—")</td>
+                                        <td>
+                                            @if (r.Facturada && r.Slug is not null)
+                                            {
+                                                <BotonImprimir Tipo="@r.Slug" Id="r.Id" Texto="PDF" Clase="btn-sm btn-outline-primary" />
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        <p class="small text-secondary mb-0">Los documentos aparecen en <a href="/initial/documents">Bandeja de documentos</a>.</p>
+                    </div>
+                </div>
+            }
+        </fieldset>
     </ChildContent>
 </AppPantalla>
 
-@code {
-    // El menu llama "Cobrar" a otra pantalla (/initial/charge). Esta, en
-    // /sales/collect, se llama "Abono Cobrar", y es ese el titulo que gobierna
-    // el permiso.
-    private const string Titulo = "Abono Cobrar";
-
-    private sealed record FilaCobro(
-        string Cliente, string Cedula, string Factura, DateTime Fecha, decimal Monto, decimal Saldo);
-
-    private AppRejilla<FilaCobro>? _rejilla;
-    private List<FilaCobro> _filas = new();
-    private decimal _total;
-    private bool _cargado;
-
-    private async Task<GridDataProviderResult<FilaCobro>> Cargar(
-        GridDataProviderRequest<FilaCobro> peticion)
-    {
-        if (!_cargado)
-        {
-            var pendientes = await Respuestas.DatoAsync(
-                await Api.ObtenerPendientes(), "consultar las cuentas por cobrar");
-
-            _filas = (pendientes ?? new List<BuscarClientesPendientesDTO>())
-                .SelectMany(c => (c.Facturas ?? new List<FacturasPendientesPagoDTO>())
-                    .Select(f => new FilaCobro(
-                        c.Nombre ?? "",
-                        c.Cedula ?? "",
-                        f.NumeroFactura ?? "",
-                        f.Fecha,
-                        Formato.AImporte(f.MontoFactura),
-                        Formato.AImporte(f.SaldoActual ?? 0))))
-                .ToList();
-
-            _total = CalculoDocumento.Redondear(_filas.Sum(f => f.Saldo));
-            _cargado = true;
-        }
-
-        return peticion.ApplyTo(_filas);
-    }
-
-    private async Task Recargar()
-    {
-        _cargado = false;
-
-        if (_rejilla is not null)
-        {
-            await _rejilla.RefrescarAsync();
-        }
-    }
-}
+<HxModal @ref="_modalDesbloqueo" Title="Desbloquear" Size="ModalSize.Regular">
+    <BodyTemplate>
+        <label class="form-label" for="clave-abono">Clave interna</label>
+        <input id="clave-abono" type="password" class="form-control" autocomplete="current-password" @bind="_clave" @onkeydown="DesbloquearConEnter" />
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-primary" disabled="@_validando" @onclick="Desbloquear">@(_validando ? "Validando..." : "Desbloquear")</button>
+    </FooterTemplate>
+</HxModal>
