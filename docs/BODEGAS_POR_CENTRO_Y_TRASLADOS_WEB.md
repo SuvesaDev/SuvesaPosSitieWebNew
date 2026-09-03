@@ -328,4 +328,4 @@ Rama `feature/ola-0-cimientos`. Verificación por commit: `dotnet build` del sit
 
 | Paso | Commit | Qué entró | Verificación |
 |---|---|---|---|
-| — | — | _(pendiente de implementar)_ | — |
+| §3.1/§3.3/§3.3b | _(este)_ | `DTOs/Lotes/LotesDTOs.cs`: `MovimientoInventarioFiltro.Bodega?`, `MovimientoInventarioConsulta.IdBodega`/`NombreBodega`, nuevo `BodegaOperativa` + DTOs de traslado. `ILotesApiCliente` gana `BodegasOperativasAsync(idSucursal?)` (→ `bodega/ObtenerBodegas?idSucursal=`) y `Traslado*Async`. `Inventario/Consulta.razor` pestaña Movimientos: `<select>` Bodega (del centro de la sesión) + columna **Bodega**. `Compras/TomaFisica.razor`: `<select>` **Bodega** obligatorio (una a la vez, centro de la sesión), se manda en `TomaArticulosAsync`/`TomaGuardarAsync` (quitado `Bodega = 0`). | `dotnet build` sitio 0 err · `dotnet test` 72/72 |

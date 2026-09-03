@@ -7,6 +7,7 @@
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ILotesApiCliente Api
 @inject IServicioDialogos Dialogos
+@inject SuvesaPosSitioAplicacion.Security.IContextoSesion Sesion
 
 @* Toma física / revisión de inventario (MEJORA_LOTES_WEB.md §3.5). Vive en Compras;
    pensada para PC, tablet y portátil (NivelPantalla.Tableta + tabla con scroll). *@
@@ -22,23 +23,30 @@
         <div class="card mb-3">
             <div class="card-body">
                 <div class="row g-2 align-items-end">
-                    <div class="col-12 col-md-6">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="tf-bodega">Bodega <span class="text-danger">*</span></label>
+                        <select id="tf-bodega" class="form-select" @bind="_bodega">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var b in _bodegas) { <option value="@b.IdBodega">@b.NombreBodega</option> }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-5">
                         <label class="form-label" for="tf-texto">Filtrar por código o descripción</label>
                         <input id="tf-texto" class="form-control" @bind="_texto" @bind:event="oninput" placeholder="Todos si se deja vacío" />
                     </div>
                     <div class="col-12 col-md-3 d-grid">
-                        <button class="btn btn-outline-primary" @onclick="Cargar" disabled="@_cargando">
+                        <button class="btn btn-outline-primary" @onclick="Cargar" disabled="@(_cargando || _bodega <= 0)">
                             @(_cargando ? "Cargando..." : "Cargar artículos")
                         </button>
                     </div>
-                    <div class="col-12 col-md-3 text-md-end small text-secondary">
-                        @if (_articulos.Count > 0)
-                        {
-                            <span>@_articulos.Count renglones · @_articulos.Count(a => Dif(a) != 0) con diferencia</span>
-                        }
-                    </div>
                 </div>
-                <p class="form-text mb-0">Los artículos marcados como <strong>Servicio</strong> no entran. La toma física <em>resetea</em> el acumulado del artículo.</p>
+                <div class="d-flex justify-content-between mt-1">
+                    <p class="form-text mb-0">Se cuenta <strong>una bodega</strong> a la vez. Los artículos <strong>Servicio</strong> no entran. La toma física <em>resetea</em> el acumulado en esa bodega.</p>
+                    @if (_articulos.Count > 0)
+                    {
+                        <span class="small text-secondary text-nowrap">@_articulos.Count renglones · @_articulos.Count(a => Dif(a) != 0) con diferencia</span>
+                    }
+                </div>
             </div>
         </div>
 
@@ -136,6 +144,16 @@
     private HxModal _modalReporte = default!;
     private TomaFisicaReporte? _reporte;
 
+    private int _bodega;
+    private List<BodegaOperativa> _bodegas = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var r = await Api.BodegasOperativasAsync(Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null);
+        _bodegas = r.Status == ResponseStatus._0 ? (r.Responses ?? new()) : new();
+        if (_bodegas.Count == 1) _bodega = _bodegas[0].IdBodega;
+    }
+
     private bool HayCambios => _articulos.Any(a => a.Contado is { } c && Math.Abs(c - a.ExistenciaSistema) > 0.0001);
 
     private static double Dif(TomaFisicaArticulo a) => (a.Contado ?? a.ExistenciaSistema) - a.ExistenciaSistema;
@@ -145,8 +163,9 @@
 
     private async Task Cargar()
     {
+        if (_bodega <= 0) { await Dialogos.ErrorAsync("Seleccione la bodega a contar."); return; }
         _cargando = true;
-        var r = await Api.TomaArticulosAsync(new TomaFisicaFiltro { Bodega = 0, Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim() });
+        var r = await Api.TomaArticulosAsync(new TomaFisicaFiltro { Bodega = _bodega, Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim() });
         _cargando = false;
         if (r.Status != ResponseStatus._0)
         {
@@ -164,7 +183,7 @@
         _guardando = true;
         var req = new TomaFisicaGuardar
         {
-            Bodega = 0,
+            Bodega = _bodega,
             Lineas = _articulos.Where(a => a.Contado is not null)
                 .Select(a => new TomaFisicaGuardarLinea { IdArticulo = a.IdArticulo, IdStockLote = a.IdStockLote, Contado = a.Contado!.Value })
                 .ToList()

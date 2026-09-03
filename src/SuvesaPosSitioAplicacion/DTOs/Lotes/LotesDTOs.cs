@@ -14,6 +14,8 @@ public sealed class MovimientoInventarioFiltro
     [JsonPropertyName("desde")] public System.DateTime? Desde { get; set; }
     [JsonPropertyName("hasta")] public System.DateTime? Hasta { get; set; }
     [JsonPropertyName("tipoMovimiento")] public int? TipoMovimiento { get; set; }
+    /// <summary>Bodega a filtrar; null = todas (BODEGAS_POR_CENTRO_Y_TRASLADOS_API.md §3.3).</summary>
+    [JsonPropertyName("bodega")] public int? Bodega { get; set; }
     [JsonPropertyName("pagina")] public int Pagina { get; set; } = 1;
     [JsonPropertyName("tamanoPagina")] public int TamanoPagina { get; set; } = 50;
 }
@@ -30,6 +32,8 @@ public sealed class MovimientoInventarioConsulta
     [JsonPropertyName("codProveedor")] public int? CodProveedor { get; set; }
     [JsonPropertyName("codCliente")] public long? CodCliente { get; set; }
     [JsonPropertyName("nombreContraparte")] public string? NombreContraparte { get; set; }
+    [JsonPropertyName("idBodega")] public int IdBodega { get; set; }
+    [JsonPropertyName("nombreBodega")] public string? NombreBodega { get; set; }
     [JsonPropertyName("idStockLote")] public long? IdStockLote { get; set; }
     [JsonPropertyName("numeroLote")] public string? NumeroLote { get; set; }
     [JsonPropertyName("existenciaAnterior")] public double ExistenciaAnterior { get; set; }
@@ -176,4 +180,108 @@ public sealed class TomaFisicaReporte
     [JsonPropertyName("costoPerdidas")] public double CostoPerdidas { get; set; }
     [JsonPropertyName("observaciones")] public string? Observaciones { get; set; }
     [JsonPropertyName("lineas")] public List<TomaFisicaReporteLinea> Lineas { get; set; } = new();
+}
+
+// ---- Bodegas operativas por centro (BODEGAS_POR_CENTRO_Y_TRASLADOS_API.md §3.1) ----
+
+public sealed class BodegaOperativa
+{
+    [JsonPropertyName("idBodega")] public int IdBodega { get; set; }
+    [JsonPropertyName("nombreBodega")] public string NombreBodega { get; set; } = string.Empty;
+    [JsonPropertyName("observaciones")] public string? Observaciones { get; set; }
+    [JsonPropertyName("bloqueada")] public bool? Bloqueada { get; set; }
+    [JsonPropertyName("estado")] public bool? Estado { get; set; }
+    [JsonPropertyName("esCostaPets")] public bool? EsCostaPets { get; set; }
+    [JsonPropertyName("idSucursal")] public int? IdSucursal { get; set; }
+    [JsonPropertyName("nombreSucursal")] public string? NombreSucursal { get; set; }
+    [JsonPropertyName("esConsignacion")] public bool EsConsignacion { get; set; }
+    [JsonPropertyName("esConsignacionCentral")] public bool EsConsignacionCentral { get; set; }
+}
+
+// ---- Traslado de bodega a bodega (§3.4) ----
+
+public sealed class TrasladoBodegaLineaEntrada
+{
+    [JsonPropertyName("idArticulo")] public long IdArticulo { get; set; }
+    [JsonPropertyName("idStockLote")] public long? IdStockLote { get; set; }
+    [JsonPropertyName("cantidad")] public double Cantidad { get; set; }
+}
+
+public sealed class TrasladoBodegaRequest
+{
+    [JsonPropertyName("idBodegaOrigen")] public int IdBodegaOrigen { get; set; }
+    [JsonPropertyName("idBodegaDestino")] public int IdBodegaDestino { get; set; }
+    [JsonPropertyName("fecha")] public System.DateTime? Fecha { get; set; }
+    [JsonPropertyName("documento")] public string? Documento { get; set; }
+    [JsonPropertyName("motivo")] public string? Motivo { get; set; }
+    [JsonPropertyName("observaciones")] public string? Observaciones { get; set; }
+    [JsonPropertyName("lineas")] public List<TrasladoBodegaLineaEntrada> Lineas { get; set; } = new();
+}
+
+public sealed class TrasladoBodegaLinea
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("idArticulo")] public long IdArticulo { get; set; }
+    [JsonPropertyName("codArticulo")] public string CodArticulo { get; set; } = string.Empty;
+    [JsonPropertyName("descripcion")] public string Descripcion { get; set; } = string.Empty;
+    [JsonPropertyName("idStockLote")] public long? IdStockLote { get; set; }
+    [JsonPropertyName("numeroLote")] public string? NumeroLote { get; set; }
+    [JsonPropertyName("cantidad")] public double Cantidad { get; set; }
+    [JsonPropertyName("costoUnitario")] public double CostoUnitario { get; set; }
+    [JsonPropertyName("costoLinea")] public double CostoLinea { get; set; }
+}
+
+public sealed class TrasladoBodega
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("idBodegaOrigen")] public int IdBodegaOrigen { get; set; }
+    [JsonPropertyName("nombreBodegaOrigen")] public string? NombreBodegaOrigen { get; set; }
+    [JsonPropertyName("idBodegaDestino")] public int IdBodegaDestino { get; set; }
+    [JsonPropertyName("nombreBodegaDestino")] public string? NombreBodegaDestino { get; set; }
+    [JsonPropertyName("tipo")] public int Tipo { get; set; }
+    [JsonPropertyName("fecha")] public System.DateTime Fecha { get; set; }
+    [JsonPropertyName("usuario")] public string? Usuario { get; set; }
+    [JsonPropertyName("documento")] public string? Documento { get; set; }
+    [JsonPropertyName("motivo")] public string? Motivo { get; set; }
+    [JsonPropertyName("estado")] public int Estado { get; set; }
+    [JsonPropertyName("estadoDescripcion")] public string EstadoDescripcion { get; set; } = string.Empty;
+    [JsonPropertyName("costoTotal")] public double CostoTotal { get; set; }
+    [JsonPropertyName("observaciones")] public string? Observaciones { get; set; }
+    [JsonPropertyName("fechaAnulacion")] public System.DateTime? FechaAnulacion { get; set; }
+    [JsonPropertyName("motivoAnulacion")] public string? MotivoAnulacion { get; set; }
+    [JsonPropertyName("lineas")] public List<TrasladoBodegaLinea> Lineas { get; set; } = new();
+}
+
+public sealed class TrasladoBodegaFiltro
+{
+    [JsonPropertyName("idSucursal")] public int? IdSucursal { get; set; }
+    [JsonPropertyName("idBodegaOrigen")] public int? IdBodegaOrigen { get; set; }
+    [JsonPropertyName("idBodegaDestino")] public int? IdBodegaDestino { get; set; }
+    [JsonPropertyName("desde")] public System.DateTime? Desde { get; set; }
+    [JsonPropertyName("hasta")] public System.DateTime? Hasta { get; set; }
+    [JsonPropertyName("texto")] public string? Texto { get; set; }
+    [JsonPropertyName("estado")] public int? Estado { get; set; }
+    [JsonPropertyName("tope")] public int Tope { get; set; } = 200;
+}
+
+public sealed class TrasladoBodegaResumen
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("fecha")] public System.DateTime Fecha { get; set; }
+    [JsonPropertyName("idBodegaOrigen")] public int IdBodegaOrigen { get; set; }
+    [JsonPropertyName("nombreBodegaOrigen")] public string? NombreBodegaOrigen { get; set; }
+    [JsonPropertyName("idBodegaDestino")] public int IdBodegaDestino { get; set; }
+    [JsonPropertyName("nombreBodegaDestino")] public string? NombreBodegaDestino { get; set; }
+    [JsonPropertyName("estado")] public int Estado { get; set; }
+    [JsonPropertyName("estadoDescripcion")] public string EstadoDescripcion { get; set; } = string.Empty;
+    [JsonPropertyName("cantidadLineas")] public int CantidadLineas { get; set; }
+    [JsonPropertyName("costoTotal")] public double CostoTotal { get; set; }
+    [JsonPropertyName("usuario")] public string? Usuario { get; set; }
+    [JsonPropertyName("documento")] public string? Documento { get; set; }
+}
+
+public sealed class AnularTrasladoBodega
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("motivo")] public string? Motivo { get; set; }
 }

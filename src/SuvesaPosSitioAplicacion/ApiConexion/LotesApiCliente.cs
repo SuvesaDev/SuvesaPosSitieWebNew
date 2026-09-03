@@ -21,6 +21,15 @@ public interface ILotesApiCliente
     Task<LoteEnvelope<List<TomaFisicaArticulo>>> TomaArticulosAsync(TomaFisicaFiltro filtro);
     Task<LoteEnvelope<TomaFisicaReporte>> TomaGuardarAsync(TomaFisicaGuardar req);
     Task<LoteEnvelope<TomaFisicaReporte>> TomaReporteAsync(long id);
+
+    // Bodegas por centro (§3.1). idSucursal null = todas (el API igual excluye consignación).
+    Task<LoteEnvelope<List<BodegaOperativa>>> BodegasOperativasAsync(int? idSucursal);
+
+    // Traslado de bodega a bodega (§3.4).
+    Task<LoteEnvelope<TrasladoBodega>> TrasladoRegistrarAsync(TrasladoBodegaRequest req);
+    Task<LoteEnvelope<TrasladoBodega>> TrasladoObtenerAsync(long id);
+    Task<LoteEnvelope<List<TrasladoBodegaResumen>>> TrasladoListarAsync(TrasladoBodegaFiltro filtro);
+    Task<LoteEnvelope<TrasladoBodega>> TrasladoAnularAsync(AnularTrasladoBodega req);
 }
 
 /// <summary>Espejo de <c>ResponseGeneric&lt;T&gt;</c> del API.</summary>
@@ -99,4 +108,20 @@ public sealed class LotesApiCliente : ILotesApiCliente
 
     public Task<LoteEnvelope<TomaFisicaReporte>> TomaReporteAsync(long id)
         => EnviarAsync<TomaFisicaReporte>(HttpMethod.Get, $"TomaFisica/Reporte?id={id}");
+
+    public Task<LoteEnvelope<List<BodegaOperativa>>> BodegasOperativasAsync(int? idSucursal)
+        => EnviarAsync<List<BodegaOperativa>>(HttpMethod.Post,
+            idSucursal is > 0 ? $"bodega/ObtenerBodegas?idSucursal={idSucursal}" : "bodega/ObtenerBodegas");
+
+    public Task<LoteEnvelope<TrasladoBodega>> TrasladoRegistrarAsync(TrasladoBodegaRequest req)
+        => EnviarAsync<TrasladoBodega>(HttpMethod.Post, "TrasladoBodega/Registrar", req);
+
+    public Task<LoteEnvelope<TrasladoBodega>> TrasladoObtenerAsync(long id)
+        => EnviarAsync<TrasladoBodega>(HttpMethod.Get, $"TrasladoBodega/Obtener?id={id}");
+
+    public Task<LoteEnvelope<List<TrasladoBodegaResumen>>> TrasladoListarAsync(TrasladoBodegaFiltro filtro)
+        => EnviarAsync<List<TrasladoBodegaResumen>>(HttpMethod.Post, "TrasladoBodega/Listar", filtro);
+
+    public Task<LoteEnvelope<TrasladoBodega>> TrasladoAnularAsync(AnularTrasladoBodega req)
+        => EnviarAsync<TrasladoBodega>(HttpMethod.Post, "TrasladoBodega/Anular", req);
 }

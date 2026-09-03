@@ -793,7 +793,12 @@
                     <div class="row g-2 align-items-end mb-2">
                         <div class="col-6 col-md-3"><label class="form-label">Desde</label><input type="date" class="form-control form-control-sm" @bind="_movDesde" /></div>
                         <div class="col-6 col-md-3"><label class="form-label">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_movHasta" /></div>
-                        <div class="col-12 col-md-3 d-grid"><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => CargarMovimientos(1)">Filtrar</button></div>
+                        <div class="col-8 col-md-3"><label class="form-label">Bodega</label>
+                            <select class="form-select form-select-sm" @bind="_movBodega">
+                                <option value="0">Todas</option>
+                                @foreach (var b in _bodegasMov) { <option value="@b.IdBodega">@b.NombreBodega</option> }
+                            </select></div>
+                        <div class="col-4 col-md-3 d-grid"><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => CargarMovimientos(1)">Filtrar</button></div>
                     </div>
                     @if (_cargandoMovimientos)
                     {
@@ -806,13 +811,14 @@
                     else
                     {
                         <div class="table-responsive"><table class="table table-sm align-middle mb-0">
-                            <thead><tr><th>Fecha</th><th>Tipo</th><th>Documento</th><th>Usuario</th><th>Prov./Cliente</th><th>Lote</th><th class="text-end">Anterior</th><th class="text-end">Cantidad</th><th class="text-end">Nueva</th></tr></thead>
+                            <thead><tr><th>Fecha</th><th>Tipo</th><th>Bodega</th><th>Documento</th><th>Usuario</th><th>Prov./Cliente</th><th>Lote</th><th class="text-end">Anterior</th><th class="text-end">Cantidad</th><th class="text-end">Nueva</th></tr></thead>
                             <tbody>
                             @foreach (var m in _movimientos.Movimientos)
                             {
                                 <tr>
                                     <td>@m.Fecha.ToString("dd/MM/yy HH:mm")</td>
                                     <td>@m.MovimientoDescripcion @(m.EsReseteoToma ? "(reseteo)" : "")</td>
+                                    <td>@m.NombreBodega</td>
                                     <td>@m.Documento</td>
                                     <td>@m.Usuario</td>
                                     <td>@m.NombreContraparte</td>
@@ -1262,6 +1268,8 @@
     private double _ajusteExistencia;
     private int _movPagina = 1;
     private DateTime? _movDesde, _movHasta;
+    private int _movBodega;
+    private List<BodegaOperativa> _bodegasMov = new();
 
     private async Task MostrarExistencias()
     {
@@ -1272,6 +1280,11 @@
     private async Task MostrarMovimientos()
     {
         _pestanaInventario = "movimientos";
+        if (_bodegasMov.Count == 0)
+        {
+            var rb = await Lotes2.BodegasOperativasAsync(Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null);
+            _bodegasMov = rb.Status == DTOs.Generated.ResponseStatus._0 ? (rb.Responses ?? new()) : new();
+        }
         await CargarMovimientos(1);
     }
 
@@ -1296,6 +1309,7 @@
             IdArticulo = _edicion.Codigo,
             Desde = _movDesde,
             Hasta = _movHasta,
+            Bodega = _movBodega > 0 ? _movBodega : null,
             Pagina = _movPagina,
             TamanoPagina = 50
         });
