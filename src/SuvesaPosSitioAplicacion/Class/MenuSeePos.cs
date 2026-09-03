@@ -211,6 +211,31 @@ public static partial class MenuSeePos
         },
         new ItemMenu
         {
+            // Modulo propio (a peticion del usuario): la Calculadora de Produccion y
+            // la Bitacora salen de "Inicio" a su propio modulo. Va debajo de Compras
+            // (a peticion del usuario).
+            Titulo = "Producción",
+            Codigo = "PRODUCCION",
+            Ruta = "/production/calculator",
+            Icono = "bi-hammer",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Calculadora",
+                    Codigo = "PRODUCCION.CALCULADORA",
+                    Ruta = "/production/calculator",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Bitácora",
+                    Codigo = "PRODUCCION.BITACORA",
+                    Ruta = "/production/log",
+                }
+            }
+        },
+        new ItemMenu
+        {
             // ANADIDO, no viene de SidebarData.jsx.
             //
             // Las tres rutas existen en el enrutador de React pero el menu actual no
@@ -539,30 +564,6 @@ public static partial class MenuSeePos
             Codigo = "MODULO_REPORTES.MODULO_REPORTES",
             Ruta = "/moduloReportes",
             Icono = "bi-bar-chart-fill",
-        },
-        new ItemMenu
-        {
-            // Modulo propio (a peticion del usuario): la Calculadora de Produccion y
-            // la Bitacora salen de "Inicio" a su propio modulo.
-            Titulo = "Producción",
-            Codigo = "PRODUCCION",
-            Ruta = "/production/calculator",
-            Icono = "bi-hammer",
-            Hijos = new ItemMenu[]
-            {
-                new ItemMenu
-                {
-                    Titulo = "Calculadora",
-                    Codigo = "PRODUCCION.CALCULADORA",
-                    Ruta = "/production/calculator",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Bitácora",
-                    Codigo = "PRODUCCION.BITACORA",
-                    Ruta = "/production/log",
-                }
-            }
         }
     };
 }

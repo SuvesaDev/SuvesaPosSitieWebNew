@@ -477,9 +477,49 @@
       ]
     },
     {
+      "codigo": "PRODUCCION",
+      "nombre": "Producción",
+      "orden": 4,
+      "icono": "bi-hammer",
+      "funciones": [
+        {
+          "codigo": "PRODUCCION.CALCULADORA",
+          "nombre": "Calculadora",
+          "ruta": "/production/calculator",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "PRODUCCION.BITACORA",
+          "nombre": "Bitácora",
+          "ruta": "/production/log",
+          "padre": null,
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        }
+      ]
+    },
+    {
       "codigo": "CONSIGNACION",
       "nombre": "Consignación",
-      "orden": 4,
+      "orden": 5,
       "icono": null,
       "funciones": [
         {
@@ -599,7 +639,7 @@
     {
       "codigo": "VENTAS",
       "nombre": "Ventas",
-      "orden": 5,
+      "orden": 6,
       "icono": "bi-receipt",
       "funciones": [
         {
@@ -671,7 +711,7 @@
     {
       "codigo": "PRESUPUESTOS",
       "nombre": "Presupuestos",
-      "orden": 6,
+      "orden": 7,
       "icono": "bi-file-earmark-text",
       "funciones": [
         {
@@ -711,7 +751,7 @@
     {
       "codigo": "UTILIDADES",
       "nombre": "Utilidades",
-      "orden": 7,
+      "orden": 8,
       "icono": "bi-tools",
       "funciones": [
         {
@@ -735,7 +775,7 @@
     {
       "codigo": "CATALOGOS",
       "nombre": "Catálogos",
-      "orden": 8,
+      "orden": 9,
       "icono": "bi-collection",
       "funciones": [
         {
@@ -1063,7 +1103,7 @@
     {
       "codigo": "PARAMETROS",
       "nombre": "Parametros",
-      "orden": 9,
+      "orden": 10,
       "icono": "bi-gear-fill",
       "funciones": [
         {
@@ -1215,7 +1255,7 @@
     {
       "codigo": "MODULO_INVENTARIO",
       "nombre": "Módulo Inventario",
-      "orden": 10,
+      "orden": 11,
       "icono": "bi-boxes",
       "funciones": [
         {
@@ -1239,7 +1279,7 @@
     {
       "codigo": "MODULO_REPORTES",
       "nombre": "Módulo Reportes",
-      "orden": 11,
+      "orden": 12,
       "icono": "bi-bar-chart-fill",
       "funciones": [
         {
@@ -1248,46 +1288,6 @@
           "ruta": "/moduloReportes",
           "padre": null,
           "orden": 1,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        }
-      ]
-    },
-    {
-      "codigo": "PRODUCCION",
-      "nombre": "Producción",
-      "orden": 13,
-      "icono": "bi-hammer",
-      "funciones": [
-        {
-          "codigo": "PRODUCCION.CALCULADORA",
-          "nombre": "Calculadora",
-          "ruta": "/production/calculator",
-          "padre": null,
-          "orden": 1,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "PRODUCCION.BITACORA",
-          "nombre": "Bitácora",
-          "ruta": "/production/log",
-          "padre": null,
-          "orden": 2,
           "acciones": [
             "VER",
             "CREAR",
