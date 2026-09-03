@@ -1,0 +1,113 @@
+@page "/initial/mail-outbox"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Correo
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@using Havit.Blazor.Components.Web.Bootstrap
+@inject IEnviosCorreo Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="@Titulo" Codigo="INICIO.ENVIOS_CORREO" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar"><i class="bi bi-arrow-clockwise"></i></button>
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body row g-2 align-items-end">
+                <div class="col-6 col-md-3">
+                    <label class="form-label small">Estado</label>
+                    <select class="form-select form-select-sm" @bind="_estado">
+                        <option value="">Todos</option>
+                        <option value="PendienteEnvio">Pendiente</option>
+                        <option value="Enviando">Enviando</option>
+                        <option value="Enviado">Enviado</option>
+                        <option value="Fallido">Fallido</option>
+                        <option value="OmitidoSinDestinatario">Omitido — sin destinatario</option>
+                        <option value="OmitidoRechazado">Omitido — rechazado</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small">Emisor (id)</label>
+                    <input class="form-control form-control-sm" type="number" min="0" @bind="_idEmisor" />
+                </div>
+                <div class="col-6 col-md-2"><label class="form-label small">Desde</label><input class="form-control form-control-sm" type="date" @bind="_desde" /></div>
+                <div class="col-6 col-md-2"><label class="form-label small">Hasta</label><input class="form-control form-control-sm" type="date" @bind="_hasta" /></div>
+                <div class="col-12 col-md-2"><label class="form-label small">Clave / correo</label><input class="form-control form-control-sm" @bind="_texto" /></div>
+                <div class="col-12"><button class="btn btn-sm btn-primary" @onclick="Buscar">Buscar</button></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Creado</th><th>Tipo</th><th>Clave</th><th>Destinatarios</th>
+                                <th>Estado</th><th class="text-end">Int.</th><th>Enviado</th><th>Adjuntos</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (_pagina.Items.Count == 0)
+                            {
+                                <tr><td colspan="9" class="text-secondary text-center py-3">Sin envíos con esos criterios.</td></tr>
+                            }
+                            @foreach (var e in _pagina.Items)
+                            {
+                                <tr>
+                                    <td class="small">@e.FechaCreacionUtc.ToLocalTime().ToString("dd/MM/yy HH:mm")</td>
+                                    <td class="small">@e.TipoComprobante</td>
+                                    <td class="small text-truncate" style="max-width:220px" title="@e.Clave">@e.Clave</td>
+                                    <td class="small text-truncate" style="max-width:200px" title="@e.Destinatarios">@e.Destinatarios</td>
+                                    <td><span class="badge bg-@Color(e.Estado)">@Humano(e.Estado)</span></td>
+                                    <td class="text-end small">@e.Intentos/@e.MaxIntentos</td>
+                                    <td class="small">@(e.FechaEnvioUtc?.ToLocalTime().ToString("dd/MM/yy HH:mm") ?? "—")</td>
+                                    <td class="small">
+                                        @if (e.AdjuntoXmlFirmado) { <span class="badge bg-light text-dark me-1">XML</span> }
+                                        @if (e.AdjuntoRespuesta) { <span class="badge bg-light text-dark me-1">Resp.</span> }
+                                        @if (e.AdjuntoPdf) { <span class="badge bg-light text-dark">PDF</span> }
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => VerDetalle(e)"><i class="bi bi-eye"></i></button>
+                                        @if (Reenviable(e.Estado))
+                                        {
+                                            <button class="btn btn-sm btn-outline-primary ms-1" @onclick="() => Reenviar(e)"><i class="bi bi-arrow-repeat"></i> Reenviar</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-between align-items-center small text-secondary">
+                    <span>@_pagina.Total envío(s)</span>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="Anterior" disabled="@(_paginaNum <= 1)">Anterior</button>
+                        <span class="mx-2">Página @_paginaNum</span>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="Siguiente" disabled="@(!HayMas)">Siguiente</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<HxOffcanvas @ref="_detalle" Title="Detalle del envío">
+    <BodyTemplate>
+        @if (_sel is not null)
+        {
+            <dl class="row small">
+                <dt class="col-4">Clave</dt><dd class="col-8 text-break">@_sel.Clave</dd>
+                <dt class="col-4">Tipo</dt><dd class="col-8">@_sel.TipoComprobante</dd>
+                <dt class="col-4">Estado</dt><dd class="col-8">@Humano(_sel.Estado)</dd>
+                <dt class="col-4">Destinatarios</dt><dd class="col-8 text-break">@_sel.Destinatarios</dd>
+                <dt class="col-4">Intentos</dt><dd class="col-8">@_sel.Intentos / @_sel.MaxIntentos</dd>
+                <dt class="col-4">Próximo intento</dt><dd class="col-8">@(_sel.ProximoIntentoUtc?.ToLocalTime().ToString("g") ?? "—")</dd>
+                <dt class="col-4">Enviado</dt><dd class="col-8">@(_sel.FechaEnvioUtc?.ToLocalTime().ToString("g") ?? "—")</dd>
+                <dt class="col-4">Adjuntos</dt><dd class="col-8">XML firmado: @(_sel.AdjuntoXmlFirmado ? "sí" : "no") · Respuesta: @(_sel.AdjuntoRespuesta ? "sí" : "no") · PDF: @(_sel.AdjuntoPdf ? "sí" : "no")</dd>
+                <dt class="col-4">Último error</dt><dd class="col-8 text-danger text-break">@(_sel.UltimoError ?? "—")</dd>
+            </dl>
+        }
+    </BodyTemplate>
+</HxOffcanvas>

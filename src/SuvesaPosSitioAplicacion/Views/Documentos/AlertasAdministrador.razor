@@ -1,0 +1,66 @@
+@page "/initial/alerts"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Correo
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IAlertasAdministrador Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject NavigationManager Nav
+
+<AppPantalla Pantalla="@Titulo" Codigo="INICIO.ALERTAS" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar"><i class="bi bi-arrow-clockwise"></i></button>
+        <button class="btn btn-sm btn-outline-primary" @onclick="MarcarTodas" disabled="@(_pagina.Items.Count == 0)">Marcar todas leídas</button>
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="form-check form-switch">
+                    <input id="nl" class="form-check-input" type="checkbox" @bind="_soloNoLeidas" @bind:after="Cargar" />
+                    <label class="form-check-label" for="nl">Solo no leídas</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr><th>Fecha</th><th>Tipo</th><th>Emisor</th><th>Título</th><th>Detalle</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @if (_pagina.Items.Count == 0)
+                            {
+                                <tr><td colspan="6" class="text-secondary text-center py-3">No hay alertas.</td></tr>
+                            }
+                            @foreach (var a in _pagina.Items)
+                            {
+                                <tr class="@(a.Leida ? "text-secondary" : "")">
+                                    <td class="small">@a.FechaCreacionUtc.ToLocalTime().ToString("dd/MM/yy HH:mm")</td>
+                                    <td><span class="badge bg-@Color(a.Tipo)">@Humano(a.Tipo)</span></td>
+                                    <td class="small">@(a.IdEmisor?.ToString() ?? "—")</td>
+                                    <td class="small">@a.Titulo</td>
+                                    <td class="small text-break">
+                                        @a.Detalle
+                                        @if (!string.IsNullOrWhiteSpace(a.Clave))
+                                        {
+                                            <a class="ms-2" href="/initial/documents?clave=@a.Clave">ver documento</a>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!a.Leida)
+                                        {
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => MarcarLeida(a)">Marcar leída</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
