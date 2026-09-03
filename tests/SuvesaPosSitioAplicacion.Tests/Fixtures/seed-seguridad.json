@@ -137,6 +137,38 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "INICIO.ALERTAS",
+          "nombre": "Alertas",
+          "ruta": "/initial/alerts",
+          "padre": null,
+          "orden": 7,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "INICIO.ENVIOS_CORREO",
+          "nombre": "Envíos de correo",
+          "ruta": "/initial/mail-outbox",
+          "padre": null,
+          "orden": 8,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
         }
       ]
     },
@@ -1240,6 +1272,38 @@
           "ruta": "/parameters/areas",
           "padre": null,
           "orden": 10,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "PARAMETROS.CONFIGURACION_CORREO",
+          "nombre": "Configuración de correo",
+          "ruta": "/parameters/mail-settings",
+          "padre": null,
+          "orden": 11,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "PARAMETROS.PLANTILLAS_IMPRESION",
+          "nombre": "Plantillas de impresión",
+          "ruta": "/parameters/print-templates",
+          "padre": null,
+          "orden": 12,
           "acciones": [
             "VER",
             "CREAR",

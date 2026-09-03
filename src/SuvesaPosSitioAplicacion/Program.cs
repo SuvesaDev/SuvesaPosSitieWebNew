@@ -225,6 +225,15 @@ builder.Services.AddScoped<ICatalogoBonificacion, CatalogoBonificacion>();
 builder.Services.AddScoped<IClienteBonificacion, ClienteBonificacion>();
 builder.Services.AddScoped<IArticuloBonificacion, ArticuloBonificacion>();
 
+// Motor de correo de comprobantes (MOTOR_CORREO_COMPROBANTES_WEB.md).
+builder.Services.AddScoped<IConfiguracionCorreo, ConfiguracionCorreo>();
+builder.Services.AddScoped<IEnviosCorreo, EnviosCorreo>();
+builder.Services.AddScoped<IAlertasAdministrador, AlertasAdministrador>();
+
+// Motor de plantillas de impresión (MOTOR_PLANTILLAS_IMPRESION_WEB.md).
+builder.Services.AddScoped<IPlantillasImpresion, PlantillasImpresion>();
+builder.Services.AddScoped<IImpresionDocumentos, ImpresionDocumentos>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -263,6 +272,20 @@ app.MapGet("/cuenta/salir", async (HttpContext ctx, IServicioAutenticacion auth)
 }).AllowAnonymous();
 
 app.MapGet("/favicon.ico", () => Results.Redirect("/favicon.png")).AllowAnonymous();
+
+// PDF de representación gráfica de un documento (MOTOR_PLANTILLAS_IMPRESION_WEB.md §4).
+// El render vive en el API; este endpoint solo reenvía con el token y hace stream.
+app.MapGet("/documentos/{tipo}/{id:long}/pdf", async (
+    string tipo, long id, string? formato, bool copia,
+    IImpresionDocumentos api) =>
+{
+    var r = await api.Pdf(tipo, id, formato, copia);
+    if (!r.EsCorrecta || r.Responses is not { Length: > 0 } bytes)
+        return Results.Problem(r.Excepcion ?? "No se pudo generar el documento.");
+
+    var nombre = $"{tipo}-{id}.pdf";
+    return Results.File(bytes, "application/pdf", nombre, enableRangeProcessing: false);
+});
 
 // Descarga de reportes en PDF. Un endpoint y no una pagina: enviar un archivo desde
 // un componente interactivo obligaria a pasarlo por JS codificado en base64.

@@ -55,6 +55,20 @@ public static partial class MenuSeePos
                     Titulo = "Bandeja de documentos",
                     Codigo = "INICIO.DOCUMENTOS_EMITIDOS",
                     Ruta = "/initial/documents",
+                },
+                new ItemMenu
+                {
+                    // MOTOR_CORREO_COMPROBANTES_WEB.md §4.
+                    Titulo = "Envíos de correo",
+                    Codigo = "INICIO.ENVIOS_CORREO",
+                    Ruta = "/initial/mail-outbox",
+                },
+                new ItemMenu
+                {
+                    // MOTOR_CORREO_COMPROBANTES_WEB.md §5 — alertas del administrador.
+                    Titulo = "Alertas",
+                    Codigo = "INICIO.ALERTAS",
+                    Ruta = "/initial/alerts",
                 }
             }
         },
@@ -527,6 +541,20 @@ public static partial class MenuSeePos
                     Titulo = "Series de Facturación",
                     Codigo = "PARAMETROS.SERIES_DE_FACTURACION",
                     Ruta = "/parameters/invoice-series",
+                },
+                new ItemMenu
+                {
+                    // MOTOR_PLANTILLAS_IMPRESION_WEB.md §3.
+                    Titulo = "Plantillas de impresión",
+                    Codigo = "PARAMETROS.PLANTILLAS_IMPRESION",
+                    Ruta = "/parameters/print-templates",
+                },
+                new ItemMenu
+                {
+                    // MOTOR_CORREO_COMPROBANTES_WEB.md §3 — configuración SMTP por emisor.
+                    Titulo = "Configuración de correo",
+                    Codigo = "PARAMETROS.CONFIGURACION_CORREO",
+                    Ruta = "/parameters/mail-settings",
                 },
                 new ItemMenu
                 {
