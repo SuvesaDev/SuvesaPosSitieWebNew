@@ -17,6 +17,9 @@ public interface IConsignacionInvApiCliente
     Task<LoteEnvelope<BodegaConsignacionResumen>> AbrirBodegaAsync(AbrirBodegaConsignacion req);
     Task<LoteEnvelope<List<BodegaConsignacionResumen>>> BodegasAsync(BodegasConsignacionFiltro req);
 
+    Task<LoteEnvelope<BodegaCentralConsignacion>> AbrirBodegaCentralAsync(AbrirBodegaCentralConsignacion req);
+    Task<LoteEnvelope<BodegaCentralConsignacion>> ReponerCentralAsync(ReponerCentralConsignacionRequest req);
+
     Task<LoteEnvelope<BoletaConsignacion>> RegistrarBoletaAsync(BoletaConsignacionRequest req);
     Task<LoteEnvelope<BoletaConsignacion>> BoletaAsync(long id);
     Task<LoteEnvelope<BoletaConsignacion>> AnularBoletaAsync(AnularBoletaConsignacion req);
@@ -90,6 +93,12 @@ public sealed class ConsignacionInvApiCliente : IConsignacionInvApiCliente
 
     public Task<LoteEnvelope<BoletaConsignacion>> AnularBoletaAsync(AnularBoletaConsignacion req)
         => EnviarAsync<BoletaConsignacion>(HttpMethod.Post, "ConsignacionInventario/AnularBoleta", req);
+
+    public Task<LoteEnvelope<BodegaCentralConsignacion>> AbrirBodegaCentralAsync(AbrirBodegaCentralConsignacion req)
+        => EnviarAsync<BodegaCentralConsignacion>(HttpMethod.Post, "ConsignacionInventario/AbrirBodegaCentral", req);
+
+    public Task<LoteEnvelope<BodegaCentralConsignacion>> ReponerCentralAsync(ReponerCentralConsignacionRequest req)
+        => EnviarAsync<BodegaCentralConsignacion>(HttpMethod.Post, "ConsignacionInventario/ReponerCentral", req);
 
     public Task<LoteEnvelope<ExistenciaConsignacion>> ExistenciaAsync(long idCliente)
         => EnviarAsync<ExistenciaConsignacion>(HttpMethod.Post, "ConsignacionInventario/Existencia", new ExistenciaConsignacionRequest { IdCliente = idCliente });

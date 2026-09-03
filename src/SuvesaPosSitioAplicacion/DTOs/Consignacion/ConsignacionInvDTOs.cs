@@ -145,6 +145,37 @@ public sealed class ExistenciaConsignacion
     public List<ExistenciaConsignacionLinea> Articulos { get; set; } = new();
 }
 
+// --- Bodega de consignación central + reposición (§3.5 / §6.5) ---
+
+public sealed class BodegaCentralConsignacion
+{
+    public int IdBodega { get; set; }
+    public string NombreBodega { get; set; } = "";
+    public int? IdSucursal { get; set; }
+    public double ExistenciaTotal { get; set; }
+}
+
+public sealed class AbrirBodegaCentralConsignacion
+{
+    public int? IdSucursal { get; set; }
+}
+
+public sealed class ReponerCentralConsignacionLineaRequest
+{
+    public long IdArticulo { get; set; }
+    public long? IdStockLote { get; set; }
+    public double Cantidad { get; set; }
+}
+
+public sealed class ReponerCentralConsignacionRequest
+{
+    public int? IdSucursal { get; set; }
+    public int IdBodegaOrigen { get; set; }
+    public string? Documento { get; set; }
+    public string? Observaciones { get; set; }
+    public List<ReponerCentralConsignacionLineaRequest> Lineas { get; set; } = new();
+}
+
 public sealed class ConteoConsignacionLinea
 {
     public long IdArticulo { get; set; }

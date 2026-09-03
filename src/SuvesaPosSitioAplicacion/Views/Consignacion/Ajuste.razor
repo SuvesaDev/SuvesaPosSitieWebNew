@@ -14,6 +14,7 @@
 @inject IClientesConsulta Clientes
 @inject IInventarioConsulta Inventario
 @inject IServicioDialogos Dialogos
+@inject SuvesaPosSitioAplicacion.Security.IContextoSesion Sesion
 
 <AppPantalla Pantalla="Ajuste de Bodega de Consignación" Codigo="CONSIGNACION.AJUSTE" Icono="bi-box-arrow-in-down"
              Subtitulo="Boletas de ingreso y de salida / retiro (sin facturación)" Nivel="NivelPantalla.Tableta">
@@ -41,6 +42,42 @@
       </div>
     </div>
   </div></div>
+
+  <details class="card mb-3">
+    <summary class="card-header" style="cursor:pointer;">Reponer la bodega de consignación central</summary>
+    <div class="card-body">
+      <p class="small text-secondary">Traslada mercadería de una <strong>bodega operativa</strong> a la <strong>bodega de consignación central</strong> (de ahí sale lo que se consigna a los clientes).</p>
+      @if (_central is not null) { <p class="small">Central actual: <strong>@_central.NombreBodega</strong> · existencia @_central.ExistenciaTotal.ToString("N2")</p> }
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4"><label class="form-label">Bodega de origen</label>
+          <select class="form-select" @bind="_repOrigen">
+            <option value="0">Seleccione...</option>
+            @foreach (var b in _bodegasOp) { <option value="@b.IdBodega">@b.NombreBodega</option> }
+          </select></div>
+        <div class="col-md-4 position-relative"><label class="form-label">Artículo</label>
+          <input class="form-control" @bind="_repTexArt" @bind:event="oninput" @bind:after="RepBuscarArt" placeholder="Código o descripción" />
+          @if (_repArts.Count > 0)
+          {
+            <div class="list-group position-absolute shadow w-100" style="z-index:5; max-height:14rem; overflow-y:auto;">
+              @foreach (var a in _repArts) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => RepElegirArt(a)"><strong>@a.Cod_Articulo</strong> @a.Descripcion</button> }
+            </div>
+          }
+        </div>
+        <div class="col-md-2"><label class="form-label">Lote</label>
+          <select class="form-select" @bind="_repLoteSel"><option value="0">Sin lote</option>@foreach (var l in _repLotes){<option value="@l.Id">@l.Numero</option>}</select></div>
+        <div class="col-md-1"><label class="form-label">Cant.</label><input type="number" min="0.001" step="0.001" class="form-control" @bind="_repCant" /></div>
+        <div class="col-md-1 d-grid"><button class="btn btn-outline-primary" @onclick="RepAgregar" disabled="@(_repArtSel is null || _repCant <= 0)">+</button></div>
+      </div>
+      @if (_repLineas.Any())
+      {
+        <table class="table table-sm mt-2">
+          <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Cantidad</th><th></th></tr></thead>
+          <tbody>@foreach (var l in _repLineas){<tr><td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@l.NumeroLote</td><td class="text-end">@l.Cantidad.ToString("N3")</td><td class="text-end"><button class="btn btn-sm btn-link text-danger" @onclick="() => _repLineas.Remove(l)">Quitar</button></td></tr>}</tbody>
+        </table>
+        <button class="btn btn-primary" @onclick="RepGuardar" disabled="@(_repOrigen <= 0 || _repGuardando)">@(_repGuardando ? "Reponiendo..." : "Reponer central")</button>
+      }
+    </div>
+  </details>
 
   @if (_idCliente > 0)
   {
@@ -146,6 +183,77 @@
  private long _idBoletaBuscar;
  private HxModal _modalAnular = default!;
  private string _motivoAnular = "";
+
+ // Reponer bodega central (§6.5)
+ private List<BodegaOperativa> _bodegasOp = new();
+ private BodegaCentralConsignacion? _central;
+ private int _repOrigen;
+ private string _repTexArt = "";
+ private List<InventarioDTO> _repArts = new();
+ private InventarioDTO? _repArtSel;
+ private List<LoteExistencia> _repLotes = new();
+ private long _repLoteSel;
+ private double _repCant = 1;
+ private bool _repGuardando;
+ private readonly List<TrasladoBodegaLinea> _repLineas = new();
+
+ protected override async Task OnInitializedAsync()
+ {
+     var rb = await LotesApi.BodegasOperativasAsync(Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null);
+     _bodegasOp = rb.Status == ResponseStatus._0 ? (rb.Responses ?? new()) : new();
+     var rc = await Api.AbrirBodegaCentralAsync(new AbrirBodegaCentralConsignacion { IdSucursal = Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null });
+     if (Ok(rc)) _central = rc.Responses;
+ }
+
+ private async Task RepBuscarArt()
+ {
+     var t = _repTexArt?.Trim() ?? "";
+     _repArtSel = null;
+     if (t.Length < 2) { _repArts = new(); return; }
+     var r = await Inventario.Buscar(t);
+     _repArts = r.EsCorrecta ? (r.Responses ?? new List<InventarioDTO>()).Take(20).ToList() : new();
+ }
+
+ private async Task RepElegirArt(InventarioDTO a)
+ {
+     _repArtSel = a; _repTexArt = $"{a.Cod_Articulo} — {a.Descripcion}"; _repArts = new(); _repLoteSel = 0; _repLotes = new();
+     var r = await LotesApi.ExistenciaConsolidadaAsync(a.Codigo);
+     if (Ok(r)) _repLotes = (r.Responses?.Lotes ?? new()).Where(l => !l.Vencido && !l.Bloqueado).ToList();
+ }
+
+ private void RepAgregar()
+ {
+     if (_repArtSel is null || _repCant <= 0) return;
+     var lote = _repLoteSel > 0 ? _repLoteSel : (long?)null;
+     if (_repLineas.Any(x => x.IdArticulo == _repArtSel.Codigo && x.IdStockLote == lote)) { _ = Dialogos.ErrorAsync("Ese artículo/lote ya está."); return; }
+     _repLineas.Add(new TrasladoBodegaLinea
+     {
+         IdArticulo = _repArtSel.Codigo,
+         CodArticulo = _repArtSel.Cod_Articulo ?? "",
+         Descripcion = _repArtSel.Descripcion ?? "",
+         IdStockLote = lote,
+         NumeroLote = lote is not null ? _repLotes.FirstOrDefault(l => l.Id == lote)?.Numero : null,
+         Cantidad = _repCant
+     });
+     _repArtSel = null; _repTexArt = ""; _repLoteSel = 0; _repLotes = new(); _repCant = 1;
+ }
+
+ private async Task RepGuardar()
+ {
+     if (_repOrigen <= 0 || !_repLineas.Any()) return;
+     _repGuardando = true;
+     var r = await Api.ReponerCentralAsync(new ReponerCentralConsignacionRequest
+     {
+         IdSucursal = Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null,
+         IdBodegaOrigen = _repOrigen,
+         Lineas = _repLineas.Select(l => new ReponerCentralConsignacionLineaRequest { IdArticulo = l.IdArticulo, IdStockLote = l.IdStockLote, Cantidad = l.Cantidad }).ToList()
+     });
+     _repGuardando = false;
+     if (!Ok(r)) { await Fallo(r, "No se pudo reponer la central."); return; }
+     _central = r.Responses;
+     _repLineas.Clear();
+     Dialogos.Exito("Bodega central repuesta.");
+ }
 
  private async Task AbrirBoleta(long id)
  {

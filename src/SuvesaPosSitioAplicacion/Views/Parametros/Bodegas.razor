@@ -1,38 +1,84 @@
 @page "/parameters/wineries"
 @using SuvesaPosSitioAplicacion.Class
-@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Lotes
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
-@inject IMantenimientosInventario Api
-@inject IManejadorRespuestas Respuestas
+@inject ILotesApiCliente Api
+@inject IServicioDialogos Dialogos
+@inject SuvesaPosSitioAplicacion.Security.IContextoSesion Sesion
 
-@* Solo lectura: el API real no tiene alta/edición/baja de bodegas, solo el listado
-   (bodega/ObtenerBodegas). Ver ApiConexion/ProxyClass/MantenimientosInventario.cs. *@
+@*  Solo lectura: el API no tiene alta/edición/baja de bodegas todavía.
+    Muestra el centro de cada bodega (§3.1) y, opcionalmente, las de consignación. *@
 
 <AppPantalla Pantalla="Bodegas" Codigo="PARAMETROS.BODEGAS" Nivel="NivelPantalla.Tableta">
-    <ChildContent><div class="card"><div class="card-body">
-        <AppRejilla TItem="Bodega" Datos="Cargar" @ref="_rejilla" TextoVacio="No hay bodegas registradas."><Columnas>
-            <HxGridColumn TItem="Bodega" HeaderText="Bodega" ItemTextSelector="b => b.NombreBodega" SortKeySelector="b => b.NombreBodega" />
-            <HxGridColumn TItem="Bodega" HeaderText="Observaciones" ItemTextSelector="b => b.Observaciones" />
-            <HxGridColumn TItem="Bodega" HeaderText="Estado"><ItemTemplate Context="b"><span class="badge @(b.Estado ? "text-bg-success" : "text-bg-secondary")">@(b.Estado ? "Activa" : "Inactiva")</span></ItemTemplate></HxGridColumn>
-            <HxGridColumn TItem="Bodega" HeaderText="Bloqueada"><ItemTemplate Context="b">@((b.Bloqueada ?? false) ? "Sí" : "No")</ItemTemplate></HxGridColumn>
-            <HxGridColumn TItem="Bodega" HeaderText="CostaPets"><ItemTemplate Context="b">@((b.EsCostaPets ?? false) ? "Sí" : "No")</ItemTemplate></HxGridColumn>
-        </Columnas></AppRejilla>
-    </div></div></ChildContent>
+    <ChildContent>
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-3 align-items-center mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="bod-todos" @bind="_todosCentros" @bind:after="Recargar" />
+                        <label class="form-check-label" for="bod-todos">Ver todos los centros</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="bod-consig" @bind="_verConsignacion" @bind:after="Recargar" />
+                        <label class="form-check-label" for="bod-consig">Ver bodegas de consignación</label>
+                    </div>
+                    @if (!_todosCentros) { <span class="small text-secondary">Centro: @(Sesion.NombreSucursal ?? "—")</span> }
+                </div>
+
+                @if (_cargando)
+                {
+                    <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+                }
+                else
+                {
+                    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Bodega</th><th>Centro</th><th>Observaciones</th><th>Estado</th><th>Bloqueada</th><th>CostaPets</th><th>Consignación</th></tr></thead>
+                        <tbody>
+                            @foreach (var b in _bodegas)
+                            {
+                                <tr>
+                                    <td>@b.NombreBodega</td>
+                                    <td>@(b.NombreSucursal ?? "— Global —")</td>
+                                    <td class="text-secondary small">@b.Observaciones</td>
+                                    <td><span class="badge @((b.Estado ?? false) ? "text-bg-success" : "text-bg-secondary")">@((b.Estado ?? false) ? "Activa" : "Inactiva")</span></td>
+                                    <td>@((b.Bloqueada ?? false) ? "Sí" : "No")</td>
+                                    <td>@((b.EsCostaPets ?? false) ? "Sí" : "No")</td>
+                                    <td>
+                                        @if (b.EsConsignacionCentral) { <span class="badge text-bg-warning">Central</span> }
+                                        else if (b.EsConsignacion) { <span class="badge text-bg-info">Cliente</span> }
+                                        else { <span class="text-secondary">—</span> }
+                                    </td>
+                                </tr>
+                            }
+                            @if (_bodegas.Count == 0) { <tr><td colspan="7" class="text-secondary">No hay bodegas para el filtro indicado.</td></tr> }
+                        </tbody>
+                    </table></div>
+                }
+            </div>
+        </div>
+    </ChildContent>
 </AppPantalla>
 
 @code {
-    private AppRejilla<Bodega>? _rejilla;
-    private List<Bodega> _bodegas = new();
-    private bool _cargado;
+    private List<BodegaOperativa> _bodegas = new();
+    private bool _cargando, _todosCentros, _verConsignacion;
 
-    private async Task<GridDataProviderResult<Bodega>> Cargar(GridDataProviderRequest<Bodega> p)
+    protected override Task OnInitializedAsync() => Recargar();
+
+    private async Task Recargar()
     {
-        if (!_cargado)
+        _cargando = true;
+        var idSucursal = _todosCentros ? (int?)null : (Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null);
+        var r = await Api.MantenimientoBodegasAsync(idSucursal, _verConsignacion);
+        _cargando = false;
+        if (r.Status != DTOs.Generated.ResponseStatus._0)
         {
-            _bodegas = (await Respuestas.DatoAsync(await Api.Bodegas(), "consultar las bodegas"))?.ToList() ?? new();
-            _cargado = true;
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudieron consultar las bodegas.");
+            _bodegas = new();
+            return;
         }
-        return p.ApplyTo(_bodegas);
+        _bodegas = (r.Responses ?? new()).OrderBy(b => b.NombreBodega).ToList();
     }
 }
