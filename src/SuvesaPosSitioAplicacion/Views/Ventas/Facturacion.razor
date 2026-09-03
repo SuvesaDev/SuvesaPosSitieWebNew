@@ -69,7 +69,14 @@
                             <div class="col-12 col-md-3"><label class="form-label">Moneda</label><select class="form-select" @bind="_moneda"><option value="0">Seleccione...</option>@foreach (var moneda in _monedas) { <option value="@moneda.CodMoneda">@moneda.MonedaNombre</option> }</select></div>
                             @if (!EsCostaPetsVenta)
                             {
-                                <div class="col-12 col-md-6"><label class="form-label">Empresa</label><select class="form-select" @bind="_idEmpresa"><option value="0">Seleccione...</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
+                                <div class="col-12 col-md-6"><label class="form-label">Empresa</label><select class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarEmpresa"><option value="0">Seleccione...</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">Actividad económica</label>
+                                    <select class="form-select" @bind="_codActividad" disabled="@(_actividadesEmpresa.Count == 0)">
+                                        <option value="">@(_actividadesEmpresa.Count == 0 ? "La empresa no tiene actividades registradas" : "Seleccione...")</option>
+                                        @foreach (var act in _actividadesEmpresa) { <option value="@act.Codigo">@act.Codigo — @act.Descripcion@(act.Principal == true ? " (principal)" : "")</option> }
+                                    </select>
+                                </div>
                                 <div class="col-12 col-md-6">
                                     <div class="d-flex align-items-center justify-content-between">
                                         <label class="form-label mb-0">Agente</label>
@@ -393,6 +400,8 @@
     private string _textoCliente = string.Empty, _observaciones = string.Empty, _ordenCompra = string.Empty;
     private int _tipoFactura;
     private int _idEmpresa;
+    private string _codActividad = string.Empty;
+    private List<ActividadesEmisorDTO> _actividadesEmpresa = new();
     private int _moneda;
     private bool _sinAgente;
     private long _codAgente;
@@ -603,6 +612,7 @@
         {
             _empresas = (await Respuestas.DatoAsync(await Api.Empresas(), "consultar las empresas de facturación"))?.ToList() ?? new();
             if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+            AlCambiarEmpresa();
         }
 
         _ventaDesbloqueada = true;
@@ -610,6 +620,17 @@
         // La descarga grande empieza mientras el cajero elige cliente y tipo de
         // factura, por lo que normalmente el catálogo ya está disponible al abrirlo.
         PrecargarCatalogo();
+    }
+
+    // Al cambiar de empresa se refrescan sus actividades económicas (vienen en el
+    // emisor) y se preselecciona la principal.
+    private void AlCambiarEmpresa()
+    {
+        var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
+        _actividadesEmpresa = empresa?.Actividades?.ToList() ?? new();
+        _codActividad = _actividadesEmpresa.FirstOrDefault(a => a.Principal == true)?.Codigo
+                        ?? _actividadesEmpresa.FirstOrDefault()?.Codigo
+                        ?? string.Empty;
     }
 
     private async Task BuscarClientes()
