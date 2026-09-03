@@ -39,30 +39,39 @@
 
 ---
 
-## 2. Rediseño propuesto
+## 2. Rediseño propuesto — decisiones confirmadas
+
+**Modelo:** columna **`Uso` (enum)** en el API `{1 Facturacion, 2 Devolucion,
+3 Compra, 4 Consignacion}` + `Contado` + `Activo`; se dropean los bools `Compra`
+y `Consignacion`. `CodigoFE` queda **restringido** al catálogo `{01,02,03,04}`
+(sin texto libre). Devolución **no electrónica** permitida (`Uso=Devolucion` +
+`CodigoFE` vacío). En Series el `<select>` de tipo se **agrupa** por uso.
 
 ### 2.1 Modal "Editar tipo de documento" en secciones
 
 **1 · Identificación**
 - **Código interno** (número, único) · **Descripción**.
 
-**2 · ¿Para qué se usa?**
-- Radio "Uso principal": **Venta** / **Devolución (Nota de crédito)** / **Compra**
-  / **Consignación**.
-- Si *Venta* → sub-checkboxes **Contado** y/o **Crédito** (al menos uno).
-- *Devolución* / *Compra* deshabilitan Contado/Crédito.
-- Texto de ayuda por opción:
-  - *Venta* → "aparece en Facturación".
-  - *Devolución* → "aparece solo en Devoluciones de venta".
-  - *Compra* → "aparece en Compras".
+**2 · Uso** — `<select>` (mapea al enum `Uso` del API):
+  **Facturación (venta)** / **Devolución (Nota de crédito)** / **Compra** /
+  **Consignación**.
+- Si *Facturación* → sub-checkboxes **Contado** y/o **Crédito** (al menos uno);
+  ayuda "aparece en Facturación".
+- *Devolución* → ayuda "aparece solo en Devoluciones de venta"; oculta
+  Contado/Crédito.
+- *Compra* → "aparece en Compras"; oculta Contado/Crédito y el switch electrónico
+  (FE de compra fuera de alcance).
+- *Consignación* → "aparece en las series de consignación".
 
 **3 · Documento electrónico (Hacienda 4.4)** — **switch**
 - **OFF** → `CodigoFE = null`. Nota: "documento interno (presupuesto, proforma,
   devolución no electrónica…): no genera comprobante de Hacienda".
-- **ON** → `<select>` con **01 Factura electrónica · 02 Nota de débito electrónica
-  · 03 Nota de crédito electrónica · 04 Tiquete electrónico**, mostrando solo las
-  **disponibles** (`CodigosFEDisponibles` del API: las no tomadas por otro tipo)
-  + la actual. Si el uso es *Devolución*, el combo se limita a **03**.
+- **ON** → `<select>` con las opciones **según el uso**:
+  - *Facturación* → `01 Factura electrónica` · `04 Tiquete electrónico`.
+  - *Devolución* → `03 Nota de crédito electrónica` (fijo).
+  - *Consignación* → `01 Factura electrónica`.
+  - Solo se ofrecen las **disponibles** (`CodigosFEDisponibles` del API: las no
+    tomadas por otro tipo) + la actual del tipo en edición.
 
 **4 · Estado**
 - Switch **Activo** (default ON). En OFF, aviso si el tipo tiene series/ventas
@@ -73,7 +82,7 @@
   "Un tipo de venta necesita Contado o Crédito".
 
 ### 2.2 Grid
-Columnas: **Descripción** · **Uso** (badge: Venta / Devolución / Compra /
+Columnas: **Descripción** · **Uso** (badge: Facturación / Devolución / Compra /
 Consignación) · **Condición** (Contado / Crédito / —) · **Electrónico**
 (badge `FE 01` … o "No") · **Activo**. Filtro por uso arriba.
 
@@ -85,30 +94,37 @@ Consignación) · **Condición** (Contado / Crédito / —) · **Electrónico**
 | **Series de Facturación** | `Catalogos()` ya trae `tiposFactura`; agregar `uso`/`contado`/`credito` a cada fila y **agrupar** el `<select>` por uso (optgroup Facturación / Devoluciones / Compra / No fiscal). El formulario de serie muestra el uso del tipo elegido. |
 
 ### 2.4 Contratos que consume (del plan API)
-- `TipoFacturaFiscalDTO` gana `EsDevolucion`, `Contado`, `Activo`.
+- `TipoFacturaFiscalDTO`: `Compra`/`Consignacion` (bools) → **`Uso` (int/enum)**;
+  gana `Contado`, `Activo`.
 - `ITiposFactura` gana:
   - `TiposPorContexto(string contexto)` → `GET TipoFactura/PorContexto?contexto=…`
   - `CodigosFEDisponibles()` → `GET TipoFactura/CodigosFEDisponibles`
 - `SerieCatalogoTipoFacturaFiscalDTO` (series) gana `Uso`, `Contado`, `Credito`.
-- En Facturación / Devoluciones: la DTO generada `TipoFactura` (NSwag) **no**
-  tiene los campos nuevos → o se usa el proxy fiscal `ITiposFactura` /
-  `TiposPorContexto` (recomendado), o se agrega un partial. Preferible cambiar
-  esas pantallas al endpoint filtrado y no arrastrar flags al cliente.
+- En Facturación / Devoluciones: la DTO generada `TipoFactura` (NSwag) tiene
+  `Compra`/`Consignacion` bool → esas pantallas pasan a llamar `TiposPorContexto`
+  (`ITiposFactura`) y dejan de leer flags. `Facturacion.razor` línea 1080
+  (`_tipos.First(t => t.Codigo == _tipoFactura)`) y `_tipos.Where(!t.Compra)` se
+  ajustan.
 
 ---
 
 ## 3. Checklist (WEB) — pendiente
 
-- [ ] **§1** Confirmar decisiones (ver `TIPOS_DOCUMENTO_API.md` §4).
-- [ ] **§2** `TipoFacturaFiscalDTO` + `ITiposFactura` (`TiposPorContexto`,
+- [x] **§1** Decisiones confirmadas (ver `TIPOS_DOCUMENTO_API.md` §4): enum `Uso`;
+      `CodigoFE` cerrado `{01,02,03,04}`; devolución no electrónica permitida;
+      `<select>` de tipo en series **agrupado** por uso.
+- [ ] **§2** `TipoFacturaFiscalDTO` (`Uso`, `Contado`, `Activo`; fuera bools
+      `Compra`/`Consignacion`) + `ITiposFactura` (`TiposPorContexto`,
       `CodigosFEDisponibles`) + proxy.
 - [ ] **§3** `TiposFacturaFiscal.razor`: modal en 4 secciones (identificación ·
-      uso · documento electrónico con switch + combo · estado); avisos en vivo;
-      grid con badges de uso / condición / electrónico / activo + filtro por uso.
-- [ ] **§4** Facturación → `TiposPorContexto("facturacion")`; Devoluciones →
+      `<select>` de uso con sub-checkboxes contado/crédito · switch electrónico +
+      combo FE según uso · switch activo); avisos en vivo; grid con badges de
+      uso / condición / electrónico / activo + filtro por uso.
+- [ ] **§4** Facturación → `TiposPorContexto("facturacion")` (y ajustar los
+      `_tipos.Where(!Compra)` / `_tipos.First(...)`); Devoluciones →
       `TiposPorContexto("devolucion")`.
-- [ ] **§5** Series de Facturación: `<select>` de tipo agrupado por uso; mostrar
-      el uso del tipo elegido en el formulario de serie.
+- [ ] **§5** Series de Facturación: `<select>` de tipo con `<optgroup>` por uso;
+      mostrar el uso del tipo elegido en el formulario de serie.
 - [ ] **§6** Build + `dotnet test` verdes.
 
 ### Follow-ups
