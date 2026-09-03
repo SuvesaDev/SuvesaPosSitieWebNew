@@ -129,18 +129,27 @@ Columnas: **Descripción** · **Emisor** (nombre) · **Sucursal** (nombre + `FE 
       emisor+sucursal+terminal+tipo** (terminal = caja); **presupuestos se
       modelan aquí** con un tipo sin `CodigoFE` (sección 4 deshabilitada, sin
       exigir FE); `TipoFacturacion` legacy se elimina (no afecta al sitio).
-- [ ] **§2** `SerieFacturacionFiscalDTO`: campos derivados nuevos + proxy
-      `Catalogos()` en `ISeriesFacturacionFiscales`.
-- [ ] **§3** `SeriesFacturacionFiscal.razor`: modal en 4 secciones con `<select>`
-      de emisor / sucursal / tipo; ayudas y tooltips; previsualización del
-      consecutivo.
-- [ ] **§4** Habilitación condicional del check 4.4 según el tipo; nota explicativa.
-- [ ] **§5** Campos estructurales de solo lectura cuando `TieneDocumentos`.
-- [ ] **§6** Grid rediseñado (nombres + badges de uso/4.4) + filtro emisor/sucursal.
-- [ ] **§7** Botón "Sugerir descripción".
-- [ ] **§8** Validación en vivo espejo de las reglas del API; render de
-      `ValidationErrors`.
-- [ ] **§9** Build + `dotnet test` verdes.
+- [x] **§2** `SerieFacturacionFiscalDTO`: derivados nuevos +
+      `SeriesFacturacionCatalogosFiscalDTO` y filas; `ISeriesFacturacionFiscales`
+      gana `Catalogos()` (GET `SeriesFacturacion/Catalogos`, envelope).
+- [x] **§3** `SeriesFacturacionFiscal.razor` (+ `.razor.cs`) reescrita: modal en
+      4 secciones (Identificación · Documento · Numeración · Facturación
+      electrónica) con `<select>` de emisor / sucursal / tipo (nombres + FE),
+      ayudas por campo y **previsualización** del consecutivo con tramos
+      (`SucursalFE · Terminal · CodigoFE · Secuencia+1`).
+- [x] **§4** Check 4.4 deshabilitado salvo tipo `CompatibleV44`; nota explicativa
+      + `AlCambiarTipo` fuerza el check a false si el tipo no es compatible.
+- [x] **§5** Emisor / sucursal / terminal / tipo de **solo lectura** (con aviso)
+      cuando `_edicion.TieneDocumentos`.
+- [x] **§6** Grid con nombre de emisor, sucursal + badge `FE nnn` (rojo si falta),
+      tipo + `FE nn`, columna **Uso**, terminal `D5`, badge **4.4**; filtro por
+      emisor y por sucursal.
+- [x] **§7** Botón "Sugerir" → `"<Emisor> · <Sucursal> · <Tipo> · Caja <n>"`.
+- [x] **§8** `RecalcularAvisos()` replica las reglas del API (sucursal sin FE,
+      tipo faltante, terminal fuera de rango, secuencia < mínima, 4.4 no
+      compatible); Guardar deshabilitado con avisos; `CorrectaAsync` ya pinta los
+      `ValidationErrors` que devuelva el API.
+- [x] **§9** Build web limpio (0 warnings), unit `dotnet test` 72/72.
 
 ### Follow-ups
 - Un acceso directo desde Facturación ("¿por qué no encuentra serie para este

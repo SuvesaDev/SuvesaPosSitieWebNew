@@ -10,6 +10,7 @@ public sealed class SeriesFacturacionFiscales : ProxyBase, ISeriesFacturacionFis
     private readonly HttpClient _api; private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     public SeriesFacturacionFiscales(IHttpClientFactory factory, IContextoSesion sesion, ILogger<SeriesFacturacionFiscales> logger) : base(sesion, logger) => _api = factory.CreateClient("SeePosApi");
     public Task<ResponseGeneric<ICollection<SerieFacturacionFiscalDTO>>> Obtener() => Ejecutar(async () => await Leer<ICollection<SerieFacturacionFiscalDTO>>(await _api.GetAsync("SeriesFacturacion/Obtener")), "consultar las series");
+    public Task<ResponseGeneric<SeriesFacturacionCatalogosFiscalDTO>> Catalogos() => Ejecutar(async () => await Leer<SeriesFacturacionCatalogosFiscalDTO>(await _api.GetAsync("SeriesFacturacion/Catalogos")), "consultar los catálogos de series");
     public Task<ResponseGeneric<SerieFacturacionFiscalDTO>> Crear(SerieFacturacionFiscalDTO serie) => Enviar("SeriesFacturacion/Crear", serie, "crear la serie");
     public Task<ResponseGeneric<SerieFacturacionFiscalDTO>> Actualizar(SerieFacturacionFiscalDTO serie) => Enviar("SeriesFacturacion/Actualizar", serie, "actualizar la serie");
     private Task<ResponseGeneric<SerieFacturacionFiscalDTO>> Enviar(string ruta, SerieFacturacionFiscalDTO serie, string accion) => Ejecutar(async () => await Leer<SerieFacturacionFiscalDTO>(await _api.PostAsJsonAsync(ruta, serie, Json)), accion);
