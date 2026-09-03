@@ -367,6 +367,7 @@
 
                         <div class="col-12 seepos-form-seccion">Facturación electrónica</div>
                         <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo de facturación electrónica" @bind-Valor="_edicion.CorreoComprobante" /></div>
+                        <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Código de actividad económica" @bind-Valor="_edicion.CodigoActividad" /></div>
                         @if (!_variasSucursales) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre fantasía" @bind-Valor="_edicion.NombreFantasia" /></div> }
                         @if (_edicion.EnviarRecibo) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo para recibos" @bind-Valor="_edicion.CorreoRecibo" /></div> }
                         <div class="col-12">
@@ -1086,6 +1087,7 @@
         Anulado = cliente.Anulado,
         OrdenCompra = cliente.OrdenCompra,
         CorreoComprobante = cliente.CorreoComprobante,
+        CodigoActividad = cliente.CodigoActividad,
         Actualizado = cliente.Actualizado,
         DescuentoEspecial = cliente.DescuentoEspecial,
         Relacionados = cliente.Relacionados,
