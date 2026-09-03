@@ -23,7 +23,8 @@ Ver `BODEGAS_POR_CENTRO_Y_TRASLADOS_API.md §0`. Resumen de lo que toca al **sit
 2. **Venta, compra y preventa**: selector de **bodega** (hoy no existe; el sitio manda `IdBodega = 0` y el API
    cae a la bodega por defecto).
 3. **Ficha de movimientos**: filtro y columna **bodega** (hoy la pestaña Movimientos no los tiene). La pestaña
-   **Existencias** ya es por bodega — sin cambio.
+   **Existencias** ya es por bodega — sin cambio. La **toma física** (`Compras/TomaFisica.razor`) también se
+   hace **por bodega**: hoy manda `Bodega = 0` fijo; falta el selector.
 4. Pantalla nueva de **traslado bodega → bodega**.
 5. El **ajuste de consignación** (ingreso/salida) se explica como traslado desde/hacia una **bodega de
    consignación central**; la pantalla lo refleja.
@@ -40,9 +41,11 @@ Ver `BODEGAS_POR_CENTRO_Y_TRASLADOS_API.md §0`. Resumen de lo que toca al **sit
 
 ### 1.1 Sesión y centro
 
-- `IContextoSesion.IdSucursal` / `NombreSucursal` (claims `seepos:idSucursal` / `seepos:nombreSucursal`) — el
-  usuario elige el **centro** en `/cuenta/sucursal` al ingresar. `MainLayout` obliga a tenerlo.
-  **Ya disponible en todas las pantallas.**
+- El **centro se pide siempre justo después del login** (`/cuenta/sucursal`) y a partir de ahí el
+  **`idSucursal` vive en la sesión/token**: `IContextoSesion.IdSucursal` / `NombreSucursal`
+  (claims `seepos:idSucursal` / `seepos:nombreSucursal`). `MainLayout` obliga a tenerlo antes de operar.
+  **Las pantallas sólo lo leen (`Sesion.IdSucursal`); nunca lo piden de nuevo.** El API lo recibe en el token
+  en cada request.
 
 ### 1.2 Bodegas
 
@@ -62,6 +65,13 @@ Ver `BODEGAS_POR_CENTRO_Y_TRASLADOS_API.md §0`. Resumen de lo que toca al **sit
   Documento, Usuario, Prov./Cliente, Lote, Anterior, Cantidad, Nueva. **Sin filtro ni columna de bodega.**
 - Proxy: `ILotesApiCliente` (`ExistenciaConsolidadaAsync`, movimientos, actualizar existencia) —
   `ApiConexion/LotesApiCliente.cs`, DTOs en `DTOs/Lotes/*`.
+
+### 1.3b Toma física — `Views/Compras/TomaFisica.razor`
+
+- Proxy `ITomaFisicaApiCliente` (`TomaArticulosAsync`, `GuardarAsync`, reporte) — patrón `LoteEnvelope<T>`.
+- **Manda `Bodega = 0` fijo** en `TomaArticulosAsync` y en el guardado. No hay selector de bodega, así que la
+  toma cae siempre a la bodega por defecto del API. El API **ya** soporta contar por bodega
+  (`TomaFisicaFiltro.Bodega`) — sólo falta el selector en la pantalla.
 
 ### 1.4 Consignación — `Views/Consignacion/*` (ya portado, ver `CONSIGNACION_WEB.md`)
 
@@ -96,6 +106,7 @@ Ver `BODEGAS_POR_CENTRO_Y_TRASLADOS_API.md §0`. Resumen de lo que toca al **sit
 | 1 | Bodegas no se filtran por centro | Proxy de bodegas manda `IdSucursal` de la sesión; mantenimiento deja elegir centro y muestra la columna |
 | 2 | Sin selector de bodega en transacciones | Selector de bodega (cabecera) en `Facturacion.razor`, `Compra.razor`, `Proforma.razor`; default = bodega principal del centro; se manda `IdBodega` en cada línea/cabecera |
 | 3 | Movimientos sin bodega | Añadir filtro + columna **Bodega** en la pestaña Movimientos (depende de `MovimientoInventarioFiltroDTO.Bodega` + `IdBodega`/`NombreBodega` en la fila — API §3.3) |
+| 3b | Toma física manda `Bodega = 0` | Selector de **bodega** en `Compras/TomaFisica.razor` (centro‑filtrado, sin consignación); mandar `Bodega` en `TomaArticulosAsync` y en el guardado. Es la bodega que se está contando |
 | 4 | No hay pantalla de traslado | `Views/Inventario/Traslado.razor` (o bajo Compras) + nodo de menú + proxy `TrasladoBodegaApiCliente` |
 | 5 | El ajuste de consignación no explica el traslado | `Ajuste.razor`: mostrar "Origen: bodega de consignación central" / "Destino: bodega del cliente" y viceversa; propagar el mensaje de validación del API |
 | 6 | Bodegas de consignación aparecen en selectores | El proxy general de bodegas ya viene filtrado por el API (`!EsConsignacion`); el sitio no las lista en ningún `<select>` fuera de `Views/Consignacion/*` |
@@ -146,6 +157,16 @@ Ver `BODEGAS_POR_CENTRO_Y_TRASLADOS_API.md §0`. Resumen de lo que toca al **sit
 
 Depende de: API §3.3 (`MovimientoInventarioFiltroDTO.Bodega?`, `MovimientoInventarioConsultaDTO.IdBodega` +
 `NombreBodega`). Hasta que exista, la columna se puede dejar oculta.
+
+### 3.3b Toma física por bodega (#3)
+
+`Views/Compras/TomaFisica.razor`:
+- `<select>` **Bodega** arriba del listado, poblado con `Bodegas.DeMiCentroAsync()` (centro de la sesión, sin
+  consignación). Sin opción "Todas": la toma física se hace de **una** bodega a la vez.
+- Mandar la bodega elegida en `TomaArticulosAsync(new TomaFisicaFiltro { Bodega = _bodega, ... })` y en el
+  `GuardarAsync`. Quitar el `Bodega = 0` fijo.
+- El reporte de cierre muestra la bodega contada. Recordar la última bodega usada en `ProtectedLocalStorage`
+  por centro (igual que el selector de facturación, §3.2).
 
 ### 3.4 Pantalla de traslado bodega → bodega (#4)
 
@@ -236,6 +257,8 @@ al tocar el menú, subir el conteo de `FiltroMenuTests` y actualizar los dos see
 1. **Bodegas por centro** (#1): proxy `IBodegas`/`Bodegas.DeMiCentroAsync()`, `BodegaDTO` con centro,
    mantenimiento con columna/selector de centro.
 2. **Ficha de movimientos con bodega** (#3): filtro + columna en `Inventario/Consulta.razor`.
+2b. **Toma física por bodega** (#3): selector de bodega en `Compras/TomaFisica.razor`; mandar `Bodega` en
+   listar y guardar.
 3. **Selector de bodega en transacciones** (#2): `Facturacion.razor`, `Compra.razor`, `Proforma.razor`.
 4. **Traslado bodega→bodega** (#4): proxy + `Views/Inventario/Traslado.razor` + nodo de menú + seeds +
    `FiltroMenuTests`.
