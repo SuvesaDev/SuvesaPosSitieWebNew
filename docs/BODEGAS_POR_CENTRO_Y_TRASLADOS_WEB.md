@@ -107,10 +107,10 @@ Ver `BODEGAS_POR_CENTRO_Y_TRASLADOS_API.md §0`. Resumen de lo que toca al **sit
 | 2 | Sin selector de bodega en transacciones | Selector de bodega (cabecera) en `Facturacion.razor`, `Compra.razor`, `Proforma.razor`; default = bodega principal del centro; se manda `IdBodega` en cada línea/cabecera |
 | 3 | Movimientos sin bodega | Añadir filtro + columna **Bodega** en la pestaña Movimientos (depende de `MovimientoInventarioFiltroDTO.Bodega` + `IdBodega`/`NombreBodega` en la fila — API §3.3) |
 | 3b | Toma física manda `Bodega = 0` | Selector de **bodega** en `Compras/TomaFisica.razor` (centro‑filtrado, sin consignación); mandar `Bodega` en `TomaArticulosAsync` y en el guardado. Es la bodega que se está contando |
-| 4 | No hay pantalla de traslado | `Views/Inventario/Traslado.razor` (o bajo Compras) + nodo de menú + proxy `TrasladoBodegaApiCliente` |
-| 5 | El ajuste de consignación no explica el traslado | `Ajuste.razor`: mostrar "Origen: bodega de consignación central" / "Destino: bodega del cliente" y viceversa; propagar el mensaje de validación del API |
+| 4 | No hay pantalla de traslado | `Views/Inventario/Traslado.razor` (o bajo Compras) + nodo de menú + proxy `TrasladoBodegaApiCliente`. **Origen y Destino sólo bodegas del centro de la sesión** (no se puede trasladar a otro centro) |
+| 5 | El ajuste de consignación no explica el traslado | `Ajuste.razor`: mostrar "Origen: bodega de consignación central" / "Destino: bodega del cliente" y viceversa; mostrar el **disponible en la central** por línea; propagar el bloqueo del API si no alcanza |
 | 6 | Bodegas de consignación aparecen en selectores | El proxy general de bodegas ya viene filtrado por el API (`!EsConsignacion`); el sitio no las lista en ningún `<select>` fuera de `Views/Consignacion/*` |
-| 7 | No se ve el efecto del ingreso | `Ajuste.razor` (Entrada): al guardar, mostrar el resumen "‑N en central, +N en <cliente>" que devuelve el API |
+| 7 | No se ve el efecto del ingreso | `Ajuste.razor` (Entrada): **no deja registrar** si la central no tiene disponible (botón deshabilitado / aviso); al guardar OK, mostrar el resumen "‑N en central, +N en <cliente>" que devuelve el API |
 | 8 | Conteo manual, sin validación | `InventarioFisico.razor`: al elegir cliente → `ConsignacionInventario/Existencia` → precargar una fila por artículo+lote; input de cantidad por fila; bloquear "Guardar" hasta que todas tengan cantidad (0 es válido) |
 
 ---
@@ -175,7 +175,10 @@ Depende de: API §3.3 (`MovimientoInventarioFiltroDTO.Bodega?`, `MovimientoInven
   `AnularAsync(id, motivo)`. DTOs en `DTOs/Traslado/*` (partials a mano, no NSwag — regen no viable, ver
   `MEJORA_LOTES_WEB.md §0`).
 - **Pantalla** `Views/Inventario/Traslado.razor` (ruta `/inventory/transfer`), nivel Tableta:
-  - `<select>` **Origen** y **Destino** (bodegas del centro; distintas).
+  - `<select>` **Origen** y **Destino**, ambos poblados **sólo con las bodegas del centro de la sesión**
+    (`Bodegas.DeMiCentroAsync()`, sin consignación), distintas entre sí. **No hay forma de elegir una bodega de
+    otro centro** — el traslado inter‑centro no existe (decisión fijada). Si el API rechaza por centro
+    distinto, se muestra el mensaje tal cual.
   - Buscador de artículo (patrón `AppBuscadorArticulo`) + selector de lote (si maneja lote) — la existencia
     disponible en el origen la muestra el API vía `ExistenciaConsolidada` (filtrada a la bodega origen) sólo
     como ayuda; la validación real es del API.
@@ -193,9 +196,13 @@ Depende de: API §3.3 (`MovimientoInventarioFiltroDTO.Bodega?`, `MovimientoInven
 `Views/Consignacion/Ajuste.razor`:
 - Pestaña **Entrada**: rótulo "Traslada desde la **bodega de consignación central** hacia la bodega de
   **<cliente>**". Pestaña **Salida**: al revés.
-- Al guardar la boleta, mostrar el resumen que devuelve el API: por artículo, "‑N en central / +N en cliente"
-  (o el inverso en salida). Si la central no tiene existencia, el API responde el error ("La bodega de
-  consignación central no tiene N unidades de X") y la pantalla lo muestra tal cual, sin lógica propia.
+- **No se puede registrar una entrada si la central no tiene disponible** el artículo/lote (regla dura del
+  API, clave para no desequilibrar el inventario). En la tabla de líneas mostrar, por fila, el **disponible en
+  la central** (de `ConsignacionInventario/Existencia` de la central, o del mensaje del API); si alguna línea
+  pide más de lo disponible, marcar la fila y **deshabilitar "Registrar"**. Aun así, la validación final la
+  hace el API y su mensaje ("La bodega de consignación central no tiene N unidades de X") se muestra tal cual.
+- Al guardar OK, mostrar el resumen que devuelve el API: por artículo, "‑N en central / +N en cliente" (o el
+  inverso en salida).
 - Si el negocio aprueba `ReponerCentral` (API §6.5), añadir una pestaña/acción "Reponer central" (traslado de
   una bodega operativa → central). Si no, la central se repone con una compra normal cuyo destino es la
   central (que sólo se elige desde el mantenimiento / el módulo de consignación).
@@ -270,6 +277,14 @@ al tocar el menú, subir el conteo de `FiltroMenuTests` y actualizar los dos see
    bodegas de consignación.
 
 ---
+
+## 5bis. Reglas ya fijadas por negocio (NO reabrir)
+
+- **Traslado sólo entre bodegas del mismo centro.** Los `<select>` Origen/Destino sólo listan bodegas del
+  centro de la sesión; no hay traslado inter‑centro.
+- **No se registra una entrada de consignación si la bodega de consignación central no tiene la cantidad
+  disponible.** La pantalla muestra el disponible por línea y deshabilita "Registrar"; el API bloquea de todos
+  modos. Es para no desequilibrar el inventario.
 
 ## 6. Decisiones que necesita negocio (además de las del doc API)
 
