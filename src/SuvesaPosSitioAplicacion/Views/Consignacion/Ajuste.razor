@@ -44,7 +44,19 @@
 
   @if (_idCliente > 0)
   {
-    <div class="card mb-3"><div class="card-header">@(_tipo == 1 ? "Ingreso de mercadería" : "Salida / retiro de mercadería")</div><div class="card-body">
+    <div class="card mb-3">
+      <div class="card-header">@(_tipo == 1 ? "Ingreso de mercadería" : "Salida / retiro de mercadería")</div>
+      <div class="card-body">
+      <p class="small text-secondary mb-3">
+        @if (_tipo == 1)
+        {
+          <span><i class="bi bi-arrow-right me-1"></i>Traslada desde la <strong>bodega de consignación central</strong> hacia la bodega de <strong>@_nombreCliente</strong>. No se puede ingresar más de lo que hay disponible en la central.</span>
+        }
+        else
+        {
+          <span><i class="bi bi-arrow-left me-1"></i>Devuelve de la bodega de <strong>@_nombreCliente</strong> hacia la <strong>bodega de consignación central</strong>.</span>
+        }
+      </p>
       <div class="row g-2 align-items-end">
         <div class="col-md-4 position-relative">
           <label class="form-label">Artículo</label>

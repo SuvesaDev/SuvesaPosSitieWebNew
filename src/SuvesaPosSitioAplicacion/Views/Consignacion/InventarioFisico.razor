@@ -41,40 +41,61 @@
       </select></div>
   </div></div>
 
-  @if (_idCliente > 0)
+  @if (_cargando)
   {
-    <div class="card mb-3"><div class="card-header">Artículos contados</div><div class="card-body">
-      <div class="row g-2 align-items-end">
-        <div class="col-md-4 position-relative">
-          <label class="form-label">Artículo</label>
-          <input class="form-control" @bind="_texArt" @bind:event="oninput" @bind:after="BuscarArt" placeholder="Código o descripción" />
-          @if (_arts.Count > 0)
-          {
-            <div class="list-group position-absolute shadow w-100" style="z-index:5; max-height:14rem; overflow-y:auto;">
-              @foreach (var a in _arts) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirArt(a)"><strong>@a.Cod_Articulo</strong> @a.Descripcion</button> }
-            </div>
-          }
-        </div>
-        <div class="col-md-3"><label class="form-label">Lote</label>
-          <select class="form-select" @bind="_loteSel"><option value="0">Sin lote</option>@foreach (var l in _lotes){<option value="@l.Id">@l.Numero</option>}</select></div>
-        <div class="col-md-2"><label class="form-label">Físico</label><input type="number" min="0" step="0.001" class="form-control" @bind="_fisico" /></div>
-        <div class="col-md-3 d-grid"><button class="btn btn-outline-primary" @onclick="AgregarLinea" disabled="@(_artSel is null)">Agregar</button></div>
+    <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+  }
+  else if (_idCliente > 0)
+  {
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Conteo — @_nombreBodega</span>
+        <span class="small @(TodoContado ? "text-success" : "text-secondary")">contados @_filas.Count(f => f.Fisico.HasValue) / @_filas.Count</span>
       </div>
+      <div class="card-body">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Consignado</th><th class="text-end" style="min-width:8rem">Físico <span class="text-danger">*</span></th><th></th></tr></thead>
+          <tbody>
+            @foreach (var f in _filas)
+            {
+              <tr class="@(f.Fisico.HasValue ? null : "table-warning")">
+                <td><code>@f.CodArticulo</code> @f.Descripcion @(f.Precargada ? null : (MarkupString)"<span class=\"badge text-bg-light ms-1\">sobrante</span>")</td>
+                <td>@f.NumeroLote</td>
+                <td class="text-end">@f.Consignado.ToString("N3")</td>
+                <td class="text-end">
+                  <input type="number" min="0" step="0.001" class="form-control form-control-sm text-end"
+                         value="@(f.Fisico?.ToString() ?? "")"
+                         @onchange="e => SetFisico(f, e.Value?.ToString())" />
+                </td>
+                <td class="text-end">@if (!f.Precargada) { <button class="btn btn-sm btn-link text-danger p-0" @onclick="() => _filas.Remove(f)">Quitar</button> }</td>
+              </tr>
+            }
+            @if (!_filas.Any()) { <tr><td colspan="5" class="text-secondary">El cliente no tiene artículos en su bodega de consignación.</td></tr> }
+          </tbody>
+        </table>
 
-      <table class="table table-sm mt-3">
-        <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Físico</th><th></th></tr></thead>
-        <tbody>
-          @foreach (var l in _lineas)
-          {
-            <tr><td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@l.NumeroLote</td><td class="text-end">@l.Fisico.ToString("N3")</td>
-              <td class="text-end"><button class="btn btn-sm btn-link text-danger" @onclick="() => _lineas.Remove(l)">Quitar</button></td></tr>
-          }
-          @if (!_lineas.Any()) { <tr><td colspan="4" class="text-secondary">Aún no hay artículos.</td></tr> }
-        </tbody>
-      </table>
+        <div class="row g-2 align-items-end mb-2">
+          <div class="col-md-4 position-relative">
+            <label class="form-label">Agregar artículo no listado (sobrante)</label>
+            <input class="form-control form-control-sm" @bind="_texArt" @bind:event="oninput" @bind:after="BuscarArt" placeholder="Código o descripción" />
+            @if (_arts.Count > 0)
+            {
+              <div class="list-group position-absolute shadow w-100" style="z-index:5; max-height:14rem; overflow-y:auto;">
+                @foreach (var a in _arts) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirArt(a)"><strong>@a.Cod_Articulo</strong> @a.Descripcion</button> }
+              </div>
+            }
+          </div>
+          <div class="col-md-3"><label class="form-label">Lote</label>
+            <select class="form-select form-select-sm" @bind="_loteSel"><option value="0">Sin lote</option>@foreach (var l in _lotes){<option value="@l.Id">@l.Numero</option>}</select></div>
+          <div class="col-md-2 d-grid"><button class="btn btn-sm btn-outline-primary" @onclick="AgregarSobrante" disabled="@(_artSel is null)">Agregar</button></div>
+        </div>
 
-      <button class="btn btn-primary" @onclick="Guardar" disabled="@(!_lineas.Any() || _guardando)">@(_guardando ? "Guardando..." : "Guardar conteo")</button>
-    </div></div>
+        <button class="btn btn-primary" @onclick="Guardar" disabled="@(!_filas.Any() || !TodoContado || _guardando)">
+          @(_guardando ? "Guardando..." : "Guardar conteo")
+        </button>
+        @if (_filas.Any() && !TodoContado) { <span class="ms-2 small text-secondary">Digite el físico de todos los artículos (0 vale).</span> }
+      </div>
+    </div>
 
     @if (_conteo is not null)
     {
@@ -103,18 +124,32 @@
 </AppPantalla>
 
 @code {
+ private sealed class Fila
+ {
+     public long IdArticulo { get; set; }
+     public string CodArticulo { get; set; } = "";
+     public string Descripcion { get; set; } = "";
+     public long? IdStockLote { get; set; }
+     public string? NumeroLote { get; set; }
+     public double Consignado { get; set; }
+     public double? Fisico { get; set; }
+     public bool Precargada { get; set; }
+ }
+
  private List<FiltranClienteDTO> _clientes = new();
  private long _idCliente;
- private string _texCliente = "", _agente = "", _texArt = "", _error = "";
+ private string _texCliente = "", _agente = "", _texArt = "", _error = "", _nombreBodega = "";
+ private bool _cargando;
  private List<InventarioDTO> _arts = new();
  private InventarioDTO? _artSel;
  private List<LoteExistencia> _lotes = new();
  private long _loteSel;
- private double _fisico;
  private bool _guardando;
- private readonly List<ConteoConsignacionLinea> _lineas = new();
+ private readonly List<Fila> _filas = new();
  private ConteoConsignacion? _conteo;
  private List<BuscarUsuarioDTO> _usuarios = new();
+
+ private bool TodoContado => _filas.Count > 0 && _filas.All(f => f.Fisico.HasValue);
 
  protected override async Task OnInitializedAsync()
  {
@@ -134,11 +169,47 @@
      _clientes = r.EsCorrecta ? (r.Responses ?? new List<FiltranClienteDTO>()).Take(20).ToList() : new();
  }
 
- private void ElegirCliente(FiltranClienteDTO c)
+ private async Task ElegirCliente(FiltranClienteDTO c)
  {
      _idCliente = c.Identificacion; _texCliente = $"{c.Cedula} — {c.Nombre}";
-     _clientes = new(); _lineas.Clear(); _conteo = null;
+     _clientes = new(); _filas.Clear(); _conteo = null; _error = "";
+     await CargarExistencia();
  }
+
+ private async Task CargarExistencia()
+ {
+     _cargando = true;
+     var r = await Api.ExistenciaAsync(_idCliente);
+     _cargando = false;
+     if (!Ok(r))
+     {
+         _error = r.CurrentException ?? "No se pudo consultar la existencia del cliente.";
+         _idCliente = 0;
+         return;
+     }
+     var ex = r.Responses!;
+     if (!ex.BodegaAbierta)
+     {
+         _error = "El cliente no tiene una bodega de consignación abierta. Ábrala en «Bodegas de consignación».";
+         _idCliente = 0;
+         return;
+     }
+     _nombreBodega = ex.NombreBodega;
+     _filas.AddRange(ex.Articulos.Select(a => new Fila
+     {
+         IdArticulo = a.IdArticulo,
+         CodArticulo = a.CodArticulo,
+         Descripcion = a.Descripcion,
+         IdStockLote = a.IdStockLote,
+         NumeroLote = a.NumeroLote,
+         Consignado = a.Existencia,
+         Fisico = null,
+         Precargada = true
+     }));
+ }
+
+ private void SetFisico(Fila f, string? valor)
+     => f.Fisico = double.TryParse(valor, out var v) && v >= 0 ? v : null;
 
  private async Task BuscarArt()
  {
@@ -156,21 +227,24 @@
      if (Ok(r)) _lotes = (r.Responses?.Lotes ?? new()).Where(l => !l.Bloqueado).ToList();
  }
 
- private void AgregarLinea()
+ private void AgregarSobrante()
  {
      if (_artSel is null) return;
-     if (_lineas.Any(x => x.IdArticulo == _artSel.Codigo && x.IdStockLote == (_loteSel > 0 ? _loteSel : null)))
+     var lote = _loteSel > 0 ? _loteSel : (long?)null;
+     if (_filas.Any(x => x.IdArticulo == _artSel.Codigo && x.IdStockLote == lote))
      { _ = Dialogos.ErrorAsync("Ese artículo/lote ya está en la lista."); return; }
-     _lineas.Add(new ConteoConsignacionLinea
+     _filas.Add(new Fila
      {
          IdArticulo = _artSel.Codigo,
          CodArticulo = _artSel.Cod_Articulo ?? "",
          Descripcion = _artSel.Descripcion ?? "",
-         IdStockLote = _loteSel > 0 ? _loteSel : null,
-         NumeroLote = _loteSel > 0 ? _lotes.FirstOrDefault(l => l.Id == _loteSel)?.Numero : null,
-         Fisico = _fisico
+         IdStockLote = lote,
+         NumeroLote = lote is not null ? _lotes.FirstOrDefault(l => l.Id == lote)?.Numero : null,
+         Consignado = 0,
+         Fisico = null,
+         Precargada = false
      });
-     _artSel = null; _texArt = ""; _loteSel = 0; _lotes = new(); _fisico = 0;
+     _artSel = null; _texArt = ""; _loteSel = 0; _lotes = new();
  }
 
  private void IrAPrefactura()
@@ -180,18 +254,24 @@
 
  private async Task Guardar()
  {
-     if (!_lineas.Any()) return;
+     if (!_filas.Any() || !TodoContado) return;
      _guardando = true;
      var r = await Api.RegistrarConteoAsync(new ConteoConsignacionRequest
      {
          IdCliente = _idCliente,
          Agente = string.IsNullOrWhiteSpace(_agente) ? null : _agente.Trim(),
-         Lineas = _lineas.Select(l => new ConteoConsignacionLineaEntrada { IdArticulo = l.IdArticulo, IdStockLote = l.IdStockLote, Fisico = l.Fisico }).ToList()
+         Completo = _filas.Any(f => f.Precargada),
+         Lineas = _filas.Select(f => new ConteoConsignacionLineaEntrada
+         {
+             IdArticulo = f.IdArticulo,
+             IdStockLote = f.IdStockLote,
+             Fisico = f.Fisico ?? 0
+         }).ToList()
      });
      _guardando = false;
      if (!Ok(r)) { _error = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? "No se pudo guardar el conteo."; await Dialogos.ErrorAsync(_error); return; }
      _conteo = r.Responses;
-     _lineas.Clear();
+     _error = "";
      Dialogos.Exito($"Conteo #{_conteo!.Id} guardado.");
  }
 }

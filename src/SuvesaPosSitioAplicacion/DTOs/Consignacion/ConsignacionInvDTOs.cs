@@ -111,7 +111,38 @@ public sealed class ConteoConsignacionRequest
     public long IdCliente { get; set; }
     public string? Agente { get; set; }
     public string? Observaciones { get; set; }
+    /// <summary>true = conteo completo: el API exige que vengan todas las líneas de Existencia (§3.7).</summary>
+    public bool Completo { get; set; }
     public List<ConteoConsignacionLineaEntrada> Lineas { get; set; } = new();
+}
+
+// --- Existencia de la bodega del cliente, para precargar el conteo (§3.7) ---
+
+public sealed class ExistenciaConsignacionRequest
+{
+    public long IdCliente { get; set; }
+}
+
+public sealed class ExistenciaConsignacionLinea
+{
+    public long IdArticulo { get; set; }
+    public string CodArticulo { get; set; } = "";
+    public string Descripcion { get; set; } = "";
+    public bool ManejaLote { get; set; }
+    public long? IdStockLote { get; set; }
+    public string? NumeroLote { get; set; }
+    public DateTime? Vencimiento { get; set; }
+    public double Existencia { get; set; }
+}
+
+public sealed class ExistenciaConsignacion
+{
+    public long IdCliente { get; set; }
+    public string NombreCliente { get; set; } = "";
+    public int IdBodega { get; set; }
+    public string NombreBodega { get; set; } = "";
+    public bool BodegaAbierta { get; set; }
+    public List<ExistenciaConsignacionLinea> Articulos { get; set; } = new();
 }
 
 public sealed class ConteoConsignacionLinea
