@@ -12,6 +12,8 @@ public sealed class AbrirBodegaConsignacion
     public long IdCliente { get; set; }
     /// <summary>0 = crear una bodega física nueva dedicada al cliente.</summary>
     public int IdBodega { get; set; }
+    /// <summary>Centro al que queda ligada la bodega del cliente (el de la sesión).</summary>
+    public int? IdSucursal { get; set; }
     public string? Observaciones { get; set; }
 }
 

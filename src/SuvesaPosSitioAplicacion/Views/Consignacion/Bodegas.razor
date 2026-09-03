@@ -11,6 +11,7 @@
 @inject IConsignacionInvApiCliente Api
 @inject IClientesConsulta Clientes
 @inject IServicioDialogos Dialogos
+@inject SuvesaPosSitioAplicacion.Security.IContextoSesion Sesion
 
 <AppPantalla Pantalla="Bodegas de Consignación" Codigo="CONSIGNACION.BODEGAS" Icono="bi-shop"
              Subtitulo="Una bodega de inventario por cliente en consignación" Nivel="NivelPantalla.Tableta">
@@ -112,7 +113,11 @@
  {
      if (_clienteSel is null) return;
      _abriendo = true;
-     var r = await Api.AbrirBodegaAsync(new AbrirBodegaConsignacion { IdCliente = _clienteSel.Identificacion });
+     var r = await Api.AbrirBodegaAsync(new AbrirBodegaConsignacion
+     {
+         IdCliente = _clienteSel.Identificacion,
+         IdSucursal = Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null
+     });
      _abriendo = false;
      if (!Ok(r)) { await Fallo(r, "No se pudo abrir la bodega."); return; }
      Dialogos.Exito($"Bodega de consignación lista para {_clienteSel.Nombre}.");
