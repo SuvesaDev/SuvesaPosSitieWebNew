@@ -70,8 +70,8 @@ Mensaje de rechazo en Hacienda (texto, truncado con tooltip).
 |---|---|
 | Preventas | Ver detalle · Facturar (→ `Facturacion.razor` con la preventa) · Anular |
 | Facturas | Ver detalle · **Realizar devolución** · Ver XML firmado · Ver respuesta Hacienda · Reintentar (si `ErrorTecnico`) · Consultar estado en Hacienda |
-| Notas de Crédito | Ver detalle · Ver XML firmado · Ver respuesta Hacienda · Reintentar (si `ErrorTecnico`) · Consultar estado en Hacienda · (Anular, opcional) |
-| Consignaciones | Ver detalle · (Aprobar / Editar / Facturar / Anular prefactura, reusando los flujos de consignación) |
+| Notas de Crédito | Ver detalle · Ver XML firmado · Ver respuesta Hacienda · Reintentar (si `ErrorTecnico`) · Consultar estado en Hacienda. **Sin anular.** |
+| Consignaciones | Ver detalle · Aprobar / Editar / Facturar / Anular **prefactura** (reusando los flujos de consignación). Solo prefacturas de consignación. |
 
 - **Realizar devolución**: navegar a `/sales/repayment?factura={numero}` (o
   `?id={id}`) y que `DevolucionesVenta.razor` autoseleccione esa factura al
@@ -120,9 +120,11 @@ contratos que divergieron): `BandejaDocumentosFiltro`,
 
 ## 4. Trabajo por hacer (WEB) — checklist
 
-- [ ] **§1** Confirmar decisiones abiertas (ver doc API §2): qué es "Preventas",
-      alcance de "Consignaciones", si Notas de Crédito llevan anular, ruta y
-      código de menú de la pantalla nueva.
+- [ ] **§1** Decisiones confirmadas (doc API §2.1): **Preventas = `Venta.EsPreventa`**,
+      **Consignaciones = solo prefacturas de consignación**, **Notas de Crédito sin
+      anular**. Pendiente de confirmar: ubicación/código de menú de la pantalla
+      nueva, si el filtro de sucursal es forzado a la de la sesión, y si se agrega
+      "anular factura" además de "realizar devolución".
 - [ ] **§2** DTOs espejo + `IBandejaDocumentos` + implementación de proxy +
       registro en DI (`Program.cs`/módulo de `ApiConexion`).
 - [ ] **§3** `Views/Documentos/Bandeja.razor` con `nav-tabs` y estado de pestaña;
@@ -135,9 +137,10 @@ contratos que divergieron): `BandejaDocumentosFiltro`,
       Consultar estado). Gatear acciones de modificación con
       `Sesion.Puede(Titulo, AccionPantalla.Modificar)`.
 - [ ] **§6** Pestaña **Notas de Crédito**: columnas comunes + 4 fiscales;
-      acciones fiscales iguales a Facturas (sin "Realizar devolución").
-- [ ] **§7** Pestaña **Consignaciones**: columnas comunes; reusar los flujos de
-      `ConsignacionInvApiCliente` para las acciones de prefactura.
+      acciones fiscales iguales a Facturas (sin "Realizar devolución", **sin anular**).
+- [ ] **§7** Pestaña **Consignaciones**: columnas comunes; fuente = **prefacturas
+      de consignación** (`ConsignacionInvApiCliente.Prefacturas`); reusar sus
+      flujos (Aprobar/Editar/Facturar/Anular prefactura) para las acciones.
 - [ ] **§8** Modal/offcanvas de **detalle** (común + bloque fiscal + líneas).
       Reusar el patrón de "copiar clave" de `Emitidos.razor` y el modal de
       detalle fiscal de `BandejaFiscal.razor`.
