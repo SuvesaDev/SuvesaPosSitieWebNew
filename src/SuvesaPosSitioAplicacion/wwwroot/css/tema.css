@@ -308,6 +308,14 @@
 .seepos-clientes-tabla td {
     padding-top: .7rem;
     padding-bottom: .7rem;
+    vertical-align: middle;
+}
+
+/* Columna de acciones (Ver / Editar): pegada a la derecha y siempre en una linea,
+   aunque la fila de al lado tenga un nombre que ocupe dos renglones. */
+.seepos-clientes-tabla td:last-child {
+    text-align: right;
+    white-space: nowrap;
 }
 
 .seepos-clientes-tabla td:first-child,

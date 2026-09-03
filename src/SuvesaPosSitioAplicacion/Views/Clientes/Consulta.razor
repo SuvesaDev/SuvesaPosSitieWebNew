@@ -113,7 +113,8 @@
                                           ItemTextSelector="@(c => Formato.Importe(c.Max_Credito))"
                                           SortKeySelector="c => c.Max_Credito"
                                           HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="">
+                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText=""
+                                          HeaderCssClass="text-end" ItemCssClass="text-end text-nowrap align-middle">
                                 <ItemTemplate Context="c">
                                     <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(c)">Ver</button>
                                     @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
