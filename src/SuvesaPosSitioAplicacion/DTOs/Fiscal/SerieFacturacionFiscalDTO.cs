@@ -61,4 +61,8 @@ public sealed class SerieCatalogoTipoFacturaFiscalDTO
     public string? CodigoFE { get; set; }
     public bool EsFiscal { get; set; }
     public bool CompatibleV44 { get; set; }
+    /// <summary>"facturacion" | "devolucion" | "compra" | "consignacion" — para agrupar el selector.</summary>
+    public string? Uso { get; set; }
+    public bool Contado { get; set; }
+    public bool Credito { get; set; }
 }

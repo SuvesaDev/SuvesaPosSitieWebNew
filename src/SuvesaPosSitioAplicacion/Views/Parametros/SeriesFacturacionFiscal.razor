@@ -126,9 +126,14 @@
                             <label class="form-label">Tipo de documento</label>
                             <select class="form-select" @bind="_edicion.IdTipoFactura" @bind:after="AlCambiarTipo" disabled="@_edicion.TieneDocumentos">
                                 <option value="">Seleccione...</option>
-                                @foreach (var t in _cat.TiposFactura)
+                                @foreach (var grupo in _cat.TiposFactura.GroupBy(t => t.Uso).OrderBy(g => g.Key))
                                 {
-                                    <option value="@t.Id">@t.Descripcion @(string.IsNullOrWhiteSpace(t.CodigoFE) ? "(no fiscal)" : $"— FE {t.CodigoFE}")</option>
+                                    <optgroup label="@GrupoUso(grupo.Key)">
+                                        @foreach (var t in grupo)
+                                        {
+                                            <option value="@t.Id">@t.Descripcion @(string.IsNullOrWhiteSpace(t.CodigoFE) ? "(no fiscal)" : $"— FE {t.CodigoFE}")</option>
+                                        }
+                                    </optgroup>
                                 }
                             </select>
                             @if (TipoSel is { } tp)

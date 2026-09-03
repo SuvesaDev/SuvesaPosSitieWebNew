@@ -167,4 +167,13 @@ public partial class SeriesFacturacionFiscal
             await Recargar();
         }
     }
+
+    private static string GrupoUso(string? uso) => uso switch
+    {
+        "facturacion" => "Facturación",
+        "devolucion" => "Devolución (Nota de crédito)",
+        "compra" => "Compra",
+        "consignacion" => "Consignación",
+        _ => "Otros"
+    };
 }

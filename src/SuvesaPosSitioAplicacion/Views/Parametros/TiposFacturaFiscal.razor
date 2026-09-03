@@ -12,96 +12,130 @@
     <Acciones>
         @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
         {
-            <button class="btn btn-sm btn-primary" @onclick="Agregar"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar</button>
+            <button class="btn btn-sm btn-primary" @onclick="Agregar" disabled="@(_codigosFE is null)"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar</button>
         }
         <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
     </Acciones>
     <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Uso</label>
+                    <select class="form-select form-select-sm" @bind="_filtroUso">
+                        <option value="0">Todos</option>
+                        <option value="1">Facturación</option>
+                        <option value="2">Devolución (Nota de crédito)</option>
+                        <option value="3">Compra</option>
+                        <option value="4">Consignación</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
         <div class="card"><div class="card-body">
-            <AppRejilla TItem="TipoFacturaFiscalDTO" Datos="Cargar" Nivel="NivelPantalla.Tableta"
-                        TextoVacio="No hay tipos de factura registrados." @ref="_rejilla">
-                <Columnas>
-                    <HxGridColumn TItem="TipoFacturaFiscalDTO" HeaderText="Código" ItemTextSelector="t => t.Codigo.ToString()" SortKeySelector="t => t.Codigo" />
-                    <HxGridColumn TItem="TipoFacturaFiscalDTO" HeaderText="Descripción" ItemTextSelector="t => t.Descripcion" SortKeySelector="t => t.Descripcion" />
-                    <HxGridColumn TItem="TipoFacturaFiscalDTO" HeaderText="Código FE" ItemTextSelector="@(t => t.CodigoFE ?? "—")" />
-                    <HxGridColumn TItem="TipoFacturaFiscalDTO" HeaderText="Condición">
-                        <ItemTemplate Context="t">@Condicion(t)</ItemTemplate>
-                    </HxGridColumn>
-                    <HxGridColumn TItem="TipoFacturaFiscalDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
-                        <ItemTemplate Context="t">
-                            @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
-                            { <button class="btn btn-sm btn-link p-0" @onclick="() => Editar(t)">Editar</button> }
-                        </ItemTemplate>
-                    </HxGridColumn>
-                </Columnas>
-            </AppRejilla>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Código</th><th>Descripción</th><th>Uso</th><th>Condición</th>
+                            <th>Electrónico</th><th>Activo</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Filtrados.Count == 0) { <tr><td colspan="7" class="text-secondary text-center py-3">No hay tipos de documento con ese filtro.</td></tr> }
+                        @foreach (var t in Filtrados)
+                        {
+                            <tr class="@(t.Activo ? null : "text-secondary")">
+                                <td><code>@t.Codigo</code></td>
+                                <td>@t.Descripcion</td>
+                                <td><span class="badge @UsoBadge(t.Uso)">@UsoTexto(t.Uso)</span></td>
+                                <td class="small">@Condicion(t)</td>
+                                <td>@if (!string.IsNullOrWhiteSpace(t.CodigoFE)) { <span class="badge text-bg-success">FE @t.CodigoFE</span> } else { <span class="badge text-bg-secondary">No</span> }</td>
+                                <td>@if (t.Activo) { <span class="badge text-bg-light">Sí</span> } else { <span class="badge text-bg-warning">Inactivo</span> }</td>
+                                <td class="text-end">
+                                    @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                    { <button class="btn btn-sm btn-link p-0" @onclick="() => Editar(t)">Editar</button> }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div></div>
     </ChildContent>
 </AppPantalla>
 
 <HxModal @ref="_modal" Title="@TituloModal" Size="ModalSize.Regular">
     <BodyTemplate>
-        @if (_edicion is not null)
+        @if (_edicion is not null && _codigosFE is not null)
         {
-            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formTipoFactura">
-                <DataAnnotationsValidator />
-                <div class="row g-3">
-                    <div class="col-12 col-md-4"><label class="form-label" for="codigo">Código interno</label><input id="codigo" class="form-control" type="number" @bind="_edicion.Codigo" /></div>
-                    <div class="col-12 col-md-8"><AppCampoTexto Etiqueta="Descripción" @bind-Valor="_edicion.Descripcion" /></div>
-                    <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Código FE" @bind-Valor="_edicion.CodigoFE" /></div>
-                    <div class="col-12 col-md-8"><div class="form-text pt-md-4">Dos dígitos del catálogo de Hacienda. Déjelo vacío sólo para tipos no fiscales.</div></div>
-                    <div class="col-12 d-flex flex-wrap gap-3">
-                        <div class="form-check"><input id="credito" class="form-check-input" type="checkbox" @bind="_edicion.Credito" /><label class="form-check-label" for="credito">Crédito</label></div>
-                        <div class="form-check"><input id="compra" class="form-check-input" type="checkbox" @bind="_edicion.Compra" /><label class="form-check-label" for="compra">Compra</label></div>
-                        <div class="form-check"><input id="consignacion" class="form-check-input" type="checkbox" @bind="_edicion.Consignacion" /><label class="form-check-label" for="consignacion">Consignación</label></div>
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formTipoDoc">
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">1 · Identificación</h6>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4"><label class="form-label">Código interno</label><input class="form-control" type="number" min="1" @bind="_edicion.Codigo" /></div>
+                        <div class="col-12 col-md-8"><label class="form-label">Descripción</label><input class="form-control" maxlength="50" @bind="_edicion.Descripcion" /></div>
                     </div>
                 </div>
+
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">2 · Uso</h6>
+                    <select class="form-select" @bind="_edicion.Uso" @bind:after="AlCambiarUso">
+                        <option value="@UsoTipoDocumento.Facturacion">Facturación (venta)</option>
+                        <option value="@UsoTipoDocumento.Devolucion">Devolución (Nota de crédito)</option>
+                        <option value="@UsoTipoDocumento.Compra">Compra</option>
+                        <option value="@UsoTipoDocumento.Consignacion">Consignación</option>
+                    </select>
+                    <div class="form-text">@UsoAyuda(_edicion.Uso)</div>
+                    @if (_edicion.Uso == UsoTipoDocumento.Facturacion)
+                    {
+                        <div class="d-flex flex-wrap gap-3 mt-2">
+                            <div class="form-check"><input id="contado" class="form-check-input" type="checkbox" @bind="_edicion.Contado" @bind:after="RecalcularAvisos" /><label class="form-check-label" for="contado">Contado</label></div>
+                            <div class="form-check"><input id="credito" class="form-check-input" type="checkbox" @bind="_edicion.Credito" @bind:after="RecalcularAvisos" /><label class="form-check-label" for="credito">Crédito</label></div>
+                        </div>
+                    }
+                </div>
+
+                @if (_edicion.Uso != UsoTipoDocumento.Compra)
+                {
+                    <div class="mb-4">
+                        <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">3 · Documento electrónico (Hacienda 4.4)</h6>
+                        <div class="form-check form-switch">
+                            <input id="fe" class="form-check-input" type="checkbox" @bind="_esElectronico" @bind:after="AlToggleElectronico" />
+                            <label class="form-check-label" for="fe">Es documento electrónico</label>
+                        </div>
+                        @if (_esElectronico)
+                        {
+                            <select class="form-select mt-2" @bind="_edicion.CodigoFE" @bind:after="RecalcularAvisos">
+                                <option value="">Seleccione...</option>
+                                @foreach (var c in CodigosFEParaUso()) { <option value="@c.Codigo" disabled="@(c.EnUsoPorId is { } id && id != _edicion.Id)">@c.Codigo — @c.Descripcion@(c.EnUsoPorId is { } u && u != _edicion.Id ? $" (lo usa: {c.EnUsoPorDescripcion})" : "")</option> }
+                            </select>
+                        }
+                        else
+                        {
+                            <div class="form-text">Documento interno (presupuesto, proforma, devolución no electrónica…): no genera comprobante de Hacienda.</div>
+                        }
+                    </div>
+                }
+
+                <div class="mb-2">
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">4 · Estado</h6>
+                    <div class="form-check form-switch">
+                        <input id="activo" class="form-check-input" type="checkbox" @bind="_edicion.Activo" />
+                        <label class="form-check-label" for="activo">Activo</label>
+                    </div>
+                    @if (!_edicion.Activo) { <div class="form-text text-warning">Si el tipo ya tiene series o ventas, el API rechazará la desactivación.</div> }
+                </div>
+
+                @if (_avisos.Count > 0)
+                {
+                    <div class="alert alert-danger py-2 mb-0 mt-2"><ul class="mb-0 ps-3 small">@foreach (var a in _avisos) { <li>@a</li> }</ul></div>
+                }
             </EditForm>
         }
     </BodyTemplate>
     <FooterTemplate>
         <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
-        <button class="btn btn-primary" type="submit" form="formTipoFactura" disabled="@_guardando">@(_guardando ? "Guardando..." : "Guardar")</button>
+        <button class="btn btn-primary" type="submit" form="formTipoDoc" disabled="@(_guardando || _avisos.Count > 0)">@(_guardando ? "Guardando..." : "Guardar")</button>
     </FooterTemplate>
 </HxModal>
-
-@code {
-    private const string Titulo = "Tipos de Factura";
-    private AppRejilla<TipoFacturaFiscalDTO>? _rejilla;
-    private HxModal _modal = default!;
-    private List<TipoFacturaFiscalDTO> _tipos = new();
-    private TipoFacturaFiscalDTO? _edicion;
-    private bool _esNuevo, _guardando, _cargado;
-
-    private string TituloModal => _esNuevo ? "Nuevo tipo de factura" : "Editar tipo de factura";
-
-    private async Task<GridDataProviderResult<TipoFacturaFiscalDTO>> Cargar(GridDataProviderRequest<TipoFacturaFiscalDTO> peticion)
-    {
-        if (!_cargado) { _tipos = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar los tipos de factura"))?.ToList() ?? new(); _cargado = true; }
-        return peticion.ApplyTo(_tipos);
-    }
-
-    private async Task Recargar() { _cargado = false; if (_rejilla is not null) await _rejilla.RefrescarAsync(); }
-    private async Task Agregar() { _esNuevo = true; _edicion = new(); await _modal.ShowAsync(); }
-    private async Task Editar(TipoFacturaFiscalDTO tipo)
-    {
-        _esNuevo = false;
-        _edicion = new() { Id = tipo.Id, Codigo = tipo.Codigo, Descripcion = tipo.Descripcion, CodigoFE = tipo.CodigoFE, Credito = tipo.Credito, Compra = tipo.Compra, Consignacion = tipo.Consignacion };
-        await _modal.ShowAsync();
-    }
-
-    private async Task Guardar()
-    {
-        if (_edicion is null || _guardando) return;
-        _edicion.Descripcion = _edicion.Descripcion?.Trim();
-        _edicion.CodigoFE = string.IsNullOrWhiteSpace(_edicion.CodigoFE) ? null : _edicion.CodigoFE.Trim();
-        if (string.IsNullOrWhiteSpace(_edicion.Descripcion) || _edicion.Codigo <= 0) { await Dialogos.ErrorAsync("Indique el código interno y la descripción."); return; }
-        if (_edicion.CodigoFE is not null && (_edicion.CodigoFE.Length != 2 || !_edicion.CodigoFE.All(char.IsDigit))) { await Dialogos.ErrorAsync("El código FE debe tener exactamente dos dígitos."); return; }
-        _guardando = true;
-        var resultado = _esNuevo ? await Api.Crear(_edicion) : await Api.Actualizar(_edicion);
-        _guardando = false;
-        if (await Respuestas.CorrectaAsync(resultado, "guardar el tipo de factura")) { await _modal.HideAsync(); Dialogos.Exito(_esNuevo ? "Tipo de factura creado." : "Tipo de factura actualizado."); await Recargar(); }
-    }
-
-    private static string Condicion(TipoFacturaFiscalDTO tipo) => tipo.Compra ? "Compra" : tipo.Consignacion ? "Consignación" : tipo.Credito ? "Crédito" : "Contado";
-}

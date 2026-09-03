@@ -23,6 +23,14 @@ public sealed class TiposFacturaFiscal : ProxyBase, ITiposFactura
             return r;
         }, "consultar los tipos de factura");
 
+    public Task<ResponseGeneric<ICollection<TipoFacturaFiscalDTO>>> PorContexto(string contexto)
+        => Ejecutar(async () => await LeerAsync<ICollection<TipoFacturaFiscalDTO>>(
+            await _api.GetAsync($"TipoFactura/PorContexto?contexto={Uri.EscapeDataString(contexto)}")), "consultar los tipos de documento");
+
+    public Task<ResponseGeneric<ICollection<CodigoFEDisponibleFiscalDTO>>> CodigosFEDisponibles()
+        => Ejecutar(async () => await LeerAsync<ICollection<CodigoFEDisponibleFiscalDTO>>(
+            await _api.GetAsync("TipoFactura/CodigosFEDisponibles")), "consultar los códigos FE disponibles");
+
     public Task<ResponseGeneric<TipoFacturaFiscalDTO>> Crear(TipoFacturaFiscalDTO tipo)
         => Ejecutar(async () =>
         {

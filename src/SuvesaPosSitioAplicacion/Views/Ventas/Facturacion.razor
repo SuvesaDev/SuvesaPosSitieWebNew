@@ -457,7 +457,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _tipos = (await Respuestas.DatoAsync(await Api.Tipos(), "consultar los tipos de factura"))?.Where(t => !t.Compra).ToList() ?? new();
+        _tipos = (await Respuestas.DatoAsync(await Api.Tipos(), "consultar los tipos de factura"))?.Where(t => t.Activo && (int)t.Uso == 1 && (t.Contado || t.Credito)).ToList() ?? new();
         _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))?.ToList() ?? new();
         if (_moneda == 0) _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0;
         _agentesVenta = (await Respuestas.DatoAsync(await Api.Agentes(), "consultar los agentes de venta"))?.ToList() ?? new();

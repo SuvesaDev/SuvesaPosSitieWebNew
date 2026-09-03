@@ -259,7 +259,7 @@
         _desbloqueada = true;
         await _modalDesbloqueo.HideAsync();
 
-        _tipos = (await Respuestas.DatoAsync(await Facturas.Tipos(), "consultar los tipos de factura"))?.ToList() ?? new();
+        _tipos = (await Respuestas.DatoAsync(await Facturas.Tipos(), "consultar los tipos de factura"))?.Where(t => (int)t.Uso == 2).ToList() ?? new();
         _personal = (await Respuestas.DatoAsync(await Api.Personal(), "consultar el personal"))?.Where(p => p.Activo).ToList() ?? new();
 
         if (_prefillPendiente && !string.IsNullOrWhiteSpace(_numeroFactura))

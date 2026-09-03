@@ -108,24 +108,26 @@ Consignación) · **Condición** (Contado / Crédito / —) · **Electrónico**
 
 ---
 
-## 3. Checklist (WEB) — pendiente
+## 3. Checklist (WEB) — implementado
 
-- [x] **§1** Decisiones confirmadas (ver `TIPOS_DOCUMENTO_API.md` §4): enum `Uso`;
-      `CodigoFE` cerrado `{01,02,03,04}`; devolución no electrónica permitida;
-      `<select>` de tipo en series **agrupado** por uso.
-- [ ] **§2** `TipoFacturaFiscalDTO` (`Uso`, `Contado`, `Activo`; fuera bools
-      `Compra`/`Consignacion`) + `ITiposFactura` (`TiposPorContexto`,
-      `CodigosFEDisponibles`) + proxy.
-- [ ] **§3** `TiposFacturaFiscal.razor`: modal en 4 secciones (identificación ·
-      `<select>` de uso con sub-checkboxes contado/crédito · switch electrónico +
-      combo FE según uso · switch activo); avisos en vivo; grid con badges de
-      uso / condición / electrónico / activo + filtro por uso.
-- [ ] **§4** Facturación → `TiposPorContexto("facturacion")` (y ajustar los
-      `_tipos.Where(!Compra)` / `_tipos.First(...)`); Devoluciones →
-      `TiposPorContexto("devolucion")`.
-- [ ] **§5** Series de Facturación: `<select>` de tipo con `<optgroup>` por uso;
-      mostrar el uso del tipo elegido en el formulario de serie.
-- [ ] **§6** Build + `dotnet test` verdes.
+- [x] **§1** Decisiones confirmadas.
+- [x] **§2** `TipoFacturaFiscalDTO`: `Uso` (enum `UsoTipoDocumento`), `Contado`,
+      `Activo` (fuera `Compra`/`Consignacion`) + `CodigoFEDisponibleFiscalDTO`.
+      `ITiposFactura` gana `PorContexto(string)` y `CodigosFEDisponibles()`.
+      Partial a mano sobre el `TipoFactura` generado (`Uso`/`Contado`/`Activo`)
+      para Facturación / Devoluciones.
+- [x] **§3** `TiposFacturaFiscal.razor` (+ `.razor.cs`) reescrita: modal en 4
+      secciones (identificación · `<select>` de uso con checkboxes contado/crédito
+      solo si Facturación · switch "Es documento electrónico" + `<select>` de
+      código FE filtrado por uso y disponibilidad · switch Activo); avisos en
+      vivo; grid con badges de uso / condición / electrónico / activo + filtro
+      por uso.
+- [x] **§4** `Facturacion.razor`: `_tipos` filtra
+      `Activo && Uso==Facturacion && (Contado||Credito)`.
+      `DevolucionesVenta.razor`: `_tipos` filtra `Uso==Devolucion`.
+- [x] **§5** `SeriesFacturacionFiscal.razor`: `<select>` de tipo con `<optgroup>`
+      por uso (`SerieCatalogoTipoFacturaFiscalDTO` gana `Uso`/`Contado`/`Credito`).
+- [x] **§6** Build web limpio (0 warnings); unit `dotnet test` 72/72.
 
 ### Follow-ups
 - Presupuestos / Proformas: quedan como tipo *Venta* + switch electrónico OFF
