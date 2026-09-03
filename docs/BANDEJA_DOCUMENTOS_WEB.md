@@ -45,8 +45,9 @@
 ## 2. Diseño propuesto (WEB)
 
 ### 2.1 Pantalla única con pestañas
-- **Nueva pantalla** `Views/Documentos/Bandeja.razor` (nombre a confirmar), ruta
-  nueva (p. ej. `/documents` o `/invoices/tray`).
+- **Nueva pantalla** `Views/Documentos/Bandeja.razor`, en la ruta **existente**
+  `@page "/initial/documents"` (se reutiliza junto con el código de menú
+  `INICIO.DOCUMENTOS_EMITIDOS`). Título "Bandeja de documentos".
 - `<AppPantalla Pantalla="Bandeja de documentos">` con `nav nav-tabs`:
   `Preventas | Facturas | Notas de Crédito | Consignaciones`. Estado `_pestana`
   (enum). Cada pestaña carga su lista *lazy* (al entrar por primera vez) y tiene
@@ -120,11 +121,12 @@ contratos que divergieron): `BandejaDocumentosFiltro`,
 
 ## 4. Trabajo por hacer (WEB) — checklist
 
-- [ ] **§1** Decisiones confirmadas (doc API §2.1): **Preventas = `Venta.EsPreventa`**,
-      **Consignaciones = solo prefacturas de consignación**, **Notas de Crédito sin
-      anular**. Pendiente de confirmar: ubicación/código de menú de la pantalla
-      nueva, si el filtro de sucursal es forzado a la de la sesión, y si se agrega
-      "anular factura" además de "realizar devolución".
+- [ ] **§1** Decisiones confirmadas: **Preventas = `Venta.EsPreventa`**;
+      **Consignaciones = solo prefacturas de consignación**; **Notas de Crédito sin
+      anular**; **Facturas solo "realizar devolución"** (no "anular factura"); la
+      pantalla va **bajo "Inicio"** y **reutiliza el código `INICIO.DOCUMENTOS_EMITIDOS`**
+      (se retira `INICIO.BANDEJA_FISCAL_V4_4`). Pendiente: si el filtro de sucursal
+      se fuerza a la de la sesión.
 - [ ] **§2** DTOs espejo + `IBandejaDocumentos` + implementación de proxy +
       registro en DI (`Program.cs`/módulo de `ApiConexion`).
 - [ ] **§3** `Views/Documentos/Bandeja.razor` con `nav-tabs` y estado de pestaña;
@@ -147,13 +149,18 @@ contratos que divergieron): `BandejaDocumentosFiltro`,
 - [ ] **§9** `DevolucionesVenta.razor`: leer query param (`?factura=` / `?id=`)
       en `OnInitializedAsync` y autoseleccionar la factura (usa
       `BuscarFacturaPorNumero` / `BuscarFacturaPorId` ya existentes).
-- [ ] **§10** Menú (`Class/MenuSeePos.cs`): quitar **Documentos Emitidos** y
-      **Bandeja Fiscal V4.4**, agregar **Bandeja de documentos** (una sola
-      entrada; ubicación a decidir — Inicio o Ventas). Ajustar
-      `FiltroMenuTests` (conteo de nodos) y `PantallasMigradasTests` (rutas).
+- [ ] **§10** Menú (`Class/MenuSeePos.cs`), grupo **Inicio**: renombrar la entrada
+      **"Documentos Emitidos"** a **"Bandeja de documentos"** conservando
+      `Codigo = "INICIO.DOCUMENTOS_EMITIDOS"` y `Ruta = "/initial/documents"`;
+      **quitar** la entrada **"Bandeja Fiscal V4.4"** (`INICIO.BANDEJA_FISCAL_V4_4`,
+      `/invoices/fiscal-tray`). Ajustar `FiltroMenuTests` (baja 1 nodo) y
+      `PantallasMigradasTests` (quitar `/invoices/fiscal-tray`; el título de
+      `/initial/documents` pasa a "Bandeja de documentos").
 - [ ] **§11** Semilla de seguridad: `tests/.../Fixtures/seed-seguridad.json` debe
-      quedar igual que la del API (nueva función, viejas fuera). `MenuCodigosTests`
-      exige que todo código del menú exista en la semilla.
+      quedar igual que la del API (se retira solo `INICIO.BANDEJA_FISCAL_V4_4`;
+      `INICIO.DOCUMENTOS_EMITIDOS` se conserva, quizá con `nombre`/`ruta`
+      actualizados). `MenuCodigosTests` exige que todo código del menú exista en
+      la semilla.
 - [ ] **§12** Borrar `Views/Documentos/Emitidos.razor`,
       `Views/Facturacion/BandejaFiscal.razor` y sus proxies/DTOs si quedan sin
       uso (o dejarlos un ciclo y borrarlos después). `IBandejaFiscal` se
