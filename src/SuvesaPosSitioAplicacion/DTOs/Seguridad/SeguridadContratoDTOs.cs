@@ -24,6 +24,7 @@ public sealed class PerfilLoginDTO
     [JsonPropertyName("costaPets")] public bool CostaPets { get; set; }
     [JsonPropertyName("agenteCostaPets")] public bool AgenteCostaPets { get; set; }
     [JsonPropertyName("aceptaConsignacion")] public bool AceptaConsignacion { get; set; }
+    [JsonPropertyName("permiteExistenciaNegativa")] public bool PermiteExistenciaNegativa { get; set; }
 }
 
 public sealed class PermisoLoginDTO
@@ -114,6 +115,7 @@ public sealed class PerfilSeguridadDTO
     [JsonPropertyName("costaPets")] public bool CostaPets { get; set; }
     [JsonPropertyName("agenteCostaPets")] public bool AgenteCostaPets { get; set; }
     [JsonPropertyName("aceptaConsignacion")] public bool AceptaConsignacion { get; set; }
+    [JsonPropertyName("permiteExistenciaNegativa")] public bool PermiteExistenciaNegativa { get; set; }
     [JsonPropertyName("activo")] public bool Activo { get; set; } = true;
 }
 

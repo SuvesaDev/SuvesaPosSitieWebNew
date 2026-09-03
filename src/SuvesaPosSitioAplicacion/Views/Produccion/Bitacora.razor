@@ -1,0 +1,130 @@
+@page "/production/log"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.DTOs.Produccion
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IProduccionApiCliente Api
+@inject IServicioDialogos Dialogos
+@inject IJSRuntime JS
+
+<AppPantalla Pantalla="Bitácora de Producción" Codigo="PRODUCCION.BITACORA" Icono="bi-journal-text"
+             Subtitulo="Seguimiento físico de lo producido" Nivel="NivelPantalla.Escritorio">
+ <Acciones>
+  <button class="btn btn-sm btn-outline-secondary" @onclick="Exportar" disabled="@(!_bitacora.Any())">Exportar CSV</button>
+ </Acciones>
+ <ChildContent>
+  @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+
+  <div class="card"><div class="card-body">
+    <div class="row g-2 mb-3">
+      <div class="col-md-3"><label class="form-label">Desde</label><input type="date" class="form-control" @bind="_desde" /></div>
+      <div class="col-md-3"><label class="form-label">Hasta</label><input type="date" class="form-control" @bind="_hasta" /></div>
+      <div class="col-md-3"><label class="form-label">Id artículo</label><input type="number" class="form-control" @bind="_filtroArticulo" /></div>
+      <div class="col-md-3 d-grid"><button class="btn btn-outline-primary align-self-end" @onclick="CargarBitacora">Filtrar</button></div>
+    </div>
+    <div class="table-responsive"><table class="table table-sm">
+      <thead><tr><th>Fecha</th><th>Producto terminado</th><th>Lote</th><th class="text-end">Cantidad</th><th class="text-end">Costo</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        @foreach (var p in _bitacora)
+        {
+          <tr class="@(p.Anulada ? "text-secondary text-decoration-line-through" : "")">
+            <td>@p.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+            <td><code>@p.CodArticuloTerminado</code> @p.DescripcionTerminado</td>
+            <td>@p.NumeroLoteProducido</td>
+            <td class="text-end">@p.CantidadProducida</td>
+            <td class="text-end">@p.CostoTotalInsumos.ToString("N2")</td>
+            <td>@(p.Anulada ? $"Anulada — {p.MotivoAnulacion} ({p.UsuarioAnulacion}, {p.FechaAnulacion:dd/MM/yyyy})" : "Activa")</td>
+            <td class="text-end">@if (!p.Anulada) { <button class="btn btn-sm btn-outline-danger" @onclick="() => PrepararAnulacion(p)">Anular</button> }</td>
+          </tr>
+        }
+        @if (!_bitacora.Any()) { <tr><td colspan="7" class="text-secondary">Sin producciones para los filtros indicados.</td></tr> }
+      </tbody>
+    </table></div>
+  </div></div>
+ </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modalAnular" Title="Anular producción">
+ <BodyTemplate>
+  @if (_anulando is not null)
+  {
+    <p>Producción <strong>#@_anulando.Id</strong> — @_anulando.CodArticuloTerminado @_anulando.DescripcionTerminado
+       (@_anulando.CantidadProducida u., lote @_anulando.NumeroLoteProducido).</p>
+  }
+  <label class="form-label">Motivo <span class="text-danger">*</span></label>
+  <textarea class="form-control" @bind="_motivoAnulacion"></textarea>
+ </BodyTemplate>
+ <FooterTemplate>
+  <button class="btn btn-secondary" @onclick="() => _modalAnular.HideAsync()">Cancelar</button>
+  <button class="btn btn-danger" @onclick="ConfirmarAnulacion">Anular producción</button>
+ </FooterTemplate>
+</HxModal>
+
+@code {
+ private List<ProduccionReporte> _bitacora = new();
+ private DateTime? _desde, _hasta;
+ private long? _filtroArticulo;
+ private string _error = "", _motivoAnulacion = "";
+ private HxModal _modalAnular = default!;
+ private ProduccionReporte? _anulando;
+
+ protected override Task OnInitializedAsync() => CargarBitacora();
+
+ private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
+
+ private async Task Fallo<T>(LoteEnvelope<T> r, string alterno)
+ {
+     _error = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? alterno;
+     await Dialogos.ErrorAsync(_error);
+ }
+
+ private async Task CargarBitacora()
+ {
+     _error = "";
+     var r = await Api.ReportesAsync(new BitacoraFiltro { Desde = _desde, Hasta = _hasta, IdArticulo = _filtroArticulo });
+     if (Ok(r)) _bitacora = r.Responses ?? new();
+     else await Fallo(r, "No se pudo cargar la bitácora.");
+ }
+
+ private async Task PrepararAnulacion(ProduccionReporte p)
+ {
+     _anulando = p;
+     _motivoAnulacion = "";
+     await _modalAnular.ShowAsync();
+ }
+
+ private async Task ConfirmarAnulacion()
+ {
+     if (_anulando is null || string.IsNullOrWhiteSpace(_motivoAnulacion))
+     {
+         await Dialogos.ErrorAsync("Indique el motivo de anulación.");
+         return;
+     }
+     if (!await Dialogos.ConfirmarPeligroAsync("Se devolverán los insumos y se retirará el terminado del stock.", "Anular producción")) return;
+     var r = await Api.AnularAsync(new AnularProduccion { IdProduccion = _anulando.Id, Motivo = _motivoAnulacion.Trim() });
+     if (Ok(r)) { await _modalAnular.HideAsync(); await CargarBitacora(); }
+     else await Fallo(r, "No se pudo anular la producción.");
+ }
+
+ private async Task Exportar()
+ {
+     var detalle = new List<ProduccionReporte>();
+     foreach (var p in _bitacora)
+     {
+         var r = await Api.ReporteAsync(p.Id);
+         detalle.Add(Ok(r) ? r.Responses! : p);
+     }
+     static string Q(string? x) => "\"" + (x ?? "").Replace("\"", "\"\"") + "\"";
+     var csv = "CABECERAS\nId,Fecha,Codigo PT,Descripcion,Cantidad,Lote,Vencimiento,Bodega,Costo,Usuario,Estado,Motivo\n"
+         + string.Join("\n", detalle.Select(p =>
+             $"{p.Id},{p.Fecha:yyyy-MM-dd HH:mm},{Q(p.CodArticuloTerminado)},{Q(p.DescripcionTerminado)},{p.CantidadProducida},{Q(p.NumeroLoteProducido)},{p.VencimientoLoteProducido:yyyy-MM-dd},{p.Bodega},{p.CostoTotalInsumos},{Q(p.Usuario)},{(p.Anulada ? "Anulada" : "Activa")},{Q(p.MotivoAnulacion)}"))
+         + "\n\nDETALLE\nId produccion,Codigo insumo,Descripcion,Lote,Cantidad,Costo unitario,Costo linea\n"
+         + string.Join("\n", detalle.SelectMany(p => p.Lineas.Select(l =>
+             $"{p.Id},{Q(l.CodArticuloInsumo)},{Q(l.DescripcionInsumo)},{Q(l.NumeroLote)},{l.CantidadConsumida},{l.CostoUnitario},{l.CostoLinea}")));
+     await JS.InvokeVoidAsync("seepos.descargarTexto", "bitacora-produccion.csv", csv, "text/csv;charset=utf-8");
+ }
+}

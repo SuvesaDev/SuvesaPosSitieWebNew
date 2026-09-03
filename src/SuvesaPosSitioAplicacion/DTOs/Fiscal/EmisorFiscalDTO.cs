@@ -11,6 +11,22 @@ public sealed class EmisorFiscalDTO
     public string? Sucursal { get; set; }
     public int Distrito { get; set; }
     public string? OtrasSeñas { get; set; }
+    /// <summary>
+    /// Metadato NO secreto que devuelve el API: vencimiento del certificado si hay
+    /// credenciales configuradas. null = sin credenciales cargadas.
+    /// </summary>
+    public DateTime? VenceCertificado { get; set; }
+
+    /// <summary>Actividades económicas del emisor (Hacienda). Se editan en "Datos públicos".</summary>
+    public List<ActividadEconomicaEmisorDTO> Actividades { get; set; } = new();
+}
+
+public sealed class ActividadEconomicaEmisorDTO
+{
+    public string? Codigo { get; set; }
+    public string? Descripcion { get; set; }
+    public bool Activo { get; set; } = true;
+    public bool Principal { get; set; }
 }
 
 public sealed class CredencialesHaciendaFiscalDTO

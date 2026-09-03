@@ -18,4 +18,8 @@ public partial class Autenticacion
 
     [JsonPropertyName("permisos")]
     public List<PermisoLoginDTO>? Permisos { get; set; }
+
+    /// <summary>Compat plano: capacidad del perfil (permitir existencia negativa).</summary>
+    [JsonPropertyName("permiteExistenciaNegativa")]
+    public bool PermiteExistenciaNegativa { get; set; }
 }

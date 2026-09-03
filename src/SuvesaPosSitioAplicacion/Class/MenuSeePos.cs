@@ -4,8 +4,10 @@ namespace SuvesaPosSitioAplicacion.Class;
 
 /// <summary>
 /// Menu lateral del sistema. Base portada de SidebarData.jsx del sistema actual y
-/// despues reorganizada: 12 raices y 100 nodos. Los titulos se conservan literalmente
-/// porque, junto con el Codigo, son la llave contra la que casan los permisos.
+/// despues reorganizada, y luego podada de las entradas que nunca se implementaron
+/// (no tenian pantalla ni funcion): 12 raices y 77 nodos. Los titulos se conservan
+/// literalmente porque, junto con el Codigo, son la llave contra la que casan los
+/// permisos.
 ///
 /// Reorganizacion respecto a React: modulo nuevo "Catálogos" con los catalogos de
 /// mantenimiento que estaban sueltos en "Parametros"; "Caja" (antes bajo "Inicio") y
@@ -47,39 +49,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
-                    Titulo = "Cobrar",
-                    Codigo = "INICIO.COBRAR",
-                    Ruta = "/initial/charge",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Entrega a Cuenta",
-                    Codigo = "INICIO.ENTREGA_A_CUENTA",
-                    Ruta = "/initial/downPayment",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Documentos Emitidos",
+                    // Bandeja unificada (BANDEJA_DOCUMENTOS_WEB.md): fusiona la antigua
+                    // "Documentos Emitidos" y "Bandeja Fiscal V4.4". Conserva el código
+                    // y la ruta de Documentos Emitidos para no perder permisos.
+                    Titulo = "Bandeja de documentos",
                     Codigo = "INICIO.DOCUMENTOS_EMITIDOS",
                     Ruta = "/initial/documents",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Bandeja Fiscal V4.4",
-                    Codigo = "INICIO.BANDEJA_FISCAL_V4_4",
-                    Ruta = "/invoices/fiscal-tray",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Devoluciones",
-                    Codigo = "INICIO.DEVOLUCIONES",
-                    Ruta = "/initial/repayment",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Consulta Albaranes",
-                    Codigo = "INICIO.CONSULTA_ALBARANES",
-                    Ruta = "/initial/consultAlbaranes",
                 }
             }
         },
@@ -110,6 +85,19 @@ public static partial class MenuSeePos
                     Titulo = "Cierre Caja",
                     Codigo = "CAJA.CIERRE_CAJA",
                     Ruta = "/initial/cash/closecash",
+                },
+                new ItemMenu
+                {
+                    // Antes bajo "Inicio"; movidas aquí a petición del usuario.
+                    Titulo = "Cobrar",
+                    Codigo = "CAJA.COBRAR",
+                    Ruta = "/initial/charge",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Entrega a Cuenta",
+                    Codigo = "CAJA.ENTREGA_A_CUENTA",
+                    Ruta = "/initial/downPayment",
                 },
                 new ItemMenu
                 {
@@ -175,12 +163,6 @@ public static partial class MenuSeePos
                     {
                         new ItemMenu
                         {
-                            Titulo = "Pedidos a Bodega",
-                            Codigo = "COMPRAS.PEDIDOS.PEDIDOS_A_BODEGA",
-                            Ruta = "/buys/orders/warehouseorders",
-                        },
-                        new ItemMenu
-                        {
                             Titulo = "Consultar Pedidos",
                             Codigo = "COMPRAS.PEDIDOS.CONSULTAR_PEDIDOS",
                             Ruta = "/buys/orders/checkorders",
@@ -189,57 +171,20 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
-                    Titulo = "Bodegas",
-                    Codigo = "COMPRAS.BODEGAS",
-                    Ruta = "/buys/orders/wineryadjustment",
-                    Hijos = new ItemMenu[]
-                    {
-                        new ItemMenu
-                        {
-                            Titulo = "Ajuste Bodega",
-                            Codigo = "COMPRAS.BODEGAS.AJUSTE_BODEGA",
-                            Ruta = "/buys/wineryadjustment",
-                        },
-                        new ItemMenu
-                        {
-                            Titulo = "Solicitud Bodega",
-                            Codigo = "COMPRAS.BODEGAS.SOLICITUD_BODEGA",
-                            Ruta = "/buys/requestWinery",
-                        }
-                    }
-                },
-                new ItemMenu
-                {
                     Titulo = "Toma",
                     Codigo = "COMPRAS.TOMA",
-                    Ruta = "/buys/pretake",
+                    Ruta = "/buys/physical-count",
                     Hijos = new ItemMenu[]
                     {
                         new ItemMenu
                         {
-                            Titulo = "Toma",
-                            Codigo = "COMPRAS.TOMA.TOMA",
-                            Ruta = "/buys/take",
-                        },
-                        new ItemMenu
-                        {
-                            Titulo = "Pretoma",
-                            Codigo = "COMPRAS.TOMA.PRETOMA",
-                            Ruta = "/buys/pretake",
-                        },
-                        new ItemMenu
-                        {
-                            Titulo = "Pretoma Fisica General",
-                            Codigo = "COMPRAS.TOMA.PRETOMA_FISICA_GENERAL",
-                            Ruta = "/buys/taxclaim",
+                            // La pantalla (TomaFisica.razor) se gatea con COMPRAS.TOMA_FISICA;
+                            // el item vive bajo el grupo "Toma" para que se lea Toma > Toma Física.
+                            Titulo = "Toma Física",
+                            Codigo = "COMPRAS.TOMA_FISICA",
+                            Ruta = "/buys/physical-count",
                         }
                     }
-                },
-                new ItemMenu
-                {
-                    Titulo = "Movimientos de articulos",
-                    Codigo = "COMPRAS.MOVIMIENTOS_DE_ARTICULOS",
-                    Ruta = "/buys/movementitems",
                 },
                 new ItemMenu
                 {
@@ -255,33 +200,34 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
-                    Titulo = "Gastos",
-                    Codigo = "COMPRAS.GASTOS",
-                    Ruta = "/buys/bills",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Ajuste Inventario",
-                    Codigo = "COMPRAS.AJUSTE_INVENTARIO",
-                    Ruta = "/buys/inventoryadjustment",
-                },
-                new ItemMenu
-                {
                     Titulo = "Abono Pagar",
                     Codigo = "COMPRAS.ABONO_PAGAR",
                     Ruta = "/buys/pay",
+                }
+            }
+        },
+        new ItemMenu
+        {
+            // Modulo propio (a peticion del usuario): la Calculadora de Produccion y
+            // la Bitacora salen de "Inicio" a su propio modulo. Va debajo de Compras
+            // (a peticion del usuario).
+            Titulo = "Producción",
+            Codigo = "PRODUCCION",
+            Ruta = "/production/calculator",
+            Icono = "bi-hammer",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Calculadora",
+                    Codigo = "PRODUCCION.CALCULADORA",
+                    Ruta = "/production/calculator",
                 },
                 new ItemMenu
                 {
-                    Titulo = "Ajuste Pagar",
-                    Codigo = "COMPRAS.AJUSTE_PAGAR",
-                    Ruta = "/buys/payadjustment",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Prestamos",
-                    Codigo = "COMPRAS.PRESTAMOS",
-                    Ruta = "/buys/loans",
+                    Titulo = "Bitácora",
+                    Codigo = "PRODUCCION.BITACORA",
+                    Ruta = "/production/log",
                 }
             }
         },
@@ -300,23 +246,38 @@ public static partial class MenuSeePos
             Codigo = "CONSIGNACION",
             Hijos = new ItemMenu[]
             {
+                // Modelo de bodega de consignación por cliente (CONSIGNACION_WEB.md).
+                // El flujo viejo (Registro/Seguimiento sobre ConsignacionController) se
+                // retiró junto con sus endpoints en el API (§8).
                 new ItemMenu
                 {
-                    Titulo = "Registro de Consignaciones",
-                    Codigo = "CONSIGNACION.REGISTRO_DE_CONSIGNACIONES",
-                    Ruta = "/buys/consignment/register",
+                    Titulo = "Bodegas de Consignación",
+                    Codigo = "CONSIGNACION.BODEGAS",
+                    Ruta = "/consignment/warehouses",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Ajuste de Bodega de Consignación",
+                    Codigo = "CONSIGNACION.AJUSTE",
+                    Ruta = "/consignment/adjust",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Inventario Físico de Consignación",
+                    Codigo = "CONSIGNACION.INVENTARIO_FISICO",
+                    Ruta = "/consignment/count",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Kardex de Consignación",
+                    Codigo = "CONSIGNACION.KARDEX",
+                    Ruta = "/consignment/ledger",
                 },
                 new ItemMenu
                 {
                     Titulo = "Facturacion de Consignaciones",
                     Codigo = "CONSIGNACION.FACTURACION_DE_CONSIGNACIONES",
-                    Ruta = "/buys/consignment/billing",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Seguimiento de Consignaciones",
-                    Codigo = "CONSIGNACION.SEGUIMIENTO_DE_CONSIGNACIONES",
-                    Ruta = "/buys/consignment/following",
+                    Ruta = "/consignment/prebill",
                 }
             }
         },
@@ -336,27 +297,22 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
-                    Titulo = "Agente de ventas",
-                    Codigo = "VENTAS.AGENTE_DE_VENTAS",
-                    Ruta = "/sales/salesagent",
-                },
-                new ItemMenu
-                {
                     Titulo = "Abono Cobrar",
                     Codigo = "VENTAS.ABONO_COBRAR",
                     Ruta = "/sales/collect",
                 },
                 new ItemMenu
                 {
-                    Titulo = "Ajuste Cobrar",
-                    Codigo = "VENTAS.AJUSTE_COBRAR",
-                    Ruta = "/sales/adjustmentcollect",
-                },
-                new ItemMenu
-                {
                     Titulo = "Devoluciones",
                     Codigo = "VENTAS.DEVOLUCIONES",
                     Ruta = "/sales/repayment",
+                },
+                new ItemMenu
+                {
+                    // Antes bajo "Inicio"; movida aquí a petición del usuario.
+                    Titulo = "Consulta Albaranes",
+                    Codigo = "VENTAS.CONSULTA_ALBARANES",
+                    Ruta = "/initial/consultAlbaranes",
                 }
             }
         },
@@ -394,33 +350,9 @@ public static partial class MenuSeePos
             {
                 new ItemMenu
                 {
-                    Titulo = "Rifa",
-                    Codigo = "UTILIDADES.RIFA",
-                    Ruta = "/utilities/raffle",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Etiquetador",
-                    Codigo = "UTILIDADES.ETIQUETADOR",
-                    Ruta = "/utilities/tagger",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Unificar codigos",
-                    Codigo = "UTILIDADES.UNIFICAR_CODIGOS",
-                    Ruta = "/utilities/unifycodes",
-                },
-                new ItemMenu
-                {
                     Titulo = "Lista articulos MAG",
                     Codigo = "UTILIDADES.LISTA_ARTICULOS_MAG",
                     Ruta = "/utilities/magitemslist",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Asignar Codigo Cabys",
-                    Codigo = "UTILIDADES.ASIGNAR_CODIGO_CABYS",
-                    Ruta = "/utilities/assigncabyscode",
                 }
             }
         },
@@ -549,6 +481,12 @@ public static partial class MenuSeePos
                     Titulo = "Familias",
                     Codigo = "CATALOGOS.FAMILIAS",
                     Ruta = "/parameters/family",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Tipos de Bonificación",
+                    Codigo = "CATALOGOS.TIPOS_DE_BONIFICACION",
+                    Ruta = "/parameters/bonus-types",
                 }
             }
         },
@@ -571,12 +509,6 @@ public static partial class MenuSeePos
                     Titulo = "Roles",
                     Codigo = "PARAMETROS.ROLES",
                     Ruta = "/parameters/role",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Empresas",
-                    Codigo = "PARAMETROS.EMPRESAS",
-                    Ruta = "/parameters/company",
                 },
                 new ItemMenu
                 {
@@ -604,12 +536,6 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
-                    Titulo = "Asignar Ficha Por Usuarios",
-                    Codigo = "PARAMETROS.ASIGNAR_FICHA_POR_USUARIOS",
-                    Ruta = "/parameters/assigntab",
-                },
-                new ItemMenu
-                {
                     Titulo = "Bodegas",
                     Codigo = "PARAMETROS.BODEGAS",
                     Ruta = "/parameters/wineries",
@@ -619,48 +545,6 @@ public static partial class MenuSeePos
                     Titulo = "Areas",
                     Codigo = "PARAMETROS.AREAS",
                     Ruta = "/parameters/areas",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Registro de pantalla",
-                    Codigo = "PARAMETROS.REGISTRO_DE_PANTALLA",
-                    Ruta = "/parameters/screenregister",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Bloquea/Desbloquea bodega",
-                    Codigo = "PARAMETROS.BLOQUEA_DESBLOQUEA_BODEGA",
-                    Ruta = "/parameters/lockunlockwarehouse",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Bloquea/desbloquea X Casa Comercial",
-                    Codigo = "PARAMETROS.BLOQUEA_DESBLOQUEA_X_CASA_COMERCIAL",
-                    Ruta = "/parameters/lock/unlockcommercialhouse",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Translado entre puntos de venta",
-                    Codigo = "PARAMETROS.TRANSLADO_ENTRE_PUNTOS_DE_VENTA",
-                    Ruta = "/parameters/lock/transferpointssale",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Convertir Saco por Kilos",
-                    Codigo = "PARAMETROS.CONVERTIR_SACO_POR_KILOS",
-                    Ruta = "/parameters/bagskilos",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Categoría de acción",
-                    Codigo = "PARAMETROS.CATEGORIA_DE_ACCION",
-                    Ruta = "/parameters/actions",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Condicciones de Uso Firmado Contado",
-                    Codigo = "PARAMETROS.CONDICCIONES_DE_USO_FIRMADO_CONTADO",
-                    Ruta = "/parameters/terms",
                 }
             }
         },
@@ -677,13 +561,6 @@ public static partial class MenuSeePos
             Codigo = "MODULO_REPORTES.MODULO_REPORTES",
             Ruta = "/moduloReportes",
             Icono = "bi-bar-chart-fill",
-        },
-        new ItemMenu
-        {
-            Titulo = "Módulo Farmacia",
-            Codigo = "MODULO_FARMACIA.MODULO_FARMACIA",
-            Ruta = "/moduloFarmacia",
-            Icono = "bi-capsule",
         }
     };
 }

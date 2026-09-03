@@ -6,6 +6,194 @@
 @inject ISeriesFacturacionFiscales Api
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
-<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta"><Acciones><button class="btn btn-sm btn-primary" @onclick="Nuevo">Agregar</button><button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">Recargar</button></Acciones><ChildContent><div class="card"><div class="card-body"><AppRejilla TItem="SerieFacturacionFiscalDTO" Datos="Cargar" Nivel="NivelPantalla.Tableta" @ref="_grid"><Columnas><HxGridColumn TItem="SerieFacturacionFiscalDTO" HeaderText="Descripción" ItemTextSelector="x => x.Descripcion"/><HxGridColumn TItem="SerieFacturacionFiscalDTO" HeaderText="Emisor" ItemTextSelector="x => x.IdEmisor.ToString()"/><HxGridColumn TItem="SerieFacturacionFiscalDTO" HeaderText="Sucursal FE" ItemTextSelector="x => x.NumeroSucursalFE"/><HxGridColumn TItem="SerieFacturacionFiscalDTO" HeaderText="Terminal" ItemTextSelector="x => x.NumeroTerminal.ToString()"/><HxGridColumn TItem="SerieFacturacionFiscalDTO" HeaderText="Secuencia" ItemTextSelector="x => x.Secuencia.ToString()"/><HxGridColumn TItem="SerieFacturacionFiscalDTO" HeaderText=""><ItemTemplate Context="x"><button class="btn btn-sm btn-link" @onclick="() => Editar(x)">Editar</button></ItemTemplate></HxGridColumn></Columnas></AppRejilla></div></div></ChildContent></AppPantalla>
-<HxModal @ref="_modal" Title="@TituloModal" Size="ModalSize.Large"><BodyTemplate>@if (_edicion is not null) { <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formSerie"><div class="row g-3"><div class="col-md-6"><AppCampoTexto Etiqueta="Descripción" @bind-Valor="_edicion.Descripcion" /></div><div class="col-md-3"><label class="form-label">Emisor</label><input class="form-control" type="number" min="1" @bind="_edicion.IdEmisor" /></div><div class="col-md-3"><label class="form-label">Sucursal</label><input class="form-control" type="number" min="1" @bind="_edicion.IdSucursal" /></div><div class="col-md-4"><label class="form-label">Terminal</label><input class="form-control" type="number" min="1" @bind="_edicion.NumeroTerminal" /></div><div class="col-md-4"><label class="form-label">Tipo de factura</label><input class="form-control" type="number" min="1" @bind="_edicion.IdTipoFactura" /></div><div class="col-md-4"><label class="form-label">Secuencia</label><input class="form-control" type="number" min="0" @bind="_edicion.Secuencia" /></div><div class="col-12"><div class="form-check"><input id="v44" class="form-check-input" type="checkbox" @bind="_edicion.EmisionV44Habilitada" /><label class="form-check-label" for="v44">Habilitar emisión V4.4</label></div></div></div></EditForm> }</BodyTemplate><FooterTemplate><button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button><button class="btn btn-primary" form="formSerie" type="submit">Guardar</button></FooterTemplate></HxModal>
-@code { private const string Titulo = "Series de Facturación"; private AppRejilla<SerieFacturacionFiscalDTO>? _grid; private HxModal _modal = default!; private List<SerieFacturacionFiscalDTO> _items = new(); private SerieFacturacionFiscalDTO? _edicion; private bool _nuevo, _cargado; private string TituloModal => _nuevo ? "Nueva serie" : "Editar serie"; private async Task<GridDataProviderResult<SerieFacturacionFiscalDTO>> Cargar(GridDataProviderRequest<SerieFacturacionFiscalDTO> request) { if (!_cargado) { _items = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar las series"))?.ToList() ?? new(); _cargado = true; } return request.ApplyTo(_items); } private async Task Recargar() { _cargado = false; if (_grid is not null) await _grid.RefrescarAsync(); } private async Task Nuevo() { _nuevo = true; _edicion = new(); await _modal.ShowAsync(); } private async Task Editar(SerieFacturacionFiscalDTO serie) { _nuevo = false; _edicion = new() { IdSerie = serie.IdSerie, Secuencia = serie.Secuencia, NumeroTerminal = serie.NumeroTerminal, IdSucursal = serie.IdSucursal, IdEmisor = serie.IdEmisor, Descripcion = serie.Descripcion, IdTipoFactura = serie.IdTipoFactura, EsCredito = serie.EsCredito, EsRecibo = serie.EsRecibo, EsPago = serie.EsPago, EsConsignacion = serie.EsConsignacion, EmisionV44Habilitada = serie.EmisionV44Habilitada }; await _modal.ShowAsync(); } private async Task Guardar() { if (_edicion is null || string.IsNullOrWhiteSpace(_edicion.Descripcion) || _edicion.IdEmisor <= 0 || _edicion.IdSucursal <= 0 || _edicion.NumeroTerminal <= 0 || _edicion.IdTipoFactura <= 0 || _edicion.Secuencia < 0) { await Dialogos.ErrorAsync("Complete descripción, emisor, sucursal, terminal, tipo de factura y secuencia válidos."); return; } _edicion.Descripcion = _edicion.Descripcion.Trim(); var respuesta = _nuevo ? await Api.Crear(_edicion) : await Api.Actualizar(_edicion); if (await Respuestas.CorrectaAsync(respuesta, "guardar la serie")) { await _modal.HideAsync(); await Recargar(); } } }
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        <button class="btn btn-sm btn-primary" @onclick="Nuevo" disabled="@(_cat is null)">Agregar serie</button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">Recargar</button>
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Emisor</label>
+                    <select class="form-select form-select-sm" @bind="_filtroEmisor">
+                        <option value="0">Todos</option>
+                        @foreach (var e in Emisores) { <option value="@e.Id">@e.Nombre</option> }
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Sucursal</label>
+                    <select class="form-select form-select-sm" @bind="_filtroSucursal">
+                        <option value="0">Todas</option>
+                        @foreach (var s in Sucursales) { <option value="@s.Id">@s.Nombre</option> }
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Descripción</th>
+                                <th>Emisor</th>
+                                <th>Sucursal</th>
+                                <th>Tipo de documento</th>
+                                <th>Uso</th>
+                                <th class="text-end">Terminal</th>
+                                <th class="text-end">Secuencia</th>
+                                <th>4.4</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Filtradas.Count == 0) { <tr><td colspan="9" class="text-secondary text-center py-3">No hay series configuradas con esos criterios.</td></tr> }
+                            @foreach (var x in Filtradas)
+                            {
+                                <tr>
+                                    <td>@x.Descripcion</td>
+                                    <td>@x.EmisorNombre</td>
+                                    <td>
+                                        @x.SucursalNombre
+                                        @if (x.SucursalFEValida) { <span class="badge text-bg-light ms-1">FE @x.NumeroSucursalFE</span> }
+                                        else { <span class="badge text-bg-danger ms-1" title="La sucursal no tiene número FE de 3 dígitos">FE sin configurar</span> }
+                                    </td>
+                                    <td>@x.TipoFacturaDescripcion @if (!string.IsNullOrWhiteSpace(x.CodigoFE)) { <span class="text-secondary small">· FE @x.CodigoFE</span> }</td>
+                                    <td><span class="small">@x.UsoDescripcion</span></td>
+                                    <td class="text-end">@x.NumeroTerminal.ToString("D5")</td>
+                                    <td class="text-end">@x.Secuencia</td>
+                                    <td>@if (x.EmisionV44Habilitada) { <span class="badge text-bg-success">Sí</span> } else { <span class="badge text-bg-secondary">No</span> }</td>
+                                    <td class="text-end"><button class="btn btn-sm btn-link p-0" @onclick="() => Editar(x)">Editar</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modal" Title="@TituloModal" Size="ModalSize.Large" Scrollable="true">
+    <BodyTemplate>
+        @if (_edicion is not null && _cat is not null)
+        {
+            @if (_edicion.TieneDocumentos)
+            {
+                <div class="alert alert-warning py-2 small mb-3"><i class="bi bi-lock-fill me-1" aria-hidden="true"></i>Esta serie ya emitió documentos: solo se puede cambiar la descripción, la secuencia y la emisión 4.4.</div>
+            }
+
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formSerie">
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">1 · Identificación</h6>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Emisor <span class="text-secondary small">(empresa que factura)</span></label>
+                            <select class="form-select" @bind="_edicion.IdEmisor" @bind:after="RecalcularAvisos" disabled="@_edicion.TieneDocumentos">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var e in _cat.Emisores) { <option value="@e.Id">@e.Nombre — @e.Identificacion</option> }
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Sucursal de facturación</label>
+                            <select class="form-select" @bind="_edicion.IdSucursal" @bind:after="RecalcularAvisos" disabled="@_edicion.TieneDocumentos">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var s in _cat.Sucursales) { <option value="@s.Id">@s.Nombre</option> }
+                            </select>
+                            @if (SucursalSel is { } su)
+                            {
+                                @if (su.FEValida) { <div class="form-text">Número de sucursal FE: <strong>@su.NumeroFE</strong></div> }
+                                else { <div class="text-danger small mt-1">La sucursal no tiene número FE de 3 dígitos. Configúrelo en <a href="/parameters/branch" target="_blank">Sucursales</a> antes de crear la serie.</div> }
+                            }
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Descripción</label>
+                            <div class="input-group">
+                                <input class="form-control" maxlength="100" @bind="_edicion.Descripcion" />
+                                <button type="button" class="btn btn-outline-secondary" @onclick="SugerirDescripcion">Sugerir</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">2 · Documento</h6>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-8">
+                            <label class="form-label">Tipo de documento</label>
+                            <select class="form-select" @bind="_edicion.IdTipoFactura" @bind:after="AlCambiarTipo" disabled="@_edicion.TieneDocumentos">
+                                <option value="">Seleccione...</option>
+                                @foreach (var grupo in _cat.TiposFactura.GroupBy(t => t.Uso).OrderBy(g => g.Key))
+                                {
+                                    <optgroup label="@GrupoUso(grupo.Key)">
+                                        @foreach (var t in grupo)
+                                        {
+                                            <option value="@t.Id">@t.Descripcion @(string.IsNullOrWhiteSpace(t.CodigoFE) ? "(no fiscal)" : $"— FE {t.CodigoFE}")</option>
+                                        }
+                                    </optgroup>
+                                }
+                            </select>
+                            @if (TipoSel is { } tp)
+                            {
+                                <div class="form-text">@(string.IsNullOrWhiteSpace(tp.CodigoFE) ? "Documento interno (presupuesto / proforma): nunca emite comprobante electrónico." : $"Comprobante electrónico FE {tp.CodigoFE}.")</div>
+                            }
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Terminal / Caja</label>
+                            <input class="form-control" type="number" min="0" max="99999" @bind="_edicion.NumeroTerminal" @bind:after="RecalcularAvisos" disabled="@_edicion.TieneDocumentos" />
+                            <div class="form-text">Número de caja. Forma parte del consecutivo fiscal.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label d-block">Uso de la serie <span class="text-secondary small">(clasifica la serie y marca la venta)</span></label>
+                            <div class="d-flex flex-wrap gap-3">
+                                <div class="form-check"><input id="u-cons" class="form-check-input" type="checkbox" @bind="_esConsignacion" /><label class="form-check-label" for="u-cons">Consignación</label></div>
+                                <div class="form-check"><input id="u-cred" class="form-check-input" type="checkbox" @bind="_esCredito" /><label class="form-check-label" for="u-cred">Crédito</label></div>
+                                <div class="form-check"><input id="u-rec" class="form-check-input" type="checkbox" @bind="_esRecibo" /><label class="form-check-label" for="u-rec">Recibo de dinero</label></div>
+                                <div class="form-check"><input id="u-pago" class="form-check-input" type="checkbox" @bind="_esPago" /><label class="form-check-label" for="u-pago">Nota de pago</label></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">3 · Numeración</h6>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Secuencia actual</label>
+                            <input class="form-control" type="number" min="@_secuenciaMin" max="9999999999" @bind="_edicion.Secuencia" @bind:after="RecalcularAvisos" />
+                            <div class="form-text">El próximo documento tomará <strong>@(_edicion.Secuencia + 1)</strong>.@(_secuenciaMin > 0 ? " No puede disminuir." : "")</div>
+                        </div>
+                        <div class="col-12 col-md-8">
+                            <label class="form-label">Próximo consecutivo fiscal (20 dígitos)</label>
+                            <div class="font-monospace fs-6">@PreviewConsecutivo()</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-2">
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">4 · Facturación electrónica (Hacienda 4.4)</h6>
+                    <div class="form-check">
+                        <input id="v44" class="form-check-input" type="checkbox" @bind="_edicion.EmisionV44Habilitada" disabled="@(!(TipoSel?.CompatibleV44 ?? false))" />
+                        <label class="form-check-label" for="v44">Emitir comprobante electrónico 4.4 automáticamente</label>
+                    </div>
+                    @if (TipoSel is { CompatibleV44: false } t2)
+                    {
+                        <div class="form-text text-warning">Solo disponible para Factura (FE 01), Tiquete (FE 04) o Nota de crédito (FE 05). El tipo elegido es @(string.IsNullOrWhiteSpace(t2.CodigoFE) ? "no fiscal" : $"FE {t2.CodigoFE}").</div>
+                    }
+                </div>
+
+                @if (_avisos.Count > 0)
+                {
+                    <div class="alert alert-danger py-2 mb-0 mt-2"><ul class="mb-0 ps-3 small">@foreach (var a in _avisos) { <li>@a</li> }</ul></div>
+                }
+            </EditForm>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" form="formSerie" type="submit" disabled="@(_avisos.Count > 0)">Guardar</button>
+    </FooterTemplate>
+</HxModal>

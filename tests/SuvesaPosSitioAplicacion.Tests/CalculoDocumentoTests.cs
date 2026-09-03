@@ -131,4 +131,18 @@ public class CalculoDocumentoTests
         // Con el de por defecto, 0.025 daria 0.02.
         Assert.Equal((decimal)esperado, CalculoDocumento.Redondear((decimal)valor));
     }
+
+    [Fact]
+    public void LineaBonificada_PrecioCeroPeroImpuestoSobreElPrecioDeLista()
+    {
+        // §4.4: el articulo de regalo sale gratis pero el 13% se cobra sobre
+        // el precio de lista (1000), no sobre 0.
+        var l = CalculoDocumento.LineaBonificada(cantidad: 2, precioReferencia: 1000m, porcentajeImpuesto: 13);
+
+        Assert.Equal(0m, l.SubTotal);
+        Assert.Equal(0m, l.SubtotalGravado);
+        Assert.Equal(0m, l.MontoDescuento);
+        Assert.Equal(260m, l.MontoImpuesto);   // 13% de 2000
+        Assert.Equal(260m, l.Total);           // lo paga el cliente
+    }
 }

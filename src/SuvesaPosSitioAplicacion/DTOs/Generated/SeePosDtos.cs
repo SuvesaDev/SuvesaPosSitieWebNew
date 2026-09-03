@@ -10780,9 +10780,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("lote")]
         public string? Lote { get; set; } = default!;
 
+        // §lotes — nullable: el lote único no vence (API MEJORA_LOTES §3.1).
         [System.Text.Json.Serialization.JsonPropertyName("vencimiento")]
-        [System.Text.Json.Serialization.JsonConverter(typeof(DateFormatConverter))]
-        public System.DateTimeOffset Vencimiento { get; set; } = default!;
+        public System.DateTimeOffset? Vencimiento { get; set; }
 
         [System.Text.Json.Serialization.JsonPropertyName("idArticulo")]
         public long IdArticulo { get; set; } = default!;
@@ -10792,6 +10792,12 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("cantidad")]
         public double Cantidad { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("esUnico")]
+        public bool EsUnico { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("bloqueado")]
+        public bool Bloqueado { get; set; }
 
     }
 

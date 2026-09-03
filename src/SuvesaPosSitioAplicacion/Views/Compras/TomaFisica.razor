@@ -1,0 +1,185 @@
+@page "/buys/physical-count"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.DTOs.Lotes
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ILotesApiCliente Api
+@inject IServicioDialogos Dialogos
+
+@* Toma física / revisión de inventario (MEJORA_LOTES_WEB.md §3.5). Vive en Compras;
+   pensada para PC, tablet y portátil (NivelPantalla.Tableta + tabla con scroll). *@
+
+<AppPantalla Pantalla="@Titulo" Codigo="COMPRAS.TOMA_FISICA" Icono="bi-clipboard-check"
+             Subtitulo="Contar existencias y ajustar el inventario" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        <button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(_guardando || !HayCambios)">
+            @(_guardando ? "Guardando..." : "Guardar toma")
+        </button>
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="tf-texto">Filtrar por código o descripción</label>
+                        <input id="tf-texto" class="form-control" @bind="_texto" @bind:event="oninput" placeholder="Todos si se deja vacío" />
+                    </div>
+                    <div class="col-12 col-md-3 d-grid">
+                        <button class="btn btn-outline-primary" @onclick="Cargar" disabled="@_cargando">
+                            @(_cargando ? "Cargando..." : "Cargar artículos")
+                        </button>
+                    </div>
+                    <div class="col-12 col-md-3 text-md-end small text-secondary">
+                        @if (_articulos.Count > 0)
+                        {
+                            <span>@_articulos.Count renglones · @_articulos.Count(a => Dif(a) != 0) con diferencia</span>
+                        }
+                    </div>
+                </div>
+                <p class="form-text mb-0">Los artículos marcados como <strong>Servicio</strong> no entran. La toma física <em>resetea</em> el acumulado del artículo.</p>
+            </div>
+        </div>
+
+        @if (_cargando)
+        {
+            <div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div></div>
+        }
+        else if (_articulos.Count == 0)
+        {
+            <div class="alert alert-light border">Cargue los artículos para comenzar la toma.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Código</th><th>Descripción</th><th>Lote</th>
+                            <th class="text-end">Sistema</th><th class="text-end" style="min-width:8rem">Contado</th><th class="text-end">Diferencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in _articulos)
+                        {
+                            var dif = Dif(a);
+                            <tr class="@(dif != 0 ? "table-warning" : null)">
+                                <td><code>@a.CodArticulo</code></td>
+                                <td>@a.Descripcion</td>
+                                <td>
+                                    @if (a.ManejaLote)
+                                    {
+                                        <span>@a.NumeroLote @(a.EsLoteUnico ? "(único)" : "")</span>
+                                        @if (a.Vencimiento is { } v) { <small class="text-secondary d-block">vence @v.ToString("dd/MM/yyyy")</small> }
+                                    }
+                                    else { <span class="text-secondary">Sin lote</span> }
+                                </td>
+                                <td class="text-end">@a.ExistenciaSistema.ToString("N2")</td>
+                                <td class="text-end">
+                                    <input type="number" step="0.001" class="form-control form-control-sm text-end"
+                                           value="@(a.Contado?.ToString() ?? "")"
+                                           @onchange="e => SetContado(a, e.Value?.ToString())" />
+                                </td>
+                                <td class="text-end fw-semibold @(dif < 0 ? "text-danger" : dif > 0 ? "text-success" : "")">
+                                    @(a.Contado is null ? "—" : dif.ToString("N2"))
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modalReporte" Title="Reporte de toma física" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_reporte is not null)
+        {
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-md-3"><div class="text-secondary small">Artículos ajustados</div><div class="h5 mb-0">@_reporte.ArticulosAjustados</div></div>
+                <div class="col-6 col-md-3"><div class="text-secondary small">Unidades ganadas</div><div class="h5 mb-0 text-success">@_reporte.UnidadesGanadas.ToString("N2")</div></div>
+                <div class="col-6 col-md-3"><div class="text-secondary small">Unidades perdidas</div><div class="h5 mb-0 text-danger">@_reporte.UnidadesPerdidas.ToString("N2")</div></div>
+                <div class="col-6 col-md-3"><div class="text-secondary small">Costeo de pérdidas</div><div class="h5 mb-0 text-danger">@_reporte.CostoPerdidas.ToString("N2")</div></div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead><tr><th>Código</th><th>Descripción</th><th>Lote</th><th class="text-end">Sistema</th><th class="text-end">Contado</th><th class="text-end">Dif.</th><th class="text-end">Costo dif.</th></tr></thead>
+                    <tbody>
+                        @foreach (var l in _reporte.Lineas)
+                        {
+                            <tr>
+                                <td><code>@l.CodArticulo</code></td><td>@l.Descripcion</td><td>@l.NumeroLote</td>
+                                <td class="text-end">@l.ExistenciaSistema.ToString("N2")</td>
+                                <td class="text-end">@l.Contado.ToString("N2")</td>
+                                <td class="text-end @(l.Diferencia < 0 ? "text-danger" : l.Diferencia > 0 ? "text-success" : "")">@l.Diferencia.ToString("N2")</td>
+                                <td class="text-end @(l.CostoDiferencia < 0 ? "text-danger" : "")">@l.CostoDiferencia.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-primary" @onclick="() => _modalReporte.HideAsync()">Cerrar</button>
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Toma física";
+
+    private string _texto = string.Empty;
+    private bool _cargando, _guardando;
+    private List<TomaFisicaArticulo> _articulos = new();
+    private HxModal _modalReporte = default!;
+    private TomaFisicaReporte? _reporte;
+
+    private bool HayCambios => _articulos.Any(a => a.Contado is { } c && Math.Abs(c - a.ExistenciaSistema) > 0.0001);
+
+    private static double Dif(TomaFisicaArticulo a) => (a.Contado ?? a.ExistenciaSistema) - a.ExistenciaSistema;
+
+    private void SetContado(TomaFisicaArticulo a, string? valor)
+        => a.Contado = double.TryParse(valor, out var v) ? v : null;
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        var r = await Api.TomaArticulosAsync(new TomaFisicaFiltro { Bodega = 0, Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim() });
+        _cargando = false;
+        if (r.Status != ResponseStatus._0)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudieron cargar los artículos.");
+            return;
+        }
+        _articulos = r.Responses ?? new();
+    }
+
+    private async Task Guardar()
+    {
+        if (!await Dialogos.ConfirmarAsync("Se ajustarán las existencias de los artículos con diferencia y se generará el reporte.", "Guardar toma física"))
+            return;
+
+        _guardando = true;
+        var req = new TomaFisicaGuardar
+        {
+            Bodega = 0,
+            Lineas = _articulos.Where(a => a.Contado is not null)
+                .Select(a => new TomaFisicaGuardarLinea { IdArticulo = a.IdArticulo, IdStockLote = a.IdStockLote, Contado = a.Contado!.Value })
+                .ToList()
+        };
+        var r = await Api.TomaGuardarAsync(req);
+        _guardando = false;
+
+        if (r.Status != ResponseStatus._0 || r.Responses is null)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo guardar la toma física.");
+            return;
+        }
+        _reporte = r.Responses;
+        Dialogos.Exito("Toma física guardada.");
+        await _modalReporte.ShowAsync();
+        await Cargar();   // refrescar existencias del sistema
+    }
+}

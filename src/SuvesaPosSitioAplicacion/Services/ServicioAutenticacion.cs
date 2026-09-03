@@ -140,7 +140,8 @@ public sealed class ServicioAutenticacion : IServicioAutenticacion
             new(ClaimsSeePos.PerfilCodigo, auth.Perfil?.Codigo ?? string.Empty),
             new(ClaimsSeePos.CostaPets, (auth.Perfil?.CostaPets ?? auth.CostaPets).ToString()),
             new(ClaimsSeePos.AgenteCostaPets, (auth.Perfil?.AgenteCostaPets ?? auth.AgenteCostaPets).ToString()),
-            new(ClaimsSeePos.AceptaConsignacion, (auth.Perfil?.AceptaConsignacion ?? auth.AceptaConsignacion).ToString())
+            new(ClaimsSeePos.AceptaConsignacion, (auth.Perfil?.AceptaConsignacion ?? auth.AceptaConsignacion).ToString()),
+            new(ClaimsSeePos.PermiteExistenciaNegativa, (auth.Perfil?.PermiteExistenciaNegativa ?? auth.PermiteExistenciaNegativa).ToString())
         };
 
         // Rol (informativo). auth.Rol es el contrato viejo; los campos planos IdRol /

@@ -1,0 +1,226 @@
+@page "/consignment/prebill"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Consignacion
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IConsignacionInvApiCliente Api
+@inject IServicioDialogos Dialogos
+@inject NavigationManager Nav
+
+<AppPantalla Pantalla="Facturación de Consignaciones" Codigo="CONSIGNACION.FACTURACION_DE_CONSIGNACIONES" Icono="bi-receipt"
+             Subtitulo="Prefactura editable → aprobar → facturar (contado o crédito)" Nivel="NivelPantalla.Tableta">
+ <ChildContent>
+  @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+
+  <div class="card mb-3"><div class="card-body">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3"><label class="form-label">Estado</label>
+        <select class="form-select" @bind="_estadoFiltro" @bind:after="CargarLista">
+          <option value="">Pendientes (editable + aprobada)</option>
+          <option value="1">Editable</option>
+          <option value="2">Aprobada</option>
+          <option value="3">Facturada</option>
+          <option value="4">Anulada</option>
+        </select></div>
+      <div class="col-md-3"><label class="form-label">Abrir por N.º</label><input type="number" class="form-control" @bind="_idBuscar" /></div>
+      <div class="col-md-2 d-grid"><button class="btn btn-outline-primary" @onclick="() => Cargar(_idBuscar)" disabled="@(_idBuscar <= 0)">Abrir</button></div>
+      <div class="col-md-2 d-grid"><button class="btn btn-outline-secondary" @onclick="CargarLista">Actualizar lista</button></div>
+    </div>
+    <div class="table-responsive mt-3"><table class="table table-sm align-middle mb-0">
+      <thead><tr><th>#</th><th>Doc</th><th>Cliente</th><th>Fecha</th><th class="text-end">Total</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        @foreach (var p in _lista)
+        {
+          <tr class="@(_pref?.Id == p.Id ? "table-primary" : "")">
+            <td>@p.Id</td><td>@(p.NumFactura > 0 ? p.NumFactura.ToString("0") : "—")</td>
+            <td>@p.NombreCliente</td><td>@p.Fecha.ToString("dd/MM/yyyy")</td>
+            <td class="text-end">@p.Total.ToString("N2")</td>
+            <td><span class="badge @EstadoClase(p.Estado)">@p.EstadoDescripcion</span></td>
+            <td class="text-end"><button class="btn btn-sm btn-outline-primary" @onclick="() => Cargar(p.Id)">Abrir</button></td>
+          </tr>
+        }
+        @if (!_lista.Any()) { <tr><td colspan="7" class="text-secondary">Sin prefacturas para el filtro.</td></tr> }
+      </tbody>
+    </table></div>
+    <span class="form-text">La prefactura se genera desde <strong>Inventario Físico de Consignación</strong> (botón "Generar prefactura").</span>
+  </div></div>
+
+  @if (_pref is not null)
+  {
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Prefactura <strong>#@_pref.Id</strong> @(_pref.NumFactura > 0 ? $"· doc {_pref.NumFactura:0}" : "") · @_pref.NombreCliente</span>
+        <span class="badge @EstadoClase(_pref.Estado)">@_pref.EstadoDescripcion</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-2 small mb-3">
+          <div class="col-md-3"><span class="text-secondary">Fecha</span><strong class="d-block">@_pref.Fecha.ToString("dd/MM/yyyy HH:mm")</strong></div>
+          <div class="col-md-3"><span class="text-secondary">Conteo</span><strong class="d-block">@(_pref.IdConteoConsignacion?.ToString() ?? "—")</strong></div>
+          <div class="col-md-3"><span class="text-secondary">Subtotal</span><strong class="d-block">@_pref.SubTotal.ToString("N2")</strong></div>
+          <div class="col-md-3"><span class="text-secondary">Total</span><strong class="d-block">@_pref.Total.ToString("N2")</strong></div>
+        </div>
+
+        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+          <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Cantidad</th><th class="text-end">Precio</th><th class="text-end">Desc.</th><th class="text-end">Impuesto</th><th class="text-end">Subtotal</th></tr></thead>
+          <tbody>
+            @foreach (var l in _pref.Lineas)
+            {
+              <tr><td><code>@l.CodArticulo</code> @l.Descripcion @if (l.EsBonificacion) { <span class="badge text-bg-success ms-1">Bonificación</span> }</td>
+                <td>@l.Lote</td>
+                <td class="text-end">@l.Cantidad.ToString("N3")</td>
+                <td class="text-end">@l.PrecioUnit.ToString("N2")</td>
+                <td class="text-end">@l.MontoDescuento.ToString("N2")</td>
+                <td class="text-end">@l.MontoImpuesto.ToString("N2")</td>
+                <td class="text-end">@l.SubTotal.ToString("N2")</td></tr>
+            }
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+
+    @if (_pref.Estado is 1 or 2)
+    {
+      <div class="card"><div class="card-body">
+        <div class="d-flex flex-wrap gap-2 align-items-end">
+          @if (_pref.Estado == 1)
+          {
+            <button class="btn btn-primary" @onclick="Aprobar" disabled="@_procesando">Aprobar prefactura</button>
+          }
+          @if (_pref.Estado == 2)
+          {
+            <div>
+              <label class="form-label d-block">Condición</label>
+              <div class="btn-group">
+                <button type="button" class="btn @(_condicion == 1 ? "btn-primary" : "btn-outline-primary")" @onclick="() => _condicion = 1">Contado</button>
+                <button type="button" class="btn @(_condicion == 2 ? "btn-primary" : "btn-outline-primary")" @onclick="() => _condicion = 2">Crédito</button>
+              </div>
+            </div>
+            @if (_condicion == 2)
+            {
+              <div><label class="form-label d-block">Plazo (Id)</label><input type="number" min="1" class="form-control" style="width:8rem" @bind="_idPlazo" /></div>
+            }
+            <button class="btn btn-success" @onclick="Facturar" disabled="@(_procesando || (_condicion == 2 && (_idPlazo is null or <= 0)))">@(_procesando ? "Facturando..." : "Facturar")</button>
+          }
+          <button class="btn btn-outline-danger ms-auto" @onclick="Anular" disabled="@_procesando">Anular</button>
+        </div>
+        <p class="form-text mt-2">Al facturar se descuenta la bodega de consignación del cliente. La factura nunca repone inventario.</p>
+      </div></div>
+    }
+  }
+ </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modalAnular" Title="Anular prefactura">
+ <BodyTemplate>
+  <label class="form-label">Motivo <span class="text-danger">*</span></label>
+  <textarea class="form-control" @bind="_motivoAnular"></textarea>
+ </BodyTemplate>
+ <FooterTemplate>
+  <button class="btn btn-secondary" @onclick="() => _modalAnular.HideAsync()">Cancelar</button>
+  <button class="btn btn-danger" @onclick="ConfirmarAnular">Anular</button>
+ </FooterTemplate>
+</HxModal>
+
+@code {
+ [SupplyParameterFromQuery] public long Id { get; set; }
+ private HxModal _modalAnular = default!;
+ private string _motivoAnular = "";
+
+ private PrefacturaConsignacion? _pref;
+ private List<PrefacturaConsignacionResumen> _lista = new();
+ private string _estadoFiltro = "";
+ private long _idBuscar;
+ private int _condicion = 1;
+ private int? _idPlazo;
+ private string _error = "";
+ private bool _procesando;
+
+ private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
+
+ protected override async Task OnInitializedAsync() => await CargarLista();
+
+ protected override async Task OnParametersSetAsync()
+ {
+     if (Id > 0 && (_pref is null || _pref.Id != Id)) { _idBuscar = Id; await Cargar(Id); }
+ }
+
+ private async Task CargarLista()
+ {
+     var filtro = new PrefacturasConsignacionFiltro();
+     if (int.TryParse(_estadoFiltro, out var e)) filtro.Estado = e;
+     var r = await Api.PrefacturasAsync(filtro);
+     if (!Ok(r)) { _lista = new(); return; }
+     var todas = r.Responses ?? new();
+     _lista = string.IsNullOrEmpty(_estadoFiltro)
+         ? todas.Where(p => p.Estado is 1 or 2).ToList()
+         : todas;
+ }
+
+ private async Task Fallo<T>(LoteEnvelope<T> r, string alterno)
+ {
+     _error = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? alterno;
+     await Dialogos.ErrorAsync(_error);
+ }
+
+ private async Task Cargar(long id)
+ {
+     if (id <= 0) return;
+     _error = "";
+     var r = await Api.PrefacturaAsync(id);
+     if (Ok(r)) _pref = r.Responses;
+     else { _pref = null; await Fallo(r, "No se pudo cargar la prefactura."); }
+ }
+
+ private static string EstadoClase(int e) => e switch
+ {
+     1 => "text-bg-warning",
+     2 => "text-bg-info",
+     3 => "text-bg-success",
+     4 => "text-bg-secondary",
+     _ => "text-bg-light"
+ };
+
+ private async Task Aprobar()
+ {
+     if (_pref is null) return;
+     _procesando = true;
+     var r = await Api.AprobarPrefacturaAsync(_pref.Id);
+     _procesando = false;
+     if (Ok(r)) { _pref = r.Responses; await CargarLista(); Dialogos.Exito("Prefactura aprobada."); }
+     else await Fallo(r, "No se pudo aprobar.");
+ }
+
+ private async Task Facturar()
+ {
+     if (_pref is null) return;
+     if (!await Dialogos.ConfirmarAsync(
+         $"Se facturará la prefactura #{_pref.Id} ({(_condicion == 1 ? "contado" : "crédito")}) y se descontará la bodega de consignación.",
+         "Facturar consignación", "Facturar")) return;
+     _procesando = true;
+     var r = await Api.FacturarPrefacturaAsync(new FacturarPrefacturaConsignacion { IdPrefactura = _pref.Id, Condicion = _condicion, IdPlazo = _condicion == 2 ? _idPlazo : null });
+     _procesando = false;
+     if (Ok(r)) { _pref = r.Responses; await CargarLista(); Dialogos.Exito($"Consignación facturada (doc {_pref!.NumFactura:0})."); }
+     else await Fallo(r, "No se pudo facturar.");
+ }
+
+ private async Task Anular()
+ {
+     _motivoAnular = "";
+     await _modalAnular.ShowAsync();
+ }
+
+ private async Task ConfirmarAnular()
+ {
+     if (_pref is null) return;
+     if (string.IsNullOrWhiteSpace(_motivoAnular)) { await Dialogos.ErrorAsync("Indique el motivo."); return; }
+     _procesando = true;
+     var r = await Api.AnularPrefacturaAsync(new AnularPrefacturaConsignacion { IdPrefactura = _pref.Id, Motivo = _motivoAnular.Trim() });
+     _procesando = false;
+     if (Ok(r)) { await _modalAnular.HideAsync(); _pref = r.Responses; await CargarLista(); Dialogos.Exito("Prefactura anulada."); }
+     else await Fallo(r, "No se pudo anular.");
+ }
+}

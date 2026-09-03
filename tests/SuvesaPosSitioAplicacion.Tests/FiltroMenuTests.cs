@@ -28,6 +28,7 @@ public class FiltroMenuTests
         public string? PerfilCodigo => EsSuperAdministrador ? "SUPER_ADMIN" : "USUARIO";
         public bool EsCostaPets => false;
         public bool EsAgenteCostaPets => false;
+        public bool PermitirExistenciaNegativa => false;
         public int IdSucursal => 1;
         public string? NombreSucursal => "Central";
         public bool TieneSucursal => true;
@@ -107,6 +108,6 @@ public class FiltroMenuTests
     {
         static int Contar(IEnumerable<ItemMenu> ns) => ns.Sum(n => 1 + Contar(n.Hijos));
         Assert.Equal(12, MenuSeePos.Items.Count);
-        Assert.Equal(100, Contar(MenuSeePos.Items));
+        Assert.Equal(77, Contar(MenuSeePos.Items));
     }
 }

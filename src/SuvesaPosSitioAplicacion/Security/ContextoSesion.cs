@@ -46,6 +46,7 @@ public sealed class ContextoSesion : IContextoSesion
 
     public bool EsCostaPets => Claim(ClaimsSeePos.CostaPets) == bool.TrueString;
     public bool EsAgenteCostaPets => Claim(ClaimsSeePos.AgenteCostaPets) == bool.TrueString;
+    public bool PermitirExistenciaNegativa => Claim(ClaimsSeePos.PermiteExistenciaNegativa) == bool.TrueString;
 
     public int IdSucursal => int.TryParse(Claim(ClaimsSeePos.IdSucursal), out var id) ? id : 0;
     public string? NombreSucursal => Claim(ClaimsSeePos.NombreSucursal);

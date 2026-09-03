@@ -47,7 +47,8 @@
                     <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 @(EstaActiva(raiz) ? "seepos-menu-activo" : "")"
                             @onclick="() => Abrir(raiz)">
                         <i class="bi @IconoDe(raiz)" aria-hidden="true"></i>
-                        <span class="seepos-menu-text">@raiz.Titulo</span>
+                        <span class="seepos-menu-text flex-grow-1">@raiz.Titulo</span>
+                        <i class="seepos-menu-flecha bi bi-chevron-right small" aria-hidden="true"></i>
                     </button>
                 }
             </li>

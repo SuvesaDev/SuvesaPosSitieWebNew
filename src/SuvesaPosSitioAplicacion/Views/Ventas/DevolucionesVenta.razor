@@ -8,6 +8,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject NavigationManager Navegacion
 
 @*  Ola 5 — el menu React tiene "Devoluciones" dos veces (/initial/repayment y
     /sales/repayment) porque el enrutador de la SPA manda ambas rutas al MISMO
@@ -73,7 +74,7 @@
                                         <option value="0">Seleccione...</option>
                                         @foreach (var linea in _factura.Detalle ?? new List<FacturaDetallesDTO>())
                                         {
-                                            <option value="@linea.IdVentaDetalle">@linea.Descripcion (máx. @Formato.Cantidad(linea.Cantidad))</option>
+                                            <option value="@linea.IdVentaDetalle">@linea.Descripcion (máx. @Formato.Cantidad(linea.Cantidad))@(linea.IdGrupoBonificacion is not null ? " · Bonificación" : "")</option>
                                         }
                                     </select>
                                 </div>
@@ -82,7 +83,8 @@
                                     <div class="col-6 col-md-2"><label class="form-label">Precio</label><input class="form-control" disabled value="@Formato.Importe(_lineaSeleccionada.PrecioUnit)" /></div>
                                     <div class="col-6 col-md-2">
                                         <label class="form-label">Cantidad a devolver</label>
-                                        <input type="number" min="0" max="@_lineaSeleccionada.Cantidad" step="0.001" class="form-control" @bind="_cantidadDevolver" @onkeydown="AgregarConEnter" />
+                                        <input type="number" min="0" max="@_lineaSeleccionada.Cantidad" step="0.001" class="form-control" disabled="@(_lineaSeleccionada.IdGrupoBonificacion is not null)" @bind="_cantidadDevolver" @onkeydown="AgregarConEnter" />
+                                        @if (_lineaSeleccionada.IdGrupoBonificacion is not null) { <small class="text-secondary">El grupo de bonificación se devuelve completo.</small> }
                                     </div>
                                     <div class="col-6 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="Agregar">Agregar</button></div>
                                     <div class="col-6 col-md-2 d-grid"><button type="button" class="btn btn-outline-secondary" @onclick="AgregarTodos">Agregar todos</button></div>
@@ -101,7 +103,7 @@
             <div class="card-header"><strong>Líneas a devolver</strong></div>
             <div class="card-body p-0">
                 @if (_lineas.Count == 0) { <p class="text-secondary text-center py-4 mb-0">Seleccione la factura y agregue los artículos a devolver.</p> }
-                else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Precio</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var l in _lineas) { <tr><td>@l.Descripcion</td><td class="text-end">@Formato.Cantidad(l.Cantidad)</td><td class="text-end">@Formato.Importe(l.PrecioUnit)</td><td class="text-end fw-semibold">@Formato.Importe(l.Calculo.Total)</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(l)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div> }
+                else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Precio</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var l in _lineas) { <tr><td>@l.Descripcion @if (l.EsDeGrupo) { <span class="badge text-bg-success ms-1">@(l.EsBonificacion ? "Regalo" : "Bonificación")</span> }</td><td class="text-end">@Formato.Cantidad(l.Cantidad)</td><td class="text-end">@Formato.Importe(l.PrecioUnit)</td><td class="text-end fw-semibold">@Formato.Importe(l.Calculo.Total)</td><td class="text-end">@if (!l.EsDeGrupo || l.EsLineaPrincipal) { <button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(l)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button> } else { <span class="text-secondary small">—</span> }</td></tr> }</tbody></table></div> }
             </div>
         </div>
 
@@ -180,6 +182,15 @@
         public decimal Descuento { get; init; }
         public decimal Impuesto { get; init; }
         public int IdBodega { get; init; }
+        public long? IdStockLote { get; init; }
+
+        // §4.5 — bonificación heredada de la factura original.
+        public bool EsBonificacion { get; init; }
+        public int? IdGrupoBonificacion { get; init; }
+        public int? IdConfiguracionBonificacion { get; init; }
+        public bool EsLineaPrincipal { get; init; }
+        public bool EsDeGrupo => IdGrupoBonificacion is not null;
+
         public CalculoDocumento.LineaCalculada Calculo { get; set; }
     }
 
@@ -193,6 +204,7 @@
     private List<PersonalDTO> _personal = new();
 
     private string _numeroFactura = string.Empty;
+    private bool _prefillPendiente;
     private FacturaDTO? _factura;
     private long _idVentaDetalleSeleccionado;
     private FacturaDetallesDTO? _lineaSeleccionada;
@@ -215,6 +227,19 @@
     private DateTime? _filtroDevolucionFecha;
     private List<DevolucionVentaDTO> _devolucionesEncontradas = new();
 
+    protected override void OnInitialized()
+    {
+        // La bandeja de documentos abre esta pantalla con ?factura=<nº> para
+        // arrancar la devolución de esa factura una vez desbloqueada.
+        var uri = Navegacion.ToAbsoluteUri(Navegacion.Uri);
+        var q = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (q.TryGetValue("factura", out var valor) && !string.IsNullOrWhiteSpace(valor))
+        {
+            _numeroFactura = valor.ToString();
+            _prefillPendiente = true;
+        }
+    }
+
     private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
 
     private async Task Desbloquear()
@@ -234,8 +259,15 @@
         _desbloqueada = true;
         await _modalDesbloqueo.HideAsync();
 
-        _tipos = (await Respuestas.DatoAsync(await Facturas.Tipos(), "consultar los tipos de factura"))?.ToList() ?? new();
+        _tipos = (await Respuestas.DatoAsync(await Facturas.Tipos(), "consultar los tipos de factura"))?.Where(t => (int)t.Uso == 2).ToList() ?? new();
         _personal = (await Respuestas.DatoAsync(await Api.Personal(), "consultar el personal"))?.Where(p => p.Activo).ToList() ?? new();
+
+        if (_prefillPendiente && !string.IsNullOrWhiteSpace(_numeroFactura))
+        {
+            _prefillPendiente = false;
+            var factura = await Respuestas.DatoAsync(await Api.BuscarFacturaPorNumero(_numeroFactura), "buscar la factura");
+            CargarFactura(factura);
+        }
     }
 
     private async Task BuscarPorNumeroConEnter(KeyboardEventArgs e)
@@ -306,6 +338,17 @@
 
     private void AgregarLinea(FacturaDetallesDTO linea, decimal cantidad)
     {
+        // §4.5 — un grupo de bonificación se devuelve entero, a cantidad completa:
+        // no se puede devolver solo la línea pagada o solo la de regalo.
+        if (linea.IdGrupoBonificacion is int grupo && _factura?.Detalle is not null)
+        {
+            _lineas.RemoveAll(l => l.IdGrupoBonificacion == grupo);
+            foreach (var g in _factura.Detalle.Where(d => d.IdGrupoBonificacion == grupo))
+                AgregarLineaBonificacion(g);
+            RecalcularTotales();
+            return;
+        }
+
         if (_lineas.Any(l => l.IdVentaDetalle == linea.IdVentaDetalle))
         {
             _lineas.RemoveAll(l => l.IdVentaDetalle == linea.IdVentaDetalle);
@@ -322,14 +365,52 @@
             PrecioUnit = Formato.AImporte(linea.PrecioUnit),
             Descuento = Formato.AImporte(linea.Descuento),
             Impuesto = linea.Impuesto,
-            IdBodega = linea.IdBodega
+            IdBodega = linea.IdBodega,
+            IdStockLote = linea.Lote > 0 ? linea.Lote : null
         };
         nueva.Calculo = CalculoDocumento.Linea(nueva.Cantidad, nueva.PrecioUnit, nueva.Descuento, nueva.Impuesto);
         _lineas.Add(nueva);
         RecalcularTotales();
     }
 
-    private void QuitarLinea(LineaDevolucion linea) { _lineas.Remove(linea); RecalcularTotales(); }
+    // Devuelve una línea de bonificación con los valores exactos de la factura
+    // (la de regalo va a precio 0 con su impuesto real, tal como se emitió).
+    private void AgregarLineaBonificacion(FacturaDetallesDTO linea)
+    {
+        var nueva = new LineaDevolucion
+        {
+            IdVentaDetalle = linea.IdVentaDetalle ?? 0,
+            Codigo = linea.CodFxArticulo,
+            Descripcion = linea.Descripcion ?? string.Empty,
+            Cantidad = Formato.AImporte(linea.Cantidad),
+            CantVet = Formato.AImporte(linea.CantVen),
+            CantBod = Formato.AImporte(linea.CantBod),
+            PrecioUnit = Formato.AImporte(linea.PrecioUnit),
+            Descuento = 0m,
+            Impuesto = linea.Impuesto,
+            IdBodega = linea.IdBodega,
+            EsBonificacion = linea.EsBonificacion,
+            IdGrupoBonificacion = linea.IdGrupoBonificacion,
+            IdConfiguracionBonificacion = linea.IdConfiguracionBonificacion,
+            EsLineaPrincipal = linea.EsLineaPrincipalBonificacion == true,
+            Calculo = new CalculoDocumento.LineaCalculada(
+                SubTotal: Formato.AImporte(linea.SubTotal),
+                MontoDescuento: Formato.AImporte(linea.MontoDescuento),
+                MontoImpuesto: Formato.AImporte(linea.MontoImpuesto),
+                SubtotalGravado: Formato.AImporte(linea.SubtotalGravado),
+                Total: Formato.AImporte(linea.SubTotal) + Formato.AImporte(linea.MontoImpuesto))
+        };
+        _lineas.Add(nueva);
+    }
+
+    private void QuitarLinea(LineaDevolucion linea)
+    {
+        if (linea.EsDeGrupo)
+            _lineas.RemoveAll(l => l.IdGrupoBonificacion == linea.IdGrupoBonificacion);
+        else
+            _lineas.Remove(linea);
+        RecalcularTotales();
+    }
     private void RecalcularTotales()
     {
         _totales = CalculoDocumento.Totales(_lineas.Select(l => l.Calculo));
@@ -390,7 +471,12 @@
                 SubTotalExcento = l.Impuesto == 0 ? (double)l.Calculo.SubTotal : 0,
                 SubTotal = (double)l.Calculo.SubTotal,
                 IdArticuloV = l.IdVentaDetalle.ToString(),
-                IdBodega = l.IdBodega
+                IdBodega = l.IdBodega,
+                IdStockLote = l.IdStockLote,
+                EsBonificacion = l.EsBonificacion,
+                IdGrupoBonificacion = l.IdGrupoBonificacion,
+                IdConfiguracionBonificacion = l.IdConfiguracionBonificacion,
+                EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null
             }).ToList()
         };
 

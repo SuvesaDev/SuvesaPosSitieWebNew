@@ -1,0 +1,122 @@
+@page "/consignment/warehouses"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Consignacion
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IConsignacionInvApiCliente Api
+@inject IClientesConsulta Clientes
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Bodegas de Consignación" Codigo="CONSIGNACION.BODEGAS" Icono="bi-shop"
+             Subtitulo="Una bodega de inventario por cliente en consignación" Nivel="NivelPantalla.Tableta">
+ <Acciones>
+  <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" disabled="@_cargando">Actualizar</button>
+ </Acciones>
+ <ChildContent>
+  @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+
+  <div class="card mb-3"><div class="card-body">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-5"><label class="form-label">Buscar cliente</label><input class="form-control" @bind="_texto" @bind:event="oninput" placeholder="Cédula o nombre" /></div>
+      <div class="col-md-3 form-check ms-2 mt-4"><input class="form-check-input" type="checkbox" id="soloCerradas" @bind="_soloCerradas" /><label class="form-check-label" for="soloCerradas">Sólo cerradas</label></div>
+      <div class="col-md-2 d-grid"><button class="btn btn-outline-primary" @onclick="Cargar">Filtrar</button></div>
+    </div>
+    <hr />
+    <div class="row g-2 align-items-end">
+      <div class="col-12"><span class="form-text">Abrir la bodega de consignación de un cliente nuevo:</span></div>
+      <div class="col-md-6 position-relative">
+        <input class="form-control" @bind="_texCliente" @bind:event="oninput" @bind:after="BuscarCliente" placeholder="Cédula o nombre del cliente" />
+        @if (_clientes.Count > 0)
+        {
+          <div class="list-group position-absolute shadow w-100" style="z-index:5; max-height:14rem; overflow-y:auto;">
+            @foreach (var c in _clientes)
+            {
+              <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirCliente(c)"><strong>@c.Cedula</strong> @c.Nombre</button>
+            }
+          </div>
+        }
+        @if (_clienteSel is not null) { <div class="form-text">Seleccionado: <strong>@_clienteSel.Cedula — @_clienteSel.Nombre</strong></div> }
+      </div>
+      <div class="col-md-3 d-grid"><button class="btn btn-primary" @onclick="AbrirBodega" disabled="@(_clienteSel is null || _abriendo)">@(_abriendo ? "Abriendo..." : "Abrir bodega")</button></div>
+    </div>
+  </div></div>
+
+  <div class="card"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+    <thead><tr><th>Cédula</th><th>Cliente</th><th>Bodega</th><th class="text-end">Existencia</th><th>Estado</th><th>Apertura</th><th>Cierre</th></tr></thead>
+    <tbody>
+      @foreach (var b in _bodegas)
+      {
+        <tr>
+          <td>@b.Cedula</td><td>@b.NombreCliente</td><td>@b.NombreBodega</td>
+          <td class="text-end">@b.ExistenciaTotal.ToString("N3")</td>
+          <td><span class="badge @(b.Estado == "Cerrada" ? "text-bg-secondary" : "text-bg-success")">@b.Estado</span></td>
+          <td>@b.FechaApertura.ToString("dd/MM/yyyy")</td>
+          <td>@(b.FechaCierre?.ToString("dd/MM/yyyy") ?? "—")</td>
+        </tr>
+      }
+      @if (!_bodegas.Any()) { <tr><td colspan="7" class="text-secondary">Sin bodegas de consignación.</td></tr> }
+    </tbody>
+  </table></div></div>
+ </ChildContent>
+</AppPantalla>
+
+@code {
+ private List<BodegaConsignacionResumen> _bodegas = new();
+ private List<FiltranClienteDTO> _clientes = new();
+ private FiltranClienteDTO? _clienteSel;
+ private string _texto = "", _texCliente = "", _error = "";
+ private bool _soloCerradas, _cargando, _abriendo;
+
+ protected override Task OnInitializedAsync() => Cargar();
+
+ private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
+
+ private async Task Fallo<T>(LoteEnvelope<T> r, string alterno)
+ {
+     _error = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? alterno;
+     await Dialogos.ErrorAsync(_error);
+ }
+
+ private async Task Cargar()
+ {
+     _error = "";
+     _cargando = true;
+     var r = await Api.BodegasAsync(new BodegasConsignacionFiltro { Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim(), SoloCerradas = _soloCerradas });
+     _cargando = false;
+     if (Ok(r)) _bodegas = r.Responses ?? new();
+     else await Fallo(r, "No se pudieron cargar las bodegas de consignación.");
+ }
+
+ private async Task BuscarCliente()
+ {
+     var t = _texCliente?.Trim() ?? "";
+     _clienteSel = null;
+     if (t.Length < 2) { _clientes = new(); return; }
+     var r = await Clientes.Buscar(t);
+     _clientes = r.EsCorrecta ? (r.Responses ?? new List<FiltranClienteDTO>()).Take(20).ToList() : new();
+ }
+
+ private void ElegirCliente(FiltranClienteDTO c)
+ {
+     _clienteSel = c;
+     _texCliente = $"{c.Cedula} — {c.Nombre}";
+     _clientes = new();
+ }
+
+ private async Task AbrirBodega()
+ {
+     if (_clienteSel is null) return;
+     _abriendo = true;
+     var r = await Api.AbrirBodegaAsync(new AbrirBodegaConsignacion { IdCliente = _clienteSel.Identificacion });
+     _abriendo = false;
+     if (!Ok(r)) { await Fallo(r, "No se pudo abrir la bodega."); return; }
+     Dialogos.Exito($"Bodega de consignación lista para {_clienteSel.Nombre}.");
+     _clienteSel = null; _texCliente = "";
+     await Cargar();
+ }
+}

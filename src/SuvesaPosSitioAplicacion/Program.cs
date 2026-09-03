@@ -113,12 +113,22 @@ ClienteApi<IUsuarioApiCliente, UsuarioApiCliente>();
 // Cliente hecho a mano para /seguridad/* (contratos NSwag no regenerables en local).
 builder.Services.AddHttpClient<ISeguridadApiCliente, SeguridadApiCliente>(c => c.BaseAddress = new Uri(urlApi))
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+
+// Cliente hecho a mano para el CRUD de /ConfiguracionBonificacion/* (§3.1, contratos NSwag no regenerables en local).
+builder.Services.AddHttpClient<IBonificacionApiCliente, BonificacionApiCliente>(c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+// Cliente a mano para lotes / movimientos / toma física (MEJORA_LOTES_API.md).
+builder.Services.AddHttpClient<ILotesApiCliente, LotesApiCliente>(c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+builder.Services.AddHttpClient<IProduccionApiCliente, ProduccionApiCliente>(c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+builder.Services.AddHttpClient<IConsignacionInvApiCliente, ConsignacionInvApiCliente>(c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 ClienteApi<ICentrosApiCliente, CentrosApiCliente>();
 ClienteApi<IBancosApiCliente, BancosApiCliente>();
 ClienteApi<IInventarioApiCliente, InventarioApiCliente>();
 ClienteApi<ISubFamiliasApiCliente, SubFamiliasApiCliente>();
 ClienteApi<IBodegaApiCliente, BodegaApiCliente>();
-ClienteApi<ICalculadoraProduccionLotesApiCliente, CalculadoraProduccionLotesApiCliente>();
 ClienteApi<IArticulosImagenesApiCliente, ArticulosImagenesApiCliente>();
 ClienteApi<IArticulosRelacionadosApiCliente, ArticulosRelacionadosApiCliente>();
 ClienteApi<ICartaExoneracionApiCliente, CartaExoneracionApiCliente>();
@@ -135,7 +145,6 @@ ClienteApi<ITipoFacturaApiCliente, TipoFacturaApiCliente>();
 ClienteApi<IComprasApiCliente, ComprasApiCliente>();
 ClienteApi<IMonedaApiCliente, MonedaApiCliente>();
 ClienteApi<IQvetApiCliente, QvetApiCliente>();
-ClienteApi<IConsignacionApiCliente, ConsignacionApiCliente>();
 ClienteApi<ICajaApiCliente, CajaApiCliente>();
 ClienteApi<IArqueoApiCliente, ArqueoApiCliente>();
 ClienteApi<ICierreCajaApiCliente, CierreCajaApiCliente>();
@@ -168,7 +177,6 @@ builder.Services.AddScoped<ISeguridad, Seguridad>();
 builder.Services.AddScoped<IBancos, Bancos>();
 builder.Services.AddScoped<IInventarioConsulta, InventarioConsulta>();
 builder.Services.AddScoped<ICatalogosInventario, CatalogosInventario>();
-builder.Services.AddScoped<IProduccionInventario, ProduccionInventario>();
 builder.Services.AddScoped<IImagenesArticulo, ImagenesArticulo>();
 builder.Services.AddScoped<IArticulosRelacionados, ArticulosRelacionados>();
 builder.Services.AddScoped<ICartasExoneracion, CartasExoneracion>();
@@ -182,9 +190,8 @@ builder.Services.AddScoped<ICuentasPorCobrar, CuentasPorCobrar>();
 builder.Services.AddScoped<IReportes, Reportes>();
 builder.Services.AddScoped<IFacturacion, Facturacion>();
 builder.Services.AddScoped<ICompras, Compras>();
-builder.Services.AddScoped<IDocumentosEmitidos, DocumentosEmitidos>();
+builder.Services.AddScoped<IBandejaDocumentos, BandejaDocumentos>();
 builder.Services.AddScoped<IAlbaranes, Albaranes>();
-builder.Services.AddScoped<IConsignaciones, Consignaciones>();
 builder.Services.AddScoped<IDepositosConsulta, DepositosConsulta>();
 builder.Services.AddScoped<IFamilias, Familias>();
 builder.Services.AddScoped<IMantenimientosInventario, MantenimientosInventario>();

@@ -1,0 +1,231 @@
+@page "/initial/documents"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Bandeja
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IBandejaDocumentos Api
+@inject IBandejaFiscal Fiscal
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+@inject NavigationManager Navegacion
+
+@*  Bandeja unificada de documentos (BANDEJA_DOCUMENTOS_WEB.md). Reemplaza a
+    "Documentos Emitidos" + "Bandeja Fiscal V4.4". Pestañas: Preventas, Facturas,
+    Notas de Crédito, Consignaciones. Preventas y Consignaciones no llevan las
+    columnas fiscales. *@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <ul class="nav nav-tabs mb-3">
+            @for (var i = 0; i < _pestanas.Length; i++)
+            {
+                var idx = i;
+                <li class="nav-item"><button type="button" class="nav-link @(_tab == idx ? "active" : null)" @onclick="() => CambiarTab(idx)">@_pestanas[idx]</button></li>
+            }
+        </ul>
+
+        <div class="card mb-3">
+            <div class="card-body row g-2 align-items-end">
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">Desde</label>
+                    <input type="date" class="form-control" value="@_desde.ToString("yyyy-MM-dd")" @onchange="e => _desde = Fecha(e, _desde)" />
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">Hasta</label>
+                    <input type="date" class="form-control" value="@_hasta.ToString("yyyy-MM-dd")" @onchange="e => _hasta = Fecha(e, _hasta)" />
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Texto</label>
+                    <input type="search" class="form-control" placeholder="Consecutivo, clave, nº electrónico o cliente" @bind="_texto" @bind:event="oninput" @onkeydown="BuscarConEnter" />
+                </div>
+                @if (EsFiscal)
+                {
+                    <div class="col-8 col-md-3">
+                        <label class="form-label small">Estado en Hacienda</label>
+                        <input class="form-control" placeholder="Cualquiera" @bind="_estadoHacienda" />
+                    </div>
+                }
+                <div class="col-4 col-md-1 d-grid">
+                    <button class="btn btn-primary" disabled="@_cargando" @onclick="Buscar">Buscar</button>
+                </div>
+                <div class="col-12">
+                    <div class="form-check"><input id="bandeja-anulados" class="form-check-input" type="checkbox" @bind="_incluirAnulados" @bind:after="Buscar" /><label class="form-check-label small" for="bandeja-anulados">Incluir anulados</label></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                @if (_cargando)
+                {
+                    <div class="d-flex justify-content-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando</span></div></div>
+                }
+                else if (Filas.Count == 0)
+                {
+                    <p class="text-secondary text-center py-4 mb-0">No hay documentos con esos criterios.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Consecutivo</th>
+                                    <th>Cliente</th>
+                                    <th>Sucursal</th>
+                                    <th class="text-end">Subtotal</th>
+                                    <th class="text-end">Impuesto</th>
+                                    <th class="text-end">Total</th>
+                                    @if (_tab == 3) { <th>Estado</th> }
+                                    @if (EsFiscal)
+                                    {
+                                        <th>Nº electrónico</th>
+                                        <th>Clave</th>
+                                        <th>Estado Hacienda</th>
+                                        <th>Rechazo</th>
+                                    }
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var d in Filas)
+                                {
+                                    <tr class="@(d.Anulado ? "text-decoration-line-through text-secondary" : null)">
+                                        <td>@d.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td><code>@d.Consecutivo</code></td>
+                                        <td>@d.Cliente</td>
+                                        <td>@d.Sucursal</td>
+                                        <td class="text-end seepos-importe">@Formato.Importe(d.Subtotal)</td>
+                                        <td class="text-end seepos-importe">@Formato.Importe(d.Impuesto)</td>
+                                        <td class="text-end seepos-importe">@Formato.Importe(d.Total)</td>
+                                        @if (_tab == 3) { <td>@d.EstadoDescripcion</td> }
+                                        @if (EsFiscal && d is DocumentoFiscalBandeja f)
+                                        {
+                                            <td>@f.NumeroFacturaElectronica</td>
+                                            <td class="text-break"><span class="small">@f.ClaveFacturaElectronica</span></td>
+                                            <td>@if (!string.IsNullOrWhiteSpace(f.EstadoHacienda)) { <span class="badge @ClaseEstado(f.EstadoHacienda)">@f.EstadoHacienda</span> }</td>
+                                            <td>@if (!string.IsNullOrWhiteSpace(f.MensajeRechazoHacienda)) { <span class="text-danger small" title="@f.MensajeRechazoHacienda">@Truncar(f.MensajeRechazoHacienda)</span> }</td>
+                                        }
+                                        <td class="text-end text-nowrap">
+                                            <button class="btn btn-sm btn-link p-0" @onclick="() => VerDetalle(d)">Ver</button>
+                                            @if (_tab == 1)
+                                            {
+                                                <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => Devolucion(d)">Devolución</button>
+                                            }
+                                            @if (EsFiscal && d is DocumentoFiscalBandeja fa && !string.IsNullOrWhiteSpace(fa.ClaveFacturaElectronica))
+                                            {
+                                                <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => AccionFiscal(fa.ClaveFacturaElectronica!)">Fiscal</button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <button class="btn btn-sm btn-outline-secondary" disabled="@(_pagina <= 1 || _cargando)" @onclick="Anterior">Anterior</button>
+                        <span class="small text-secondary">Página @_pagina · @_total registro(s)</span>
+                        <button class="btn btn-sm btn-outline-secondary" disabled="@(_pagina * _tamano >= _total || _cargando)" @onclick="Siguiente">Siguiente</button>
+                    </div>
+                }
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<HxOffcanvas @ref="_detalle" Title="Detalle del documento" Placement="OffcanvasPlacement.End">
+    <BodyTemplate>
+        @if (_detFactura is not null)
+        {
+            @RenderEncabezado(_detFactura.Encabezado)
+            <dl class="row small mb-0">
+                <dt class="col-5 fw-normal text-secondary">Cajero</dt><dd class="col-7">@(_detFactura.Cajero ?? "—")</dd>
+                <dt class="col-5 fw-normal text-secondary">Moneda</dt><dd class="col-7">@(_detFactura.Moneda ?? "—")</dd>
+                <dt class="col-5 fw-normal text-secondary">Subtotal gravado</dt><dd class="col-7 seepos-importe">@Formato.Importe(_detFactura.SubtotalGravado)</dd>
+                <dt class="col-5 fw-normal text-secondary">Subtotal exento</dt><dd class="col-7 seepos-importe">@Formato.Importe(_detFactura.SubtotalExento)</dd>
+                <dt class="col-5 fw-normal text-secondary">Descuento</dt><dd class="col-7 seepos-importe">@Formato.Importe(_detFactura.Descuento)</dd>
+            </dl>
+            @RenderLineas(_detFactura.Lineas)
+            @if (_detFactura.PuedeDevolver)
+            {
+                <button class="btn btn-outline-danger btn-sm mt-3 w-100" @onclick="() => DevolucionPorConsecutivo(_detFactura.Encabezado.Consecutivo)">Realizar devolución</button>
+            }
+        }
+        else if (_detNC is not null)
+        {
+            @RenderEncabezado(_detNC.Encabezado)
+            <dl class="row small mb-0">
+                <dt class="col-5 fw-normal text-secondary">Factura origen</dt><dd class="col-7">@(_detNC.NumeroFactura ?? "—")</dd>
+                <dt class="col-5 fw-normal text-secondary">Notas</dt><dd class="col-7">@(_detNC.Notas ?? "—")</dd>
+                <dt class="col-5 fw-normal text-secondary">Subtotal gravado</dt><dd class="col-7 seepos-importe">@Formato.Importe(_detNC.SubtotalGravado)</dd>
+                <dt class="col-5 fw-normal text-secondary">Subtotal exento</dt><dd class="col-7 seepos-importe">@Formato.Importe(_detNC.SubtotalExento)</dd>
+            </dl>
+            @RenderLineas(_detNC.Lineas)
+        }
+        else if (_detComun is not null)
+        {
+            @RenderEncabezado(_detComun)
+        }
+    </BodyTemplate>
+</HxOffcanvas>
+
+<HxModal @ref="_modalFiscal" Title="Comprobante electrónico" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_claveFiscal is not null)
+        {
+            <p class="text-break small"><strong>Clave:</strong> @_claveFiscal</p>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+                <button class="btn btn-sm btn-outline-primary" @onclick="VerXml">Ver XML firmado</button>
+                <button class="btn btn-sm btn-outline-primary" @onclick="VerRespuesta">Ver respuesta Hacienda</button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="ConsultarEstadoHacienda">Consultar estado</button>
+                <button class="btn btn-sm btn-outline-danger" @onclick="ReintentarEmision">Reintentar emisión</button>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_contenidoFiscal))
+            {
+                <pre class="p-2 bg-light text-break" style="max-height:340px;overflow:auto">@_contenidoFiscal</pre>
+            }
+        }
+    </BodyTemplate>
+</HxModal>
+
+@code {
+    private RenderFragment RenderEncabezado(DocumentoFiscalBandeja e) => RenderEncabezadoBase(e, e);
+    private RenderFragment RenderEncabezado(DocumentoBandeja e) => RenderEncabezadoBase(e, null);
+
+    private RenderFragment RenderEncabezadoBase(DocumentoBandeja e, DocumentoFiscalBandeja? f) => @<div>
+        <dl class="row small mb-0">
+            <dt class="col-5 fw-normal text-secondary">Consecutivo</dt><dd class="col-7">@e.Consecutivo</dd>
+            <dt class="col-5 fw-normal text-secondary">Fecha</dt><dd class="col-7">@e.Fecha.ToString("dd/MM/yyyy HH:mm")</dd>
+            <dt class="col-5 fw-normal text-secondary">Cliente</dt><dd class="col-7">@(e.Cliente ?? "—")</dd>
+            <dt class="col-5 fw-normal text-secondary">Sucursal</dt><dd class="col-7">@(e.Sucursal ?? "—")</dd>
+            @if (!string.IsNullOrWhiteSpace(e.TipoDescripcion)) { <dt class="col-5 fw-normal text-secondary">Tipo</dt><dd class="col-7">@e.TipoDescripcion</dd> }
+            @if (!string.IsNullOrWhiteSpace(e.EstadoDescripcion)) { <dt class="col-5 fw-normal text-secondary">Estado</dt><dd class="col-7">@e.EstadoDescripcion</dd> }
+            <dt class="col-5 fw-normal text-secondary">Total</dt><dd class="col-7 seepos-importe fw-semibold">@Formato.Importe(e.Total)</dd>
+            @if (f is not null)
+            {
+                <dt class="col-5 fw-normal text-secondary">Nº electrónico</dt><dd class="col-7">@(f.NumeroFacturaElectronica ?? "—")</dd>
+                <dt class="col-5 fw-normal text-secondary">Clave</dt><dd class="col-7 text-break small">@(f.ClaveFacturaElectronica ?? "—")</dd>
+                <dt class="col-5 fw-normal text-secondary">Estado Hacienda</dt><dd class="col-7">@(f.EstadoHacienda ?? "—")</dd>
+                @if (!string.IsNullOrWhiteSpace(f.MensajeRechazoHacienda)) { <dt class="col-5 fw-normal text-danger">Rechazo</dt><dd class="col-7 text-danger">@f.MensajeRechazoHacienda</dd> }
+            }
+        </dl>
+        <hr />
+    </div>;
+
+    private RenderFragment RenderLineas(List<DocumentoBandejaLinea> lineas) => @<div>
+        @if (lineas.Count > 0)
+        {
+            <table class="table table-sm mt-2">
+                <thead><tr><th>Artículo</th><th class="text-end">Cant.</th><th class="text-end">P. Unit.</th><th class="text-end">Total</th></tr></thead>
+                <tbody>
+                    @foreach (var l in lineas)
+                    {
+                        <tr><td>@l.Descripcion<br /><code class="small text-secondary">@l.CodArticulo</code></td><td class="text-end">@l.Cantidad.ToString("N2")</td><td class="text-end seepos-importe">@Formato.Importe(l.PrecioUnitario)</td><td class="text-end seepos-importe">@Formato.Importe(l.Total)</td></tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>;
+}
