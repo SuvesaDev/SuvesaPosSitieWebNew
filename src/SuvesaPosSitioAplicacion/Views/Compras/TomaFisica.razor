@@ -105,6 +105,8 @@
     <BodyTemplate>
         @if (_reporte is not null)
         {
+            <p class="mb-2"><strong>Consecutivo N.º @_reporte.Id.ToString("D8")</strong>
+               <span class="text-secondary small ms-2">(= id de la toma)</span></p>
             <div class="row g-3 mb-3">
                 <div class="col-6 col-md-3"><div class="text-secondary small">Artículos ajustados</div><div class="h5 mb-0">@_reporte.ArticulosAjustados</div></div>
                 <div class="col-6 col-md-3"><div class="text-secondary small">Unidades ganadas</div><div class="h5 mb-0 text-success">@_reporte.UnidadesGanadas.ToString("N2")</div></div>
@@ -131,6 +133,10 @@
         }
     </BodyTemplate>
     <FooterTemplate>
+        @if (_reporte is not null && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
+        {
+            <BotonImprimir Tipo="toma-fisica" Id="_reporte.Id" Texto="Imprimir toma física" Clase="btn-outline-primary" />
+        }
         <button class="btn btn-primary" @onclick="() => _modalReporte.HideAsync()">Cerrar</button>
     </FooterTemplate>
 </HxModal>

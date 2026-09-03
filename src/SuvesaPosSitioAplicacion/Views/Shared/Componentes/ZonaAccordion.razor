@@ -1,0 +1,14 @@
+@* Sección plegable simple para editores por zonas (MOTOR_PLANTILLAS_IMPRESION_WEB.md §3.2). *@
+<details class="border rounded p-2 mb-2" open="@Abierto">
+    <summary class="fw-semibold small text-uppercase text-secondary" style="cursor:pointer">@Titulo</summary>
+    <div class="pt-2">
+        @ChildContent
+    </div>
+</details>
+
+@code {
+    [Parameter] public string Id { get; set; } = "";
+    [Parameter] public string Titulo { get; set; } = "";
+    [Parameter] public bool Abierto { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

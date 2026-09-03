@@ -33,6 +33,7 @@
             {
                 <span class="text-white-50 small d-none d-md-inline">@Sesion.NombreSucursal</span>
                 <span class="text-white small d-none d-sm-inline">@Sesion.Usuario</span>
+                <CampanaAlertas />
                 <button type="button" class="btn btn-sm seepos-boton-menu"
                         aria-label="Cambiar tema" title="Cambiar tema" @onclick="AlternarTema">
                     <i class="bi @(_oscuro ? "bi-sun" : "bi-moon-stars")" aria-hidden="true"></i>

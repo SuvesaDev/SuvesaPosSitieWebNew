@@ -1,0 +1,73 @@
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Security
+@implements IAsyncDisposable
+@inject IAlertasAdministrador Api
+@inject IContextoSesion Sesion
+@inject NavigationManager Nav
+
+@if (Sesion.EsAdministrador)
+{
+    <button type="button" class="btn btn-sm seepos-boton-menu position-relative"
+            title="Alertas del administrador" aria-label="Alertas" @onclick="Ir">
+        <i class="bi bi-bell" aria-hidden="true"></i>
+        @if (_conteo > 0)
+        {
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                @(_conteo > 99 ? "99+" : _conteo.ToString())
+            </span>
+        }
+    </button>
+}
+
+@code {
+    private int _conteo;
+    private CancellationTokenSource? _cts;
+    private static readonly TimeSpan Intervalo = TimeSpan.FromMinutes(3);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.EsAdministrador) return;
+
+        await Refrescar();
+        _cts = new CancellationTokenSource();
+        _ = BuclePolling(_cts.Token);
+    }
+
+    private async Task BuclePolling(CancellationToken ct)
+    {
+        using var t = new PeriodicTimer(Intervalo);
+        try
+        {
+            while (await t.WaitForNextTickAsync(ct))
+            {
+                await Refrescar();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task Refrescar()
+    {
+        try
+        {
+            var r = await Api.Conteo(null);
+            if (r.EsCorrecta) _conteo = r.Responses;
+        }
+        catch
+        {
+            // El contador es informativo: un fallo no rompe el layout.
+        }
+    }
+
+    private void Ir() => Nav.NavigateTo("/initial/alerts");
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_cts is not null)
+        {
+            await _cts.CancelAsync();
+            _cts.Dispose();
+        }
+    }
+}

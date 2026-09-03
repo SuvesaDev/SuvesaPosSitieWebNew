@@ -1,0 +1,230 @@
+@page "/parameters/print-templates"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
+@using SuvesaPosSitioAplicacion.DTOs.Impresion
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@using Havit.Blazor.Components.Web.Bootstrap
+@inject IPlantillasImpresion Api
+@inject IEmisoresFiscales EmisoresApi
+@inject ISeriesFacturacionFiscales SeriesApi
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="@Titulo" Codigo="PARAMETROS.PLANTILLAS_IMPRESION" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        <button class="btn btn-sm btn-primary" @onclick="Nueva" disabled="@(_idEmisor <= 0 || _tipo <= 0)">Nueva plantilla</button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar"><i class="bi bi-arrow-clockwise"></i></button>
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Emisor</label>
+                    <select class="form-select form-select-sm" @bind="_idEmisor" @bind:after="Cargar">
+                        <option value="0">— Seleccione —</option>
+                        @foreach (var e in _emisores) { <option value="@e.Id">@e.Nombre</option> }
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Tipo de documento</label>
+                    <select class="form-select form-select-sm" @bind="_tipo" @bind:after="Cargar">
+                        <option value="0">Todos</option>
+                        @foreach (var t in TiposImpresionUi.Todos) { <option value="@t.Valor">@t.Nombre</option> }
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Nombre</th><th>Tipo</th><th>Formato</th><th>Serie</th><th>Predet.</th><th>Activa</th><th></th></tr></thead>
+                    <tbody>
+                        @if (_items.Count == 0) { <tr><td colspan="7" class="text-secondary text-center py-3">Sin plantillas. Usa el default embebido.</td></tr> }
+                        @foreach (var p in _items)
+                        {
+                            <tr class="@(p.Activa ? "" : "text-secondary")">
+                                <td>@p.Nombre</td>
+                                <td class="small">@TiposImpresionUi.Nombre(p.TipoDocumento)</td>
+                                <td class="small">@TiposImpresionUi.Formato(p.Formato)</td>
+                                <td class="small">@(p.IdSerie?.ToString() ?? "—")</td>
+                                <td>@(p.EsPredeterminada ? "★" : "")</td>
+                                <td>@(p.Activa ? "Sí" : "No")</td>
+                                <td class="text-nowrap">
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => Editar(p.Id)"><i class="bi bi-pencil"></i></button>
+                                    @if (!p.EsPredeterminada)
+                                    {
+                                        <button class="btn btn-sm btn-outline-primary ms-1" @onclick="() => Predeterminada(p.Id)">★</button>
+                                    }
+                                    @if (p.Activa)
+                                    {
+                                        <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => Desactivar(p.Id)"><i class="bi bi-trash"></i></button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modal" Title="@TituloModal" Size="ModalSize.ExtraLarge" Scrollable="true">
+    <BodyTemplate>
+        @if (_edicion is not null && _cfg is not null && _cat is not null)
+        {
+            <div class="row g-3">
+                <div class="col-12 col-lg-6">
+                    <div class="mb-3 row g-2">
+                        <div class="col-12 col-md-6"><label class="form-label small">Nombre</label><input class="form-control form-control-sm" maxlength="120" @bind="_edicion.Nombre" /></div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small">Formato</label>
+                            <select class="form-select form-select-sm" @bind="_edicion.Formato">
+                                <option value="1">A4</option>
+                                <option value="2">Térmico 80 mm</option>
+                            </select>
+                        </div>
+                        @if (_edicion.Formato == 2)
+                        {
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small">Ancho rollo</label>
+                                <select class="form-select form-select-sm" @bind="_anchoRollo">
+                                    <option value="80">80 mm</option>
+                                    <option value="58">58 mm</option>
+                                </select>
+                            </div>
+                        }
+                        @if (_cat.UsaSerie)
+                        {
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small">Serie</label>
+                                <select class="form-select form-select-sm" @bind="_edicion.IdSerie">
+                                    <option value="">— Predeterminada del emisor —</option>
+                                    @foreach (var s in _series) { <option value="@s.IdSerie">@s.Descripcion (term. @s.NumeroTerminal)</option> }
+                                </select>
+                            </div>
+                        }
+                        <div class="col-12 d-flex gap-4">
+                            <div class="form-check"><input id="predet" class="form-check-input" type="checkbox" @bind="_edicion.EsPredeterminada" /><label class="form-check-label" for="predet">Predeterminada</label></div>
+                            <div class="form-check"><input id="activa" class="form-check-input" type="checkbox" @bind="_edicion.Activa" /><label class="form-check-label" for="activa">Activa</label></div>
+                        </div>
+                    </div>
+
+                    <div class="accordion" id="acc">
+                        <ZonaAccordion Id="enc" Titulo="Encabezado">
+                            <div class="form-check"><input id="mlogo" class="form-check-input" type="checkbox" @bind="_cfg.Encabezado.MostrarLogo" /><label class="form-check-label" for="mlogo">Mostrar logo</label></div>
+                            <div class="row g-2 my-1">
+                                <div class="col-6"><label class="form-label small">Alineación logo</label>
+                                    <select class="form-select form-select-sm" @bind="_cfg.Encabezado.AlineacionLogo">
+                                        <option value="izquierda">Izquierda</option><option value="centro">Centro</option><option value="derecha">Derecha</option>
+                                    </select></div>
+                                <div class="col-6"><label class="form-label small">Alto logo (mm)</label><input class="form-control form-control-sm" type="number" min="5" max="40" @bind="_cfg.Encabezado.AltoLogoMm" /></div>
+                            </div>
+                            <div class="form-check"><input id="mde" class="form-check-input" type="checkbox" @bind="_cfg.Encabezado.MostrarDatosEmisor" /><label class="form-check-label" for="mde">Mostrar datos del emisor</label></div>
+                            <label class="form-label small mt-1">Líneas de texto (una por renglón)</label>
+                            <textarea class="form-control form-control-sm" rows="2" @bind="_lineasEncabezado"></textarea>
+                        </ZonaAccordion>
+
+                        <ZonaAccordion Id="rec" Titulo="Receptor">
+                            <div class="form-check"><input id="mrec" class="form-check-input" type="checkbox" @bind="_cfg.Receptor.Mostrar" /><label class="form-check-label" for="mrec">Mostrar bloque</label></div>
+                            @foreach (var c in _cfg.Receptor.Campos)
+                            {
+                                <div class="d-flex align-items-center gap-2 my-1">
+                                    <input class="form-check-input" type="checkbox" @bind="c.Visible" />
+                                    <span class="small text-secondary" style="width:110px">@c.Clave</span>
+                                    <input class="form-control form-control-sm" @bind="c.Etiqueta" />
+                                </div>
+                            }
+                        </ZonaAccordion>
+
+                        <ZonaAccordion Id="meta" Titulo="Datos del documento">
+                            @foreach (var c in _cfg.Meta.Campos.OrderBy(x => x.Orden))
+                            {
+                                <div class="d-flex align-items-center gap-2 my-1">
+                                    <input class="form-check-input" type="checkbox" @bind="c.Visible" />
+                                    <span class="small text-secondary" style="width:130px">@c.Clave</span>
+                                    <input class="form-control form-control-sm" @bind="c.Etiqueta" />
+                                    <input class="form-control form-control-sm" type="number" style="width:70px" @bind="c.Orden" />
+                                </div>
+                            }
+                        </ZonaAccordion>
+
+                        <ZonaAccordion Id="det" Titulo="Columnas del detalle">
+                            @foreach (var c in _cfg.Detalle.Columnas.OrderBy(x => x.Orden))
+                            {
+                                <div class="d-flex align-items-center gap-2 my-1">
+                                    <input class="form-check-input" type="checkbox" @bind="c.Visible" />
+                                    <span class="small text-secondary" style="width:120px">@c.Clave</span>
+                                    <input class="form-control form-control-sm" @bind="c.Etiqueta" />
+                                    <input class="form-control form-control-sm" type="number" step="0.1" style="width:70px" @bind="c.AnchoRel" />
+                                    <select class="form-select form-select-sm" style="width:100px" @bind="c.Alineacion">
+                                        <option value="izquierda">Izq</option><option value="centro">Centro</option><option value="derecha">Der</option>
+                                    </select>
+                                    <input class="form-control form-control-sm" type="number" style="width:60px" @bind="c.Orden" />
+                                </div>
+                            }
+                        </ZonaAccordion>
+
+                        <ZonaAccordion Id="tot" Titulo="Totales">
+                            @foreach (var c in _cfg.Totales.Filas.OrderBy(x => x.Orden))
+                            {
+                                <div class="d-flex align-items-center gap-2 my-1">
+                                    <input class="form-check-input" type="checkbox" @bind="c.Visible" />
+                                    <span class="small text-secondary" style="width:110px">@c.Clave</span>
+                                    <input class="form-control form-control-sm" @bind="c.Etiqueta" />
+                                </div>
+                            }
+                        </ZonaAccordion>
+
+                        <ZonaAccordion Id="pie" Titulo="Pie de página">
+                            <label class="form-label small">Líneas de texto</label>
+                            <textarea class="form-control form-control-sm" rows="2" @bind="_lineasPie"></textarea>
+                            <div class="form-check mt-1"><input id="mres" class="form-check-input" type="checkbox" @bind="_cfg.Pie.MostrarResolucion" /><label class="form-check-label" for="mres">Mostrar texto de resolución</label></div>
+                            <textarea class="form-control form-control-sm mt-1" rows="2" @bind="_cfg.Pie.TextoResolucion"></textarea>
+                            <div class="form-check mt-1"><input id="mbanc" class="form-check-input" type="checkbox" @bind="_cfg.Pie.MostrarDatosBancarios" /><label class="form-check-label" for="mbanc">Mostrar datos bancarios</label></div>
+                            <div class="form-check"><input id="mpag" class="form-check-input" type="checkbox" @bind="_cfg.Pie.MostrarPaginado" disabled="@(_edicion.Formato == 2)" /><label class="form-check-label" for="mpag">Numerar páginas (solo A4)</label></div>
+                        </ZonaAccordion>
+
+                        <ZonaAccordion Id="ley" Titulo="Leyendas, márgenes y fuente">
+                            <div class="row g-2">
+                                <div class="col-6"><label class="form-label small">Leyenda "original"</label><input class="form-control form-control-sm" @bind="_cfg.Leyendas.Original" /></div>
+                                <div class="col-6"><label class="form-label small">Leyenda "copia"</label><input class="form-control form-control-sm" @bind="_cfg.Leyendas.Copia" /></div>
+                                <div class="col-3"><label class="form-label small">Margen sup.</label><input class="form-control form-control-sm" type="number" @bind="_cfg.MargenesMm.Sup" /></div>
+                                <div class="col-3"><label class="form-label small">Inf.</label><input class="form-control form-control-sm" type="number" @bind="_cfg.MargenesMm.Inf" /></div>
+                                <div class="col-3"><label class="form-label small">Izq.</label><input class="form-control form-control-sm" type="number" @bind="_cfg.MargenesMm.Izq" /></div>
+                                <div class="col-3"><label class="form-label small">Der.</label><input class="form-control form-control-sm" type="number" @bind="_cfg.MargenesMm.Der" /></div>
+                                <div class="col-6"><label class="form-label small">Fuente</label><input class="form-control form-control-sm" @bind="_cfg.Fuente.Familia" /></div>
+                                <div class="col-6"><label class="form-label small">Tamaño base (pt)</label><input class="form-control form-control-sm" type="number" min="5" max="18" @bind="_cfg.Fuente.TamanoBase" /></div>
+                            </div>
+                        </ZonaAccordion>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-6">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-secondary">Previsualización</span>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="Previsualizar" disabled="@(_edicion.Id <= 0)">Actualizar vista</button>
+                    </div>
+                    @if (_edicion.Id <= 0)
+                    {
+                        <div class="alert alert-info small">Guarde la plantilla para previsualizarla con datos de ejemplo.</div>
+                    }
+                    else if (_previewData is not null)
+                    {
+                        <object data="@_previewData" type="application/pdf" style="width:100%;height:70vh;border:1px solid #ddd"></object>
+                    }
+                    else
+                    {
+                        <div class="text-secondary small">Pulse "Actualizar vista".</div>
+                    }
+                </div>
+            </div>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-primary" @onclick="Guardar" disabled="@_guardando">Guardar</button>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cerrar</button>
+    </FooterTemplate>
+</HxModal>

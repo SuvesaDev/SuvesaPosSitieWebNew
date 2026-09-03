@@ -118,6 +118,14 @@
                                             {
                                                 <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => AccionFiscal(fa.ClaveFacturaElectronica!)">Fiscal</button>
                                             }
+                                            @if (EsFiscal && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
+                                            {
+                                                <span class="ms-2">
+                                                    <BotonImprimir Tipo="@(_tab == 1 ? "factura-electronica" : "nota-credito")"
+                                                                   Id="d.Id" Clase="btn-sm btn-link p-0" SoloIcono="true"
+                                                                   Titulo="Descargar PDF (A4)" />
+                                                </span>
+                                            }
                                         </td>
                                     </tr>
                                 }

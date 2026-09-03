@@ -9,8 +9,13 @@ namespace SuvesaPosSitioAplicacion.Services;
 /// supera, hay que cambiar a PDFsharp con MigraDoc, que es MIT sin condiciones.
 /// Con esta interfaz de por medio, ese cambio toca una clase y no 20 pantallas.
 ///
-/// Contexto: por la decision 05 no se imprime nada. Los PDF se ven o se descargan,
-/// siempre en A4. No hay formatos termicos que reproducir.
+/// Alcance: este generador cubre SOLO los reportes tabulares del sitio
+/// (/reportes/compras/pdf, cuentas por pagar). La representacion grafica de los
+/// documentos (factura, tiquete, nota de credito, recibos, presupuesto,
+/// consignacion, inventarios, traslados, toma fisica) la renderiza el API
+/// (proyecto SuvesaPos.Impresion) y el sitio la abre por el endpoint local
+/// /documentos/{tipo}/{id}/pdf — ver MOTOR_PLANTILLAS_IMPRESION_WEB.md. Ese motor
+/// admite A4 y termico 80 mm.
 /// </summary>
 public interface IGeneradorPdf
 {
