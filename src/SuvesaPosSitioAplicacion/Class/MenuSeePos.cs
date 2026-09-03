@@ -5,7 +5,7 @@ namespace SuvesaPosSitioAplicacion.Class;
 /// <summary>
 /// Menu lateral del sistema. Base portada de SidebarData.jsx del sistema actual y
 /// despues reorganizada, y luego podada de las entradas que nunca se implementaron
-/// (no tenian pantalla ni funcion): 12 raices y 79 nodos. Los titulos se conservan
+/// (no tenian pantalla ni funcion): 12 raices y 78 nodos. Los titulos se conservan
 /// literalmente porque, junto con el Codigo, son la llave contra la que casan los
 /// permisos.
 ///
@@ -58,18 +58,6 @@ public static partial class MenuSeePos
                     Titulo = "Bandeja Fiscal V4.4",
                     Codigo = "INICIO.BANDEJA_FISCAL_V4_4",
                     Ruta = "/invoices/fiscal-tray",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Devoluciones",
-                    Codigo = "INICIO.DEVOLUCIONES",
-                    Ruta = "/initial/repayment",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Consulta Albaranes",
-                    Codigo = "INICIO.CONSULTA_ALBARANES",
-                    Ruta = "/initial/consultAlbaranes",
                 }
             }
         },
@@ -296,6 +284,13 @@ public static partial class MenuSeePos
                     Titulo = "Devoluciones",
                     Codigo = "VENTAS.DEVOLUCIONES",
                     Ruta = "/sales/repayment",
+                },
+                new ItemMenu
+                {
+                    // Antes bajo "Inicio"; movida aquí a petición del usuario.
+                    Titulo = "Consulta Albaranes",
+                    Codigo = "VENTAS.CONSULTA_ALBARANES",
+                    Ruta = "/initial/consultAlbaranes",
                 }
             }
         },

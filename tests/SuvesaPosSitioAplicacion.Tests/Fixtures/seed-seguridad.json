@@ -153,38 +153,6 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
-        },
-        {
-          "codigo": "INICIO.DEVOLUCIONES",
-          "nombre": "Devoluciones",
-          "ruta": "/initial/repayment",
-          "padre": null,
-          "orden": 8,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "INICIO.CONSULTA_ALBARANES",
-          "nombre": "Consulta Albaranes",
-          "ruta": "/initial/consultAlbaranes",
-          "padre": null,
-          "orden": 9,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
         }
       ]
     },
@@ -672,6 +640,22 @@
           "ruta": "/sales/repayment",
           "padre": null,
           "orden": 5,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "VENTAS.CONSULTA_ALBARANES",
+          "nombre": "Consulta Albaranes",
+          "ruta": "/initial/consultAlbaranes",
+          "padre": null,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",
