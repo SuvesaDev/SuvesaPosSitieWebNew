@@ -237,6 +237,9 @@ builder.Services.AddScoped<IImpresionDocumentos, ImpresionDocumentos>();
 // Abono Cobrar — preventas pendientes + emisión síncrona (ABONO_COBRAR_PREVENTAS_WEB.md).
 builder.Services.AddScoped<IAbonoCobrarPreventas, AbonoCobrarPreventas>();
 
+// SANEAMIENTO Fase 8 — cobro de facturas de crédito (mayor de CxC).
+builder.Services.AddScoped<ICobrosCredito, CobrosCredito>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

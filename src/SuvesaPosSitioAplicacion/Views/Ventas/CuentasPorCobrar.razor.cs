@@ -40,7 +40,79 @@ public partial class CuentasPorCobrar
     // --- Resultado ---
     private readonly List<FilaResultado> _resultados = new();
 
+    // --- Modo "Facturas de crédito" (SANEAMIENTO Fase 8) ---
+    private string _modo = "preventas";
+    private CreditoClienteWebDTO? _credito;
+    private List<FacturaCreditoWebDTO> _facturasCredito = new();
+    private readonly HashSet<long> _selCredito = new();
+    private decimal _aCobrarCredito, _entregadoCredito;
+
     private bool TodasSeleccionadas => _preventas.Count > 0 && _preventas.All(p => _seleccion.Contains(p.Id));
+
+    private void CambiarModo(string modo)
+    {
+        _modo = modo;
+        _resultados.Clear();
+    }
+
+    private void AlternarCredito(long id)
+    {
+        if (!_selCredito.Add(id)) _selCredito.Remove(id);
+        RecalcularCredito();
+    }
+
+    private void RecalcularCredito()
+    {
+        _aCobrarCredito = _facturasCredito.Where(f => _selCredito.Contains(f.IdVenta)).Sum(f => f.SaldoActual);
+        _entregadoCredito = _montos.Values.Sum();
+    }
+
+    private async Task CobrarCredito()
+    {
+        if (_procesando || _selCredito.Count == 0 || _entregadoCredito <= 0) return;
+
+        var formas = _formasPago
+            .Where(f => f.Codigo is not null && _montos.TryGetValue(f.Codigo, out var m) && m > 0)
+            .Select(f => new CobroCreditoFormaPagoWebDTO { CodigoFormaPago = f.Codigo!, MontoRecibido = _montos[f.Codigo!] })
+            .ToList();
+        if (formas.Count == 0) { await Dialogos.ErrorAsync("Indique el monto de al menos una forma de pago."); return; }
+
+        if (!await Dialogos.ConfirmarAsync(
+                $"Cobrar {Formato.Importe(_entregadoCredito)} y aplicarlo a {_selCredito.Count} factura(s) de crédito?", "Cobrar crédito"))
+            return;
+
+        _procesando = true;
+        try
+        {
+            var comando = new CobroCreditoComandoWebDTO
+            {
+                ClaveIdempotencia = Guid.NewGuid().ToString("N"),
+                IdCliente = _codCliente,
+                IdApertura = _numApertura,
+                IdSucursal = Sesion.IdSucursal,
+                CedulaCajero = _usuario?.Nombre is { } ? null : null,
+                Usuario = Sesion.Usuario ?? _usuario?.Nombre ?? "",
+                Facturas = _selCredito.Select(id => new CobroCreditoFacturaWebDTO { IdVenta = id }).ToList(),
+                FormasPago = formas,
+                PermitirParcial = true,
+            };
+
+            var r = await Credito.Cobrar(comando);
+            var res = await Respuestas.DatoAsync(r, "registrar el cobro de crédito");
+            if (!r.EsCorrecta || res is null) return;
+
+            Dialogos.Exito($"Cobro registrado. Recibo N.º {res.NumeroRecibo}. Aplicado {Formato.Importe(res.TotalAplicado)}" +
+                           (res.Vuelto > 0 ? $", vuelto {Formato.Importe(res.Vuelto)}" : "") + ".");
+
+            if (await Dialogos.ConfirmarAsync("¿Imprimir el recibo?", "Impresión"))
+                await JS.InvokeVoidAsync("open", $"/documentos/recibo-cobro/{res.IdCobro}/pdf", "_blank");
+
+            _selCredito.Clear();
+            foreach (var k in _montos.Keys.ToList()) _montos[k] = 0;
+            await Buscar();
+        }
+        finally { _procesando = false; }
+    }
 
     private sealed class FilaResultado
     {
@@ -100,6 +172,9 @@ public partial class CuentasPorCobrar
         _seleccion.Clear();
         _resultados.Clear();
         _cliente = null;
+        _credito = null;
+        _facturasCredito = new();
+        _selCredito.Clear();
 
         var codigo = await Respuestas.DatoAsync(await Api.CodigoClientePorCedula(_cedula.Trim()), "buscar el código del cliente");
         if (codigo == 0)
@@ -110,9 +185,19 @@ public partial class CuentasPorCobrar
         }
         _codCliente = codigo;
 
-        var lista = await Respuestas.DatoAsync(await Preventas.PreventasPendientes(_codCliente), "consultar las preventas pendientes");
-        _preventas = (lista ?? new List<PreventaResumenWebDTO>()).ToList();
-        _cliente = _preventas.FirstOrDefault()?.Cliente ?? $"Cliente {_codCliente}";
+        if (_modo == "preventas")
+        {
+            var lista = await Respuestas.DatoAsync(await Preventas.PreventasPendientes(_codCliente), "consultar las preventas pendientes");
+            _preventas = (lista ?? new List<PreventaResumenWebDTO>()).ToList();
+            _cliente = _preventas.FirstOrDefault()?.Cliente ?? $"Cliente {_codCliente}";
+        }
+        else
+        {
+            _credito = await Respuestas.DatoAsync(await Credito.Credito(_codCliente), "consultar el crédito del cliente");
+            var facturas = await Respuestas.DatoAsync(await Credito.Facturas(_codCliente), "consultar las facturas de crédito");
+            _facturasCredito = (facturas ?? new List<FacturaCreditoWebDTO>()).ToList();
+            _cliente = _credito?.Nombre ?? $"Cliente {_codCliente}";
+        }
 
         _formasPago = (await Respuestas.DatoAsync(await Api.FormasPago(_codCliente), "consultar las formas de pago"))?.ToList() ?? new();
         _montos.Clear();
@@ -120,6 +205,7 @@ public partial class CuentasPorCobrar
 
         _buscando = false;
         Recalcular();
+        RecalcularCredito();
     }
 
     // ------------------------------------------------------------------ Selección
