@@ -123,8 +123,12 @@ Columnas: **Descripción** · **Emisor** (nombre) · **Sucursal** (nombre + `FE 
 
 ## 4. Checklist (WEB)
 
-- [ ] **§1** Confirmar decisiones (ver `SERIES_FACTURACION_API.md` §2): flags `Es*`
-      (mantener con uso / retirar), resolución de serie por terminal, presupuestos.
+- [x] **§1** Decisiones confirmadas (ver `SERIES_FACTURACION_API.md` §2):
+      **flags `Es*` se mantienen con uso real** (clasifican la serie y marcan la
+      venta) → van en el formulario como sección "Uso"; **serie por
+      emisor+sucursal+terminal+tipo** (terminal = caja); **presupuestos se
+      modelan aquí** con un tipo sin `CodigoFE` (sección 4 deshabilitada, sin
+      exigir FE); `TipoFacturacion` legacy se elimina (no afecta al sitio).
 - [ ] **§2** `SerieFacturacionFiscalDTO`: campos derivados nuevos + proxy
       `Catalogos()` en `ISeriesFacturacionFiscales`.
 - [ ] **§3** `SeriesFacturacionFiscal.razor`: modal en 4 secciones con `<select>`
