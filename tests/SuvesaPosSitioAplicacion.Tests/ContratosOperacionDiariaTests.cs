@@ -9,6 +9,7 @@ using SuvesaPosSitioAplicacion.DTOs.Cobros;
 using SuvesaPosSitioAplicacion.DTOs.Compras;
 using SuvesaPosSitioAplicacion.DTOs.Consignacion;
 using SuvesaPosSitioAplicacion.DTOs.Fiscal;
+using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.DTOs.Produccion;
 using SuvesaPosSitioAplicacion.DTOs.Ventas;
 using SuvesaPosSitioAplicacion.Security;
@@ -60,6 +61,111 @@ public class ContratosOperacionDiariaTests
         Assert.Contains("18.5", handler.Solicitudes[0].Cuerpo);
         Assert.Contains("17.75", handler.Solicitudes[1].Cuerpo);
         Assert.Contains("idConteo", handler.Solicitudes[2].Cuerpo, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ConsignacionDeCarne_DesdeLaCentralHastaFacturaCredito_ConservaLoteCantidadYEstados()
+    {
+        // 20 kg salen de la bodega normal hacia la central; se consignan al
+        // cliente, el conteo físico deja 17,75 kg y por tanto se facturan 2,25 kg.
+        const long cliente = 401;
+        const long articulo = 8001;
+        const long lote = 55;
+        const long conteo = 300;
+        const long prefactura = 940;
+        var handler = new RegistroHttpHandler(_ => """{"status":0,"responses":{}}""");
+        var sesion = new SesionPrueba("operador-carnes");
+        var api = new ConsignacionInvApiCliente(Http(handler), sesion);
+        var factura = new FacturaDTO
+        {
+            CodCliente = cliente.ToString(),
+            IdSucursal = 3,
+            IdEmpresa = 1,
+            NumApertura = 88,
+            Preventa = true,
+            EsConsignacion = true,
+            SubTotal = 11_925f,
+            ImpVenta = 1_550.25f,
+            Total = 13_475.25f,
+            Detalle =
+            [
+                new()
+                {
+                    CodArticulo = articulo, Descripcion = "Carne de res para guisar", Cantidad = 2.25f,
+                    PrecioUnit = 5_300f, Impuesto = 13, MontoImpuesto = 1_550.25f,
+                    SubtotalGravado = 11_925f, SubTotal = 11_925f, IdBodega = 61, Lote = lote, NumeroLote = "RES-0904"
+                }
+            ]
+        };
+
+        await api.AbrirBodegaCentralAsync(new AbrirBodegaCentralConsignacion { IdSucursal = 3 });
+        await api.ReponerCentralAsync(new ReponerCentralConsignacionRequest
+        {
+            IdSucursal = 3, IdBodegaOrigen = 2, Documento = "REP-CAR-00001",
+            Lineas = [new() { IdArticulo = articulo, IdStockLote = lote, Cantidad = 20 }]
+        });
+        await api.AbrirBodegaAsync(new AbrirBodegaConsignacion { IdCliente = cliente, IdSucursal = 3, Observaciones = "Cliente de consignación de carnes" });
+        await api.RegistrarBoletaAsync(new BoletaConsignacionRequest
+        {
+            Tipo = 1, IdCliente = cliente, Documento = "ING-CAR-00049", Motivo = "Entrega semanal de carne refrigerada",
+            Lineas = [new() { IdArticulo = articulo, IdStockLote = lote, Cantidad = 20 }]
+        });
+        await api.ExistenciaAsync(cliente);
+        await api.RegistrarConteoAsync(new ConteoConsignacionRequest
+        {
+            IdCliente = cliente, Completo = true, Agente = "Carnicería Central",
+            Lineas = [new() { IdArticulo = articulo, IdStockLote = lote, Fisico = 17.75, PrecioUnitario = 5_300 }]
+        });
+        await api.KardexAsync(new KardexConsignacionFiltro { IdCliente = cliente, Desde = new DateTime(2026, 9, 4), Hasta = new DateTime(2026, 9, 4) });
+        await api.GenerarPrefacturaAsync(new GenerarPrefacturaConsignacion { IdConteo = conteo, Factura = factura });
+        await api.AprobarPrefacturaAsync(prefactura);
+        await api.FacturarPrefacturaAsync(new FacturarPrefacturaConsignacion { IdPrefactura = prefactura, Condicion = 2, IdPlazo = 15 });
+        await api.PrefacturaAsync(prefactura);
+        await api.KardexAsync(new KardexConsignacionFiltro { IdCliente = cliente });
+
+        Assert.Collection(handler.Solicitudes,
+            r => Assert.Equal(("POST", "/ConsignacionInventario/AbrirBodegaCentral"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/ReponerCentral"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/AbrirBodega"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/RegistrarBoleta"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/Existencia"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/RegistrarConteo"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/Kardex"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/GenerarPrefactura"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/AprobarPrefactura?idPrefactura=940"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/FacturarPrefactura"), r.VerboYRuta),
+            r => Assert.Equal(("GET", "/ConsignacionInventario/Prefactura?id=940"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/Kardex"), r.VerboYRuta));
+
+        using var conteoJson = JsonDocument.Parse(handler.Solicitudes[5].Cuerpo);
+        using var facturaJson = JsonDocument.Parse(handler.Solicitudes[7].Cuerpo);
+        using var facturacionJson = JsonDocument.Parse(handler.Solicitudes[9].Cuerpo);
+        Assert.Equal(17.75d, conteoJson.RootElement.GetProperty("lineas")[0].GetProperty("fisico").GetDouble());
+        Assert.Equal(2.25d, facturaJson.RootElement.GetProperty("factura").GetProperty("detalle")[0].GetProperty("cantidad").GetDouble());
+        Assert.True(facturaJson.RootElement.GetProperty("factura").GetProperty("esConsignacion").GetBoolean());
+        Assert.Equal(2, facturacionJson.RootElement.GetProperty("condicion").GetInt32());
+        Assert.Equal(15, facturacionJson.RootElement.GetProperty("idPlazo").GetInt32());
+        Assert.Equal(12, sesion.Cargas);
+    }
+
+    [Fact]
+    public async Task Consignacion_NoRegistraBoletaSiLaReposicionDesdeLaBodegaCentralFalla()
+    {
+        var handler = new RegistroHttpHandler(request => request.RequestUri!.AbsolutePath == "/ConsignacionInventario/ReponerCentral"
+            ? """{"status":1,"currentException":"Carne de res no tiene existencia suficiente en la bodega de origen."}"""
+            : """{"status":0,"responses":{}}""");
+        var api = new ConsignacionInvApiCliente(Http(handler), new SesionPrueba("operador-carnes"));
+
+        var respuesta = await api.ReponerCentralAsync(new ReponerCentralConsignacionRequest
+        {
+            IdSucursal = 3, IdBodegaOrigen = 2, Documento = "REP-CAR-SIN-STOCK",
+            Lineas = [new() { IdArticulo = 8001, IdStockLote = 55, Cantidad = 20 }]
+        });
+
+        Assert.Equal(ResponseStatus._1, respuesta.Status);
+        Assert.Contains("existencia suficiente", respuesta.CurrentException, StringComparison.OrdinalIgnoreCase);
+        Assert.Single(handler.Solicitudes);
+        Assert.Equal(("POST", "/ConsignacionInventario/ReponerCentral"), handler.Solicitudes[0].VerboYRuta);
     }
 
     [Fact]
