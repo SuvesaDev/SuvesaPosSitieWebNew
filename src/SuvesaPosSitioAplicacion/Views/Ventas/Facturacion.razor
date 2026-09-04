@@ -136,8 +136,8 @@
                                     else
                                     {
                                         <select class="form-select form-select-sm" @bind="_codActividadCliente" disabled="@(_actividadesCliente.Count == 0)">
-                                            <option value="">@(_actividadesCliente.Count == 0 ? "Sin actividades registradas en Hacienda" : "Seleccione...")</option>
-                                            @foreach (var act in _actividadesCliente) { <option value="@act.Codigo">@act.Codigo — @act.Descripcion</option> }
+                                            <option value="">@(_actividadesCliente.Count == 0 ? "El cliente no tiene actividades registradas" : "Seleccione...")</option>
+                                            @foreach (var act in _actividadesCliente) { <option value="@act.Codigo">@act.Codigo — @act.Descripcion@(act.Principal == true ? " (principal)" : "")</option> }
                                         </select>
                                     }
                                 </div>
@@ -455,7 +455,7 @@
     private string _codActividad = string.Empty;
     private List<ActividadesEmisorDTO> _actividadesEmpresa = new();
     private string _codActividadCliente = string.Empty;
-    private List<ActividadesEmpresaDTO> _actividadesCliente = new();
+    private List<ActividadEconomicaClienteDTO> _actividadesCliente = new();
     private bool _buscandoActsCliente;
     private int _moneda;
     private bool _sinAgente;
@@ -799,16 +799,18 @@
     {
         _actividadesCliente = new();
         _codActividadCliente = string.Empty;
-        if (string.IsNullOrWhiteSpace(cliente.Cedula)) return;
+        if (cliente.Identificacion <= 0) return;
 
         _buscandoActsCliente = true;
-        _actividadesCliente = (await Respuestas.DatoAsync(await Empresas.ActividadesHacienda(cliente.Cedula), "consultar las actividades del cliente"))?.ToList() ?? new();
+        _actividadesCliente = (await Respuestas.DatoAsync(await Clientes.Actividades(cliente.Identificacion), "consultar las actividades del cliente"))?
+            .Where(a => a.Activo != false).ToList() ?? new();
         _buscandoActsCliente = false;
 
         var guardada = cliente.CodigoActividad;
+        var principal = _actividadesCliente.FirstOrDefault(a => a.Principal == true)?.Codigo;
         _codActividadCliente = !string.IsNullOrWhiteSpace(guardada) && _actividadesCliente.Any(a => a.Codigo == guardada)
             ? guardada!
-            : _actividadesCliente.FirstOrDefault()?.Codigo ?? guardada ?? string.Empty;
+            : principal ?? _actividadesCliente.FirstOrDefault()?.Codigo ?? guardada ?? string.Empty;
     }
 
     private async Task AbrirCorreos()
