@@ -521,6 +521,22 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "COMPRAS.RECIBOS_PAGO",
+          "nombre": "Recibos de pago",
+          "ruta": "/buys/payment-receipts",
+          "padre": null,
+          "orden": 20,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
         }
       ]
     },
@@ -1368,6 +1384,22 @@
           "ruta": "/parameters/operational-series",
           "padre": null,
           "orden": 13,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "PARAMETROS.FORMAS_PAGO_PROPIEDADES",
+          "nombre": "Propiedades de formas de pago",
+          "ruta": "/parameters/payment-methods-properties",
+          "padre": null,
+          "orden": 14,
           "acciones": [
             "VER",
             "CREAR",

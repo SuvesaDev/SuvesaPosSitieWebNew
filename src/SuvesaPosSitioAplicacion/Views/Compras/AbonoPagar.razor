@@ -8,6 +8,7 @@
 @inject IContextoSesion Sesion
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
+@inject IJSRuntime JS
 
 <AppPantalla Pantalla="Abono Pagar" Nivel="NivelPantalla.Tableta">
     <Acciones><button class="btn btn-sm btn-outline-secondary" disabled="@(Bloqueada || _cargando)" @onclick="Cargar"><i class="bi bi-arrow-clockwise"></i></button><button class="btn btn-sm btn-primary" disabled="@(Bloqueada || _guardando || !HayAbonos)" @onclick="Guardar">@(_guardando ? "Registrando..." : "Registrar abono")</button></Acciones>
@@ -84,6 +85,9 @@
         if (!await Dialogos.ConfirmarAsync("¿Desea registrar el abono al proveedor?", "Registrar abono", "Registrar")) return;
         var abono = new AbonoCuentaPagarReciboDTO { Documento = 0, TipoDocumento = "ABONO", CuentaBancaria = _cuenta, CodigoBanco = _banco, SaldoCuenta = 0, Monto = (double)TotalAbono, SaldoActual = 0, Fecha = _fecha, Recibo = _recibo, CedulaUsuario = Sesion.Usuario, CodProveedor = (int)_proveedor.IdProveedor, CodMoneda = _moneda, TipoCambio = (double)_tipoCambio, CuentaDestino = _cuentaDestino, Observaciones = _observaciones, IdSucursal = Sesion.IdSucursal, Detalle = _lineas.Where(l => l.Abono > 0).Select(l => new DetalleAbonoCuentaPagarDTO { Factura = l.Factura.IdFactura, CodProveedor = (int)_proveedor.IdProveedor, MontoFactura = l.Factura.MontoFactura, SaldoAnt = (double)l.Saldo, Abono = (double)l.Abono, AbonoSuMoneda = (double)l.Abono, SaldoActual = (double)(l.Saldo - l.Abono), IdCompra = l.Factura.IdFactura }).ToList() };
         _guardando = true; var creado = await Respuestas.DatoAsync(await Api.CrearAbono(abono), "registrar el abono al proveedor"); _guardando = false; if (creado is null) return;
-        Dialogos.Exito("Abono registrado correctamente."); _recibo = _observaciones = null; await Cargar();
+        Dialogos.Exito("Abono registrado correctamente.");
+        if (creado.IdAbonocpagar > 0 && await Dialogos.ConfirmarAsync("¿Imprimir el recibo de pago?", "Impresión"))
+            await JS.InvokeVoidAsync("open", $"/documentos/recibo-pago/{creado.IdAbonocpagar}/pdf", "_blank");
+        _recibo = _observaciones = null; await Cargar();
     }
 }

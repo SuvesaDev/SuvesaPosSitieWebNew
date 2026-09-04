@@ -250,6 +250,7 @@ builder.Services.AddScoped<IConciliacionCaja, ConciliacionCaja>();
 builder.Services.AddScoped<IConsultaCobros, ConsultaCobros>();
 builder.Services.AddScoped<IPerfilesEmision, PerfilesEmision>();
 builder.Services.AddScoped<IVentaOrquestada, VentaOrquestada>();
+builder.Services.AddScoped<IFormasPagoConfig, FormasPagoConfig>();
 
 var app = builder.Build();
 

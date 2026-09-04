@@ -1,0 +1,121 @@
+@page "/parameters/payment-methods-properties"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Cobros
+@using SuvesaPosSitioAplicacion.Services
+@inject IFormasPagoConfig Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+@* SANEAMIENTO Fase 8.1 — propiedades semánticas de las formas de pago. El resto
+   del sistema debe leer estas marcas, nunca comparar "EFE"/"TAR". *@
+
+<AppPantalla Pantalla="@Titulo" Codigo="PARAMETROS.FORMAS_PAGO_PROPIEDADES" Nivel="NivelPantalla.Tableta"
+             Subtitulo="Activa · vuelto · referencia obligatoria · afecta caja · moneda extranjera · código de Hacienda.">
+    <ChildContent>
+        @if (_cargando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Forma de pago</th>
+                            <th class="text-center">Activa</th>
+                            <th class="text-center">Vuelto</th>
+                            <th class="text-center">Ref. obligatoria</th>
+                            <th class="text-center">Afecta caja</th>
+                            <th class="text-center">Moneda extr.</th>
+                            <th>Código Hacienda</th>
+                            <th class="text-center">Orden</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var f in _formas)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@f.Descripcion</strong>
+                                    <span class="text-muted small">· @f.Codigo</span>
+                                    <div class="small text-muted">
+                                        @(f.Efectivo ? "efectivo " : "")@(f.Tarjeta ? "tarjeta " : "")@(f.Deposito ? "depósito " : "")@(f.Cheque ? "cheque" : "")
+                                    </div>
+                                </td>
+                                <td class="text-center"><input type="checkbox" class="form-check-input" @bind="f.ActivaBool" /></td>
+                                <td class="text-center"><input type="checkbox" class="form-check-input" @bind="f.PermiteVueltoBool" /></td>
+                                <td class="text-center"><input type="checkbox" class="form-check-input" @bind="f.RequiereReferenciaBool" /></td>
+                                <td class="text-center"><input type="checkbox" class="form-check-input" @bind="f.AfectaCajaBool" /></td>
+                                <td class="text-center"><input type="checkbox" class="form-check-input" @bind="f.PermiteMonedaExtranjeraBool" /></td>
+                                <td style="width:8rem"><input class="form-control form-control-sm" maxlength="4" @bind="f.CodigoHacienda" placeholder="p. ej. 01" /></td>
+                                <td style="width:5rem" class="text-center"><input type="number" class="form-control form-control-sm text-center" @bind="f.OrdenInt" /></td>
+                                <td class="text-end"><button class="btn btn-sm btn-primary" disabled="@_guardando" @onclick="() => Guardar(f)">Guardar</button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="form-text">Las formas sin código de Hacienda aparecen como advertencia en el diagnóstico de Series operativas.</p>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    // Envoltura de la fila para poder enlazar checkboxes a bools no-nulos sin
+    // perder el resto del DTO.
+    private sealed class Fila : FormaPagoConfigWebDTO
+    {
+        public bool ActivaBool { get => Activa ?? true; set => Activa = value; }
+        public bool PermiteVueltoBool { get => PermiteVuelto ?? false; set => PermiteVuelto = value; }
+        public bool RequiereReferenciaBool { get => RequiereReferencia ?? false; set => RequiereReferencia = value; }
+        public bool AfectaCajaBool { get => AfectaCaja ?? true; set => AfectaCaja = value; }
+        public bool PermiteMonedaExtranjeraBool { get => PermiteMonedaExtranjera ?? false; set => PermiteMonedaExtranjera = value; }
+        public int OrdenInt { get => Orden ?? 0; set => Orden = value; }
+    }
+
+    private const string Titulo = "Propiedades de formas de pago";
+    private List<Fila> _formas = new();
+    private bool _cargando = true, _guardando;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        try
+        {
+            var lista = await Respuestas.DatoAsync(await Api.Listar(), "consultar las formas de pago");
+            _formas = (lista ?? new List<FormaPagoConfigWebDTO>()).Select(x => new Fila
+            {
+                Id = x.Id, Codigo = x.Codigo, Descripcion = x.Descripcion,
+                Efectivo = x.Efectivo, Tarjeta = x.Tarjeta, Deposito = x.Deposito, Cheque = x.Cheque,
+                Activa = x.Activa, Orden = x.Orden, PermiteVuelto = x.PermiteVuelto,
+                RequiereReferencia = x.RequiereReferencia, AfectaCaja = x.AfectaCaja,
+                PermiteMonedaExtranjera = x.PermiteMonedaExtranjera, CodigoHacienda = x.CodigoHacienda,
+            }).ToList();
+        }
+        finally { _cargando = false; }
+    }
+
+    private async Task Guardar(Fila f)
+    {
+        _guardando = true;
+        try
+        {
+            var dto = new FormaPagoConfigWebDTO
+            {
+                Id = f.Id, Codigo = f.Codigo, Descripcion = f.Descripcion,
+                Efectivo = f.Efectivo, Tarjeta = f.Tarjeta, Deposito = f.Deposito, Cheque = f.Cheque,
+                Activa = f.Activa, Orden = f.Orden, PermiteVuelto = f.PermiteVuelto,
+                RequiereReferencia = f.RequiereReferencia, AfectaCaja = f.AfectaCaja,
+                PermiteMonedaExtranjera = f.PermiteMonedaExtranjera,
+                CodigoHacienda = string.IsNullOrWhiteSpace(f.CodigoHacienda) ? null : f.CodigoHacienda.Trim(),
+            };
+            if (await Respuestas.DatoAsync(await Api.Guardar(dto), "guardar la forma de pago") is not null)
+                Dialogos.Exito($"«{f.Descripcion}» actualizada.");
+        }
+        finally { _guardando = false; }
+    }
+}

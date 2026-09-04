@@ -230,6 +230,13 @@ public static partial class MenuSeePos
                     Titulo = "Abono Pagar",
                     Codigo = "COMPRAS.ABONO_PAGAR",
                     Ruta = "/buys/pay",
+                },
+                new ItemMenu
+                {
+                    // SANEAMIENTO Fase 8.5 — consulta e impresión de recibos de pago.
+                    Titulo = "Recibos de pago",
+                    Codigo = "COMPRAS.RECIBOS_PAGO",
+                    Ruta = "/buys/payment-receipts",
                 }
             }
         },
@@ -569,6 +576,13 @@ public static partial class MenuSeePos
                     Titulo = "Series operativas",
                     Codigo = "PARAMETROS.SERIES_OPERATIVAS",
                     Ruta = "/parameters/operational-series",
+                },
+                new ItemMenu
+                {
+                    // SANEAMIENTO Fase 8.1 — propiedades semánticas de las formas de pago.
+                    Titulo = "Propiedades de formas de pago",
+                    Codigo = "PARAMETROS.FORMAS_PAGO_PROPIEDADES",
+                    Ruta = "/parameters/payment-methods-properties",
                 },
                 new ItemMenu
                 {

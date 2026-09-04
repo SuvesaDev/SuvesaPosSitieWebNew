@@ -33,4 +33,11 @@ public sealed class CuentasPorPagar : ProxyBase, ICuentasPorPagar
             var r = await _api.CreateAbonoPagarAsync(abono);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "registrar el abono al proveedor");
+
+    public Task<ResponseGeneric<ICollection<AbonoCuentaPagarReciboDTO>>> ListarAbonos()
+        => Ejecutar(async () =>
+        {
+            var r = await _api.GetListAbonarPagarAsync();
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar los recibos de pago");
 }
