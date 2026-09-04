@@ -1,0 +1,159 @@
+@page "/parameters/operational-series"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Cobros
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
+@using SuvesaPosSitioAplicacion.Services
+@using Havit.Blazor.Components.Web.Bootstrap
+@inject ISeriesOperativas Api
+@inject IEmisoresFiscales EmisoresApi
+@inject ISucursales SucursalesApi
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="@Titulo" Codigo="PARAMETROS.SERIES_OPERATIVAS" Nivel="NivelPantalla.Tableta"
+             Subtitulo="Recibos, preventa, traslados, consignación y toma física. No son series fiscales.">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body row g-2 align-items-end">
+                <div class="col-6 col-md-3">
+                    <label class="form-label small">Tipo</label>
+                    <select class="form-select form-select-sm" @bind="_filtroTipo" @bind:after="Cargar">
+                        <option value="0">Todos</option>
+                        @foreach (var t in TiposSerieOperativa.Todos)
+                        {
+                            <option value="@t.Valor">@t.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small">Emisor</label>
+                    <select class="form-select form-select-sm" @bind="_filtroEmisor" @bind:after="Cargar">
+                        <option value="0">Todos</option>
+                        @foreach (var e in _emisores)
+                        {
+                            <option value="@e.Id">@e.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto ms-auto">
+                    <button class="btn btn-sm btn-primary" @onclick="() => Abrir(null)">
+                        <i class="bi bi-plus-lg me-1"></i>Nueva serie
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (_cargando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+        }
+        else if (_series.Count == 0)
+        {
+            <div class="alert alert-light border">No hay series operativas para el filtro seleccionado.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th><th>Emisor</th><th>Centro</th><th class="text-center">Terminal</th>
+                            <th>Prefijo</th><th class="text-end">Último consecutivo</th>
+                            <th class="text-center">Predet.</th><th class="text-center">Estado</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in _series)
+                        {
+                            <tr class="@(s.Activa ? "" : "text-muted")">
+                                <td>@TiposSerieOperativa.Nombre(s.Tipo)</td>
+                                <td>@NombreEmisor(s.IdEmisor)</td>
+                                <td>@NombreSucursal(s.IdSucursal)</td>
+                                <td class="text-center">@(s.NumeroTerminal?.ToString() ?? "—")</td>
+                                <td>@(string.IsNullOrWhiteSpace(s.Prefijo) ? "—" : s.Prefijo)</td>
+                                <td class="text-end">@s.UltimoConsecutivo</td>
+                                <td class="text-center">@(s.EsPredeterminada ? "★" : "")</td>
+                                <td class="text-center">
+                                    <span class="badge @(s.Activa ? "text-bg-success" : "text-bg-secondary")">
+                                        @(s.Activa ? "Activa" : "Inactiva")
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-link p-0 me-2" @onclick="() => Abrir(s)">Editar</button>
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Alternar(s)">
+                                        @(s.Activa ? "Desactivar" : "Activar")
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modal" Title="@(_edit.Id > 0 ? "Editar serie operativa" : "Nueva serie operativa")" Size="ModalSize.Regular">
+    <BodyTemplate>
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label class="form-label">Tipo</label>
+                <select class="form-select" @bind="_edit.Tipo" disabled="@(_edit.Id > 0)">
+                    @foreach (var t in TiposSerieOperativa.Todos)
+                    {
+                        <option value="@t.Valor">@t.Nombre</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label">Terminal (opcional)</label>
+                <input class="form-control" type="number" min="0" @bind="_terminal" />
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label">Prefijo</label>
+                <input class="form-control" maxlength="10" @bind="_edit.Prefijo" />
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label">Emisor <span class="text-danger">*</span></label>
+                <select class="form-select" @bind="_edit.IdEmisor">
+                    <option value="0">— Seleccione —</option>
+                    @foreach (var e in _emisores)
+                    {
+                        <option value="@e.Id">@e.Nombre (@e.Identificacion)</option>
+                    }
+                </select>
+                <div class="form-text">D1: toda serie va ligada a un emisor y a un centro.</div>
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label">Centro / sucursal <span class="text-danger">*</span></label>
+                <select class="form-select" @bind="_edit.IdSucursal">
+                    <option value="0">— Seleccione —</option>
+                    @foreach (var s in _sucursales)
+                    {
+                        <option value="@s.Id">@(s.NombreComercial ?? s.NombreFiscal ?? $"Centro {s.Id}")</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-4">
+                <label class="form-label">Último consecutivo</label>
+                <input class="form-control" type="number" min="0" @bind="_edit.UltimoConsecutivo"
+                       disabled="@(_edit.Id > 0)" />
+                <div class="form-text">@(_edit.Id > 0 ? "Sólo se fija al crear." : "El próximo número será éste + 1.")</div>
+            </div>
+            <div class="col-12 d-flex gap-4 align-items-center pt-2">
+                <div class="form-check form-switch">
+                    <input id="so-activa" class="form-check-input" type="checkbox" @bind="_edit.Activa" />
+                    <label class="form-check-label" for="so-activa">Activa</label>
+                </div>
+                <div class="form-check form-switch">
+                    <input id="so-predet" class="form-check-input" type="checkbox" @bind="_edit.EsPredeterminada" />
+                    <label class="form-check-label" for="so-predet">Predeterminada del tipo</label>
+                </div>
+            </div>
+        </div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-primary" @onclick="Guardar" disabled="@_guardando">Guardar</button>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
+    </FooterTemplate>
+</HxModal>

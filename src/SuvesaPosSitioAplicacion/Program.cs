@@ -240,6 +240,12 @@ builder.Services.AddScoped<IAbonoCobrarPreventas, AbonoCobrarPreventas>();
 // SANEAMIENTO Fase 8 — cobro de facturas de crédito (mayor de CxC).
 builder.Services.AddScoped<ICobrosCredito, CobrosCredito>();
 
+// SANEAMIENTO Fase 8.1 — catálogo de series operativas (no fiscales).
+builder.Services.AddScoped<ISeriesOperativas, SeriesOperativas>();
+
+// SANEAMIENTO Fase 8.4 — conciliación de caja desde el mayor de movimientos.
+builder.Services.AddScoped<IConciliacionCaja, ConciliacionCaja>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

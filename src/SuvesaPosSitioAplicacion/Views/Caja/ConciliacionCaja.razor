@@ -1,0 +1,109 @@
+@page "/initial/cash/reconciliation"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Caja
+@using SuvesaPosSitioAplicacion.Services
+@inject IConciliacionCaja Api
+@inject ICajaOperaciones CajaApi
+@inject IManejadorRespuestas Respuestas
+
+<AppPantalla Pantalla="@Titulo" Codigo="CAJA.CONCILIACION" Nivel="NivelPantalla.Tableta"
+             Subtitulo="Saldo esperado por forma de pago y moneda, calculado desde el mayor de caja (no desde documentos fiscales).">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body row g-2 align-items-end">
+                <div class="col-12 col-md-5">
+                    <label class="form-label small">Apertura</label>
+                    <select class="form-select form-select-sm" @bind="_napertura" @bind:after="Cargar">
+                        <option value="0">— Seleccione —</option>
+                        @foreach (var a in _aperturas)
+                        {
+                            <option value="@a.Napertura">
+                                N.º @a.Napertura — @a.Nombre (caja @a.NumCaja) @a.Fecha
+                            </option>
+                        }
+                    </select>
+                    <div class="form-text">Sólo aperturas sin cerrar.</div>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" disabled="@(_napertura <= 0 || _cargando)">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (_cargando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+        }
+        else if (_datos is not null)
+        {
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-md-3">
+                    <div class="border rounded p-3 h-100">
+                        <div class="text-secondary small text-uppercase">Fondo inicial</div>
+                        <div class="fs-5">@Money(_datos.FondoInicial)</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="border rounded p-3 h-100">
+                        <div class="text-secondary small text-uppercase">Total esperado</div>
+                        <div class="fs-5 fw-semibold">@Money(_datos.TotalEsperado)</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="border rounded p-3 h-100">
+                        <div class="text-secondary small text-uppercase">Estado</div>
+                        <div class="fs-5">@EstadoTexto(_datos.Estado)</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="border rounded p-3 h-100 bg-light">
+                        <div class="text-secondary small text-uppercase">Ventas del período</div>
+                        <div class="fs-6">@Money(_datos.VentasComercialInformativo)</div>
+                        <div class="form-text">Informativo. No entra en la fórmula.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Forma de pago</th>
+                            <th class="text-center">Moneda</th>
+                            <th class="text-end">Ingresos</th>
+                            <th class="text-end">Egresos</th>
+                            <th class="text-end">Saldo esperado</th>
+                            <th class="text-center">Movs.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var l in _datos.Lineas)
+                        {
+                            <tr>
+                                <td>@l.CodigoFormaPago</td>
+                                <td class="text-center">@MonedaTexto(l.CodMoneda)</td>
+                                <td class="text-end">@Money(l.Ingresos)</td>
+                                <td class="text-end">@Money(l.Egresos)</td>
+                                <td class="text-end fw-semibold">@Money(l.SaldoEsperado)</td>
+                                <td class="text-center">@l.Movimientos</td>
+                            </tr>
+                        }
+                        @if (_datos.Lineas.Count == 0)
+                        {
+                            <tr><td colspan="6" class="text-center text-muted py-3">Sin movimientos de caja para esta apertura.</td></tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="border-top">
+                            <th colspan="4" class="text-end">Fondo inicial + saldos</th>
+                            <th class="text-end">@Money(_datos.TotalEsperado)</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>

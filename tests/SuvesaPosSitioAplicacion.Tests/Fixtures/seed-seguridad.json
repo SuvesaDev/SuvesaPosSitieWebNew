@@ -321,6 +321,22 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "CAJA.CONCILIACION",
+          "nombre": "Conciliación de caja",
+          "ruta": "/initial/cash/reconciliation",
+          "padre": null,
+          "orden": 7,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
         }
       ]
     },
@@ -1304,6 +1320,22 @@
           "ruta": "/parameters/print-templates",
           "padre": null,
           "orden": 12,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "PARAMETROS.SERIES_OPERATIVAS",
+          "nombre": "Series operativas",
+          "ruta": "/parameters/operational-series",
+          "padre": null,
+          "orden": 13,
           "acciones": [
             "VER",
             "CREAR",

@@ -24,6 +24,23 @@
 
 ## 2. Plan por fases (sitio) — sigue al API
 
+> **Estado (2026-09-04)**
+> - **Fase 8.1 — parcial.** Hecha la pantalla **Series operativas**
+>   (`/parameters/operational-series`, `PARAMETROS.SERIES_OPERATIVAS`): listado
+>   con filtro por tipo/emisor, alta/edición (emisor + centro obligatorios, D1),
+>   activar/desactivar, marca de predeterminada. Proxy `ISeriesOperativas` →
+>   `api/series-operativas`. Falta el resto del desglose de configuración
+>   (perfiles de emisión, serie única de NC, formas de pago semánticas, panel de
+>   inconsistencias).
+> - **Fase 8.4 — parcial.** Hecha la pantalla **Conciliación de caja**
+>   (`/initial/cash/reconciliation`, `CAJA.CONCILIACION`): elige una apertura sin
+>   cerrar y muestra fondo inicial + saldo esperado por forma de pago y moneda
+>   **desde el mayor** (`GET api/caja/{napertura}/conciliacion`), con las ventas
+>   del período como dato meramente informativo. Falta: bloqueo durante arqueo
+>   final, diferencias declaradas y cierre idempotente desde esta vista.
+> - Fases 8.2, 8.3, 8.5 pendientes (8.2 tiene ya la pestaña "Facturas de
+>   crédito", commit `7361cc8`).
+
 ### Fase 8.1 — Configuración (tras Fases 1–7 del API)
 Separar en pantallas distintas (hoy mezcladas): **Tipos fiscales** ·
 **Ámbitos de numeración fiscal** · **Perfiles de emisión (contado/crédito)** ·

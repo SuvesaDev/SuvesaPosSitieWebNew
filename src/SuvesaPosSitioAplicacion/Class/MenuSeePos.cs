@@ -102,6 +102,13 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    // SANEAMIENTO Fase 8.4 — saldo esperado desde el mayor de caja.
+                    Titulo = "Conciliación de caja",
+                    Codigo = "CAJA.CONCILIACION",
+                    Ruta = "/initial/cash/reconciliation",
+                },
+                new ItemMenu
+                {
                     // Antes bajo "Inicio"; movidas aquí a petición del usuario.
                     Titulo = "Cobrar",
                     Codigo = "CAJA.COBRAR",
@@ -541,6 +548,13 @@ public static partial class MenuSeePos
                     Titulo = "Series de Facturación",
                     Codigo = "PARAMETROS.SERIES_DE_FACTURACION",
                     Ruta = "/parameters/invoice-series",
+                },
+                new ItemMenu
+                {
+                    // SANEAMIENTO Fase 7/8.1 — series NO fiscales (recibos, preventa, traslados…).
+                    Titulo = "Series operativas",
+                    Codigo = "PARAMETROS.SERIES_OPERATIVAS",
+                    Ruta = "/parameters/operational-series",
                 },
                 new ItemMenu
                 {
