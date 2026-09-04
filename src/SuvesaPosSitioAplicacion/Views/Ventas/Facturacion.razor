@@ -23,6 +23,8 @@
 @inject IArticuloBonificacion ArticuloBonificacion
 @inject IArticulosRelacionados Relacionados
 @inject ICompras Compras
+@inject IEmisoresFiscales EmisoresApi
+@inject IPerfilesEmision PerfilesApi
 
 @* Port del flujo de Billing: cliente -> artículos/lotes -> totales -> emisión.
    Los cálculos se hacen en decimal en CalculoDocumento; el DTO se arma una única vez
@@ -64,9 +66,28 @@
                                 <label class="form-label">Buscar cliente</label>
                                 <div class="input-group"><input class="form-control" placeholder="Cédula o nombre" value="@_textoCliente" @oninput="AlEscribirCliente" @onkeydown="BuscarClienteConEnter" /><button type="button" class="btn btn-outline-primary" @onclick="BuscarClientes">Buscar</button></div>
                             </div>
+                            @if (_perfiles.Count > 0)
+                            {
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label">Perfil de emisión</label>
+                                    <select class="form-select" @bind="_idPerfil" @bind:after="AlCambiarPerfil">
+                                        <option value="0">Seleccione...</option>
+                                        @foreach (var p in _perfiles)
+                                        {
+                                            <option value="@p.IdSerie" disabled="@(!p.Elegible)">
+                                                @p.Descripcion — @(p.TipoNombre ?? p.CodigoFe) @(p.EsCredito ? "(crédito)" : "(contado)")@(p.Elegible ? "" : " — no aplica")
+                                            </option>
+                                        }
+                                    </select>
+                                    @if (_perfilAviso is not null)
+                                    {
+                                        <div class="form-text text-danger">@_perfilAviso</div>
+                                    }
+                                </div>
+                            }
                             <div class="col-12 col-md-4">
                                 <label class="form-label">Tipo de factura</label>
-                                <select class="form-select" @bind="_tipoFactura"><option value="0">Seleccione...</option>@foreach (var tipo in TiposDisponibles) { <option value="@tipo.Codigo">@tipo.Descripcion</option> }</select>
+                                <select class="form-select" @bind="_tipoFactura" @bind:after="AlCambiarTipoManual"><option value="0">Seleccione...</option>@foreach (var tipo in TiposDisponibles) { <option value="@tipo.Codigo">@tipo.Descripcion</option> }</select>
                             </div>
                             <div class="col-12 col-md-3"><label class="form-label">Moneda</label><select class="form-select" @bind="_moneda"><option value="0">Seleccione...</option>@foreach (var moneda in _monedas) { <option value="@moneda.CodMoneda">@moneda.MonedaNombre</option> }</select></div>
                             @if (!EsConsignacion)
@@ -412,6 +433,14 @@
     private HxModal _modalCorreos = default!;
     private List<TipoFactura> _tipos = new();
     private List<EmpresaDTO> _empresas = new();
+
+    // SANEAMIENTO Fase 8.3 — perfil de emisión (serie fiscal V4.4) elegible.
+    private List<SuvesaPosSitioAplicacion.DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmisor;
+    private List<SuvesaPosSitioAplicacion.DTOs.Cobros.PerfilEmisionElegibleWebDTO> _perfiles = new();
+    private int _idPerfil;
+    private string? _perfilAviso;
+
     private List<Moneda> _monedas = new();
     private List<AgenteVendedorDTO> _agentesVenta = new();
     private List<ProductoCatalogo> _catalogoImagenes = new();
@@ -476,6 +505,60 @@
         var rb = await Lotes2.BodegasOperativasAsync(Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null);
         _bodegas = rb.Status == DTOs.Generated.ResponseStatus._0 ? (rb.Responses ?? new()) : new();
         if (_bodega == 0) _bodega = _bodegas.FirstOrDefault()?.IdBodega ?? 0;
+
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        _idEmisor = _emisores.Count == 1 ? _emisores[0].Id : _emisores.FirstOrDefault()?.Id ?? 0;
+        await CargarPerfiles();
+    }
+
+    // --- SANEAMIENTO Fase 8.3: perfil de emisión ---------------------------------
+
+    private async Task CargarPerfiles()
+    {
+        _perfiles = new();
+        _idPerfil = 0;
+        _perfilAviso = null;
+        if (_idEmisor <= 0 || Sesion.IdSucursal <= 0) return;
+
+        var lista = await Respuestas.DatoAsync(
+            await PerfilesApi.Elegibles(_idEmisor, Sesion.IdSucursal, null, null),
+            "consultar los perfiles de emisión");
+        _perfiles = (lista ?? new List<SuvesaPosSitioAplicacion.DTOs.Cobros.PerfilEmisionElegibleWebDTO>())
+            .OrderByDescending(p => p.Elegible).ThenBy(p => p.EsCredito).ThenBy(p => p.Descripcion)
+            .ToList();
+    }
+
+    private void AlCambiarPerfil()
+    {
+        _perfilAviso = null;
+        var p = _perfiles.FirstOrDefault(x => x.IdSerie == _idPerfil);
+        if (p is null) return;
+        if (!p.Elegible)
+        {
+            _perfilAviso = p.MotivoNoElegible;
+            return;
+        }
+        var tipo = _tipos.FirstOrDefault(t => t.Id == p.IdTipoFactura);
+        if (tipo is null)
+        {
+            _perfilAviso = "El tipo de documento del perfil no está disponible en esta pantalla.";
+            return;
+        }
+        if (!TiposDisponibles.Any(t => t.Codigo == tipo.Codigo))
+        {
+            _perfilAviso = tipo.Credito ? "El cliente no tiene crédito habilitado para este perfil." : "El tipo del perfil no está disponible.";
+            return;
+        }
+        _tipoFactura = tipo.Codigo;
+    }
+
+    private void AlCambiarTipoManual()
+    {
+        // Si el tipo elegido a mano ya no concuerda con el perfil, se deselecciona.
+        if (_idPerfil == 0) return;
+        var p = _perfiles.FirstOrDefault(x => x.IdSerie == _idPerfil);
+        var tipo = _tipos.FirstOrDefault(t => t.Codigo == _tipoFactura);
+        if (p is null || tipo is null || p.IdTipoFactura != tipo.Id) { _idPerfil = 0; _perfilAviso = null; }
     }
 
     private ConfiguracionBonificacion? ConfigBonificacion(int id) => _configsBonificacion.FirstOrDefault(c => c.IdConfiguracionBonificacion == id);
@@ -1116,5 +1199,5 @@
         var r = await Api.Crear(factura); _guardando = false;
         if (await Respuestas.CorrectaAsync(r, EsConsignacion ? "registrar la consignación" : "emitir la factura")) { Dialogos.Exito(EsConsignacion ? "Consignación registrada correctamente." : "Factura emitida correctamente."); Limpiar(); }
     }
-    private void Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _sinAgente = false; _codAgente = 0; _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; RecalcularTodo(); }
+    private void Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _idPerfil = 0; _perfilAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _sinAgente = false; _codAgente = 0; _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; RecalcularTodo(); }
 }

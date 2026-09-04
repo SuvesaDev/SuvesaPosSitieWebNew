@@ -20,4 +20,12 @@ public partial class TipoFactura
 
     [JsonPropertyName("activo")]
     public bool Activo { get; set; } = true;
+
+    // PK del tipo (TiposFactura.Id) y su código FE — necesarios para casar un
+    // perfil de emisión con su tipo (SANEAMIENTO Fase 8.3).
+    [JsonPropertyName("id")]
+    public int Id { get; set; }
+
+    [JsonPropertyName("codigoFE")]
+    public string? CodigoFe { get; set; }
 }

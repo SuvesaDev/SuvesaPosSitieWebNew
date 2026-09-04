@@ -1,18 +1,22 @@
 using Havit.Blazor.Components.Web.Bootstrap;
+using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using SuvesaPosSitioAplicacion.DTOs.Cobros;
 
-namespace SuvesaPosSitioAplicacion.Views.Ventas;
+namespace SuvesaPosSitioAplicacion.Views.Ventas.Componentes;
 
-public partial class RecibosEmitidos
+public partial class PanelRecibosFallidas
 {
-    private const string Titulo = "Recibos y operaciones fallidas";
+    /// <summary>null = pestañas propias; "recibos" / "fallidas" = una sola sección (integrado en Cobrar).</summary>
+    [Parameter] public string? Vista { get; set; }
 
     private HxModal _modalDetalle = default!;
 
     private string _tab = "recibos";
     private bool _cargando;
     private bool _procesando;
+
+    private string VistaEfectiva => Vista ?? _tab;
 
     // Filtro de recibos
     private DateTime? _desde = DateTime.Today.AddDays(-7);
@@ -27,7 +31,8 @@ public partial class RecibosEmitidos
 
     protected override async Task OnInitializedAsync()
     {
-        await CargarRecibos();
+        if (VistaEfectiva == "recibos") await CargarRecibos();
+        // Las fallidas se cargan siempre: alimentan el badge del contador.
         await CargarFallidas();
     }
 

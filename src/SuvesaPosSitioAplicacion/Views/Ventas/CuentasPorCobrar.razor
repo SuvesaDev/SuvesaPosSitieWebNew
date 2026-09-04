@@ -4,6 +4,7 @@
 @using SuvesaPosSitioAplicacion.DTOs.Ventas
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@using SuvesaPosSitioAplicacion.Views.Ventas.Componentes
 @using Havit.Blazor.Components.Web.Bootstrap
 @inject ICobros Api
 @inject ICajaOperaciones Caja
@@ -22,7 +23,6 @@
 
 <AppPantalla Pantalla="@Titulo" Codigo="VENTAS.ABONO_COBRAR" Nivel="NivelPantalla.Escritorio">
     <Acciones>
-        <a class="btn btn-sm btn-outline-secondary" href="/sales/receipts">Recibos y fallidas</a>
         <a class="btn btn-sm btn-outline-secondary" href="/sales/emission-profiles">Perfiles de emisión</a>
         <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nuevo</button>
     </Acciones>
@@ -34,17 +34,30 @@
             }
             else
             {
-                <div><strong><i class="bi bi-lock-fill me-2 text-warning"></i>Bloqueado</strong><span class="text-secondary ms-2">Ingrese la clave interna del cajero con caja abierta.</span></div>
+                <div><strong><i class="bi bi-lock-fill me-2 text-warning"></i>Bloqueado</strong><span class="text-secondary ms-2">Las consultas no requieren clave; para cobrar, ingrese la clave del cajero con caja abierta.</span></div>
                 <button type="button" class="btn btn-sm btn-primary" @onclick="() => _modalDesbloqueo.ShowAsync()">Desbloquear</button>
             }
         </div>
 
-        <fieldset disabled="@(!_desbloqueado)" class="border-0 p-0 m-0">
-            <ul class="nav nav-tabs mb-3">
-                <li class="nav-item"><button class="nav-link @(_modo == "preventas" ? "active" : null)" @onclick='() => CambiarModo("preventas")'>Preventas pendientes</button></li>
-                <li class="nav-item"><button class="nav-link @(_modo == "credito" ? "active" : null)" @onclick='() => CambiarModo("credito")'>Facturas de crédito</button></li>
-            </ul>
+        @* Pestañas fuera del fieldset: "Recibos" y "Operaciones fallidas" son de
+           sólo lectura y no dependen de la caja abierta. *@
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item"><button class="nav-link @(_modo == "preventas" ? "active" : null)" @onclick='() => CambiarModo("preventas")'>Preventas pendientes</button></li>
+            <li class="nav-item"><button class="nav-link @(_modo == "credito" ? "active" : null)" @onclick='() => CambiarModo("credito")'>Facturas de crédito</button></li>
+            <li class="nav-item"><button class="nav-link @(_modo == "recibos" ? "active" : null)" @onclick='() => CambiarModo("recibos")'>Recibos emitidos</button></li>
+            <li class="nav-item"><button class="nav-link @(_modo == "fallidas" ? "active" : null)" @onclick='() => CambiarModo("fallidas")'>Operaciones fallidas</button></li>
+        </ul>
 
+        @if (_modo == "recibos")
+        {
+            <PanelRecibosFallidas Vista="recibos" />
+        }
+        else if (_modo == "fallidas")
+        {
+            <PanelRecibosFallidas Vista="fallidas" />
+        }
+
+        <fieldset disabled="@(!_desbloqueado)" class="border-0 p-0 m-0" hidden="@(_modo != "preventas" && _modo != "credito")">
             <div class="card mb-3">
                 <div class="card-body row g-3 align-items-end">
                     <div class="col-12 col-md-4">
