@@ -70,14 +70,14 @@
                 <div class="mb-4">
                     <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">1 · Identificación</h6>
                     <div class="row g-3">
-                        <div class="col-12 col-md-4"><label class="form-label">Código interno</label><input class="form-control" type="number" min="1" @bind="_edicion.Codigo" /></div>
-                        <div class="col-12 col-md-8"><label class="form-label">Descripción</label><input class="form-control" maxlength="50" @bind="_edicion.Descripcion" /></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Código interno</label><input class="form-control" value="@_edicion.Codigo" disabled /><div class="form-text">Automático.</div></div>
+                        <div class="col-12 col-md-8"><label class="form-label">Descripción</label><input class="form-control" maxlength="50" @bind="_edicion.Descripcion" @bind:after="RecalcularAvisos" /></div>
                     </div>
                 </div>
 
                 <div class="mb-4">
                     <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">2 · Uso</h6>
-                    <select class="form-select" @bind="_edicion.Uso">
+                    <select class="form-select" @bind="_edicion.Uso" @bind:after="RecalcularAvisos">
                         <option value="@UsoTipoDocumento.Facturacion">Facturación (venta)</option>
                         <option value="@UsoTipoDocumento.Devolucion">Devolución (Nota de crédito)</option>
                         <option value="@UsoTipoDocumento.Compra">Compra</option>

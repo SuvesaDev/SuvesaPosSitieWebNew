@@ -42,7 +42,9 @@ public partial class TiposFacturaFiscal
     private async Task Agregar()
     {
         _esNuevo = true;
-        _edicion = new TipoFacturaFiscalDTO { Uso = UsoTipoDocumento.Facturacion, Activo = true };
+        // El código interno es correlativo y no lo captura el usuario.
+        var siguienteCodigo = _tipos.Count == 0 ? 1 : _tipos.Max(t => t.Codigo) + 1;
+        _edicion = new TipoFacturaFiscalDTO { Codigo = siguienteCodigo, Uso = UsoTipoDocumento.Facturacion, Activo = true };
         RecalcularAvisos();
         await _modal.ShowAsync();
     }
