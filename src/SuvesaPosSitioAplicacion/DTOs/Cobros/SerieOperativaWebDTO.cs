@@ -41,6 +41,9 @@ public static class TiposSerieOperativa
         (7, "Consignación — salida"),
         (8, "Toma física"),
         (9, "Devolución interna"),
+        (10, "Orden de compra"),
+        (11, "Liquidación de consignación"),
+        (12, "Trámite de cobro"),
     };
 
     public static string Nombre(int valor)
