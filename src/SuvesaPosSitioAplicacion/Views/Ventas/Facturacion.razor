@@ -628,7 +628,12 @@
         }
     }
 
-    private IEnumerable<TipoFactura> TiposDisponibles => _tipos.Where(t => !t.Credito || (_cliente?.Abierto == true || _cliente?.Sinrestriccion == true));
+    // Un tipo se ofrece si admite Contado (siempre disponible) o si admite Crédito
+    // y el cliente tiene crédito habilitado. Un tipo que admite ambos (p. ej.
+    // "Factura Electrónica") no debe desaparecer solo porque el cliente no tenga
+    // crédito: sigue siendo válido para venta de contado.
+    private IEnumerable<TipoFactura> TiposDisponibles => _tipos.Where(t =>
+        t.Contado || (t.Credito && (_cliente?.Abierto == true || _cliente?.Sinrestriccion == true)));
     private bool CatalogoCompletoSeleccionado => _catalogoImagenes.Count > 0 && _catalogoImagenes.All(p => p.Seleccionado);
     private Task AbrirBuscadorArticulo() => _ventaDesbloqueada ? _buscadorArticulo.AbrirAsync() : AbrirDesbloqueo();
 
