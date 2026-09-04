@@ -5,6 +5,7 @@
 @inject IConciliacionCaja Api
 @inject ICajaOperaciones CajaApi
 @inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
 
 <AppPantalla Pantalla="@Titulo" Codigo="CAJA.CONCILIACION" Nivel="NivelPantalla.Tableta"
              Subtitulo="Saldo esperado por forma de pago y moneda, calculado desde el mayor de caja (no desde documentos fiscales).">
@@ -64,6 +65,23 @@
                         <div class="form-text">Informativo. No entra en la fórmula.</div>
                     </div>
                 </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2 mb-3">
+                @if (_datos.Estado == "A")
+                {
+                    <button class="btn btn-danger" @onclick="Cerrar" disabled="@_cerrando">
+                        <i class="bi bi-lock-fill me-1"></i>@(_cerrando ? "Cerrando..." : "Cerrar caja con este total")
+                    </button>
+                    <span class="form-text mb-0">
+                        Registra el cierre con <strong>@Money(_datos.TotalEsperado)</strong> como total de sistema. Idempotente.
+                    </span>
+                }
+                else
+                {
+                    <span class="badge text-bg-secondary">@EstadoTexto(_datos.Estado)</span>
+                    <span class="form-text mb-0">La apertura ya no está abierta.</span>
+                }
             </div>
 
             <div class="table-responsive">

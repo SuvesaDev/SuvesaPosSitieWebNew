@@ -251,6 +251,7 @@ builder.Services.AddScoped<IConsultaCobros, ConsultaCobros>();
 builder.Services.AddScoped<IPerfilesEmision, PerfilesEmision>();
 builder.Services.AddScoped<IVentaOrquestada, VentaOrquestada>();
 builder.Services.AddScoped<IFormasPagoConfig, FormasPagoConfig>();
+builder.Services.AddScoped<INotaCreditoCxC, NotaCreditoCxC>();
 
 var app = builder.Build();
 

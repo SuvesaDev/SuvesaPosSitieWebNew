@@ -16,4 +16,8 @@ public sealed class ConciliacionCaja : ProxyBase, IConciliacionCaja
     public Task<ResponseGeneric<ConciliacionCajaWebDTO>> Obtener(long napertura)
         => Ejecutar(async () => await LecturaEnvelope.Leer<ConciliacionCajaWebDTO>(
             await _api.GetAsync($"api/caja/{napertura}/conciliacion")), "consultar la conciliación de caja");
+
+    public Task<ResponseGeneric<CierreConciliadoWebDTO>> Cerrar(long napertura)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<CierreConciliadoWebDTO>(
+            await _api.PostAsync($"api/caja/{napertura}/cerrar", null)), "cerrar la caja");
 }

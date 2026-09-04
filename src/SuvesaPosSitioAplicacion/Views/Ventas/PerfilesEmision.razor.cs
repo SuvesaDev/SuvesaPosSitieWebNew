@@ -17,6 +17,8 @@ public partial class PerfilesEmision
 
     private List<PerfilEmisionElegibleWebDTO> _perfiles = new();
     private bool _cargando, _consultado;
+    private int? _ncSerie;
+    private string? _ncError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -36,6 +38,13 @@ public partial class PerfilesEmision
                 string.IsNullOrWhiteSpace(_modalidad) ? null : _modalidad);
             _perfiles = (await Respuestas.DatoAsync(r, "consultar los perfiles de emisión"))?.ToList() ?? new();
             _consultado = true;
+
+            // Chequeo D1 de la serie única de NC — sin toast, se muestra en línea.
+            _ncSerie = null;
+            _ncError = null;
+            var nc = await NcApi.SerieUnica(_idEmisor, _idSucursal);
+            if (nc.EsCorrecta && nc.Responses > 0) _ncSerie = nc.Responses;
+            else _ncError = nc.Excepcion ?? "No hay una serie de NC única para este emisor y centro.";
         }
         finally { _cargando = false; }
     }

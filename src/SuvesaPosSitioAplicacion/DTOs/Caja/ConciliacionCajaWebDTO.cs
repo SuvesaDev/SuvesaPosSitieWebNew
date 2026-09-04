@@ -16,6 +16,17 @@ public sealed class ConciliacionCajaWebDTO
     public decimal VentasComercialInformativo { get; set; }
 }
 
+/// <summary>Resultado de cerrar una caja desde la conciliación (SANEAMIENTO Fase 8.4).</summary>
+public sealed class CierreConciliadoWebDTO
+{
+    public long IdCierre { get; set; }
+    public long NumApertura { get; set; }
+    public decimal FondoInicial { get; set; }
+    public decimal TotalEsperado { get; set; }
+    public string EstadoApertura { get; set; } = "";
+    public bool FueReintento { get; set; }
+}
+
 public sealed class LineaConciliacionCajaWebDTO
 {
     public string CodigoFormaPago { get; set; } = "";

@@ -10,4 +10,7 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 public interface IConciliacionCaja
 {
     Task<ResponseGeneric<ConciliacionCajaWebDTO>> Obtener(long napertura);
+
+    /// <summary>Cierra la apertura con el total de la conciliación. Idempotente (Fase 8.4).</summary>
+    Task<ResponseGeneric<CierreConciliadoWebDTO>> Cerrar(long napertura);
 }
