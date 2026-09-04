@@ -312,6 +312,12 @@ public static partial class MenuSeePos
                     Titulo = "Facturacion de Consignaciones",
                     Codigo = "CONSIGNACION.FACTURACION_DE_CONSIGNACIONES",
                     Ruta = "/consignment/prebill",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Estados de Consignación",
+                    Codigo = "CONSIGNACION.ESTADOS_DE_CONSIGNACION",
+                    Ruta = "/consignment/settlements",
                 }
             }
         },

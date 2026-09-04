@@ -27,6 +27,8 @@ public interface IConsignacionInvApiCliente
     Task<LoteEnvelope<ExistenciaConsignacion>> ExistenciaAsync(long idCliente);
     Task<LoteEnvelope<ConteoConsignacion>> RegistrarConteoAsync(ConteoConsignacionRequest req);
     Task<LoteEnvelope<ConteoConsignacion>> ConteoAsync(long id);
+    Task<LoteEnvelope<LiquidacionConsignacion>> LiquidacionAsync(long idConteo);
+    Task<LoteEnvelope<List<LiquidacionConsignacion>>> LiquidacionesAsync(LiquidacionesConsignacionFiltro req);
 
     Task<LoteEnvelope<KardexConsignacion>> KardexAsync(KardexConsignacionFiltro req);
 
@@ -108,6 +110,12 @@ public sealed class ConsignacionInvApiCliente : IConsignacionInvApiCliente
 
     public Task<LoteEnvelope<ConteoConsignacion>> ConteoAsync(long id)
         => EnviarAsync<ConteoConsignacion>(HttpMethod.Get, $"ConsignacionInventario/Conteo?id={id}");
+
+    public Task<LoteEnvelope<LiquidacionConsignacion>> LiquidacionAsync(long idConteo)
+        => EnviarAsync<LiquidacionConsignacion>(HttpMethod.Get, $"ConsignacionInventario/Liquidacion?idConteo={idConteo}");
+
+    public Task<LoteEnvelope<List<LiquidacionConsignacion>>> LiquidacionesAsync(LiquidacionesConsignacionFiltro req)
+        => EnviarAsync<List<LiquidacionConsignacion>>(HttpMethod.Post, "ConsignacionInventario/Liquidaciones", req);
 
     public Task<LoteEnvelope<KardexConsignacion>> KardexAsync(KardexConsignacionFiltro req)
         => EnviarAsync<KardexConsignacion>(HttpMethod.Post, "ConsignacionInventario/Kardex", req);

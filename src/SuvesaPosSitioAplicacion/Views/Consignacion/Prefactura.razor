@@ -203,7 +203,12 @@
      _procesando = true;
      var r = await Api.FacturarPrefacturaAsync(new FacturarPrefacturaConsignacion { IdPrefactura = _pref.Id, Condicion = _condicion, IdPlazo = _condicion == 2 ? _idPlazo : null });
      _procesando = false;
-     if (Ok(r)) { _pref = r.Responses; await CargarLista(); Dialogos.Exito($"Consignación facturada (doc {_pref!.NumFactura:0})."); }
+     if (Ok(r))
+     {
+         _pref = r.Responses; await CargarLista();
+         Dialogos.Exito($"Consignación facturada (doc {_pref!.NumFactura:0}).");
+         if (_pref.IdConteoConsignacion is { } conteo) Nav.NavigateTo($"/consignment/settlements?id={conteo}");
+     }
      else await Fallo(r, "No se pudo facturar.");
  }
 

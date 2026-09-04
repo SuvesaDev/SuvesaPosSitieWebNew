@@ -51,6 +51,8 @@ public sealed class BoletaConsignacionRequest
     /// <summary>1 = Ingreso, 2 = Salida / retiro.</summary>
     public int Tipo { get; set; }
     public long IdCliente { get; set; }
+    /// <summary>Liquidación facturada a la que pertenece esta reposición o retiro.</summary>
+    public long? IdConteoConsignacion { get; set; }
     public string? Documento { get; set; }
     public string? Motivo { get; set; }
     public bool CierreTotal { get; set; }
@@ -82,6 +84,7 @@ public sealed class BoletaConsignacion
     public int Tipo { get; set; }
     public string TipoDescripcion { get; set; } = "";
     public long IdCliente { get; set; }
+    public long? IdConteoConsignacion { get; set; }
     public string NombreCliente { get; set; } = "";
     public int IdBodega { get; set; }
     public DateTime Fecha { get; set; }
@@ -190,6 +193,10 @@ public sealed class ConteoConsignacionLinea
     public double Vendido { get; set; }
     public double Sobrante { get; set; }
     public double PrecioUnitario { get; set; }
+    public double Facturado { get; set; }
+    public double Repuesto { get; set; }
+    public double Retirado { get; set; }
+    public double SaldoFinal { get; set; }
 }
 
 public sealed class ConteoConsignacion
@@ -204,6 +211,32 @@ public sealed class ConteoConsignacion
     public int Estado { get; set; }
     public string EstadoDescripcion { get; set; } = "";
     public string? Observaciones { get; set; }
+    public long? NumeroLiquidacion { get; set; }
+    public long? IdVentaLiquidacion { get; set; }
+    public DateTime? FechaLiquidacion { get; set; }
+    public string? UsuarioLiquidacion { get; set; }
+    public List<ConteoConsignacionLinea> Lineas { get; set; } = new();
+}
+
+public sealed class LiquidacionesConsignacionFiltro
+{
+    public long? IdCliente { get; set; }
+    public DateTime? Desde { get; set; }
+    public DateTime? Hasta { get; set; }
+}
+
+public sealed class LiquidacionConsignacion
+{
+    public long IdConteo { get; set; }
+    public long NumeroLiquidacion { get; set; }
+    public long IdCliente { get; set; }
+    public string NombreCliente { get; set; } = "";
+    public DateTime FechaConteo { get; set; }
+    public DateTime? FechaLiquidacion { get; set; }
+    public long? IdFactura { get; set; }
+    public double? NumeroFactura { get; set; }
+    public string Estado { get; set; } = "";
+    public double SaldoFinalTotal { get; set; }
     public List<ConteoConsignacionLinea> Lineas { get; set; } = new();
 }
 

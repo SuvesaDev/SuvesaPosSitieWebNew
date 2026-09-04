@@ -20,6 +20,7 @@
              Subtitulo="Boletas de ingreso y de salida / retiro (sin facturación)" Nivel="NivelPantalla.Tableta">
  <ChildContent>
   @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+  @if (Liquidacion > 0) { <div class="alert alert-info">Las boletas de esta pantalla quedarán ligadas al estado de consignación del conteo <strong>#@Liquidacion</strong>.</div> }
 
   <div class="card mb-3"><div class="card-body">
     <div class="row g-2 align-items-end">
@@ -167,6 +168,7 @@
 </HxModal>
 
 @code {
+ [SupplyParameterFromQuery] public long Liquidacion { get; set; }
  private List<FiltranClienteDTO> _clientes = new();
  private long _idCliente;
  private string _nombreCliente = "", _texCliente = "";
@@ -344,6 +346,7 @@
      {
          Tipo = _tipo,
          IdCliente = _idCliente,
+         IdConteoConsignacion = Liquidacion > 0 ? Liquidacion : null,
          Documento = string.IsNullOrWhiteSpace(_documento) ? null : _documento.Trim(),
          Motivo = string.IsNullOrWhiteSpace(_motivo) ? null : _motivo.Trim(),
          CierreTotal = _tipo == 2 && _cierreTotal,

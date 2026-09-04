@@ -169,6 +169,28 @@ public class ContratosOperacionDiariaTests
     }
 
     [Fact]
+    public async Task LiquidacionDeConsignacion_DeCarne_ConsultaEstadoYLigaLaRecargaAlConteoFacturado()
+    {
+        var handler = new RegistroHttpHandler(_ => """{"status":0,"responses":{}}""");
+        var api = new ConsignacionInvApiCliente(Http(handler), new SesionPrueba("operador-carnes"));
+
+        await api.LiquidacionAsync(300);
+        await api.LiquidacionesAsync(new LiquidacionesConsignacionFiltro { Desde = new DateTime(2026, 9, 4), Hasta = new DateTime(2026, 9, 4) });
+        await api.RegistrarBoletaAsync(new BoletaConsignacionRequest
+        {
+            Tipo = 1, IdCliente = 401, IdConteoConsignacion = 300,
+            Lineas = [new() { IdArticulo = 8001, IdStockLote = 55, Cantidad = 2.25 }]
+        });
+
+        Assert.Collection(handler.Solicitudes,
+            r => Assert.Equal(("GET", "/ConsignacionInventario/Liquidacion?idConteo=300"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/Liquidaciones"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/RegistrarBoleta"), r.VerboYRuta));
+        Assert.Contains("idConteoConsignacion", handler.Solicitudes[2].Cuerpo, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("2.25", handler.Solicitudes[2].Cuerpo);
+    }
+
+    [Fact]
     public async Task Produccion_DeHamburguesaRespetaLotesYConvierteSoloLaCantidadSolicitada()
     {
         var handler = new RegistroHttpHandler(_ => """{"status":0,"responses":{"id":77,"lineas":[]}}""");

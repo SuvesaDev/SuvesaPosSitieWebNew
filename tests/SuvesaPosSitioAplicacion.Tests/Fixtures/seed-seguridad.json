@@ -619,11 +619,27 @@
           ]
         },
         {
+          "codigo": "CONSIGNACION.ESTADOS_DE_CONSIGNACION",
+          "nombre": "Estados de Consignación",
+          "ruta": "/consignment/settlements",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "CONSIGNACION.SEGUIMIENTO_DE_CONSIGNACIONES",
           "nombre": "Seguimiento de Consignaciones",
           "ruta": "/buys/consignment/following",
           "padre": null,
-          "orden": 3,
+          "orden": 4,
           "acciones": [
             "VER",
             "CREAR",
