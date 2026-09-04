@@ -154,7 +154,10 @@ public partial class SeriesFacturacionFiscal
         if (_avisos.Count > 0) return;
 
         _edicion.Descripcion = _edicion.Descripcion.Trim();
-        _edicion.EsConsignacion = _esConsignacion ? true : null;
+        // SeriesFacturacion.EsConsignacion no admite NULL en la base (a diferencia
+        // de EsCredito/EsRecibo/EsPago, que sí son nullable) — desmarcar la casilla
+        // debe mandar false, no null, o el UPDATE falla.
+        _edicion.EsConsignacion = _esConsignacion;
         _edicion.EsCredito = _esCredito ? true : null;
         _edicion.EsRecibo = _esRecibo ? true : null;
         _edicion.EsPago = _esPago ? true : null;
