@@ -3,6 +3,12 @@ using SuvesaPosSitioAplicacion.DTOs.Fiscal;
 
 namespace SuvesaPosSitioAplicacion.Views.Parametros;
 
+// REDISENO_TIPOS_SERIES_CONDICION.md: la Serie lleva ahora la Condición de
+// venta (Contado/Crédito, solo si el Tipo ligado es de Facturación) y el
+// documento electrónico (switch + Tipo de documento electrónico + 4.4) — ya
+// no se derivan del Tipo de Documento. Se quita el bloque de checks "Uso de
+// la serie" (Consignación/Crédito/Recibo/Pago): el Tipo (vía su Uso) ya
+// indica para qué se usa la serie.
 public partial class SeriesFacturacionFiscal
 {
     private const string Titulo = "Series de Facturación";
@@ -15,11 +21,17 @@ public partial class SeriesFacturacionFiscal
 
     private int _filtroEmisor, _filtroSucursal;
 
-    // Los flags Es* del DTO son bool? — se manejan con checkbox bool y se
-    // colapsan a bool? al guardar.
-    private bool _esConsignacion, _esCredito, _esRecibo, _esPago;
+    private bool _esCredito;
+    private bool _requiereElectronico;
     private long _secuenciaMin;
     private readonly List<string> _avisos = new();
+
+    private static readonly (string Codigo, string Nombre)[] CodigosElectronicos =
+    {
+        ("01", "Factura electrónica"),
+        ("03", "Nota de crédito electrónica"),
+        ("04", "Tiquete electrónico"),
+    };
 
     private string TituloModal => _nuevo ? "Nueva serie de facturación" : "Editar serie de facturación";
 
@@ -36,6 +48,9 @@ public partial class SeriesFacturacionFiscal
 
     private SerieCatalogoTipoFacturaFiscalDTO? TipoSel
         => _edicion?.IdTipoFactura is { } id ? _cat?.TiposFactura.FirstOrDefault(t => t.Id == id) : null;
+
+    /// <summary>La condición (contado/crédito) solo aplica a series de Facturación.</summary>
+    private bool EsUsoFacturacion => TipoSel?.Uso == "facturacion";
 
     protected override async Task OnInitializedAsync()
     {
@@ -61,7 +76,8 @@ public partial class SeriesFacturacionFiscal
         if (_cat is null) return;
         _nuevo = true;
         _edicion = new SerieFacturacionFiscalDTO();
-        _esConsignacion = _esCredito = _esRecibo = _esPago = false;
+        _esCredito = false;
+        _requiereElectronico = false;
         _secuenciaMin = 0;
         RecalcularAvisos();
         await _modal.ShowAsync();
@@ -80,18 +96,14 @@ public partial class SeriesFacturacionFiscal
             Descripcion = serie.Descripcion,
             IdTipoFactura = serie.IdTipoFactura,
             EsCredito = serie.EsCredito,
-            EsRecibo = serie.EsRecibo,
-            EsPago = serie.EsPago,
-            EsConsignacion = serie.EsConsignacion,
-            EmisionV44Habilitada = serie.EmisionV44Habilitada,
+            RequiereDocumentoElectronico = serie.RequiereDocumentoElectronico,
             CodigoFE = serie.CodigoFE,
+            EmisionV44Habilitada = serie.EmisionV44Habilitada,
             NumeroSucursalFE = serie.NumeroSucursalFE,
             TieneDocumentos = serie.TieneDocumentos
         };
-        _esConsignacion = serie.EsConsignacion == true;
-        _esCredito = serie.EsCredito == true;
-        _esRecibo = serie.EsRecibo == true;
-        _esPago = serie.EsPago == true;
+        _esCredito = serie.EsCredito;
+        _requiereElectronico = serie.RequiereDocumentoElectronico;
         _secuenciaMin = serie.Secuencia;
         RecalcularAvisos();
         await _modal.ShowAsync();
@@ -99,9 +111,24 @@ public partial class SeriesFacturacionFiscal
 
     private void AlCambiarTipo()
     {
-        if (TipoSel is null || !TipoSel.CompatibleV44)
+        // Si el nuevo tipo no es de Facturación, la condición deja de aplicar.
+        if (!EsUsoFacturacion) _esCredito = false;
+        RecalcularAvisos();
+    }
+
+    private void AlCambiarCondicion() => RecalcularAvisos();
+
+    private void AlToggleElectronico()
+    {
+        if (_edicion is null) return;
+        if (!_requiereElectronico)
         {
-            _edicion!.EmisionV44Habilitada = false;
+            _edicion.CodigoFE = null;
+            _edicion.EmisionV44Habilitada = false;
+        }
+        else if (string.IsNullOrWhiteSpace(_edicion.CodigoFE))
+        {
+            _edicion.CodigoFE = CodigosElectronicos[0].Codigo;
         }
         RecalcularAvisos();
     }
@@ -130,19 +157,27 @@ public partial class SeriesFacturacionFiscal
         if (_edicion.NumeroTerminal is < 0 or > 99999) _avisos.Add("La terminal/caja debe estar entre 0 y 99999.");
         if (_edicion.Secuencia < _secuenciaMin) _avisos.Add($"La secuencia no puede ser menor que {_secuenciaMin}.");
         if (string.IsNullOrWhiteSpace(_edicion.Descripcion)) _avisos.Add("Indique una descripción.");
-        if (_edicion.EmisionV44Habilitada && !(TipoSel?.CompatibleV44 ?? false))
-            _avisos.Add("La emisión 4.4 solo aplica a Factura (FE 01), Tiquete (FE 04) o Nota de crédito (FE 05).");
+
+        if (_requiereElectronico)
+        {
+            if (string.IsNullOrWhiteSpace(_edicion.CodigoFE)) _avisos.Add("Elija el tipo de documento electrónico.");
+            if (_esCredito && _edicion.CodigoFE == "04") _avisos.Add("Un tiquete electrónico no puede ser a crédito.");
+        }
+        else if (_edicion.EmisionV44Habilitada)
+        {
+            _avisos.Add("Active 'Requiere documento electrónico' antes de emitir 4.4 automáticamente.");
+        }
     }
 
     private string PreviewConsecutivo()
     {
         if (_edicion is null) return "—";
         var su = SucursalSel;
-        var codigoFe = TipoSel?.CodigoFE;
+        var codigoFe = _requiereElectronico ? _edicion.CodigoFE : null;
         if (su is null || !su.FEValida || string.IsNullOrWhiteSpace(codigoFe) || codigoFe!.Length != 2
             || _edicion.NumeroTerminal is < 0 or > 99999 || _edicion.Secuencia is < 0 or >= 9999999999)
         {
-            return "Complete sucursal (con FE), tipo fiscal, terminal y secuencia.";
+            return "Complete sucursal (con FE), documento electrónico, terminal y secuencia.";
         }
         return $"{su.NumeroFE} · {_edicion.NumeroTerminal:D5} · {codigoFe} · {(_edicion.Secuencia + 1):D10}";
     }
@@ -154,13 +189,9 @@ public partial class SeriesFacturacionFiscal
         if (_avisos.Count > 0) return;
 
         _edicion.Descripcion = _edicion.Descripcion.Trim();
-        // SeriesFacturacion.EsConsignacion no admite NULL en la base (a diferencia
-        // de EsCredito/EsRecibo/EsPago, que sí son nullable) — desmarcar la casilla
-        // debe mandar false, no null, o el UPDATE falla.
-        _edicion.EsConsignacion = _esConsignacion;
-        _edicion.EsCredito = _esCredito ? true : null;
-        _edicion.EsRecibo = _esRecibo ? true : null;
-        _edicion.EsPago = _esPago ? true : null;
+        _edicion.EsCredito = EsUsoFacturacion && _esCredito;
+        _edicion.RequiereDocumentoElectronico = _requiereElectronico;
+        _edicion.CodigoFE = _requiereElectronico ? _edicion.CodigoFE : null;
 
         var respuesta = _nuevo ? await Api.Crear(_edicion) : await Api.Actualizar(_edicion);
         if (await Respuestas.CorrectaAsync(respuesta, "guardar la serie"))

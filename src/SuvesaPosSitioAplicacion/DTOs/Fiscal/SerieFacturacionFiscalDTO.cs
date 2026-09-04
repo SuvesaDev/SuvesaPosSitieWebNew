@@ -1,5 +1,10 @@
 namespace SuvesaPosSitioAplicacion.DTOs.Fiscal;
 
+// REDISENO_TIPOS_SERIES_CONDICION.md: la Serie lleva la condición de venta
+// (EsCredito) y el documento electrónico (RequiereDocumentoElectronico +
+// CodigoFE) — antes vivían en el Tipo de Factura. EsRecibo/EsPago/
+// EsConsignacion se eliminan: el Tipo de Documento (vía su Uso) ya indica
+// para qué se usa la serie.
 public sealed class SerieFacturacionFiscalDTO
 {
     public int IdSerie { get; set; }
@@ -9,14 +14,17 @@ public sealed class SerieFacturacionFiscalDTO
     public int IdEmisor { get; set; }
     public string Descripcion { get; set; } = string.Empty;
     public int? IdTipoFactura { get; set; }
-    public bool? EsCredito { get; set; }
-    public bool? EsRecibo { get; set; }
-    public bool? EsPago { get; set; }
-    public bool? EsConsignacion { get; set; }
+    /// <summary>Condición de venta: false = Contado, true = Crédito. Solo aplica
+    /// cuando el Tipo ligado tiene Uso = Facturación.</summary>
+    public bool EsCredito { get; set; }
+    /// <summary>Switch: si esta serie requiere emitir documento electrónico.</summary>
+    public bool RequiereDocumentoElectronico { get; set; }
     public bool EmisionV44Habilitada { get; set; }
+    /// <summary>Código de comprobante electrónico de esta serie (01/03/04). Se manda
+    /// al guardar cuando RequiereDocumentoElectronico es true.</summary>
+    public string? CodigoFE { get; set; }
 
     // ---- Derivados (solo lectura, los llena el API) ----
-    public string? CodigoFE { get; set; }
     public string? NumeroSucursalFE { get; set; }
     public string? EmisorNombre { get; set; }
     public string? EmisorIdentificacion { get; set; }
@@ -58,11 +66,6 @@ public sealed class SerieCatalogoTipoFacturaFiscalDTO
     public int Id { get; set; }
     public int Codigo { get; set; }
     public string? Descripcion { get; set; }
-    public string? CodigoFE { get; set; }
-    public bool EsFiscal { get; set; }
-    public bool CompatibleV44 { get; set; }
     /// <summary>"facturacion" | "devolucion" | "compra" | "consignacion" — para agrupar el selector.</summary>
     public string? Uso { get; set; }
-    public bool Contado { get; set; }
-    public bool Credito { get; set; }
 }

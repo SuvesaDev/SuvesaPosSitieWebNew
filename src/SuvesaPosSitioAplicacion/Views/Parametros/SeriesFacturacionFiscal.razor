@@ -42,7 +42,8 @@
                                 <th>Emisor</th>
                                 <th>Sucursal</th>
                                 <th>Tipo de documento</th>
-                                <th>Uso</th>
+                                <th>Condición</th>
+                                <th>Documento electrónico</th>
                                 <th class="text-end">Terminal</th>
                                 <th class="text-end">Secuencia</th>
                                 <th>4.4</th>
@@ -50,7 +51,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @if (Filtradas.Count == 0) { <tr><td colspan="9" class="text-secondary text-center py-3">No hay series configuradas con esos criterios.</td></tr> }
+                            @if (Filtradas.Count == 0) { <tr><td colspan="10" class="text-secondary text-center py-3">No hay series configuradas con esos criterios.</td></tr> }
                             @foreach (var x in Filtradas)
                             {
                                 <tr>
@@ -61,8 +62,9 @@
                                         @if (x.SucursalFEValida) { <span class="badge text-bg-light ms-1">FE @x.NumeroSucursalFE</span> }
                                         else { <span class="badge text-bg-danger ms-1" title="La sucursal no tiene número FE de 3 dígitos">FE sin configurar</span> }
                                     </td>
-                                    <td>@x.TipoFacturaDescripcion @if (!string.IsNullOrWhiteSpace(x.CodigoFE)) { <span class="text-secondary small">· FE @x.CodigoFE</span> }</td>
+                                    <td>@x.TipoFacturaDescripcion</td>
                                     <td><span class="small">@x.UsoDescripcion</span></td>
+                                    <td>@if (!string.IsNullOrWhiteSpace(x.CodigoFE)) { <span class="badge text-bg-success">FE @x.CodigoFE</span> } else { <span class="badge text-bg-secondary">No</span> }</td>
                                     <td class="text-end">@x.NumeroTerminal.ToString("D5")</td>
                                     <td class="text-end">@x.Secuencia</td>
                                     <td>@if (x.EmisionV44Habilitada) { <span class="badge text-bg-success">Sí</span> } else { <span class="badge text-bg-secondary">No</span> }</td>
@@ -98,7 +100,7 @@
                             </select>
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label">Sucursal de facturación</label>
+                            <label class="form-label">Sucursal de facturación <span class="text-secondary small">(centro)</span></label>
                             <select class="form-select" @bind="_edicion.IdSucursal" @bind:after="RecalcularAvisos" disabled="@_edicion.TieneDocumentos">
                                 <option value="0">Seleccione...</option>
                                 @foreach (var s in _cat.Sucursales) { <option value="@s.Id">@s.Nombre</option> }
@@ -120,9 +122,9 @@
                 </div>
 
                 <div class="mb-4">
-                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">2 · Documento</h6>
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">2 · Documento y condición</h6>
                     <div class="row g-3">
-                        <div class="col-12 col-md-8">
+                        <div class="col-12 col-md-6">
                             <label class="form-label">Tipo de documento</label>
                             <select class="form-select" @bind="_edicion.IdTipoFactura" @bind:after="AlCambiarTipo" disabled="@_edicion.TieneDocumentos">
                                 <option value="">Seleccione...</option>
@@ -131,35 +133,62 @@
                                     <optgroup label="@GrupoUso(grupo.Key)">
                                         @foreach (var t in grupo)
                                         {
-                                            <option value="@t.Id">@t.Descripcion @(string.IsNullOrWhiteSpace(t.CodigoFE) ? "(no fiscal)" : $"— FE {t.CodigoFE}")</option>
+                                            <option value="@t.Id">@t.Descripcion</option>
                                         }
                                     </optgroup>
                                 }
                             </select>
-                            @if (TipoSel is { } tp)
-                            {
-                                <div class="form-text">@(string.IsNullOrWhiteSpace(tp.CodigoFE) ? "Documento interno (presupuesto / proforma): nunca emite comprobante electrónico." : $"Comprobante electrónico FE {tp.CodigoFE}.")</div>
-                            }
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
                             <label class="form-label">Terminal / Caja</label>
                             <input class="form-control" type="number" min="0" max="99999" @bind="_edicion.NumeroTerminal" @bind:after="RecalcularAvisos" disabled="@_edicion.TieneDocumentos" />
-                            <div class="form-text">Número de caja. Forma parte del consecutivo fiscal.</div>
+                            <div class="form-text">Forma parte del consecutivo fiscal.</div>
                         </div>
-                        <div class="col-12">
-                            <label class="form-label d-block">Uso de la serie <span class="text-secondary small">(clasifica la serie y marca la venta)</span></label>
-                            <div class="d-flex flex-wrap gap-3">
-                                <div class="form-check"><input id="u-cons" class="form-check-input" type="checkbox" @bind="_esConsignacion" /><label class="form-check-label" for="u-cons">Consignación</label></div>
-                                <div class="form-check"><input id="u-cred" class="form-check-input" type="checkbox" @bind="_esCredito" /><label class="form-check-label" for="u-cred">Crédito</label></div>
-                                <div class="form-check"><input id="u-rec" class="form-check-input" type="checkbox" @bind="_esRecibo" /><label class="form-check-label" for="u-rec">Recibo de dinero</label></div>
-                                <div class="form-check"><input id="u-pago" class="form-check-input" type="checkbox" @bind="_esPago" /><label class="form-check-label" for="u-pago">Nota de pago</label></div>
+                        @if (EsUsoFacturacion)
+                        {
+                            <div class="col-12 col-md-3">
+                                <label class="form-label">Condición de venta</label>
+                                <select class="form-select" @bind="_esCredito" @bind:after="AlCambiarCondicion" disabled="@_edicion.TieneDocumentos">
+                                    <option value="false">Contado</option>
+                                    <option value="true">Crédito</option>
+                                </select>
+                                <div class="form-text">Esta serie queda dedicada a esa condición.</div>
                             </div>
-                        </div>
+                        }
                     </div>
                 </div>
 
                 <div class="mb-4">
-                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">3 · Numeración</h6>
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">3 · Documento electrónico (Hacienda 4.4)</h6>
+                    <div class="form-check form-switch">
+                        <input id="fe" class="form-check-input" type="checkbox" @bind="_requiereElectronico" @bind:after="AlToggleElectronico" />
+                        <label class="form-check-label" for="fe">Requiere documento electrónico</label>
+                    </div>
+                    @if (_requiereElectronico)
+                    {
+                        <div class="row g-3 mt-1">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Tipo de documento electrónico</label>
+                                <select class="form-select" @bind="_edicion.CodigoFE" @bind:after="RecalcularAvisos">
+                                    @foreach (var c in CodigosElectronicos) { <option value="@c.Codigo">@c.Nombre (FE @c.Codigo)</option> }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6 d-flex align-items-center">
+                                <div class="form-check">
+                                    <input id="v44" class="form-check-input" type="checkbox" @bind="_edicion.EmisionV44Habilitada" @bind:after="RecalcularAvisos" />
+                                    <label class="form-check-label" for="v44">Emitir comprobante electrónico 4.4 automáticamente</label>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="form-text">Documento interno (presupuesto, proforma…): no genera comprobante de Hacienda.</div>
+                    }
+                </div>
+
+                <div class="mb-2">
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">4 · Numeración</h6>
                     <div class="row g-3 align-items-end">
                         <div class="col-12 col-md-4">
                             <label class="form-label">Secuencia actual</label>
@@ -171,18 +200,6 @@
                             <div class="font-monospace fs-6">@PreviewConsecutivo()</div>
                         </div>
                     </div>
-                </div>
-
-                <div class="mb-2">
-                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">4 · Facturación electrónica (Hacienda 4.4)</h6>
-                    <div class="form-check">
-                        <input id="v44" class="form-check-input" type="checkbox" @bind="_edicion.EmisionV44Habilitada" disabled="@(!(TipoSel?.CompatibleV44 ?? false))" />
-                        <label class="form-check-label" for="v44">Emitir comprobante electrónico 4.4 automáticamente</label>
-                    </div>
-                    @if (TipoSel is { CompatibleV44: false } t2)
-                    {
-                        <div class="form-text text-warning">Solo disponible para Factura (FE 01), Tiquete (FE 04) o Nota de crédito (FE 05). El tipo elegido es @(string.IsNullOrWhiteSpace(t2.CodigoFE) ? "no fiscal" : $"FE {t2.CodigoFE}").</div>
-                    }
                 </div>
 
                 @if (_avisos.Count > 0)

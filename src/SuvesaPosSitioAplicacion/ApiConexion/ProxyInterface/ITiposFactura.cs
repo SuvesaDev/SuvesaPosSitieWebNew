@@ -11,8 +11,6 @@ public interface ITiposFactura
     /// <summary>Tipos filtrados por pantalla: "facturacion" | "devolucion" | "compra" | "consignacion".</summary>
     Task<ResponseGeneric<ICollection<TipoFacturaFiscalDTO>>> PorContexto(string contexto);
 
-    Task<ResponseGeneric<ICollection<CodigoFEDisponibleFiscalDTO>>> CodigosFEDisponibles();
-
     Task<ResponseGeneric<TipoFacturaFiscalDTO>> Crear(TipoFacturaFiscalDTO tipo);
 
     Task<ResponseGeneric<TipoFacturaFiscalDTO>> Actualizar(TipoFacturaFiscalDTO tipo);

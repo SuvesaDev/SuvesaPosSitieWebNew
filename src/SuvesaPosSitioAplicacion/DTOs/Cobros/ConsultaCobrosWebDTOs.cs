@@ -89,9 +89,6 @@ public sealed class PerfilEmisionElegibleWebDTO
     public string? CodigoFe { get; set; }
     public string? TipoNombre { get; set; }
     public bool EsCredito { get; set; }
-    public bool EsRecibo { get; set; }
-    public bool EsPago { get; set; }
-    public bool EsConsignacion { get; set; }
     public bool EmisionV44Habilitada { get; set; }
     public bool Elegible { get; set; }
     public string? MotivoNoElegible { get; set; }

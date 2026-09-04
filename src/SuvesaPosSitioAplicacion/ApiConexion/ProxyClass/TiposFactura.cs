@@ -27,10 +27,6 @@ public sealed class TiposFacturaFiscal : ProxyBase, ITiposFactura
         => Ejecutar(async () => await LeerAsync<ICollection<TipoFacturaFiscalDTO>>(
             await _api.GetAsync($"TipoFactura/PorContexto?contexto={Uri.EscapeDataString(contexto)}")), "consultar los tipos de documento");
 
-    public Task<ResponseGeneric<ICollection<CodigoFEDisponibleFiscalDTO>>> CodigosFEDisponibles()
-        => Ejecutar(async () => await LeerAsync<ICollection<CodigoFEDisponibleFiscalDTO>>(
-            await _api.GetAsync("TipoFactura/CodigosFEDisponibles")), "consultar los códigos FE disponibles");
-
     public Task<ResponseGeneric<TipoFacturaFiscalDTO>> Crear(TipoFacturaFiscalDTO tipo)
         => Ejecutar(async () =>
         {

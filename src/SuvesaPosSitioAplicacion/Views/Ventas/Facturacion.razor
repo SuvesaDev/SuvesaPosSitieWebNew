@@ -67,43 +67,33 @@
                                 <label class="form-label">Buscar cliente</label>
                                 <div class="input-group"><input class="form-control" placeholder="Cédula o nombre" value="@_textoCliente" @oninput="AlEscribirCliente" @onkeydown="BuscarClienteConEnter" /><button type="button" class="btn btn-outline-primary" @onclick="BuscarClientes">Buscar</button></div>
                             </div>
-                            @if (_perfiles.Count > 0)
-                            {
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label">Perfil de emisión</label>
-                                    <select class="form-select" @bind="_idPerfil" @bind:after="AlCambiarPerfil">
-                                        <option value="0">Seleccione...</option>
-                                        @foreach (var p in _perfiles)
-                                        {
-                                            <option value="@p.IdSerie" disabled="@(!p.Elegible)">
-                                                @p.Descripcion — @(p.TipoNombre ?? p.CodigoFe) @(p.EsCredito ? "(crédito)" : "(contado)")@(p.Elegible ? "" : " — no aplica")
-                                            </option>
-                                        }
-                                    </select>
-                                    @if (_perfilAviso is not null)
-                                    {
-                                        <div class="form-text text-danger">@_perfilAviso</div>
-                                    }
-                                </div>
-                            }
-                            <div class="col-12 col-md-4">
-                                <label class="form-label">Tipo de factura</label>
-                                <select class="form-select" @bind="_tipoFactura" @bind:after="AlCambiarTipoManual"><option value="0">Seleccione...</option>@foreach (var tipo in TiposDisponibles) { <option value="@tipo.Codigo">@tipo.Descripcion</option> }</select>
+                            <div class="col-12 col-md-3">
+                                <label class="form-label">Condición de venta</label>
+                                <select class="form-select" @bind="EsCreditoTexto" @bind:after="AlCambiarCondicion">
+                                    <option value="false">Contado</option>
+                                    <option value="true">Crédito</option>
+                                </select>
+                                @if (_creditoAviso is not null)
+                                {
+                                    <div class="form-text text-danger">@_creditoAviso</div>
+                                }
                             </div>
-                            @if (TipoFacturaElegido is not null && (TipoFacturaElegido.Contado || TipoFacturaElegido.Credito))
-                            {
-                                <div class="col-12 col-md-3">
-                                    <label class="form-label">Condición de venta</label>
-                                    <select class="form-select" @bind="EsCreditoTexto" @bind:after="AlCambiarCondicion">
-                                        <option value="false" disabled="@(!TipoFacturaElegido.Contado)">Contado</option>
-                                        <option value="true" disabled="@(!TipoFacturaElegido.Credito)">Crédito</option>
-                                    </select>
-                                    @if (_creditoAviso is not null)
+                            <div class="col-12 col-md-4">
+                                <label class="form-label">Serie / documento a emitir</label>
+                                <select class="form-select" @bind="_idPerfil" @bind:after="AlCambiarPerfil" disabled="@(_perfiles.Count == 0)">
+                                    <option value="0">@(_perfiles.Count == 0 ? "Seleccione empresa y sucursal..." : "Seleccione...")</option>
+                                    @foreach (var p in _perfiles)
                                     {
-                                        <div class="form-text text-danger">@_creditoAviso</div>
+                                        <option value="@p.IdSerie" disabled="@(!p.Elegible)">
+                                            @p.Descripcion — @(p.TipoNombre ?? p.CodigoFe)@(p.Elegible ? "" : " — no aplica")
+                                        </option>
                                     }
-                                </div>
-                            }
+                                </select>
+                                @if (_perfilAviso is not null)
+                                {
+                                    <div class="form-text text-danger">@_perfilAviso</div>
+                                }
+                            </div>
                             <div class="col-12 col-md-3"><label class="form-label">Moneda</label><select class="form-select" @bind="_moneda"><option value="0">Seleccione...</option>@foreach (var moneda in _monedas) { <option value="@moneda.CodMoneda">@moneda.MonedaNombre</option> }</select></div>
                             @if (!EsConsignacion)
                             {
@@ -542,7 +532,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _tipos = (await Respuestas.DatoAsync(await Api.Tipos(), "consultar los tipos de factura"))?.Where(t => t.Activo && (int)t.Uso == 1 && (t.Contado || t.Credito)).ToList() ?? new();
+        // REDISENO_TIPOS_SERIES_CONDICION.md: el Tipo ya no lleva Contado/Credito —
+        // la condición y la elegibilidad de la serie las resuelve PerfilesApi.Elegibles
+        // según la Condición de venta elegida en pantalla.
+        _tipos = (await Respuestas.DatoAsync(await Api.Tipos(), "consultar los tipos de factura"))?.Where(t => t.Activo && (int)t.Uso == 1).ToList() ?? new();
         _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))?.ToList() ?? new();
         if (_moneda == 0) _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0;
         _agentesVenta = (await Respuestas.DatoAsync(await Api.Agentes(), "consultar los agentes de venta"))?.ToList() ?? new();
@@ -562,20 +555,22 @@
     {
         _perfiles = new();
         _idPerfil = 0;
+        _tipoFactura = 0;
         _perfilAviso = null;
         if (_idEmisor <= 0 || Sesion.IdSucursal <= 0) return;
 
         var lista = await Respuestas.DatoAsync(
-            await PerfilesApi.Elegibles(_idEmisor, Sesion.IdSucursal, null, null),
-            "consultar los perfiles de emisión");
+            await PerfilesApi.Elegibles(_idEmisor, Sesion.IdSucursal, null, _esCredito ? "credito" : "contado"),
+            "consultar las series disponibles para facturar");
         _perfiles = (lista ?? new List<SuvesaPosSitioAplicacion.DTOs.Cobros.PerfilEmisionElegibleWebDTO>())
-            .OrderByDescending(p => p.Elegible).ThenBy(p => p.EsCredito).ThenBy(p => p.Descripcion)
+            .OrderByDescending(p => p.Elegible).ThenBy(p => p.Descripcion)
             .ToList();
     }
 
     private void AlCambiarPerfil()
     {
         _perfilAviso = null;
+        _tipoFactura = 0;
         var p = _perfiles.FirstOrDefault(x => x.IdSerie == _idPerfil);
         if (p is null) return;
         if (!p.Elegible)
@@ -589,42 +584,15 @@
             _perfilAviso = "El tipo de documento del perfil no está disponible en esta pantalla.";
             return;
         }
-        if (!TiposDisponibles.Any(t => t.Codigo == tipo.Codigo))
-        {
-            _perfilAviso = tipo.Credito ? "El cliente no tiene crédito habilitado para este perfil." : "El tipo del perfil no está disponible.";
-            return;
-        }
         _tipoFactura = tipo.Codigo;
-        // El perfil ya trae definida su condición (serie de contado o de crédito);
-        // se usa como valor inicial pero el usuario la puede cambiar si el tipo
-        // elegido admite ambas.
-        _esCredito = p.EsCredito;
-        _creditoAviso = null;
     }
 
-    private TipoFactura? TipoFacturaElegido => _tipos.FirstOrDefault(t => t.Codigo == _tipoFactura);
-
-    private void AlCambiarCondicion() => _creditoAviso = null;
-
-    private void AlCambiarTipoManual()
+    // Al cambiar la condición (Contado/Crédito) se recargan las series
+    // disponibles para esa condición (regla 3 de REDISENO_TIPOS_SERIES_CONDICION.md).
+    private async Task AlCambiarCondicion()
     {
-        // Si el tipo elegido a mano ya no concuerda con el perfil, se deselecciona.
-        if (_idPerfil != 0)
-        {
-            var p = _perfiles.FirstOrDefault(x => x.IdSerie == _idPerfil);
-            var tipo = _tipos.FirstOrDefault(t => t.Codigo == _tipoFactura);
-            if (p is null || tipo is null || p.IdTipoFactura != tipo.Id) { _idPerfil = 0; _perfilAviso = null; }
-        }
-
-        // Si la condición ya elegida ya no es válida para el nuevo tipo, se ajusta
-        // a la única opción que sí admite.
-        var tipoElegido = TipoFacturaElegido;
         _creditoAviso = null;
-        if (tipoElegido is not null)
-        {
-            if (_esCredito && !tipoElegido.Credito) _esCredito = false;
-            else if (!_esCredito && !tipoElegido.Contado && tipoElegido.Credito) _esCredito = true;
-        }
+        await CargarPerfiles();
     }
 
     private ConfiguracionBonificacion? ConfigBonificacion(int id) => _configsBonificacion.FirstOrDefault(c => c.IdConfiguracionBonificacion == id);
@@ -694,12 +662,6 @@
         }
     }
 
-    // Un tipo se ofrece si admite Contado (siempre disponible) o si admite Crédito
-    // y el cliente tiene crédito habilitado. Un tipo que admite ambos (p. ej.
-    // "Factura Electrónica") no debe desaparecer solo porque el cliente no tenga
-    // crédito: sigue siendo válido para venta de contado.
-    private IEnumerable<TipoFactura> TiposDisponibles => _tipos.Where(t =>
-        t.Contado || (t.Credito && (_cliente?.Abierto == true || _cliente?.Sinrestriccion == true)));
     private bool CatalogoCompletoSeleccionado => _catalogoImagenes.Count > 0 && _catalogoImagenes.All(p => p.Seleccionado);
     private Task AbrirBuscadorArticulo() => _ventaDesbloqueada ? _buscadorArticulo.AbrirAsync() : AbrirDesbloqueo();
 
@@ -846,7 +808,6 @@
         _cliente = cliente;
         _textoCliente = cliente.Nombre ?? cliente.Cedula ?? string.Empty;
         _clientesEncontrados.Clear();
-        if (_tipoFactura != 0 && !TiposDisponibles.Any(t => t.Codigo == _tipoFactura)) _tipoFactura = 0;
         RecalcularTodo();
         await CargarActividadesCliente(cliente);
 
@@ -1283,7 +1244,7 @@
     private async Task Emitir()
     {
         if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
-        if (_cliente is null || _tipoFactura == 0 || _moneda == 0 || _lineas.Count == 0) { await Dialogos.ErrorAsync("Seleccione cliente, tipo de factura, moneda y al menos un artículo."); return; }
+        if (_cliente is null || _idPerfil == 0 || _tipoFactura == 0 || _moneda == 0 || _lineas.Count == 0) { await Dialogos.ErrorAsync("Seleccione cliente, condición, la serie a emitir, moneda y al menos un artículo."); return; }
         if (_idEmpresa <= 0) { await Dialogos.ErrorAsync("Seleccione una empresa para registrar la facturación."); return; }
         if (!EsConsignacion && _bodega <= 0) { await Dialogos.ErrorAsync("Seleccione la bodega de la que sale el inventario."); return; }
         if (!EsPrefacturaConsignacion)
@@ -1292,9 +1253,6 @@
             // de compra: la condición (contado/crédito) se elige al facturar.
             if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { await Dialogos.ErrorAsync("El cliente tiene restricción de morosidad."); return; }
             if (_cliente.OrdenCompra && string.IsNullOrWhiteSpace(_ordenCompra)) { await Dialogos.ErrorAsync("El cliente requiere una orden de compra."); return; }
-            var tipoDoc = _tipos.First(t => t.Codigo == _tipoFactura);
-            if (_esCredito && !tipoDoc.Credito) { await Dialogos.ErrorAsync("El tipo de factura elegido no admite venta a crédito."); return; }
-            if (!_esCredito && !tipoDoc.Contado) { await Dialogos.ErrorAsync("El tipo de factura elegido no admite venta de contado."); return; }
             if (_lineas.Any(l => l.Articulo.SoloConExistencia && l.Cantidad > Formato.AImporte(l.Articulo.Existencia))) { await Dialogos.ErrorAsync("Una línea supera la existencia disponible."); return; }
             if (_esCredito)
             {
@@ -1328,7 +1286,7 @@
             return;
         }
         var r = await Api.Crear(factura); _guardando = false;
-        if (await Respuestas.CorrectaAsync(r, EsConsignacion ? "registrar la consignación" : "emitir la factura")) { Dialogos.Exito(EsConsignacion ? "Consignación registrada correctamente." : "Factura emitida correctamente."); Limpiar(); }
+        if (await Respuestas.CorrectaAsync(r, EsConsignacion ? "registrar la consignación" : "emitir la factura")) { Dialogos.Exito(EsConsignacion ? "Consignación registrada correctamente." : "Factura emitida correctamente."); await Limpiar(); }
     }
-    private void Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _esCredito = false; _creditoAviso = null; _idPerfil = 0; _perfilAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _sinAgente = false; _codAgente = 0; _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; RecalcularTodo(); }
+    private async Task Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _esCredito = false; _creditoAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _sinAgente = false; _codAgente = 0; _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; await CargarPerfiles(); RecalcularTodo(); }
 }
