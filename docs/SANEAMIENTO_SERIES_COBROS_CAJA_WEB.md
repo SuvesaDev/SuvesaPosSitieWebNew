@@ -25,13 +25,16 @@
 ## 2. Plan por fases (sitio) — sigue al API
 
 > **Estado (2026-09-04)**
-> - **Fase 8.1 — parcial.** Hecha la pantalla **Series operativas**
->   (`/parameters/operational-series`, `PARAMETROS.SERIES_OPERATIVAS`): listado
->   con filtro por tipo/emisor, alta/edición (emisor + centro obligatorios, D1),
->   activar/desactivar, marca de predeterminada. Proxy `ISeriesOperativas` →
->   `api/series-operativas`. Falta el resto del desglose de configuración
->   (perfiles de emisión, serie única de NC, formas de pago semánticas, panel de
->   inconsistencias).
+> - **Fase 8.1 — casi completa.** Pantallas: **Series operativas**
+>   (`/parameters/operational-series`) con panel *Revisar configuración*
+>   (`GET api/series-operativas/diagnostico`: predeterminadas duplicadas, series
+>   sin emisor/centro, tipos sin serie, series V4.4 sin CodigoFE, NC duplicada
+>   por ámbito D1, ámbitos sin factura 01, formas de pago sin código Hacienda);
+>   **Propiedades de formas de pago**
+>   (`/parameters/payment-methods-properties`, `PARAMETROS.FORMAS_PAGO_PROPIEDADES`):
+>   Activa, vuelto, referencia obligatoria, afecta caja, moneda extranjera,
+>   código Hacienda, orden. Falta: pantalla de serie única de NC y de plazos de
+>   crédito (los mantenimientos existentes ya cubren el CRUD base).
 > - **Fase 8.4 — parcial.** Hecha la pantalla **Conciliación de caja**
 >   (`/initial/cash/reconciliation`, `CAJA.CONCILIACION`): elige una apertura sin
 >   cerrar y muestra fondo inicial + saldo esperado por forma de pago y moneda
@@ -48,18 +51,24 @@
 >   **Acciones D10 cableadas**: *Reenviar* (`.../pos/ventas/{id}/facturas|tiquetes/emitir`)
 >   y *NC interna* (`POST api/venta-orquestada/devolucion-interna`, `AnularOrigen`
 >   = true) — el cobro nunca se toca. Abono Cobrar enlaza a esta pantalla y a
->   Perfiles de emisión (unificación ligera; falta fundir todo en una sola vista).
-> - **Fase 8.3 — parcial.** Hecha la pantalla **Perfiles de emisión**
+>   Perfiles de emisión (unificación ligera). **Pendiente (cambio de diseño):**
+>   fundir las 4 pestañas en `/sales/collect` — hoy esa pantalla gatea todo tras
+>   la clave del cajero y las pestañas de consulta no deben bloquearse;
+>   reestructurarla toca un flujo de cobro que ya funciona.
+> - **Fase 8.3 — parcial.** Hecha la pantalla de consulta **Perfiles de emisión**
 >   (`/sales/emission-profiles`, `VENTAS.PERFILES_EMISION`): por emisor + centro
 >   [+ terminal] y modalidad, lista las series V4.4 con `elegible` +
->   `motivoNoElegible` (`GET api/facturacion/perfiles-emision/elegibles`). Falta
->   integrarlo en el flujo de facturación alrededor de preventa (pantalla
->   `Facturacion.razor`, 1 120 líneas — reescritura mayor, se deja aparte).
-> - **Fase 8.5 — pendiente por contrato.** Los recibos de pago a proveedor ya
->   tienen pantalla (`/buys/pay`), pero el flujo `AbonoPagarController` usa un
->   número de recibo manual y `Documento = 0`: no persiste ni devuelve un id con
->   el que imprimir la plantilla nueva. Requiere cambiar ese contrato en el API
->   antes de conectar `/documentos/recibo-pago/{id}/pdf`.
+>   `motivoNoElegible` (`GET api/facturacion/perfiles-emision/elegibles`).
+>   **Pendiente (cambio de diseño):** `Facturacion.razor` (1 120 líneas) hoy no
+>   selecciona serie/perfil — el API la resuelve por `(emisor, centro, terminal,
+>   tipo)`. Integrar un selector de perfil cambia el contrato de emisión
+>   (`FacturaDTO.Tipo` → `IdSerie`/`IdTipoFactura` explícito) y toca la emisión
+>   fiscal en vivo; se deja para una iteración dedicada.
+> - **Fase 8.5 — hecha.** El API (`AbonoPagarManager.CreateAbonoPagar`) ahora
+>   devuelve `IdAbonocpagar`. Pantalla **Recibos de pago**
+>   (`/buys/payment-receipts`, `COMPRAS.RECIBOS_PAGO`): lista + filtro + PDF
+>   (`/documentos/recibo-pago/{id}/pdf`). "Abono Pagar" ofrece imprimir el recibo
+>   tras registrarlo.
 
 ### Fase 8.1 — Configuración (tras Fases 1–7 del API)
 Separar en pantallas distintas (hoy mezcladas): **Tipos fiscales** ·
