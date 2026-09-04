@@ -148,7 +148,7 @@
                         {
                             <div class="col-12 col-md-3">
                                 <label class="form-label">Condición de venta</label>
-                                <select class="form-select" @bind="_esCredito" @bind:after="AlCambiarCondicion" disabled="@_edicion.TieneDocumentos">
+                                <select class="form-select" @bind="EsCreditoTexto" @bind:after="AlCambiarCondicion" disabled="@_edicion.TieneDocumentos">
                                     <option value="false">Contado</option>
                                     <option value="true">Crédito</option>
                                 </select>

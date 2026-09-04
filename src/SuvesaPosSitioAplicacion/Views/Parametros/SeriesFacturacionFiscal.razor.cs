@@ -22,6 +22,15 @@ public partial class SeriesFacturacionFiscal
     private int _filtroEmisor, _filtroSucursal;
 
     private bool _esCredito;
+    // @bind sobre <select> con un bool compara contra "True"/"False" (mayúscula,
+    // vía BindConverter), pero las <option> usan "true"/"false": nunca coincidía y
+    // el select quedaba en blanco/sin marcar. Se pasa por un proxy string sin
+    // ambigüedad (mismo arreglo que Views/Ventas/Facturacion.razor).
+    private string EsCreditoTexto
+    {
+        get => _esCredito ? "true" : "false";
+        set => _esCredito = value == "true";
+    }
     private bool _requiereElectronico;
     private long _secuenciaMin;
     private readonly List<string> _avisos = new();
