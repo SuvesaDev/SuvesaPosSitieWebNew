@@ -775,27 +775,66 @@
                         else
                         {
                             <div class="table-responsive"><table class="table table-sm align-middle mb-0">
-                                <thead><tr><th>Lote</th><th>Vence</th><th class="text-end">Existencia</th><th class="text-end" style="min-width:11rem">Ajustar a</th></tr></thead>
+                                <thead><tr><th>Lote</th><th>Vence</th><th>Bodega</th><th class="text-end">Existencia</th><th class="text-end" style="min-width:11rem">Ajustar a</th></tr></thead>
                                 <tbody>
                                 @foreach (var l in _existenciaConsol.Lotes)
                                 {
-                                    <tr class="@(l.Vencido ? "table-danger" : null)">
-                                        <td>@l.Numero @(l.EsUnico ? "(único)" : "") @(l.Bloqueado ? "🔒" : "")</td>
-                                        <td>@(l.Vencimiento?.ToString("dd/MM/yyyy") ?? "—")</td>
-                                        <td class="text-end">@l.ExistenciaTotal.ToString("N2")</td>
-                                        <td class="text-end"><div class="input-group input-group-sm">
-                                            <input type="number" step="0.001" class="form-control text-end" @bind="_ajusteExistencia" />
-                                            <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(l.PorBodega.FirstOrDefault()?.IdBodega ?? 0, l.Id)">Aplicar</button>
-                                        </div></td>
-                                    </tr>
+                                    @if (l.PorBodega.Count > 1)
+                                    {
+                                        @foreach (var pb in l.PorBodega)
+                                        {
+                                            <tr class="@(l.Vencido ? "table-danger" : null)">
+                                                <td>@l.Numero @(l.EsUnico ? "(único)" : "") @(l.Bloqueado ? "🔒" : "")</td>
+                                                <td>@(l.Vencimiento?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                                <td>@pb.NombreBodega</td>
+                                                <td class="text-end">@pb.Existencia.ToString("N2")</td>
+                                                <td class="text-end"><div class="input-group input-group-sm">
+                                                    <input type="number" step="0.001" class="form-control text-end" @bind="_ajusteExistencia" />
+                                                    <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(pb.IdBodega, l.Id)">Aplicar</button>
+                                                </div></td>
+                                            </tr>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <tr class="@(l.Vencido ? "table-danger" : null)">
+                                            <td>@l.Numero @(l.EsUnico ? "(único)" : "") @(l.Bloqueado ? "🔒" : "")</td>
+                                            <td>@(l.Vencimiento?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                            <td>
+                                                @if (l.PorBodega.Count == 1)
+                                                {
+                                                    @l.PorBodega[0].NombreBodega
+                                                }
+                                                else if (_bodegasMov.Count > 0)
+                                                {
+                                                    <select class="form-select form-select-sm" value="@BodegaSeleccionadaLote(l.Id)" @onchange="e => CambiarBodegaLote(l.Id, e)">
+                                                        @foreach (var b in _bodegasMov) { <option value="@b.IdBodega">@b.NombreBodega</option> }
+                                                    </select>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-danger small">Sin bodegas configuradas</span>
+                                                }
+                                            </td>
+                                            <td class="text-end">@l.ExistenciaTotal.ToString("N2")</td>
+                                            <td class="text-end"><div class="input-group input-group-sm">
+                                                <input type="number" step="0.001" class="form-control text-end" @bind="_ajusteExistencia" />
+                                                <button type="button" class="btn btn-outline-primary"
+                                                        disabled="@(l.PorBodega.Count == 0 && _bodegasMov.Count == 0)"
+                                                        @onclick="() => AjustarExistencia(l.PorBodega.Count == 1 ? l.PorBodega[0].IdBodega : BodegaSeleccionadaLote(l.Id), l.Id)">
+                                                    Aplicar
+                                                </button>
+                                            </div></td>
+                                        </tr>
+                                    }
                                 }
                                 @if (_existenciaConsol.Lotes.Count == 0)
                                 {
-                                    <tr><td colspan="4" class="text-secondary">El artículo maneja lotes pero no tiene lotes activos.</td></tr>
+                                    <tr><td colspan="5" class="text-secondary">El artículo maneja lotes pero no tiene lotes activos.</td></tr>
                                 }
                                 </tbody>
                             </table></div>
-                            <p class="form-text mb-0">Los lotes bloqueados (lote único) sólo permiten ajustar la existencia, no su número ni vencimiento.</p>
+                            <p class="form-text mb-0">Los lotes bloqueados (lote único) sólo permiten ajustar la existencia, no su número ni vencimiento. Un lote sin existencia todavía no tiene bodega asignada: elíjala antes de aplicar.</p>
                         }
                     }
                 }
@@ -1287,21 +1326,43 @@
     private DateTime? _movDesde, _movHasta;
     private int _movBodega;
     private List<BodegaOperativa> _bodegasMov = new();
+    private readonly Dictionary<long, int> _bodegaNuevaPorLote = new();
 
     private async Task MostrarExistencias()
     {
         _pestanaInventario = "existencias";
+        await CargarBodegasOperativas();
         await CargarExistencias();
+    }
+
+    private async Task CargarBodegasOperativas()
+    {
+        if (_bodegasMov.Count > 0) return;
+        var rb = await Lotes2.BodegasOperativasAsync(Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null);
+        _bodegasMov = rb.Status == DTOs.Generated.ResponseStatus._0 ? (rb.Responses ?? new()) : new();
+    }
+
+    /// <summary>Bodega elegida para darle existencia por primera vez a un lote que
+    /// todavía no tiene ninguna (PorBodega vacío) — por defecto la primera operativa.</summary>
+    private int BodegaSeleccionadaLote(long idLote)
+    {
+        if (!_bodegaNuevaPorLote.TryGetValue(idLote, out var b))
+        {
+            b = _bodegasMov.FirstOrDefault()?.IdBodega ?? 0;
+            _bodegaNuevaPorLote[idLote] = b;
+        }
+        return b;
+    }
+
+    private void CambiarBodegaLote(long idLote, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var b)) _bodegaNuevaPorLote[idLote] = b;
     }
 
     private async Task MostrarMovimientos()
     {
         _pestanaInventario = "movimientos";
-        if (_bodegasMov.Count == 0)
-        {
-            var rb = await Lotes2.BodegasOperativasAsync(Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null);
-            _bodegasMov = rb.Status == DTOs.Generated.ResponseStatus._0 ? (rb.Responses ?? new()) : new();
-        }
+        await CargarBodegasOperativas();
         await CargarMovimientos(1);
     }
 
@@ -1339,7 +1400,17 @@
     private async Task AjustarExistencia(int bodega, long? idStockLote)
     {
         if (_edicion is null) return;
-        if (!await Dialogos.ConfirmarAsync($"Se fijará la existencia en {_ajusteExistencia:N2} y quedará registrado el movimiento.", "Ajustar existencia"))
+        if (bodega <= 0)
+        {
+            await Dialogos.ErrorAsync("Seleccione la bodega antes de aplicar el ajuste.");
+            return;
+        }
+        var nombreBodega = _existenciaConsol?.PorBodega.FirstOrDefault(b => b.IdBodega == bodega)?.NombreBodega
+                            ?? _existenciaConsol?.Lotes.SelectMany(l => l.PorBodega).FirstOrDefault(b => b.IdBodega == bodega)?.NombreBodega
+                            ?? _bodegasMov.FirstOrDefault(b => b.IdBodega == bodega)?.NombreBodega
+                            ?? $"bodega {bodega}";
+        if (!await Dialogos.ConfirmarAsync(
+                $"Se fijará la existencia en {nombreBodega} en {_ajusteExistencia:N2} y quedará registrado el movimiento.", "Ajustar existencia"))
             return;
         var r = await Lotes2.ActualizarExistenciaAsync(new ActualizarExistencia
         {
