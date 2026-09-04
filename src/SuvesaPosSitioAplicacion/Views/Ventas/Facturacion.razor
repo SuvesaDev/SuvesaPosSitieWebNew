@@ -94,7 +94,7 @@
                             {
                                 <div class="col-12 col-md-3">
                                     <label class="form-label">Condición de venta</label>
-                                    <select class="form-select" @bind="_esCredito" @bind:after="AlCambiarCondicion">
+                                    <select class="form-select" @bind="EsCreditoTexto" @bind:after="AlCambiarCondicion">
                                         <option value="false" disabled="@(!TipoFacturaElegido.Contado)">Contado</option>
                                         <option value="true" disabled="@(!TipoFacturaElegido.Credito)">Crédito</option>
                                     </select>
@@ -150,10 +150,26 @@
                                     }
                                     else
                                     {
-                                        <select class="form-select form-select-sm" @bind="_codActividadCliente" disabled="@(_actividadesCliente.Count == 0)">
-                                            <option value="">@(_actividadesCliente.Count == 0 ? "El cliente no tiene actividades registradas" : "Seleccione...")</option>
-                                            @foreach (var act in _actividadesCliente) { <option value="@act.Codigo">@act.Codigo — @act.Descripcion@(act.Principal == true ? " (principal)" : "")</option> }
-                                        </select>
+                                        <div class="d-flex gap-2 align-items-start">
+                                            <select class="form-select form-select-sm" @bind="_codActividadCliente" disabled="@(_actividadesCliente.Count == 0)">
+                                                <option value="">@(_actividadesCliente.Count == 0 ? "El cliente no tiene actividades registradas" : "Seleccione...")</option>
+                                                @foreach (var act in _actividadesCliente) { <option value="@act.Codigo">@act.Codigo — @act.Descripcion@(act.Principal == true ? " (principal)" : "")</option> }
+                                            </select>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap" disabled="@_buscandoActsClienteHacienda" @onclick="BuscarActividadesClienteHacienda">
+                                                @(_buscandoActsClienteHacienda ? "..." : "Buscar en Hacienda")
+                                            </button>
+                                        </div>
+                                        @if (_actividadesClienteHaciendaSugeridas.Count > 0)
+                                        {
+                                            <div class="list-group list-group-flush mt-1">
+                                                @foreach (var act in _actividadesClienteHaciendaSugeridas)
+                                                {
+                                                    <button type="button" class="list-group-item list-group-item-action py-1 px-2 small" @onclick="() => UsarActividadClienteHacienda(act)">
+                                                        @act.Codigo — @act.Descripcion
+                                                    </button>
+                                                }
+                                            </div>
+                                        }
                                     }
                                 </div>
                                 @if (_cliente.TieneBonificacion)
@@ -467,6 +483,14 @@
     // Condición de venta: la elige el usuario, no la deriva el sistema de la serie.
     // El Tipo de Factura solo determina si Contado/Crédito están permitidos.
     private bool _esCredito;
+    // @bind sobre <select> con un bool compara contra "True"/"False" (mayúscula,
+    // vía BindConverter), pero las <option> usan "true"/"false": nunca coincidía y
+    // el select quedaba en blanco. Se pasa por un proxy string sin ambigüedad.
+    private string EsCreditoTexto
+    {
+        get => _esCredito ? "true" : "false";
+        set => _esCredito = value == "true";
+    }
     private string? _creditoAviso;
     private int _idEmpresa;
     private int _bodega;
@@ -476,6 +500,8 @@
     private string _codActividadCliente = string.Empty;
     private List<ActividadEconomicaClienteDTO> _actividadesCliente = new();
     private bool _buscandoActsCliente;
+    private bool _buscandoActsClienteHacienda;
+    private List<ActividadesEmpresaDTO> _actividadesClienteHaciendaSugeridas = new();
     private int _moneda;
     private bool _sinAgente;
     private long _codAgente;
@@ -835,7 +861,7 @@
         }
     }
 
-    private void QuitarCliente() { _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); _actividadesCliente = new(); _codActividadCliente = string.Empty; }
+    private void QuitarCliente() { _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); _actividadesCliente = new(); _codActividadCliente = string.Empty; _actividadesClienteHaciendaSugeridas = new(); }
 
     // Al elegir cliente se consultan sus actividades económicas en Hacienda (por
     // cédula) para escoger bajo cuál se factura; se preselecciona la que el
@@ -856,6 +882,50 @@
         _codActividadCliente = !string.IsNullOrWhiteSpace(guardada) && _actividadesCliente.Any(a => a.Codigo == guardada)
             ? guardada!
             : principal ?? _actividadesCliente.FirstOrDefault()?.Codigo ?? guardada ?? string.Empty;
+
+        _actividadesClienteHaciendaSugeridas = new();
+    }
+
+    /// <summary>Cuando el cliente no tiene actividades guardadas (o se quiere agregar
+    /// otra), permite consultarlas en Hacienda sin salir de la venta. Las que se usen
+    /// quedan disponibles para esta factura; para que queden guardadas en el cliente
+    /// hay que agregarlas también desde su ficha (Clientes → Editar).</summary>
+    private async Task BuscarActividadesClienteHacienda()
+    {
+        if (_cliente is null || string.IsNullOrWhiteSpace(_cliente.Cedula))
+        {
+            await Dialogos.ErrorAsync("El cliente no tiene cédula para consultar en Hacienda.");
+            return;
+        }
+
+        _buscandoActsClienteHacienda = true;
+        var r = await Respuestas.DatoAsync(await Empresas.ActividadesHacienda(_cliente.Cedula), "consultar las actividades del cliente en Hacienda");
+        _buscandoActsClienteHacienda = false;
+
+        _actividadesClienteHaciendaSugeridas = (r ?? new List<ActividadesEmpresaDTO>())
+            .Where(a => !_actividadesCliente.Any(x => x.Codigo == a.Codigo))
+            .ToList();
+        if (r is not null && _actividadesClienteHaciendaSugeridas.Count == 0 && _actividadesCliente.Count == 0)
+        {
+            await Dialogos.ErrorAsync("Hacienda no devolvió actividades para este cliente.");
+        }
+    }
+
+    private void UsarActividadClienteHacienda(ActividadesEmpresaDTO actividad)
+    {
+        if (string.IsNullOrWhiteSpace(actividad.Codigo)) return;
+        if (!_actividadesCliente.Any(a => a.Codigo == actividad.Codigo))
+        {
+            _actividadesCliente.Add(new ActividadEconomicaClienteDTO
+            {
+                Codigo = actividad.Codigo,
+                Descripcion = actividad.Descripcion,
+                Activo = true,
+                Principal = actividad.Tipo
+            });
+        }
+        _codActividadCliente = actividad.Codigo;
+        _actividadesClienteHaciendaSugeridas.Remove(actividad);
     }
 
     private async Task AbrirCorreos()
