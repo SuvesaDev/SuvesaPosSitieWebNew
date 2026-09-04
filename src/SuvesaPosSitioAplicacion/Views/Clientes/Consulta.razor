@@ -758,7 +758,11 @@
             Direccion = string.Empty,
             Tipoprecio = 1,
             CodMonedaCredito = 1,
-            Estado = true
+            Estado = true,
+            // El DTO generado no trae valor por defecto (queda null); sin esto el API
+            // recibe datosSucursal:null y "request.DatosSucursal.Count" revienta con
+            // NullReferenceException al crear un cliente sin varias sucursales.
+            DatosSucursal = new List<ClienteDatosSucursalDTO>()
         };
         _datosSucursalEdicion = new ClienteDatosSucursalDTO();
         _adjuntos = new List<ClienteAdjuntoDTO>();
