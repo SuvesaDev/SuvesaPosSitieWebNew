@@ -12,6 +12,9 @@ public interface IClientesConsulta
     /// <summary>Listado de clientes sin termino (la pantalla lo carga al abrir y filtra en cliente).</summary>
     Task<ResponseGeneric<ICollection<FiltranClienteDTO>>> Listar();
 
+    /// <summary>Consulta nombre, tipo de identificación y actividades de un contribuyente en Hacienda.</summary>
+    Task<ResponseGeneric<BuscarClienteFacturacionDTO>> BuscarHacienda(string cedula);
+
     Task<ResponseGeneric<ClienteDTO>> Crear(ClienteDTO cliente);
 
     Task<ResponseGeneric<ClienteDTO>> Editar(ClienteDTO cliente);

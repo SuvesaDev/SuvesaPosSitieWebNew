@@ -8,6 +8,7 @@
 @inject IContextoSesion Sesion
 @inject ICartasExoneracion Cartas
 @inject IGeografia Geografia
+@inject IEmpresas Empresas
 @inject ICatalogoBonificacion CatalogoBonificacion
 @inject IClienteBonificacion ClienteBonificacion
 
@@ -333,8 +334,20 @@
                 {
                     <div class="row g-3">
                         <div class="col-12 seepos-form-seccion">Identificación</div>
-                        <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre" @bind-Valor="_edicion.Nombre" Requerido="true" /></div>
-                        <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Cédula" @bind-Valor="_edicion.Cedula" Deshabilitado="@(!_esNuevo)" Requerido="true" /></div>
+                        <div class="col-12 col-md-5"><AppCampoTexto Etiqueta="Nombre" @bind-Valor="_edicion.Nombre" Requerido="true" /></div>
+                        <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Cédula" @bind-Valor="_edicion.Cedula" Deshabilitado="@(!_esNuevo)" Requerido="true" /></div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cliente-tipo-identificacion">Tipo de identificación</label>
+                            <select id="cliente-tipo-identificacion" class="form-select" @bind="_edicion.IdTipoIdentificacion">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var tipo in _tiposIdentificacion) { <option value="@tipo.Id">@tipo.Descripcion</option> }
+                            </select>
+                        </div>
+                        <div class="col-12 d-flex justify-content-end">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ConsultarHacienda" disabled="@(_consultandoHacienda || string.IsNullOrWhiteSpace(_edicion.Cedula))">
+                                @(_consultandoHacienda ? "Consultando..." : "Consultar en Hacienda")
+                            </button>
+                        </div>
 
                         <div class="col-12 seepos-form-seccion">Contacto</div>
                         <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono01" /></div>
@@ -368,7 +381,27 @@
 
                         <div class="col-12 seepos-form-seccion">Facturación electrónica</div>
                         <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo de facturación electrónica" @bind-Valor="_edicion.CorreoComprobante" /></div>
-                        <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Código de actividad económica" @bind-Valor="_edicion.CodigoActividad" /></div>
+                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Código de actividad económica" @bind-Valor="_edicion.CodigoActividad" /></div>
+                        <div class="col-12 col-md-2 d-flex align-items-end">
+                            <button type="button" class="btn btn-sm btn-outline-secondary w-100" @onclick="BuscarActividadesHaciendaCliente" disabled="@(_buscandoActividadesCliente || string.IsNullOrWhiteSpace(_edicion.Cedula))">
+                                @(_buscandoActividadesCliente ? "Consultando..." : "Buscar en Hacienda")
+                            </button>
+                        </div>
+                        @if (_actividadesClienteHacienda.Count > 0)
+                        {
+                            <div class="col-12">
+                                <div class="list-group list-group-flush">
+                                    @foreach (var actividad in _actividadesClienteHacienda)
+                                    {
+                                        <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center @(actividad.Codigo == _edicion.CodigoActividad ? "active" : "")"
+                                                @onclick="() => _edicion.CodigoActividad = actividad.Codigo">
+                                            <span>@actividad.Codigo — @actividad.Descripcion</span>
+                                            @if (actividad.Tipo) { <span class="badge bg-secondary">Principal</span> }
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        }
                         @if (!_variasSucursales) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre fantasía" @bind-Valor="_edicion.NombreFantasia" /></div> }
                         @if (_edicion.EnviarRecibo) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo para recibos" @bind-Valor="_edicion.CorreoRecibo" /></div> }
                         <div class="col-12">
@@ -553,6 +586,11 @@
     private List<ProvinciaDTO> _provincias = new();
     private List<CantonDTO> _cantones = new();
     private List<DistritoDTO> _distritos = new();
+    private List<TipoIdentificacionDTO> _tiposIdentificacion = new();
+    private bool _tiposIdentificacionCargados;
+    private bool _consultandoHacienda;
+    private bool _buscandoActividadesCliente;
+    private List<ActividadesEmpresaDTO> _actividadesClienteHacienda = new();
 
     private List<ConfiguracionBonificacion> _tiposBonificacion = new();
     private List<ClienteBonificacionConfiguracionDTO> _bonificaciones = new();
@@ -697,7 +735,9 @@
         _variasSucursales = false;
         _cantones = new List<CantonDTO>();
         _distritos = new List<DistritoDTO>();
+        _actividadesClienteHacienda = new List<ActividadesEmpresaDTO>();
         await CargarProvincias();
+        await CargarTiposIdentificacion();
         await _modal.ShowAsync();
     }
 
@@ -716,7 +756,9 @@
         _adjuntosNuevos = new List<ClienteAdjuntoDTO>();
         _carta = null;
         _cargandoCarta = !Sesion.EsCostaPets;
+        _actividadesClienteHacienda = new List<ActividadesEmpresaDTO>();
         await CargarProvincias();
+        await CargarTiposIdentificacion();
         if (_edicion.IdProvincia > 0)
         {
             await CargarCantones(_edicion.IdProvincia);
@@ -906,6 +948,76 @@
     {
         _provincias = (await Respuestas.DatoAsync(await Geografia.Provincias(), "consultar las provincias"))
             ?.OrderBy(p => p.Nombre).ToList() ?? new List<ProvinciaDTO>();
+    }
+
+    private async Task CargarTiposIdentificacion()
+    {
+        if (_tiposIdentificacionCargados)
+        {
+            return;
+        }
+
+        _tiposIdentificacion = (await Respuestas.DatoAsync(
+            await Empresas.TiposIdentificacion(), "consultar los tipos de identificación"))?.ToList()
+            ?? new List<TipoIdentificacionDTO>();
+        _tiposIdentificacionCargados = true;
+    }
+
+    /// <summary>Trae nombre y tipo de identificación del contribuyente desde Hacienda
+    /// (mismo endpoint que ya usa la búsqueda de proveedores) para autocompletar.</summary>
+    private async Task ConsultarHacienda()
+    {
+        if (_edicion is null || string.IsNullOrWhiteSpace(_edicion.Cedula))
+        {
+            Dialogos.Advertencia("Indique la cédula antes de consultar Hacienda.");
+            return;
+        }
+
+        _consultandoHacienda = true;
+        var r = await Respuestas.DatoAsync(await Api.BuscarHacienda(_edicion.Cedula), "consultar el cliente en Hacienda");
+        _consultandoHacienda = false;
+
+        if (r is null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(r.Nombre))
+        {
+            _edicion.Nombre = r.Nombre;
+        }
+        if (r.IdTipoIdentificacion > 0)
+        {
+            _edicion.IdTipoIdentificacion = r.IdTipoIdentificacion;
+        }
+    }
+
+    /// <summary>Trae las actividades económicas del contribuyente desde Hacienda; el
+    /// cliente solo guarda un código de actividad, así que se ofrece la lista para
+    /// elegir cuál usar (por defecto la marcada como principal).</summary>
+    private async Task BuscarActividadesHaciendaCliente()
+    {
+        if (_edicion is null || string.IsNullOrWhiteSpace(_edicion.Cedula))
+        {
+            Dialogos.Advertencia("Indique la cédula antes de consultar Hacienda.");
+            return;
+        }
+
+        _buscandoActividadesCliente = true;
+        var r = await Respuestas.DatoAsync(await Empresas.ActividadesHacienda(_edicion.Cedula), "consultar las actividades en Hacienda");
+        _buscandoActividadesCliente = false;
+
+        if (r is null)
+        {
+            return;
+        }
+
+        _actividadesClienteHacienda = r.ToList();
+        var principal = _actividadesClienteHacienda.FirstOrDefault(a => a.Tipo) ?? _actividadesClienteHacienda.FirstOrDefault();
+        if (principal is not null && string.IsNullOrWhiteSpace(_edicion.CodigoActividad))
+        {
+            _edicion.CodigoActividad = principal.Codigo;
+        }
     }
 
     private async Task CargarCantones(int provincia)
