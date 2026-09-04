@@ -458,6 +458,11 @@
         var dto = new UsuarioAltaDTO
         {
             IdUsuario = _edicion!.IdUsuario,
+            // El login real (Identity UserName / ObtenerUnUsuarioPorNombreUsuario)
+            // se resuelve por "Usuario", no por "IdUsuario" — sin esto el usuario
+            // se crea pero no puede iniciar sesión (o el alta falla en el paso de
+            // Identity con "Username '' is invalid").
+            Usuario = _edicion.IdUsuario,
             Nombre = _edicion.Nombre,
             IdPerfil = _idPerfilNuevo,
             Email = _edicion.Email,
