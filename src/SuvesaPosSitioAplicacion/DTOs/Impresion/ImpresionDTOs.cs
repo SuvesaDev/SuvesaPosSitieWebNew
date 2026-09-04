@@ -79,6 +79,7 @@ public static class TiposImpresionUi
         9 => "Inventario · ajuste",
         10 => "Traslado de bodega",
         11 => "Toma física",
+        12 => "Orden de compra",
         _ => $"Tipo {tipo}",
     };
 
@@ -95,6 +96,7 @@ public static class TiposImpresionUi
         9 => "inventario-ajuste",
         10 => "traslado-bodega",
         11 => "toma-fisica",
+        12 => "orden-compra",
         _ => "",
     };
 
@@ -103,5 +105,5 @@ public static class TiposImpresionUi
     public static string Formato(int f) => f == 2 ? "Térmico 80 mm" : "A4";
 
     public static IReadOnlyList<(int Valor, string Nombre)> Todos { get; } =
-        Enumerable.Range(1, 11).Select(v => (v, Nombre(v))).ToList();
+        Enumerable.Range(1, 12).Select(v => (v, Nombre(v))).ToList();
 }
