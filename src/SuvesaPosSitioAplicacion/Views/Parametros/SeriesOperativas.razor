@@ -35,13 +35,45 @@
                         }
                     </select>
                 </div>
-                <div class="col-auto ms-auto">
+                <div class="col-auto ms-auto d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="Revisar" disabled="@_revisando">
+                        <i class="bi bi-clipboard-check me-1"></i>@(_revisando ? "Revisando..." : "Revisar configuración")
+                    </button>
                     <button class="btn btn-sm btn-primary" @onclick="() => Abrir(null)">
                         <i class="bi bi-plus-lg me-1"></i>Nueva serie
                     </button>
                 </div>
             </div>
         </div>
+
+        @if (_hallazgos is not null)
+        {
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Diagnóstico de configuración</strong>
+                    <button class="btn-close" @onclick="() => _hallazgos = null"></button>
+                </div>
+                <div class="card-body">
+                    @if (_hallazgos.Count == 0)
+                    {
+                        <div class="alert alert-success mb-0">Sin inconsistencias.</div>
+                    }
+                    else
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var x in _hallazgos)
+                            {
+                                <li class="list-group-item d-flex gap-2 align-items-start">
+                                    <span class="badge @(x.Nivel == "error" ? "text-bg-danger" : "text-bg-warning")">@x.Nivel</span>
+                                    <span class="text-secondary small" style="min-width:9rem">@x.Area</span>
+                                    <span>@x.Mensaje</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        }
 
         @if (_cargando)
         {

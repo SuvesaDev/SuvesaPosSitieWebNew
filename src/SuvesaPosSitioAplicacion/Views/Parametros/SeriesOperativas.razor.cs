@@ -20,6 +20,9 @@ public partial class SeriesOperativas
     private SerieOperativaWebDTO _edit = new();
     private int? _terminal;
 
+    private List<HallazgoConfiguracionWebDTO>? _hallazgos;
+    private bool _revisando;
+
     protected override async Task OnInitializedAsync()
     {
         _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
@@ -88,6 +91,16 @@ public partial class SeriesOperativas
             }
         }
         finally { _guardando = false; }
+    }
+
+    private async Task Revisar()
+    {
+        _revisando = true;
+        try
+        {
+            _hallazgos = (await Respuestas.DatoAsync(await Api.Diagnostico(), "consultar el diagnóstico de configuración"))?.ToList() ?? new();
+        }
+        finally { _revisando = false; }
     }
 
     private async Task Alternar(SerieOperativaWebDTO s)

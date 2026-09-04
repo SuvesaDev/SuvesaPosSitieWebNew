@@ -19,6 +19,14 @@ public sealed class SerieOperativaWebDTO
     public bool EsPredeterminada { get; set; }
 }
 
+/// <summary>Hallazgo del diagnóstico de configuración (SANEAMIENTO Fase 8.1).</summary>
+public sealed class HallazgoConfiguracionWebDTO
+{
+    public string Nivel { get; set; } = "advertencia";
+    public string Area { get; set; } = "";
+    public string Mensaje { get; set; } = "";
+}
+
 /// <summary>Catálogo de tipos de serie operativa (enum <c>TipoSerieOperativa</c> del API).</summary>
 public static class TiposSerieOperativa
 {

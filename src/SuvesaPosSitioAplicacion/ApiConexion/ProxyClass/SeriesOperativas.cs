@@ -34,4 +34,8 @@ public sealed class SeriesOperativas : ProxyBase, ISeriesOperativas
         => Ejecutar(async () => await LecturaEnvelope.Leer<bool>(
             await _api.PostAsync($"api/series-operativas/{id}/activar?activa={activa.ToString().ToLowerInvariant()}", null)),
             "activar o desactivar la serie operativa");
+
+    public Task<ResponseGeneric<IReadOnlyList<HallazgoConfiguracionWebDTO>>> Diagnostico()
+        => Ejecutar(async () => await LecturaEnvelope.Leer<IReadOnlyList<HallazgoConfiguracionWebDTO>>(
+            await _api.GetAsync("api/series-operativas/diagnostico")), "consultar el diagnóstico de configuración");
 }

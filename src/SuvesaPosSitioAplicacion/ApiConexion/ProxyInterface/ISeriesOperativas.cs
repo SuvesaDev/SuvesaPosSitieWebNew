@@ -14,4 +14,7 @@ public interface ISeriesOperativas
     Task<ResponseGeneric<int>> Guardar(SerieOperativaWebDTO dto);
 
     Task<ResponseGeneric<bool>> Activar(int id, bool activa);
+
+    /// <summary>Inconsistencias de configuración de series, perfiles y formas de pago (Fase 8.1).</summary>
+    Task<ResponseGeneric<IReadOnlyList<HallazgoConfiguracionWebDTO>>> Diagnostico();
 }
