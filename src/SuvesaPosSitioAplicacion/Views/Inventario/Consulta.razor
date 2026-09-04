@@ -82,6 +82,18 @@
                     <option value="T">Todos</option>
                 </select>
             </div>
+            @if (Sesion.EsCostaPets)
+            {
+                <div class="col-6 col-md-4">
+                    <label class="form-label" for="fInvTipoArticulo">Tipo de artículo</label>
+                    <select id="fInvTipoArticulo" class="form-select" @bind="_tipoArticuloFiltro" @bind:after="Refiltrar">
+                        <option value="">Todos</option>
+                        <option value="1">Normal</option>
+                        <option value="2">Materia prima</option>
+                        <option value="3">Producto terminado</option>
+                    </select>
+                </div>
+            }
         </AppFiltros>
 
         @if (_buscando)
@@ -890,6 +902,7 @@
     private string _texto = string.Empty;
     private string _tipo = string.Empty;      // "" todos, "A" articulo, "S" servicio
     private string _estado = "A";             // "A" activos, "I" inhabilitados, "T" todos
+    private string _tipoArticuloFiltro = string.Empty; // "" todos, "1" normal, "2" materia prima, "3" prod. terminado
     private List<InventarioDTO> _todos = new();
     private List<InventarioDTO> _resultados = new();
     private InventarioDTO? _elegido;
@@ -1041,6 +1054,7 @@
         _texto = string.Empty;
         _tipo = string.Empty;
         _estado = "A";
+        _tipoArticuloFiltro = string.Empty;
         Refiltrar();
     }
 
@@ -1054,6 +1068,9 @@
 
         if (_tipo == "A") q = q.Where(a => !a.Servicio);
         else if (_tipo == "S") q = q.Where(a => a.Servicio);
+
+        if (int.TryParse(_tipoArticuloFiltro, out var tipoArticulo))
+            q = q.Where(a => a.TipoArticulo == tipoArticulo);
 
         if (t.Length > 0)
             q = q.Where(a => Helpers.Texto.Normalizar(a.Descripcion).Contains(t)
