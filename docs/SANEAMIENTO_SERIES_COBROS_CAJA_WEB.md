@@ -41,29 +41,24 @@
 >   **desde el mayor** (`GET api/caja/{napertura}/conciliacion`), con las ventas
 >   del período como dato meramente informativo. Falta: bloqueo durante arqueo
 >   final, diferencias declaradas y cierre idempotente desde esta vista.
-> - **Fase 8.2 — parcial.** Además de la pestaña "Facturas de crédito" en Abono
->   Cobrar (commit `7361cc8`), hecha la pantalla **Recibos y fallidas**
->   (`/sales/receipts`, `VENTAS.RECIBOS_EMITIDOS`): pestaña *Recibos emitidos*
->   (filtro por fechas/apertura/estado/número, detalle con aplicaciones y formas
->   de pago, PDF) y pestaña *Operaciones fallidas* (comprobantes rechazados con
->   cobro local, monto cobrado, recibos y acción sugerida D10). Consume
->   `GET api/cobros/recibos` y `GET api/cobros/operaciones-fallidas`.
->   **Acciones D10 cableadas**: *Reenviar* (`.../pos/ventas/{id}/facturas|tiquetes/emitir`)
->   y *NC interna* (`POST api/venta-orquestada/devolucion-interna`, `AnularOrigen`
->   = true) — el cobro nunca se toca. Abono Cobrar enlaza a esta pantalla y a
->   Perfiles de emisión (unificación ligera). **Pendiente (cambio de diseño):**
->   fundir las 4 pestañas en `/sales/collect` — hoy esa pantalla gatea todo tras
->   la clave del cajero y las pestañas de consulta no deben bloquearse;
->   reestructurarla toca un flujo de cobro que ya funciona.
-> - **Fase 8.3 — parcial.** Hecha la pantalla de consulta **Perfiles de emisión**
->   (`/sales/emission-profiles`, `VENTAS.PERFILES_EMISION`): por emisor + centro
->   [+ terminal] y modalidad, lista las series V4.4 con `elegible` +
->   `motivoNoElegible` (`GET api/facturacion/perfiles-emision/elegibles`).
->   **Pendiente (cambio de diseño):** `Facturacion.razor` (1 120 líneas) hoy no
->   selecciona serie/perfil — el API la resuelve por `(emisor, centro, terminal,
->   tipo)`. Integrar un selector de perfil cambia el contrato de emisión
->   (`FacturaDTO.Tipo` → `IdSerie`/`IdTipoFactura` explícito) y toca la emisión
->   fiscal en vivo; se deja para una iteración dedicada.
+> - **Fase 8.2 — hecha.** `/sales/collect` es ahora el **Cobrar unificado** con
+>   4 pestañas: *Preventas pendientes* · *Facturas de crédito* · *Recibos
+>   emitidos* · *Operaciones fallidas*. Las dos de consulta viven **fuera** del
+>   `fieldset` bloqueado por caja (no requieren la clave del cajero). El panel de
+>   recibos/fallidas se extrajo al componente `PanelRecibosFallidas`;
+>   `/sales/receipts` queda como wrapper fino. Consume `GET api/cobros/recibos` y
+>   `GET api/cobros/operaciones-fallidas`. Acciones D10: *Reenviar*
+>   (`.../pos/ventas/{id}/facturas|tiquetes/emitir`) y *NC interna*
+>   (`POST api/venta-orquestada/devolucion-interna`, `AnularOrigen = true`) — el
+>   cobro nunca se toca.
+> - **Fase 8.3 — hecha.** Además de la pantalla de consulta **Perfiles de
+>   emisión** (`/sales/emission-profiles`), `Facturacion.razor` tiene ahora un
+>   selector **Perfil de emisión** (visible cuando hay series V4.4 para el
+>   ámbito emisor + centro). Elegir un perfil elegible fija el tipo de factura;
+>   los no elegibles salen deshabilitados con su motivo. Cambiar el tipo a mano
+>   deselecciona el perfil. `TipoFactura` (DTO) expone `Id` y `CodigoFe` para
+>   casar perfil↔tipo. El contrato de emisión no cambió (`FacturaDTO.Tipo` sigue
+>   siendo el código del tipo); el perfil sólo guía la selección.
 > - **Fase 8.5 — hecha.** El API (`AbonoPagarManager.CreateAbonoPagar`) ahora
 >   devuelve `IdAbonocpagar`. Pantalla **Recibos de pago**
 >   (`/buys/payment-receipts`, `COMPRAS.RECIBOS_PAGO`): lista + filtro + PDF
