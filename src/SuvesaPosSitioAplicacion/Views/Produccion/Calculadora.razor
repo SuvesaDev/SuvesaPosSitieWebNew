@@ -211,7 +211,7 @@
      var r = await LotesApi.ExistenciaConsolidadaAsync(idInsumo);
      if (Ok(r))
          _lotes[idInsumo] = (r.Responses?.Lotes ?? new())
-             .Where(l => !l.Vencido && (l.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0) > 0)
+             .Where(l => (l.EsUnico || !l.Vencido) && (l.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0) > 0)
              .ToList();
  }
 
