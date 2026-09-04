@@ -165,6 +165,33 @@ public sealed class ClientesConsulta : ProxyBase, IClientesConsulta
                 r.Status, r.CurrentException, r.ValidationErrors, datos);
         }, "consultar los datos de facturación del cliente");
 
+    public Task<ResponseGeneric<ICollection<ActividadEconomicaClienteDTO>>> Actividades(long idCliente)
+        => Ejecutar(async () =>
+        {
+            // TEMPORAL — llamada a mano: cliente/ObtenerActividadesCliente es nuevo y
+            // todavia no esta en los contratos NSwag del sitio. Al regenerarlos esto
+            // pasa a _api.ObtenerActividadesClienteAsync(idCliente) y se borra el
+            // bloque manual (mismo patron que Listar()).
+            var http = _clientes.CreateClient("SeePosApi");
+            using var resp = await http.GetAsync($"cliente/ObtenerActividadesCliente?idCliente={idCliente}");
+            var cuerpo = await resp.Content.ReadAsStringAsync();
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                return new ResponseGeneric<ICollection<ActividadEconomicaClienteDTO>>(
+                    $"El API respondio {(int)resp.StatusCode} al consultar las actividades del cliente.");
+            }
+
+            var envelope = JsonSerializer.Deserialize<SeguridadEnvelope<ICollection<ActividadEconomicaClienteDTO>>>(cuerpo, Opciones)
+                           ?? new SeguridadEnvelope<ICollection<ActividadEconomicaClienteDTO>>
+                           {
+                               Status = ResponseStatus._1,
+                               CurrentException = "Respuesta vacia del API al consultar las actividades del cliente."
+                           };
+
+            return EnvelopeApi.A(envelope.Status, envelope.CurrentException, envelope.ValidationErrors, envelope.Responses);
+        }, "consultar las actividades económicas del cliente");
+
     public Task<ResponseGeneric<CorreosComprobantes>> ObtenerCorreosComprobante(long idCliente)
         => Ejecutar(async () =>
         {

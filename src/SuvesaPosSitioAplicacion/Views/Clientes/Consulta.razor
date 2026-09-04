@@ -381,27 +381,58 @@
 
                         <div class="col-12 seepos-form-seccion">Facturación electrónica</div>
                         <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo de facturación electrónica" @bind-Valor="_edicion.CorreoComprobante" /></div>
-                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Código de actividad económica" @bind-Valor="_edicion.CodigoActividad" /></div>
-                        <div class="col-12 col-md-2 d-flex align-items-end">
-                            <button type="button" class="btn btn-sm btn-outline-secondary w-100" @onclick="BuscarActividadesHaciendaCliente" disabled="@(_buscandoActividadesCliente || string.IsNullOrWhiteSpace(_edicion.Cedula))">
-                                @(_buscandoActividadesCliente ? "Consultando..." : "Buscar en Hacienda")
-                            </button>
-                        </div>
-                        @if (_actividadesClienteHacienda.Count > 0)
-                        {
-                            <div class="col-12">
-                                <div class="list-group list-group-flush">
+
+                        <div class="col-12">
+                            <label class="form-label mb-1">Actividades económicas</label>
+                            <p class="form-text mt-0 mb-2">Un cliente puede tener varias actividades registradas en Hacienda. La marcada como <strong>Principal</strong> es la que se usa en la factura electrónica.</p>
+                            @if (_edicion.Actividades.Count > 0)
+                            {
+                                <div class="table-responsive mb-2"><table class="table table-sm align-middle mb-0">
+                                    <thead><tr><th>Código</th><th>Descripción</th><th class="text-center">Principal</th><th></th></tr></thead>
+                                    <tbody>
+                                        @foreach (var actividad in _edicion.Actividades)
+                                        {
+                                            <tr>
+                                                <td>@actividad.Codigo</td>
+                                                <td>@actividad.Descripcion</td>
+                                                <td class="text-center">
+                                                    <input type="radio" class="form-check-input" name="cliente-actividad-principal"
+                                                           checked="@(actividad.Principal == true)" @onchange="() => MarcarActividadPrincipal(actividad)" />
+                                                </td>
+                                                <td class="text-end">
+                                                    <button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarActividad(actividad)">
+                                                        <i class="bi bi-trash" aria-hidden="true"></i> Quitar
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table></div>
+                            }
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12 col-md-3"><label class="form-label">Código</label><input class="form-control form-control-sm" @bind="_actCodigoCliente" /></div>
+                                <div class="col-12 col-md-4"><label class="form-label">Descripción</label><input class="form-control form-control-sm" @bind="_actDescripcionCliente" /></div>
+                                <div class="col-6 col-md-2 d-grid"><button type="button" class="btn btn-sm btn-outline-primary" @onclick="AgregarActividadCliente">Agregar</button></div>
+                                <div class="col-6 col-md-3 d-grid">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="BuscarActividadesHaciendaCliente" disabled="@(_buscandoActividadesCliente || string.IsNullOrWhiteSpace(_edicion.Cedula))">
+                                        @(_buscandoActividadesCliente ? "Consultando..." : "Buscar en Hacienda")
+                                    </button>
+                                </div>
+                            </div>
+                            @if (_actividadesClienteHacienda.Count > 0)
+                            {
+                                <div class="list-group list-group-flush mt-2">
                                     @foreach (var actividad in _actividadesClienteHacienda)
                                     {
-                                        <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center @(actividad.Codigo == _edicion.CodigoActividad ? "active" : "")"
-                                                @onclick="() => _edicion.CodigoActividad = actividad.Codigo">
+                                        <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                                                @onclick="() => UsarActividadHacienda(actividad)">
                                             <span>@actividad.Codigo — @actividad.Descripcion</span>
-                                            @if (actividad.Tipo) { <span class="badge bg-secondary">Principal</span> }
+                                            @if (actividad.Tipo) { <span class="badge bg-secondary">Principal en Hacienda</span> }
                                         </button>
                                     }
                                 </div>
-                            </div>
-                        }
+                            }
+                        </div>
                         @if (!_variasSucursales) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre fantasía" @bind-Valor="_edicion.NombreFantasia" /></div> }
                         @if (_edicion.EnviarRecibo) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo para recibos" @bind-Valor="_edicion.CorreoRecibo" /></div> }
                         <div class="col-12">
@@ -591,6 +622,8 @@
     private bool _consultandoHacienda;
     private bool _buscandoActividadesCliente;
     private List<ActividadesEmpresaDTO> _actividadesClienteHacienda = new();
+    private string _actCodigoCliente = string.Empty;
+    private string _actDescripcionCliente = string.Empty;
 
     private List<ConfiguracionBonificacion> _tiposBonificacion = new();
     private List<ClienteBonificacionConfiguracionDTO> _bonificaciones = new();
@@ -736,6 +769,7 @@
         _cantones = new List<CantonDTO>();
         _distritos = new List<DistritoDTO>();
         _actividadesClienteHacienda = new List<ActividadesEmpresaDTO>();
+        _actCodigoCliente = _actDescripcionCliente = string.Empty;
         await CargarProvincias();
         await CargarTiposIdentificacion();
         await _modal.ShowAsync();
@@ -749,6 +783,10 @@
         _edicion.DatosSucursal = (await Respuestas.DatoAsync(
             await Api.DatosSucursal(cliente.Identificacion), "consultar los datos de facturación"))?.ToList()
             ?? new List<ClienteDatosSucursalDTO>();
+        _edicion.Actividades = (await Respuestas.DatoAsync(
+            await Api.Actividades(cliente.Identificacion), "consultar las actividades económicas"))?.ToList()
+            ?? new List<ActividadEconomicaClienteDTO>();
+        _actCodigoCliente = _actDescripcionCliente = string.Empty;
         _datosSucursalEdicion = new ClienteDatosSucursalDTO();
         _variasSucursales = _edicion.DatosSucursal.Count > 0;
         _pestanaEdicion = "generales";
@@ -995,6 +1033,9 @@
     /// <summary>Trae las actividades económicas del contribuyente desde Hacienda; el
     /// cliente solo guarda un código de actividad, así que se ofrece la lista para
     /// elegir cuál usar (por defecto la marcada como principal).</summary>
+    /// <summary>Trae las actividades del contribuyente desde Hacienda para elegir cuáles
+    /// agregar a la lista del cliente (no las agrega automáticamente: pueden repetirse
+    /// consultas y el usuario decide cuáles usar).</summary>
     private async Task BuscarActividadesHaciendaCliente()
     {
         if (_edicion is null || string.IsNullOrWhiteSpace(_edicion.Cedula))
@@ -1013,10 +1054,100 @@
         }
 
         _actividadesClienteHacienda = r.ToList();
-        var principal = _actividadesClienteHacienda.FirstOrDefault(a => a.Tipo) ?? _actividadesClienteHacienda.FirstOrDefault();
-        if (principal is not null && string.IsNullOrWhiteSpace(_edicion.CodigoActividad))
+    }
+
+    private void UsarActividadHacienda(ActividadesEmpresaDTO actividad)
+    {
+        if (_edicion is null || string.IsNullOrWhiteSpace(actividad.Codigo))
         {
-            _edicion.CodigoActividad = principal.Codigo;
+            return;
+        }
+
+        if (_edicion.Actividades.Any(a => string.Equals(a.Codigo, actividad.Codigo, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        var esPrincipal = actividad.Tipo || _edicion.Actividades.Count == 0;
+        AgregarActividad(actividad.Codigo, actividad.Descripcion ?? string.Empty, esPrincipal);
+    }
+
+    private void AgregarActividadCliente()
+    {
+        if (_edicion is null || string.IsNullOrWhiteSpace(_actCodigoCliente))
+        {
+            return;
+        }
+
+        if (_edicion.Actividades.Any(a => string.Equals(a.Codigo, _actCodigoCliente, StringComparison.OrdinalIgnoreCase)))
+        {
+            _actCodigoCliente = _actDescripcionCliente = string.Empty;
+            return;
+        }
+
+        AgregarActividad(_actCodigoCliente.Trim(), _actDescripcionCliente.Trim(), _edicion.Actividades.Count == 0);
+        _actCodigoCliente = _actDescripcionCliente = string.Empty;
+    }
+
+    private void AgregarActividad(string codigo, string descripcion, bool principal)
+    {
+        if (_edicion is null)
+        {
+            return;
+        }
+
+        _edicion.Actividades.Add(new ActividadEconomicaClienteDTO
+        {
+            Codigo = codigo,
+            Descripcion = descripcion,
+            Activo = true,
+            Principal = principal
+        });
+
+        if (principal)
+        {
+            MarcarActividadPrincipal(_edicion.Actividades[^1]);
+        }
+    }
+
+    private void MarcarActividadPrincipal(ActividadEconomicaClienteDTO actividad)
+    {
+        if (_edicion is null)
+        {
+            return;
+        }
+
+        foreach (var a in _edicion.Actividades)
+        {
+            a.Principal = ReferenceEquals(a, actividad);
+        }
+
+        // El código de actividad principal es el que la factura electrónica usa
+        // como actividad del receptor; se mantiene sincronizado con la marca.
+        _edicion.CodigoActividad = actividad.Codigo;
+    }
+
+    private void QuitarActividad(ActividadEconomicaClienteDTO actividad)
+    {
+        if (_edicion is null)
+        {
+            return;
+        }
+
+        var eraPrincipal = actividad.Principal == true;
+        _edicion.Actividades.Remove(actividad);
+
+        if (eraPrincipal)
+        {
+            var nuevaPrincipal = _edicion.Actividades.FirstOrDefault();
+            if (nuevaPrincipal is not null)
+            {
+                MarcarActividadPrincipal(nuevaPrincipal);
+            }
+            else
+            {
+                _edicion.CodigoActividad = null;
+            }
         }
     }
 

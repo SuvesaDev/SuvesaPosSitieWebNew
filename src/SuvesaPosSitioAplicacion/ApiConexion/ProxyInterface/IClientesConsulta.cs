@@ -29,6 +29,9 @@ public interface IClientesConsulta
 
     Task<ResponseGeneric<ICollection<ClienteDatosSucursalDTO>>> DatosSucursal(long idCliente);
 
+    /// <summary>Actividades económicas del cliente (Hacienda). Un cliente puede tener varias.</summary>
+    Task<ResponseGeneric<ICollection<ActividadEconomicaClienteDTO>>> Actividades(long idCliente);
+
     /// <summary>Correos a los que se envía el comprobante electrónico de este cliente.</summary>
     Task<ResponseGeneric<CorreosComprobantes>> ObtenerCorreosComprobante(long idCliente);
 
