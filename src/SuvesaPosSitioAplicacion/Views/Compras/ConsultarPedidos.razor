@@ -20,7 +20,7 @@
     <ChildContent>
         <div class="card mb-3">
             <div class="card-body row g-2 align-items-end">
-                <div class="col-6 col-md-2"><label class="form-label small">N.º</label><input type="number" class="form-control form-control-sm" @bind="_consecutivo" /></div>
+                <div class="col-6 col-md-2"><label class="form-label small">N.º</label><input type="number" min="0" class="form-control form-control-sm" @bind="_consecutivo" /></div>
                 <div class="col-6 col-md-3">
                     <label class="form-label small">Estado</label>
                     <select class="form-select form-select-sm" @bind="_estado">
@@ -109,7 +109,7 @@
             else if (_sel.EstadoSeguimiento == 2)
             {
                 <div class="row g-2 align-items-end">
-                    <div class="col"><label class="form-label small">N.º de factura de compra</label><input type="number" class="form-control form-control-sm" @bind="_idFactura" /></div>
+                    <div class="col"><label class="form-label small">N.º de factura de compra</label><input type="number" min="0" class="form-control form-control-sm" @bind="_idFactura" /></div>
                     <div class="col-auto"><button class="btn btn-primary" disabled="@(_procesando || _idFactura <= 0)" @onclick="Vincular">Marcar facturada</button></div>
                 </div>
                 <p class="form-text">Cree la factura de compra (con su XML) en el flujo de compras y anote aquí su número.</p>

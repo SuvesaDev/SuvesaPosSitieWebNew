@@ -131,7 +131,7 @@
         {
             <div class="card mb-3">
                 <div class="card-body row g-2 align-items-end">
-                    <div class="col-6 col-md-2"><label class="form-label small">N.º</label><input type="number" class="form-control form-control-sm" @bind="_consultaConsecutivo" /></div>
+                    <div class="col-6 col-md-2"><label class="form-label small">N.º</label><input type="number" min="0" class="form-control form-control-sm" @bind="_consultaConsecutivo" /></div>
                     <div class="col-6 col-md-2"><label class="form-label small">Desde</label><input type="date" class="form-control form-control-sm" @bind="_consultaDesde" /></div>
                     <div class="col-6 col-md-2"><label class="form-label small">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_consultaHasta" /></div>
                     <div class="col-auto"><div class="form-check"><input id="incAnul" class="form-check-input" type="checkbox" @bind="_consultaIncluirAnuladas" /><label class="form-check-label small" for="incAnul">Incluir anuladas</label></div></div>

@@ -26,7 +26,7 @@
           <option value="3">Facturada</option>
           <option value="4">Anulada</option>
         </select></div>
-      <div class="col-md-3"><label class="form-label">Abrir por N.º</label><input type="number" class="form-control" @bind="_idBuscar" /></div>
+      <div class="col-md-3"><label class="form-label">Abrir por N.º</label><input type="number" min="0" class="form-control" @bind="_idBuscar" /></div>
       <div class="col-md-2 d-grid"><button class="btn btn-outline-primary" @onclick="() => Cargar(_idBuscar)" disabled="@(_idBuscar <= 0)">Abrir</button></div>
       <div class="col-md-2 d-grid"><button class="btn btn-outline-secondary" @onclick="CargarLista">Actualizar lista</button></div>
     </div>

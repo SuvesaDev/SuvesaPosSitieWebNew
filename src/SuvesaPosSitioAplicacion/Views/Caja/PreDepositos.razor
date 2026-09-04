@@ -17,7 +17,7 @@
             <div class="col-12 col-md-4"><label class="form-label" for="empresa">Empresa</label><InputSelect id="empresa" class="form-select" @bind-Value="_empresa"><option value="0">Seleccione...</option>@foreach (var e in _empresas) { <option value="@e.Id">@e.Nombre</option> }</InputSelect></div>
             <div class="col-6 col-md-2"><label class="form-label">N.º apertura</label><input class="form-control" value="@_numeroApertura" disabled /></div>
             <div class="col-6 col-md-2"><label class="form-label" for="fecha">Fecha</label><InputDate id="fecha" class="form-control" @bind-Value="_fecha" /></div>
-            <div class="col-12 col-md-4"><label class="form-label" for="monto">Monto</label><InputNumber id="monto" class="form-control text-end" @bind-Value="_monto" /></div>
+            <div class="col-12 col-md-4"><label class="form-label" for="monto">Monto</label><InputNumber id="monto" class="form-control text-end" min="0" @bind-Value="_monto" /></div>
             <div class="col-12 col-md-8"><label class="form-label" for="observaciones">Observaciones</label><InputText id="observaciones" class="form-control" @bind-Value="_observaciones" /></div>
             <div class="col-12"><span class="small text-secondary">Depositante: <strong>@Sesion.Usuario</strong></span></div>
         </div></div></div>

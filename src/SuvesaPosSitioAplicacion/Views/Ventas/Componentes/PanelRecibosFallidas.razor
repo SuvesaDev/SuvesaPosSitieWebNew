@@ -39,8 +39,8 @@
         <div class="card-body row g-2 align-items-end">
             <div class="col-6 col-md-2"><label class="form-label small">Desde</label><input type="date" class="form-control form-control-sm" @bind="_desde" /></div>
             <div class="col-6 col-md-2"><label class="form-label small">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_hasta" /></div>
-            <div class="col-6 col-md-2"><label class="form-label small">N.º recibo</label><input type="number" class="form-control form-control-sm" @bind="_numeroRecibo" /></div>
-            <div class="col-6 col-md-2"><label class="form-label small">Apertura</label><input type="number" class="form-control form-control-sm" @bind="_numApertura" /></div>
+            <div class="col-6 col-md-2"><label class="form-label small">N.º recibo</label><input type="number" min="0" class="form-control form-control-sm" @bind="_numeroRecibo" /></div>
+            <div class="col-6 col-md-2"><label class="form-label small">Apertura</label><input type="number" min="0" class="form-control form-control-sm" @bind="_numApertura" /></div>
             <div class="col-6 col-md-2">
                 <label class="form-label small">Estado</label>
                 <select class="form-select form-select-sm" @bind="_estado">

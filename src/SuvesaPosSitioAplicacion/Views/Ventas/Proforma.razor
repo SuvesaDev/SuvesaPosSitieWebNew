@@ -138,17 +138,17 @@
                                             <td><code class="small">@l.CodArticulo</code></td>
                                             <td class="small">@l.Descripcion</td>
                                             <td>
-                                                <input type="number" step="0.01" class="form-control form-control-sm text-end"
+                                                <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end"
                                                        value="@l.Cantidad"
                                                        @onchange="e => CambiarCantidad(l, e)" />
                                             </td>
                                             <td>
-                                                <input type="number" step="0.01" class="form-control form-control-sm text-end"
+                                                <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end"
                                                        value="@l.PrecioUnitario"
                                                        @onchange="e => CambiarPrecio(l, e)" />
                                             </td>
                                             <td>
-                                                <input type="number" step="0.01" class="form-control form-control-sm text-end"
+                                                <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end"
                                                        value="@l.Descuento"
                                                        @onchange="e => CambiarDescuento(l, e)" />
                                             </td>

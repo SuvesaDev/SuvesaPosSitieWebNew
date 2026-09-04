@@ -85,7 +85,7 @@
                                 </td>
                                 <td class="text-end">@a.ExistenciaSistema.ToString("N2")</td>
                                 <td class="text-end">
-                                    <input type="number" step="0.001" class="form-control form-control-sm text-end"
+                                    <input type="number" step="0.001" min="0" class="form-control form-control-sm text-end"
                                            value="@(a.Contado?.ToString() ?? "")"
                                            @onchange="e => SetContado(a, e.Value?.ToString())" />
                                 </td>

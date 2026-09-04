@@ -65,7 +65,7 @@
         <div class="row g-2 align-items-end mb-3">
             <div class="col-6 col-md-3"><label class="form-label">Fecha desde</label><InputDate class="form-control" @bind-Value="_filtroDesde" /></div>
             <div class="col-6 col-md-3"><label class="form-label">Fecha hasta</label><InputDate class="form-control" @bind-Value="_filtroHasta" /></div>
-            <div class="col-6 col-md-2"><label class="form-label">N.º apertura</label><InputNumber class="form-control" @bind-Value="_filtroNumApertura" /></div>
+            <div class="col-6 col-md-2"><label class="form-label">N.º apertura</label><InputNumber class="form-control" min="0" @bind-Value="_filtroNumApertura" /></div>
             <div class="col-6 col-md-2"><label class="form-label">Usuario</label><InputText class="form-control" @bind-Value="_filtroNombre" /></div>
             <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="Buscar" disabled="@_buscando">Buscar</button></div>
         </div>

@@ -294,7 +294,7 @@
 
             <hr />
             <h3 class="h6">Artículos relacionados</h3>
-            <div class="input-group input-group-sm mb-2"><input type="number" class="form-control" placeholder="Código relacionado" @bind="_codigoRelacionado" @bind:event="onchange" /><input type="number" class="form-control" min="0.01" step="0.01" @bind="_cantidadRelacionada" @bind:event="onchange" /><button class="btn btn-outline-primary" @onclick="AgregarRelacionado">Agregar</button></div>
+            <div class="input-group input-group-sm mb-2"><input type="number" min="0" class="form-control" placeholder="Código relacionado" @bind="_codigoRelacionado" @bind:event="onchange" /><input type="number" class="form-control" min="0.01" step="0.01" @bind="_cantidadRelacionada" @bind:event="onchange" /><button class="btn btn-outline-primary" @onclick="AgregarRelacionado">Agregar</button></div>
             @if (_relacionados.Count > 0) { <ul class="list-group list-group-flush small">@foreach (var relacionado in _relacionados) { <li class="list-group-item px-0 d-flex justify-content-between"><span>@relacionado.Descripcion · @Formato.Cantidad(relacionado.Cantidad)</span><button class="btn btn-sm btn-link text-danger p-0" @onclick="() => QuitarRelacionado(relacionado)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></li> }</ul> }
 
             <hr />
@@ -760,7 +760,7 @@
                                         <td>@b.NombreBodega</td>
                                         <td class="text-end">@b.Existencia.ToString("N2")</td>
                                         <td class="text-end"><div class="input-group input-group-sm">
-                                            <input type="number" step="0.001" class="form-control text-end" @bind="_ajusteExistencia" />
+                                            <input type="number" step="0.001" min="0" class="form-control text-end" @bind="_ajusteExistencia" />
                                             <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(b.IdBodega, null)">Aplicar</button>
                                         </div></td>
                                     </tr>
@@ -787,7 +787,7 @@
                                             <td>@pb.NombreBodega</td>
                                             <td class="text-end">@pb.Existencia.ToString("N2")</td>
                                             <td class="text-end"><div class="input-group input-group-sm">
-                                                <input type="number" step="0.001" class="form-control text-end" @bind="_ajusteExistencia" />
+                                                <input type="number" step="0.001" min="0" class="form-control text-end" @bind="_ajusteExistencia" />
                                                 <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(pb.IdBodega, l.Id)">Aplicar</button>
                                             </div></td>
                                         </tr>
@@ -805,7 +805,7 @@
                                             </td>
                                             <td class="text-end">0,00</td>
                                             <td class="text-end"><div class="input-group input-group-sm">
-                                                <input type="number" step="0.001" class="form-control text-end" @bind="_ajusteExistencia" />
+                                                <input type="number" step="0.001" min="0" class="form-control text-end" @bind="_ajusteExistencia" />
                                                 <button type="button" class="btn btn-outline-primary"
                                                         @onclick="() => AjustarExistencia(BodegaSeleccionadaLote(l.Id, bodegasNuevasLote), l.Id)">
                                                     Aplicar

@@ -136,7 +136,7 @@
     </div></div>
 
     <div class="card mb-3"><div class="card-body row g-2 align-items-end">
-      <div class="col-md-3"><label class="form-label">Anular boleta por N.º</label><input type="number" class="form-control" @bind="_idBoletaBuscar" /></div>
+      <div class="col-md-3"><label class="form-label">Anular boleta por N.º</label><input type="number" min="0" class="form-control" @bind="_idBoletaBuscar" /></div>
       <div class="col-md-2 d-grid"><button class="btn btn-outline-secondary" @onclick="() => AbrirBoleta(_idBoletaBuscar)" disabled="@(_idBoletaBuscar <= 0)">Abrir</button></div>
     </div></div>
 

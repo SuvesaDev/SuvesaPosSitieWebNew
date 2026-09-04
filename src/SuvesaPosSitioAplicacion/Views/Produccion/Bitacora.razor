@@ -23,7 +23,7 @@
     <div class="row g-2 mb-3">
       <div class="col-md-3"><label class="form-label">Desde</label><input type="date" class="form-control" @bind="_desde" /></div>
       <div class="col-md-3"><label class="form-label">Hasta</label><input type="date" class="form-control" @bind="_hasta" /></div>
-      <div class="col-md-3"><label class="form-label">Id artículo</label><input type="number" class="form-control" @bind="_filtroArticulo" /></div>
+      <div class="col-md-3"><label class="form-label">Id artículo</label><input type="number" min="0" class="form-control" @bind="_filtroArticulo" /></div>
       <div class="col-md-3 d-grid"><button class="btn btn-outline-primary align-self-end" @onclick="CargarBitacora">Filtrar</button></div>
     </div>
     <div class="table-responsive"><table class="table table-sm">

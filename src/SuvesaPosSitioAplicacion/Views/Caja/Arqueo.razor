@@ -42,20 +42,20 @@
 
             <div class="row g-3">
                 <div class="col-12 col-xl-7"><div class="card h-100"><div class="card-header"><strong>Desglose de efectivo</strong></div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Moneda</th><th>Tipo</th><th class="text-end">Denominación</th><th style="width:9rem">Cantidad</th><th class="text-end">Total</th></tr></thead><tbody>
-                    @foreach (var linea in _efectivo) { <tr><td>@linea.Moneda</td><td>@linea.Tipo</td><td class="text-end">@Formato.Importe(linea.Monto)</td><td><InputNumber class="form-control form-control-sm text-end" @bind-Value="linea.Cantidad" /></td><td class="text-end fw-semibold">@Formato.Importe(linea.Total)</td></tr> }
+                    @foreach (var linea in _efectivo) { <tr><td>@linea.Moneda</td><td>@linea.Tipo</td><td class="text-end">@Formato.Importe(linea.Monto)</td><td><InputNumber class="form-control form-control-sm text-end" min="0" @bind-Value="linea.Cantidad" /></td><td class="text-end fw-semibold">@Formato.Importe(linea.Total)</td></tr> }
                 </tbody></table></div></div></div>
                 <div class="col-12 col-xl-5"><div class="card h-100"><div class="card-header"><strong>Totales declarados</strong></div><div class="card-body"><div class="row g-3">
                     <div class="col-6"><label class="form-label">Efectivo colones</label><input class="form-control text-end" value="@Formato.Importe(EfectivoColones)" disabled /></div>
                     <div class="col-6"><label class="form-label">Efectivo dólares</label><input class="form-control text-end" value="@Formato.Importe(EfectivoDolares)" disabled /></div>
                     <div class="col-6"><label class="form-label">Tarjetas colones</label><input class="form-control text-end" value="@Formato.Importe(TarjetaColones)" disabled /></div>
                     <div class="col-6"><label class="form-label">Tarjetas dólares</label><input class="form-control text-end" value="@Formato.Importe(TarjetaDolares)" disabled /></div>
-                    <div class="col-6"><label class="form-label">Cheques colones</label><InputNumber class="form-control text-end" @bind-Value="_cheques" /></div>
-                    <div class="col-6"><label class="form-label">Cheques dólares</label><InputNumber class="form-control text-end" @bind-Value="_chequesDol" /></div>
+                    <div class="col-6"><label class="form-label">Cheques colones</label><InputNumber class="form-control text-end" min="0" @bind-Value="_cheques" /></div>
+                    <div class="col-6"><label class="form-label">Cheques dólares</label><InputNumber class="form-control text-end" min="0" @bind-Value="_chequesDol" /></div>
                     <div class="col-6">
-                        <label class="form-label">Depósitos colones</label><InputNumber class="form-control text-end" @bind-Value="_depositoCol" />
+                        <label class="form-label">Depósitos colones</label><InputNumber class="form-control text-end" min="0" @bind-Value="_depositoCol" />
                         @if (_depositoSistema is not null) { <div class="form-text">Sistema: @Formato.Importe(_depositoSistema.MontoTotal)</div> }
                     </div>
-                    <div class="col-6"><label class="form-label">Depósitos dólares</label><InputNumber class="form-control text-end" @bind-Value="_depositoDol" /></div>
+                    <div class="col-6"><label class="form-label">Depósitos dólares</label><InputNumber class="form-control text-end" min="0" @bind-Value="_depositoDol" /></div>
                     <div class="col-6"><label class="form-label">Tipo de cambio (dólar)</label><input class="form-control text-end" value="@_tipoCambio.ToString("N2")" disabled /></div>
                     <div class="col-12 border-top pt-3 d-flex justify-content-between"><span>Total arqueado</span><strong>@Formato.Importe(Total)</strong></div>
                     @if (DolaresDeclarados > 0)
@@ -75,7 +75,7 @@
                         else
                         {
                             <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Forma de pago</th><th>Moneda</th><th style="width:9rem" class="text-end">Monto</th></tr></thead><tbody>
-                                @foreach (var t in _tarjetas) { <tr><td>@t.Descripcion</td><td>@t.Moneda</td><td><InputNumber class="form-control form-control-sm text-end" @bind-Value="t.Monto" /></td></tr> }
+                                @foreach (var t in _tarjetas) { <tr><td>@t.Descripcion</td><td>@t.Moneda</td><td><InputNumber class="form-control form-control-sm text-end" min="0" @bind-Value="t.Monto" /></td></tr> }
                             </tbody></table></div>
                         }
                     </div>
@@ -109,7 +109,7 @@
         <div class="row g-2 align-items-end mb-3">
             <div class="col-6 col-md-3"><label class="form-label">Fecha desde</label><InputDate class="form-control" @bind-Value="_filtroDesde" /></div>
             <div class="col-6 col-md-3"><label class="form-label">Fecha hasta</label><InputDate class="form-control" @bind-Value="_filtroHasta" /></div>
-            <div class="col-6 col-md-2"><label class="form-label">N.º arqueo</label><InputNumber class="form-control" @bind-Value="_filtroNumero" /></div>
+            <div class="col-6 col-md-2"><label class="form-label">N.º arqueo</label><InputNumber class="form-control" min="0" @bind-Value="_filtroNumero" /></div>
             <div class="col-6 col-md-2"><label class="form-label">Usuario</label><InputText class="form-control" @bind-Value="_filtroUsuario" /></div>
             <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="Buscar" disabled="@_buscando">Buscar</button></div>
         </div>

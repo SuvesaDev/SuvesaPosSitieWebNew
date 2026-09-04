@@ -4,6 +4,7 @@
                @bind-Value="Valor"
                @bind-Value:after="AlCambiar"
                Decimals="0"
+               Min="Minimo"
                Enabled="@(!Deshabilitado)" />
 
 @code {
@@ -12,6 +13,11 @@
 
     [Parameter, EditorRequired] public string Etiqueta { get; set; } = default!;
     [Parameter] public bool Deshabilitado { get; set; }
+
+    // Por defecto no se permiten negativos (cantidades, números de documento,
+    // órdenes de despliegue); un llamador puede pasar null explícito si de
+    // verdad necesita admitirlos.
+    [Parameter] public int? Minimo { get; set; } = 0;
 
     private Task AlCambiar() => ValorChanged.InvokeAsync(Valor);
 }

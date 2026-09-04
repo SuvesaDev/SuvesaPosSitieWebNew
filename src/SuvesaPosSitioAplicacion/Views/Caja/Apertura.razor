@@ -45,7 +45,7 @@
                 <div class="col-12 col-xl-8">
                     <div class="card h-100"><div class="card-header"><strong>Detalle de denominaciones</strong><span class="text-secondary small ms-2">Indique la cantidad física inicial.</span></div>
                         <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Moneda</th><th>Tipo</th><th class="text-end">Denominación</th><th style="width:9rem">Cantidad</th><th class="text-end">Total</th></tr></thead><tbody>
-                        @foreach (var linea in _denominaciones) { <tr><td>@linea.Moneda</td><td>@linea.Tipo</td><td class="text-end">@Formato.Importe(linea.Monto)</td><td><InputNumber class="form-control form-control-sm text-end" @bind-Value="linea.Cantidad" /></td><td class="text-end fw-semibold">@Formato.Importe(linea.Total)</td></tr> }
+                        @foreach (var linea in _denominaciones) { <tr><td>@linea.Moneda</td><td>@linea.Tipo</td><td class="text-end">@Formato.Importe(linea.Monto)</td><td><InputNumber class="form-control form-control-sm text-end" min="0" @bind-Value="linea.Cantidad" /></td><td class="text-end fw-semibold">@Formato.Importe(linea.Total)</td></tr> }
                         </tbody></table></div>
                     </div>
                 </div>
@@ -66,7 +66,7 @@
         <div class="row g-2 align-items-end mb-3">
             <div class="col-6 col-md-3"><label class="form-label">Fecha desde</label><InputDate class="form-control" @bind-Value="_filtroDesde" /></div>
             <div class="col-6 col-md-3"><label class="form-label">Fecha hasta</label><InputDate class="form-control" @bind-Value="_filtroHasta" /></div>
-            <div class="col-6 col-md-2"><label class="form-label">N.º apertura</label><InputNumber class="form-control" @bind-Value="_filtroNumero" /></div>
+            <div class="col-6 col-md-2"><label class="form-label">N.º apertura</label><InputNumber class="form-control" min="0" @bind-Value="_filtroNumero" /></div>
             <div class="col-6 col-md-2"><label class="form-label">Usuario</label><InputText class="form-control" @bind-Value="_filtroUsuario" /></div>
             <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="Buscar" disabled="@_buscando">Buscar</button></div>
         </div>
