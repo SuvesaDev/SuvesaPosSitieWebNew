@@ -1244,6 +1244,16 @@
         }
 
         var eraNuevo = _esNuevo;
+        // La columna IdUsuarioCreacion no admite NULL: en alta nunca se llenaba desde
+        // esta pantalla y el API rechazaba el INSERT ("Cannot insert the value NULL
+        // into column 'IdUsuarioCreacion'"). Se aprovecha para dejar también quién
+        // hizo la última modificación.
+        if (eraNuevo)
+        {
+            _edicion.IdUsuarioCreacion = Sesion.Usuario;
+        }
+        _edicion.IdUsuarioModificacion = Sesion.Usuario;
+
         _guardando = true;
         var respuesta = eraNuevo ? await Api.Crear(_edicion) : await Api.Editar(_edicion);
         _guardando = false;
