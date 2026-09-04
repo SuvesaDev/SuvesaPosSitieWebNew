@@ -1,124 +1,244 @@
 @page "/buys/orders/checkorders"
-@using MudBlazor
 @using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Compras
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
-@inject IOrdenesCompraConsulta Api
+@using Havit.Blazor.Components.Web.Bootstrap
+@inject IOrdenesCompraFlujo Api
 @inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IJSRuntime JS
 
-@* PILOTO MudDataGrid (2/2). Consulta con rango/numero y rejilla de 6 columnas. *@
+@* Seguimiento de órdenes de compra: entregado → facturado, o cancelar / dar de
+   baja por el proveedor. Impresión y reenvío por correo. *@
 
-<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+<AppPantalla Pantalla="@Titulo" Codigo="COMPRAS.PEDIDOS.CONSULTAR_PEDIDOS" Nivel="NivelPantalla.Escritorio">
     <Acciones>
-        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar" aria-label="Actualizar pedidos">
-            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
-        </button>
+        <a class="btn btn-sm btn-outline-secondary" href="/buys/purchaseorder">Nueva orden</a>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" disabled="@_cargando"><i class="bi bi-arrow-clockwise"></i></button>
     </Acciones>
-
     <ChildContent>
-        <AppFiltros AlBuscar="Buscar" AlLimpiar="Limpiar" Buscando="_cargando"
-                    Resumen="@($"{_pedidos.Count} pedido(s)")">
-            <Encabezado>
-                <span class="small text-body-secondary">
-                    Sin número se muestran los pedidos recientes que publica el API.
-                </span>
-            </Encabezado>
-            <ChildContent>
-                <div class="col-12 col-md-5">
-                    <label class="form-label small" for="numero-pedido">Número de pedido</label>
-                    <input id="numero-pedido" type="number" min="1" class="form-control"
-                           @bind="_numero" @bind:event="onchange" />
+        <div class="card mb-3">
+            <div class="card-body row g-2 align-items-end">
+                <div class="col-6 col-md-2"><label class="form-label small">N.º</label><input type="number" class="form-control form-control-sm" @bind="_consecutivo" /></div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small">Estado</label>
+                    <select class="form-select form-select-sm" @bind="_estado">
+                        <option value="0">Todos</option>
+                        <option value="1">Pendiente</option>
+                        <option value="2">Entregado</option>
+                        <option value="3">Facturado</option>
+                        <option value="4">Cancelado</option>
+                        <option value="5">Baja por proveedor</option>
+                    </select>
                 </div>
-                <div class="col-12 col-md-4">
-                    <div class="form-check">
-                        <input id="pedidos-anulados" class="form-check-input" type="checkbox" @bind="_anuladas" />
-                        <label class="form-check-label" for="pedidos-anulados">Incluir anuladas</label>
-                    </div>
+                <div class="col-6 col-md-2"><label class="form-label small">Desde</label><input type="date" class="form-control form-control-sm" @bind="_desde" /></div>
+                <div class="col-6 col-md-2"><label class="form-label small">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_hasta" /></div>
+                <div class="col-auto">
+                    <div class="form-check"><input id="incAnul" class="form-check-input" type="checkbox" @bind="_incluirAnuladas" /><label class="form-check-label small" for="incAnul">Incluir cerradas</label></div>
                 </div>
-            </ChildContent>
-        </AppFiltros>
+                <div class="col-auto"><button class="btn btn-sm btn-primary" @onclick="Cargar" disabled="@_cargando">Buscar</button></div>
+            </div>
+        </div>
 
-        <MudIsla>
-            <MudDataGrid T="OrdenCompraDTO" Items="_pedidos" Loading="_cargando"
-                         Dense="true" Hover="true" Bordered="false" Striped="true"
-                         Filterable="true" SortMode="SortMode.Multiple" Groupable="false"
-                         FixedHeader="true" Height="60vh" Class="seepos-mud-grid">
-                <NoRecordsContent>
-                    <div class="text-secondary small py-4">No hay pedidos para mostrar.</div>
-                </NoRecordsContent>
-                <Columns>
-                    <PropertyColumn Property="p => p.Orden" Title="Pedido" />
-                    <PropertyColumn Property="p => p.Fecha" Title="Fecha" Format="dd/MM/yyyy" />
-                    <PropertyColumn Property="p => p.Proveedor" Title="Proveedor" />
-                    <TemplateColumn Title="Usuario" Sortable="false">
-                        <CellTemplate>@UsuarioTexto(context.Item)</CellTemplate>
-                    </TemplateColumn>
-                    <PropertyColumn Property="p => p.Total" Title="Total"
-                                    CellClass="justify-end" HeaderClass="justify-end">
-                        <CellTemplate>@Formato.Importe(context.Item.Total)</CellTemplate>
-                    </PropertyColumn>
-                    <TemplateColumn Title="Estado">
-                        <CellTemplate>@EstadoTexto(context.Item)</CellTemplate>
-                    </TemplateColumn>
-                </Columns>
-                <PagerContent>
-                    <MudDataGridPager T="OrdenCompraDTO" />
-                </PagerContent>
-            </MudDataGrid>
-        </MudIsla>
+        @if (_cargando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+        }
+        else if (_ordenes.Count == 0)
+        {
+            <div class="alert alert-light border">Sin órdenes para el filtro.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>N.º</th><th>Fecha</th><th>Proveedor</th>
+                            <th class="text-end">Total</th><th class="text-center">Estado</th>
+                            <th>Entrega / factura</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var o in _ordenes)
+                        {
+                            <tr>
+                                <td><code>@(o.Consecutivo ?? o.Orden)</code></td>
+                                <td class="small">@o.Fecha.ToString("dd/MM/yy")</td>
+                                <td>@o.NombreProveedor</td>
+                                <td class="text-end seepos-importe">
+                                    @Formato.Importe(o.Total) @o.MonedaNombre
+                                    @if (o.CodMoneda != 1) { <div class="small text-muted">≈ @Formato.Importe(o.TotalColones) CRC</div> }
+                                </td>
+                                <td class="text-center"><span class="badge @Badge(o.EstadoSeguimiento)">@EstadoTexto(o.EstadoSeguimiento)</span></td>
+                                <td class="small">
+                                    @if (o.FechaEntrega is { } fe) { <div>Entregado @fe.ToString("dd/MM/yy")</div> }
+                                    @if (o.IdFacturaCompra is { } fc) { <div>Factura #@fc</div> }
+                                    @if (!string.IsNullOrWhiteSpace(o.MotivoCierre)) { <div class="text-danger">@o.MotivoCierre</div> }
+                                </td>
+                                <td class="text-end text-nowrap">
+                                    <button class="btn btn-sm btn-link p-0 me-2" @onclick="() => Imprimir(o.Orden)">PDF</button>
+                                    <button class="btn btn-sm btn-link p-0 me-2" @onclick="() => Enviar(o)">Correo</button>
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Abrir(o)">Acciones</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </ChildContent>
 </AppPantalla>
 
-@code {
-    private const string Titulo = "Consultar Pedidos";
-
-    private List<OrdenCompraDTO> _pedidos = new();
-    private long? _numero;
-    private bool _anuladas;
-    private bool _cargando;
-
-    protected override Task OnInitializedAsync() => Consultar();
-
-    private Task Buscar() => Consultar();
-
-    private Task Recargar() => Consultar();
-
-    private void Limpiar()
-    {
-        _numero = null;
-        _anuladas = false;
-        _ = Consultar();
-    }
-
-    private async Task Consultar()
-    {
-        if (_cargando)
+<HxModal @ref="_modal" Title="@($"Orden N.º {(_sel?.Consecutivo ?? _sel?.Orden)}")" Size="ModalSize.Regular">
+    <BodyTemplate>
+        @if (_sel is not null)
         {
-            return;
-        }
+            <p class="mb-1"><strong>@_sel.NombreProveedor</strong> · @_sel.EstadoSeguimientoNombre</p>
+            <p class="text-secondary small">@Formato.Importe(_sel.Total) @_sel.MonedaNombre · @_sel.Lineas.Count artículo(s)</p>
 
+            @if (_sel.EstadoSeguimiento == 1)
+            {
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success" disabled="@_procesando" @onclick="Entregar">Marcar como entregada</button>
+                    <button class="btn btn-outline-danger" disabled="@_procesando" @onclick="() => Cerrar(false)">Cancelar pedido</button>
+                    <button class="btn btn-outline-warning" disabled="@_procesando" @onclick="() => Cerrar(true)">Dar de baja por el proveedor</button>
+                </div>
+            }
+            else if (_sel.EstadoSeguimiento == 2)
+            {
+                <div class="row g-2 align-items-end">
+                    <div class="col"><label class="form-label small">N.º de factura de compra</label><input type="number" class="form-control form-control-sm" @bind="_idFactura" /></div>
+                    <div class="col-auto"><button class="btn btn-primary" disabled="@(_procesando || _idFactura <= 0)" @onclick="Vincular">Marcar facturada</button></div>
+                </div>
+                <p class="form-text">Cree la factura de compra (con su XML) en el flujo de compras y anote aquí su número.</p>
+                <button class="btn btn-outline-danger btn-sm mt-2" disabled="@_procesando" @onclick="() => Cerrar(false)">Cancelar pedido</button>
+            }
+            else
+            {
+                <div class="alert alert-light border mb-0">La orden está @_sel.EstadoSeguimientoNombre; no admite más acciones.</div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_motivo) || _sel.EstadoSeguimiento == 1)
+            {
+                <div class="mt-3">
+                    <label class="form-label small">Motivo (para cancelar / baja)</label>
+                    <input class="form-control form-control-sm" @bind="_motivo" />
+                </div>
+            }
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cerrar</button>
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Seguimiento de órdenes de compra";
+
+    private HxModal _modal = default!;
+    private List<OrdenCompraFlujoWebDTO> _ordenes = new();
+    private OrdenCompraFlujoWebDTO? _sel;
+
+    private long _consecutivo;
+    private int _estado;
+    private DateTime? _desde = DateTime.Today.AddMonths(-1);
+    private DateTime? _hasta = DateTime.Today;
+    private bool _incluirAnuladas;
+    private bool _cargando, _procesando;
+    private long _idFactura;
+    private string _motivo = "";
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
         _cargando = true;
         try
         {
-            var respuesta = _numero is > 0
-                ? await Api.Buscar(_numero.Value, _anuladas)
-                : await Api.Obtener();
-
-            var pedidos = await Respuestas.DatoAsync(respuesta, "consultar los pedidos");
-            _pedidos = (pedidos ?? Array.Empty<OrdenCompraDTO>())
-                .Where(p => _anuladas || p.Anulado != true)
-                .OrderByDescending(p => p.Fecha)
-                .ToList();
+            var r = await Api.Listar(
+                estado: _estado > 0 ? _estado : null,
+                incluirAnuladas: _incluirAnuladas,
+                desde: _desde, hasta: _hasta?.AddDays(1).AddSeconds(-1),
+                consecutivo: _consecutivo > 0 ? _consecutivo : null,
+                limite: 300);
+            _ordenes = (await Respuestas.DatoAsync(r, "consultar las órdenes de compra"))?.ToList() ?? new();
         }
-        finally
-        {
-            _cargando = false;
-        }
+        finally { _cargando = false; }
     }
 
-    private static string UsuarioTexto(OrdenCompraDTO pedido)
-        => pedido.NombreUsuario ?? pedido.Usuario ?? "—";
+    private async Task Abrir(OrdenCompraFlujoWebDTO o)
+    {
+        _sel = o; _idFactura = o.IdFacturaCompra ?? 0; _motivo = "";
+        await _modal.ShowAsync();
+    }
 
-    private static string EstadoTexto(OrdenCompraDTO pedido)
-        => pedido.Anulado == true ? "Anulada" : "Activa";
+    private async Task Entregar()
+    {
+        if (_sel is null) return;
+        _procesando = true;
+        try
+        {
+            var r = await Respuestas.DatoAsync(await Api.Entregar(_sel.Orden, DateTime.Today), "marcar entregada");
+            if (r is not null) { Dialogos.Exito("Orden marcada como entregada."); await Refrescar(r); }
+        }
+        finally { _procesando = false; }
+    }
+
+    private async Task Cerrar(bool baja)
+    {
+        if (_sel is null) return;
+        if (string.IsNullOrWhiteSpace(_motivo) && !await Dialogos.ConfirmarAsync("¿Continuar sin indicar un motivo?")) return;
+        _procesando = true;
+        try
+        {
+            var r = await Respuestas.DatoAsync(
+                baja ? await Api.BajaProveedor(_sel.Orden, _motivo) : await Api.Cancelar(_sel.Orden, _motivo),
+                baja ? "dar de baja la orden" : "cancelar la orden");
+            if (r is not null) { Dialogos.Exito(baja ? "Orden dada de baja." : "Orden cancelada."); await Refrescar(r); }
+        }
+        finally { _procesando = false; }
+    }
+
+    private async Task Vincular()
+    {
+        if (_sel is null || _idFactura <= 0) return;
+        _procesando = true;
+        try
+        {
+            var r = await Respuestas.DatoAsync(await Api.VincularFactura(_sel.Orden, _idFactura), "vincular la factura de compra");
+            if (r is not null) { Dialogos.Exito("Orden marcada como facturada."); await Refrescar(r); }
+        }
+        finally { _procesando = false; }
+    }
+
+    private async Task Refrescar(OrdenCompraFlujoWebDTO actualizada)
+    {
+        var i = _ordenes.FindIndex(x => x.Orden == actualizada.Orden);
+        if (i >= 0) _ordenes[i] = actualizada;
+        _sel = actualizada;
+        await _modal.HideAsync();
+    }
+
+    private async Task Imprimir(long orden)
+        => await JS.InvokeVoidAsync("open", $"/documentos/orden-compra/{orden}/pdf", "_blank");
+
+    private async Task Enviar(OrdenCompraFlujoWebDTO o)
+    {
+        var res = await Respuestas.DatoAsync(await Api.EnviarCorreo(o.Orden, null), "enviar la orden por correo");
+        if (res is null) return;
+        if (res.Enviado) Dialogos.Exito($"Orden enviada a {res.Destino}.");
+        else await Dialogos.ErrorAsync(res.Error ?? "No se pudo enviar el correo.", "Envío fallido");
+    }
+
+    private static string EstadoTexto(int e) => e switch
+    {
+        2 => "Entregado", 3 => "Facturado", 4 => "Cancelado", 5 => "Baja proveedor", _ => "Pendiente",
+    };
+
+    private static string Badge(int e) => e switch
+    {
+        2 => "text-bg-info", 3 => "text-bg-success", 4 => "text-bg-secondary", 5 => "text-bg-warning", _ => "text-bg-light",
+    };
 }

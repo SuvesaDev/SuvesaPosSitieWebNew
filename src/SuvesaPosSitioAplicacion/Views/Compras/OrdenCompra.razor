@@ -1,30 +1,48 @@
 @page "/buys/purchaseorder"
 @using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Compras
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
-@inject IOrdenesCompra Api
+@using Havit.Blazor.Components.Web.Bootstrap
+@inject IOrdenesCompraFlujo Api
 @inject IProveedoresConsulta Proveedores
 @inject ICompras Compras
-@inject IInventarioConsulta Inventario
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject IJSRuntime JS
 
-@*  Ola 5 — orden de compra manual (registro de intención de compra a un
-    proveedor, sin afectar inventario todavía). Reusa el mismo patrón de
-    búsqueda de proveedor de Compra.razor y el mismo AppBuscadorArticulo.
+@*  Nueva función "Órdenes de compra": alta dirigida a un proveedor, con
+    consecutivo propio, doble moneda, impresión y envío por correo. El
+    seguimiento (entregado / cancelado / baja / facturado) vive en
+    /buys/orders/checkorders. *@
 
-    idSucursal se manda 0 en el sistema actual (PurchaseOrderIcons.jsx linea
-    228/285) — descuido, no regla de negocio; aqui se usa la sucursal real. *@
-
-<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Escritorio">
+<AppPantalla Pantalla="@Titulo" Codigo="COMPRAS.ORDEN_DE_COMPRA_MANUAL" Nivel="NivelPantalla.Escritorio">
     <Acciones>
-        <button class="btn btn-sm btn-outline-secondary" @onclick="() => _modalBuscar.ShowAsync()">
-            <i class="bi bi-search me-1" aria-hidden="true"></i>Buscar
-        </button>
+        <a class="btn btn-sm btn-outline-secondary" href="/buys/orders/checkorders">Seguimiento de órdenes</a>
         <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nueva orden</button>
     </Acciones>
     <ChildContent>
+        @if (_creada is not null)
+        {
+            <div class="card mb-3 border-success">
+                <div class="card-body d-flex flex-wrap align-items-center gap-3">
+                    <div>
+                        <div class="text-secondary small text-uppercase">Orden registrada</div>
+                        <div class="fs-4 fw-semibold">N.º @(_creada.Consecutivo ?? _creada.Orden)</div>
+                        <div class="small text-secondary">@_creada.NombreProveedor · @Formato.Importe(_creada.Total) @_creada.MonedaNombre
+                            @(_creada.CodMoneda != 1 ? $" (≈ {Formato.Importe(_creada.TotalColones)} CRC)" : "")</div>
+                    </div>
+                    <div class="ms-auto d-flex gap-2">
+                        <button class="btn btn-outline-primary" @onclick="() => Imprimir(_creada.Orden)"><i class="bi bi-printer me-1"></i>Imprimir</button>
+                        <button class="btn btn-primary" disabled="@_enviando" @onclick="() => Enviar(_creada.Orden)">
+                            <i class="bi bi-envelope me-1"></i>@(_enviando ? "Enviando..." : "Enviar al proveedor")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+
         <div class="card mb-3">
             <div class="card-header"><strong>Proveedor</strong></div>
             <div class="card-body">
@@ -45,7 +63,10 @@
                 </div>
                 @if (_proveedor is not null)
                 {
-                    <div class="alert alert-light border mt-2 mb-0"><strong>@_proveedor.Nombre</strong><span class="text-secondary ms-2">@_proveedor.Cedula</span></div>
+                    <div class="alert alert-light border mt-2 mb-0">
+                        <strong>@_proveedor.Nombre</strong><span class="text-secondary ms-2">@_proveedor.Cedula</span>
+                        <span class="ms-3 small text-secondary">@(string.IsNullOrWhiteSpace(_proveedor.Email) ? "sin correo" : _proveedor.Email)</span>
+                    </div>
                 }
             </div>
         </div>
@@ -53,295 +74,259 @@
         <div class="card mb-3">
             <div class="card-header"><strong>Datos de la orden</strong></div>
             <div class="card-body row g-3">
-                <div class="col-12 col-md-3"><label class="form-label">Fecha</label><input type="date" class="form-control" @bind="_fecha" /></div>
-                <div class="col-12 col-md-3">
-                    <label class="form-label">Moneda</label>
-                    <select class="form-select" @bind="_moneda"><option value="0">Seleccione...</option>@foreach (var m in _monedas) { <option value="@m.CodMoneda">@m.MonedaNombre</option> }</select>
+                <div class="col-6 col-md-3"><label class="form-label">Fecha</label><input type="date" class="form-control" @bind="_fecha" /></div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Moneda <span class="text-secondary small">(opcional)</span></label>
+                    <select class="form-select" @bind="_moneda" @bind:after="AlCambiarMoneda">
+                        <option value="1">Colones</option>
+                        @foreach (var m in _monedas.Where(x => x.CodMoneda != 1)) { <option value="@m.CodMoneda">@m.MonedaNombre</option> }
+                    </select>
                 </div>
-                <div class="col-12 col-md-3 d-flex align-items-end gap-3">
-                    <div class="form-check"><input class="form-check-input" type="radio" name="formaPago" id="fpContado" checked="@(!_credito)" @onclick="() => _credito = false" /><label class="form-check-label" for="fpContado">Contado</label></div>
-                    <div class="form-check"><input class="form-check-input" type="radio" name="formaPago" id="fpCredito" checked="@_credito" @onclick="() => _credito = true" /><label class="form-check-label" for="fpCredito">Crédito</label></div>
+                @if (_moneda != 1)
+                {
+                    <div class="col-6 col-md-3"><label class="form-label">Tipo de cambio</label><input type="number" min="0" step="0.0001" class="form-control" @bind="_tipoCambio" /></div>
+                }
+                <div class="col-6 col-md-3 d-flex align-items-end gap-3">
+                    <div class="form-check"><input class="form-check-input" type="radio" name="fp" id="fpC" checked="@(!_credito)" @onclick="() => _credito = false" /><label class="form-check-label" for="fpC">Contado</label></div>
+                    <div class="form-check"><input class="form-check-input" type="radio" name="fp" id="fpCr" checked="@_credito" @onclick="() => _credito = true" /><label class="form-check-label" for="fpCr">Crédito</label></div>
                 </div>
                 @if (_credito)
                 {
-                    <div class="col-12 col-md-3"><label class="form-label">Días de crédito</label><input type="number" min="0" class="form-control" @bind="_diasCredito" /></div>
+                    <div class="col-6 col-md-3"><label class="form-label">Días de crédito</label><input type="number" min="0" class="form-control" @bind="_diasCredito" /></div>
                 }
-                <div class="col-12 col-md-6"><label class="form-label">Nombre de quien entrega</label><input class="form-control" @bind="_nombreEntrega" /></div>
+                <div class="col-12 col-md-6"><label class="form-label">Entregar en / a nombre de</label><input class="form-control" @bind="_entregar" /></div>
                 <div class="col-12"><label class="form-label">Observaciones</label><input class="form-control" @bind="_observaciones" /></div>
             </div>
         </div>
 
         <div class="card mb-3">
-            <div class="card-header d-flex justify-content-between align-items-center"><strong>Artículos</strong><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => _buscadorArticulo.AbrirAsync()"><i class="bi bi-search me-1" aria-hidden="true"></i>Buscar artículo</button></div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Artículos</strong>
+                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => _buscador.AbrirAsync()"><i class="bi bi-search me-1"></i>Buscar artículo</button>
+            </div>
             <div class="card-body p-0">
                 @if (_lineas.Count == 0) { <p class="text-secondary text-center py-4 mb-0">Busque los artículos a incluir en la orden.</p> }
-                else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Costo</th><th class="text-end">Desc. %</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var l in _lineas) { <tr><td><code>@l.CodigoArticulo</code></td><td>@l.Descripcion</td><td style="min-width:6rem" class="text-end"><input type="number" min="0.001" step="0.001" class="form-control form-control-sm text-end" @bind="l.Cantidad" @bind:after="() => Recalcular(l)" /></td><td style="min-width:7rem" class="text-end"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="l.CostoUnitario" @bind:after="() => Recalcular(l)" /></td><td style="min-width:5rem" class="text-end"><input type="number" min="0" max="100" step="0.01" class="form-control form-control-sm text-end" @bind="l.PorcDescuento" @bind:after="() => Recalcular(l)" /></td><td class="text-end fw-semibold">@Formato.Importe(l.Calculo.Total)</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(l)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div> }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Costo</th><th class="text-end">Desc. %</th><th class="text-end">Imp. %</th><th class="text-end">Total</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach (var l in _lineas)
+                                {
+                                    <tr>
+                                        <td><code>@l.Codigo</code></td>
+                                        <td>@l.Descripcion</td>
+                                        <td style="min-width:6rem" class="text-end"><input type="number" min="0.001" step="0.001" class="form-control form-control-sm text-end" @bind="l.Cantidad" @bind:after="Recalcular" /></td>
+                                        <td style="min-width:7rem" class="text-end"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="l.CostoUnitario" @bind:after="Recalcular" /></td>
+                                        <td style="min-width:5rem" class="text-end"><input type="number" min="0" max="100" step="0.01" class="form-control form-control-sm text-end" @bind="l.PorcDescuento" @bind:after="Recalcular" /></td>
+                                        <td style="min-width:5rem" class="text-end"><input type="number" min="0" max="100" step="0.01" class="form-control form-control-sm text-end" @bind="l.PorcImpuesto" @bind:after="Recalcular" /></td>
+                                        <td class="text-end fw-semibold">@Formato.Importe(l.Total)</td>
+                                        <td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(l)"><i class="bi bi-trash"></i></button></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
             </div>
         </div>
 
         <div class="row g-3">
             <div class="col-12 col-lg-4 offset-lg-8">
-                <div class="card"><div class="card-header"><strong>Totales</strong></div><div class="card-body"><dl class="row mb-0"><dt class="col-7 fw-normal text-secondary">Descuento</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Descuento)</dd><dt class="col-7 fw-normal text-secondary">Impuesto</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Impuesto)</dd><dt class="col-7">Total</dt><dd class="col-5 text-end fs-5">@Formato.Importe(_totales.Total)</dd></dl></div></div>
+                <div class="card"><div class="card-header"><strong>Totales</strong></div><div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-7 fw-normal text-secondary">Subtotal</dt><dd class="col-5 text-end">@Formato.Importe(_subtotal)</dd>
+                        <dt class="col-7 fw-normal text-secondary">Descuento</dt><dd class="col-5 text-end">@Formato.Importe(_descuento)</dd>
+                        <dt class="col-7 fw-normal text-secondary">Impuesto</dt><dd class="col-5 text-end">@Formato.Importe(_impuesto)</dd>
+                        <dt class="col-7">Total (@MonedaTexto)</dt><dd class="col-5 text-end fs-5">@Formato.Importe(_total)</dd>
+                        @if (_moneda != 1)
+                        {
+                            <dt class="col-7 fw-normal text-secondary">Total en colones</dt><dd class="col-5 text-end">@Formato.Importe(_total * (decimal)_tipoCambio)</dd>
+                        }
+                    </dl>
+                </div></div>
             </div>
         </div>
 
         <div class="d-flex gap-2 mt-3">
             <button class="btn btn-primary" disabled="@(_guardando || _proveedor is null || _lineas.Count == 0)" @onclick="Guardar">
-                @(_guardando ? "Guardando..." : _idOrden > 0 ? "Editar orden" : "Registrar orden")
+                @(_guardando ? "Guardando..." : "Registrar orden")
             </button>
-            @if (_idOrden > 0)
-            {
-                <button class="btn btn-outline-danger" disabled="@_guardando" @onclick="Anular">Anular</button>
-            }
         </div>
     </ChildContent>
 </AppPantalla>
 
-<AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="AgregarArticulo" />
-
-<HxModal @ref="_modalBuscar" Title="Buscar orden de compra" Size="ModalSize.Large">
-    <BodyTemplate>
-        @if (_proveedor is null) { <p class="text-secondary">Seleccione primero un proveedor.</p> }
-        else
-        {
-            <button type="button" class="btn btn-primary mb-3" @onclick="BuscarOrdenesDelProveedor">Buscar órdenes de @_proveedor.Nombre</button>
-            @if (_ordenesEncontradas.Count == 0) { <p class="text-secondary text-center py-3 mb-0">Sin resultados todavía.</p> }
-            else { <div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Orden</th><th>Fecha</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var o in _ordenesEncontradas) { <tr><td>@o.Orden</td><td>@o.Fecha.ToString("dd/MM/yyyy")</td><td class="text-end">@Formato.Importe(o.Total)</td><td class="text-end"><button type="button" class="btn btn-sm btn-primary" @onclick="() => CargarOrden(o.Orden)">Abrir</button></td></tr> }</tbody></table></div> }
-        }
-    </BodyTemplate>
-</HxModal>
+<AppBuscadorArticulo @ref="_buscador" AlElegir="AgregarArticulo" />
 
 @code {
-    private const string Titulo = "Orden de compra manual";
+    private const string Titulo = "Orden de compra";
 
-    private sealed class LineaOrden
+    private sealed class Linea
     {
-        public required long Codigo { get; init; }
-        public required long CodigoArticulo { get; init; }
-        public required string Descripcion { get; init; }
+        public long Codigo { get; set; }
+        public string Descripcion { get; set; } = "";
         public decimal Cantidad { get; set; } = 1;
         public decimal CostoUnitario { get; set; }
         public decimal PorcDescuento { get; set; }
         public decimal PorcImpuesto { get; set; }
-        public decimal OtrosCargos { get; set; }
-        public decimal MontoFlete { get; set; }
-        public CalculoDocumento.LineaCalculada Calculo { get; set; }
+        public decimal Bruto => Math.Round(Cantidad * CostoUnitario, 2);
+        public decimal Desc => Math.Round(Bruto * PorcDescuento / 100m, 2);
+        public decimal Imp => Math.Round((Bruto - Desc) * PorcImpuesto / 100m, 2);
+        public decimal Total => Bruto - Desc + Imp;
     }
 
-    private AppBuscadorArticulo _buscadorArticulo = default!;
-    private HxModal _modalBuscar = default!;
-
+    private AppBuscadorArticulo _buscador = default!;
     private List<ProveedorDTO> _proveedores = new(), _proveedoresEncontrados = new();
-    private string _textoProveedor = string.Empty;
+    private string _textoProveedor = "";
     private ProveedorDTO? _proveedor;
-
     private List<Moneda> _monedas = new();
-    private long _idOrden;
+
     private DateTime _fecha = DateTime.Today;
-    private int _moneda;
+    private int _moneda = 1;
+    private double _tipoCambio = 1;
     private bool _credito;
     private int _diasCredito;
-    private string _nombreEntrega = string.Empty;
-    private string _observaciones = string.Empty;
-    private readonly List<LineaOrden> _lineas = new();
-    private CalculoDocumento.TotalesDocumento _totales;
-    private bool _guardando;
+    private string _entregar = "";
+    private string _observaciones = "";
+    private readonly List<Linea> _lineas = new();
+    private decimal _subtotal, _descuento, _impuesto, _total;
+    private bool _guardando, _enviando;
+    private OrdenCompraFlujoWebDTO? _creada;
 
-    private List<OrdenCompraDTO> _ordenesEncontradas = new();
+    private string MonedaTexto => _moneda == 2 ? "USD" : _monedas.FirstOrDefault(m => m.CodMoneda == _moneda)?.MonedaNombre ?? "CRC";
 
     protected override async Task OnInitializedAsync()
     {
         _proveedores = (await Respuestas.DatoAsync(await Proveedores.Obtener(), "consultar los proveedores"))
                        ?.Where(p => p.Inhabilitado != true).OrderBy(p => p.Nombre).ToList() ?? new();
-        _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))
-                   ?.Where(m => m.Estado).ToList() ?? new();
-        if (_moneda == 0) _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0;
+        _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))?.Where(m => m.Estado).ToList() ?? new();
+    }
+
+    private void AlCambiarMoneda()
+    {
+        if (_moneda == 1) { _tipoCambio = 1; return; }
+        var m = _monedas.FirstOrDefault(x => x.CodMoneda == _moneda);
+        if (m is not null && m.ValorVenta > 0) _tipoCambio = m.ValorVenta;
     }
 
     private void FiltrarProveedores(ChangeEventArgs e)
     {
-        _textoProveedor = e.Value?.ToString() ?? string.Empty;
-        var texto = _textoProveedor.Trim();
-        _proveedoresEncontrados = string.IsNullOrEmpty(texto)
-            ? new()
-            : _proveedores.Where(p => (p.Nombre?.Contains(texto, StringComparison.OrdinalIgnoreCase) ?? false)
-                                       || (p.Cedula?.Contains(texto, StringComparison.OrdinalIgnoreCase) ?? false))
-                          .Take(8).ToList();
+        _textoProveedor = e.Value?.ToString() ?? "";
+        var t = _textoProveedor.Trim();
+        _proveedoresEncontrados = string.IsNullOrEmpty(t) ? new()
+            : _proveedores.Where(p => (p.Nombre?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)
+                                   || (p.Cedula?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)).Take(8).ToList();
     }
 
     private void MostrarProveedores() => _proveedoresEncontrados = _proveedores.Take(8).ToList();
 
-    private void ElegirProveedor(ProveedorDTO proveedor)
+    private void ElegirProveedor(ProveedorDTO p)
     {
-        _proveedor = proveedor;
-        _textoProveedor = proveedor.Cedula ?? proveedor.Nombre ?? string.Empty;
+        _proveedor = p;
+        _textoProveedor = p.Cedula ?? p.Nombre ?? "";
         _proveedoresEncontrados.Clear();
     }
 
-    private async Task AgregarArticulo(InventarioDTO articulo)
+    private void AgregarArticulo(InventarioDTO art)
     {
-        var existente = _lineas.FirstOrDefault(l => l.Codigo == articulo.Codigo);
-        if (existente is not null)
+        var ya = _lineas.FirstOrDefault(l => l.Codigo == art.Codigo);
+        if (ya is not null) { ya.Cantidad += 1; Recalcular(); return; }
+        _lineas.Add(new Linea
         {
-            existente.Cantidad += 1;
-            Recalcular(existente);
-            return;
+            Codigo = art.Codigo,
+            Descripcion = art.Descripcion ?? $"Artículo {art.Codigo}",
+            CostoUnitario = Formato.AImporte(art.PrecioBase),
+            PorcImpuesto = Formato.AImporte(art.IVenta),
+        });
+        Recalcular();
+    }
+
+    private void QuitarLinea(Linea l) { _lineas.Remove(l); Recalcular(); }
+
+    private void Recalcular()
+    {
+        foreach (var l in _lineas)
+        {
+            l.Cantidad = Math.Max(0.001m, l.Cantidad);
+            l.CostoUnitario = Math.Max(0, l.CostoUnitario);
+            l.PorcDescuento = Math.Clamp(l.PorcDescuento, 0, 100);
+            l.PorcImpuesto = Math.Clamp(l.PorcImpuesto, 0, 100);
         }
-
-        var linea = new LineaOrden
-        {
-            Codigo = articulo.Codigo,
-            CodigoArticulo = articulo.Codigo,
-            Descripcion = articulo.Descripcion ?? string.Empty,
-            CostoUnitario = Formato.AImporte(articulo.PrecioBase),
-            PorcImpuesto = Formato.AImporte(articulo.IVenta),
-            MontoFlete = Formato.AImporte(articulo.Fletes),
-            OtrosCargos = Formato.AImporte(articulo.OtrosCargos)
-        };
-        Recalcular(linea);
-        _lineas.Add(linea);
-        await Task.CompletedTask;
-    }
-
-    private void Recalcular(LineaOrden linea)
-    {
-        linea.Cantidad = Math.Max(0.001m, linea.Cantidad);
-        linea.CostoUnitario = Math.Max(0, linea.CostoUnitario);
-        linea.PorcDescuento = Math.Clamp(linea.PorcDescuento, 0, 100);
-        linea.Calculo = CalculoDocumento.Linea(linea.Cantidad, linea.CostoUnitario, linea.PorcDescuento, linea.PorcImpuesto);
-        RecalcularTotales();
-    }
-
-    private void QuitarLinea(LineaOrden linea) { _lineas.Remove(linea); RecalcularTotales(); }
-    private void RecalcularTotales() => _totales = CalculoDocumento.Totales(_lineas.Select(l => l.Calculo));
-
-    private async Task BuscarOrdenesDelProveedor()
-    {
-        if (_proveedor is null) return;
-        _ordenesEncontradas = (await Respuestas.DatoAsync(await Api.BuscarPorProveedor(_proveedor.CodigoProv), "buscar órdenes de compra"))?.ToList() ?? new();
-    }
-
-    private async Task CargarOrden(long idOrden)
-    {
-        var orden = await Respuestas.DatoAsync(await Api.Obtener(idOrden), "consultar la orden de compra");
-        if (orden is null) return;
-        await _modalBuscar.HideAsync();
-
-        _idOrden = orden.Orden;
-        _fecha = orden.Fecha;
-        _moneda = orden.CodMoneda;
-        _credito = orden.Credito == true;
-        _diasCredito = (int)(orden.Diascredito ?? 0);
-        _nombreEntrega = orden.NombreUsuario ?? string.Empty;
-        _observaciones = orden.Observaciones ?? string.Empty;
-        _proveedor = _proveedores.FirstOrDefault(p => p.CodigoProv == orden.Proveedor)
-                     ?? new ProveedorDTO { CodigoProv = orden.Proveedor };
-        _textoProveedor = _proveedor.Cedula ?? _proveedor.Nombre ?? string.Empty;
-
-        _lineas.Clear();
-        foreach (var d in orden.DetalleOrdenCompra ?? new List<DetalleOrdenCompraDTO>())
-        {
-            var linea = new LineaOrden
-            {
-                Codigo = d.Codigo,
-                CodigoArticulo = d.CodigoArticulo,
-                Descripcion = d.Descripcion ?? string.Empty,
-                Cantidad = Formato.AImporte(d.Cantidad),
-                CostoUnitario = Formato.AImporte(d.CostoUnitario),
-                PorcDescuento = Formato.AImporte(d.PorcDescuento),
-                PorcImpuesto = Formato.AImporte(d.PorcImpuesto),
-                MontoFlete = Formato.AImporte(d.MontoFlete),
-                OtrosCargos = Formato.AImporte(d.OtrosCargos)
-            };
-            linea.Calculo = CalculoDocumento.Linea(linea.Cantidad, linea.CostoUnitario, linea.PorcDescuento, linea.PorcImpuesto);
-            _lineas.Add(linea);
-        }
-        RecalcularTotales();
+        _descuento = _lineas.Sum(l => l.Desc);
+        _impuesto = _lineas.Sum(l => l.Imp);
+        _subtotal = _lineas.Sum(l => l.Bruto - l.Desc);
+        _total = _lineas.Sum(l => l.Total);
     }
 
     private async Task Guardar()
     {
         if (_proveedor is null || _lineas.Count == 0 || _guardando) return;
-        if (!await Dialogos.ConfirmarAsync(_idOrden > 0 ? "¿Desea editar esta orden de compra?" : "¿Desea registrar esta orden de compra?")) return;
+        if (!await Dialogos.ConfirmarAsync("¿Registrar esta orden de compra?")) return;
 
         _guardando = true;
-        var dto = new OrdenCompraDTO
+        try
         {
-            Orden = _idOrden,
-            Proveedor = _proveedor.CodigoProv,
-            Fecha = _fecha,
-            Contado = !_credito,
-            Credito = _credito,
-            Diascredito = _credito ? _diasCredito : 0,
-            Plazo = 0,
-            Descuento = (double)_totales.Descuento,
-            Impuesto = (double)_totales.Impuesto,
-            Total = (double)_totales.Total,
-            Observaciones = _observaciones,
-            Usuario = Sesion.Usuario,
-            NombreUsuario = _nombreEntrega,
-            Entregar = string.Empty,
-            CodMoneda = _moneda,
-            SubTotalGravado = 0,
-            SubTotalExento = 0,
-            SubTotal = (double)_totales.SubTotal,
-            Anulado = false,
-            IdSucursal = Sesion.IdSucursal,
-            DetalleOrdenCompra = _lineas.Select(l => new DetalleOrdenCompraDTO
+            var cmd = new CrearOrdenCompraWebDTO
             {
-                Orden = _idOrden,
-                Codigo = l.Codigo,
-                CodigoArticulo = l.CodigoArticulo,
-                Descripcion = l.Descripcion,
-                CostoUnitario = (double)l.CostoUnitario,
-                Cantidad = (double)l.Cantidad,
-                TotalCompra = (double)l.Calculo.Total,
-                PorcDescuento = (double)l.PorcDescuento,
-                Descuento = (double)l.Calculo.MontoDescuento,
-                PorcImpuesto = (double)l.PorcImpuesto,
-                Impuesto = (double)l.Calculo.MontoImpuesto,
-                OtrosCargos = (double)l.OtrosCargos,
-                MontoFlete = (double)l.MontoFlete,
-                Costo = (double)l.CostoUnitario
-            }).ToList()
-        };
+                IdProveedor = _proveedor.CodigoProv,
+                IdSucursal = Sesion.IdSucursal,
+                Fecha = _fecha,
+                CodMoneda = _moneda,
+                TipoCambio = _moneda == 1 ? 1 : (_tipoCambio > 0 ? _tipoCambio : 1),
+                Credito = _credito,
+                Plazo = _credito ? _diasCredito : 0,
+                Observaciones = _observaciones,
+                Entregar = _entregar,
+                Lineas = _lineas.Select(l => new LineaOrdenCompraWebDTO
+                {
+                    CodArticulo = l.Codigo,
+                    Descripcion = l.Descripcion,
+                    Cantidad = (double)l.Cantidad,
+                    CostoUnitario = (double)l.CostoUnitario,
+                    PorcDescuento = (double)l.PorcDescuento,
+                    PorcImpuesto = (double)l.PorcImpuesto,
+                }).ToList(),
+            };
 
-        var r = _idOrden > 0 ? await Api.Editar(dto) : await Api.Crear(dto);
-        _guardando = false;
-        if (await Respuestas.CorrectaAsync(r, _idOrden > 0 ? "editar la orden de compra" : "crear la orden de compra"))
-        {
-            Dialogos.Exito(_idOrden > 0 ? "Orden de compra editada." : "Orden de compra registrada.");
-            Limpiar();
+            _creada = await Respuestas.DatoAsync(await Api.Crear(cmd), "crear la orden de compra");
+            if (_creada is not null)
+            {
+                Dialogos.Exito($"Orden de compra N.º {_creada.Consecutivo ?? _creada.Orden} registrada.");
+                _lineas.Clear();
+                Recalcular();
+            }
         }
+        finally { _guardando = false; }
     }
 
-    private async Task Anular()
-    {
-        if (_idOrden <= 0 || _guardando) return;
-        if (!await Dialogos.ConfirmarPeligroAsync("¿Desea anular esta orden de compra?")) return;
+    private async Task Imprimir(long orden)
+        => await JS.InvokeVoidAsync("open", $"/documentos/orden-compra/{orden}/pdf", "_blank");
 
-        _guardando = true;
-        var r = await Api.Anular(_idOrden);
-        _guardando = false;
-        if (await Respuestas.CorrectaAsync(r, "anular la orden de compra"))
+    private async Task Enviar(long orden)
+    {
+        _enviando = true;
+        try
         {
-            Dialogos.Exito("Orden de compra anulada.");
-            Limpiar();
+            var res = await Respuestas.DatoAsync(await Api.EnviarCorreo(orden, null), "enviar la orden por correo");
+            if (res is null) return;
+            if (res.Enviado) Dialogos.Exito($"Orden enviada a {res.Destino}.");
+            else await Dialogos.ErrorAsync(res.Error ?? "No se pudo enviar el correo.", "Envío fallido");
         }
+        finally { _enviando = false; }
     }
 
     private void Limpiar()
     {
-        _idOrden = 0;
+        _creada = null;
         _proveedor = null;
-        _textoProveedor = string.Empty;
+        _textoProveedor = "";
         _proveedoresEncontrados.Clear();
         _fecha = DateTime.Today;
-        _credito = false;
-        _diasCredito = 0;
-        _nombreEntrega = string.Empty;
-        _observaciones = string.Empty;
+        _moneda = 1; _tipoCambio = 1;
+        _credito = false; _diasCredito = 0;
+        _entregar = ""; _observaciones = "";
         _lineas.Clear();
-        RecalcularTotales();
+        Recalcular();
     }
 }

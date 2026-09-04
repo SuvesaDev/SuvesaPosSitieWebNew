@@ -205,6 +205,7 @@ builder.Services.AddScoped<IConfiguracion, Configuracion>();
 builder.Services.AddScoped<IDevolucionesVenta, DevolucionesVentaServicio>();
 builder.Services.AddScoped<IDevolucionesCompra, DevolucionesCompra>();
 builder.Services.AddScoped<IOrdenesCompra, OrdenesCompra>();
+builder.Services.AddScoped<IOrdenesCompraFlujo, OrdenesCompraFlujo>();
 builder.Services.AddScoped<IEntregasCuenta, EntregasCuenta>();
 builder.Services.AddScoped<ICobros, Cobros>();
 builder.Services.AddScoped<ICajaOperaciones, CajaOperaciones>();
