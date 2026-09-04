@@ -44,14 +44,22 @@
 >   (filtro por fechas/apertura/estado/número, detalle con aplicaciones y formas
 >   de pago, PDF) y pestaña *Operaciones fallidas* (comprobantes rechazados con
 >   cobro local, monto cobrado, recibos y acción sugerida D10). Consume
->   `GET api/cobros/recibos` y `GET api/cobros/operaciones-fallidas`. Falta
->   fundir todo en una sola pantalla Cobrar y el comando de reenvío/NC.
+>   `GET api/cobros/recibos` y `GET api/cobros/operaciones-fallidas`.
+>   **Acciones D10 cableadas**: *Reenviar* (`.../pos/ventas/{id}/facturas|tiquetes/emitir`)
+>   y *NC interna* (`POST api/venta-orquestada/devolucion-interna`, `AnularOrigen`
+>   = true) — el cobro nunca se toca. Abono Cobrar enlaza a esta pantalla y a
+>   Perfiles de emisión (unificación ligera; falta fundir todo en una sola vista).
 > - **Fase 8.3 — parcial.** Hecha la pantalla **Perfiles de emisión**
 >   (`/sales/emission-profiles`, `VENTAS.PERFILES_EMISION`): por emisor + centro
 >   [+ terminal] y modalidad, lista las series V4.4 con `elegible` +
 >   `motivoNoElegible` (`GET api/facturacion/perfiles-emision/elegibles`). Falta
->   integrarlo en el flujo de facturación alrededor de preventa.
-> - Fase 8.5 pendiente.
+>   integrarlo en el flujo de facturación alrededor de preventa (pantalla
+>   `Facturacion.razor`, 1 120 líneas — reescritura mayor, se deja aparte).
+> - **Fase 8.5 — pendiente por contrato.** Los recibos de pago a proveedor ya
+>   tienen pantalla (`/buys/pay`), pero el flujo `AbonoPagarController` usa un
+>   número de recibo manual y `Documento = 0`: no persiste ni devuelve un id con
+>   el que imprimir la plantilla nueva. Requiere cambiar ese contrato en el API
+>   antes de conectar `/documentos/recibo-pago/{id}/pdf`.
 
 ### Fase 8.1 — Configuración (tras Fases 1–7 del API)
 Separar en pantallas distintas (hoy mezcladas): **Tipos fiscales** ·

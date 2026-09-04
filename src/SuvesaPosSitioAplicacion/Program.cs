@@ -249,6 +249,7 @@ builder.Services.AddScoped<IConciliacionCaja, ConciliacionCaja>();
 // SANEAMIENTO Fase 8.2/8.3 — consultas de "Cobrar" y perfiles de emisión.
 builder.Services.AddScoped<IConsultaCobros, ConsultaCobros>();
 builder.Services.AddScoped<IPerfilesEmision, PerfilesEmision>();
+builder.Services.AddScoped<IVentaOrquestada, VentaOrquestada>();
 
 var app = builder.Build();
 

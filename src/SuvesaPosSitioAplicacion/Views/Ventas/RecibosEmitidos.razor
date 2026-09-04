@@ -5,7 +5,10 @@
 @using SuvesaPosSitioAplicacion.Services
 @using Havit.Blazor.Components.Web.Bootstrap
 @inject IConsultaCobros Api
+@inject IAbonoCobrarPreventas Emision
+@inject IVentaOrquestada VentaOrquestada
 @inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
 @inject IJSRuntime JS
 
 @* SANEAMIENTO Fase 8.2 — consulta de sólo lectura: recibos de cobro emitidos y
@@ -132,7 +135,7 @@
                             <tr>
                                 <th>Comprobante</th><th>Consecutivo</th><th>Cliente</th>
                                 <th class="text-end">Monto</th><th class="text-center">Cobro local</th>
-                                <th class="text-center">Intentos</th><th>Causa</th><th>Acción sugerida</th>
+                                <th class="text-center">Intentos</th><th>Causa</th><th>Acción sugerida</th><th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -161,6 +164,19 @@
                                     <td class="text-center">@f.IntentosEnvio</td>
                                     <td class="small">@(f.CausaError ?? "—")</td>
                                     <td class="small">@f.AccionSugerida</td>
+                                    <td class="text-nowrap">
+                                        @if (f.OrigenId is { } idv && string.Equals(f.OrigenTipo, "Venta", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <button class="btn btn-sm btn-outline-primary mb-1 d-block w-100"
+                                                    disabled="@_procesando" @onclick="() => Reenviar(f)">
+                                                Reenviar
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger d-block w-100"
+                                                    disabled="@_procesando" @onclick="() => AnularYRecrear(f)">
+                                                NC interna
+                                            </button>
+                                        }
+                                    </td>
                                 </tr>
                             }
                         </tbody>
