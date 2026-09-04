@@ -108,6 +108,38 @@ public static class TiposImpresionUi
 
     public static string Formato(int f) => f == 2 ? "Térmico 80 mm" : "A4";
 
+    /// <summary>Agrupa el tipo según qué numerador lo origina — mismo criterio que
+    /// <c>TipoDocumentoImpresionExtensiones.Vertiente</c> en la API
+    /// (PLANTILLAS_IMPRESION_VS_SERIES.md).</summary>
+    public static VertienteImpresionUi Vertiente(int tipo) => tipo switch
+    {
+        1 or 2 or 3 => VertienteImpresionUi.Facturacion,
+        6 or 8 or 9 => VertienteImpresionUi.Otro,
+        _ => VertienteImpresionUi.Operativo,
+    };
+
+    public static string VertienteNombre(VertienteImpresionUi v) => v switch
+    {
+        VertienteImpresionUi.Facturacion => "Series de facturación",
+        VertienteImpresionUi.Operativo => "Series operativas",
+        _ => "Otros",
+    };
+
     public static IReadOnlyList<(int Valor, string Nombre)> Todos { get; } =
         Enumerable.Range(1, 14).Select(v => (v, Nombre(v))).ToList();
+
+    /// <summary>Todos los tipos agrupados por vertiente, en el orden en que deben
+    /// aparecer en el selector: Facturación, Operativo, Otros.</summary>
+    public static IReadOnlyList<(VertienteImpresionUi Vertiente, IReadOnlyList<(int Valor, string Nombre)> Tipos)> TodosAgrupados { get; } =
+        Todos.GroupBy(t => Vertiente(t.Valor))
+            .OrderBy(g => (int)g.Key)
+            .Select(g => (g.Key, (IReadOnlyList<(int Valor, string Nombre)>)g.ToList()))
+            .ToList();
+}
+
+public enum VertienteImpresionUi
+{
+    Facturacion = 1,
+    Operativo = 2,
+    Otro = 3,
 }

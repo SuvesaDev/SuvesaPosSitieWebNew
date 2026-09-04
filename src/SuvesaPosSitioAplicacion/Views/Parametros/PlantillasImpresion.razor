@@ -30,7 +30,12 @@
                     <label class="form-label small">Tipo de documento</label>
                     <select class="form-select form-select-sm" @bind="_tipo" @bind:after="Cargar">
                         <option value="0">Todos</option>
-                        @foreach (var t in TiposImpresionUi.Todos) { <option value="@t.Valor">@t.Nombre</option> }
+                        @foreach (var grupo in TiposImpresionUi.TodosAgrupados)
+                        {
+                            <optgroup label="@TiposImpresionUi.VertienteNombre(grupo.Vertiente)">
+                                @foreach (var t in grupo.Tipos) { <option value="@t.Valor">@t.Nombre</option> }
+                            </optgroup>
+                        }
                     </select>
                 </div>
             </div>
