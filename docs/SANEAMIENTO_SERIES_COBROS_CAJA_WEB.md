@@ -33,14 +33,16 @@
 >   **Propiedades de formas de pago**
 >   (`/parameters/payment-methods-properties`, `PARAMETROS.FORMAS_PAGO_PROPIEDADES`):
 >   Activa, vuelto, referencia obligatoria, afecta caja, moneda extranjera,
->   código Hacienda, orden. Falta: pantalla de serie única de NC y de plazos de
->   crédito (los mantenimientos existentes ya cubren el CRUD base).
-> - **Fase 8.4 — parcial.** Hecha la pantalla **Conciliación de caja**
+>   código Hacienda, orden. El chequeo D1 de **serie única de NC** por ámbito
+>   está en la pantalla de Perfiles de emisión
+>   (`GET api/nota-credito-cxc/serie-unica`); los plazos de crédito se mantienen
+>   en su mantenimiento genérico.
+> - **Fase 8.4 — hecha.** Pantalla **Conciliación de caja**
 >   (`/initial/cash/reconciliation`, `CAJA.CONCILIACION`): elige una apertura sin
->   cerrar y muestra fondo inicial + saldo esperado por forma de pago y moneda
->   **desde el mayor** (`GET api/caja/{napertura}/conciliacion`), con las ventas
->   del período como dato meramente informativo. Falta: bloqueo durante arqueo
->   final, diferencias declaradas y cierre idempotente desde esta vista.
+>   cerrar, muestra fondo inicial + saldo esperado por forma de pago y moneda
+>   **desde el mayor**, y un botón **"Cerrar caja con este total"** (visible sólo
+>   con la apertura en estado `A`) que llama `POST api/caja/{n}/cerrar`
+>   (idempotente). Las ventas del período quedan como dato informativo.
 > - **Fase 8.2 — hecha.** `/sales/collect` es ahora el **Cobrar unificado** con
 >   4 pestañas: *Preventas pendientes* · *Facturas de crédito* · *Recibos
 >   emitidos* · *Operaciones fallidas*. Las dos de consulta viven **fuera** del
@@ -64,6 +66,9 @@
 >   (`/buys/payment-receipts`, `COMPRAS.RECIBOS_PAGO`): lista + filtro + PDF
 >   (`/documentos/recibo-pago/{id}/pdf`). "Abono Pagar" ofrece imprimir el recibo
 >   tras registrarlo.
+>
+> **Fase 8 completa en código.** Sólo queda aplicar las migraciones a la BD
+> compartida y ejercitar los flujos E2E contra API + BD reales (§4).
 
 ### Fase 8.1 — Configuración (tras Fases 1–7 del API)
 Separar en pantallas distintas (hoy mezcladas): **Tipos fiscales** ·
