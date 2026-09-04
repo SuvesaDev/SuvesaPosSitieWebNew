@@ -817,6 +817,22 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "VENTAS.TRAMITE_COBRO",
+          "nombre": "Trámite de cobro",
+          "ruta": "/sales/collection-process",
+          "padre": null,
+          "orden": 12,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
         }
       ]
     },

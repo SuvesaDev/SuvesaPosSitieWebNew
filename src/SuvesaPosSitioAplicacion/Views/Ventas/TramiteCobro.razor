@@ -1,0 +1,182 @@
+@page "/sales/collection-process"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Compras
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@using Havit.Blazor.Components.Web.Bootstrap
+@inject ITramitesCobro Api
+@inject IClientesConsulta Clientes
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+@inject IJSRuntime JS
+
+@*  Boleta de trámite de cobro: constancia de que se entregaron facturas
+    pendientes a una persona del cliente para su trámite interno de pago
+    (cuentas por pagar → contabilidad → gerencia). Es informativa — no cobra,
+    no aplica y no bloquea nada; se alimenta de las facturas con saldo que ya
+    muestra "Facturas de crédito" en Cobrar. El monto siempre es el saldo
+    completo; una factura puede aparecer en varias boletas. *@
+
+<AppPantalla Pantalla="@Titulo" Codigo="VENTAS.TRAMITE_COBRO" Nivel="NivelPantalla.Escritorio">
+    <ChildContent>
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item"><button class="nav-link @(_tab == "nueva" ? "active" : null)" @onclick='() => _tab = "nueva"'>Nueva boleta</button></li>
+            <li class="nav-item"><button class="nav-link @(_tab == "consultar" ? "active" : null)" @onclick='CambiarAConsultar'>Consultar</button></li>
+        </ul>
+
+        @if (_tab == "nueva")
+        {
+            @if (_creada is not null)
+            {
+                <div class="card mb-3 border-success">
+                    <div class="card-body d-flex flex-wrap align-items-center gap-3">
+                        <div>
+                            <div class="text-secondary small text-uppercase">Boleta registrada</div>
+                            <div class="fs-4 fw-semibold">N.º @(_creada.Consecutivo ?? _creada.Id)</div>
+                            <div class="small text-secondary">@_creada.NombreCliente · @_creada.Lineas.Count factura(s) · @Formato.Importe(_creada.Total)</div>
+                        </div>
+                        <div class="ms-auto d-flex gap-2">
+                            <button class="btn btn-outline-primary" @onclick="() => Imprimir(_creada.Id)"><i class="bi bi-printer me-1"></i>Imprimir</button>
+                            <button class="btn btn-primary" disabled="@_enviando" @onclick="() => Enviar(_creada.Id)">
+                                <i class="bi bi-envelope me-1"></i>@(_enviando ? "Enviando..." : "Enviar al cliente")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="card mb-3">
+                <div class="card-header"><strong>Cliente</strong></div>
+                <div class="card-body">
+                    <div class="position-relative">
+                        <div class="input-group">
+                            <input class="form-control" placeholder="Cédula o nombre del cliente" @bind="_textoCliente" @onkeydown="BuscarConEnter" />
+                            <button type="button" class="btn btn-outline-primary" @onclick="Buscar" disabled="@_buscando">Buscar</button>
+                        </div>
+                        @if (_clientesEncontrados.Count > 0)
+                        {
+                            <div class="list-group position-absolute shadow" style="z-index:1050; max-height:12rem; overflow-y:auto;">
+                                @foreach (var c in _clientesEncontrados)
+                                {
+                                    <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirCliente(c)"><strong>@c.Nombre</strong><span class="text-secondary ms-2">@c.Cedula</span></button>
+                                }
+                            </div>
+                        }
+                    </div>
+                    @if (_cliente is not null)
+                    {
+                        <div class="alert alert-light border mt-2 mb-0"><strong>@_cliente.Nombre</strong><span class="text-secondary ms-2">@_cliente.Cedula</span></div>
+                    }
+                </div>
+            </div>
+
+            @if (_cliente is not null)
+            {
+                <div class="card mb-3">
+                    <div class="card-header"><strong>Datos de la boleta</strong></div>
+                    <div class="card-body row g-3">
+                        <div class="col-12 col-md-3"><label class="form-label">Fecha de entrega</label><input type="date" class="form-control" @bind="_fechaEntrega" /></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Entrega</label><input class="form-control" @bind="_entrega" placeholder="@Sesion.Usuario" /></div>
+                        <div class="col-12 col-md-5"><label class="form-label">Recibe <span class="text-danger">*</span></label><input class="form-control" @bind="_recibe" placeholder="Nombre de quien recibe en el cliente" /></div>
+                        <div class="col-12"><label class="form-label">Observaciones</label><input class="form-control" @bind="_observaciones" /></div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header"><strong>Facturas pendientes</strong></div>
+                    <div class="card-body p-0">
+                        @if (_cargandoFacturas)
+                        {
+                            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+                        }
+                        else if (_facturas.Count == 0)
+                        {
+                            <p class="text-secondary text-center py-4 mb-0">Este cliente no tiene facturas pendientes.</p>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead><tr><th style="width:2.5rem"></th><th>Factura</th><th>Fecha</th><th>Vence</th><th class="text-end">Saldo</th><th>Fecha de pago comprometida</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var f in _facturas)
+                                        {
+                                            <tr class="@(_seleccion.Contains(f.IdVenta) ? "table-active" : null)">
+                                                <td><input class="form-check-input" type="checkbox" checked="@_seleccion.Contains(f.IdVenta)" @onchange="() => Alternar(f)" /></td>
+                                                <td><code>@f.NumFactura.ToString("0")</code></td>
+                                                <td class="small">@f.Fecha.ToString("dd/MM/yy")</td>
+                                                <td class="small @(f.Vence < DateTime.Today ? "text-danger fw-semibold" : "")">@(f.Vence?.ToString("dd/MM/yy") ?? "—")</td>
+                                                <td class="text-end seepos-importe">@Formato.Importe(f.SaldoActual)</td>
+                                                <td style="min-width:10rem">
+                                                    <input type="date" class="form-control form-control-sm" disabled="@(!_seleccion.Contains(f.IdVenta))"
+                                                           value="@FechaPago(f.IdVenta).ToString("yyyy-MM-dd")" @onchange="e => CambiarFechaPago(f.IdVenta, e)" />
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot><tr class="border-top"><td colspan="4" class="text-end fw-semibold">Seleccionado</td><td class="text-end fw-semibold seepos-importe">@Formato.Importe(_totalSeleccion)</td><td></td></tr></tfoot>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" disabled="@(_guardando || _seleccion.Count == 0 || string.IsNullOrWhiteSpace(_recibe))" @onclick="Guardar">
+                    @(_guardando ? "Guardando..." : "Registrar boleta")
+                </button>
+            }
+        }
+        else
+        {
+            <div class="card mb-3">
+                <div class="card-body row g-2 align-items-end">
+                    <div class="col-6 col-md-2"><label class="form-label small">N.º</label><input type="number" class="form-control form-control-sm" @bind="_consultaConsecutivo" /></div>
+                    <div class="col-6 col-md-2"><label class="form-label small">Desde</label><input type="date" class="form-control form-control-sm" @bind="_consultaDesde" /></div>
+                    <div class="col-6 col-md-2"><label class="form-label small">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_consultaHasta" /></div>
+                    <div class="col-auto"><div class="form-check"><input id="incAnul" class="form-check-input" type="checkbox" @bind="_consultaIncluirAnuladas" /><label class="form-check-label small" for="incAnul">Incluir anuladas</label></div></div>
+                    <div class="col-auto"><button class="btn btn-sm btn-primary" @onclick="Consultar" disabled="@_consultando">Buscar</button></div>
+                </div>
+            </div>
+
+            @if (_consultando)
+            {
+                <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+            }
+            else if (_boletas.Count == 0)
+            {
+                <div class="alert alert-light border">Sin boletas para el filtro.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle">
+                        <thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th class="text-center">Facturas</th><th class="text-end">Total</th><th>Recibe</th><th class="text-center">Estado</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var b in _boletas)
+                            {
+                                <tr class="@(b.Anulado ? "text-muted" : "")">
+                                    <td><code>@(b.Consecutivo ?? b.Id)</code></td>
+                                    <td class="small">@b.FechaEntrega.ToString("dd/MM/yy")</td>
+                                    <td>@b.NombreCliente</td>
+                                    <td class="text-center">@b.Lineas.Count</td>
+                                    <td class="text-end seepos-importe">@Formato.Importe(b.Total)</td>
+                                    <td class="small">@b.Recibe</td>
+                                    <td class="text-center"><span class="badge @(b.Anulado ? "text-bg-secondary" : "text-bg-success")">@(b.Anulado ? "Anulada" : "Vigente")</span></td>
+                                    <td class="text-end text-nowrap">
+                                        <button class="btn btn-sm btn-link p-0 me-2" @onclick="() => Imprimir(b.Id)">PDF</button>
+                                        <button class="btn btn-sm btn-link p-0 me-2" @onclick="() => Enviar(b.Id)">Correo</button>
+                                        @if (!b.Anulado)
+                                        {
+                                            <button class="btn btn-sm btn-link p-0 text-danger" @onclick="() => Anular(b)">Anular</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        }
+    </ChildContent>
+</AppPantalla>

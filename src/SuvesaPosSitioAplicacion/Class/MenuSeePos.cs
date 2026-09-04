@@ -357,6 +357,13 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    // Constancia de entrega de facturas al cliente para su trámite interno de pago.
+                    Titulo = "Trámite de cobro",
+                    Codigo = "VENTAS.TRAMITE_COBRO",
+                    Ruta = "/sales/collection-process",
+                },
+                new ItemMenu
+                {
                     Titulo = "Devoluciones",
                     Codigo = "VENTAS.DEVOLUCIONES",
                     Ruta = "/sales/repayment",
