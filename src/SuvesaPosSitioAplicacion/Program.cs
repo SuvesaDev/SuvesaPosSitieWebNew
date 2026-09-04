@@ -246,6 +246,10 @@ builder.Services.AddScoped<ISeriesOperativas, SeriesOperativas>();
 // SANEAMIENTO Fase 8.4 — conciliación de caja desde el mayor de movimientos.
 builder.Services.AddScoped<IConciliacionCaja, ConciliacionCaja>();
 
+// SANEAMIENTO Fase 8.2/8.3 — consultas de "Cobrar" y perfiles de emisión.
+builder.Services.AddScoped<IConsultaCobros, ConsultaCobros>();
+builder.Services.AddScoped<IPerfilesEmision, PerfilesEmision>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

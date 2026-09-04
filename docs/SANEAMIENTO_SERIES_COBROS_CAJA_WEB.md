@@ -38,8 +38,20 @@
 >   **desde el mayor** (`GET api/caja/{napertura}/conciliacion`), con las ventas
 >   del período como dato meramente informativo. Falta: bloqueo durante arqueo
 >   final, diferencias declaradas y cierre idempotente desde esta vista.
-> - Fases 8.2, 8.3, 8.5 pendientes (8.2 tiene ya la pestaña "Facturas de
->   crédito", commit `7361cc8`).
+> - **Fase 8.2 — parcial.** Además de la pestaña "Facturas de crédito" en Abono
+>   Cobrar (commit `7361cc8`), hecha la pantalla **Recibos y fallidas**
+>   (`/sales/receipts`, `VENTAS.RECIBOS_EMITIDOS`): pestaña *Recibos emitidos*
+>   (filtro por fechas/apertura/estado/número, detalle con aplicaciones y formas
+>   de pago, PDF) y pestaña *Operaciones fallidas* (comprobantes rechazados con
+>   cobro local, monto cobrado, recibos y acción sugerida D10). Consume
+>   `GET api/cobros/recibos` y `GET api/cobros/operaciones-fallidas`. Falta
+>   fundir todo en una sola pantalla Cobrar y el comando de reenvío/NC.
+> - **Fase 8.3 — parcial.** Hecha la pantalla **Perfiles de emisión**
+>   (`/sales/emission-profiles`, `VENTAS.PERFILES_EMISION`): por emisor + centro
+>   [+ terminal] y modalidad, lista las series V4.4 con `elegible` +
+>   `motivoNoElegible` (`GET api/facturacion/perfiles-emision/elegibles`). Falta
+>   integrarlo en el flujo de facturación alrededor de preventa.
+> - Fase 8.5 pendiente.
 
 ### Fase 8.1 — Configuración (tras Fases 1–7 del API)
 Separar en pantallas distintas (hoy mezcladas): **Tipos fiscales** ·

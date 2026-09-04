@@ -1,0 +1,103 @@
+@page "/sales/emission-profiles"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Cobros
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
+@using SuvesaPosSitioAplicacion.Services
+@inject IPerfilesEmision Api
+@inject IEmisoresFiscales EmisoresApi
+@inject ISucursales SucursalesApi
+@inject IManejadorRespuestas Respuestas
+
+@* SANEAMIENTO Fase 8.3 — qué series de emisión V4.4 puede usar facturación para
+   un ámbito (emisor + centro [+ terminal]) y una modalidad. Sólo lectura. *@
+
+<AppPantalla Pantalla="@Titulo" Codigo="VENTAS.PERFILES_EMISION" Nivel="NivelPantalla.Tableta"
+             Subtitulo="Series fiscales aplicables por ámbito y modalidad. Tiquete no puede ser crédito (D2).">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Emisor</label>
+                    <select class="form-select form-select-sm" @bind="_idEmisor">
+                        <option value="0">— Seleccione —</option>
+                        @foreach (var e in _emisores)
+                        {
+                            <option value="@e.Id">@e.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Centro / sucursal</label>
+                    <select class="form-select form-select-sm" @bind="_idSucursal">
+                        <option value="0">— Seleccione —</option>
+                        @foreach (var s in _sucursales)
+                        {
+                            <option value="@s.Id">@(s.NombreComercial ?? s.NombreFiscal ?? $"Centro {s.Id}")</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">Terminal</label>
+                    <input type="number" min="0" class="form-control form-control-sm" @bind="_terminal" />
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">Modalidad</label>
+                    <select class="form-select form-select-sm" @bind="_modalidad">
+                        <option value="">Todas</option>
+                        <option value="contado">Contado</option>
+                        <option value="credito">Crédito</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-sm btn-primary" @onclick="Consultar" disabled="@(_cargando || _idEmisor <= 0 || _idSucursal <= 0)">
+                        Consultar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (_cargando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+        }
+        else if (_consultado && _perfiles.Count == 0)
+        {
+            <div class="alert alert-warning">No hay series de emisión para ese ámbito. Configúrelas en <a href="/parameters/invoice-series">Series de Facturación</a>.</div>
+        }
+        else if (_perfiles.Count > 0)
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th class="text-center">Elegible</th>
+                            <th>Serie</th><th class="text-center">Terminal</th>
+                            <th>Tipo</th><th class="text-center">CodigoFE</th>
+                            <th class="text-center">Crédito</th><th class="text-center">V4.4</th>
+                            <th>Motivo si no aplica</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in _perfiles)
+                        {
+                            <tr class="@(p.Elegible ? "" : "text-muted")">
+                                <td class="text-center">
+                                    <span class="badge @(p.Elegible ? "text-bg-success" : "text-bg-secondary")">
+                                        @(p.Elegible ? "Sí" : "No")
+                                    </span>
+                                </td>
+                                <td>@p.Descripcion <span class="text-muted small">#@p.IdSerie</span></td>
+                                <td class="text-center">@p.NumeroTerminal</td>
+                                <td>@(p.TipoNombre ?? "—")</td>
+                                <td class="text-center">@(p.CodigoFe ?? "—")</td>
+                                <td class="text-center">@(p.EsCredito ? "Sí" : "—")</td>
+                                <td class="text-center">@(p.EmisionV44Habilitada ? "Sí" : "No")</td>
+                                <td class="small">@(p.MotivoNoElegible ?? "")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>

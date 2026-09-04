@@ -330,6 +330,20 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    // SANEAMIENTO Fase 8.2 — consulta de recibos emitidos y comprobantes rechazados.
+                    Titulo = "Recibos y fallidas",
+                    Codigo = "VENTAS.RECIBOS_EMITIDOS",
+                    Ruta = "/sales/receipts",
+                },
+                new ItemMenu
+                {
+                    // SANEAMIENTO Fase 8.3 — series de emisión aplicables por ámbito y modalidad.
+                    Titulo = "Perfiles de emisión",
+                    Codigo = "VENTAS.PERFILES_EMISION",
+                    Ruta = "/sales/emission-profiles",
+                },
+                new ItemMenu
+                {
                     Titulo = "Devoluciones",
                     Codigo = "VENTAS.DEVOLUCIONES",
                     Ruta = "/sales/repayment",

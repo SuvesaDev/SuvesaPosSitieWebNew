@@ -753,6 +753,38 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "VENTAS.RECIBOS_EMITIDOS",
+          "nombre": "Recibos y fallidas",
+          "ruta": "/sales/receipts",
+          "padre": null,
+          "orden": 10,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "VENTAS.PERFILES_EMISION",
+          "nombre": "Perfiles de emisión",
+          "ruta": "/sales/emission-profiles",
+          "padre": null,
+          "orden": 11,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
         }
       ]
     },
