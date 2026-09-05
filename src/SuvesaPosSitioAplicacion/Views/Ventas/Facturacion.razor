@@ -1396,7 +1396,14 @@
         // Las líneas de un grupo de bonificación no admiten editar precio ni descuento.
         if (linea.EsDeGrupo) { linea.Descuento = 0m; if (linea.EsBonificacion) linea.Precio = 0m; }
         linea.Cantidad = Math.Max(1, linea.Cantidad);
+        var descuentoTecleado = linea.Descuento;
         linea.Descuento = Math.Clamp(linea.Descuento, 0, linea.MaxDescuento);
+        // Sin este aviso, el campo simplemente vuelve al máximo permitido sin
+        // explicación — parece que "no se aplicó" el descuento tecleado.
+        if (descuentoTecleado > linea.MaxDescuento)
+        {
+            Dialogos.Advertencia($"El descuento máximo para '{linea.Articulo.Descripcion}' es {Formato.Cantidad(linea.MaxDescuento)}%.");
+        }
         linea.Recalcular();
         RecalcularTodo();
 
