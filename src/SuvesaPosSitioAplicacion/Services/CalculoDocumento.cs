@@ -53,11 +53,14 @@ public static class CalculoDocumento
 
     /// <summary>
     /// Linea de bonificacion (§4.4). El articulo sale a precio 0
-    /// (<c>SubTotal</c> y <c>SubtotalGravado</c> = 0), pero el impuesto SI se
-    /// cobra, calculado sobre <paramref name="precioReferencia"/> (el precio de
-    /// lista vigente del articulo), no sobre 0. Decidido: lo paga el cliente, asi
-    /// que <c>Total</c> de la linea = el impuesto. Un descuento sobre una linea de
-    /// bonificacion no aplica.
+    /// (<c>SubTotal</c> y <c>SubtotalGravado</c> = 0). <c>MontoImpuesto</c> se
+    /// calcula sobre <paramref name="precioReferencia"/> (el precio de lista
+    /// vigente del articulo) porque Hacienda exige reportarlo así (código de
+    /// descuento "03" de Nota 20), pero ese impuesto lo asume el emisor —
+    /// Hacienda rechaza (código -476) que se le cobre al cliente en una línea de
+    /// bonificación. Por eso <c>Total</c> de la linea es 0: el cliente no paga
+    /// nada por el articulo regalado, ni precio ni impuesto. Un descuento sobre
+    /// una linea de bonificacion no aplica.
     /// </summary>
     public static LineaCalculada LineaBonificada(
         decimal cantidad,
@@ -72,7 +75,7 @@ public static class CalculoDocumento
             MontoDescuento: 0m,
             MontoImpuesto: Redondear(montoImpuesto),
             SubtotalGravado: 0m,
-            Total: Redondear(montoImpuesto));
+            Total: 0m);
     }
 
     /// <summary>Los totales del documento. Suma de lineas ya calculadas.</summary>

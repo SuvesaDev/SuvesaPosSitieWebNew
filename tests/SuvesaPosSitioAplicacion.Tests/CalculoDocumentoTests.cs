@@ -133,16 +133,17 @@ public class CalculoDocumentoTests
     }
 
     [Fact]
-    public void LineaBonificada_PrecioCeroPeroImpuestoSobreElPrecioDeLista()
+    public void LineaBonificada_PrecioCeroYElEmisorAsumeElImpuesto()
     {
-        // §4.4: el articulo de regalo sale gratis pero el 13% se cobra sobre
-        // el precio de lista (1000), no sobre 0.
+        // §4.4: el articulo de regalo sale gratis y el 13% se calcula sobre el
+        // precio de lista (1000) para reportarlo a Hacienda, pero Hacienda exige
+        // que ese impuesto lo asuma el emisor (rechazo -476), no el cliente.
         var l = CalculoDocumento.LineaBonificada(cantidad: 2, precioReferencia: 1000m, porcentajeImpuesto: 13);
 
         Assert.Equal(0m, l.SubTotal);
         Assert.Equal(0m, l.SubtotalGravado);
         Assert.Equal(0m, l.MontoDescuento);
-        Assert.Equal(260m, l.MontoImpuesto);   // 13% de 2000
-        Assert.Equal(260m, l.Total);           // lo paga el cliente
+        Assert.Equal(260m, l.MontoImpuesto);   // 13% de 2000, se reporta a Hacienda igual
+        Assert.Equal(0m, l.Total);             // el cliente no paga nada por el regalo
     }
 }

@@ -71,8 +71,9 @@ public static class BonificacionCalculo
 
             if (esElRegalo && cantidadGratis > 0)
             {
-                // PrecioUnit conserva el precio de lista (base del impuesto que paga
-                // el cliente); que la línea se cobre en 0 lo marca EsBonificacion.
+                // PrecioUnit conserva el precio de lista (base del impuesto que se
+                // reporta a Hacienda, aunque lo asume el emisor); que la línea se
+                // cobre en 0 lo marca EsBonificacion.
                 lineas.Add(new LineaGrupo(
                     u.Codigo, u.Descripcion, cantidadGratis, u.PrecioUnit, u.PorcentajeImpuesto,
                     EsBonificacion: true,
