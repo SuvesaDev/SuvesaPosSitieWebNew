@@ -1,6 +1,6 @@
 # Plan sitio web: Tiquete y rutas de facturación/cobro
 
-Fecha: 2026-09-05. Estado: W0 cerrado; API A1–A7 code-complete; **W1 en curso**.
+Fecha: 2026-09-05. Estado: W0 cerrado; API A1–A7 code-complete; **W1–W3 completas, W4/W6 con base, W5/W7 pendientes**.
 
 ## Estado por fase
 
@@ -12,6 +12,9 @@ Fecha: 2026-09-05. Estado: W0 cerrado; API A1–A7 code-complete; **W1 en curso*
 
 | W6 | 🟡 base | Pantalla `EstadoCuenta.razor` (`/sales/account-statement[/{id}]`, gated `VENTAS.ABONO_COBRAR`, sin nodo de menú nuevo): busca cliente, fecha de corte, tiles de límite/saldo/crédito a favor/disponible, tramos de antigüedad (por vencer / 1-30 / 31-60 / 61-90 / 91+) y detalle de facturas con saldo. Fuente única `api/cobros/estado-cuenta/{id}`. Enlace "Estado de cuenta" desde `CuentasPorCobrar`. Falta: PDF/exportación con el mismo corte y protecciones VER/EXPORTAR/IMPRIMIR separadas. |
 | W4 | 🟡 base | `PreparacionPagoVenta` (servicio puro §4): `Calcular(total, líneas)` → reparto con recibido/aplicado/vuelto/faltante por forma; invariante `recibido − vuelto = aplicado`; vuelto solo de efectivo; sobrepago no-efectivo y referencia faltante son error. 8 casos en `PreparacionPagoVentaTests` (incluye el escenario E02). `Facturacion.razor` ya deriva `TotalPagado`/`Saldo`/`Vuelto`/`Cubre100` de este servicio. Falta el componente Blazor compartido `PanelPagoVenta` y la captura de referencia por forma; `Cobrar`/`CuentasPorCobrar` aún tienen su reparto propio. |
+
+| W5 | ⏳ bloqueada | Convergencia `Cobrar` (`/initial/charge`) + `CuentasPorCobrar` (`/sales/collect`) a un componente/comando común. El reemplazo del ciclo `Cobrar → FacturarPreventa → Emitir` de la vista por **un** comando del API necesita un comando atómico "cobrar preventa de contado" que A2 no expuso (A2 dejó `CrearPreventaContado` para crear, y `PreventaFacturada` con guardas para el paso posterior, pero no un cobro+facturación atómico de una preventa existente). Requiere trabajo de API previo. |
+| W7 | 🟡 núcleo hecho | La distinción interno/electrónico ya la resuelve el API (A3: título, sin clave, fuera de la cola fiscal) y la web la refleja en `MostrarResultadoOperacion` (W3): "Documento interno, sin espera de Hacienda" vs "Comprobante electrónico en proceso"; nunca XML ni "pendiente de Hacienda" para `NoAplica`. Falta: visor PDF integrado / enlace de descarga recuperable, botón "Reintentar impresión" sin re-cobrar, y estados correo pendiente/enviado/fallido separados en la bandeja. |
 
 > Nota sobre `tools/actualizar-contratos.sh`: regenerar el cliente completo contra el API
 > local rompe ~150 archivos por colisión de nombres (el generado histórico se hizo contra
