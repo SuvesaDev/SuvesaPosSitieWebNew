@@ -31,7 +31,7 @@
                         <td class="fw-normal text-secondary" style="min-width:9rem">@f.Descripcion</td>
                         <td style="min-width:7rem">
                             <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end"
-                                   value="@MontoDe(cod)" @onchange="e => SetMonto(cod, e.Value)" />
+                                   value="@MontoTexto(cod)" @onchange="e => SetMonto(cod, e.Value)" />
                         </td>
                         @if (noEfectivo)
                         {
@@ -92,6 +92,14 @@
     private decimal MontoDe(string cod) => Montos.TryGetValue(cod, out var m) ? m : 0m;
     private string? RefDe(string cod) => Referencias.TryGetValue(cod, out var r) ? r : null;
 
+    // El <input type="number"> exige el punto como separador decimal; renderizar el
+    // decimal con la cultura actual (es-CR usa coma) lo dejaría vacío tras un re-render.
+    private string MontoTexto(string cod)
+    {
+        var m = MontoDe(cod);
+        return m > 0 ? m.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
+    }
+
     private async Task SetMonto(string cod, object? valor)
     {
         Montos[cod] = decimal.TryParse(Convert.ToString(valor), System.Globalization.NumberStyles.Any,
@@ -109,13 +117,19 @@
         await RepartoChanged.InvokeAsync(_reparto);
     }
 
+    // Una forma es "efectivo" (puede dar vuelto) si viene marcada así o si no es
+    // tarjeta / depósito / cheque. La bandera Efectivo del catálogo no siempre está
+    // puesta; sin este respaldo, pagar en efectivo por encima del total se rechazaba
+    // como "sobrepago en un medio que no es efectivo".
+    private static bool EsEfectivo(FormasPagoDTO f) => f.Efectivo || !(f.Tarjeta || f.Deposito || f.Cheque);
+
     private void Recalcular()
     {
         _reparto = PreparacionPagoVenta.Calcular(Total, Formas
             .Where(f => f.Codigo is not null && MontoDe(f.Codigo!) > 0)
             .Select(f => new PreparacionPagoVenta.LineaPago(
                 f.Codigo!, MontoDe(f.Codigo!),
-                EsEfectivo: f.Efectivo,
+                EsEfectivo: EsEfectivo(f),
                 RequiereReferencia: f.Tarjeta || f.Deposito || f.Cheque,
                 Referencia: RefDe(f.Codigo!))));
     }

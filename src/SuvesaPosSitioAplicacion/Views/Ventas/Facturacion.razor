@@ -569,9 +569,10 @@
         _montosContado.Where(kv => kv.Value > 0).Select(kv =>
         {
             var f = _formasPagoContado.FirstOrDefault(x => x.Codigo == kv.Key);
+            var esEfectivo = f is null || f.Efectivo || !(f.Tarjeta || f.Deposito || f.Cheque);
             return new PreparacionPagoVenta.LineaPago(
                 kv.Key, kv.Value,
-                EsEfectivo: f?.Efectivo ?? false,
+                EsEfectivo: esEfectivo,
                 RequiereReferencia: f is not null && (f.Tarjeta || f.Deposito || f.Cheque),
                 Referencia: _referenciasContado.TryGetValue(kv.Key, out var r) ? r : null);
         }));
