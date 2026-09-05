@@ -305,7 +305,7 @@
         }
     </BodyTemplate>
     <FooterTemplate>
-        <button type="button" class="btn btn-outline-secondary" @onclick="() => _modalLotes.HideAsync()">Cancelar</button>
+        <button type="button" class="btn btn-outline-secondary" @onclick="CancelarReparto">Cancelar</button>
         <button type="button" class="btn btn-primary" @onclick="ConfirmarReparto"
                 disabled="@(Math.Abs(RepartoTotal - (double)_cantidadArticuloPendiente) > 0.0001)">Aceptar</button>
     </FooterTemplate>
@@ -443,8 +443,8 @@
         public decimal Descuento { get; set; }
         public decimal MaxDescuento { get; init; }
         public decimal Impuesto { get; init; }
-        public long IdLote { get; init; }
-        public string? Lote { get; init; }
+        public long IdLote { get; set; }
+        public string? Lote { get; set; }
         /// <summary>§5 — reparto de la línea en varios lotes (null = sin lote / un solo lote por IdLote).</summary>
         public List<DTOs.Lotes.LoteConsumoVenta>? Lotes { get; set; }
 
@@ -563,6 +563,12 @@
     private readonly Dictionary<long, double> _repartoConsumo = new();
     private decimal _cantidadArticuloPendiente = 1;
     private readonly Queue<(InventarioDTO Articulo, decimal Cantidad)> _colaLotesCatalogo = new();
+
+    /// <summary>Cuando no es null, "Reparto de lotes" está reabierto para corregir esta
+    /// línea ya agregada (p. ej. porque se le subió la cantidad) en vez de agregar una
+    /// línea nueva — ver AbrirRepartoParaEditar/ConfirmarReparto.</summary>
+    private LineaVenta? _lineaEditandoLotes;
+    private decimal _cantidadAntesDeEditarLotes;
     private bool _guardando;
     private bool _cargandoCatalogo, _agregandoCatalogo;
     private bool _ventaDesbloqueada, _validandoClave, _mostrarClave;
@@ -1063,9 +1069,75 @@
         if (_articuloPendiente is null) { await _modalLotes.HideAsync(); return; }
         var consumos = _repartoConsumo.Where(kv => kv.Value > 0)
             .Select(kv => new DTOs.Lotes.LoteConsumoVenta { IdStockLote = kv.Key, Cantidad = kv.Value }).ToList();
-        AgregarArticuloConLotes(_articuloPendiente, consumos, _cantidadArticuloPendiente);
+        if (_lineaEditandoLotes is not null)
+        {
+            ActualizarLotesDeLinea(_lineaEditandoLotes, consumos);
+            _lineaEditandoLotes = null;
+        }
+        else
+        {
+            AgregarArticuloConLotes(_articuloPendiente, consumos, _cantidadArticuloPendiente);
+        }
         await _modalLotes.HideAsync();
         await AbrirSiguienteLoteCatalogo();
+    }
+
+    /// <summary>Corrige el reparto de una línea ya agregada (no crea una línea nueva).</summary>
+    private void ActualizarLotesDeLinea(LineaVenta linea, List<DTOs.Lotes.LoteConsumoVenta> lotes)
+    {
+        if (lotes.Count == 1)
+        {
+            var unico = _lotesPendientes.FirstOrDefault(l => l.Id == lotes[0].IdStockLote);
+            linea.IdLote = unico?.Id ?? 0;
+            linea.Lote = unico?.Lote;
+            linea.Lotes = null;
+        }
+        else
+        {
+            linea.IdLote = 0;
+            linea.Lote = $"{lotes.Count} lotes";
+            linea.Lotes = lotes;
+        }
+        linea.Recalcular();
+        RecalcularTodo();
+    }
+
+    /// <summary>Reabre "Reparto de lotes" para una línea ya agregada, seedeado con su
+    /// reparto actual, cuando su cantidad cambió y ya no coincide con lo repartido.</summary>
+    private async Task AbrirRepartoParaEditar(LineaVenta linea)
+    {
+        _lineaEditandoLotes = linea;
+        _cantidadAntesDeEditarLotes = linea.Lotes?.Sum(l => l.Cantidad) is { } repartido && repartido > 0
+            ? (decimal)repartido
+            : linea.Cantidad;
+        _articuloPendiente = linea.Articulo;
+        _cantidadArticuloPendiente = linea.Cantidad;
+        _repartoConsumo.Clear();
+        _lotesPendientes = (await Respuestas.DatoAsync(await Inventario.Lotes(linea.Articulo.Codigo), "consultar lotes"))?.ToList() ?? new();
+        if (linea.Lotes is { Count: > 0 })
+        {
+            foreach (var l in linea.Lotes) _repartoConsumo[l.IdStockLote] = l.Cantidad;
+        }
+        else if (linea.IdLote > 0)
+        {
+            _repartoConsumo[linea.IdLote] = (double)linea.Cantidad;
+        }
+        await _modalLotes.ShowAsync();
+    }
+
+    /// <summary>Si se cancela reabriendo el reparto de una línea, la cantidad vuelve a lo
+    /// que sí tenía lotes asignados — dejarla como quedó tras el cambio manual perpetuaría
+    /// el mismo desajuste que disparó la reapertura.</summary>
+    private async Task CancelarReparto()
+    {
+        if (_lineaEditandoLotes is { } linea)
+        {
+            linea.Cantidad = _cantidadAntesDeEditarLotes;
+            linea.Recalcular();
+            RecalcularTodo();
+            _lineaEditandoLotes = null;
+        }
+        await _modalLotes.HideAsync();
     }
     private async Task AbrirSiguienteLoteCatalogo()
     {
@@ -1294,7 +1366,7 @@
         linea.Recalcular(); _lineas.Add(linea); RecalcularTodo();
     }
     private decimal PrecioCliente(InventarioDTO articulo) => (_cliente?.Tipoprecio ?? 1) switch { 2 when articulo.Precio_B > 0 => Formato.AImporte(articulo.Precio_B), 3 when articulo.Precio_C > 0 => Formato.AImporte(articulo.Precio_C), 4 when articulo.Precio_D > 0 => Formato.AImporte(articulo.Precio_D), _ => articulo.Promo_Activa && articulo.Promo_Inicio <= DateTime.Today && articulo.Promo_Finaliza >= DateTime.Today ? Formato.AImporte(articulo.Precio_Promo) : Formato.AImporte(articulo.Precio_A) };
-    private void RecalcularLinea(LineaVenta linea)
+    private async Task RecalcularLinea(LineaVenta linea)
     {
         // Las líneas de un grupo de bonificación no admiten editar precio ni descuento.
         if (linea.EsDeGrupo) { linea.Descuento = 0m; if (linea.EsBonificacion) linea.Precio = 0m; }
@@ -1302,6 +1374,18 @@
         linea.Descuento = Math.Clamp(linea.Descuento, 0, linea.MaxDescuento);
         linea.Recalcular();
         RecalcularTodo();
+
+        // Si la línea ya tenía lote(s) asignado(s) y la cantidad cambió, lo repartido
+        // queda desactualizado (de ahí "el artículo maneja lotes; indique los lotes" al
+        // emitir, sin forma de corregirlo). Se reabre el reparto con la cantidad nueva.
+        if (!linea.EsDeGrupo && linea.Articulo.Lote)
+        {
+            var repartido = linea.Lotes?.Sum(l => l.Cantidad) ?? (linea.IdLote > 0 ? (double)linea.Cantidad : 0);
+            if (Math.Abs(repartido - (double)linea.Cantidad) > 0.0001)
+            {
+                await AbrirRepartoParaEditar(linea);
+            }
+        }
     }
 
     private void QuitarLinea(LineaVenta linea)
