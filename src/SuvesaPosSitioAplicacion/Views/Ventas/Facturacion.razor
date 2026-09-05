@@ -604,11 +604,23 @@
                                               or PoliticaRutaFacturacion.Ruta.CobrarTiqueteInterno;
     // Toda venta de contado (preventa o tiquete) exige apertura de caja válida (A0.1).
     private bool RequiereAperturaContado => !_esCredito && !EsPrefacturaConsignacion && !EsConsignacion;
-    private decimal TotalPagadoContado => _montosContado.Values.Where(v => v > 0).Sum();
-    private decimal SaldoContado => (decimal)_totales.Total - TotalPagadoContado;
-    private decimal VueltoContado => TotalPagadoContado - (decimal)_totales.Total;
+    // W4: el reparto del cobro sale de PreparacionPagoVenta (misma lógica que Cobrar).
+    private PreparacionPagoVenta.Reparto RepartoContado => PreparacionPagoVenta.Calcular(
+        (decimal)_totales.Total,
+        _montosContado.Where(kv => kv.Value > 0).Select(kv =>
+        {
+            var f = _formasPagoContado.FirstOrDefault(x => x.Codigo == kv.Key);
+            return new PreparacionPagoVenta.LineaPago(
+                kv.Key, kv.Value,
+                EsEfectivo: f?.Efectivo ?? false,
+                RequiereReferencia: f is not null && (f.Tarjeta || f.Deposito || f.Cheque),
+                Referencia: null);
+        }));
+    private decimal TotalPagadoContado => RepartoContado.RecibidoTotal;
+    private decimal SaldoContado => RepartoContado.Faltante;
+    private decimal VueltoContado => RepartoContado.Vuelto;
     private bool CobroContadoCubierto => !MostrarCobroContado
-        || (_numAperturaContado is > 0 && _formasPagoContado.Count > 0 && TotalPagadoContado + 0.01m >= (decimal)_totales.Total);
+        || (_numAperturaContado is > 0 && _formasPagoContado.Count > 0 && RepartoContado.Cubre100);
     private bool PuedeEmitir => _lineas.Count > 0
         && (EsPrefacturaConsignacion || EsConsignacion
             || (_ruta.EsValida
