@@ -42,18 +42,7 @@
         <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nueva factura</button>
     </Acciones>
     <ChildContent>
-        <div class="seepos-facturacion-estado d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-3 border rounded bg-body-tertiary">
-            @if (_ventaDesbloqueada)
-            {
-                <div><strong><i class="bi bi-unlock-fill me-2 text-success" aria-hidden="true"></i>Venta desbloqueada</strong><span class="text-secondary ms-2">Cajero: @_usuarioVenta?.Nombre</span></div>
-                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AbrirDesbloqueo">Cambiar cajero</button>
-            }
-            else
-            {
-                <div><strong><i class="bi bi-lock-fill me-2 text-warning" aria-hidden="true"></i>Venta bloqueada</strong><span class="text-secondary ms-2">Ingrese la clave interna para comenzar.</span></div>
-                <button type="button" class="btn btn-sm btn-primary" @onclick="AbrirDesbloqueo">Desbloquear venta</button>
-            }
-        </div>
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="la venta" AlCambiar="AlDesbloquear" />
         <fieldset disabled="@(!_ventaDesbloqueada)" class="seepos-facturacion border-0 p-0 m-0">
         <div class="row g-3">
             <div class="col-12 col-lg-8">
@@ -274,22 +263,6 @@
     <FooterTemplate>
         <button type="button" class="btn btn-outline-secondary" @onclick="() => _modalCatalogo.HideAsync()">Cancelar</button>
         <button type="button" class="btn btn-primary" disabled="@(_agregandoCatalogo || !_catalogoImagenes.Any(p => p.Seleccionado))" @onclick="AgregarSeleccionCatalogo">@(_agregandoCatalogo ? "Agregando..." : "Agregar selección")</button>
-    </FooterTemplate>
-</HxModal>
-
-<HxModal @ref="_modalDesbloqueo" Title="Desbloquear venta" Size="ModalSize.Regular">
-    <BodyTemplate>
-        <p class="text-secondary">Ingrese la clave interna del cajero que atenderá esta venta.</p>
-        <div class="mb-2">
-            <label class="form-label" for="clave-facturacion">Clave interna</label>
-            <div class="input-group">
-                <input id="clave-facturacion" class="form-control" type="@(_mostrarClave ? "text" : "password")" autocomplete="current-password" @bind="_claveInterna" @onkeydown="DesbloquearConEnter" />
-                <button type="button" class="btn btn-outline-secondary" aria-label="@(_mostrarClave ? "Ocultar clave" : "Mostrar clave")" @onclick="() => _mostrarClave = !_mostrarClave"><i class="bi @(_mostrarClave ? "bi-eye-slash" : "bi-eye")" aria-hidden="true"></i></button>
-            </div>
-        </div>
-    </BodyTemplate>
-    <FooterTemplate>
-        <button type="button" class="btn btn-primary" disabled="@_validandoClave" @onclick="Desbloquear">@(_validandoClave ? "Validando..." : "Desbloquear")</button>
     </FooterTemplate>
 </HxModal>
 
@@ -536,7 +509,7 @@
 
     private AppBuscadorArticulo _buscadorArticulo = default!;
     private HxModal _modalCatalogo = default!;
-    private HxModal _modalDesbloqueo = default!;
+    private SuvesaPosSitioAplicacion.Views.Shared.Componentes.AppDesbloqueoClave? _bloqueo;
     private HxModal _modalLotes = default!;
     private HxModal _modalCorreos = default!;
     private List<TipoFactura> _tipos = new();
@@ -664,8 +637,7 @@
     private decimal _cantidadAntesDeEditarLotes;
     private bool _guardando;
     private bool _cargandoCatalogo, _agregandoCatalogo;
-    private bool _ventaDesbloqueada, _validandoClave, _mostrarClave;
-    private string _claveInterna = string.Empty;
+    private bool _ventaDesbloqueada => _bloqueo?.Desbloqueado == true;
     private Usuario? _usuarioVenta;
 
     protected override async Task OnInitializedAsync()
@@ -855,13 +827,6 @@
 
     public void Dispose() => _pendienteCliente?.Cancel();
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await _modalDesbloqueo.ShowAsync();
-        }
-    }
 
     private bool CatalogoCompletoSeleccionado => _catalogoImagenes.Count > 0 && _catalogoImagenes.All(p => p.Seleccionado);
     private async Task AbrirBuscadorArticulo()
@@ -927,39 +892,21 @@
         await AbrirSiguienteLoteCatalogo();
     }
 
-    private Task AbrirDesbloqueo() => _modalDesbloqueo.ShowAsync();
-    private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
-    private async Task Desbloquear()
-    {
-        if (string.IsNullOrWhiteSpace(_claveInterna)) { await Dialogos.ErrorAsync("Ingrese la clave interna.", "Desbloquear venta"); return; }
-        _validandoClave = true;
-        var respuesta = await Api.ValidarClaveInterna(_claveInterna);
-        _validandoClave = false;
-        if (!respuesta.EsCorrecta)
-        {
-            _claveInterna = string.Empty;
-            await Dialogos.ErrorAsync(respuesta.Excepcion ?? "Contraseña incorrecta.", "No se pudo desbloquear la venta");
-            return;
-        }
-        if (respuesta.Responses is null)
-        {
-            await Dialogos.ErrorAsync("El servidor no devolvió el usuario autorizado.", "No se pudo desbloquear la venta");
-            return;
-        }
+    private Task AbrirDesbloqueo()
+        => Dialogos.InformarAsync("Ingrese la clave interna en el banner superior para desbloquear la venta.");
 
-        _usuarioVenta = respuesta.Responses;
-        _claveInterna = string.Empty;
-        _mostrarClave = false;
+    private async Task AlDesbloquear(bool _)
+    {
+        _usuarioVenta = _bloqueo?.UsuarioValidado;
 
         _empresas = (await Respuestas.DatoAsync(await Api.Empresas(), "consultar las empresas de facturación"))?.ToList() ?? new();
         if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
         AlCambiarEmpresa();
 
-        _ventaDesbloqueada = true;
-        await _modalDesbloqueo.HideAsync();
         // La descarga grande empieza mientras el cajero elige cliente y tipo de
         // factura, por lo que normalmente el catálogo ya está disponible al abrirlo.
         PrecargarCatalogo();
+        await InvokeAsync(StateHasChanged);
     }
 
     // Al cambiar de empresa se refrescan sus actividades económicas (vienen en el

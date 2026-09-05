@@ -26,19 +26,7 @@
         <button class="btn btn-sm btn-primary" disabled="@(!_compraDesbloqueada)" @onclick="AbrirImportadorXml"><i class="bi bi-file-earmark-arrow-up me-1" aria-hidden="true"></i>Importar XML</button>
     </Acciones>
     <ChildContent>
-        <div class="seepos-compras-estado d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-3 border rounded bg-body-tertiary">
-            @if (_compraDesbloqueada)
-            {
-                <div><strong><i class="bi bi-unlock-fill me-2 text-success" aria-hidden="true"></i>Compra desbloqueada</strong><span class="text-secondary ms-2">Usuario: @_usuarioCompra?.Nombre</span></div>
-                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AbrirDesbloqueo">Cambiar usuario</button>
-            }
-            else
-            {
-                <div><strong><i class="bi bi-lock-fill me-2 text-warning" aria-hidden="true"></i>Compra bloqueada</strong><span class="text-secondary ms-2">Ingrese la clave interna para registrar compras.</span></div>
-                <button type="button" class="btn btn-sm btn-primary" @onclick="AbrirDesbloqueo">Desbloquear compras</button>
-            }
-        </div>
-
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="el registro de compras" AlCambiar="AlDesbloquear" />
         <fieldset disabled="@(!_compraDesbloqueada)" class="seepos-compras border-0 p-0 m-0">
             <div class="row g-3">
                 <div class="col-12 col-xl-8">
@@ -121,17 +109,6 @@
     </ChildContent>
 </AppPantalla>
 
-<HxModal @ref="_modalDesbloqueo" Title="Desbloquear compras" Size="ModalSize.Regular">
-    <BodyTemplate>
-        <p class="text-secondary">Ingrese la clave interna del usuario que registrará la compra.</p>
-        <label class="form-label" for="clave-compras">Clave interna</label>
-        <div class="input-group">
-            <input id="clave-compras" class="form-control" type="@TipoClave" autocomplete="current-password" @bind="_claveInterna" @onkeydown="DesbloquearConEnter" />
-            <button type="button" class="btn btn-outline-secondary" @onclick="AlternarClave"><i class="bi @IconoClave" aria-hidden="true"></i></button>
-        </div>
-    </BodyTemplate>
-    <FooterTemplate><button type="button" class="btn btn-primary" disabled="@_validandoClave" @onclick="Desbloquear">@TextoDesbloquear</button></FooterTemplate>
-</HxModal>
 
 <HxModal @ref="_modalNuevaProveedor" Title="Nuevo proveedor" Size="ModalSize.Regular">
     <BodyTemplate><div class="row g-3"><div class="col-12"><label class="form-label">Cédula</label><input class="form-control" @bind="_nuevoProveedorCedula" /></div><div class="col-12"><label class="form-label">Nombre</label><input class="form-control" @bind="_nuevoProveedorNombre" /></div><div class="col-12"><label class="form-label">Teléfono</label><input class="form-control" @bind="_nuevoProveedorTelefono" /></div></div></BodyTemplate>
@@ -273,7 +250,8 @@
     }
 
     private AppBuscadorArticulo _buscadorArticulo = default!;
-    private HxModal _modalDesbloqueo = default!, _modalNuevaProveedor = default!, _modalBuscarCompras = default!, _modalImportarXml = default!, _modalLotesXml = default!, _modalPreciosXml = default!;
+    private HxModal _modalNuevaProveedor = default!, _modalBuscarCompras = default!, _modalImportarXml = default!, _modalLotesXml = default!, _modalPreciosXml = default!;
+    private SuvesaPosSitioAplicacion.Views.Shared.Componentes.AppDesbloqueoClave? _bloqueo;
     private readonly List<LineaCompra> _lineas = new();
     private List<ProveedorDTO> _proveedores = new(), _proveedoresEncontrados = new();
     private List<EmpresaDTO> _empresas = new();
@@ -284,7 +262,7 @@
     private InventarioDTO? _articuloActual;
     private Usuario? _usuarioCompra;
     private CalculoDocumento.TotalesDocumento _totales;
-    private string _textoProveedor = string.Empty, _numeroFactura = string.Empty, _claveInterna = string.Empty, _lote = string.Empty;
+    private string _textoProveedor = string.Empty, _numeroFactura = string.Empty, _lote = string.Empty;
     private sealed class LoteExtra { public string Numero = string.Empty; public DateTime Vence = DateTime.Today; public decimal Cantidad; }
     private readonly List<LoteExtra> _lotesExtra = new();
     private string _nuevoProveedorCedula = string.Empty, _nuevoProveedorNombre = string.Empty, _nuevoProveedorTelefono = string.Empty;
@@ -296,7 +274,8 @@
     private int? _indiceXmlAsignacion;
     private int? _indiceXmlOpciones;
     private decimal _cantidad = 1m, _regalias, _base, _flete, _otros, _descuento, _impuesto;
-    private bool _compraDesbloqueada, _validandoClave, _mostrarClave, _guardando, _esCostaPetsCompra, _compraDesdeXml;
+    private bool _guardando, _esCostaPetsCompra, _compraDesdeXml;
+    private bool _compraDesbloqueada => _bloqueo?.Desbloqueado == true;
     private bool _leyendoXml, _proveedorXmlNoExiste;
     private bool _buscandoArticuloXml;
     private bool _claveCopiada;
@@ -307,9 +286,6 @@
     private List<InventarioDTO> _resultadosBusquedaXml = new();
 
     private bool EsCostaPetsCompra => _compraDesbloqueada ? _esCostaPetsCompra : Sesion.EsCostaPets;
-    private string TipoClave => _mostrarClave ? "text" : "password";
-    private string IconoClave => _mostrarClave ? "bi-eye-slash" : "bi-eye";
-    private string TextoDesbloquear => _validandoClave ? "Validando..." : "Desbloquear";
     private string VencimientoTexto => _vence.ToString("yyyy-MM-dd");
     private decimal CostoEditor => _base + _flete + _otros;
     private decimal TotalExento => _lineas.Where(l => l.Impuesto <= 0).Sum(l => l.Calculo.SubTotal);
@@ -318,10 +294,9 @@
     private decimal CostoNuevoXml => LineaXmlSeleccionada is { } linea ? linea.Precio : 0m;
 
     protected override void OnInitialized() => _esCostaPetsCompra = Sesion.EsCostaPets;
-    protected override async Task OnAfterRenderAsync(bool firstRender) { if (firstRender) await _modalDesbloqueo.ShowAsync(); }
 
-    private Task AbrirDesbloqueo() => _modalDesbloqueo.ShowAsync();
-    private void AlternarClave() => _mostrarClave = !_mostrarClave;
+    private Task AbrirDesbloqueo()
+        => Dialogos.InformarAsync("Ingrese la clave interna en el banner superior para registrar compras.");
 
     // Clave fiscal de 50 digitos: nadie la transcribe a mano sin equivocarse.
     private async Task CopiarClave()
@@ -344,20 +319,13 @@
         StateHasChanged();
     }
     private Task CerrarNuevoProveedor() => _modalNuevaProveedor.HideAsync();
-    private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
-    private async Task Desbloquear()
+
+    private async Task AlDesbloquear(bool _)
     {
-        if (string.IsNullOrWhiteSpace(_claveInterna)) { await Dialogos.ErrorAsync("Ingrese la clave interna.", "Desbloquear compras"); return; }
-        _validandoClave = true;
-        var respuesta = await Api.ValidarClaveInterna(_claveInterna);
-        _validandoClave = false;
-        if (!respuesta.EsCorrecta) { _claveInterna = string.Empty; await Dialogos.ErrorAsync(respuesta.Excepcion ?? "Contraseña incorrecta."); return; }
-        _usuarioCompra = respuesta.Responses;
+        _usuarioCompra = _bloqueo?.UsuarioValidado;
         _esCostaPetsCompra = _usuarioCompra?.CostaPets ?? Sesion.EsCostaPets;
-        _compraDesbloqueada = true;
-        _claveInterna = string.Empty;
-        await _modalDesbloqueo.HideAsync();
         await CargarCatalogos();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task CargarCatalogos()

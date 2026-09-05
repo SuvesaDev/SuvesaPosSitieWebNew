@@ -114,12 +114,6 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
-                    Titulo = "Entrega a Cuenta",
-                    Codigo = "CAJA.ENTREGA_A_CUENTA",
-                    Ruta = "/initial/downPayment",
-                },
-                new ItemMenu
-                {
                     Titulo = "Depósitos",
                     Codigo = "CAJA.DEPOSITOS",
                     Ruta = "/initial/cash/deposits",

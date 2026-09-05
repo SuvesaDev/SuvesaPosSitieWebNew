@@ -31,18 +31,7 @@
         <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nueva devolución</button>
     </Acciones>
     <ChildContent>
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-3 border rounded bg-body-tertiary">
-            @if (_desbloqueada)
-            {
-                <div><strong><i class="bi bi-unlock-fill me-2 text-success" aria-hidden="true"></i>Devoluciones desbloqueadas</strong><span class="text-secondary ms-2">Usuario: @_usuario?.Nombre</span></div>
-            }
-            else
-            {
-                <div><strong><i class="bi bi-lock-fill me-2 text-warning" aria-hidden="true"></i>Bloqueado</strong><span class="text-secondary ms-2">Ingrese la clave interna para comenzar.</span></div>
-                <button type="button" class="btn btn-sm btn-primary" @onclick="() => _modalDesbloqueo.ShowAsync()">Desbloquear</button>
-            }
-        </div>
-
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="las devoluciones" AlCambiar="AlDesbloquear" />
         <fieldset disabled="@(!_desbloqueada)" class="border-0 p-0 m-0">
         <div class="row g-3">
             <div class="col-12 col-lg-8">
@@ -128,15 +117,6 @@
     </ChildContent>
 </AppPantalla>
 
-<HxModal @ref="_modalDesbloqueo" Title="Desbloquear devoluciones" Size="ModalSize.Regular">
-    <BodyTemplate>
-        <label class="form-label" for="clave-devolucion">Clave interna</label>
-        <input id="clave-devolucion" type="password" class="form-control" autocomplete="current-password" @bind="_claveInterna" @onkeydown="DesbloquearConEnter" />
-    </BodyTemplate>
-    <FooterTemplate>
-        <button type="button" class="btn btn-primary" disabled="@_validandoClave" @onclick="Desbloquear">@(_validandoClave ? "Validando..." : "Desbloquear")</button>
-    </FooterTemplate>
-</HxModal>
 
 <HxModal @ref="_modalBuscarFactura" Title="Buscar factura" Size="ModalSize.Large">
     <BodyTemplate>
@@ -194,10 +174,10 @@
         public CalculoDocumento.LineaCalculada Calculo { get; set; }
     }
 
-    private HxModal _modalDesbloqueo = default!, _modalBuscarFactura = default!, _modalBuscarDevoluciones = default!;
+    private HxModal _modalBuscarFactura = default!, _modalBuscarDevoluciones = default!;
+    private SuvesaPosSitioAplicacion.Views.Shared.Componentes.AppDesbloqueoClave? _bloqueo;
 
-    private bool _desbloqueada, _validandoClave;
-    private string _claveInterna = string.Empty;
+    private bool _desbloqueada => _bloqueo?.Desbloqueado == true;
     private Usuario? _usuario;
 
     private List<TipoFactura> _tipos = new();
@@ -240,24 +220,9 @@
         }
     }
 
-    private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
-
-    private async Task Desbloquear()
+    private async Task AlDesbloquear(bool _)
     {
-        if (string.IsNullOrWhiteSpace(_claveInterna)) { await Dialogos.ErrorAsync("Ingrese la clave interna."); return; }
-        _validandoClave = true;
-        var r = await Facturas.ValidarClaveInterna(_claveInterna);
-        _validandoClave = false;
-        if (!r.EsCorrecta || r.Responses is null)
-        {
-            _claveInterna = string.Empty;
-            await Dialogos.ErrorAsync(r.Excepcion ?? "Contraseña incorrecta.");
-            return;
-        }
-        _usuario = r.Responses;
-        _claveInterna = string.Empty;
-        _desbloqueada = true;
-        await _modalDesbloqueo.HideAsync();
+        _usuario = _bloqueo?.UsuarioValidado;
 
         _tipos = (await Respuestas.DatoAsync(await Facturas.Tipos(), "consultar los tipos de factura"))?.Where(t => (int)t.Uso == 2).ToList() ?? new();
         _personal = (await Respuestas.DatoAsync(await Api.Personal(), "consultar el personal"))?.Where(p => p.Activo).ToList() ?? new();
