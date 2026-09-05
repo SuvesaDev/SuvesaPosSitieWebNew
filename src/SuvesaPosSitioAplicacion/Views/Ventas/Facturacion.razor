@@ -206,7 +206,7 @@
                                         Total="@((decimal)_totales.Total)"
                                         Formas="_formasPagoContado"
                                         NumApertura="_numAperturaContado"
-                                        AvisoCaja="_avisoCajaContado"
+                                        AvisoCaja="@_avisoCajaContado"
                                         @bind-Montos="_montosContado"
                                         @bind-Referencias="_referenciasContado"
                                         RepartoChanged="_ => RecalcularTodo()" />
