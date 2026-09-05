@@ -1,7 +1,9 @@
 @using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
 @using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Security
 @inject ICajaOperaciones Caja
 @inject IManejadorRespuestas Respuestas
+@inject IContextoSesion Sesion
 
 @if (!Desbloqueado)
 {
@@ -84,9 +86,15 @@ else
             var abiertas = await Respuestas.DatoAsync(await Caja.CajerosConCajaAbierta(), "consultar la caja abierta");
             // El Id de CajerosConCajaAbierta se deriva del login (no es la PK que devuelve
             // ValidarClaveInterna), así que el emparejamiento fiable es por nombre —
-            // recortado, sin distinción de mayúsculas ni tildes. El Id queda como respaldo.
-            var mia = abiertas?.FirstOrDefault(c => CoincideNombre(c.Nombre, usuario.Nombre))
-                      ?? (usuario.Id > 0 ? abiertas?.FirstOrDefault(c => c.Id == usuario.Id) : null);
+            // recortado, sin distinción de mayúsculas ni tildes. Se prueba contra el
+            // nombre y el login del usuario validado y contra Sesion.Usuario (el login
+            // con que se abrió la caja desde el sitio). El Id queda como respaldo.
+            bool Calza(User c) =>
+                CoincideNombre(c.Nombre, usuario.Nombre)
+                || CoincideNombre(c.Nombre, usuario.IdUsuario)
+                || CoincideNombre(c.Nombre, Sesion.Usuario)
+                || (usuario.Id > 0 && c.Id == usuario.Id);
+            var mia = abiertas?.FirstOrDefault(Calza);
             if (mia is null)
             {
                 _validando = false;
