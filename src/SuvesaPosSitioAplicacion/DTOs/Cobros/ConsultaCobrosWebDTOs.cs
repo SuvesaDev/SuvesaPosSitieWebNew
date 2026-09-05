@@ -92,4 +92,11 @@ public sealed class PerfilEmisionElegibleWebDTO
     public bool EmisionV44Habilitada { get; set; }
     public bool Elegible { get; set; }
     public string? MotivoNoElegible { get; set; }
+
+    /// <summary>El tipo de la serie está marcado como Tiquete (W3: decide la ruta).</summary>
+    public bool EsTiquete { get; set; }
+    /// <summary>La serie no requiere documento electrónico → comprobante interno.</summary>
+    public bool EsInterna { get; set; }
+    /// <summary>"Electronica" | "Interna".</summary>
+    public string? Naturaleza { get; set; }
 }

@@ -5,6 +5,7 @@
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.ApiConexion
 @using SuvesaPosSitioAplicacion.DTOs.Consignacion
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
 @using SuvesaPosSitioAplicacion.DTOs.Lotes
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IFacturacion Api
@@ -25,6 +26,7 @@
 @inject ICompras Compras
 @inject IEmisoresFiscales EmisoresApi
 @inject IPerfilesEmision PerfilesApi
+@inject IComandosFacturacion Comandos
 @inject ICobrosCredito CobrosCreditoApi
 @inject ITipoCambio TipoCambioApi
 @inject ICobros CobrosApi
@@ -235,7 +237,11 @@
                             <dl class="row mb-0 small"><dt class="col-7 fw-normal text-secondary">Pagado</dt><dd class="col-5 text-end">@Formato.Importe(TotalPagadoContado)</dd><dt class="col-7 fw-normal text-secondary">@(SaldoContado > 0 ? "Falta" : "Vuelto")</dt><dd class="col-5 text-end fw-semibold @(SaldoContado > 0.009m ? "text-danger" : null)">@Formato.Importe(SaldoContado > 0 ? SaldoContado : VueltoContado)</dd></dl>
                         }
                     }
-                    <button class="btn btn-primary w-100 mt-3" disabled="@(_guardando || _lineas.Count == 0 || (MostrarCobroContado && !CobroContadoCubierto))" @onclick="Emitir"><i class="bi bi-receipt-cutoff me-2" aria-hidden="true"></i>@(_guardando ? "Registrando..." : EsPrefacturaConsignacion ? "Generar prefactura" : EsConsignacion ? "Registrar consignación" : "Emitir factura")</button></div></div>
+                    @if (!EsPrefacturaConsignacion && !EsConsignacion && !_ruta.EsValida && _idPerfil > 0 && _ruta.Motivo is not null)
+                    {
+                        <div class="alert alert-warning py-2 small mb-0 mt-3">@_ruta.Motivo</div>
+                    }
+                    <button class="btn btn-primary w-100 mt-3" disabled="@(_guardando || !PuedeEmitir)" @onclick="Emitir"><i class="bi bi-receipt-cutoff me-2" aria-hidden="true"></i>@(_guardando ? "Registrando..." : EsPrefacturaConsignacion ? "Generar prefactura" : EsConsignacion ? "Registrar consignación" : PoliticaRutaFacturacion.TextoAccion(_ruta.Ruta))</button></div></div>
             </div>
         </div>
 
@@ -558,6 +564,12 @@
     private int _idPerfil;
     private string? _perfilAviso;
 
+    // W3: la acción de la pantalla la decide la serie elegida, no un bool "es crédito".
+    private PoliticaRutaFacturacion.Resultado _ruta = new(PoliticaRutaFacturacion.Ruta.ConfiguracionInvalida, null);
+    // Clave de idempotencia por intento: estable ante reintento real (recarga/timeout),
+    // se renueva al limpiar o tras un éxito.
+    private string? _claveIdempotencia;
+
     private List<Moneda> _monedas = new();
     private List<AgenteVendedorDTO> _agentesVenta = new();
     private List<ProductoCatalogo> _catalogoImagenes = new();
@@ -586,12 +598,22 @@
     private readonly Dictionary<string, decimal> _montosContado = new();
     private long? _numAperturaContado;
     private string? _avisoCajaContado;
-    private bool MostrarCobroContado => !_esCredito && !EsPrefacturaConsignacion && !EsConsignacion;
+    // W3: la captura de pagos en pantalla es SOLO para tiquete (cobro 100% en el acto).
+    // No-tiquete contado pasa a "Guardar preventa" y se cobra luego en Cobrar.
+    private bool MostrarCobroContado => _ruta.Ruta is PoliticaRutaFacturacion.Ruta.CobrarTiqueteElectronico
+                                              or PoliticaRutaFacturacion.Ruta.CobrarTiqueteInterno;
+    // Toda venta de contado (preventa o tiquete) exige apertura de caja válida (A0.1).
+    private bool RequiereAperturaContado => !_esCredito && !EsPrefacturaConsignacion && !EsConsignacion;
     private decimal TotalPagadoContado => _montosContado.Values.Where(v => v > 0).Sum();
     private decimal SaldoContado => (decimal)_totales.Total - TotalPagadoContado;
     private decimal VueltoContado => TotalPagadoContado - (decimal)_totales.Total;
     private bool CobroContadoCubierto => !MostrarCobroContado
         || (_numAperturaContado is > 0 && _formasPagoContado.Count > 0 && TotalPagadoContado + 0.01m >= (decimal)_totales.Total);
+    private bool PuedeEmitir => _lineas.Count > 0
+        && (EsPrefacturaConsignacion || EsConsignacion
+            || (_ruta.EsValida
+                && (!RequiereAperturaContado || _numAperturaContado is > 0)
+                && (!MostrarCobroContado || CobroContadoCubierto)));
 
     private int _idEmpresa;
     private int _bodega;
@@ -683,12 +705,14 @@
         _perfiles = (lista ?? new List<SuvesaPosSitioAplicacion.DTOs.Cobros.PerfilEmisionElegibleWebDTO>())
             .OrderByDescending(p => p.Elegible).ThenBy(p => p.Descripcion)
             .ToList();
+        RecalcularRuta();
     }
 
-    private void AlCambiarPerfil()
+    private async Task AlCambiarPerfil()
     {
         _perfilAviso = null;
         _tipoFactura = 0;
+        RecalcularRuta();
         var p = _perfiles.FirstOrDefault(x => x.IdSerie == _idPerfil);
         if (p is null) return;
         if (!p.Elegible)
@@ -703,6 +727,26 @@
             return;
         }
         _tipoFactura = tipo.Codigo;
+        // La apertura de caja se necesita para preventa de contado y para tiquete;
+        // el aviso de ruta inválida se muestra junto al botón Emitir.
+        await CargarCobroContadoAsync();
+    }
+
+    /// <summary>W3: deriva la ruta de la pantalla de la serie elegida (PoliticaRutaFacturacion).</summary>
+    private void RecalcularRuta()
+    {
+        var p = _perfiles.FirstOrDefault(x => x.IdSerie == _idPerfil);
+        if (p is null || !p.Elegible || EsPrefacturaConsignacion || EsConsignacion)
+        {
+            _ruta = new(PoliticaRutaFacturacion.Ruta.ConfiguracionInvalida, null);
+            return;
+        }
+        _ruta = PoliticaRutaFacturacion.Resolver(new PoliticaRutaFacturacion.EntradaSerie(
+            EsTiquete: p.EsTiquete,
+            EsCredito: p.EsCredito,
+            RequiereDocumentoElectronico: !p.EsInterna,
+            EmisionV44Habilitada: p.EmisionV44Habilitada,
+            CodigoFe: p.CodigoFe));
     }
 
     // Al cambiar la condición (Contado/Crédito) se recargan las series
@@ -725,7 +769,7 @@
         _montosContado.Clear();
         _numAperturaContado = null;
         _avisoCajaContado = null;
-        if (!MostrarCobroContado || _cliente is null) return;
+        if (!RequiereAperturaContado || _cliente is null) return;
 
         var cajeros = await Respuestas.DatoAsync(await CajaApi.CajerosConCajaAbierta(), "consultar la caja abierta");
         var cajeroNombre = _usuarioVenta?.Nombre ?? Sesion.Usuario;
@@ -1565,17 +1609,28 @@
                     return;
                 }
             }
-            else if (MostrarCobroContado)
+            else
             {
-                if (_numAperturaContado is not > 0) { await Dialogos.ErrorAsync(_avisoCajaContado ?? "No hay una caja abierta para facturar de contado."); return; }
-                if (!CobroContadoCubierto) { await Dialogos.ErrorAsync($"Las formas de pago ({TotalPagadoContado:N2}) no cubren el total de la factura ({_totales.Total:N2})."); return; }
+                if (!_ruta.EsValida) { await Dialogos.ErrorAsync(_ruta.Motivo ?? "La serie seleccionada no define una ruta válida de facturación."); return; }
+                // Preventa de contado y tiquete: ambas exigen apertura de caja válida (A0.1).
+                if (RequiereAperturaContado && _numAperturaContado is not > 0) { await Dialogos.ErrorAsync(_avisoCajaContado ?? "No hay una caja abierta para facturar de contado."); return; }
+                // Solo el tiquete captura el pago aquí y exige el 100%.
+                if (MostrarCobroContado && !CobroContadoCubierto) { await Dialogos.ErrorAsync($"El tiquete exige cobrar el 100%: las formas de pago ({TotalPagadoContado:N2}) no cubren el total ({_totales.Total:N2})."); return; }
             }
         }
-        if (!await Dialogos.ConfirmarAsync(EsPrefacturaConsignacion ? "Se generará la prefactura de consignación desde el conteo. ¿Desea continuar?" : EsConsignacion ? "Se registrará la consignación. ¿Desea continuar?" : "Se emitirá la factura y se afectará el inventario. ¿Desea continuar?")) return;
+        var confirmacion = (EsPrefacturaConsignacion, EsConsignacion, _ruta.Ruta) switch
+        {
+            (true, _, _) => "Se generará la prefactura de consignación desde el conteo. ¿Desea continuar?",
+            (_, true, _) => "Se registrará la consignación. ¿Desea continuar?",
+            (_, _, PoliticaRutaFacturacion.Ruta.GuardarPreventaContado) => "Se guardará una preventa pendiente de cobro en Cobrar. Todavía no se emite la factura. ¿Continuar?",
+            (_, _, PoliticaRutaFacturacion.Ruta.ConfirmarCredito) => "Se confirmará la factura a crédito con su plazo y saldo. ¿Continuar?",
+            _ => "Se cobrará el 100% y se confirmará el tiquete, afectando el inventario. ¿Continuar?",
+        };
+        if (!await Dialogos.ConfirmarAsync(confirmacion)) return;
         _guardando = true;
         var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
         var perfil = _perfiles.FirstOrDefault(x => x.IdSerie == _idPerfil);
-        var factura = new FacturaDTO { Tipo = _tipoFactura, NumCaja = (perfil?.NumeroTerminal ?? 0).ToString(), Fecha = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), CodCliente = _cliente.Identificacion.ToString(), NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), TipoCambio = _moneda == 2 ? (double?)(_tipoCambio ?? 1m) : null, Agente = _sinAgente, Cod_agente = !_sinAgente && _codAgente > 0 ? _codAgente : null, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = _idEmpresa, Empresa = empresa?.Nombre, CodigoActividadEmisor = string.IsNullOrWhiteSpace(_codActividad) ? null : _codActividad, CodigoActividadReceptor = string.IsNullOrWhiteSpace(_codActividadCliente) ? null : _codActividadCliente, Preventa = EsPrefacturaConsignacion, EsConsignacion = EsConsignacion, EsCredito = _esCredito, NumApertura = MostrarCobroContado ? _numAperturaContado : null, Pagos = MostrarCobroContado ? _montosContado.Where(kv => kv.Value > 0).Select(kv => new PagoFacturaDTO { FormaPago = kv.Key, Monto = (double)kv.Value }).ToList() : new(), SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = EsConsignacion ? l.Articulo.Id_Bodega : _bodega, Lote = l.IdLote, NumeroLote = l.Lote, Lotes = l.Lotes, EsBonificacion = l.EsBonificacion, IdGrupoBonificacion = l.IdGrupoBonificacion, IdConfiguracionBonificacion = l.IdConfiguracionBonificacion, EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null }).ToList() };
+        var factura = new FacturaDTO { Tipo = _tipoFactura, NumCaja = (perfil?.NumeroTerminal ?? 0).ToString(), Fecha = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), CodCliente = _cliente.Identificacion.ToString(), NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), TipoCambio = _moneda == 2 ? (double?)(_tipoCambio ?? 1m) : null, Agente = _sinAgente, Cod_agente = !_sinAgente && _codAgente > 0 ? _codAgente : null, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = _idEmpresa, Empresa = empresa?.Nombre, CodigoActividadEmisor = string.IsNullOrWhiteSpace(_codActividad) ? null : _codActividad, CodigoActividadReceptor = string.IsNullOrWhiteSpace(_codActividadCliente) ? null : _codActividadCliente, Preventa = EsPrefacturaConsignacion || _ruta.Ruta == PoliticaRutaFacturacion.Ruta.GuardarPreventaContado, EsConsignacion = EsConsignacion, EsCredito = _esCredito, IdSerie = _idPerfil > 0 ? _idPerfil : null, NumApertura = RequiereAperturaContado ? _numAperturaContado : null, Pagos = MostrarCobroContado ? _montosContado.Where(kv => kv.Value > 0).Select(kv => new PagoFacturaDTO { FormaPago = kv.Key, Monto = (double)kv.Value }).ToList() : new(), SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = EsConsignacion ? l.Articulo.Id_Bodega : _bodega, Lote = l.IdLote, NumeroLote = l.Lote, Lotes = l.Lotes, EsBonificacion = l.EsBonificacion, IdGrupoBonificacion = l.IdGrupoBonificacion, IdConfiguracionBonificacion = l.IdConfiguracionBonificacion, EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null }).ToList() };
         if (EsPrefacturaConsignacion)
         {
             var rp = await ConsignacionApi.GenerarPrefacturaAsync(new GenerarPrefacturaConsignacion { IdConteo = ConteoId, Factura = factura });
@@ -1588,8 +1643,54 @@
             else await Dialogos.ErrorAsync(rp.CurrentException ?? rp.ValidationErrors?.FirstOrDefault() ?? "No se pudo generar la prefactura.");
             return;
         }
-        var r = await Api.Crear(factura); _guardando = false;
-        if (await Respuestas.CorrectaAsync(r, EsConsignacion ? "registrar la consignación" : "emitir la factura")) { Dialogos.Exito(EsConsignacion ? "Consignación registrada correctamente." : "Factura emitida correctamente."); await Limpiar(); }
+        if (EsConsignacion)
+        {
+            var rcon = await Api.Crear(factura); _guardando = false;
+            if (await Respuestas.CorrectaAsync(rcon, "registrar la consignación")) { Dialogos.Exito("Consignación registrada correctamente."); await Limpiar(); }
+            return;
+        }
+
+        // W3: una sola llamada de comando por confirmación. La misma clave de idempotencia
+        // se reutiliza si el usuario reintenta un envío que quedó en estado desconocido.
+        _claveIdempotencia ??= Guid.NewGuid().ToString("N");
+        var rc = _ruta.Ruta switch
+        {
+            PoliticaRutaFacturacion.Ruta.GuardarPreventaContado => await Comandos.CrearPreventaContado(factura, _claveIdempotencia),
+            PoliticaRutaFacturacion.Ruta.ConfirmarCredito       => await Comandos.ConfirmarVentaCredito(factura, _claveIdempotencia),
+            _                                                    => await Comandos.CobrarVentaTiquete(factura, _claveIdempotencia),
+        };
+        _guardando = false;
+        var res = await Respuestas.DatoAsync(rc, "registrar la operación");
+        if (res is null) return;   // el error ya se mostró; la clave se conserva para reintentar
+        _claveIdempotencia = null;
+        await MostrarResultadoOperacion(res);
+        await Limpiar();
     }
-    private async Task Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _esCredito = false; _creditoAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _tipoCambio = null; _sinAgente = false; _codAgente = 0; _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; _formasPagoContado = new(); _montosContado.Clear(); _numAperturaContado = null; _avisoCajaContado = null; await CargarPerfiles(); RecalcularTodo(); }
+
+    /// <summary>W3: resultado recuperable — nunca "Factura emitida" a secas. Distingue
+    /// preventa / crédito / tiquete y estado fiscal (en proceso, interno, NoAplica).</summary>
+    private async Task MostrarResultadoOperacion(ResultadoOperacionFacturacionDTO r)
+    {
+        var lineas = new List<string> { $"Documento #{r.NumeroOperativo} — total {Formato.Importe((decimal)r.Total)}" };
+        switch (_ruta.Ruta)
+        {
+            case PoliticaRutaFacturacion.Ruta.GuardarPreventaContado:
+                lineas.Add("Preventa pendiente. Cóbrela desde Cobrar; todavía no se emite la factura.");
+                break;
+            case PoliticaRutaFacturacion.Ruta.ConfirmarCredito:
+                lineas.Add($"Factura a crédito confirmada. Saldo {Formato.Importe((decimal)r.SaldoPendiente)}"
+                    + (r.Vencimiento is { } v ? $", vence {v:dd/MM/yyyy}." : "."));
+                lineas.Add(r.EstadoFiscal == "NoAplica" ? "Documento interno (sin Hacienda)." : "Comprobante electrónico en proceso.");
+                break;
+            default:
+                lineas.Add(r.EstadoFiscal == "NoAplica"
+                    ? "Cobrado. Documento interno, sin espera de Hacienda."
+                    : "Cobrado. Comprobante electrónico en proceso.");
+                break;
+        }
+        if (r.FueReintento) lineas.Add("(Se recuperó el resultado de un envío anterior; no se cobró ni emitió dos veces.)");
+        Dialogos.Exito(string.Join(" ", lineas));
+        await Task.CompletedTask;
+    }
+    private async Task Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _esCredito = false; _creditoAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _tipoCambio = null; _sinAgente = false; _codAgente = 0; _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; _formasPagoContado = new(); _montosContado.Clear(); _numAperturaContado = null; _avisoCajaContado = null; _claveIdempotencia = null; _ruta = new(PoliticaRutaFacturacion.Ruta.ConfiguracionInvalida, null); await CargarPerfiles(); RecalcularTodo(); }
 }
