@@ -232,6 +232,7 @@ builder.Services.AddScoped<IArticuloBonificacion, ArticuloBonificacion>();
 builder.Services.AddScoped<IConfiguracionCorreo, ConfiguracionCorreo>();
 builder.Services.AddScoped<IEnviosCorreo, EnviosCorreo>();
 builder.Services.AddScoped<IAlertasAdministrador, AlertasAdministrador>();
+builder.Services.AddScoped<IAvisadorAlertas, AvisadorAlertas>();
 builder.Services.AddScoped<ITipoCambio, TipoCambio>();
 
 // Motor de plantillas de impresión (MOTOR_PLANTILLAS_IMPRESION_WEB.md).

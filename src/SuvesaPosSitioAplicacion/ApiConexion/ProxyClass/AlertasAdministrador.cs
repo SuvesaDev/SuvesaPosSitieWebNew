@@ -29,4 +29,11 @@ public sealed class AlertasAdministrador : ProxyBase, IAlertasAdministrador
     public Task<ResponseGeneric<bool>> MarcarLeida(long id)
         => Ejecutar(async () => await LecturaEnvelope.Leer<bool>(
             await _api.PostAsync($"api/alertas-administrador/{id}/marcar-leida", null)), "marcar la alerta como leída");
+
+    public Task<ResponseGeneric<int>> MarcarTodasLeidas(int? idEmisor = null)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<int>(
+            await _api.PostAsync(idEmisor is { } e
+                ? $"api/alertas-administrador/marcar-todas-leidas?idEmisor={e}"
+                : "api/alertas-administrador/marcar-todas-leidas", null)),
+            "marcar todas las alertas como leídas");
 }

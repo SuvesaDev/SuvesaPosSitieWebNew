@@ -1,7 +1,9 @@
 @using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
 @using SuvesaPosSitioAplicacion.Security
+@using SuvesaPosSitioAplicacion.Services
 @implements IAsyncDisposable
 @inject IAlertasAdministrador Api
+@inject IAvisadorAlertas Avisador
 @inject IContextoSesion Sesion
 @inject NavigationManager Nav
 
@@ -22,15 +24,23 @@
 @code {
     private int _conteo;
     private CancellationTokenSource? _cts;
-    private static readonly TimeSpan Intervalo = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan Intervalo = TimeSpan.FromSeconds(60);
 
     protected override async Task OnInitializedAsync()
     {
         if (!Sesion.EsAdministrador) return;
 
+        Avisador.Cambio += AlCambiarAlertas;
         await Refrescar();
         _cts = new CancellationTokenSource();
         _ = BuclePolling(_cts.Token);
+    }
+
+    /// <summary>La pantalla de Alertas avisó de un cambio: refrescar el contador ya.</summary>
+    private async Task AlCambiarAlertas()
+    {
+        await Refrescar();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task BuclePolling(CancellationToken ct)
@@ -64,6 +74,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        Avisador.Cambio -= AlCambiarAlertas;
         if (_cts is not null)
         {
             await _cts.CancelAsync();

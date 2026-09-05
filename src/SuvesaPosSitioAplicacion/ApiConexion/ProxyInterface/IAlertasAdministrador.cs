@@ -11,4 +11,7 @@ public interface IAlertasAdministrador
     Task<ResponseGeneric<int>> Conteo(int? idEmisor);
 
     Task<ResponseGeneric<bool>> MarcarLeida(long id);
+
+    /// <summary>Marca todas las no leídas en una sola llamada; devuelve cuántas se marcaron.</summary>
+    Task<ResponseGeneric<int>> MarcarTodasLeidas(int? idEmisor = null);
 }

@@ -20,16 +20,21 @@ public partial class AlertasAdministrador
     private async Task MarcarLeida(AlertaAdministradorDTO a)
     {
         if (await Respuestas.CorrectaAsync(await Api.MarcarLeida(a.Id), "marcar la alerta como leída"))
+        {
             await Cargar();
+            await Avisador.NotificarAsync();   // refresca el contador de la campana al instante
+        }
     }
 
     private async Task MarcarTodas()
     {
-        if (!await Dialogos.ConfirmarAsync("¿Marcar como leídas todas las alertas mostradas?", "Alertas")) return;
-        foreach (var a in _pagina.Items.Where(x => !x.Leida).ToList())
-            await Api.MarcarLeida(a.Id);
-        Dialogos.Exito("Alertas actualizadas.");
-        await Cargar();
+        if (!await Dialogos.ConfirmarAsync("¿Marcar como leídas todas las alertas no leídas?", "Alertas")) return;
+        if (await Respuestas.CorrectaAsync(await Api.MarcarTodasLeidas(), "marcar todas las alertas como leídas"))
+        {
+            Dialogos.Exito("Alertas actualizadas.");
+            await Cargar();
+            await Avisador.NotificarAsync();
+        }
     }
 
     private static string Color(string tipo) => tipo switch
