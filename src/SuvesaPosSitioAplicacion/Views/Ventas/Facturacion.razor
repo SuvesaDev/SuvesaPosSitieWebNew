@@ -273,7 +273,20 @@
 
 <HxModal @ref="_modalLotes" Title="Reparto de lotes" Size="ModalSize.Large">
     <BodyTemplate>
-        @if (_articuloPendiente is not null) { <p class="text-secondary">@_articuloPendiente.Descripcion — se necesitan <strong>@Formato.Cantidad(_cantidadArticuloPendiente)</strong> unidad(es).</p> }
+        @if (_articuloPendiente is not null)
+        {
+            <p class="text-secondary">
+                @_articuloPendiente.Descripcion
+                @if (_lineaEditandoLotes is not null)
+                {
+                    <text> — se necesitan <strong>@Formato.Cantidad(_cantidadArticuloPendiente)</strong> unidad(es).</text>
+                }
+                else
+                {
+                    <text> — indique cuántas unidades de cada lote va a facturar.</text>
+                }
+            </p>
+        }
         @{ var lotesUsables = _lotesPendientes.Where(l => l.Activo != false && l.Cantidad > 0
                 && (l.Vencimiento is null || l.Vencimiento.Value.Date >= DateTime.Today)).ToList(); }
         @if (lotesUsables.Count == 0) { <div class="alert alert-warning mb-0">El artículo maneja lotes, pero no tiene lotes disponibles no vencidos.</div> }
@@ -298,16 +311,25 @@
                 </tbody>
             </table></div>
             <div class="d-flex justify-content-between align-items-center mt-2">
-                <span class="@(RepartoTotal == (double)_cantidadArticuloPendiente ? "text-success" : "text-danger")">
-                    Repartido @Formato.Cantidad((decimal)RepartoTotal) de @Formato.Cantidad(_cantidadArticuloPendiente)
-                </span>
+                @if (_lineaEditandoLotes is not null)
+                {
+                    <span class="@(RepartoTotal == (double)_cantidadArticuloPendiente ? "text-success" : "text-danger")">
+                        Repartido @Formato.Cantidad((decimal)RepartoTotal) de @Formato.Cantidad(_cantidadArticuloPendiente)
+                    </span>
+                }
+                else
+                {
+                    <span class="@(RepartoTotal > 0 ? "text-success" : "text-danger")">
+                        Total a facturar: @Formato.Cantidad((decimal)RepartoTotal)
+                    </span>
+                }
             </div>
         }
     </BodyTemplate>
     <FooterTemplate>
         <button type="button" class="btn btn-outline-secondary" @onclick="CancelarReparto">Cancelar</button>
         <button type="button" class="btn btn-primary" @onclick="ConfirmarReparto"
-                disabled="@(Math.Abs(RepartoTotal - (double)_cantidadArticuloPendiente) > 0.0001)">Aceptar</button>
+                disabled="@(_lineaEditandoLotes is not null ? Math.Abs(RepartoTotal - (double)_cantidadArticuloPendiente) > 0.0001 : RepartoTotal <= 0)">Aceptar</button>
     </FooterTemplate>
 </HxModal>
 
@@ -1076,7 +1098,10 @@
         }
         else
         {
-            AgregarArticuloConLotes(_articuloPendiente, consumos, _cantidadArticuloPendiente);
+            // Al agregar un artículo nuevo no hay una cantidad fija que cumplir — el
+            // buscador siempre pide 1 unidad y no deja elegir más; lo que el usuario
+            // reparte aquí es lo que define cuánto se factura.
+            AgregarArticuloConLotes(_articuloPendiente, consumos, (decimal)RepartoTotal);
         }
         await _modalLotes.HideAsync();
         await AbrirSiguienteLoteCatalogo();
