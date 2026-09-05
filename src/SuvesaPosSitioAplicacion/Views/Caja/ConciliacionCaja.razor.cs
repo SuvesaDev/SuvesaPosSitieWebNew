@@ -32,7 +32,7 @@ public partial class ConciliacionCaja
 
     private async Task Cerrar()
     {
-        if (_datos is null || _datos.Estado != "A") return;
+        if (_datos is null || _datos.Estado is not ("A" or "M")) return;
         if (!await Dialogos.ConfirmarPeligroAsync(
                 $"Se cerrará la apertura N.º {_datos.NumApertura} con {Money(_datos.TotalEsperado)} como total de sistema " +
                 "(desde el mayor de caja). Esta acción marca la caja como cerrada.",
@@ -69,7 +69,7 @@ public partial class ConciliacionCaja
     {
         "A" => "Abierta",
         "C" => "Cerrada",
-        "R" => "Arqueada",
+        "M" or "R" => "Arqueada",
         _ => e ?? "—",
     };
 }
