@@ -62,9 +62,15 @@
                                         @if (x.SucursalFEValida) { <span class="badge text-bg-light ms-1">FE @x.NumeroSucursalFE</span> }
                                         else { <span class="badge text-bg-danger ms-1" title="La sucursal no tiene número FE de 3 dígitos">FE sin configurar</span> }
                                     </td>
-                                    <td>@x.TipoFacturaDescripcion</td>
+                                    <td>
+                                        @x.TipoFacturaDescripcion
+                                        @if (x.EsTiquete) { <span class="badge text-bg-dark ms-1" title="Se cobra y confirma en Facturación, sin preventa">Tiquete</span> }
+                                    </td>
                                     <td><span class="small">@x.UsoDescripcion</span></td>
-                                    <td>@if (!string.IsNullOrWhiteSpace(x.CodigoFE)) { <span class="badge text-bg-success">FE @x.CodigoFE</span> } else { <span class="badge text-bg-secondary">No</span> }</td>
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(x.CodigoFE)) { <span class="badge text-bg-success">FE @x.CodigoFE</span> } else { <span class="badge text-bg-secondary">No</span> }
+                                        @if (!string.IsNullOrWhiteSpace(x.Naturaleza)) { <span class="badge text-bg-light ms-1">@x.Naturaleza</span> }
+                                    </td>
                                     <td class="text-end">@x.NumeroTerminal.ToString("D5")</td>
                                     <td class="text-end">@x.Secuencia</td>
                                     <td>@if (x.EmisionV44Habilitada) { <span class="badge text-bg-success">Sí</span> } else { <span class="badge text-bg-secondary">No</span> }</td>
@@ -138,6 +144,15 @@
                                     </optgroup>
                                 }
                             </select>
+                            @if (TipoSel is not null)
+                            {
+                                <div class="form-text">
+                                    Modalidad: <strong>@(TipoSel.EsTiquete ? "Tiquete" : "Venta con cobro diferido")</strong>.
+                                    @(TipoSel.EsTiquete
+                                        ? "Se cobra y confirma en Facturación; la serie debe ser Contado."
+                                        : "Genera preventa (contado) o factura a crédito según la condición.")
+                                </div>
+                            }
                         </div>
                         <div class="col-12 col-md-3">
                             <label class="form-label">Terminal / Caja</label>

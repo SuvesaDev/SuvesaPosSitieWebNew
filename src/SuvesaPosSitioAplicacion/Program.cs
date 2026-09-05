@@ -221,6 +221,7 @@ builder.Services.AddScoped<IDenominacionesMonedaFiscales, DenominacionesMonedaFi
 builder.Services.AddScoped<IConfiguracionPlazosFiscales, ConfiguracionPlazosFiscales>();
 builder.Services.AddScoped<IEmisoresFiscales, EmisoresFiscales>();
 builder.Services.AddScoped<ISeriesFacturacionFiscales, SeriesFacturacionFiscales>();
+builder.Services.AddScoped<IComandosFacturacion, ComandosFacturacion>();
 builder.Services.AddScoped<IBandejaFiscal, BandejaFiscal>();
 builder.Services.AddScoped<IGeografiaFiscal, GeografiaFiscal>();
 builder.Services.AddScoped<ICatalogoBonificacion, CatalogoBonificacion>();

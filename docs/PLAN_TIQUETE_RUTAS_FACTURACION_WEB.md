@@ -6,7 +6,15 @@ Fecha: 2026-09-05. Estado: W0 cerrado; API A1–A7 code-complete; **W1 en curso*
 
 | Fase | Estado | Qué |
 |---|---|---|
-| W1 | 🟡 en curso | `TipoFacturaFiscalDTO.EsTiquete` (serializa `esTiquete`, compatible con el API y con clientes viejos sin el campo — `TipoFacturaTiqueteContratoTests`). `TiposFacturaFiscal.razor`: switch "Tiquete" en el modal (solo Uso Facturación, sección 3), columna/badge "Modalidad" (Tiquete / Cobro diferido / —) y filtro. Al cambiar el uso fuera de Facturación se apaga `EsTiquete`. Pendiente: regenerar el cliente OpenAPI con `tools/actualizar-contratos.sh` contra el API y converger `DTOs/Generated`/`ProxyClass/Facturacion.cs`; W2 (series). |
+| W1 | ✅ | `TipoFacturaFiscalDTO.EsTiquete` (serializa `esTiquete`, compatible con el API y con clientes viejos — `TipoFacturaTiqueteContratoTests`). `TiposFacturaFiscal.razor`: switch "Tiquete" (solo Uso Facturación, sección 3), columna/badge "Modalidad" y filtro. Al cambiar el uso se apaga `EsTiquete`. |
+| W2 | ✅ | `SerieFacturacionFiscalDTO.EsTiquete` + `Naturaleza` y `SerieCatalogoTipoFacturaFiscalDTO.EsTiquete` (solo lectura, los llena el API). `SeriesFacturacionFiscal.razor`: badge "Tiquete" en la columna de tipo, badge de naturaleza junto al documento electrónico, y en el modal una nota "Modalidad: Tiquete / Venta con cobro diferido" derivada del tipo. La matriz tipo×serie×condición ya la valida el API (A1.5). |
+| W3 | 🟡 base | **Cimientos listos, falta cablear `Facturacion.razor`:** `PoliticaRutaFacturacion` (servicio puro: `EntradaSerie` → `GuardarPreventaContado` / `ConfirmarCredito` / `CobrarTiqueteElectronico` / `CobrarTiqueteInterno` / `ConfiguracionInvalida`, 12 casos en `PoliticaRutaFacturacionTests`). Contratos a mano `ComandoFacturacionDTO`, `ResultadoOperacionFacturacionDTO`, `EstadoCuentaClienteDTO`, `FacturaCreditoConSaldoDTO`; `FacturaDTO.IdSerie` (partial). Proxy `IComandosFacturacion` / `ComandosFacturacion` (`api/facturacion/*` + `api/cobros/estado-cuenta`), registrado en `Program.cs`. `ComandosFacturacionContratoTests`. |
+
+> Nota sobre `tools/actualizar-contratos.sh`: regenerar el cliente completo contra el API
+> local rompe ~150 archivos por colisión de nombres (el generado histórico se hizo contra
+> `devapi` y el API divergió mucho). Se mantiene la convención del repo: **contratos a mano**
+> en `DTOs/Fiscal` + partials sobre el `FacturaDTO` generado. Los esquemas a mano se
+> validaron contra el swagger del API en ejecución.
 
 ---
 

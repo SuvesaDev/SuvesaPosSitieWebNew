@@ -24,6 +24,12 @@ public sealed class SerieFacturacionFiscalDTO
     /// al guardar cuando RequiereDocumentoElectronico es true.</summary>
     public string? CodigoFE { get; set; }
 
+    /// <summary>Modalidad Tiquete del tipo ligado (solo lectura, la deriva el API).
+    /// PLAN_TIQUETE_RUTAS_FACTURACION_WEB.md W2: dato informativo, no editable en la serie.</summary>
+    public bool EsTiquete { get; set; }
+    /// <summary>"Electronica" | "Interna" (solo lectura). Deriva de RequiereDocumentoElectronico.</summary>
+    public string? Naturaleza { get; set; }
+
     // ---- Derivados (solo lectura, los llena el API) ----
     public string? NumeroSucursalFE { get; set; }
     public string? EmisorNombre { get; set; }
@@ -68,4 +74,6 @@ public sealed class SerieCatalogoTipoFacturaFiscalDTO
     public string? Descripcion { get; set; }
     /// <summary>"facturacion" | "devolucion" | "compra" | "consignacion" — para agrupar el selector.</summary>
     public string? Uso { get; set; }
+    /// <summary>El tipo está marcado como Tiquete (W2: informa la modalidad al elegir tipo).</summary>
+    public bool EsTiquete { get; set; }
 }
