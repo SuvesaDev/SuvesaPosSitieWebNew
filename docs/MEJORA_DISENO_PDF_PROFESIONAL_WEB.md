@@ -13,7 +13,7 @@ El sitio no debe intentar componer documentos fiscales en el navegador. Debe per
 La experiencia objetivo es:
 
 1. El administrador elige emisor, tipo de documento, serie cuando aplique y formato A4/térmico.
-2. Selecciona un preset profesional y ajusta marca, bloques y campos permitidos.
+2. Selecciona un preset profesional y ajusta composición, bloques y campos permitidos; el logo ya viene del emisor seleccionado.
 3. Visualiza un PDF de muestra antes de activar la plantilla, sin afectar documentos reales.
 4. Define la plantilla predeterminada por ámbito.
 5. El usuario de ventas abre una factura, tiquete, recibo o boleta y ve/descarga el PDF existente; reimprimir no vuelve a facturar ni a cobrar.
@@ -24,7 +24,8 @@ La experiencia objetivo es:
 | Elemento | Estado actual | Mejora necesaria |
 |---|---|---|
 | Página de plantillas | Existe en `Views/Parametros/PlantillasImpresion.razor` | Tiene estructura útil, pero expone configuración técnica extensa y no ofrece presets, tema visual, QR, monto en letras ni validación de diseño |
-| Editor | Zonas en acordeón: logo, receptor, meta, detalle, totales, pie, márgenes/fuente | Evolucionar a decisiones de negocio y diseño guiado; no pedir a un usuario editar claves internas, anchos relativos y órdenes sin ayuda visual |
+| Emisor | `EmisorFiscalDTO` y la pantalla de Emisores no tienen una propiedad ni carga de logo | Incorporar el logo como activo del emisor; no llevarlo ni duplicarlo en la plantilla |
+| Editor | Zonas en acordeón: logo, receptor, meta, detalle, totales, pie, márgenes/fuente | Evolucionar a decisiones de negocio y diseño guiado; el bloque logo solo controla visibilidad/posición/tamaño y siempre obtiene la imagen del emisor elegido |
 | Vista previa | Usa PDF en `<object>` tras guardar la plantilla | Permitir previsualización de borrador no guardado, datos de muestra representativos y revisión A4/térmico; mostrar alertas de accesibilidad/recortes |
 | Configuración de tipo | `TiposImpresionUi` es un espejo manual de 15 tipos | Mantenerlo sincronizado con API mediante contrato/catálogo; evitar que un nuevo tipo se visualice como “Tipo 16” |
 | Selección de formato | A4 y térmico están disponibles | Explicar que son composiciones distintas; no mostrar controles A4 irrelevantes para rollo ni suponer que 80 mm sirve para 58 mm |
@@ -48,7 +49,7 @@ Al crear una plantilla, el flujo debe comenzar por un preset visual, no por un f
 
 Al elegir uno, el editor carga parámetros seguros. El administrador modifica únicamente:
 
-- Logotipo y datos de marca autorizados.
+- Datos de marca autorizados; el logo se administra exclusivamente desde el emisor.
 - Paleta dentro de colores permitidos y con indicador de contraste.
 - Visibilidad y etiquetas de bloques/campos semánticos.
 - Perfil de columnas recomendado por tipo y formato.
@@ -57,13 +58,25 @@ Al elegir uno, el editor carga parámetros seguros. El administrador modifica ú
 
 No ofrecer HTML, CSS, carga de fuentes arbitrarias, scripts, URLs externas ni un lienzo de arrastrar/soltar. El API conserva la validación final y el usuario mantiene un diseño útil sin riesgo de ocultar información fiscal.
 
+### W1a. Logo administrado desde Emisores
+
+La pantalla de Emisores (`Views/Parametros/EmisoresFiscal.razor`) será el único lugar para cargar, reemplazar, previsualizar o retirar la imagen corporativa.
+
+- En “Datos públicos” del emisor, agregar una sección **Logo para documentos**: miniatura, estado “sin logo”, nombre/formato/dimensiones, fecha de actualización, acción de cargar/reemplazar y eliminación con confirmación.
+- La carga envía el archivo al endpoint específico del emisor; la lista de emisores solo consume metadatos como `TieneLogo`, no binarios Base64. La miniatura se solicita con autorización y bajo demanda.
+- Validar antes de enviar tamaño, formato y dimensiones permitidos; después mostrar el resultado validado por API. La interfaz no debe fingir que la imagen está guardada porque el navegador pudo leerla.
+- La pantalla de Plantillas muestra “Logo del emisor: disponible/no configurado” y un enlace a administrar el emisor. Sus únicos controles son “Mostrar logo”, composición, alineación y altura; se elimina cualquier selector, carga u override de logo dentro de plantilla.
+- Si una plantilla usa un emisor sin logo, permitir guardar el diseño, pero advertir claramente en vista previa y bloquear la activación solo si la política de la empresa exige logo obligatorio.
+- El permiso de editar plantillas no concede cargar o reemplazar logo. La acción se rige por el permiso de editar el emisor y su ámbito; previsualizar una plantilla solo puede usar el logo del emisor autorizado.
+- Cuando se cambie el logo, informar que aplica a nuevos documentos. Los documentos fiscales ya emitidos/reimpresos se resuelven desde su snapshot/PDF histórico definido por API, no desde una imagen local que el sitio conserve.
+
 ### W2. Editor por bloques, no por claves internas
 
 Reemplazar progresivamente los listados de `clave`, `orden` y `anchoRel` por una interfaz con nombres visibles y ayudas:
 
 | Bloque | Controles de interfaz |
 |---|---|
-| Marca y encabezado | Logo, variante de cabecera, color de acento, razón social/contacto, alineación y vista de altura real |
+| Marca y encabezado | Estado y miniatura del logo oficial del emisor, variante de cabecera, color de acento, razón social/contacto, alineación y vista de altura real. La imagen se administra en Emisores |
 | Documento | Número, clave, fechas, condición, vencimiento, plazo, medios de pago, estado de copia y reglas de visibilidad |
 | Cliente | Identificación, nombre, contacto, dirección, orden de compra y etiquetas |
 | Detalle | Perfil “comercial”, “compacto”, “fiscal detallado” o térmico; columnas permitidas y advertencia al exceder el ancho |
@@ -79,7 +92,7 @@ El modo avanzado puede conservar reordenamiento y anchuras, pero debe mostrar un
 - Ofrecer escenarios: factura contado corta, factura crédito con vencimiento y transferencia, factura de varias páginas, tiquete, recibo y caso de carne con cantidad decimal/lote. Nunca cargar datos reales de otro cliente por defecto.
 - Cambiar A4/térmico en la vista y presentar dimensiones físicas, corte de rollo y elementos que se omiten por formato.
 - Permitir comparar “actual” vs “borrador” y restaurar preset o última versión guardada. No sobrescribir por accidente la predeterminada activa.
-- Mostrar avisos de resultado: logo ausente, columnas comprimidas, texto truncado, contraste bajo, QR sin destino válido o fuente no compatible.
+- Mostrar avisos de resultado: logo ausente en el emisor, columnas comprimidas, texto truncado, contraste bajo, QR sin destino válido o fuente no compatible.
 - Mantener el PDF dentro de un visor con descarga y abrir en nueva pestaña. Probar el visor con bloqueadores y navegadores de tablet; ofrecer descarga si el navegador no incrusta PDF.
 
 ### W4. Activación, versiones y permisos
@@ -88,7 +101,7 @@ El modo avanzado puede conservar reordenamiento y anchuras, pero debe mostrar un
 - Mostrar historial: versión, usuario, fecha, preset, estado, dónde es predeterminada y cuántos documentos se generaron con ella. La reversión crea una nueva versión o reactiva una anterior de manera auditada.
 - Una plantilla por serie prevalece sobre emisor/tipo, y la UI explica la cascada. Si no hay una, mostrar el preset embebido como fallback, no como si fuera una plantilla guardada.
 - Permisos distintos: configurar/activar plantillas, previsualizar, ver documentos e imprimir/reimprimir. Ocultar acciones no autorizadas y respetar igualmente el rechazo del API.
-- Logo/correo/datos bancarios se editan en el ámbito correspondiente. La pantalla no debe permitir que un usuario de una sucursal configure la identidad de un emisor ajeno.
+- Logo/correo/datos bancarios se editan en el ámbito correspondiente. El logo se modifica desde Emisores y no desde la plantilla. La pantalla no debe permitir que un usuario de una sucursal configure la identidad de un emisor ajeno.
 
 ## 4. Plan de visualización e impresión en módulos
 
@@ -124,12 +137,13 @@ Aplicar el componente de forma consistente a los documentos ya soportados: factu
 
 El sitio depende de las fases P1-P4 del plan API. Antes de modificar el editor, el API debe publicar:
 
-1. Esquema versionado de preset/tema/bloques y catálogo por tipo/formato.
-2. Validaciones por campo con mensajes de negocio y advertencias de diseño.
-3. Vista previa temporal de configuración no guardada.
-4. Versiones, estado borrador/activa, auditoría y resolución de cascada.
-5. Datos de resultado de documento: disponibilidad de PDF, formato, consecutivo, copia, estado fiscal e impresión autorizada.
-6. QR/monto en letras/notas y perfiles de columnas provistos como información semántica, no armados por la UI.
+1. Logo del emisor como activo propio: metadatos en el DTO de emisor, carga/reemplazo/eliminación y miniatura mediante endpoints autorizados; sin `LogoOverride` en plantillas.
+2. Esquema versionado de preset/tema/bloques y catálogo por tipo/formato.
+3. Validaciones por campo con mensajes de negocio y advertencias de diseño.
+4. Vista previa temporal de configuración no guardada.
+5. Versiones, estado borrador/activa, auditoría y resolución de cascada.
+6. Datos de resultado de documento: disponibilidad de PDF, formato, consecutivo, copia, estado fiscal e impresión autorizada.
+7. QR/monto en letras/notas y perfiles de columnas provistos como información semántica, no armados por la UI.
 
 Después se regeneran los clientes con `tools/actualizar-contratos.sh`; los archivos Generated no se editan manualmente. Crear DTOs manuales solo cuando el contrato no pueda regenerarse temporalmente y con fecha de retiro documentada.
 
@@ -138,6 +152,7 @@ Después se regeneran los clientes con `tools/actualizar-contratos.sh`; los arch
 ### Unitarias y de componentes
 
 - Presets y mapeos tipo/slug/formato, incluidos nuevos tipos; ninguna etiqueta “Tipo X” para documentos conocidos.
+- Carga de logo por emisor: PNG/JPEG válido, imagen corrupta, límite de tamaño, permisos, sustitución, eliminación, vista de metadatos y ausencia de Base64 en listados.
 - Serialización/deserialización de config v1 y v2, edición sin pérdida de campos y restauración de versión.
 - Reglas UI: A4 vs térmico, serie aplicable, campos fiscales protegidos, contraste, columnas excedidas, QR inválido y activación sin vista previa.
 - Sincronización de modelo/textareas y borrador: preview no llama guardar ni cambia la plantilla activa.
@@ -146,7 +161,7 @@ Después se regeneran los clientes con `tools/actualizar-contratos.sh`; los arch
 
 ### E2E y revisión visual
 
-1. Crear borrador corporativo, previsualizar sin persistir, guardar, activar y verificar la cascada por serie.
+1. Cargar el logo de un emisor, crear borrador corporativo, previsualizar sin persistir, guardar, activar y verificar que todas sus series obtienen ese logo, sin override desde plantilla.
 2. Abrir PDF de documentos cortos/largos, A4 y térmico; probar descarga, nueva pestaña y bloqueo de popup.
 3. Verificar el resultado contra renders golden aportados por API: logo, contraste, encabezado de tabla repetido, total, pie/QR y ausencia de solapes/cortes.
 4. Casos de abarrotes/carnes: moneda CRC/USD, 0,375 kg, descuentos, bonificación a cero explicada, cliente con dirección larga y factura de crédito.
@@ -161,15 +176,16 @@ No marcar la función como completa por una vista previa satisfactoria. La acept
 | Fase | Entrega web |
 |---|---|
 | W0 | Aprobar presets, guía de marca y decisiones QR/datos bancarios/monto en letras |
-| W1 | Consumir contrato v2, actualizar tipos/DTOs/proxies y migrar editor sin romper plantillas v1 |
-| W2 | Selector de preset, editor guiado, preview de borrador y validaciones de diseño |
-| W3 | Versionado, activación/auditoría y explicación de cascada por serie/emisor |
-| W4 | Visor/componente único en ventas, caja, compras, consignación e inventario |
-| W5 | E2E, tablet, accesibilidad y piloto con un emisor/serie antes de generalizar |
+| W1 | Logo en Emisores, contrato/proxy autorizado, migración de datos heredados y eliminación de override del editor |
+| W2 | Consumir contrato v2, actualizar tipos/DTOs/proxies y migrar editor sin romper plantillas v1 |
+| W3 | Selector de preset, editor guiado, preview de borrador y validaciones de diseño |
+| W4 | Versionado, activación/auditoría y explicación de cascada por serie/emisor |
+| W5 | Visor/componente único en ventas, caja, compras, consignación e inventario |
+| W6 | E2E, tablet, accesibilidad y piloto con un emisor/serie antes de generalizar |
 
 ## 8. Decisiones pendientes
 
-1. Aprobar logotipos, colores, fuentes y variante monocromática de cada emisor.
+1. Aprobar un logo oficial único, colores, fuentes y variante monocromática de cada emisor.
 2. Confirmar quién puede editar y quién puede activar una plantilla.
 3. Definir QR y fuente de consulta autorizada.
 4. Confirmar cuándo mostrar datos bancarios, monto en letras y políticas comerciales.
