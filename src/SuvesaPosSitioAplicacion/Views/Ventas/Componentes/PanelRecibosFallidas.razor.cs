@@ -82,6 +82,8 @@ public partial class PanelRecibosFallidas
 
     // ---------------------------------------------------------- Acciones D10
 
+    private Task VerCausaCompleta(string causaError) => Dialogos.InformarAsync(causaError, "Causa del error");
+
     private async Task Reenviar(OperacionFallidaWebDTO f)
     {
         if (f.OrigenId is not { } idVenta) return;

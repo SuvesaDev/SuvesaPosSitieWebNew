@@ -144,7 +144,19 @@ else
                                 }
                             </td>
                             <td class="text-center">@f.IntentosEnvio</td>
-                            <td class="small">@(f.CausaError ?? "—")</td>
+                            <td class="small">
+                                @if (string.IsNullOrWhiteSpace(f.CausaError))
+                                {
+                                    <span>—</span>
+                                }
+                                else
+                                {
+                                    <span class="text-truncate d-inline-block align-bottom" style="max-width:14rem">@f.CausaError</span>
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-1" title="Ver el error completo" @onclick="() => VerCausaCompleta(f.CausaError!)">
+                                        <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
+                                    </button>
+                                }
+                            </td>
                             <td class="small">@f.AccionSugerida</td>
                             <td class="text-nowrap">
                                 @if (f.OrigenId is { } idv && string.Equals(f.OrigenTipo, "Venta", StringComparison.OrdinalIgnoreCase))
