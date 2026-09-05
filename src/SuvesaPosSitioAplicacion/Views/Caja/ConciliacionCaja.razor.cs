@@ -1,12 +1,19 @@
 using System.Globalization;
 using SuvesaPosSitioAplicacion.DTOs.Caja;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
+using SuvesaPosSitioAplicacion.Views.Shared.Componentes;
 
 namespace SuvesaPosSitioAplicacion.Views.Caja;
 
 public partial class ConciliacionCaja
 {
     private const string Titulo = "Conciliación de caja";
+
+    // Validación con clave interna antes de consultar/cerrar (igual que las demás
+    // pantallas de caja): el cierre desde el mayor no debe quedar sin protección.
+    private AppDesbloqueoClave? _bloqueo;
+    private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
+    private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
 
     private List<AperturaCajaDTO> _aperturas = new();
     private long _napertura;

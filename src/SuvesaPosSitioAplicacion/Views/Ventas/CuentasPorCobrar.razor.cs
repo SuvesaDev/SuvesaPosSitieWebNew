@@ -6,6 +6,7 @@ using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.DTOs.Ventas;
 using SuvesaPosSitioAplicacion.Helpers;
 using SuvesaPosSitioAplicacion.Services;
+using SuvesaPosSitioAplicacion.Views.Shared.Componentes;
 
 namespace SuvesaPosSitioAplicacion.Views.Ventas;
 
@@ -14,13 +15,13 @@ public partial class CuentasPorCobrar
     private const string Titulo = "Abono Cobrar";
     private const string CodigoEfectivo = "EFE";
 
-    private HxModal _modalDesbloqueo = default!;
+    // --- Caja / desbloqueo (banner común AppDesbloqueoClave) ---
+    private AppDesbloqueoClave? _bloqueo;
+    private bool Desbloqueado => _bloqueo?.Desbloqueado == true;
+    private long NumApertura => _bloqueo?.NumApertura ?? 0;
+    private Usuario? UsuarioCajero => _bloqueo?.UsuarioValidado;
+    private Task AlDesbloquear(bool _) => AlDesbloquearCargar();
 
-    // --- Caja / desbloqueo ---
-    private bool _desbloqueado, _validando;
-    private string _clave = string.Empty;
-    private User? _usuario;
-    private long _numApertura;
     private List<Moneda> _monedas = new();
 
     // --- Cliente / preventas ---
@@ -90,10 +91,10 @@ public partial class CuentasPorCobrar
             {
                 ClaveIdempotencia = Guid.NewGuid().ToString("N"),
                 IdCliente = _codCliente,
-                IdApertura = _numApertura,
+                IdApertura = NumApertura,
                 IdSucursal = Sesion.IdSucursal,
-                CedulaCajero = _usuario?.Nombre is { } ? null : null,
-                Usuario = Sesion.Usuario ?? _usuario?.Nombre ?? "",
+                CedulaCajero = UsuarioCajero?.Nombre,
+                Usuario = Sesion.Usuario ?? UsuarioCajero?.Nombre ?? "",
                 Facturas = _selCredito.Select(id => new CobroCreditoFacturaWebDTO { IdVenta = id }).ToList(),
                 FormasPago = formas,
                 PermitirParcial = true,
@@ -128,41 +129,10 @@ public partial class CuentasPorCobrar
 
     // ------------------------------------------------------------------ Desbloqueo
 
-    private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
-
-    private async Task Desbloquear()
+    private async Task AlDesbloquearCargar()
     {
-        if (string.IsNullOrWhiteSpace(_clave)) { await Dialogos.ErrorAsync("Ingrese la clave interna."); return; }
-        _validando = true;
-        var r = await Caja.ValidarClaveInterna(_clave);
-        _validando = false;
-        if (!r.EsCorrecta || r.Responses is null)
-        {
-            _clave = string.Empty;
-            await Dialogos.ErrorAsync(r.Excepcion ?? "Contraseña incorrecta.");
-            return;
-        }
-
-        var usuario = r.Responses;
-        _clave = string.Empty;
-
-        var cajeros = await Respuestas.DatoAsync(await Caja.CajerosConCajaAbierta(), "consultar la caja abierta");
-        // Emparejar por Id (fiable): el nombre puede venir con distinto formato
-        // (espacios, mayúsculas, tildes) entre ValidarClaveInterna y CajerosConCajaAbierta.
-        var cajero = (usuario.Id > 0 ? cajeros?.FirstOrDefault(c => c.Id == usuario.Id) : null)
-                     ?? cajeros?.FirstOrDefault(c => string.Equals((c.Nombre ?? "").Trim(), (usuario.Nombre ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
-        if (cajero is null)
-        {
-            await Dialogos.ErrorAsync("Este usuario no tiene ninguna caja abierta.", "No se pudo desbloquear");
-            return;
-        }
-
-        _usuario = cajero;
-        _numApertura = cajero.IdApertura;
         _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))?.ToList() ?? new();
-
-        _desbloqueado = true;
-        await _modalDesbloqueo.HideAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     // ------------------------------------------------------------------ Buscar
@@ -307,10 +277,10 @@ public partial class CuentasPorCobrar
             {
                 ClaveIdempotencia = $"{_claveLote}:{p.Id}",
                 IdPreventa = p.Id,
-                Usuario = Sesion.Usuario ?? _usuario?.Nombre ?? "",
-                IdApertura = _numApertura,
+                Usuario = Sesion.Usuario ?? UsuarioCajero?.Nombre ?? "",
+                IdApertura = NumApertura,
                 IdSucursal = Sesion.IdSucursal,
-                CedulaCajero = _usuario?.Nombre,
+                CedulaCajero = UsuarioCajero?.Nombre,
                 Pagos = pagos,
             };
             var res = await Respuestas.DatoAsync(await Comandos.FacturarPreventaContado(comando), "cobrar y facturar la preventa");

@@ -96,13 +96,11 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
-                    Titulo = "Cierre Caja",
-                    Codigo = "CAJA.CIERRE_CAJA",
-                    Ruta = "/initial/cash/closecash",
-                },
-                new ItemMenu
-                {
-                    // SANEAMIENTO Fase 8.4 — saldo esperado desde el mayor de caja.
+                    // El "Cierre Caja" legado (/initial/cash/closecash, lee OpcionesDePagos)
+                    // fue reemplazado por "Conciliación de caja", que cierra desde el mayor
+                    // de caja (MovimientoCaja) — la fuente única tras la Fase 3. La pantalla
+                    // legada sigue accesible por ruta directa para consultas históricas,
+                    // pero sale del menú (docs PLAN_COBRO_CONTADO_FASE3.md, paso 6).
                     Titulo = "Conciliación de caja",
                     Codigo = "CAJA.CONCILIACION",
                     Ruta = "/initial/cash/reconciliation",

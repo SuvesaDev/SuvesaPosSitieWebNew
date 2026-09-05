@@ -28,19 +28,9 @@
         <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nuevo cobro</button>
     </Acciones>
     <ChildContent>
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-3 border rounded bg-body-tertiary">
-            @if (_desbloqueado)
-            {
-                <div><strong><i class="bi bi-unlock-fill me-2 text-success" aria-hidden="true"></i>Desbloqueado</strong><span class="text-secondary ms-2">Cajero: @_usuario?.Nombre</span></div>
-            }
-            else
-            {
-                <div><strong><i class="bi bi-lock-fill me-2 text-warning" aria-hidden="true"></i>Bloqueado</strong><span class="text-secondary ms-2">Ingrese la clave interna para comenzar.</span></div>
-                <button type="button" class="btn btn-sm btn-primary" @onclick="() => _modalDesbloqueo.ShowAsync()">Desbloquear</button>
-            }
-        </div>
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="el cobro" RequiereCajaAbierta="true" AlCambiar="AlDesbloquear" />
 
-        <fieldset disabled="@(!_desbloqueado)" class="border-0 p-0 m-0">
+        <fieldset disabled="@(!Desbloqueado)" class="border-0 p-0 m-0">
         <div class="card mb-3">
             <div class="card-header"><strong>Buscar preventa</strong></div>
             <div class="card-body row g-3 align-items-end">
@@ -122,27 +112,15 @@
     </ChildContent>
 </AppPantalla>
 
-<HxModal @ref="_modalDesbloqueo" Title="Desbloquear cobros" Size="ModalSize.Regular">
-    <BodyTemplate>
-        <label class="form-label" for="clave-cobrar">Clave interna</label>
-        <input id="clave-cobrar" type="password" class="form-control" autocomplete="current-password" @bind="_claveInterna" @onkeydown="DesbloquearConEnter" />
-    </BodyTemplate>
-    <FooterTemplate>
-        <button type="button" class="btn btn-primary" disabled="@_validandoClave" @onclick="Desbloquear">@(_validandoClave ? "Validando..." : "Desbloquear")</button>
-    </FooterTemplate>
-</HxModal>
-
 @code {
     private const string Titulo = "Cobrar";
     private const string CodigoEfectivo = "EFE";
     private const string CodigoTarjeta = "TAR";
 
-    private HxModal _modalDesbloqueo = default!;
-
-    private bool _desbloqueado, _validandoClave;
-    private string _claveInterna = string.Empty;
-    private Usuario? _usuario;
+    private AppDesbloqueoClave? _bloqueo;
+    private bool Desbloqueado => _bloqueo?.Desbloqueado == true;
     private long _numApertura;
+    private Usuario? _usuario;
 
     private List<Moneda> _monedas = new();
 
@@ -162,40 +140,14 @@
     private string _ultimoSlug = "factura-electronica";
     private string? _ultimoAviso;
 
-    private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
-
-    private async Task Desbloquear()
+    private async Task AlDesbloquear(bool _)
     {
-        if (string.IsNullOrWhiteSpace(_claveInterna)) { await Dialogos.ErrorAsync("Ingrese la clave interna."); return; }
-        _validandoClave = true;
-        var r = await Caja.ValidarClaveInterna(_claveInterna);
-        _validandoClave = false;
-        if (!r.EsCorrecta || r.Responses is null)
-        {
-            _claveInterna = string.Empty;
-            await Dialogos.ErrorAsync(r.Excepcion ?? "Contraseña incorrecta.");
-            return;
-        }
-
-        _usuario = r.Responses;
-        _claveInterna = string.Empty;
-
-        var cajeros = await Respuestas.DatoAsync(await Caja.CajerosConCajaAbierta(), "consultar la caja abierta");
-        // Emparejar por Id (fiable); el nombre puede venir con distinto formato entre
-        // ValidarClaveInterna y CajerosConCajaAbierta.
-        var cajero = (_usuario.Id > 0 ? cajeros?.FirstOrDefault(c => c.Id == _usuario.Id) : null)
-                     ?? cajeros?.FirstOrDefault(c => string.Equals((c.Nombre ?? "").Trim(), (_usuario.Nombre ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
-        if (cajero is null)
-        {
-            await Dialogos.ErrorAsync("Este usuario no tiene ninguna caja abierta.", "No se pudo desbloquear");
-            return;
-        }
-        _numApertura = cajero.IdApertura;
-
+        // AppDesbloqueoClave (RequiereCajaAbierta) ya validó la clave y resolvió la
+        // apertura del cajero; aquí solo se copian los datos y se cargan las monedas.
+        _usuario = _bloqueo?.UsuarioValidado;
+        _numApertura = _bloqueo?.NumApertura ?? 0;
         _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))?.ToList() ?? new();
-
-        _desbloqueado = true;
-        await _modalDesbloqueo.HideAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task BuscarPorFichaConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await BuscarPorFicha(); }

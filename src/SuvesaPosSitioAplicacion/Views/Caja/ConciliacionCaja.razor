@@ -2,6 +2,7 @@
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.DTOs.Caja
 @using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IConciliacionCaja Api
 @inject ICajaOperaciones CajaApi
 @inject IManejadorRespuestas Respuestas
@@ -10,6 +11,8 @@
 <AppPantalla Pantalla="@Titulo" Codigo="CAJA.CONCILIACION" Nivel="NivelPantalla.Tableta"
              Subtitulo="Saldo esperado por forma de pago y moneda, calculado desde el mayor de caja (no desde documentos fiscales).">
     <ChildContent>
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="la conciliación y cierre de caja" AlCambiar="AlDesbloquear" />
+        <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
         <div class="card mb-3">
             <div class="card-body row g-2 align-items-end">
                 <div class="col-12 col-md-5">
@@ -153,5 +156,6 @@
                 </table>
             </div>
         }
+        </fieldset>
     </ChildContent>
 </AppPantalla>

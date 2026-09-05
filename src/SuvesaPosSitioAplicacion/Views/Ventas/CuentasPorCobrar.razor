@@ -29,17 +29,7 @@
         <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nuevo</button>
     </Acciones>
     <ChildContent>
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-3 border rounded bg-body-tertiary">
-            @if (_desbloqueado)
-            {
-                <div><strong><i class="bi bi-unlock-fill me-2 text-success"></i>Desbloqueado</strong><span class="text-secondary ms-2">Cajero: @_usuario?.Nombre · Apertura @_numApertura</span></div>
-            }
-            else
-            {
-                <div><strong><i class="bi bi-lock-fill me-2 text-warning"></i>Bloqueado</strong><span class="text-secondary ms-2">Las consultas no requieren clave; para cobrar, ingrese la clave del cajero con caja abierta.</span></div>
-                <button type="button" class="btn btn-sm btn-primary" @onclick="() => _modalDesbloqueo.ShowAsync()">Desbloquear</button>
-            }
-        </div>
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="el cobro de preventas" RequiereCajaAbierta="true" AlCambiar="AlDesbloquear" />
 
         @* Pestañas fuera del fieldset: "Recibos" y "Operaciones fallidas" son de
            sólo lectura y no dependen de la caja abierta. *@
@@ -59,7 +49,7 @@
             <PanelRecibosFallidas Vista="fallidas" />
         }
 
-        <fieldset disabled="@(!_desbloqueado)" class="border-0 p-0 m-0" hidden="@(_modo != "preventas" && _modo != "credito")">
+        <fieldset disabled="@(!Desbloqueado)" class="border-0 p-0 m-0" hidden="@(_modo != "preventas" && _modo != "credito")">
             <div class="card mb-3">
                 <div class="card-body row g-3 align-items-end">
                     <div class="col-12 col-md-4">
@@ -226,7 +216,7 @@
                                     <PanelPagoVenta Titulo="Pago del lote de preventas"
                                                     Total="_aCobrar"
                                                     Formas="_formasPago"
-                                                    NumApertura="_numApertura"
+                                                    NumApertura="NumApertura"
                                                     @bind-Montos="_montos"
                                                     @bind-Referencias="_referencias"
                                                     RepartoChanged="_ => Recalcular()" />
@@ -276,13 +266,3 @@
         </fieldset>
     </ChildContent>
 </AppPantalla>
-
-<HxModal @ref="_modalDesbloqueo" Title="Desbloquear" Size="ModalSize.Regular">
-    <BodyTemplate>
-        <label class="form-label" for="clave-abono">Clave interna</label>
-        <input id="clave-abono" type="password" class="form-control" autocomplete="current-password" @bind="_clave" @onkeydown="DesbloquearConEnter" />
-    </BodyTemplate>
-    <FooterTemplate>
-        <button type="button" class="btn btn-primary" disabled="@_validando" @onclick="Desbloquear">@(_validando ? "Validando..." : "Desbloquear")</button>
-    </FooterTemplate>
-</HxModal>

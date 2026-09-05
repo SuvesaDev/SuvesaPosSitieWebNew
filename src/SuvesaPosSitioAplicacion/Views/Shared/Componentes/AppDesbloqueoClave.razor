@@ -10,6 +10,10 @@
         <div class="flex-grow-1">
             <strong>Validación requerida</strong>
             <span>Ingrese la clave interna para activar @Titulo.</span>
+            @if (_error is not null)
+            {
+                <span class="d-block text-danger mt-1"><i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>@_error</span>
+            }
         </div>
         <div class="input-group seepos-desbloqueo-clave-campo">
             <input type="password" class="form-control" placeholder="Clave interna" aria-label="Clave interna"
@@ -23,17 +27,30 @@
 else
 {
     <div class="seepos-desbloqueo-clave seepos-desbloqueo-clave-listo mb-3" role="status">
-        <i class="bi bi-shield-check-fill" aria-hidden="true"></i><span>@Titulo está activado.</span>
+        <i class="bi bi-shield-check-fill" aria-hidden="true"></i>
+        <span>@Titulo está activado.@(RequiereCajaAbierta && NumApertura > 0 ? $" Cajero: {UsuarioValidado?.Nombre} · Apertura #{NumApertura}." : "")</span>
     </div>
 }
 
 @code {
     [Parameter, EditorRequired] public string Titulo { get; set; } = default!;
     [Parameter] public EventCallback<bool> AlCambiar { get; set; }
+
+    /// <summary>
+    /// Si es true, además de validar la clave se busca la caja abierta del cajero.
+    /// Sin caja abierta la pantalla NO se desbloquea y se muestra el motivo en el mismo banner.
+    /// </summary>
+    [Parameter] public bool RequiereCajaAbierta { get; set; }
+
     public bool Desbloqueado { get; private set; }
     public Usuario? UsuarioValidado { get; private set; }
+
+    /// <summary>Apertura de caja del cajero validado (solo con <see cref="RequiereCajaAbierta"/>).</summary>
+    public long NumApertura { get; private set; }
+
     private string _clave = string.Empty;
     private bool _validando;
+    private string? _error;
 
     private async Task AlPresionarTecla(KeyboardEventArgs evento)
     {
@@ -44,11 +61,31 @@ else
     {
         if (_validando || string.IsNullOrWhiteSpace(_clave)) return;
         _validando = true;
+        _error = null;
         var usuario = await Respuestas.DatoAsync(await Caja.ValidarClaveInterna(_clave), "validar la clave interna");
-        _validando = false;
-        if (usuario is null) { _clave = string.Empty; return; }
-        _clave = string.Empty;
+        if (usuario is null) { _validando = false; _clave = string.Empty; return; }
+
         UsuarioValidado = usuario;
+        NumApertura = 0;
+
+        if (RequiereCajaAbierta)
+        {
+            var abiertas = await Respuestas.DatoAsync(await Caja.CajerosConCajaAbierta(), "consultar la caja abierta");
+            // Emparejar por Id (fiable); el nombre puede venir con distinto formato.
+            var mia = (usuario.Id > 0 ? abiertas?.FirstOrDefault(c => c.Id == usuario.Id) : null)
+                      ?? abiertas?.FirstOrDefault(c => string.Equals((c.Nombre ?? "").Trim(), (usuario.Nombre ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
+            if (mia is null)
+            {
+                _validando = false;
+                _clave = string.Empty;
+                _error = "Este usuario no tiene ninguna caja abierta.";
+                return;
+            }
+            NumApertura = mia.IdApertura;
+        }
+
+        _validando = false;
+        _clave = string.Empty;
         Desbloqueado = true;
         await AlCambiar.InvokeAsync(true);
     }

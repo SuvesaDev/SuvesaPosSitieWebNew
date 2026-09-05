@@ -16,10 +16,17 @@
             <button class="btn btn-sm btn-outline-danger" @onclick="Anular" disabled="@_guardando"><i class="bi bi-x-circle me-1" aria-hidden="true"></i>Anular</button>
             <button class="btn btn-sm btn-outline-secondary" @onclick="CancelarEdicion" disabled="@_guardando">Cancelar edición</button>
         }
-        <button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(Bloqueada || !_lista || _guardando || (!_editando && _numeroCaja == 0))"><i class="bi bi-cash-stack me-1" aria-hidden="true"></i>@(_guardando ? "Guardando..." : _editando ? "Guardar cambios" : "Registrar apertura")</button>
+        <button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(Bloqueada || !_lista || _guardando || (!_editando && (_numeroCaja == 0 || _yaTieneCajaAbierta is not null)))"><i class="bi bi-cash-stack me-1" aria-hidden="true"></i>@(_guardando ? "Guardando..." : _editando ? "Guardar cambios" : "Registrar apertura")</button>
     </Acciones>
     <ChildContent>
         <AppDesbloqueoClave @ref="_bloqueo" Titulo="la apertura de caja" AlCambiar="AlDesbloquear" />
+        @if (_yaTieneCajaAbierta is { } n)
+        {
+            <div class="alert alert-warning d-flex align-items-center gap-2 mb-3" role="alert">
+                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                <span>Este cajero ya tiene la <strong>apertura #@n</strong> abierta. Debe arquearla y cerrarla antes de abrir otra.</span>
+            </div>
+        }
         <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
         @if (_editando)
         {
@@ -107,8 +114,25 @@
     private AppDesbloqueoClave? _bloqueo;
     private long _numeroCaja;
     private string? _observaciones;
+    private long? _yaTieneCajaAbierta;
     private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
-    private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
+
+    private async Task AlDesbloquear(bool _)
+    {
+        // Regla D7: un cajero solo puede tener una caja abierta. Si el usuario de la
+        // clave interna ya tiene una apertura activa, se bloquea el registro aquí
+        // (el API también lo rechaza).
+        _yaTieneCajaAbierta = null;
+        var validado = _bloqueo?.UsuarioValidado;
+        if (validado is not null)
+        {
+            var abiertas = await Respuestas.DatoAsync(await Api.CajerosConCajaAbierta(), "consultar las cajas abiertas");
+            var mia = abiertas?.FirstOrDefault(c => validado.Id > 0 && c.Id == validado.Id)
+                      ?? abiertas?.FirstOrDefault(c => string.Equals((c.Nombre ?? "").Trim(), (validado.Nombre ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
+            if (mia is not null) _yaTieneCajaAbierta = mia.IdApertura;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
 
     // Edicion: solo el API permite corregir denominaciones y su total/tope, no el
     // numero de caja ni las observaciones (no hay endpoint de "editar el
