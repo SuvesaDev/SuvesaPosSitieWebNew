@@ -656,9 +656,9 @@
     /// </summary>
     private bool _modoBusqueda;
 
-    // Plazos de crédito del catálogo (ConfiguracionPlazos, no consignación). La ficha
-    // del cliente los elige de la lista; se guarda la cantidad de días en PlazoCredito
-    // y el API la traduce al IdPlazo al facturar.
+    // Plazos del catálogo (ConfiguracionPlazos). La ficha del cliente los elige de la
+    // lista; se guarda la cantidad de días en PlazoCredito y el API la traduce al
+    // IdPlazo al facturar.
     private List<SuvesaPosSitioAplicacion.DTOs.Fiscal.ConfiguracionPlazoFiscalDTO> _plazosCredito = new();
 
     protected override async Task OnInitializedAsync()
@@ -667,7 +667,7 @@
         var rp = await Plazos.Obtener();
         if (rp.EsCorrecta && rp.Responses is not null)
             _plazosCredito = rp.Responses
-                .Where(p => p.Activo && !p.Consignacion)
+                .Where(p => p.Activo)
                 .OrderBy(p => p.CantidadDias)
                 .ToList();
     }
