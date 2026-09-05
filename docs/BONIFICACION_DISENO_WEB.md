@@ -81,7 +81,8 @@ artículo es `Bonificado`:
 **c. Selector de mezcla:** mostrar los artículos configurados como mezcla para
 el artículo elegido (`Relacionados.BuscarBonificacion`, incluyendo el propio
 artículo), dejar armar cantidades sin exceder el tope de la configuración
-elegida (`CantidadVenta`). Reutilizable como un modal nuevo, en el mismo
+elegida (`CantidadVenta + CantidadBonificable`: "10 lleva 1" factura 11
+unidades, 10 pagadas + 1 gratis). Reutilizable como un modal nuevo, en el mismo
 espíritu que `AppBuscadorArticulo`.
 
 **d. Resolver cuál sale gratis:** el de menor precio entre los efectivamente

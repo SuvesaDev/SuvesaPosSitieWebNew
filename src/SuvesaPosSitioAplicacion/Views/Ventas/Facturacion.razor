@@ -434,7 +434,7 @@
                 <tfoot>
                     <tr>
                         <th colspan="2" class="text-end">Total</th>
-                        <th class="text-end @(TotalMezcla > _configMezclaActiva.CantidadVenta ? "text-danger" : null)">@TotalMezcla / @_configMezclaActiva.CantidadVenta</th>
+                        <th class="text-end @(TotalMezcla > _configMezclaActiva.CantidadTotalGrupo ? "text-danger" : null)">@TotalMezcla / @_configMezclaActiva.CantidadTotalGrupo</th>
                         <th></th>
                     </tr>
                 </tfoot>
@@ -444,7 +444,7 @@
     </BodyTemplate>
     <FooterTemplate>
         <button type="button" class="btn btn-outline-secondary" @onclick="CancelarMezcla">Cancelar</button>
-        <button type="button" class="btn btn-primary" disabled="@(_aplicandoBonificacion || _configMezclaActiva is null || TotalMezcla == 0 || TotalMezcla > _configMezclaActiva.CantidadVenta)" @onclick="AplicarGrupoBonificacion">@(_aplicandoBonificacion ? "Aplicando..." : "Aplicar bonificación")</button>
+        <button type="button" class="btn btn-primary" disabled="@(_aplicandoBonificacion || _configMezclaActiva is null || TotalMezcla == 0 || TotalMezcla > _configMezclaActiva.CantidadTotalGrupo)" @onclick="AplicarGrupoBonificacion">@(_aplicandoBonificacion ? "Aplicando..." : "Aplicar bonificación")</button>
     </FooterTemplate>
 </HxModal>
 
@@ -1253,7 +1253,7 @@
 
         _itemsMezcla = new List<ItemMezcla>
         {
-            await CrearItemMezclaAsync(principal, Math.Min(cantidadInicial, cfg.CantidadVenta))
+            await CrearItemMezclaAsync(principal, Math.Min(cantidadInicial, cfg.CantidadTotalGrupo))
         };
         foreach (var r in mezcla.Where(r => r.Codigo != principal.Codigo))
         {

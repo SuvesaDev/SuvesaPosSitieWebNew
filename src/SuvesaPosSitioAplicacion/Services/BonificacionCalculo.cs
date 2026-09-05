@@ -4,7 +4,8 @@ namespace SuvesaPosSitioAplicacion.Services;
 /// Resuelve un grupo de bonificación al facturar (docs/BONIFICACION_DISENO_WEB.md
 /// §4.3.d). El API §3.4 quedó como "shape builder"; la regla la aplica el sitio:
 ///
-///   - la suma de cantidades usadas no puede exceder <c>CantidadVenta</c> del tipo;
+///   - la suma de cantidades usadas no puede exceder <c>CantidadVenta + CantidadBonificable</c>
+///     ("compra 10 lleva 1" factura 11 unidades: 10 pagadas + 1 gratis, no 10);
 ///   - el artículo que sale gratis es el de <b>menor precio</b> entre los usados;
 ///   - se regalan hasta <c>CantidadBonificable</c> unidades de ese artículo, a
 ///     precio 0 pero con el impuesto real (<see cref="CalculoDocumento.LineaBonificada"/>).
@@ -43,8 +44,9 @@ public static class BonificacionCalculo
             return Resultado.Falla("Todas las cantidades de la mezcla deben ser mayores que cero.");
 
         var totalUsado = usados.Sum(u => u.Cantidad);
-        if (totalUsado > cantidadVenta)
-            return Resultado.Falla($"La suma de cantidades ({totalUsado}) excede la cantidad de la configuración ({cantidadVenta}).");
+        var totalGrupo = cantidadVenta + cantidadBonificable;
+        if (totalUsado > totalGrupo)
+            return Resultado.Falla($"La suma de cantidades ({totalUsado}) excede la cantidad de la configuración ({totalGrupo}).");
         if (cantidadBonificable <= 0)
             return Resultado.Falla("La configuración no tiene cantidad bonificable.");
 

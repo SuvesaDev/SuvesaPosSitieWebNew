@@ -16,4 +16,12 @@ public sealed class ConfiguracionBonificacionDTO
     [JsonPropertyName("cantidadVenta")] public int CantidadVenta { get; set; }
     [JsonPropertyName("cantidadBonificable")] public int CantidadBonificable { get; set; }
     [JsonPropertyName("activo")] public bool Activo { get; set; } = true;
+
+    /// <summary>
+    /// Unidades totales a facturar para completar el grupo: las que se pagan
+    /// (<see cref="CantidadVenta"/>) más las que se regalan (<see cref="CantidadBonificable"/>).
+    /// "Compra 10 lleva 1" factura 11 unidades (10 pagadas + 1 gratis), no 10.
+    /// </summary>
+    [JsonIgnore]
+    public int CantidadTotalGrupo => CantidadVenta + CantidadBonificable;
 }
