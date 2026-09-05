@@ -118,6 +118,30 @@
                     </div>
 
                     <div class="accordion" id="acc">
+                        <ZonaAccordion Id="diseno" Titulo="Diseño profesional">
+                            <p class="small text-secondary mb-2">Elija una composición segura. Los detalles fiscales siguen protegidos por el API.</p>
+                            <div class="row g-2">
+                                <div class="col-12"><label class="form-label small">Preset</label>
+                                    <select class="form-select form-select-sm" @bind="_cfg.Layout.Preset" @bind:after="AplicarPreset">
+                                        @if (_edicion.Formato == 1)
+                                        {
+                                            <option value="corporativo-a4">Corporativo A4</option><option value="minimal-a4">Minimal A4</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="termico-80">Tiquete térmico 80 mm</option><option value="termico-58">Tiquete térmico 58 mm</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-6"><label class="form-label small">Color de acento</label><input class="form-control form-control-sm form-control-color" type="color" @bind="_cfg.Tema.ColorPrimario" /></div>
+                                <div class="col-6"><label class="form-label small">Color del total</label><input class="form-control form-control-sm form-control-color" type="color" @bind="_cfg.Tema.ColorTotal" /></div>
+                            </div>
+                            @if (_edicion.Formato == 1)
+                            {
+                                <div class="form-check mt-2"><input id="dos-columnas" class="form-check-input" type="checkbox" @bind="_cfg.Layout.EncabezadoDosColumnas" /><label class="form-check-label" for="dos-columnas">Cabecera en dos columnas</label></div>
+                                <div class="form-check"><input id="total-destacado" class="form-check-input" type="checkbox" @bind="_cfg.Layout.TotalesDestacados" /><label class="form-check-label" for="total-destacado">Destacar total</label></div>
+                            }
+                        </ZonaAccordion>
                         <ZonaAccordion Id="enc" Titulo="Encabezado">
                             <div class="alert @(_logoEmisor?.TieneLogo == true ? "alert-success" : "alert-warning") small py-2">
                                 @if (_logoEmisor?.TieneLogo == true)
@@ -200,6 +224,14 @@
                             <textarea class="form-control form-control-sm mt-1" rows="2" @bind="_cfg.Pie.TextoResolucion"></textarea>
                             <div class="form-check mt-1"><input id="mbanc" class="form-check-input" type="checkbox" @bind="_cfg.Pie.MostrarDatosBancarios" /><label class="form-check-label" for="mbanc">Mostrar datos bancarios</label></div>
                             <div class="form-check"><input id="mpag" class="form-check-input" type="checkbox" @bind="_cfg.Pie.MostrarPaginado" disabled="@(_edicion.Formato == 2)" /><label class="form-check-label" for="mpag">Numerar páginas (solo A4)</label></div>
+                            <hr class="my-2" />
+                            <div class="form-check"><input id="monto-letras" class="form-check-input" type="checkbox" @bind="_cfg.MontoEnLetras.Mostrar" /><label class="form-check-label" for="monto-letras">Mostrar monto en letras cuando el documento lo provea</label></div>
+                            <div class="form-check"><input id="qr-consulta" class="form-check-input" type="checkbox" @bind="_cfg.Qr.Mostrar" /><label class="form-check-label" for="qr-consulta">Mostrar QR de consulta</label></div>
+                            @if (_cfg.Qr.Mostrar)
+                            {
+                                <label class="form-label small mt-1">Etiqueta del QR</label><input class="form-control form-control-sm" @bind="_cfg.Qr.Etiqueta" />
+                                <div class="form-text">El destino del QR lo controla el API; no se incluyen claves ni datos de clientes en la plantilla.</div>
+                            }
                         </ZonaAccordion>
 
                         <ZonaAccordion Id="ley" Titulo="Leyendas, márgenes y fuente">

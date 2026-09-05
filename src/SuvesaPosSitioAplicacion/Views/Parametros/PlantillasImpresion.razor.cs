@@ -105,6 +105,32 @@ public partial class PlantillasImpresion
         _series = todas?.Where(s => s.IdEmisor == _idEmisor).ToList() ?? new();
     }
 
+    private void AplicarPreset()
+    {
+        if (_cfg is null || _edicion is null) return;
+
+        var termico = _edicion.Formato == 2;
+        _cfg.Layout.EncabezadoDosColumnas = !termico && _cfg.Layout.Preset == "corporativo-a4";
+        _cfg.Layout.TotalesDestacados = true;
+        _cfg.Qr.Mostrar = !termico;
+        _cfg.Qr.Payload = "https://costapets.com/";
+        _cfg.MontoEnLetras.Mostrar = !termico;
+
+        if (_cfg.Layout.Preset == "minimal-a4")
+        {
+            _cfg.Tema.Nombre = "minimal";
+            _cfg.Tema.ColorPrimario = "#202020";
+            _cfg.Tema.ColorTotal = "#202020";
+            _cfg.Tema.ColorSecundario = "#F3F3F3";
+            return;
+        }
+
+        _cfg.Tema.Nombre = termico ? "termico" : "corporativo";
+        _cfg.Tema.ColorPrimario = termico ? "#202020" : "#1072A9";
+        _cfg.Tema.ColorTotal = termico ? "#202020" : "#0D5B88";
+        _cfg.Tema.ColorSecundario = termico ? "#F3F3F3" : "#EEF5F8";
+    }
+
     private void SincronizarTextareas(bool desdeModelo)
     {
         if (_cfg is null) return;

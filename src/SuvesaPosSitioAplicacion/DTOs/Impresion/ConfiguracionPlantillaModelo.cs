@@ -10,7 +10,11 @@ namespace SuvesaPosSitioAplicacion.DTOs.Impresion;
 /// </summary>
 public sealed class ConfiguracionPlantillaModelo
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
+    public TemaDocumentoModelo Tema { get; set; } = new();
+    public LayoutDocumentoModelo Layout { get; set; } = new();
+    public QrDocumentoModelo Qr { get; set; } = new();
+    public MontoEnLetrasModelo MontoEnLetras { get; set; } = new();
     public MargenesModelo MargenesMm { get; set; } = new();
     public FuenteModelo Fuente { get; set; } = new();
     public EncabezadoModelo Encabezado { get; set; } = new();
@@ -29,11 +33,54 @@ public sealed class ConfiguracionPlantillaModelo
     public static ConfiguracionPlantillaModelo Desde(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return new();
-        try { return JsonSerializer.Deserialize<ConfiguracionPlantillaModelo>(json, Json) ?? new(); }
+        try
+        {
+            var config = JsonSerializer.Deserialize<ConfiguracionPlantillaModelo>(json, Json) ?? new();
+            return NormalizarV2(config);
+        }
         catch (JsonException) { return new(); }
     }
 
     public string AJson() => JsonSerializer.Serialize(this, Json);
+
+    private static ConfiguracionPlantillaModelo NormalizarV2(ConfiguracionPlantillaModelo config)
+    {
+        config.Version = Math.Max(2, config.Version);
+        config.Tema ??= new();
+        config.Layout ??= new();
+        config.Qr ??= new();
+        config.MontoEnLetras ??= new();
+        return config;
+    }
+}
+
+public sealed class TemaDocumentoModelo
+{
+    public string Nombre { get; set; } = "corporativo";
+    public string ColorPrimario { get; set; } = "#1072A9";
+    public string ColorSecundario { get; set; } = "#EEF5F8";
+    public string ColorTotal { get; set; } = "#0D5B88";
+    public string ColorTexto { get; set; } = "#1F2933";
+}
+
+public sealed class LayoutDocumentoModelo
+{
+    public string Preset { get; set; } = "corporativo-a4";
+    public bool EncabezadoDosColumnas { get; set; } = true;
+    public bool TotalesDestacados { get; set; } = true;
+}
+
+public sealed class QrDocumentoModelo
+{
+    public bool Mostrar { get; set; }
+    public string? Payload { get; set; }
+    public string Etiqueta { get; set; } = "Consulta del documento";
+}
+
+public sealed class MontoEnLetrasModelo
+{
+    public bool Mostrar { get; set; }
+    public string Etiqueta { get; set; } = "Monto en letras";
 }
 
 public sealed class MargenesModelo
@@ -46,7 +93,7 @@ public sealed class MargenesModelo
 
 public sealed class FuenteModelo
 {
-    public string Familia { get; set; } = "Helvetica";
+    public string Familia { get; set; } = "Lato";
     public double TamanoBase { get; set; } = 9;
 }
 
