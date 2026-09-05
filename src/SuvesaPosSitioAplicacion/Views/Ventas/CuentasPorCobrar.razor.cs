@@ -147,7 +147,10 @@ public partial class CuentasPorCobrar
         _clave = string.Empty;
 
         var cajeros = await Respuestas.DatoAsync(await Caja.CajerosConCajaAbierta(), "consultar la caja abierta");
-        var cajero = cajeros?.FirstOrDefault(c => string.Equals(c.Nombre, usuario.Nombre, StringComparison.OrdinalIgnoreCase));
+        // Emparejar por Id (fiable): el nombre puede venir con distinto formato
+        // (espacios, mayúsculas, tildes) entre ValidarClaveInterna y CajerosConCajaAbierta.
+        var cajero = (usuario.Id > 0 ? cajeros?.FirstOrDefault(c => c.Id == usuario.Id) : null)
+                     ?? cajeros?.FirstOrDefault(c => string.Equals((c.Nombre ?? "").Trim(), (usuario.Nombre ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
         if (cajero is null)
         {
             await Dialogos.ErrorAsync("Este usuario no tiene ninguna caja abierta.", "No se pudo desbloquear");
