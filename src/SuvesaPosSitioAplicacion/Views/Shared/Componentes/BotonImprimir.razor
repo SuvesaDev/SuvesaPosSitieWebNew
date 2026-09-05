@@ -4,9 +4,15 @@
 
 @if (Id > 0)
 {
-    <a class="btn @Clase" href="@Href" target="_blank" rel="noopener" title="@Titulo">
+    <a class="btn @Clase" href="@Href" target="_blank" rel="noopener" title="@Titulo" aria-label="@EtiquetaAccesible">
         <i class="bi bi-file-earmark-pdf @(SoloIcono ? "" : "me-1")" aria-hidden="true"></i>@(SoloIcono ? "" : Texto)
     </a>
+    @if (MostrarDescarga)
+    {
+        <a class="btn @Clase ms-1" href="@HrefDescarga" title="Descargar PDF" aria-label="Descargar @EtiquetaAccesible">
+            <i class="bi bi-download" aria-hidden="true"></i><span class="visually-hidden">Descargar PDF</span>
+        </a>
+    }
 }
 
 @code {
@@ -28,15 +34,26 @@
 
     [Parameter] public bool SoloIcono { get; set; }
 
-    private string Href
+    /// <summary>Muestra una acción de descarga separada del visor en línea.</summary>
+    [Parameter] public bool MostrarDescarga { get; set; }
+
+    [Parameter] public string? Consecutivo { get; set; }
+
+    private string EtiquetaAccesible => string.IsNullOrWhiteSpace(Consecutivo)
+        ? $"Ver PDF de {Tipo} {Id}"
+        : $"Ver PDF de {Tipo} {Consecutivo}";
+
+    private string HrefDescarga => CrearHref(descargar: true);
+
+    private string Href => CrearHref(descargar: false);
+
+    private string CrearHref(bool descargar)
     {
-        get
-        {
-            var q = new List<string>();
-            if (Copia) q.Add("copia=true");
-            if (!string.IsNullOrWhiteSpace(Formato)) q.Add($"formato={Uri.EscapeDataString(Formato)}");
-            var qs = q.Count > 0 ? "?" + string.Join("&", q) : "";
-            return $"/documentos/{Uri.EscapeDataString(Tipo)}/{Id}/pdf{qs}";
-        }
+        var q = new List<string>();
+        if (Copia) q.Add("copia=true");
+        if (!string.IsNullOrWhiteSpace(Formato)) q.Add($"formato={Uri.EscapeDataString(Formato)}");
+        if (descargar) q.Add("descargar=true");
+        var qs = q.Count > 0 ? "?" + string.Join("&", q) : "";
+        return $"/documentos/{Uri.EscapeDataString(Tipo)}/{Id}/pdf{qs}";
     }
 }

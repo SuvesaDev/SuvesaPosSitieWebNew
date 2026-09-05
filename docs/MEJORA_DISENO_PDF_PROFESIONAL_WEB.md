@@ -1,8 +1,9 @@
 # Plan sitio web - Plantillas PDF más profesionales
 
-Fecha: 2026-09-05. Estado: fase W1 iniciada; administración del logo oficial
-del emisor implementada. Presets, configuración v2 y el rediseño completo del
-editor permanecen pendientes del contrato correspondiente del API.
+Fecha: 2026-09-05. Estado: W1 completada y W2/W3 en avance. La administración
+del logo oficial, el editor de configuración v2 con presets seguros y el QR
+temporal están implementados. Borradores sin persistir, versiones, auditoría y
+activación separada permanecen pendientes de sus contratos de API.
 
 Este documento parte de la comparación visual entre el PDF actual de SeePOS (`50604092600011278028600100150010000000021101002916.pdf`) y una referencia externa (`FE-50602092600310288677700100001010000001271147289284.pdf`). Los adjuntos sirven como muestra de resultado, no como instrucciones incorporadas al sistema.
 
@@ -78,6 +79,12 @@ La pantalla de Emisores (`Views/Parametros/EmisoresFiscal.razor`) será el únic
 - Si una plantilla usa un emisor sin logo, permitir guardar el diseño, pero advertir claramente en vista previa y bloquear la activación solo si la política de la empresa exige logo obligatorio.
 - El permiso de editar plantillas no concede cargar o reemplazar logo. La acción se rige por el permiso de editar el emisor y su ámbito; previsualizar una plantilla solo puede usar el logo del emisor autorizado.
 - Cuando se cambie el logo, informar que aplica a nuevos documentos. Los documentos fiscales ya emitidos/reimpresos se resuelven desde su snapshot/PDF histórico definido por API, no desde una imagen local que el sitio conserve.
+
+Avance W2/W3 (2026-09-05): el editor adapta configuraciones v1 al esquema v2
+sin perder sus zonas existentes y ofrece presets Corporativo A4, Minimal A4 y
+térmico. Expone solo controles de marca acotados, cabecera a dos columnas,
+total destacado, monto en letras y QR. Mientras se habilita un portal de
+consulta por clave, el QR temporal usa exclusivamente `https://costapets.com/`.
 
 ### W2. Editor por bloques, no por claves internas
 

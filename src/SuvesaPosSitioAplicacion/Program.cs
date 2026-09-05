@@ -310,14 +310,16 @@ app.MapGet("/emisores/{idEmisor:int}/logo", async (int idEmisor, IEmisoresFiscal
 // PDF de representación gráfica de un documento (MOTOR_PLANTILLAS_IMPRESION_WEB.md §4).
 // El render vive en el API; este endpoint solo reenvía con el token y hace stream.
 app.MapGet("/documentos/{tipo}/{id:long}/pdf", async (
-    string tipo, long id, IImpresionDocumentos api, string? formato, bool copia = false) =>
+    string tipo, long id, IImpresionDocumentos api, string? formato, bool copia = false, bool descargar = false) =>
 {
     var r = await api.Pdf(tipo, id, formato, copia);
     if (!r.EsCorrecta || r.Responses is not { Length: > 0 } bytes)
         return Results.Problem(r.Excepcion ?? "No se pudo generar el documento.");
 
     var nombre = $"{tipo}-{id}.pdf";
-    return Results.File(bytes, "application/pdf", nombre, enableRangeProcessing: false);
+    // Sin nombre de descarga el navegador puede abrir el PDF en línea; la acción
+    // explícita de descarga conserva el nombre sugerido sin transportar el JWT.
+    return Results.File(bytes, "application/pdf", descargar ? nombre : null, enableRangeProcessing: false);
 });
 
 // Descarga de reportes en PDF. Un endpoint y no una pagina: enviar un archivo desde
