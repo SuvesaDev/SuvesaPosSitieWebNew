@@ -367,13 +367,6 @@ public static partial class MenuSeePos
                     Titulo = "Devoluciones",
                     Codigo = "VENTAS.DEVOLUCIONES",
                     Ruta = "/sales/repayment",
-                },
-                new ItemMenu
-                {
-                    // Antes bajo "Inicio"; movida aquí a petición del usuario.
-                    Titulo = "Consulta Albaranes",
-                    Codigo = "VENTAS.CONSULTA_ALBARANES",
-                    Ruta = "/initial/consultAlbaranes",
                 }
             }
         },
