@@ -378,7 +378,7 @@
                 @if (_mezclaOrigenCliente) { <span>(tipo elegido por el cliente)</span> }
             </p>
             <table class="table table-sm align-middle">
-                <thead><tr><th>Artículo</th><th class="text-end">Precio</th><th class="text-end" style="width:9rem">Cantidad</th></tr></thead>
+                <thead><tr><th>Artículo</th><th class="text-end">Precio</th><th class="text-end" style="width:9rem">Cantidad</th><th style="min-width:12rem">Lote</th></tr></thead>
                 <tbody>
                     @foreach (var item in _itemsMezcla)
                     {
@@ -386,6 +386,26 @@
                             <td>@item.Descripcion</td>
                             <td class="text-end">@Formato.Importe(item.PrecioUnit)</td>
                             <td><input type="number" min="0" step="1" class="form-control form-control-sm text-end" @bind="item.Cantidad" /></td>
+                            <td>
+                                @if (!item.ManejaLotes)
+                                {
+                                    <span class="text-muted small">—</span>
+                                }
+                                else if (item.LotesDisponibles.Count == 0)
+                                {
+                                    <span class="text-danger small">Sin lotes disponibles</span>
+                                }
+                                else
+                                {
+                                    <select class="form-select form-select-sm" @bind="item.IdLoteSeleccionado">
+                                        <option value="0">Seleccione...</option>
+                                        @foreach (var lote in item.LotesDisponibles)
+                                        {
+                                            <option value="@lote.Id">@lote.Lote@(lote.EsUnico ? " (único)" : "")</option>
+                                        }
+                                    </select>
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -393,6 +413,7 @@
                     <tr>
                         <th colspan="2" class="text-end">Total</th>
                         <th class="text-end @(TotalMezcla > _configMezclaActiva.CantidadVenta ? "text-danger" : null)">@TotalMezcla / @_configMezclaActiva.CantidadVenta</th>
+                        <th></th>
                     </tr>
                 </tfoot>
             </table>
@@ -450,6 +471,12 @@
         public required decimal PrecioUnit { get; init; }
         public required decimal PorcentajeImpuesto { get; init; }
         public int Cantidad { get; set; }
+
+        /// <summary>El artículo maneja lotes (Inventario.Lote): hay que elegir uno antes
+        /// de poder facturar, igual que en el flujo normal de líneas.</summary>
+        public bool ManejaLotes { get; init; }
+        public List<StockLoteDTO> LotesDisponibles { get; init; } = new();
+        public long IdLoteSeleccionado { get; set; }
     }
     private sealed class ProductoCatalogo
     {
@@ -1124,24 +1151,43 @@
 
         _itemsMezcla = new List<ItemMezcla>
         {
-            new() { Codigo = principal.Codigo, Descripcion = principal.Descripcion ?? principal.Codigo.ToString(),
-                    PrecioUnit = PrecioCliente(principal), PorcentajeImpuesto = Formato.AImporte(principal.IVenta),
-                    Cantidad = Math.Min(cantidadInicial, cfg.CantidadVenta) }
+            await CrearItemMezclaAsync(principal, Math.Min(cantidadInicial, cfg.CantidadVenta))
         };
         foreach (var r in mezcla.Where(r => r.Codigo != principal.Codigo))
         {
-            _itemsMezcla.Add(new ItemMezcla
-            {
-                Codigo = r.Codigo,
-                Descripcion = r.Descripcion ?? r.Codigo.ToString(),
-                // Precio de referencia cacheado del API; si no viene, se resuelve al aplicar.
-                PrecioUnit = Formato.AImporte(r.Precio ?? 0),
-                PorcentajeImpuesto = Formato.AImporte(principal.IVenta),
-                Cantidad = 0
-            });
+            // Se resuelve el InventarioDTO completo (no solo lo cacheado en
+            // ArticulosRelacionadosDTO) porque hace falta saber si maneja lotes.
+            var art = await Respuestas.DatoAsync(await Inventario.Uno(r.Codigo), "consultar el artículo de la mezcla");
+            if (art is null) continue;
+            _itemsMezcla.Add(await CrearItemMezclaAsync(art, 0));
         }
 
         await _modalMezclaBonificacion.ShowAsync();
+    }
+
+    /// <summary>Arma un ítem de la mezcla, resolviendo sus lotes usables si el artículo
+    /// maneja lotes — sin esto no había forma de elegir el lote de un artículo usado
+    /// o regalado en una bonificación, y la factura fallaba al emitir.</summary>
+    private async Task<ItemMezcla> CrearItemMezclaAsync(InventarioDTO articulo, int cantidad)
+    {
+        var lotesUsables = new List<StockLoteDTO>();
+        if (articulo.Lote)
+        {
+            var lotes = (await Respuestas.DatoAsync(await Inventario.Lotes(articulo.Codigo), "consultar lotes"))?.ToList() ?? new();
+            lotesUsables = lotes.Where(l => l.Activo != false && l.Cantidad > 0
+                && (l.Vencimiento is null || l.Vencimiento.Value.Date >= DateTime.Today)).ToList();
+        }
+        return new ItemMezcla
+        {
+            Codigo = articulo.Codigo,
+            Descripcion = articulo.Descripcion ?? articulo.Codigo.ToString(),
+            PrecioUnit = PrecioCliente(articulo),
+            PorcentajeImpuesto = Formato.AImporte(articulo.IVenta),
+            Cantidad = cantidad,
+            ManejaLotes = articulo.Lote,
+            LotesDisponibles = lotesUsables,
+            IdLoteSeleccionado = lotesUsables.Count == 1 ? lotesUsables[0].Id : 0
+        };
     }
 
     private int TotalMezcla => _itemsMezcla.Sum(i => Math.Max(0, i.Cantidad));
@@ -1149,6 +1195,10 @@
     private async Task AplicarGrupoBonificacion()
     {
         if (_configMezclaActiva is null || _articuloBonificacionPendiente is null || _aplicandoBonificacion) return;
+
+        var sinLote = _itemsMezcla.FirstOrDefault(i => i.Cantidad > 0 && i.ManejaLotes && i.IdLoteSeleccionado <= 0);
+        if (sinLote is not null) { await Dialogos.ErrorAsync($"Seleccione el lote de '{sinLote.Descripcion}'."); return; }
+
         _aplicandoBonificacion = true;
 
         // 1. Resolver el InventarioDTO completo de cada artículo usado (precio vigente,
@@ -1176,6 +1226,8 @@
         foreach (var lg in resultado.Lineas)
         {
             var art = articulosCache[lg.Codigo];
+            var item = _itemsMezcla.FirstOrDefault(i => i.Codigo == lg.Codigo);
+            var loteElegido = item?.LotesDisponibles.FirstOrDefault(l => l.Id == item.IdLoteSeleccionado);
 
             var linea = new LineaVenta
             {
@@ -1185,8 +1237,8 @@
                 Descuento = 0m,
                 MaxDescuento = 0m,
                 Impuesto = lg.PorcentajeImpuesto,
-                IdLote = 0,
-                Lote = null,
+                IdLote = loteElegido?.Id ?? 0,
+                Lote = loteElegido?.Lote,
                 IdGrupoBonificacion = idGrupo,
                 IdConfiguracionBonificacion = idCfg,
                 EsBonificacion = lg.EsBonificacion,
