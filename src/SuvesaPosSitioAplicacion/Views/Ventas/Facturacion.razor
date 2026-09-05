@@ -32,6 +32,7 @@
 @inject ITipoCambio TipoCambioApi
 @inject ICobros CobrosApi
 @inject ICajaOperaciones CajaApi
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IAbonoCobrarPreventas Preventas
 
 @* Port del flujo de Billing: cliente -> artículos/lotes -> totales -> emisión.
    Los cálculos se hacen en decimal en CalculoDocumento; el DTO se arma una única vez
@@ -199,23 +200,22 @@
             </div>
             <div class="col-12 col-lg-4">
                 <div class="card h-100 seepos-facturacion-totales"><div class="card-header"><strong>Totales de la venta</strong></div><div class="card-body"><dl class="row mb-0"><dt class="col-7 fw-normal text-secondary">Subtotal</dt><dd class="col-5 text-end">@Formato.Importe(_totales.SubTotal)</dd><dt class="col-7 fw-normal text-secondary">Descuento</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Descuento)</dd><dt class="col-7 fw-normal text-secondary">Impuesto</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Impuesto)</dd><dt class="col-7">Total</dt><dd class="col-5 text-end fs-5">@Formato.Importe(_totales.Total)</dd></dl>
-                    @if (MostrarCobroContado)
+                    @if (MostrarCobroContado && _formasPagoContado.Count > 0)
                     {
-                        <hr class="my-3" />
-                        <PanelPagoVenta Titulo="Cobro (tiquete · 100%)"
-                                        Total="@((decimal)_totales.Total)"
-                                        Formas="_formasPagoContado"
-                                        NumApertura="_numAperturaContado"
-                                        AvisoCaja="@_avisoCajaContado"
-                                        @bind-Montos="_montosContado"
-                                        @bind-Referencias="_referenciasContado"
-                                        RepartoChanged="_ => RecalcularTodo()" />
+                        <div class="small text-secondary mt-3"><i class="bi bi-cash-coin me-1" aria-hidden="true"></i>El cobro se captura al pulsar «Cobrar».</div>
                     }
                     @if (!EsPrefacturaConsignacion && !EsConsignacion && !_ruta.EsValida && _idPerfil > 0 && _ruta.Motivo is not null)
                     {
                         <div class="alert alert-warning py-2 small mb-0 mt-3">@_ruta.Motivo</div>
                     }
-                    <button class="btn btn-primary w-100 mt-3" disabled="@(_guardando || !PuedeEmitir)" @onclick="Emitir"><i class="bi bi-receipt-cutoff me-2" aria-hidden="true"></i>@(_guardando ? "Registrando..." : EsPrefacturaConsignacion ? "Generar prefactura" : EsConsignacion ? "Registrar consignación" : PoliticaRutaFacturacion.TextoAccion(_ruta.Ruta))</button></div></div>
+                    @if (MostrarCobroContado)
+                    {
+                        <button class="btn btn-primary w-100 mt-3" disabled="@(_guardando || !PuedeEmitirBase)" @onclick="AbrirCobro"><i class="bi bi-cash-coin me-2" aria-hidden="true"></i>Cobrar</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary w-100 mt-3" disabled="@(_guardando || !PuedeEmitir)" @onclick="Emitir"><i class="bi bi-receipt-cutoff me-2" aria-hidden="true"></i>@(_guardando ? "Registrando..." : EsPrefacturaConsignacion ? "Generar prefactura" : EsConsignacion ? "Registrar consignación" : PoliticaRutaFacturacion.TextoAccion(_ruta.Ruta))</button>
+                    }</div></div>
             </div>
         </div>
 
@@ -445,6 +445,53 @@
 
 <AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="PrepararArticulo" IdBodega="@(EsConsignacion ? null : (int?)_bodega)" />
 
+<HxModal @ref="_modalCobro" Title="Cobro del tiquete" Size="ModalSize.Regular" Scrollable="true">
+    <BodyTemplate>
+        <PanelPagoVenta Titulo="Formas de pago (100%)"
+                        Total="@((decimal)_totales.Total)"
+                        Formas="_formasPagoContado"
+                        NumApertura="_numAperturaContado"
+                        AvisoCaja="@_avisoCajaContado"
+                        @bind-Montos="_montosContado"
+                        @bind-Referencias="_referenciasContado"
+                        RepartoChanged="_ => RecalcularTodo()" />
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-outline-secondary" @onclick="() => _modalCobro.HideAsync()">Cancelar</button>
+        <button type="button" class="btn btn-primary" disabled="@(_guardando || !CobroContadoCubierto)" @onclick="EmitirDesdeModal">
+            <i class="bi bi-receipt-cutoff me-2" aria-hidden="true"></i>@(_guardando ? "Emitiendo..." : "Emitir")
+        </button>
+    </FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalComprobante" Title="Comprobante emitido" Size="ModalSize.Large" Scrollable="true">
+    <BodyTemplate>
+        @if (!string.IsNullOrWhiteSpace(_avisoResultado))
+        {
+            <p class="mb-2">@_avisoResultado</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(_avisoComprobante))
+        {
+            <p class="small text-secondary mb-3"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>@_avisoComprobante</p>
+        }
+        @if (_emitiendoHacienda)
+        {
+            <div class="d-flex align-items-center gap-2 text-secondary"><span class="spinner-border spinner-border-sm" role="status"></span> Enviando a Hacienda…</div>
+        }
+        else if (_docId > 0)
+        {
+            <iframe src="@HrefComprobante" style="width:100%;height:70vh;border:0" title="Comprobante"></iframe>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        @if (_docId > 0 && !_emitiendoHacienda)
+        {
+            <a class="btn btn-outline-primary" href="@HrefComprobante" target="_blank" rel="noopener"><i class="bi bi-printer me-1" aria-hidden="true"></i>Abrir / imprimir</a>
+        }
+        <button type="button" class="btn btn-primary" disabled="@_emitiendoHacienda" @onclick="CerrarComprobante">Cerrar</button>
+    </FooterTemplate>
+</HxModal>
+
 @code {
     [Parameter] public long ConteoId { get; set; }
     private bool EsPrefacturaConsignacion => ConteoId > 0;
@@ -581,11 +628,14 @@
     private decimal VueltoContado => RepartoContado.Vuelto;
     private bool CobroContadoCubierto => !MostrarCobroContado
         || (_numAperturaContado is > 0 && _formasPagoContado.Count > 0 && RepartoContado.Cubre100);
-    private bool PuedeEmitir => _lineas.Count > 0
+    private bool PuedeEmitir => PuedeEmitirBase
+        && (EsPrefacturaConsignacion || EsConsignacion || !MostrarCobroContado || CobroContadoCubierto);
+    // Igual que PuedeEmitir pero sin exigir el cobro cubierto: habilita el botón
+    // «Cobrar» que abre el modal donde se capturan las formas de pago.
+    private bool PuedeEmitirBase => _lineas.Count > 0
         && (EsPrefacturaConsignacion || EsConsignacion
             || (_ruta.EsValida
-                && (!RequiereAperturaContado || _numAperturaContado is > 0)
-                && (!MostrarCobroContado || CobroContadoCubierto)));
+                && (!RequiereAperturaContado || _numAperturaContado is > 0)));
 
     private int _idEmpresa;
     private int _bodega;
@@ -618,6 +668,19 @@
     private int _siguienteIdGrupo = 1;
     private HxModal _modalBonificacionArticulo = default!;
     private HxModal _modalMezclaBonificacion = default!;
+
+    // Cobro en modal + comprobante impreso (PLAN_TIQUETE: cobrar → emitir → imprimir).
+    private HxModal _modalCobro = default!;
+    private HxModal _modalComprobante = default!;
+    private string _docSlug = "tiquete-electronico";
+    private long _docId;
+    private string? _docFormato;
+    private string? _avisoResultado;
+    private string? _avisoComprobante;
+    private bool _emitiendoHacienda;
+    private string HrefComprobante => string.IsNullOrWhiteSpace(_docFormato)
+        ? $"/documentos/{Uri.EscapeDataString(_docSlug)}/{_docId}/pdf"
+        : $"/documentos/{Uri.EscapeDataString(_docSlug)}/{_docId}/pdf?formato={Uri.EscapeDataString(_docFormato)}";
     private int _tipoBonificacionElegido;                    // selección temporal en el modal de tipo del artículo
     private InventarioDTO? _articuloBonificacionPendiente;   // artículo que disparó el flujo por artículo
     private List<ConfiguracionBonificacion> _tiposDelArticuloPendiente = new();
@@ -1528,6 +1591,29 @@
     }
     private void RecalcularTodo() => _totales = CalculoDocumento.Totales(_lineas.Select(l => l.Calculo));
 
+    // Tiquete: «Cobrar» abre el modal de formas de pago; «Emitir» dentro del modal
+    // dispara el mismo flujo de Emitir() (que revalida todo).
+    private async Task AbrirCobro()
+    {
+        if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
+        if (_cliente is null || _idPerfil == 0 || _tipoFactura == 0 || _moneda == 0 || _lineas.Count == 0)
+        { await Dialogos.ErrorAsync("Seleccione cliente, condición, la serie a emitir, moneda y al menos un artículo."); return; }
+        if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { await Dialogos.ErrorAsync("El cliente tiene restricción de morosidad."); return; }
+        if (_cliente.OrdenCompra && string.IsNullOrWhiteSpace(_ordenCompra)) { await Dialogos.ErrorAsync("El cliente requiere una orden de compra."); return; }
+        if (RequiereAperturaContado && _numAperturaContado is not > 0) { await Dialogos.ErrorAsync(_avisoCajaContado ?? "No hay una caja abierta para facturar de contado."); return; }
+        await _modalCobro.ShowAsync();
+    }
+
+    private Task EmitirDesdeModal() => Emitir();
+
+    private async Task CerrarComprobante()
+    {
+        await _modalComprobante.HideAsync();
+        _docId = 0;
+        _avisoResultado = _avisoComprobante = null;
+        await Limpiar();
+    }
+
     private async Task Emitir()
     {
         if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
@@ -1573,7 +1659,8 @@
             (_, _, PoliticaRutaFacturacion.Ruta.ConfirmarCredito) => "Se confirmará la factura a crédito con su plazo y saldo. ¿Continuar?",
             _ => "Se cobrará el 100% y se confirmará el tiquete, afectando el inventario. ¿Continuar?",
         };
-        if (!await Dialogos.ConfirmarAsync(confirmacion)) return;
+        // El tiquete confirma con el botón «Emitir» del modal de cobro; el resto sí pregunta.
+        if (!MostrarCobroContado && !await Dialogos.ConfirmarAsync(confirmacion)) return;
         _guardando = true;
         var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
         var perfil = _perfiles.FirstOrDefault(x => x.IdSerie == _idPerfil);
@@ -1610,13 +1697,44 @@
         var res = await Respuestas.DatoAsync(rc, "registrar la operación");
         if (res is null) return;   // el error ya se mostró; la clave se conserva para reintentar
         _claveIdempotencia = null;
-        await MostrarResultadoOperacion(res);
-        await Limpiar();
+        MostrarResultadoOperacion(res);
+
+        if (MostrarCobroContado) await _modalCobro.HideAsync();
+
+        // La preventa de contado todavía no emite nada; y sin id de venta no hay PDF que abrir.
+        if (_ruta.Ruta == PoliticaRutaFacturacion.Ruta.GuardarPreventaContado || res.IdVenta <= 0)
+        {
+            Dialogos.Exito(_avisoResultado ?? "Operación registrada.");
+            await Limpiar();
+            return;
+        }
+
+        // Tiquete o crédito: mostrar el comprobante impreso y, si es electrónico,
+        // firmarlo y enviarlo a Hacienda de forma síncrona para que salga con clave.
+        _docId = res.IdVenta;
+        _docSlug = _esCredito ? "factura-electronica" : "tiquete-electronico";
+        _docFormato = _esCredito ? null : "termico80";
+        _avisoComprobante = null;
+        _emitiendoHacienda = res.EstadoFiscal != "NoAplica" && res.IdVenta > 0;
+        await _modalComprobante.ShowAsync();
+
+        if (_emitiendoHacienda)
+        {
+            StateHasChanged();
+            var em = _esCredito
+                ? await Preventas.EmitirFactura(res.IdVenta)
+                : await Preventas.EmitirTiquete(res.IdVenta);
+            _emitiendoHacienda = false;
+            _avisoComprobante = em?.Responses?.EsValido == true
+                ? "Comprobante recibido por Hacienda."
+                : "El comprobante sigue en proceso en Hacienda; podrá reimprimirlo desde la Bandeja cuando se acepte.";
+            StateHasChanged();
+        }
     }
 
     /// <summary>W3: resultado recuperable — nunca "Factura emitida" a secas. Distingue
     /// preventa / crédito / tiquete y estado fiscal (en proceso, interno, NoAplica).</summary>
-    private async Task MostrarResultadoOperacion(ResultadoOperacionFacturacionDTO r)
+    private void MostrarResultadoOperacion(ResultadoOperacionFacturacionDTO r)
     {
         var lineas = new List<string> { $"Documento #{r.NumeroOperativo} — total {Formato.Importe((decimal)r.Total)}" };
         switch (_ruta.Ruta)
@@ -1636,8 +1754,7 @@
                 break;
         }
         if (r.FueReintento) lineas.Add("(Se recuperó el resultado de un envío anterior; no se cobró ni emitió dos veces.)");
-        Dialogos.Exito(string.Join(" ", lineas));
-        await Task.CompletedTask;
+        _avisoResultado = string.Join(" ", lineas);
     }
     private async Task Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _esCredito = false; _creditoAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _tipoCambio = null; _sinAgente = false; _codAgente = 0; _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; _formasPagoContado = new(); _montosContado.Clear(); _referenciasContado.Clear(); _numAperturaContado = null; _avisoCajaContado = null; _claveIdempotencia = null; _ruta = new(PoliticaRutaFacturacion.Ruta.ConfiguracionInvalida, null); await CargarPerfiles(); RecalcularTodo(); }
 }
