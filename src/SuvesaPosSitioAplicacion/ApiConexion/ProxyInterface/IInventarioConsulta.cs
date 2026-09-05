@@ -8,8 +8,10 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 /// </summary>
 public interface IInventarioConsulta
 {
-    /// <summary>Busca por descripcion o por codigo, segun lo que se escriba.</summary>
-    Task<ResponseGeneric<ICollection<InventarioDTO>>> Buscar(string texto, bool incluirInhabilitados = false);
+    /// <summary>Busca por descripcion o por codigo, segun lo que se escriba. Si se
+    /// indica <paramref name="idBodega"/>, la Existencia devuelta es la de esa
+    /// bodega y no el acumulado global del artículo.</summary>
+    Task<ResponseGeneric<ICollection<InventarioDTO>>> Buscar(string texto, bool incluirInhabilitados = false, int? idBodega = null);
 
     /// <summary>
     /// Trae el listado de articulos sin termino de busqueda (la pantalla lo carga al

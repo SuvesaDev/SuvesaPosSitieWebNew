@@ -109,7 +109,7 @@
                             @if (!EsConsignacion)
                             {
                                 <div class="col-12 col-md-3"><label class="form-label">Bodega</label>
-                                    <select class="form-select" @bind="_bodega">
+                                    <select class="form-select" @bind="_bodega" disabled="@(_lineas.Count > 0)" title="@(_lineas.Count > 0 ? "Ya hay artículos agregados: quite todas las líneas para cambiar la bodega." : null)">
                                         <option value="0">Seleccione...</option>
                                         @foreach (var b in _bodegas) { <option value="@b.IdBodega">@b.NombreBodega</option> }
                                     </select></div>
@@ -405,7 +405,7 @@
     </FooterTemplate>
 </HxModal>
 
-<AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="PrepararArticulo" />
+<AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="PrepararArticulo" IdBodega="@(EsConsignacion ? null : (int?)_bodega)" />
 
 @code {
     [Parameter] public long ConteoId { get; set; }
@@ -685,7 +685,12 @@
     }
 
     private bool CatalogoCompletoSeleccionado => _catalogoImagenes.Count > 0 && _catalogoImagenes.All(p => p.Seleccionado);
-    private Task AbrirBuscadorArticulo() => _ventaDesbloqueada ? _buscadorArticulo.AbrirAsync() : AbrirDesbloqueo();
+    private async Task AbrirBuscadorArticulo()
+    {
+        if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
+        if (!EsConsignacion && _bodega <= 0) { await Dialogos.ErrorAsync("Seleccione primero la bodega de la que sale el inventario."); return; }
+        await _buscadorArticulo.AbrirAsync();
+    }
 
     private async Task AbrirCatalogoImagenes()
     {

@@ -57,7 +57,7 @@ public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
         }, "consultar el artículo completo");
 
     public async Task<ResponseGeneric<ICollection<InventarioDTO>>> Buscar(
-        string texto, bool incluirInhabilitados = false)
+        string texto, bool incluirInhabilitados = false, int? idBodega = null)
     {
         var limpio = texto?.Trim() ?? string.Empty;
 
@@ -76,7 +76,8 @@ public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
             ValorFiltro = limpio,
             Descripcion = porCodigo ? null : limpio,
             Cod_Articulo = porCodigo ? limpio : null,
-            MostrarInhabilitados = incluirInhabilitados
+            MostrarInhabilitados = incluirInhabilitados,
+            IdBodega = idBodega
         };
 
         return await Ejecutar(async () =>

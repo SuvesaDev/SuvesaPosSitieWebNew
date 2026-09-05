@@ -100,6 +100,11 @@
     [Parameter]
     public EventCallback AlCerrar { get; set; }
 
+    /// <summary>Si viene, la Existencia mostrada es la de esta bodega, no el
+    /// acumulado global del artículo (p. ej. la bodega de facturación elegida).</summary>
+    [Parameter]
+    public int? IdBodega { get; set; }
+
     private static readonly TimeSpan Espera = TimeSpan.FromMilliseconds(400);
 
     private HxModal _modal = default!;
@@ -198,7 +203,7 @@
         _buscando = true;
         StateHasChanged();
 
-        var r = await Api.Buscar(_texto);
+        var r = await Api.Buscar(_texto, idBodega: IdBodega);
 
         if (token.IsCancellationRequested)
         {
