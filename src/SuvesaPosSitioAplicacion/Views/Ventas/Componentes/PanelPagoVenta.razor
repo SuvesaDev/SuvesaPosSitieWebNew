@@ -1,0 +1,122 @@
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+
+@* W4 (PLAN_TIQUETE_RUTAS_FACTURACION_WEB.md §4): captura de pago reutilizable por Tiquete
+   (Facturación) y Cobrar. El reparto lo calcula PreparacionPagoVenta; este componente solo
+   captura montos/referencias y muestra pagado / vuelto / falta y los avisos. *@
+
+<div class="mt-1">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <strong>@Titulo</strong>
+        @if (NumApertura is > 0) { <span class="badge text-bg-light">Apertura #@NumApertura</span> }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(AvisoCaja))
+    {
+        <div class="alert alert-warning py-2 small mb-2">@AvisoCaja</div>
+    }
+    else if (Formas.Count == 0)
+    {
+        <div class="text-secondary small mb-2">Seleccione un cliente para cargar las formas de pago.</div>
+    }
+    else
+    {
+        <table class="table table-sm align-middle mb-2">
+            <tbody>
+                @foreach (var f in Formas.Where(x => x.Codigo is not null))
+                {
+                    var cod = f.Codigo!;
+                    var noEfectivo = f.Tarjeta || f.Deposito || f.Cheque;
+                    <tr>
+                        <td class="fw-normal text-secondary" style="min-width:9rem">@f.Descripcion</td>
+                        <td style="min-width:7rem">
+                            <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end"
+                                   value="@MontoDe(cod)" @onchange="e => SetMonto(cod, e.Value)" />
+                        </td>
+                        @if (noEfectivo)
+                        {
+                            <td style="min-width:8rem">
+                                <input type="text" class="form-control form-control-sm" placeholder="Referencia"
+                                       value="@RefDe(cod)" @onchange="e => SetRef(cod, e.Value?.ToString())" />
+                            </td>
+                        }
+                        else { <td></td> }
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <dl class="row mb-0 small">
+            <dt class="col-7 fw-normal text-secondary">Pagado</dt>
+            <dd class="col-5 text-end">@Formato.Importe(_reparto.RecibidoTotal)</dd>
+            <dt class="col-7 fw-normal text-secondary">@(_reparto.Faltante > 0.009m ? "Falta" : "Vuelto")</dt>
+            <dd class="col-5 text-end fw-semibold @(_reparto.Faltante > 0.009m ? "text-danger" : null)">
+                @Formato.Importe(_reparto.Faltante > 0.009m ? _reparto.Faltante : _reparto.Vuelto)
+            </dd>
+        </dl>
+
+        @if (_reparto.Errores.Count > 0)
+        {
+            <ul class="mb-0 mt-1 ps-3 small text-danger">
+                @foreach (var e in _reparto.Errores) { <li>@e</li> }
+            </ul>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public string Titulo { get; set; } = "Cobro";
+    [Parameter] public decimal Total { get; set; }
+    [Parameter] public List<FormasPagoDTO> Formas { get; set; } = new();
+    [Parameter] public long? NumApertura { get; set; }
+    [Parameter] public string? AvisoCaja { get; set; }
+
+    /// <summary>Montos recibidos por código de forma de pago (two-way).</summary>
+    [Parameter] public Dictionary<string, decimal> Montos { get; set; } = new();
+    [Parameter] public EventCallback<Dictionary<string, decimal>> MontosChanged { get; set; }
+
+    /// <summary>Referencias por código de forma de pago (two-way).</summary>
+    [Parameter] public Dictionary<string, string?> Referencias { get; set; } = new();
+    [Parameter] public EventCallback<Dictionary<string, string?>> ReferenciasChanged { get; set; }
+
+    /// <summary>Se dispara cada vez que cambia el reparto (el padre lee <see cref="Reparto"/>).</summary>
+    [Parameter] public EventCallback<PreparacionPagoVenta.Reparto> RepartoChanged { get; set; }
+
+    private PreparacionPagoVenta.Reparto _reparto;
+
+    /// <summary>Reparto actual — el padre lo consulta para habilitar/deshabilitar "Cobrar".</summary>
+    public PreparacionPagoVenta.Reparto Reparto => _reparto;
+
+    protected override void OnParametersSet() => Recalcular();
+
+    private decimal MontoDe(string cod) => Montos.TryGetValue(cod, out var m) ? m : 0m;
+    private string? RefDe(string cod) => Referencias.TryGetValue(cod, out var r) ? r : null;
+
+    private async Task SetMonto(string cod, object? valor)
+    {
+        Montos[cod] = decimal.TryParse(Convert.ToString(valor), System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var m) && m > 0 ? m : 0m;
+        await MontosChanged.InvokeAsync(Montos);
+        Recalcular();
+        await RepartoChanged.InvokeAsync(_reparto);
+    }
+
+    private async Task SetRef(string cod, string? valor)
+    {
+        Referencias[cod] = string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+        await ReferenciasChanged.InvokeAsync(Referencias);
+        Recalcular();
+        await RepartoChanged.InvokeAsync(_reparto);
+    }
+
+    private void Recalcular()
+    {
+        _reparto = PreparacionPagoVenta.Calcular(Total, Formas
+            .Where(f => f.Codigo is not null && MontoDe(f.Codigo!) > 0)
+            .Select(f => new PreparacionPagoVenta.LineaPago(
+                f.Codigo!, MontoDe(f.Codigo!),
+                EsEfectivo: f.Efectivo,
+                RequiereReferencia: f.Tarjeta || f.Deposito || f.Cheque,
+                Referencia: RefDe(f.Codigo!))));
+    }
+}

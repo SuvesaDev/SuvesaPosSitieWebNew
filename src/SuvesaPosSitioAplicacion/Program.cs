@@ -389,6 +389,49 @@ app.MapGet("/reportes/cuentas-por-pagar", async (
     return Results.File(bytes, "application/pdf", "cuentas-por-pagar.pdf");
 });
 
+// W6 — estado de cuenta del cliente en PDF, mismo corte que la pantalla.
+app.MapGet("/reportes/estado-cuenta", async (
+    [Microsoft.AspNetCore.Mvc.FromQuery] long idCliente,
+    [Microsoft.AspNetCore.Mvc.FromQuery] DateTime? corte,
+    SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IComandosFacturacion api,
+    IGeneradorPdf pdf) =>
+{
+    if (idCliente <= 0) return Results.BadRequest("Indique el cliente.");
+    var r = await api.EstadoCuenta(idCliente, corte);
+    if (!r.EsCorrecta || r.Responses is null)
+        return Results.Problem(r.Excepcion ?? "No se pudo consultar el estado de cuenta.");
+
+    var e = r.Responses;
+    var filas = e.Detalle
+        .OrderBy(d => d.Vence ?? d.Fecha)
+        .Select(d => (IReadOnlyList<string>)new[]
+        {
+            d.NumFactura.ToString("0"),
+            d.Fecha.ToString("dd/MM/yyyy"),
+            d.Vence?.ToString("dd/MM/yyyy") ?? "—",
+            Formato.Importe((decimal)d.MontoOriginal),
+            Formato.Importe((decimal)d.NotasCreditoAplicadas),
+            Formato.Importe((decimal)d.PagosAplicados),
+            Formato.Importe((decimal)d.SaldoActual),
+        }).ToList();
+
+    var bytes = pdf.Tabla(new ReporteTabular(
+        Titulo: $"Estado de cuenta — {e.Nombre}",
+        Subtitulo: $"Corte {e.FechaCorte:dd/MM/yyyy}  ·  Límite {Formato.Importe((decimal)e.LimiteAprobado)}  ·  "
+                 + $"Saldo {Formato.Importe((decimal)e.SaldoTotal)}  ·  Disponible {Formato.Importe((decimal)e.Disponible)}  ·  "
+                 + $"Antigüedad: por vencer {Formato.Importe((decimal)e.PorVencer)} / "
+                 + $"1-30 {Formato.Importe((decimal)e.Vencido1a30)} / 31-60 {Formato.Importe((decimal)e.Vencido31a60)} / "
+                 + $"61-90 {Formato.Importe((decimal)e.Vencido61a90)} / 91+ {Formato.Importe((decimal)e.Vencido91oMas)}",
+        Encabezados: new[] { "Factura", "Fecha", "Vence", "Original", "NC", "Pagado", "Saldo" },
+        Filas: filas,
+        Totales: new[] { "", "", "", "", "", "Saldo total", Formato.Importe((decimal)e.SaldoTotal) })
+    {
+        ColumnasNumericas = new HashSet<int> { 3, 4, 5, 6 }
+    });
+
+    return Results.File(bytes, "application/pdf", $"estado-cuenta-{idCliente}.pdf");
+});
+
 app.MapGet("/healthz", () => Results.Ok(new { estado = "ok", ola = 0 })).AllowAnonymous();
 
 // Diagnostico de sesion, solo en desarrollo.

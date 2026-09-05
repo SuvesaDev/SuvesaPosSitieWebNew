@@ -7,6 +7,7 @@
 @inject IClientesConsulta Clientes
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
+@inject IJSRuntime JS
 
 @* W6 (PLAN_TIQUETE_RUTAS_FACTURACION_WEB.md): estado de cuenta del cliente a una fecha de
    corte, con antigüedad de saldos. Fuente única: GET api/cobros/estado-cuenta/{id}. Sin
@@ -51,6 +52,16 @@
 
         @if (_estado is not null)
         {
+            <div class="d-flex gap-2 mb-3">
+                <a class="btn btn-sm btn-outline-primary" target="_blank"
+                   href="@($"/reportes/estado-cuenta?idCliente={_cliente!.Identificacion}&corte={_corte:yyyy-MM-dd}")">
+                    <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Descargar PDF
+                </a>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="DescargarCsv">
+                    <i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>Descargar CSV
+                </button>
+            </div>
+
             <div class="row g-3 mb-3">
                 @foreach (var (t, v, dst) in new[] {
                     ("Límite aprobado", _estado.LimiteAprobado, false),
@@ -158,4 +169,25 @@
 
     private bool EsVencida(SuvesaPosSitioAplicacion.DTOs.Fiscal.FacturaCreditoConSaldoDTO f)
         => (f.Vence ?? f.Fecha).Date < _corte.Date;
+
+    private async Task DescargarCsv()
+    {
+        if (_estado is null) return;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Factura;Fecha;Vence;Original;NC;Pagado;Saldo;EstadoMH");
+        foreach (var d in _estado.Detalle.OrderBy(x => x.Vence ?? x.Fecha))
+            sb.AppendLine(string.Join(';', new[]
+            {
+                d.NumFactura.ToString("0"),
+                d.Fecha.ToString("yyyy-MM-dd"),
+                d.Vence?.ToString("yyyy-MM-dd") ?? "",
+                ((decimal)d.MontoOriginal).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ((decimal)d.NotasCreditoAplicadas).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ((decimal)d.PagosAplicados).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ((decimal)d.SaldoActual).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                d.EstadoMh ?? "",
+            }));
+        await JS.InvokeVoidAsync("seepos.descargarTexto",
+            $"estado-cuenta-{_cliente!.Identificacion}-{_corte:yyyyMMdd}.csv", sb.ToString(), "text/csv;charset=utf-8");
+    }
 }
