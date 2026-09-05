@@ -28,7 +28,6 @@ public sealed class PlantillaImpresionDTO
     public byte? AnchoRolloMm { get; set; }
     public bool Activa { get; set; } = true;
     public string ConfiguracionJson { get; set; } = "";
-    public string? LogoOverrideBase64 { get; set; }
 }
 
 /// <summary>Una columna del catálogo de detalle de un tipo.</summary>

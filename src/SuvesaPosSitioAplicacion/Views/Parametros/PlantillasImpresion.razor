@@ -119,6 +119,16 @@
 
                     <div class="accordion" id="acc">
                         <ZonaAccordion Id="enc" Titulo="Encabezado">
+                            <div class="alert @(_logoEmisor?.TieneLogo == true ? "alert-success" : "alert-warning") small py-2">
+                                @if (_logoEmisor?.TieneLogo == true)
+                                {
+                                    <span><i class="bi bi-image me-1" aria-hidden="true"></i>Logo oficial disponible: <strong>@_logoEmisor.NombreArchivo</strong>. Esta plantilla solo decide cómo mostrarlo.</span>
+                                }
+                                else
+                                {
+                                    <span>El emisor no tiene logo configurado. <a href="/parameters/issuers">Administrar logo del emisor</a>.</span>
+                                }
+                            </div>
                             <div class="form-check"><input id="mlogo" class="form-check-input" type="checkbox" @bind="_cfg.Encabezado.MostrarLogo" /><label class="form-check-label" for="mlogo">Mostrar logo</label></div>
                             <div class="row g-2 my-1">
                                 <div class="col-6"><label class="form-label small">Alineación logo</label>

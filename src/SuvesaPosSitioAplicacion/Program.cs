@@ -296,6 +296,17 @@ app.MapGet("/cuenta/salir", async (HttpContext ctx, IServicioAutenticacion auth)
 
 app.MapGet("/favicon.ico", () => Results.Redirect("/favicon.png")).AllowAnonymous();
 
+// Miniatura del logo del emisor. El navegador nunca recibe el token del API:
+// esta ruta BFF transmite el binario ya autorizado desde el servidor.
+app.MapGet("/emisores/{idEmisor:int}/logo", async (int idEmisor, IEmisoresFiscales api) =>
+{
+    var r = await api.DescargarLogo(idEmisor);
+    if (!r.EsCorrecta || r.Responses is not { Contenido.Length: > 0 } logo)
+        return Results.NotFound();
+
+    return Results.File(logo.Contenido, logo.MimeType, enableRangeProcessing: false);
+});
+
 // PDF de representación gráfica de un documento (MOTOR_PLANTILLAS_IMPRESION_WEB.md §4).
 // El render vive en el API; este endpoint solo reenvía con el token y hace stream.
 app.MapGet("/documentos/{tipo}/{id:long}/pdf", async (

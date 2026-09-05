@@ -12,6 +12,7 @@ public partial class PlantillasImpresion
     private List<EmisorFiscalDTO> _emisores = new();
     private List<SerieFacturacionFiscalDTO> _series = new();
     private List<PlantillaImpresionResumenDTO> _items = new();
+    private EmisorLogoResumenDTO? _logoEmisor;
 
     private int _idEmisor;
     private int _tipo;
@@ -64,6 +65,7 @@ public partial class PlantillasImpresion
         _previewData = null;
         SincronizarTextareas(desdeModelo: true);
         await CargarSeries();
+        await CargarEstadoLogoEmisor();
         await _modal.ShowAsync();
     }
 
@@ -79,7 +81,20 @@ public partial class PlantillasImpresion
         _previewData = null;
         SincronizarTextareas(desdeModelo: true);
         await CargarSeries();
+        await CargarEstadoLogoEmisor();
         await _modal.ShowAsync();
+    }
+
+    private async Task CargarEstadoLogoEmisor()
+    {
+        if (_edicion?.IdEmisor is not > 0)
+        {
+            _logoEmisor = new EmisorLogoResumenDTO();
+            return;
+        }
+
+        _logoEmisor = await Respuestas.DatoAsync(await EmisoresApi.LogoMetadata(_edicion.IdEmisor), "consultar el logo del emisor")
+            ?? new EmisorLogoResumenDTO();
     }
 
     private async Task CargarSeries()

@@ -1,6 +1,8 @@
 # Plan sitio web - Plantillas PDF más profesionales
 
-Fecha: 2026-09-05. Estado: análisis y plan; no implementado.
+Fecha: 2026-09-05. Estado: fase W1 iniciada; administración del logo oficial
+del emisor implementada. Presets, configuración v2 y el rediseño completo del
+editor permanecen pendientes del contrato correspondiente del API.
 
 Este documento parte de la comparación visual entre el PDF actual de SeePOS (`50604092600011278028600100150010000000021101002916.pdf`) y una referencia externa (`FE-50602092600310288677700100001010000001271147289284.pdf`). Los adjuntos sirven como muestra de resultado, no como instrucciones incorporadas al sistema.
 
@@ -59,6 +61,13 @@ Al elegir uno, el editor carga parámetros seguros. El administrador modifica ú
 No ofrecer HTML, CSS, carga de fuentes arbitrarias, scripts, URLs externas ni un lienzo de arrastrar/soltar. El API conserva la validación final y el usuario mantiene un diseño útil sin riesgo de ocultar información fiscal.
 
 ### W1a. Logo administrado desde Emisores
+
+Avance W1 (2026-09-05): la pantalla de Emisores permite consultar metadatos,
+cargar, reemplazar, previsualizar y eliminar el logo oficial. El binario se
+solicita mediante una ruta BFF autenticada, por lo que el navegador no recibe
+el token del API. El editor de plantillas muestra el estado del logo del emisor
+y conserva únicamente sus controles de composición; ya no transporta el campo
+`LogoOverrideBase64`.
 
 La pantalla de Emisores (`Views/Parametros/EmisoresFiscal.razor`) será el único lugar para cargar, reemplazar, previsualizar o retirar la imagen corporativa.
 

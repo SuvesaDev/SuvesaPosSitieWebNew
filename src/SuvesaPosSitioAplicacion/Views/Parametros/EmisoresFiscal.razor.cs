@@ -7,6 +7,65 @@ namespace SuvesaPosSitioAplicacion.Views.Parametros;
 
 public partial class EmisoresFiscal
 {
+    private const long TamanoMaximoLogo = 2 * 1024 * 1024;
+    private EmisorLogoResumenDTO? _logo;
+
+    private string UrlLogo => _publico is { Id: > 0 } && _logo?.TieneLogo == true
+        ? $"/emisores/{_publico.Id}/logo?v={Uri.EscapeDataString(_logo.HashSha256 ?? string.Empty)}"
+        : string.Empty;
+
+    private async Task CargarEstadoLogo(int idEmisor)
+        => _logo = await Respuestas.DatoAsync(await Api.LogoMetadata(idEmisor), "consultar el logo del emisor")
+            ?? new EmisorLogoResumenDTO();
+
+    private async Task CargarLogo(InputFileChangeEventArgs evento)
+    {
+        if (_publico is null) return;
+        var archivo = evento.File;
+        if (archivo.Size <= 0 || archivo.Size > TamanoMaximoLogo)
+        {
+            await Dialogos.ErrorAsync("El logo debe medir como máximo 2 MB.", "Logo del emisor");
+            return;
+        }
+
+        if (archivo.ContentType is not ("image/png" or "image/jpeg"))
+        {
+            await Dialogos.ErrorAsync("Seleccione una imagen PNG o JPEG.", "Logo del emisor");
+            return;
+        }
+
+        try
+        {
+            await using var flujo = archivo.OpenReadStream(TamanoMaximoLogo);
+            using var memoria = new MemoryStream();
+            await flujo.CopyToAsync(memoria);
+            var logo = await Respuestas.DatoAsync(await Api.GuardarLogo(_publico.Id, new EmisorLogoActualizarDTO
+            {
+                NombreArchivo = archivo.Name,
+                MimeType = archivo.ContentType,
+                ContenidoBase64 = Convert.ToBase64String(memoria.ToArray())
+            }), "guardar el logo del emisor");
+            if (logo is null) return;
+
+            _logo = logo;
+            Dialogos.Exito("Logo del emisor actualizado.");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException)
+        {
+            await Dialogos.ErrorAsync("No se pudo leer el archivo del logo.", "Logo del emisor");
+        }
+    }
+
+    private async Task EliminarLogo()
+    {
+        if (_publico is null || !await Dialogos.ConfirmarPeligroAsync("¿Eliminar el logo oficial de este emisor? Los nuevos documentos se generarán sin logo.", "Logo del emisor")) return;
+        if (await Respuestas.CorrectaAsync(await Api.EliminarLogo(_publico.Id), "eliminar el logo del emisor"))
+        {
+            _logo = new EmisorLogoResumenDTO();
+            Dialogos.Exito("Logo del emisor eliminado.");
+        }
+    }
+
     // ---- Actividades económicas en el modal de datos públicos (edición) ----
     private string _actCodigo = string.Empty;
     private string _actDescripcion = string.Empty;
@@ -167,6 +226,10 @@ public partial class EmisoresFiscal
     {
         if (_catalogosCargados)
         {
+            if (_publico is { Id: > 0 })
+            {
+                await CargarEstadoLogo(_publico.Id);
+            }
             return;
         }
 
@@ -180,6 +243,10 @@ public partial class EmisoresFiscal
                    ?.ToList() ?? new List<Moneda>();
 
         _catalogosCargados = true;
+        if (_publico is { Id: > 0 })
+        {
+            await CargarEstadoLogo(_publico.Id);
+        }
     }
 
     private async Task AlCambiarProvincia()
