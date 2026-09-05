@@ -21,6 +21,10 @@ public interface IComandosFacturacion
     /// <summary>Tiquete: cobra el 100% y confirma en la misma operación.</summary>
     Task<ResponseGeneric<ResultadoOperacionFacturacionDTO>> CobrarVentaTiquete(FacturaDTO venta, string? claveIdempotencia);
 
+    /// <summary>W5: cobra y factura una preventa de contado existente en una sola llamada
+    /// idempotente (reemplaza Cobrar → FacturarPreventa → Emitir de la vista).</summary>
+    Task<ResponseGeneric<FacturarPreventaContadoResultadoDTO>> FacturarPreventaContado(FacturarPreventaContadoComandoDTO comando);
+
     /// <summary>Estado de cuenta del cliente a una fecha de corte (null = hoy).</summary>
     Task<ResponseGeneric<EstadoCuentaClienteDTO>> EstadoCuenta(long idCliente, DateTime? corte = null);
 }

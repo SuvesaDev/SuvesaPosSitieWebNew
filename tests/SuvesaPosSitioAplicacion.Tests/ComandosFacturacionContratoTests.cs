@@ -43,6 +43,34 @@ public class ComandosFacturacionContratoTests
     }
 
     [Fact]
+    public void PreventaContado_Comando_SerializaPagosYClave()
+    {
+        var cmd = new FacturarPreventaContadoComandoDTO
+        {
+            ClaveIdempotencia = "lote:700", IdPreventa = 700, Usuario = "cajero", IdApertura = 5, IdSucursal = 1,
+            Pagos = new() { new() { FormaPago = "EFE", Monto = 12000m }, new() { FormaPago = "TAR", Monto = 3000m, Referencia = "x" } },
+        };
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(cmd, Web));
+        Assert.Equal(700, doc.RootElement.GetProperty("idPreventa").GetInt64());
+        Assert.Equal(2, doc.RootElement.GetProperty("pagos").GetArrayLength());
+        Assert.Equal("EFE", doc.RootElement.GetProperty("pagos")[0].GetProperty("formaPago").GetString());
+    }
+
+    [Fact]
+    public void PreventaContado_Resultado_Deserializa()
+    {
+        const string cuerpo = """
+        { "idVenta": 700, "numFactura": 55.0, "total": 10000.0, "totalPagado": 12000.0,
+          "vuelto": 2000.0, "estadoFiscal": "NoAplica", "fueReintento": true }
+        """;
+        var r = JsonSerializer.Deserialize<FacturarPreventaContadoResultadoDTO>(cuerpo, Web)!;
+        Assert.Equal(700, r.IdVenta);
+        Assert.Equal(2000m, r.Vuelto);
+        Assert.Equal("NoAplica", r.EstadoFiscal);
+        Assert.True(r.FueReintento);
+    }
+
+    [Fact]
     public void EstadoCuenta_DeserializaTramosYDetalle()
     {
         const string cuerpo = """

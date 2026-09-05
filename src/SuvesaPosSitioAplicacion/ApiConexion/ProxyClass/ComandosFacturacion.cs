@@ -26,6 +26,11 @@ public sealed class ComandosFacturacion : ProxyBase, IComandosFacturacion
     public Task<ResponseGeneric<ResultadoOperacionFacturacionDTO>> CobrarVentaTiquete(FacturaDTO venta, string? claveIdempotencia)
         => Comando("api/facturacion/tiquetes", venta, claveIdempotencia, "cobrar el tiquete");
 
+    public Task<ResponseGeneric<FacturarPreventaContadoResultadoDTO>> FacturarPreventaContado(FacturarPreventaContadoComandoDTO comando)
+        => Ejecutar(async () => await Leer<FacturarPreventaContadoResultadoDTO>(
+            await _api.PostAsJsonAsync("api/venta-orquestada/facturar-preventa-contado", comando, Json)),
+            "cobrar y facturar la preventa de contado");
+
     public Task<ResponseGeneric<EstadoCuentaClienteDTO>> EstadoCuenta(long idCliente, DateTime? corte = null)
         => Ejecutar(async () =>
         {

@@ -50,6 +50,38 @@ public sealed class FacturaCreditoConSaldoDTO
     public string? EstadoMh { get; set; }
 }
 
+// ---- W5: cobrar + facturar una preventa de contado existente en una sola llamada ----
+// POST api/venta-orquestada/facturar-preventa-contado
+
+public sealed class PagoPreventaContadoDTO
+{
+    public string FormaPago { get; set; } = "";
+    public decimal Monto { get; set; }
+    public string? Referencia { get; set; }
+}
+
+public sealed class FacturarPreventaContadoComandoDTO
+{
+    public string? ClaveIdempotencia { get; set; }
+    public long IdPreventa { get; set; }
+    public string Usuario { get; set; } = "";
+    public long? IdApertura { get; set; }
+    public int? IdSucursal { get; set; }
+    public string? CedulaCajero { get; set; }
+    public List<PagoPreventaContadoDTO> Pagos { get; set; } = new();
+}
+
+public sealed class FacturarPreventaContadoResultadoDTO
+{
+    public long IdVenta { get; set; }
+    public double NumFactura { get; set; }
+    public decimal Total { get; set; }
+    public decimal TotalPagado { get; set; }
+    public decimal Vuelto { get; set; }
+    public string EstadoFiscal { get; set; } = "NoAplica";
+    public bool FueReintento { get; set; }
+}
+
 /// <summary>Estado de cuenta del cliente a una fecha de corte, con antigüedad de saldos.</summary>
 public sealed class EstadoCuentaClienteDTO
 {

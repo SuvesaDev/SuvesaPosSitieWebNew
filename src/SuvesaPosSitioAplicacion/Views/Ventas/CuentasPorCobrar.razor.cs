@@ -35,6 +35,7 @@ public partial class CuentasPorCobrar
     private List<FormasPagoDTO> _formasPago = new();
     private readonly Dictionary<string, decimal> _montos = new();
     private decimal _aCobrar, _entregado, _cambio;
+    private string? _claveLote;
     private bool _procesando;
 
     // --- Resultado ---
@@ -247,14 +248,15 @@ public partial class CuentasPorCobrar
 
         _procesando = true;
         _resultados.Clear();
+        // Clave de idempotencia por lote: reintentar el lote reutiliza la clave por
+        // preventa, así una preventa ya cobrada no se vuelve a cobrar.
+        _claveLote ??= Guid.NewGuid().ToString("N");
 
         // Reparto en cascada: cada forma de pago cubre las preventas por orden
-        // de fecha hasta agotarse; el vuelto del efectivo se asigna a la última.
+        // de fecha hasta agotarse; la última preventa se lleva el remanente (y su vuelto).
         var restantePorForma = _formasPago
             .Where(f => f.Codigo is not null)
             .ToDictionary(f => f.Codigo!, f => _montos.TryGetValue(f.Codigo!, out var m) ? m : 0m);
-
-        var dolar = _monedas.FirstOrDefault(m => (m.MonedaNombre ?? string.Empty).Contains("DOL", StringComparison.OrdinalIgnoreCase));
 
         for (var i = 0; i < seleccionadas.Count; i++)
         {
@@ -264,7 +266,8 @@ public partial class CuentasPorCobrar
             var fila = new FilaResultado { Id = p.Id, NumFactura = p.NumFactura, Slug = p.SlugImpresion };
             _resultados.Add(fila);
 
-            var cobros = new List<CobroDocumentosDTO>();
+            // Reparto de lo recibido para ESTA preventa; la última se lleva todo lo que quede.
+            var pagos = new List<SuvesaPosSitioAplicacion.DTOs.Fiscal.PagoPreventaContadoDTO>();
             var cubierto = 0m;
             foreach (var f in _formasPago.Where(x => x.Codigo is not null))
             {
@@ -277,68 +280,43 @@ public partial class CuentasPorCobrar
 
                 restantePorForma[f.Codigo!] -= aplica;
                 cubierto += aplica;
-
-                cobros.Add(new CobroDocumentosDTO
-                {
-                    Documento = double.TryParse(p.NumFactura, out var doc) ? doc : p.Id,
-                    TipoDocumento = p.TipoFacturaDescripcion,
-                    MontoPago = (double)aplica,
-                    FormaPago = f.Codigo,
-                    Usuario = Sesion.Usuario,
-                    Nombre = _usuario?.Nombre,
-                    CodMoneda = p.CodMoneda == 0 ? 1 : p.CodMoneda,
-                    Nombremoneda = p.Moneda,
-                    TipoCambio = p.CodMoneda == 2 ? (double)Formato.AImporte(dolar?.ValorCompra ?? 0) : 0,
-                    Fecha = DateTime.Today.ToString("yyyy-MM-dd"),
-                    Numapertura = _numApertura,
-                    Vuelto = esUltima && f.Codigo == CodigoEfectivo ? (double)_cambio : 0,
-                    IdDocumento = p.Id,
-                    IdSucursal = Sesion.IdSucursal,
-                    CodCliente = _codCliente,
-                });
+                pagos.Add(new() { FormaPago = f.Codigo!, Monto = aplica });
 
                 if (!esUltima && cubierto >= totalDoc) break;
             }
 
-            if (cobros.Count == 0)
+            if (pagos.Count == 0)
             {
                 fila.Error = "Sin monto asignado.";
                 continue;
             }
 
-            if (!await Respuestas.CorrectaAsync(await Api.Cobrar(cobros), "registrar el cobro"))
+            // W5: una sola llamada idempotente — cobra, marca cobrada y factura la preventa.
+            // La emisión a Hacienda la toma el worker (la señal se pulsa en el API).
+            var comando = new SuvesaPosSitioAplicacion.DTOs.Fiscal.FacturarPreventaContadoComandoDTO
             {
-                fila.Error = "No se registró el cobro.";
-                continue;
-            }
-
-            var fac = await Api.FacturarPreventa(p.Id);
-            if (!fac.EsCorrecta)
+                ClaveIdempotencia = $"{_claveLote}:{p.Id}",
+                IdPreventa = p.Id,
+                Usuario = Sesion.Usuario ?? _usuario?.Nombre ?? "",
+                IdApertura = _numApertura,
+                IdSucursal = Sesion.IdSucursal,
+                CedulaCajero = _usuario?.Nombre,
+                Pagos = pagos,
+            };
+            var res = await Respuestas.DatoAsync(await Comandos.FacturarPreventaContado(comando), "cobrar y facturar la preventa");
+            if (res is null)
             {
-                fila.Error = fac.Excepcion ?? "No se pudo facturar.";
+                fila.Error = "No se pudo cobrar/facturar.";
                 continue;
             }
             fila.Facturada = true;
-
-            // Emisión a Hacienda: síncrona si la serie está habilitada para V4.4.
-            if (p.EmisionV44Habilitada && p.CodigoFe is "01" or "04")
-            {
-                var emi = p.CodigoFe == "04"
-                    ? await Preventas.EmitirTiquete(p.Id)
-                    : await Preventas.EmitirFactura(p.Id);
-                fila.EstadoHacienda = emi.EsCorrecta && emi.Responses is not null
-                    ? (emi.Responses.EsValido ? (emi.Responses.Estado ?? "Enviado") : $"Error: {string.Join(" ", emi.Responses.Errores)}")
-                    : (emi.Excepcion ?? "No se pudo emitir");
-            }
-            else
-            {
-                fila.EstadoHacienda = "Automático (worker)";
-            }
+            fila.EstadoHacienda = res.EstadoFiscal == "NoAplica" ? "Interno (sin Hacienda)" : "En proceso (worker)";
         }
 
         _procesando = false;
 
         var ok = _resultados.Count(r => r.Facturada);
+        if (ok == seleccionadas.Count) _claveLote = null; // lote completo: el próximo usa clave nueva
         if (ok > 0)
         {
             Dialogos.Exito($"{ok} preventa(s) cobrada(s) y facturada(s).");
@@ -365,5 +343,6 @@ public partial class CuentasPorCobrar
         _montos.Clear();
         _resultados.Clear();
         _aCobrar = _entregado = _cambio = 0;
+        _claveLote = null;
     }
 }
