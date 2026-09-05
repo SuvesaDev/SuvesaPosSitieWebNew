@@ -57,6 +57,17 @@ else
         if (evento.Key == "Enter") await Validar();
     }
 
+    private static bool CoincideNombre(string? a, string? b)
+    {
+        static string N(string? s) => new string((s ?? "")
+            .Trim()
+            .Normalize(System.Text.NormalizationForm.FormD)
+            .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
+            .ToArray())
+            .ToUpperInvariant();
+        return N(a).Length > 0 && N(a) == N(b);
+    }
+
     private async Task Validar()
     {
         if (_validando || string.IsNullOrWhiteSpace(_clave)) return;
@@ -71,9 +82,11 @@ else
         if (RequiereCajaAbierta)
         {
             var abiertas = await Respuestas.DatoAsync(await Caja.CajerosConCajaAbierta(), "consultar la caja abierta");
-            // Emparejar por Id (fiable); el nombre puede venir con distinto formato.
-            var mia = (usuario.Id > 0 ? abiertas?.FirstOrDefault(c => c.Id == usuario.Id) : null)
-                      ?? abiertas?.FirstOrDefault(c => string.Equals((c.Nombre ?? "").Trim(), (usuario.Nombre ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
+            // El Id de CajerosConCajaAbierta se deriva del login (no es la PK que devuelve
+            // ValidarClaveInterna), así que el emparejamiento fiable es por nombre —
+            // recortado, sin distinción de mayúsculas ni tildes. El Id queda como respaldo.
+            var mia = abiertas?.FirstOrDefault(c => CoincideNombre(c.Nombre, usuario.Nombre))
+                      ?? (usuario.Id > 0 ? abiertas?.FirstOrDefault(c => c.Id == usuario.Id) : null);
             if (mia is null)
             {
                 _validando = false;
