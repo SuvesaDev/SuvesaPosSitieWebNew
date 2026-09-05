@@ -4,6 +4,7 @@
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.ApiConexion
 @using SuvesaPosSitioAplicacion.DTOs.Lotes
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @using System.Text.Json
 @inject IInventarioConsulta Api
@@ -16,6 +17,7 @@
 @inject IArticulosRelacionados Relacionados
 @inject ICatalogosInventario Catalogos
 @inject ICatalogoBonificacion CatalogoBonificacion
+@inject IImpuestosFiscales ImpuestosApi
 @inject IArticuloBonificacion ArticuloBonificacion
 
 @*  RUTA DEL MENU, no una propia.
@@ -504,7 +506,16 @@
                             <div class="col-12 col-md-4"><label class="form-label">Fletes</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Fletes" /></div>
                             <div class="col-12 col-md-4"><label class="form-label">Otros cargos</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.OtrosCargos" /></div>
                         }
-                        <div class="col-12 col-md-4"><label class="form-label">Impuesto (%)</label><input type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.IVenta" /></div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">Impuesto</label>
+                            <select class="form-select" @bind="_edicion.Id_Impuesto" @bind:after="AlCambiarImpuesto">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var i in _impuestos)
+                                {
+                                    <option value="@i.IdImpuesto">@i.Impuesto1 (@i.Porcentaje%)</option>
+                                }
+                            </select>
+                        </div>
                         <div class="col-12 col-md-4"><label class="form-label">Tarifa</label><select class="form-select" @bind="_tarifaPrecio"><option value="A">Precio A</option><option value="B">Precio B</option><option value="C">Precio C</option><option value="D">Precio D</option><option value="P">Promoción</option></select></div>
                         <div class="col-12 col-md-4"><label class="form-label">Utilidad (%)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_utilidadPrecio" /></div>
                         <div class="col-12 col-md-4 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="CalcularPrecio">Calcular precio</button></div>
@@ -984,6 +995,7 @@
     private DateTime _vencimientoLote = DateTime.Today;
     private double _cantidadNuevoLote;
     private List<SubFamiliasFilterInventarioDTO> _familias = new();
+    private List<ImpuestoFiscalDTO> _impuestos = new();
     private List<ProveedoresFilterInventarioDTO> _proveedoresInventario = new();
     private List<Presentacione> _presentaciones = new();
     private string _textoCabys = string.Empty;
@@ -1235,6 +1247,12 @@
         if (string.IsNullOrWhiteSpace(_edicion.Cod_Articulo) || string.IsNullOrWhiteSpace(_edicion.Descripcion))
         {
             await Dialogos.ErrorAsync("Código y descripción son obligatorios.");
+            return;
+        }
+
+        if (_edicion.Id_Impuesto <= 0)
+        {
+            await Dialogos.ErrorAsync("Seleccione el impuesto del artículo.");
             return;
         }
 
@@ -1765,6 +1783,17 @@
         _familias = (await Respuestas.DatoAsync(await Catalogos.Familias(), "consultar las familias de inventario"))?.ToList() ?? new();
         _proveedoresInventario = (await Respuestas.DatoAsync(await Catalogos.Proveedores(), "consultar los proveedores de inventario"))?.ToList() ?? new();
         _presentaciones = (await Respuestas.DatoAsync(await Catalogos.Presentaciones(), "consultar las presentaciones"))?.Where(x => x.Estado).ToList() ?? new();
+        _impuestos = (await Respuestas.DatoAsync(await ImpuestosApi.Obtener(), "consultar los impuestos"))?.Where(i => i.Estado != false).ToList() ?? new();
+    }
+
+    /// <summary>El % de venta del artículo viaja aparte (IVenta) para no romper las
+    /// pantallas que ya lo leen directamente (Facturación, Compra, Orden de compra,
+    /// Proforma); se mantiene sincronizado con la tarifa del impuesto elegido.</summary>
+    private void AlCambiarImpuesto()
+    {
+        if (_edicion is null) return;
+        var impuesto = _impuestos.FirstOrDefault(i => i.IdImpuesto == _edicion.Id_Impuesto);
+        _edicion.IVenta = (float)(impuesto?.Porcentaje ?? 0);
     }
 
     private async Task AbrirCabys()
