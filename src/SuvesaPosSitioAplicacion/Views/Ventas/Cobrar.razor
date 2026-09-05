@@ -57,6 +57,15 @@
             </div>
         </div>
 
+        @if (_ultimoDoc > 0)
+        {
+            <div class="alert alert-success d-flex flex-wrap align-items-center gap-2">
+                <span>@_ultimoAviso</span>
+                <BotonImprimir Tipo="@_ultimoSlug" Id="_ultimoDoc" Texto="Ver comprobante (PDF)" Clase="btn-sm btn-outline-success" />
+                <button class="btn btn-sm btn-link" @onclick="Limpiar">Ocultar</button>
+            </div>
+        }
+
         @if (_preventa is not null)
         {
             <div class="row g-3">
@@ -148,6 +157,10 @@
     private decimal _aCobrar, _entregado, _cambio;
     private bool _guardando;
     private string? _claveIdempotencia;
+    // W7: comprobante recuperable tras el último cobro de contado (no re-cobra al abrirlo).
+    private long _ultimoDoc;
+    private string _ultimoSlug = "factura-electronica";
+    private string? _ultimoAviso;
 
     private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
 
@@ -300,10 +313,14 @@
             _guardando = false;
             if (res is null) return; // el error ya se mostró; se conserva la clave para reintentar
             _claveIdempotencia = null;
-            Dialogos.Exito(res.EstadoFiscal == "NoAplica"
+            _ultimoDoc = res.IdVenta;
+            _ultimoSlug = string.Equals(_preventa.TipoFactura, "Tiquete", StringComparison.OrdinalIgnoreCase)
+                ? "tiquete-electronico" : "factura-electronica";
+            _ultimoAviso = res.EstadoFiscal == "NoAplica"
                 ? "Cobrado. Documento interno, sin espera de Hacienda."
-                : "Cobrado. Comprobante electrónico en proceso.");
-            Limpiar();
+                : "Cobrado. Comprobante electrónico en proceso.";
+            Dialogos.Exito(_ultimoAviso);
+            LimpiarTrabajo();
             return;
         }
 
@@ -343,7 +360,7 @@
         Limpiar();
     }
 
-    private void Limpiar()
+    private void LimpiarTrabajo()
     {
         _ficha = 0;
         _cedulaCliente = string.Empty;
@@ -353,5 +370,12 @@
         _montosPorForma.Clear();
         _aCobrar = _entregado = _cambio = 0;
         _claveIdempotencia = null;
+    }
+
+    private void Limpiar()
+    {
+        LimpiarTrabajo();
+        _ultimoDoc = 0;
+        _ultimoAviso = null;
     }
 }
