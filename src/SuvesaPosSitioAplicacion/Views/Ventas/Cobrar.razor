@@ -3,6 +3,7 @@
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ICobros Api
+@inject IComandosFacturacion Comandos
 @inject ICajaOperaciones Caja
 @inject ICompras Compras
 @inject IManejadorRespuestas Respuestas
@@ -146,6 +147,7 @@
     private readonly Dictionary<string, decimal> _montosPorForma = new();
     private decimal _aCobrar, _entregado, _cambio;
     private bool _guardando;
+    private string? _claveIdempotencia;
 
     private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
 
@@ -274,6 +276,38 @@
         var dolar = _monedas.FirstOrDefault(m => (m.MonedaNombre ?? string.Empty).Contains("DOL", StringComparison.OrdinalIgnoreCase));
         var esCredito = string.Equals(_preventa.TipoFactura, "Credito", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(_preventa.TipoFactura);
 
+        if (!esCredito)
+        {
+            // W5: preventa de contado — una sola llamada idempotente cobra + factura.
+            _claveIdempotencia ??= Guid.NewGuid().ToString("N");
+            var cmd = new SuvesaPosSitioAplicacion.DTOs.Fiscal.FacturarPreventaContadoComandoDTO
+            {
+                ClaveIdempotencia = _claveIdempotencia,
+                IdPreventa = _preventa.Id,
+                Usuario = Sesion.Usuario ?? _usuario?.Nombre ?? "",
+                IdApertura = _numApertura,
+                IdSucursal = Sesion.IdSucursal,
+                CedulaCajero = _usuario?.Nombre,
+                Pagos = _formasPago
+                    .Where(f => f.Codigo is not null && MontoDe(f.Codigo!) > 0)
+                    .Select(f => new SuvesaPosSitioAplicacion.DTOs.Fiscal.PagoPreventaContadoDTO
+                    {
+                        FormaPago = f.Codigo!,
+                        Monto = MontoDe(f.Codigo!),
+                    }).ToList(),
+            };
+            var res = await Respuestas.DatoAsync(await Comandos.FacturarPreventaContado(cmd), "cobrar y facturar la preventa");
+            _guardando = false;
+            if (res is null) return; // el error ya se mostró; se conserva la clave para reintentar
+            _claveIdempotencia = null;
+            Dialogos.Exito(res.EstadoFiscal == "NoAplica"
+                ? "Cobrado. Documento interno, sin espera de Hacienda."
+                : "Cobrado. Comprobante electrónico en proceso.");
+            Limpiar();
+            return;
+        }
+
+        // Crédito: abono a una factura ya emitida (no factura nada).
         var cobros = _formasPago
             .Where(f => f.Codigo is not null && MontoDe(f.Codigo!) > 0)
             .Select(f => new CobroDocumentosDTO
@@ -304,17 +338,6 @@
             return;
         }
 
-        if (!esCredito)
-        {
-            var factura = await Respuestas.DatoAsync(await Api.FacturarPreventa(_preventa.Id), "facturar la preventa");
-            if (factura is null)
-            {
-                _guardando = false;
-                await Dialogos.ErrorAsync("El cobro se registró, pero no se pudo facturar la preventa. Revise el documento manualmente.");
-                return;
-            }
-        }
-
         _guardando = false;
         Dialogos.Exito("Cobro realizado correctamente.");
         Limpiar();
@@ -329,5 +352,6 @@
         _formasPago.Clear();
         _montosPorForma.Clear();
         _aCobrar = _entregado = _cambio = 0;
+        _claveIdempotencia = null;
     }
 }
