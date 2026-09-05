@@ -212,7 +212,7 @@
             <div class="card-header d-flex justify-content-between align-items-center gap-2"><strong>Detalle</strong><div class="btn-group"><button type="button" class="btn btn-sm btn-outline-primary" @onclick="AbrirBuscadorArticulo"><i class="bi bi-list-ul me-1" aria-hidden="true"></i>Buscar artículo</button><button type="button" class="btn btn-sm btn-primary" @onclick="AbrirCatalogoImagenes"><i class="bi bi-camera me-1" aria-hidden="true"></i>Catálogo visual</button></div></div>
             <div class="card-body p-0">
                 @if (_lineas.Count == 0) { <p class="text-secondary text-center py-4 mb-0">Seleccione un cliente y agregue artículos a la factura.</p> }
-                else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Precio</th><th class="text-end">Desc. %</th><th class="text-end">Impuesto</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var linea in _lineas) { <tr><td><code>@linea.Articulo.Cod_Articulo</code></td><td>@linea.Articulo.Descripcion @if (linea.EsDeGrupo) { <span class="badge text-bg-success ms-1">@(linea.EsBonificacion ? "Regalo" : "Bonificación")</span> } @if (!string.IsNullOrWhiteSpace(linea.Lote)) { <small class="text-secondary d-block">Lote: @linea.Lote</small> }</td><td style="min-width:6rem"><input type="number" min="1" step="0.001" class="form-control form-control-sm text-end" disabled="@linea.EsDeGrupo" @bind="linea.Cantidad" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:7rem"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" disabled="@linea.EsDeGrupo" @bind="linea.Precio" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:5rem"><input type="number" min="0" max="@linea.MaxDescuento" step="0.01" class="form-control form-control-sm text-end" disabled="@linea.EsDeGrupo" @bind="linea.Descuento" @bind:after="() => RecalcularLinea(linea)" /></td><td class="text-end">@Formato.Importe(linea.Calculo.MontoImpuesto)</td><td class="text-end fw-semibold">@Formato.Importe(linea.Calculo.Total)</td><td class="text-end">@if (!linea.EsDeGrupo || linea.EsLineaPrincipal) { <button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(linea)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button> } else { <span class="text-secondary small">—</span> }</td></tr> }</tbody></table></div> }
+                else { <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Precio</th><th class="text-end">Desc. %</th><th class="text-end">Impuesto</th><th class="text-end">Total</th><th></th></tr></thead><tbody>@foreach (var linea in _lineas) { <tr><td><code>@linea.Articulo.Cod_Articulo</code></td><td>@linea.Articulo.Descripcion @if (linea.EsDeGrupo) { <span class="badge text-bg-success ms-1">@(linea.EsBonificacion ? "Regalo" : "Bonificación")</span> } @if (!string.IsNullOrWhiteSpace(linea.Lote)) { <small class="text-secondary d-block">Lote: @linea.Lote</small> }</td><td style="min-width:6rem"><input type="number" min="1" step="0.001" class="form-control form-control-sm text-end" disabled="@linea.EsDeGrupo" @bind="linea.Cantidad" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:7rem"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" disabled="@linea.EsDeGrupo" @bind="linea.Precio" @bind:after="() => RecalcularLinea(linea)" /></td><td style="min-width:5rem"><div class="d-flex align-items-center gap-1"><input type="number" min="0" max="@linea.TopeDescuentoEfectivo" step="0.01" class="form-control form-control-sm text-end" disabled="@linea.EsDeGrupo" @bind="linea.Descuento" @bind:after="() => RecalcularLinea(linea)" />@if (Sesion.EsSuperAdministrador && !linea.EsDeGrupo) { <button type="button" class="btn btn-sm btn-link p-0" title="@(linea.SinTopeDescuento ? "Quitar el descuento máximo (" + Formato.Cantidad(linea.MaxDescuento) + "%) para esta línea" : "Superar el descuento máximo (" + Formato.Cantidad(linea.MaxDescuento) + "%) para esta línea")" @onclick="() => AlternarTopeDescuento(linea)"><i class="bi @(linea.SinTopeDescuento ? "bi-unlock-fill text-warning" : "bi-lock-fill text-secondary")" aria-hidden="true"></i></button> }</div></td><td class="text-end">@Formato.Importe(linea.Calculo.MontoImpuesto)</td><td class="text-end fw-semibold">@Formato.Importe(linea.Calculo.Total)</td><td class="text-end">@if (!linea.EsDeGrupo || linea.EsLineaPrincipal) { <button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(linea)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button> } else { <span class="text-secondary small">—</span> }</td></tr> }</tbody></table></div> }
             </div>
         </div>
         </fieldset>
@@ -464,6 +464,11 @@
         public decimal Precio { get; set; }
         public decimal Descuento { get; set; }
         public decimal MaxDescuento { get; init; }
+
+        /// <summary>Un super administrador puede pasar por encima del máximo de
+        /// descuento del artículo para esta línea puntual (ver TopeDescuentoEfectivo).</summary>
+        public bool SinTopeDescuento { get; set; }
+        public decimal TopeDescuentoEfectivo => SinTopeDescuento ? 100m : MaxDescuento;
         public decimal Impuesto { get; init; }
         public long IdLote { get; set; }
         public string? Lote { get; set; }
@@ -1391,18 +1396,37 @@
         linea.Recalcular(); _lineas.Add(linea); RecalcularTodo();
     }
     private decimal PrecioCliente(InventarioDTO articulo) => (_cliente?.Tipoprecio ?? 1) switch { 2 when articulo.Precio_B > 0 => Formato.AImporte(articulo.Precio_B), 3 when articulo.Precio_C > 0 => Formato.AImporte(articulo.Precio_C), 4 when articulo.Precio_D > 0 => Formato.AImporte(articulo.Precio_D), _ => articulo.Promo_Activa && articulo.Promo_Inicio <= DateTime.Today && articulo.Promo_Finaliza >= DateTime.Today ? Formato.AImporte(articulo.Precio_Promo) : Formato.AImporte(articulo.Precio_A) };
+    /// <summary>Solo un super administrador puede pasar por encima del descuento
+    /// máximo del artículo en una línea puntual — es una excepción deliberada, no un
+    /// ajuste de configuración, así que se pide confirmación cada vez.</summary>
+    private async Task AlternarTopeDescuento(LineaVenta linea)
+    {
+        if (!Sesion.EsSuperAdministrador) return;
+        if (linea.SinTopeDescuento)
+        {
+            linea.SinTopeDescuento = false;
+            await RecalcularLinea(linea);
+            return;
+        }
+        if (!await Dialogos.ConfirmarAsync(
+                $"Se permitirá superar el descuento máximo configurado ({Formato.Cantidad(linea.MaxDescuento)}%) para '{linea.Articulo.Descripcion}' en esta factura. ¿Continuar?",
+                "Superar descuento máximo"))
+            return;
+        linea.SinTopeDescuento = true;
+    }
+
     private async Task RecalcularLinea(LineaVenta linea)
     {
         // Las líneas de un grupo de bonificación no admiten editar precio ni descuento.
         if (linea.EsDeGrupo) { linea.Descuento = 0m; if (linea.EsBonificacion) linea.Precio = 0m; }
         linea.Cantidad = Math.Max(1, linea.Cantidad);
         var descuentoTecleado = linea.Descuento;
-        linea.Descuento = Math.Clamp(linea.Descuento, 0, linea.MaxDescuento);
+        linea.Descuento = Math.Clamp(linea.Descuento, 0, linea.TopeDescuentoEfectivo);
         // Sin este aviso, el campo simplemente vuelve al máximo permitido sin
         // explicación — parece que "no se aplicó" el descuento tecleado.
-        if (descuentoTecleado > linea.MaxDescuento)
+        if (descuentoTecleado > linea.TopeDescuentoEfectivo)
         {
-            Dialogos.Advertencia($"El descuento máximo para '{linea.Articulo.Descripcion}' es {Formato.Cantidad(linea.MaxDescuento)}%.");
+            Dialogos.Advertencia($"El descuento máximo para '{linea.Articulo.Descripcion}' es {Formato.Cantidad(linea.TopeDescuentoEfectivo)}%.");
         }
         linea.Recalcular();
         RecalcularTodo();
