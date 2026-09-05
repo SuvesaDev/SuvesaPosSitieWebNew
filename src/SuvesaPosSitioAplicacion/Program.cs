@@ -297,8 +297,7 @@ app.MapGet("/favicon.ico", () => Results.Redirect("/favicon.png")).AllowAnonymou
 // PDF de representación gráfica de un documento (MOTOR_PLANTILLAS_IMPRESION_WEB.md §4).
 // El render vive en el API; este endpoint solo reenvía con el token y hace stream.
 app.MapGet("/documentos/{tipo}/{id:long}/pdf", async (
-    string tipo, long id, string? formato, bool copia,
-    IImpresionDocumentos api) =>
+    string tipo, long id, IImpresionDocumentos api, string? formato, bool copia = false) =>
 {
     var r = await api.Pdf(tipo, id, formato, copia);
     if (!r.EsCorrecta || r.Responses is not { Length: > 0 } bytes)
