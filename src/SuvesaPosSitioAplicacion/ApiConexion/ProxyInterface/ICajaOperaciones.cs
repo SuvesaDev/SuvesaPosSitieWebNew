@@ -1,4 +1,5 @@
 using SuvesaPosSitioAplicacion.DTOs.Generated;
+using SuvesaPosSitioAplicacion.DTOs.Caja;
 using SuvesaPosSitioAplicacion.Helpers;
 
 namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
@@ -7,6 +8,7 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 public interface ICajaOperaciones
 {
     Task<ResponseGeneric<Usuario>> ValidarClaveInterna(string contrasena);
+    Task<ResponseGeneric<UsuarioCajaAbiertaValidadaWebDTO>> ValidarClaveInternaConCajaAbierta(string contrasena);
     Task<ResponseGeneric<ICollection<CajasCantidad>>> CajasDisponibles();
     Task<ResponseGeneric<ICollection<DenominacionMonedum>>> Denominaciones();
     Task<ResponseGeneric<ICollection<User>>> CajerosConCajaAbierta();

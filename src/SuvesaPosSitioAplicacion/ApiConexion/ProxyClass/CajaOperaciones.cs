@@ -1,8 +1,10 @@
 using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
+using SuvesaPosSitioAplicacion.DTOs.Caja;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.Helpers;
 using SuvesaPosSitioAplicacion.Security;
+using System.Net.Http.Json;
 
 namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 
@@ -16,10 +18,12 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
     private readonly ICentrosApiCliente _centros;
     private readonly IUsuarioApiCliente _usuarios;
     private readonly IMonedaApiCliente _moneda;
+    private readonly HttpClient _api;
 
     public CajaOperaciones(
         ICajaApiCliente caja, IArqueoApiCliente arqueo, ICierreCajaApiCliente cierre,
         IBancosApiCliente bancos, ICentrosApiCliente centros, IUsuarioApiCliente usuarios, IMonedaApiCliente moneda,
+        IHttpClientFactory factory,
         IContextoSesion sesion, ILogger<CajaOperaciones> log) : base(sesion, log)
     {
         _caja = caja;
@@ -29,6 +33,7 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         _centros = centros;
         _usuarios = usuarios;
         _moneda = moneda;
+        _api = factory.CreateClient("SeePosApi");
     }
 
     public Task<ResponseGeneric<Usuario>> ValidarClaveInterna(string contrasena) => Ejecutar(async () =>
@@ -38,6 +43,11 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
             ? EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses)
             : new ResponseGeneric<Usuario>("Contraseña incorrecta.");
     }, "validar la clave interna de caja");
+
+    public Task<ResponseGeneric<UsuarioCajaAbiertaValidadaWebDTO>> ValidarClaveInternaConCajaAbierta(string contrasena)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<UsuarioCajaAbiertaValidadaWebDTO>(
+            await _api.PostAsJsonAsync("Caja/ValidarClaveInternaConCajaAbierta", new { contrasena })),
+            "validar la clave interna y la caja abierta");
 
     public Task<ResponseGeneric<ICollection<CajasCantidad>>> CajasDisponibles() => Ejecutar(async () =>
     {

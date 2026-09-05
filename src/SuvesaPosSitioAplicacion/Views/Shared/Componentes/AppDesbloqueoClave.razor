@@ -1,9 +1,7 @@
 @using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
 @using SuvesaPosSitioAplicacion.Services
-@using SuvesaPosSitioAplicacion.Security
 @inject ICajaOperaciones Caja
 @inject IManejadorRespuestas Respuestas
-@inject IContextoSesion Sesion
 
 @if (!Desbloqueado)
 {
@@ -59,51 +57,44 @@ else
         if (evento.Key == "Enter") await Validar();
     }
 
-    private static bool CoincideNombre(string? a, string? b)
-    {
-        static string N(string? s) => new string((s ?? "")
-            .Trim()
-            .Normalize(System.Text.NormalizationForm.FormD)
-            .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
-            .ToArray())
-            .ToUpperInvariant();
-        return N(a).Length > 0 && N(a) == N(b);
-    }
-
     private async Task Validar()
     {
         if (_validando || string.IsNullOrWhiteSpace(_clave)) return;
         _validando = true;
         _error = null;
+
+        // Cobrar requiere saber que la MISMA persona de la clave es quien abrió
+        // caja. Esta operación es atómica en el API: no compara desde la web la
+        // PK de Usuario con el identificador estable del login de Aperturacaja.
+        if (RequiereCajaAbierta)
+        {
+            var resultado = await Caja.ValidarClaveInternaConCajaAbierta(_clave);
+            _clave = string.Empty;
+            _validando = false;
+
+            if (!resultado.EsCorrecta || resultado.Responses is null)
+            {
+                _error = resultado.Excepcion ?? "No se pudo validar la caja abierta de este usuario.";
+                return;
+            }
+
+            UsuarioValidado = new Usuario
+            {
+                Id = resultado.Responses.IdUsuario,
+                IdUsuario = resultado.Responses.Login,
+                Nombre = resultado.Responses.Nombre,
+            };
+            NumApertura = resultado.Responses.NumeroApertura;
+            Desbloqueado = true;
+            await AlCambiar.InvokeAsync(true);
+            return;
+        }
+
         var usuario = await Respuestas.DatoAsync(await Caja.ValidarClaveInterna(_clave), "validar la clave interna");
         if (usuario is null) { _validando = false; _clave = string.Empty; return; }
 
         UsuarioValidado = usuario;
         NumApertura = 0;
-
-        if (RequiereCajaAbierta)
-        {
-            var abiertas = await Respuestas.DatoAsync(await Caja.CajerosConCajaAbierta(), "consultar la caja abierta");
-            // El Id de CajerosConCajaAbierta se deriva del login (no es la PK que devuelve
-            // ValidarClaveInterna), así que el emparejamiento fiable es por nombre —
-            // recortado, sin distinción de mayúsculas ni tildes. Se prueba contra el
-            // nombre y el login del usuario validado y contra Sesion.Usuario (el login
-            // con que se abrió la caja desde el sitio). El Id queda como respaldo.
-            bool Calza(User c) =>
-                CoincideNombre(c.Nombre, usuario.Nombre)
-                || CoincideNombre(c.Nombre, usuario.IdUsuario)
-                || CoincideNombre(c.Nombre, Sesion.Usuario)
-                || (usuario.Id > 0 && c.Id == usuario.Id);
-            var mia = abiertas?.FirstOrDefault(Calza);
-            if (mia is null)
-            {
-                _validando = false;
-                _clave = string.Empty;
-                _error = "Este usuario no tiene ninguna caja abierta.";
-                return;
-            }
-            NumApertura = mia.IdApertura;
-        }
 
         _validando = false;
         _clave = string.Empty;
