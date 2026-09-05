@@ -61,7 +61,7 @@
         {
             <div class="alert alert-success d-flex flex-wrap align-items-center gap-2">
                 <span>@_ultimoAviso</span>
-                <BotonImprimir Tipo="@_ultimoSlug" Id="_ultimoDoc" Texto="Ver comprobante (PDF)" Clase="btn-sm btn-outline-success" />
+                <VisorPdf Tipo="@_ultimoSlug" Id="_ultimoDoc" Texto="Ver comprobante (PDF)" Titulo="Comprobante de venta" Clase="btn-sm btn-outline-success" />
                 <button class="btn btn-sm btn-link" @onclick="Limpiar">Ocultar</button>
             </div>
         }

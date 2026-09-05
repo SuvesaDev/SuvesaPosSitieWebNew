@@ -1,0 +1,49 @@
+@using Havit.Blazor.Components.Web.Bootstrap
+
+@* W7 (PLAN_TIQUETE_RUTAS_FACTURACION_WEB.md): visor de PDF embebido, alternativa a abrir
+   una pestaña nueva (que los bloqueadores de la tablet pueden frenar). Apunta al mismo
+   endpoint local /documentos/{tipo}/{id}/pdf; no re-emite ni re-cobra. *@
+
+@if (Id > 0)
+{
+    <button class="btn @Clase" @onclick="Abrir" title="@Titulo">
+        <i class="bi bi-file-earmark-pdf @(SoloIcono ? "" : "me-1")" aria-hidden="true"></i>@(SoloIcono ? "" : Texto)
+    </button>
+
+    <HxModal @ref="_modal" Title="@Titulo" Size="ModalSize.ExtraLarge" Scrollable="true">
+        <BodyTemplate>
+            @if (_abierto)
+            {
+                <iframe src="@Href" style="width:100%;height:75vh;border:0" title="@Titulo"></iframe>
+            }
+        </BodyTemplate>
+        <FooterTemplate>
+            <a class="btn btn-outline-primary" href="@Href" target="_blank" rel="noopener">Abrir en pestaña</a>
+            <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cerrar</button>
+        </FooterTemplate>
+    </HxModal>
+}
+
+@code {
+    /// <summary>Slug del tipo: factura-electronica, tiquete-electronico, nota-credito, recibo-cobro, ...</summary>
+    [Parameter, EditorRequired] public string Tipo { get; set; } = "";
+    [Parameter, EditorRequired] public long Id { get; set; }
+    [Parameter] public string? Formato { get; set; }
+    [Parameter] public string Texto { get; set; } = "Ver PDF";
+    [Parameter] public string Titulo { get; set; } = "Comprobante";
+    [Parameter] public string Clase { get; set; } = "btn-sm btn-outline-primary";
+    [Parameter] public bool SoloIcono { get; set; }
+
+    private HxModal _modal = default!;
+    private bool _abierto;
+
+    private string Href => string.IsNullOrWhiteSpace(Formato)
+        ? $"/documentos/{Uri.EscapeDataString(Tipo)}/{Id}/pdf"
+        : $"/documentos/{Uri.EscapeDataString(Tipo)}/{Id}/pdf?formato={Uri.EscapeDataString(Formato)}";
+
+    private async Task Abrir()
+    {
+        _abierto = true;
+        await _modal.ShowAsync();
+    }
+}

@@ -7,6 +7,7 @@
 @inject IClientesConsulta Clientes
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
 @inject IJSRuntime JS
 
 @* W6 (PLAN_TIQUETE_RUTAS_FACTURACION_WEB.md): estado de cuenta del cliente a una fecha de
@@ -53,13 +54,19 @@
         @if (_estado is not null)
         {
             <div class="d-flex gap-2 mb-3">
-                <a class="btn btn-sm btn-outline-primary" target="_blank"
-                   href="@($"/reportes/estado-cuenta?idCliente={_cliente!.Identificacion}&corte={_corte:yyyy-MM-dd}")">
-                    <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Descargar PDF
-                </a>
-                <button class="btn btn-sm btn-outline-secondary" @onclick="DescargarCsv">
-                    <i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>Descargar CSV
-                </button>
+                @if (Sesion.Puede("VENTAS.ABONO_COBRAR", AccionPantalla.Imprimir))
+                {
+                    <a class="btn btn-sm btn-outline-primary" target="_blank"
+                       href="@($"/reportes/estado-cuenta?idCliente={_cliente!.Identificacion}&corte={_corte:yyyy-MM-dd}")">
+                        <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Descargar PDF
+                    </a>
+                }
+                @if (Sesion.Puede("VENTAS.ABONO_COBRAR", AccionPantalla.Exportar))
+                {
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="DescargarCsv">
+                        <i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>Descargar CSV
+                    </button>
+                }
             </div>
 
             <div class="row g-3 mb-3">

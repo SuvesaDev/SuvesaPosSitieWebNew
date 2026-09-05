@@ -223,26 +223,13 @@
                                 }
                                 else
                                 {
-                                    <table class="table table-sm align-middle mb-3">
-                                        <thead><tr><th>Forma de pago</th><th class="text-end">Monto</th></tr></thead>
-                                        <tbody>
-                                            @foreach (var f in _formasPago)
-                                            {
-                                                <tr>
-                                                    <td>@f.Descripcion</td>
-                                                    <td style="min-width:8rem">
-                                                        <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end"
-                                                               @bind="_montos[f.Codigo!]" @bind:after="Recalcular" />
-                                                    </td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                    <dl class="row mb-0">
-                                        <dt class="col-6 fw-normal text-secondary">A cobrar</dt><dd class="col-6 text-end">@Formato.Importe(_aCobrar)</dd>
-                                        <dt class="col-6 fw-normal text-secondary">Entregado</dt><dd class="col-6 text-end">@Formato.Importe(_entregado)</dd>
-                                        <dt class="col-6">Cambio</dt><dd class="col-6 text-end fw-semibold">@Formato.Importe(_cambio)</dd>
-                                    </dl>
+                                    <PanelPagoVenta Titulo="Pago del lote de preventas"
+                                                    Total="_aCobrar"
+                                                    Formas="_formasPago"
+                                                    NumApertura="_numApertura"
+                                                    @bind-Montos="_montos"
+                                                    @bind-Referencias="_referencias"
+                                                    RepartoChanged="_ => Recalcular()" />
 
                                     <button class="btn btn-primary w-100 mt-3" disabled="@(_procesando || _entregado < _aCobrar || _aCobrar <= 0)" @onclick="CobrarYFacturar">
                                         <i class="bi bi-cash-coin me-2"></i>@(_procesando ? "Procesando..." : "Cobrar y facturar")
@@ -275,7 +262,7 @@
                                         <td>
                                             @if (r.Facturada && r.Slug is not null)
                                             {
-                                                <BotonImprimir Tipo="@r.Slug" Id="r.Id" Texto="PDF" Clase="btn-sm btn-outline-primary" />
+                                                <VisorPdf Tipo="@r.Slug" Id="r.Id" Texto="PDF" Titulo="Comprobante de venta" Clase="btn-sm btn-outline-primary" />
                                             }
                                         </td>
                                     </tr>

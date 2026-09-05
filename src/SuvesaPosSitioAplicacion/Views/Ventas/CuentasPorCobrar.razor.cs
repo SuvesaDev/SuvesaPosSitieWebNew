@@ -33,7 +33,8 @@ public partial class CuentasPorCobrar
 
     // --- Pago ---
     private List<FormasPagoDTO> _formasPago = new();
-    private readonly Dictionary<string, decimal> _montos = new();
+    private Dictionary<string, decimal> _montos = new();
+    private Dictionary<string, string?> _referencias = new();
     private decimal _aCobrar, _entregado, _cambio;
     private string? _claveLote;
     private bool _procesando;
@@ -202,6 +203,7 @@ public partial class CuentasPorCobrar
 
         _formasPago = (await Respuestas.DatoAsync(await Api.FormasPago(_codCliente), "consultar las formas de pago"))?.ToList() ?? new();
         _montos.Clear();
+        _referencias.Clear();
         foreach (var f in _formasPago) if (f.Codigo is not null) _montos[f.Codigo] = 0;
 
         _buscando = false;
@@ -280,7 +282,12 @@ public partial class CuentasPorCobrar
 
                 restantePorForma[f.Codigo!] -= aplica;
                 cubierto += aplica;
-                pagos.Add(new() { FormaPago = f.Codigo!, Monto = aplica });
+                pagos.Add(new()
+                {
+                    FormaPago = f.Codigo!,
+                    Monto = aplica,
+                    Referencia = _referencias.TryGetValue(f.Codigo!, out var rf) ? rf : null,
+                });
 
                 if (!esUltima && cubierto >= totalDoc) break;
             }
@@ -341,6 +348,7 @@ public partial class CuentasPorCobrar
         _seleccion.Clear();
         _formasPago = new();
         _montos.Clear();
+        _referencias.Clear();
         _resultados.Clear();
         _aCobrar = _entregado = _cambio = 0;
         _claveLote = null;
