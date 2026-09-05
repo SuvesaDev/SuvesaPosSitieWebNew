@@ -11,6 +11,7 @@
 @inject IEmpresas Empresas
 @inject ICatalogoBonificacion CatalogoBonificacion
 @inject IClienteBonificacion ClienteBonificacion
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IConfiguracionPlazosFiscales Plazos
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -468,7 +469,20 @@
                 {
                     <div class="row g-3">
                         <div class="col-12 col-md-4"><div class="form-check mt-md-4"><input id="cliente-credito-abierto" class="form-check-input" type="checkbox" @bind="_edicion.Abierto" /><label class="form-check-label" for="cliente-credito-abierto">¿Activar crédito?</label></div></div>
-                        <div class="col-12 col-md-4"><label class="form-label" for="cliente-plazo">Plazo de crédito (días)</label><input id="cliente-plazo" type="number" min="0" max="365" class="form-control" @bind="_edicion.PlazoCredito" /></div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cliente-plazo">Plazo de crédito</label>
+                            <select id="cliente-plazo" class="form-select" @bind="_edicion.PlazoCredito">
+                                <option value="0">Sin plazo</option>
+                                @foreach (var p in _plazosCredito)
+                                {
+                                    <option value="@p.CantidadDias">@p.Descripcion</option>
+                                }
+                                @if (_edicion.PlazoCredito is > 0 && !_plazosCredito.Any(p => p.CantidadDias == _edicion.PlazoCredito))
+                                {
+                                    <option value="@_edicion.PlazoCredito">@_edicion.PlazoCredito días (no está en el catálogo)</option>
+                                }
+                            </select>
+                        </div>
                         <div class="col-12 col-md-4"><label class="form-label" for="cliente-credito">Límite de crédito</label><input id="cliente-credito" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.MaxCredito" /></div>
                         <div class="col-12 col-md-4"><label class="form-label" for="cliente-descuento">Límite descuento (%)</label><input id="cliente-descuento" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.Descuento" /></div>
                         @if (!Sesion.EsCostaPets)
@@ -642,7 +656,21 @@
     /// </summary>
     private bool _modoBusqueda;
 
-    protected override async Task OnInitializedAsync() => await RecargarDesdeApi();
+    // Plazos de crédito del catálogo (ConfiguracionPlazos, no consignación). La ficha
+    // del cliente los elige de la lista; se guarda la cantidad de días en PlazoCredito
+    // y el API la traduce al IdPlazo al facturar.
+    private List<SuvesaPosSitioAplicacion.DTOs.Fiscal.ConfiguracionPlazoFiscalDTO> _plazosCredito = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RecargarDesdeApi();
+        var rp = await Plazos.Obtener();
+        if (rp.EsCorrecta && rp.Responses is not null)
+            _plazosCredito = rp.Responses
+                .Where(p => p.Activo && !p.Consignacion)
+                .OrderBy(p => p.CantidadDias)
+                .ToList();
+    }
 
     /// <summary>
     /// Al abrir (y con "Buscar" sin termino) intenta traer el listado completo.
