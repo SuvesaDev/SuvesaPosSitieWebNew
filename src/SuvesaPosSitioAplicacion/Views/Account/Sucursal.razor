@@ -176,6 +176,13 @@
         }
 
         Sucursales = r.Responses?.ToList() ?? new List<SucursalDTO>();
+
+        // Si el usuario solo tiene un centro asignado, se preselecciona: no tiene
+        // sentido obligarlo a abrir el desplegable para elegir la única opción.
+        if (Sucursales.Count == 1 && Seleccion.IdSucursal <= 0)
+        {
+            Seleccion.IdSucursal = Sucursales[0].Id;
+        }
     }
 
     private async Task Elegir()
