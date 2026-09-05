@@ -15,12 +15,19 @@ public partial class TiposFacturaFiscal
     private TipoFacturaFiscalDTO? _edicion;
     private bool _esNuevo, _guardando, _cargado;
     private int _filtroUso;
+    private int _filtroTiquete;
     private readonly List<string> _avisos = new();
 
     private string TituloModal => _esNuevo ? "Nuevo tipo de documento" : "Editar tipo de documento";
 
     private List<TipoFacturaFiscalDTO> Filtrados => _tipos
         .Where(t => _filtroUso == 0 || (int)t.Uso == _filtroUso)
+        .Where(t => _filtroTiquete switch
+        {
+            1 => t.Uso == UsoTipoDocumento.Facturacion && t.EsTiquete,
+            2 => !(t.Uso == UsoTipoDocumento.Facturacion && t.EsTiquete),
+            _ => true,
+        })
         .OrderBy(t => t.Uso).ThenBy(t => t.Descripcion)
         .ToList();
 
@@ -59,6 +66,7 @@ public partial class TiposFacturaFiscal
             Descripcion = tipo.Descripcion,
             Uso = tipo.Uso,
             Activo = tipo.Activo,
+            EsTiquete = tipo.EsTiquete,
         };
         RecalcularAvisos();
         await _modal.ShowAsync();
@@ -68,6 +76,11 @@ public partial class TiposFacturaFiscal
     {
         _avisos.Clear();
         if (_edicion is null) return;
+
+        // Un tipo Tiquete solo tiene sentido en Facturación; al cambiar de uso se apaga
+        // en vez de dejar un estado incoherente que el API rechazaría (decisión A0).
+        if (_edicion.Uso != UsoTipoDocumento.Facturacion && _edicion.EsTiquete)
+            _edicion.EsTiquete = false;
 
         if (_edicion.Codigo <= 0) _avisos.Add("Indique el código interno.");
         if (string.IsNullOrWhiteSpace(_edicion.Descripcion)) _avisos.Add("Indique la descripción.");

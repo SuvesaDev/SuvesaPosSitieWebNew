@@ -19,4 +19,12 @@ public sealed class TipoFacturaFiscalDTO
     public int Codigo { get; set; }
     public UsoTipoDocumento Uso { get; set; } = UsoTipoDocumento.Facturacion;
     public bool Activo { get; set; } = true;
+
+    /// <summary>
+    /// Modalidad Tiquete (PLAN_TIQUETE_RUTAS_FACTURACION_WEB.md W1): la venta se cobra y
+    /// confirma en la pantalla de Facturación, sin crear preventa. Solo válido con
+    /// <see cref="UsoTipoDocumento.Facturacion"/>; la serie define si además es electrónico.
+    /// No se deduce de "Tiquete electrónico" ni del código 04.
+    /// </summary>
+    public bool EsTiquete { get; set; }
 }

@@ -29,6 +29,14 @@
                         <option value="4">Consignación</option>
                     </select>
                 </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Modalidad</label>
+                    <select class="form-select form-select-sm" @bind="_filtroTiquete">
+                        <option value="0">Todas</option>
+                        <option value="1">Solo Tiquete</option>
+                        <option value="2">Solo cobro diferido</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -37,17 +45,22 @@
                 <table class="table table-sm align-middle">
                     <thead>
                         <tr>
-                            <th>Código</th><th>Descripción</th><th>Uso</th><th>Activo</th><th></th>
+                            <th>Código</th><th>Descripción</th><th>Uso</th><th>Modalidad</th><th>Activo</th><th></th>
                         </tr>
                     </thead>
                     <tbody>
-                        @if (Filtrados.Count == 0) { <tr><td colspan="5" class="text-secondary text-center py-3">No hay tipos de documento con ese filtro.</td></tr> }
+                        @if (Filtrados.Count == 0) { <tr><td colspan="6" class="text-secondary text-center py-3">No hay tipos de documento con ese filtro.</td></tr> }
                         @foreach (var t in Filtrados)
                         {
                             <tr class="@(t.Activo ? null : "text-secondary")">
                                 <td><code>@t.Codigo</code></td>
                                 <td>@t.Descripcion</td>
                                 <td><span class="badge @UsoBadge(t.Uso)">@UsoTexto(t.Uso)</span></td>
+                                <td>
+                                    @if (t.Uso != UsoTipoDocumento.Facturacion) { <span class="text-secondary">—</span> }
+                                    else if (t.EsTiquete) { <span class="badge text-bg-dark">Tiquete</span> }
+                                    else { <span class="badge text-bg-light">Cobro diferido</span> }
+                                </td>
                                 <td>@if (t.Activo) { <span class="badge text-bg-light">Sí</span> } else { <span class="badge text-bg-warning">Inactivo</span> }</td>
                                 <td class="text-end">
                                     @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
@@ -86,8 +99,20 @@
                     <div class="form-text">@UsoAyuda(_edicion.Uso)</div>
                 </div>
 
+                @if (_edicion.Uso == UsoTipoDocumento.Facturacion)
+                {
+                    <div class="mb-4">
+                        <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">3 · Modalidad</h6>
+                        <div class="form-check form-switch">
+                            <input id="esTiquete" class="form-check-input" type="checkbox" @bind="_edicion.EsTiquete" @bind:after="RecalcularAvisos" />
+                            <label class="form-check-label" for="esTiquete">Tiquete</label>
+                        </div>
+                        <div class="form-text">Cobra y confirma la venta en la pantalla de Facturación, sin crear preventa. La serie define si además requiere documento electrónico.</div>
+                    </div>
+                }
+
                 <div class="mb-2">
-                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">3 · Estado</h6>
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">@(_edicion.Uso == UsoTipoDocumento.Facturacion ? "4" : "3") · Estado</h6>
                     <div class="form-check form-switch">
                         <input id="activo" class="form-check-input" type="checkbox" @bind="_edicion.Activo" />
                         <label class="form-check-label" for="activo">Activo</label>

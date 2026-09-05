@@ -1,6 +1,15 @@
 # Plan sitio web: Tiquete y rutas de facturación/cobro
 
-Fecha: 2026-09-05. Estado: decisiones §9 cerradas (W0); a la espera de A1 del API para W1.
+Fecha: 2026-09-05. Estado: W0 cerrado; API A1–A7 code-complete; **W1 en curso**.
+
+## Estado por fase
+
+| Fase | Estado | Qué |
+|---|---|---|
+| W1 | 🟡 en curso | `TipoFacturaFiscalDTO.EsTiquete` (serializa `esTiquete`, compatible con el API y con clientes viejos sin el campo — `TipoFacturaTiqueteContratoTests`). `TiposFacturaFiscal.razor`: switch "Tiquete" en el modal (solo Uso Facturación, sección 3), columna/badge "Modalidad" (Tiquete / Cobro diferido / —) y filtro. Al cambiar el uso fuera de Facturación se apaga `EsTiquete`. Pendiente: regenerar el cliente OpenAPI con `tools/actualizar-contratos.sh` contra el API y converger `DTOs/Generated`/`ProxyClass/Facturacion.cs`; W2 (series). |
+
+---
+
 
 ## W0 — decisiones cerradas (2026-09-05)
 
