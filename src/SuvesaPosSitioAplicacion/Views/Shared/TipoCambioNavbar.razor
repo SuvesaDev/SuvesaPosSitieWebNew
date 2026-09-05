@@ -1,0 +1,63 @@
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Security
+@implements IAsyncDisposable
+@inject ITipoCambio Api
+@inject IContextoSesion Sesion
+
+@if (Sesion.Autenticado && _tipoCambio is not null)
+{
+    <span class="text-white-50 small d-none d-md-inline" title="Tipo de cambio oficial (@_tipoCambio.Fuente)">
+        <i class="bi bi-currency-exchange me-1" aria-hidden="true"></i>1 USD = ₡@_tipoCambio.Venta.ToString("N2")
+    </span>
+}
+
+@code {
+    private DTOs.Fiscal.TipoCambioOficialDTO? _tipoCambio;
+    private CancellationTokenSource? _cts;
+    private static readonly TimeSpan Intervalo = TimeSpan.FromHours(1);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Sesion.Autenticado) return;
+
+        await Refrescar();
+        _cts = new CancellationTokenSource();
+        _ = BuclePolling(_cts.Token);
+    }
+
+    private async Task BuclePolling(CancellationToken ct)
+    {
+        using var t = new PeriodicTimer(Intervalo);
+        try
+        {
+            while (await t.WaitForNextTickAsync(ct))
+            {
+                await Refrescar();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task Refrescar()
+    {
+        try
+        {
+            var r = await Api.Oficial();
+            if (r.EsCorrecta) _tipoCambio = r.Responses;
+        }
+        catch
+        {
+            // Informativo: un fallo no debe romper la barra superior.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_cts is not null)
+        {
+            await _cts.CancelAsync();
+            _cts.Dispose();
+        }
+    }
+}
