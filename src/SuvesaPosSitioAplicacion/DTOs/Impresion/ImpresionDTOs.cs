@@ -82,6 +82,7 @@ public static class TiposImpresionUi
         12 => "Orden de compra",
         13 => "Liquidación de consignación",
         14 => "Boleta de trámite de cobro",
+        15 => "Devolución interna",
         _ => $"Tipo {tipo}",
     };
 
@@ -101,6 +102,7 @@ public static class TiposImpresionUi
         12 => "orden-compra",
         13 => "liquidacion-consignacion",
         14 => "boleta-tramite-cobro",
+        15 => "devolucion-interna",
         _ => "",
     };
 
@@ -126,7 +128,7 @@ public static class TiposImpresionUi
     };
 
     public static IReadOnlyList<(int Valor, string Nombre)> Todos { get; } =
-        Enumerable.Range(1, 14).Select(v => (v, Nombre(v))).ToList();
+        Enumerable.Range(1, 15).Select(v => (v, Nombre(v))).ToList();
 
     /// <summary>Todos los tipos agrupados por vertiente, en el orden en que deben
     /// aparecer en el selector: Facturación, Operativo, Otros.</summary>
