@@ -24,6 +24,7 @@
 <AppPantalla Pantalla="@Titulo" Codigo="VENTAS.ABONO_COBRAR" Nivel="NivelPantalla.Escritorio">
     <Acciones>
         <a class="btn btn-sm btn-outline-secondary" href="/sales/emission-profiles">Perfiles de emisión</a>
+        <a class="btn btn-sm btn-outline-secondary" href="@(_codCliente > 0 ? $"/sales/account-statement/{_codCliente}" : "/sales/account-statement")">Estado de cuenta</a>
         <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nuevo</button>
     </Acciones>
     <ChildContent>

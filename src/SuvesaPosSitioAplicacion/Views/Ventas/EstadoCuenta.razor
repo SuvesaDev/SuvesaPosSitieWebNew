@@ -1,0 +1,161 @@
+@page "/sales/account-statement"
+@page "/sales/account-statement/{IdClienteRuta:long}"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IComandosFacturacion Comandos
+@inject IClientesConsulta Clientes
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+@* W6 (PLAN_TIQUETE_RUTAS_FACTURACION_WEB.md): estado de cuenta del cliente a una fecha de
+   corte, con antigüedad de saldos. Fuente única: GET api/cobros/estado-cuenta/{id}. Sin
+   emisión de recibos ni movimientos de caja por consultar. *@
+
+<AppPantalla Pantalla="Estado de cuenta" Codigo="VENTAS.ABONO_COBRAR" Nivel="NivelPantalla.Escritorio">
+    <ChildContent>
+        <div class="card mb-3"><div class="card-body row g-2 align-items-end">
+            <div class="col-12 col-md-5">
+                <label class="form-label small">Cliente</label>
+                <div class="input-group">
+                    <input class="form-control" placeholder="Cédula o nombre" @bind="_texto" @bind:after="Buscar" />
+                    <button class="btn btn-outline-primary" @onclick="Buscar">Buscar</button>
+                </div>
+                @if (_encontrados.Count > 0 && _cliente is null)
+                {
+                    <div class="list-group mt-1">
+                        @foreach (var c in _encontrados.Take(8))
+                        {
+                            <button class="list-group-item list-group-item-action" @onclick="() => Elegir(c)">
+                                <span class="text-secondary me-2">@c.Identificacion</span>@c.Nombre
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small">Fecha de corte</label>
+                <input type="date" class="form-control" @bind="_corte" />
+            </div>
+            <div class="col-6 col-md-2">
+                <button class="btn btn-primary w-100" disabled="@(_cliente is null || _cargando)" @onclick="Consultar">
+                    @(_cargando ? "Consultando..." : "Consultar")
+                </button>
+            </div>
+            @if (_cliente is not null)
+            {
+                <div class="col-12"><span class="badge text-bg-light">@_cliente.Identificacion</span> <strong>@_cliente.Nombre</strong>
+                    <button class="btn btn-sm btn-link" @onclick="Limpiar">cambiar</button></div>
+            }
+        </div></div>
+
+        @if (_estado is not null)
+        {
+            <div class="row g-3 mb-3">
+                @foreach (var (t, v, dst) in new[] {
+                    ("Límite aprobado", _estado.LimiteAprobado, false),
+                    ("Saldo abierto", _estado.SaldoTotal, false),
+                    ("Crédito a favor", _estado.CreditoAFavor, false),
+                    ("Disponible", _estado.Disponible, true) })
+                {
+                    <div class="col-6 col-md-3">
+                        <div class="card h-100 @(dst ? "border-primary" : null)"><div class="card-body py-2">
+                            <div class="text-secondary small">@t</div>
+                            <div class="fs-5">@Formato.Importe((decimal)v)</div>
+                        </div></div>
+                    </div>
+                }
+            </div>
+
+            <div class="card mb-3"><div class="card-header"><strong>Antigüedad de saldos</strong> <span class="text-secondary small">al @_estado.FechaCorte.ToString("dd/MM/yyyy")</span></div>
+                <div class="card-body">
+                    <div class="row g-2 text-center">
+                        @foreach (var (t, v, al) in new[] {
+                            ("Por vencer", _estado.PorVencer, false),
+                            ("1 – 30", _estado.Vencido1a30, false),
+                            ("31 – 60", _estado.Vencido31a60, false),
+                            ("61 – 90", _estado.Vencido61a90, false),
+                            ("91 o más", _estado.Vencido91oMas, true) })
+                        {
+                            <div class="col">
+                                <div class="text-secondary small">@t</div>
+                                <div class="fw-semibold @(al && v > 0 ? "text-danger" : null)">@Formato.Importe((decimal)v)</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="card"><div class="card-header"><strong>Facturas con saldo</strong></div><div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead><tr>
+                            <th>Factura</th><th>Fecha</th><th>Vence</th>
+                            <th class="text-end">Original</th><th class="text-end">NC</th>
+                            <th class="text-end">Pagado</th><th class="text-end">Saldo</th><th>Estado MH</th>
+                        </tr></thead>
+                        <tbody>
+                            @if (_estado.Detalle.Count == 0) { <tr><td colspan="8" class="text-center text-secondary py-3">Sin facturas con saldo.</td></tr> }
+                            @foreach (var f in _estado.Detalle.OrderBy(d => d.Vence ?? d.Fecha))
+                            {
+                                <tr class="@(EsVencida(f) ? "table-warning" : null)">
+                                    <td>@f.NumFactura.ToString("0")@if (!string.IsNullOrWhiteSpace(f.ConsecutivoMh)) { <div class="small text-secondary">@f.ConsecutivoMh</div> }</td>
+                                    <td>@f.Fecha.ToString("dd/MM/yyyy")</td>
+                                    <td>@(f.Vence?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                    <td class="text-end">@Formato.Importe((decimal)f.MontoOriginal)</td>
+                                    <td class="text-end">@Formato.Importe((decimal)f.NotasCreditoAplicadas)</td>
+                                    <td class="text-end">@Formato.Importe((decimal)f.PagosAplicados)</td>
+                                    <td class="text-end fw-semibold">@Formato.Importe((decimal)f.SaldoActual)</td>
+                                    <td><span class="small text-secondary">@f.EstadoMh</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div></div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    [Parameter] public long? IdClienteRuta { get; set; }
+
+    private string _texto = string.Empty;
+    private List<FiltranClienteDTO> _encontrados = new();
+    private FiltranClienteDTO? _cliente;
+    private DateTime _corte = DateTime.Today;
+    private bool _cargando;
+    private SuvesaPosSitioAplicacion.DTOs.Fiscal.EstadoCuentaClienteDTO? _estado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IdClienteRuta is { } id && id > 0)
+        {
+            var r = await Clientes.Buscar(id.ToString());
+            _cliente = (r.Responses ?? new List<FiltranClienteDTO>()).FirstOrDefault(c => c.Identificacion == id);
+            if (_cliente is not null) await Consultar();
+        }
+    }
+
+    private async Task Buscar()
+    {
+        if (string.IsNullOrWhiteSpace(_texto)) { _encontrados = new(); return; }
+        _encontrados = (await Respuestas.DatoAsync(await Clientes.Buscar(_texto), "buscar clientes"))?
+            .Where(c => !c.Anulado && !c.Fallecido).ToList() ?? new();
+    }
+
+    private void Elegir(FiltranClienteDTO c) { _cliente = c; _encontrados = new(); _estado = null; }
+    private void Limpiar() { _cliente = null; _estado = null; _texto = string.Empty; }
+
+    private async Task Consultar()
+    {
+        if (_cliente is null) return;
+        _cargando = true;
+        _estado = await Respuestas.DatoAsync(
+            await Comandos.EstadoCuenta(_cliente.Identificacion, _corte), "consultar el estado de cuenta");
+        _cargando = false;
+    }
+
+    private bool EsVencida(SuvesaPosSitioAplicacion.DTOs.Fiscal.FacturaCreditoConSaldoDTO f)
+        => (f.Vence ?? f.Fecha).Date < _corte.Date;
+}
