@@ -65,6 +65,36 @@
                         <div class="form-text">Informativo. No entra en la fórmula.</div>
                     </div>
                 </div>
+                <div class="col-6 col-md-3">
+                    <div class="border rounded p-3 h-100">
+                        <div class="text-secondary small text-uppercase">Total cajero (arqueo)</div>
+                        @if (_datos.TieneArqueo)
+                        {
+                            <div class="fs-5">@Money(_datos.TotalCajero!.Value)</div>
+                        }
+                        else
+                        {
+                            <div class="fs-6 text-secondary">Sin arqueo</div>
+                        }
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="border rounded p-3 h-100 @(_datos.Diferencia is { } d && Math.Abs(d) > 0.009m ? "border-danger" : null)">
+                        <div class="text-secondary small text-uppercase">Diferencia</div>
+                        @if (_datos.Diferencia is { } dif)
+                        {
+                            <div class="fs-5 fw-semibold @(Math.Abs(dif) <= 0.009m ? "text-success" : dif < 0 ? "text-danger" : "text-warning")">
+                                @Money(dif)
+                            </div>
+                            <div class="form-text">@(Math.Abs(dif) <= 0.009m ? "Cuadra" : dif < 0 ? "Faltante" : "Sobrante")</div>
+                        }
+                        else
+                        {
+                            <div class="fs-6 text-secondary">—</div>
+                            <div class="form-text">Requiere arqueo</div>
+                        }
+                    </div>
+                </div>
             </div>
 
             <div class="d-flex align-items-center gap-2 mb-3">
