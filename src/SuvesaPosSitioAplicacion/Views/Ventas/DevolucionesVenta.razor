@@ -46,7 +46,8 @@
                                 <label class="form-label">Número de factura</label>
                                 <div class="input-group">
                                     <input class="form-control" placeholder="Buscar por número..." @bind="_numeroFactura" @onkeydown="BuscarPorNumeroConEnter" />
-                                    <button type="button" class="btn btn-outline-primary" @onclick="() => _modalBuscarFactura.ShowAsync()"><i class="bi bi-search" aria-hidden="true"></i></button>
+                                    <button type="button" class="btn btn-outline-primary" @onclick="BuscarPorNumero"><i class="bi bi-search" aria-hidden="true"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary" title="Búsqueda avanzada" @onclick="() => _modalBuscarFactura.ShowAsync()"><i class="bi bi-funnel" aria-hidden="true"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -146,7 +147,7 @@
             <div class="col-12 col-md-1 d-grid"><button type="button" class="btn btn-primary" @onclick="BuscarPorFiltro">Buscar</button></div>
         </div>
         @if (_facturasEncontradas.Count == 0) { <p class="text-secondary text-center py-3 mb-0">Sin resultados todavía.</p> }
-        else { <div class="list-group">@foreach (var f in _facturasEncontradas) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirFacturaEncontrada(f)"><strong>@f.NumFactura</strong><span class="text-secondary ms-2">@f.NombreCliente</span><span class="text-secondary float-end">@f.Fecha.ToString("dd/MM/yyyy")</span></button> }</div> }
+        else { <div class="list-group">@foreach (var f in _facturasEncontradas) { <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" @onclick="() => ElegirFacturaEncontrada(f)"><span><strong>@f.NumFactura</strong> <span class="text-secondary ms-1">@NombreTipo(f.Tipo)</span><span class="text-secondary ms-2">@f.NombreCliente</span></span><span class="text-end"><span class="d-block seepos-importe">@Formato.Importe((decimal)f.Total)</span><span class="small text-secondary">@f.Fecha.ToString("dd/MM/yyyy") · @(string.IsNullOrWhiteSpace(f.EstadoMh) ? "sin emitir" : f.EstadoMh)</span></span></button> }</div> }
     </BodyTemplate>
 </HxModal>
 
@@ -201,6 +202,7 @@
 
     private string _numeroFactura = string.Empty;
     private bool _prefillPendiente;
+    private int _prefillVentaId;
     private FacturaDTO? _factura;
     private long _idVentaDetalleSeleccionado;
     private FacturaDetallesDTO? _lineaSeleccionada;
@@ -227,11 +229,18 @@
 
     protected override void OnInitialized()
     {
-        // La bandeja de documentos abre esta pantalla con ?factura=<nº> para
-        // arrancar la devolución de esa factura una vez desbloqueada.
+        // La bandeja de documentos abre esta pantalla ya sabiendo el documento exacto:
+        // ?ventaId=<Id> es el identificador único de la venta y evita la ambigüedad de
+        // buscar por número (Num_Factura se repite entre series/tipos). ?factura=<nº> se
+        // mantiene por compatibilidad con enlaces viejos.
         var uri = Navegacion.ToAbsoluteUri(Navegacion.Uri);
         var q = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
-        if (q.TryGetValue("factura", out var valor) && !string.IsNullOrWhiteSpace(valor))
+        if (q.TryGetValue("ventaId", out var idTexto) && int.TryParse(idTexto, out var id) && id > 0)
+        {
+            _prefillVentaId = id;
+            _prefillPendiente = true;
+        }
+        else if (q.TryGetValue("factura", out var valor) && !string.IsNullOrWhiteSpace(valor))
         {
             _numeroFactura = valor.ToString();
             _prefillPendiente = true;
@@ -245,20 +254,58 @@
         _tipos = (await Respuestas.DatoAsync(await Facturas.Tipos(), "consultar los tipos de factura"))?.Where(t => (int)t.Uso == 2).ToList() ?? new();
         _personal = (await Respuestas.DatoAsync(await Api.Personal(), "consultar el personal"))?.Where(p => p.Activo).ToList() ?? new();
 
-        if (_prefillPendiente && !string.IsNullOrWhiteSpace(_numeroFactura))
+        if (_prefillPendiente && _prefillVentaId > 0)
         {
             _prefillPendiente = false;
-            var factura = await Respuestas.DatoAsync(await Api.BuscarFacturaPorNumero(_numeroFactura), "buscar la factura");
+            var factura = await Respuestas.DatoAsync(await Api.BuscarFacturaPorId(_prefillVentaId), "buscar la factura");
             CargarFactura(factura);
+        }
+        else if (_prefillPendiente && !string.IsNullOrWhiteSpace(_numeroFactura))
+        {
+            _prefillPendiente = false;
+            await BuscarPorNumero();
         }
     }
 
     private async Task BuscarPorNumeroConEnter(KeyboardEventArgs e)
     {
-        if (e.Key != "Enter" || string.IsNullOrWhiteSpace(_numeroFactura)) return;
-        var factura = await Respuestas.DatoAsync(await Api.BuscarFacturaPorNumero(_numeroFactura), "buscar la factura");
-        CargarFactura(factura);
+        if (e.Key != "Enter") return;
+        await BuscarPorNumero();
     }
+
+    /// <summary>
+    /// Num_Factura no es único (se reinicia por serie/tipo), así que puede haber varias
+    /// ventas con el mismo número. Si hay una sola la cargamos directo; si hay varias
+    /// abrimos el selector para que el usuario elija el documento correcto por tipo,
+    /// total y estado de Hacienda antes de hacer la devolución.
+    /// </summary>
+    private async Task BuscarPorNumero()
+    {
+        if (string.IsNullOrWhiteSpace(_numeroFactura)) return;
+
+        var lista = (await Respuestas.DatoAsync(
+            await Api.BuscarFacturasPorNumero(_numeroFactura), "buscar la factura"))?.ToList() ?? new();
+
+        if (lista.Count == 0)
+        {
+            await Dialogos.ErrorAsync($"No se encontró ninguna factura con el número {_numeroFactura}.");
+            return;
+        }
+
+        if (lista.Count == 1)
+        {
+            var factura = await Respuestas.DatoAsync(
+                await Api.BuscarFacturaPorId((int)lista[0].Id), "buscar la factura");
+            CargarFactura(factura);
+            return;
+        }
+
+        _facturasEncontradas = lista;
+        await _modalBuscarFactura.ShowAsync();
+    }
+
+    private string NombreTipo(int tipo)
+        => _tipos.FirstOrDefault(t => t.Codigo == tipo)?.Descripcion ?? $"Tipo {tipo}";
 
     private async Task BuscarPorFiltro()
     {

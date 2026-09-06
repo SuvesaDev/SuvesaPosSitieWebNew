@@ -13,12 +13,14 @@ public sealed class DevolucionesVentaServicio : ProxyBase, IDevolucionesVenta
     private readonly IVentaApiCliente _venta;
     private readonly IUsuarioApiCliente _usuarios;
     private readonly IMonedaApiCliente _monedas;
+    private readonly HttpClient _api;
 
     public DevolucionesVentaServicio(
         IDevolucionVentasApiCliente devoluciones,
         IVentaApiCliente venta,
         IUsuarioApiCliente usuarios,
         IMonedaApiCliente monedas,
+        IHttpClientFactory factory,
         IContextoSesion sesion,
         ILogger<DevolucionesVentaServicio> log)
         : base(sesion, log)
@@ -27,6 +29,7 @@ public sealed class DevolucionesVentaServicio : ProxyBase, IDevolucionesVenta
         _venta = venta;
         _usuarios = usuarios;
         _monedas = monedas;
+        _api = factory.CreateClient("SeePosApi");
     }
 
     public Task<ResponseGeneric<FacturaDTO>> BuscarFacturaPorId(int idFactura)
@@ -42,6 +45,12 @@ public sealed class DevolucionesVentaServicio : ProxyBase, IDevolucionesVenta
             var r = await _venta.ObtenerFacturaVentaDevolucionesPorNumeroFacturaAsync(numeroFactura);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "buscar la factura");
+
+    public Task<ResponseGeneric<ICollection<FacturaBuscarDevolucionesDTO>>> BuscarFacturasPorNumero(string numeroFactura)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<ICollection<FacturaBuscarDevolucionesDTO>>(
+            await _api.PostAsync(
+                $"venta/ObtenerFacturasVentaDevolucionesPorNumeroFactura?numeroFactura={Uri.EscapeDataString(numeroFactura)}", null)),
+            "buscar las facturas por número");
 
     public Task<ResponseGeneric<ICollection<FacturaBuscarDevolucionesDTO>>> BuscarFacturasPorFiltro(BuscarFacturaDevolucionesDTO filtro)
         => Ejecutar(async () =>

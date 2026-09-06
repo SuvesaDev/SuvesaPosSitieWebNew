@@ -151,10 +151,12 @@ public partial class Bandeja
         await _detalle.ShowAsync();
     }
 
-    private void Devolucion(DocumentoBandeja d) => DevolucionPorConsecutivo(d.Consecutivo);
+    private void Devolucion(DocumentoBandeja d) => DevolucionPorVentaId(d.Id);
 
-    private void DevolucionPorConsecutivo(string consecutivo)
-        => Navegacion.NavigateTo($"/sales/repayment?factura={Uri.EscapeDataString(consecutivo)}");
+    // Llevamos el Id exacto de la venta (no el consecutivo, que se repite entre
+    // series/tipos) para que la pantalla de devoluciones cargue el documento correcto.
+    private void DevolucionPorVentaId(long idVenta)
+        => Navegacion.NavigateTo($"/sales/repayment?ventaId={idVenta}");
 
     private async Task AccionFiscal(string clave)
     {

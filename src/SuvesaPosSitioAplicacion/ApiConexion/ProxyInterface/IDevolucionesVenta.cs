@@ -21,6 +21,10 @@ public interface IDevolucionesVenta
 
     Task<ResponseGeneric<FacturaDTO>> BuscarFacturaPorNumero(string numeroFactura);
 
+    /// <summary>Todas las ventas con ese número (Num_Factura no es único). El sitio
+    /// muestra un selector cuando hay más de una.</summary>
+    Task<ResponseGeneric<ICollection<FacturaBuscarDevolucionesDTO>>> BuscarFacturasPorNumero(string numeroFactura);
+
     Task<ResponseGeneric<ICollection<FacturaBuscarDevolucionesDTO>>> BuscarFacturasPorFiltro(BuscarFacturaDevolucionesDTO filtro);
 
     Task<ResponseGeneric<ICollection<DevolucionVentaDTO>>> Buscar(FiltroFacturaDevVenta filtro);
