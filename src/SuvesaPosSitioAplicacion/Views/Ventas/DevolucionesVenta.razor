@@ -428,12 +428,19 @@
             IdGrupoBonificacion = linea.IdGrupoBonificacion,
             IdConfiguracionBonificacion = linea.IdConfiguracionBonificacion,
             EsLineaPrincipal = linea.EsLineaPrincipalBonificacion == true,
+            // Se conservan SubTotal / MontoImpuesto reales (el mapeador V4.4 necesita el
+            // impuesto bruto de la línea de REGALO para absorberlo como código "03" /
+            // ImpuestoAsumidoEmisorFábrica). Pero su MontoTotalLinea fiscal es 0, así que
+            // el Total que suma _totales.Total (y llega como Monto) debe ser 0 también,
+            // o falla "los totales de la devolución no coinciden con sus líneas".
             Calculo = new CalculoDocumento.LineaCalculada(
                 SubTotal: Formato.AImporte(linea.SubTotal),
                 MontoDescuento: Formato.AImporte(linea.MontoDescuento),
                 MontoImpuesto: Formato.AImporte(linea.MontoImpuesto),
                 SubtotalGravado: Formato.AImporte(linea.SubtotalGravado),
-                Total: Formato.AImporte(linea.SubTotal) + Formato.AImporte(linea.MontoImpuesto))
+                Total: linea.EsBonificacion
+                    ? 0m
+                    : Formato.AImporte(linea.SubTotal) + Formato.AImporte(linea.MontoImpuesto))
         };
         _lineas.Add(nueva);
     }
