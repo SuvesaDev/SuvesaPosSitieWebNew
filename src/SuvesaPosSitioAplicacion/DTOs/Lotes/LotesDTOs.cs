@@ -84,6 +84,32 @@ public sealed class ExistenciaConsolidada
     [JsonPropertyName("lotes")] public List<LoteExistencia> Lotes { get; set; } = new();
 }
 
+public sealed class ReporteAlertasInventario
+{
+    [JsonPropertyName("generadoEn")] public DateTime GeneradoEn { get; set; }
+    [JsonPropertyName("desdeMovimientosSinDocumento")] public DateTime DesdeMovimientosSinDocumento { get; set; }
+    [JsonPropertyName("alertas")] public List<AlertaInventarioOperativa> Alertas { get; set; } = new();
+}
+
+public sealed class AlertaInventarioOperativa
+{
+    [JsonPropertyName("tipo")] public string Tipo { get; set; } = string.Empty;
+    [JsonPropertyName("severidad")] public string Severidad { get; set; } = string.Empty;
+    [JsonPropertyName("idStock")] public long? IdStock { get; set; }
+    [JsonPropertyName("idArticulo")] public long IdArticulo { get; set; }
+    [JsonPropertyName("codigoArticulo")] public string CodigoArticulo { get; set; } = string.Empty;
+    [JsonPropertyName("descripcionArticulo")] public string DescripcionArticulo { get; set; } = string.Empty;
+    [JsonPropertyName("idBodega")] public int? IdBodega { get; set; }
+    [JsonPropertyName("nombreBodega")] public string? NombreBodega { get; set; }
+    [JsonPropertyName("idStockLote")] public long? IdStockLote { get; set; }
+    [JsonPropertyName("numeroLote")] public string? NumeroLote { get; set; }
+    [JsonPropertyName("vencimiento")] public DateTime? Vencimiento { get; set; }
+    [JsonPropertyName("existencia")] public double Existencia { get; set; }
+    [JsonPropertyName("minimo")] public double? Minimo { get; set; }
+    [JsonPropertyName("fechaMovimiento")] public DateTime? FechaMovimiento { get; set; }
+    [JsonPropertyName("tipoMovimiento")] public int? TipoMovimiento { get; set; }
+}
+
 public sealed class ActualizarExistencia
 {
     [JsonPropertyName("idArticulo")] public long IdArticulo { get; set; }

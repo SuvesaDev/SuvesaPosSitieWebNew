@@ -49,7 +49,7 @@
                                 <div class="col-6 col-md-3"><label class="form-label">Días de crédito</label><input type="number" min="0" class="form-control" disabled="@(_tipoCompra != 1)" @bind="_diasCredito" @bind:after="ActualizarVencimiento" /></div>
                                 <div class="col-6 col-md-3"><label class="form-label">Vencimiento</label><input type="date" class="form-control" disabled value="@VencimientoTexto" /></div>
                                 <div class="col-6 col-md-3"><label class="form-label">Moneda</label><select class="form-select" @bind="_moneda"><option value="0">Seleccione...</option>@foreach (var moneda in _monedas) { <option value="@moneda.CodMoneda">@moneda.MonedaNombre</option> }</select></div>
-                                <div class="col-12 col-md-3"><label class="form-label">Bodega</label><select class="form-select" @bind="_bodega"><option value="0">Seleccione...</option>@foreach (var bodega in _bodegas) { <option value="@bodega.IdBodega">@bodega.NombreBodega</option> }</select></div>
+                                <div class="col-12 col-md-3"><label class="form-label">Bodega</label><select class="form-select" @bind="_bodega" @bind:after="ActualizarExistenciaArticuloActualAsync"><option value="0">Seleccione...</option>@foreach (var bodega in _bodegas) { <option value="@bodega.IdBodega">@bodega.NombreBodega</option> }</select></div>
                                 @if (!EsCostaPetsCompra)
                                 {
                                     <div class="col-12 col-md-3"><label class="form-label">Empresa</label><select class="form-select" @bind="_empresa"><option value="0">Seleccione...</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
@@ -69,7 +69,7 @@
                     @if (_articuloActual is not null)
                     {
                         <div class="seepos-compras-editor border rounded p-3 mb-3">
-                            <div class="d-flex justify-content-between gap-2 mb-3"><div><strong>@_articuloActual.Descripcion</strong><span class="text-secondary ms-2 small">@_articuloActual.Cod_Articulo · CABYS @_articuloActual.Codcabys</span></div><button type="button" class="btn btn-sm btn-link text-danger" @onclick="LimpiarEditor">Cancelar</button></div>
+                            <div class="d-flex justify-content-between gap-2 mb-3"><div><strong>@_articuloActual.Descripcion</strong><span class="text-secondary ms-2 small">@_articuloActual.Cod_Articulo · CABYS @_articuloActual.Codcabys</span>@if (_consultandoExistencia) { <span class="d-block small text-secondary mt-1">Consultando existencia en bodega…</span> } else if (_existenciaActualEnBodega is { } existencia) { <span class="d-block small text-secondary mt-1">Existencia actual en @NombreBodegaActual: <strong>@Formato.Cantidad(existencia)</strong></span> }</div><button type="button" class="btn btn-sm btn-link text-danger" @onclick="LimpiarEditor">Cancelar</button></div>
                             <div class="row g-3">
                                 <div class="col-6 col-md-2"><label class="form-label">Cantidad</label><input type="number" min="0.001" step="0.001" class="form-control text-end" @bind="_cantidad" @bind:after="RecalcularEditor" /></div>
                                 @if (!EsCostaPetsCompra) { <div class="col-6 col-md-2"><label class="form-label">Regalías</label><input type="number" min="0" step="0.001" class="form-control text-end" @bind="_regalias" /></div> }
@@ -301,6 +301,8 @@
     private int? _indiceXmlAsignacion;
     private int? _indiceXmlOpciones;
     private decimal _cantidad = 1m, _regalias, _base, _flete, _otros, _descuento, _impuesto;
+    private decimal? _existenciaActualEnBodega;
+    private bool _consultandoExistencia;
     private bool _guardando, _esCostaPetsCompra, _compraDesdeXml;
     private bool _compraDesbloqueada => _bloqueo?.Desbloqueado == true;
     private bool _leyendoXml, _proveedorXmlNoExiste;
@@ -314,6 +316,7 @@
 
     private bool EsCostaPetsCompra => _compraDesbloqueada ? _esCostaPetsCompra : Sesion.EsCostaPets;
     private string VencimientoTexto => _vence.ToString("yyyy-MM-dd");
+    private string NombreBodegaActual => _bodegas.FirstOrDefault(b => b.IdBodega == _bodega)?.NombreBodega ?? "la bodega seleccionada";
     private decimal CostoEditor => _base + _flete + _otros;
     private decimal TotalExento => _lineas.Where(l => l.Impuesto <= 0).Sum(l => l.Calculo.SubTotal);
     private decimal TotalGravado => _lineas.Where(l => l.Impuesto > 0).Sum(l => l.Calculo.SubTotal);
@@ -419,7 +422,7 @@
         if (_proveedor is null || string.IsNullOrWhiteSpace(_numeroFactura) || _bodega <= 0 || _moneda <= 0 || (!EsCostaPetsCompra && _empresa <= 0)) { await Dialogos.ErrorAsync("Seleccione proveedor, factura, moneda, bodega y empresa antes de agregar artículos."); return; }
         await _buscadorArticulo.AbrirAsync();
     }
-    private Task ElegirArticulo(InventarioDTO articulo)
+    private async Task ElegirArticulo(InventarioDTO articulo)
     {
         if (_indiceXmlAsignacion is int indice && _xml is not null)
         {
@@ -431,9 +434,31 @@
             _xml.Lineas[indice].Precios.Clear();
             PrepararPreciosXml(_xml.Lineas[indice]);
             _indiceXmlAsignacion = null;
-            return Task.CompletedTask;
+            return;
         }
-        _articuloActual = articulo; _indiceEdicion = null; _cantidad = 1; _regalias = 0; _base = Formato.AImporte(articulo.PrecioBase); _flete = EsCostaPetsCompra ? 0 : Formato.AImporte(articulo.Fletes); _otros = EsCostaPetsCompra ? 0 : Formato.AImporte(articulo.OtrosCargos); _descuento = 0; _impuesto = Formato.AImporte(articulo.IVenta); _lote = string.Empty; _venceLote = DateTime.Today; RecalcularEditor(); return Task.CompletedTask;
+        _articuloActual = articulo; _indiceEdicion = null; _cantidad = 1; _regalias = 0; _base = Formato.AImporte(articulo.PrecioBase); _flete = EsCostaPetsCompra ? 0 : Formato.AImporte(articulo.Fletes); _otros = EsCostaPetsCompra ? 0 : Formato.AImporte(articulo.OtrosCargos); _descuento = 0; _impuesto = Formato.AImporte(articulo.IVenta); _lote = string.Empty; _venceLote = DateTime.Today; RecalcularEditor(); await ActualizarExistenciaArticuloActualAsync();
+    }
+
+    private async Task ActualizarExistenciaArticuloActualAsync()
+    {
+        _existenciaActualEnBodega = null;
+        if (_articuloActual is null || _bodega <= 0) return;
+
+        _consultandoExistencia = true;
+        try
+        {
+            var respuesta = await Lotes2.ExistenciaConsolidadaAsync(_articuloActual.Codigo);
+            if (respuesta.Status != DTOs.Generated.ResponseStatus._0 || respuesta.Responses is null) return;
+
+            var consolidado = respuesta.Responses;
+            var sinLote = consolidado.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0;
+            var conLote = consolidado.Lotes.Sum(l => l.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0);
+            _existenciaActualEnBodega = (decimal)(sinLote + conLote);
+        }
+        finally
+        {
+            _consultandoExistencia = false;
+        }
     }
     private async Task ReabrirImportadorDesdeBuscador()
     {
@@ -475,7 +500,7 @@
         var l = _lineas[indice]; _articuloActual = l.Articulo; _indiceEdicion = indice; _cantidad = l.Cantidad; _regalias = l.Regalias; _base = l.Base; _flete = l.Flete; _otros = l.Otros; _descuento = l.Descuento; _impuesto = l.Impuesto; _lote = l.Lote; _venceLote = l.VenceLote;
     }
     private void QuitarLinea(int indice) { _lineas.RemoveAt(indice); LimpiarEditor(); RecalcularTotales(); }
-    private void LimpiarEditor() { _articuloActual = null; _lotesExtra.Clear(); _indiceEdicion = null; _cantidad = 1; _regalias = _base = _flete = _otros = _descuento = _impuesto = 0; _lote = string.Empty; _venceLote = DateTime.Today; }
+    private void LimpiarEditor() { _articuloActual = null; _existenciaActualEnBodega = null; _consultandoExistencia = false; _lotesExtra.Clear(); _indiceEdicion = null; _cantidad = 1; _regalias = _base = _flete = _otros = _descuento = _impuesto = 0; _lote = string.Empty; _venceLote = DateTime.Today; }
     private void RecalcularTotales() => _totales = CalculoDocumento.Totales(_lineas.Select(l => l.Calculo));
 
     private FacturaCompraDTO ArmarCompra() => new()

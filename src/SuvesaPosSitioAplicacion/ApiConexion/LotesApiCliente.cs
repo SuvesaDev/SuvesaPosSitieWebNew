@@ -16,6 +16,7 @@ public interface ILotesApiCliente
 {
     Task<LoteEnvelope<MovimientoInventarioPagina>> MovimientosAsync(MovimientoInventarioFiltro filtro);
     Task<LoteEnvelope<ExistenciaConsolidada>> ExistenciaConsolidadaAsync(long idArticulo);
+    Task<LoteEnvelope<ReporteAlertasInventario>> AlertasOperativasAsync();
     Task<LoteEnvelope<MovimientoInventarioResultado>> ActualizarExistenciaAsync(ActualizarExistencia req);
 
     Task<LoteEnvelope<List<TomaFisicaArticulo>>> TomaArticulosAsync(TomaFisicaFiltro filtro);
@@ -100,6 +101,9 @@ public sealed class LotesApiCliente : ILotesApiCliente
 
     public Task<LoteEnvelope<ExistenciaConsolidada>> ExistenciaConsolidadaAsync(long idArticulo)
         => EnviarAsync<ExistenciaConsolidada>(HttpMethod.Get, $"InventarioMovimientos/ExistenciaConsolidada?idArticulo={idArticulo}");
+
+    public Task<LoteEnvelope<ReporteAlertasInventario>> AlertasOperativasAsync()
+        => EnviarAsync<ReporteAlertasInventario>(HttpMethod.Get, "InventarioMovimientos/AlertasOperativas");
 
     public Task<LoteEnvelope<MovimientoInventarioResultado>> ActualizarExistenciaAsync(ActualizarExistencia req)
         => EnviarAsync<MovimientoInventarioResultado>(HttpMethod.Put, "InventarioMovimientos/ActualizarExistencia", req);

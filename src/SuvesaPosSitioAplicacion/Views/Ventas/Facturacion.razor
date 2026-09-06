@@ -1191,7 +1191,7 @@
         if (completo.Lote)
         {
             _repartoConsumo.Clear();
-            _lotesPendientes = (await Respuestas.DatoAsync(await Inventario.Lotes(completo.Codigo), "consultar lotes"))?.ToList() ?? new();
+            _lotesPendientes = await LotesDisponiblesEnBodega(completo.Codigo);
             await _modalLotes.ShowAsync();
             return;
         }
@@ -1204,14 +1204,53 @@
             if (ex.Status == DTOs.Generated.ResponseStatus._0 && ex.Responses is { } consol)
             {
                 var yaEnDetalle = _lineas.Where(l => l.Articulo.Codigo == completo.Codigo && l.Lotes is null && !l.EsBonificacion).Sum(l => l.Cantidad);
-                if ((decimal)consol.ExistenciaTotal - yaEnDetalle - cantidad < 0)
+                var existenciaBodega = consol.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0;
+                if ((decimal)existenciaBodega - yaEnDetalle - cantidad < 0)
                 {
-                    await Dialogos.ErrorAsync($"No hay existencia suficiente de {completo.Descripcion} (disponible {consol.ExistenciaTotal:N2}).");
+                    await Dialogos.ErrorAsync($"No hay existencia suficiente de {completo.Descripcion} en la bodega seleccionada (disponible {existenciaBodega:N2}).");
                     return;
                 }
             }
         }
         AgregarArticulo(completo, null, cantidad);
+    }
+
+    /// <summary>
+    /// La selección de lote siempre se calcula contra la bodega de la factura.
+    /// El endpoint legado de lotes usa una bodega CostaPets fija, por lo que no
+    /// es válido para una venta multi-bodega. La existencia consolidada ya trae
+    /// el desglose exacto por lote y bodega.
+    /// </summary>
+    private async Task<List<StockLoteDTO>> LotesDisponiblesEnBodega(long idArticulo)
+    {
+        // La consignación tiene una bodega especial resuelta por su propio flujo;
+        // conservar la consulta heredada hasta que ese módulo publique su bodega.
+        if (EsConsignacion || _bodega <= 0)
+            return (await Respuestas.DatoAsync(await Inventario.Lotes(idArticulo), "consultar lotes"))?.ToList() ?? new();
+
+        var r = await Lotes2.ExistenciaConsolidadaAsync(idArticulo);
+        if (r.Status != DTOs.Generated.ResponseStatus._0 || r.Responses is null)
+        {
+            await Respuestas.CorrectaAsync(new Helpers.ResponseGeneric<bool>(r.CurrentException ?? "No se pudo consultar la existencia por bodega."), "consultar lotes por bodega");
+            return new();
+        }
+
+        return r.Responses.Lotes
+            .Select(l => new StockLoteDTO
+            {
+                Id = l.Id,
+                IdArticulo = idArticulo,
+                Lote = l.Numero,
+                Vencimiento = l.Vencimiento is { } v ? new DateTimeOffset(v) : null,
+                Activo = !l.Vencido,
+                EsUnico = l.EsUnico,
+                Bloqueado = l.Bloqueado,
+                Cantidad = l.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0
+            })
+            .Where(l => l.Cantidad > 0)
+            .OrderBy(l => l.Vencimiento ?? DateTimeOffset.MaxValue)
+            .ThenBy(l => l.Lote)
+            .ToList();
     }
 
     private double RepartoTotal => _repartoConsumo.Values.Sum();
@@ -1276,7 +1315,7 @@
         _articuloPendiente = linea.Articulo;
         _cantidadArticuloPendiente = linea.Cantidad;
         _repartoConsumo.Clear();
-        _lotesPendientes = (await Respuestas.DatoAsync(await Inventario.Lotes(linea.Articulo.Codigo), "consultar lotes"))?.ToList() ?? new();
+        _lotesPendientes = await LotesDisponiblesEnBodega(linea.Articulo.Codigo);
         if (linea.Lotes is { Count: > 0 })
         {
             foreach (var l in linea.Lotes) _repartoConsumo[l.IdStockLote] = l.Cantidad;
@@ -1309,7 +1348,7 @@
         _articuloPendiente = pendiente.Articulo;
         _cantidadArticuloPendiente = pendiente.Cantidad;
         _repartoConsumo.Clear();
-        _lotesPendientes = (await Respuestas.DatoAsync(await Inventario.Lotes(pendiente.Articulo.Codigo), "consultar lotes"))?.ToList() ?? new();
+        _lotesPendientes = await LotesDisponiblesEnBodega(pendiente.Articulo.Codigo);
         await _modalLotes.ShowAsync();
     }
     // ======================= §4.3 — flujo de bonificación =======================
@@ -1366,7 +1405,7 @@
         {
             _articuloPendiente = art;
             _repartoConsumo.Clear();
-            _lotesPendientes = (await Respuestas.DatoAsync(await Inventario.Lotes(art.Codigo), "consultar lotes"))?.ToList() ?? new();
+            _lotesPendientes = await LotesDisponiblesEnBodega(art.Codigo);
             await _modalLotes.ShowAsync();
         }
         else
@@ -1408,7 +1447,7 @@
         var lotesUsables = new List<StockLoteDTO>();
         if (articulo.Lote)
         {
-            var lotes = (await Respuestas.DatoAsync(await Inventario.Lotes(articulo.Codigo), "consultar lotes"))?.ToList() ?? new();
+            var lotes = await LotesDisponiblesEnBodega(articulo.Codigo);
             lotesUsables = lotes.Where(l => l.Activo != false && l.Cantidad > 0
                 && (l.Vencimiento is null || l.Vencimiento.Value.Date >= DateTime.Today)).ToList();
         }

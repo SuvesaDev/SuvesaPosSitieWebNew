@@ -1,9 +1,12 @@
 @page "/moduloInventario"
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Lotes
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IAlbaranes Albaranes
 @inject IInventarioConsulta Inventario
+@inject ILotesApiCliente LotesApi
 @inject IManejadorRespuestas Respuestas
 
 @*  Consulta Estados Albaranes: en el sistema actual (StateBody.jsx) es un panel
@@ -23,6 +26,7 @@
         <nav class="nav nav-pills gap-2 mb-3 seepos-editor-tabs" aria-label="Secciones del módulo de inventario">
             <button type="button" class="btn btn-sm @ClasePestanaEstados" @onclick='() => _pestana = "estados"'>Consulta Estados Albaranes</button>
             <button type="button" class="btn btn-sm @ClasePestanaQr" @onclick='() => _pestana = "qr"'>Inventario QR</button>
+            <button type="button" class="btn btn-sm @ClasePestanaAlertas" @onclick="AbrirAlertas">Alertas operativas</button>
         </nav>
 
         @if (_pestana == "estados")
@@ -113,6 +117,43 @@
                 </div>
             }
         }
+        else if (_pestana == "alertas")
+        {
+            <div class="card">
+                <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                    <div><strong>Control operativo de inventario</strong><span class="d-block small text-secondary">Negativos, vencidos con saldo, mínimos por bodega y movimientos sin documento.</span></div>
+                    <button class="btn btn-sm btn-outline-primary" disabled="@_cargandoAlertas" @onclick="CargarAlertas"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>@(_cargandoAlertas ? "Actualizando..." : "Actualizar")</button>
+                </div>
+                <div class="card-body">
+                    @if (_cargandoAlertas)
+                    {
+                        <div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando alertas</span></div></div>
+                    }
+                    else if (_alertasOperativas is null)
+                    {
+                        <p class="text-secondary mb-0">Presione “Actualizar” para consultar el control de inventario.</p>
+                    }
+                    else if (_alertasOperativas.Alertas.Count == 0)
+                    {
+                        <div class="alert alert-success mb-0"><i class="bi bi-check-circle me-2" aria-hidden="true"></i>No hay alertas operativas de inventario.</div>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <span class="badge text-bg-danger">@_alertasOperativas.Alertas.Count(a => a.Severidad == "Crítica") críticas</span>
+                            <span class="badge text-bg-warning">@_alertasOperativas.Alertas.Count(a => a.Severidad != "Crítica") advertencias</span>
+                            <span class="small text-secondary align-self-center">Generado @(_alertasOperativas.GeneradoEn.ToString("dd/MM/yyyy HH:mm")); movimientos sin documento desde @(_alertasOperativas.DesdeMovimientosSinDocumento.ToString("dd/MM/yyyy")).</span>
+                        </div>
+                        <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Alerta</th><th>Artículo</th><th>Bodega</th><th>Lote / vencimiento</th><th class="text-end">Existencia</th><th class="text-end">Mínimo</th><th>Referencia</th></tr></thead><tbody>
+                            @foreach (var alerta in _alertasOperativas.Alertas)
+                            {
+                                <tr><td><span class="badge @(alerta.Severidad == "Crítica" ? "text-bg-danger" : "text-bg-warning")">@NombreAlerta(alerta.Tipo)</span></td><td><code>@alerta.CodigoArticulo</code><span class="d-block">@alerta.DescripcionArticulo</span></td><td>@(alerta.NombreBodega ?? "—")</td><td>@(alerta.NumeroLote ?? "—")@if (alerta.Vencimiento is { } vence) { <span class="d-block small text-danger">Vence @vence.ToString("dd/MM/yyyy")</span> }</td><td class="text-end @(alerta.Existencia < 0 ? "text-danger fw-semibold" : "")">@Formato.Cantidad(alerta.Existencia)</td><td class="text-end">@(alerta.Minimo is { } minimo ? Formato.Cantidad(minimo) : "—")</td><td>@if (alerta.FechaMovimiento is { } fecha) { <span class="small">Movimiento @fecha.ToString("dd/MM/yyyy HH:mm")</span> } else { <span class="text-secondary">—</span> }</td></tr>
+                            }
+                        </tbody></table></div>
+                    }
+                </div>
+            </div>
+        }
         else
         {
             <div class="card">
@@ -159,6 +200,7 @@
     private string _pestana = "estados";
     private string ClasePestanaEstados => _pestana == "estados" ? "btn-primary" : "btn-outline-primary";
     private string ClasePestanaQr => _pestana == "qr" ? "btn-primary" : "btn-outline-primary";
+    private string ClasePestanaAlertas => _pestana == "alertas" ? "btn-primary" : "btn-outline-primary";
 
     private AppDesbloqueoClave? _desbloqueo;
 
@@ -176,6 +218,8 @@
     private List<InventarioDTO> _articulos = new();
     private string _codigo = string.Empty;
     private bool _consultaHecha;
+    private ReporteAlertasInventario? _alertasOperativas;
+    private bool _cargandoAlertas;
 
     private sealed record Peticion(
         string Cliente, string Mascota, string Responsable, string Fecha,
@@ -196,7 +240,40 @@
         {
             await CargarPeticiones();
         }
+        if (_pestana == "alertas") await CargarAlertas();
     }
+
+    private async Task AbrirAlertas()
+    {
+        _pestana = "alertas";
+        if (_alertasOperativas is null) await CargarAlertas();
+    }
+
+    private async Task CargarAlertas()
+    {
+        _cargandoAlertas = true;
+        try
+        {
+            var respuesta = await LotesApi.AlertasOperativasAsync();
+            if (respuesta.Status == DTOs.Generated.ResponseStatus._0)
+                _alertasOperativas = respuesta.Responses;
+            else
+                await Respuestas.CorrectaAsync(new Helpers.ResponseGeneric<bool>(respuesta.CurrentException ?? "No se pudo obtener el reporte operativo."), "consultar las alertas operativas");
+        }
+        finally
+        {
+            _cargandoAlertas = false;
+        }
+    }
+
+    private static string NombreAlerta(string tipo) => tipo switch
+    {
+        "ExistenciaNegativa" => "Existencia negativa",
+        "LoteVencidoConSaldo" => "Lote vencido con saldo",
+        "BajoMinimo" => "Bajo mínimo",
+        "MovimientoSinDocumento" => "Movimiento sin documento",
+        _ => tipo
+    };
 
     private async Task AlDesbloquear(bool desbloqueado)
     {
