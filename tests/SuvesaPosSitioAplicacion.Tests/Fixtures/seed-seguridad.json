@@ -1379,6 +1379,22 @@
           ]
         },
         {
+          "codigo": "PARAMETROS.CAJAS",
+          "nombre": "Cajas",
+          "ruta": "/parameters/cash-registers",
+          "padre": null,
+          "orden": 11,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "PARAMETROS.CONFIGURACION_CORREO",
           "nombre": "Configuración de correo",
           "ruta": "/parameters/mail-settings",

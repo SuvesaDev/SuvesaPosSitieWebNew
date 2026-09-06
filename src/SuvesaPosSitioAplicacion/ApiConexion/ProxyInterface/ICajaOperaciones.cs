@@ -10,6 +10,11 @@ public interface ICajaOperaciones
     Task<ResponseGeneric<Usuario>> ValidarClaveInterna(string contrasena);
     Task<ResponseGeneric<UsuarioCajaAbiertaValidadaWebDTO>> ValidarClaveInternaConCajaAbierta(string contrasena);
     Task<ResponseGeneric<ICollection<CajasCantidad>>> CajasDisponibles();
+
+    /// <summary>Todas las cajas del catálogo (mantenimiento en Parámetros).</summary>
+    Task<ResponseGeneric<ICollection<CajasCantidad>>> TodasLasCajas();
+    Task<ResponseGeneric<CajasCantidad>> CrearCaja(long numCaja);
+    Task<ResponseGeneric<bool>> EliminarCaja(long idCaja);
     Task<ResponseGeneric<ICollection<DenominacionMonedum>>> Denominaciones();
     Task<ResponseGeneric<ICollection<User>>> CajerosConCajaAbierta();
     Task<ResponseGeneric<ICollection<AperturaCajaDTO>>> AperturasSinCerrar();

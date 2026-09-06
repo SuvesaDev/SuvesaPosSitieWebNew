@@ -55,6 +55,22 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "consultar las cajas disponibles");
 
+    public Task<ResponseGeneric<ICollection<CajasCantidad>>> TodasLasCajas() => Ejecutar(async () =>
+    {
+        var r = await _caja.ObtenerTodasCajasAsync();
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "consultar las cajas");
+
+    public Task<ResponseGeneric<CajasCantidad>> CrearCaja(long numCaja)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<CajasCantidad>(
+            await _api.PostAsJsonAsync("Caja/CrearCaja", new { NumCaja = numCaja })),
+            "crear la caja");
+
+    public Task<ResponseGeneric<bool>> EliminarCaja(long idCaja)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<bool>(
+            await _api.PostAsJsonAsync("Caja/EliminarCaja", new { IdCaja = idCaja })),
+            "eliminar la caja");
+
     public Task<ResponseGeneric<ICollection<DenominacionMonedum>>> Denominaciones() => Ejecutar(async () =>
     {
         var r = await _caja.GetDenominacionMonedasAsync();

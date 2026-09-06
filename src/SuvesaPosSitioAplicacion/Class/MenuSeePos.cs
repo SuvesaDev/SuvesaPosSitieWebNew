@@ -619,6 +619,13 @@ public static partial class MenuSeePos
                     Titulo = "Areas",
                     Codigo = "PARAMETROS.AREAS",
                     Ruta = "/parameters/areas",
+                },
+                new ItemMenu
+                {
+                    // Catálogo de cajas (tabla Caja_cantidad); Apertura Caja exige que existan.
+                    Titulo = "Cajas",
+                    Codigo = "PARAMETROS.CAJAS",
+                    Ruta = "/parameters/cash-registers",
                 }
             }
         },
