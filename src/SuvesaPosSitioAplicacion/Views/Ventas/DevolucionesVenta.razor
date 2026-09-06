@@ -435,6 +435,10 @@
                 SubtotalGravado = (double)l.Calculo.SubtotalGravado,
                 SubTotalExcento = l.Impuesto == 0 ? (double)l.Calculo.SubTotal : 0,
                 SubTotal = (double)l.Calculo.SubTotal,
+                // IdArtVenta debe ser el IdVentaDetalle de la línea de la venta origen:
+                // el mapeador V4.4 de la Nota de Crédito lo usa para casar cada línea
+                // devuelta con su línea original (impuesto histórico, etc.).
+                IdArtVenta = l.IdVentaDetalle is > 0 and <= int.MaxValue ? (int)l.IdVentaDetalle : 0,
                 IdArticuloV = l.IdVentaDetalle.ToString(),
                 IdBodega = l.IdBodega,
                 IdStockLote = l.IdStockLote,
