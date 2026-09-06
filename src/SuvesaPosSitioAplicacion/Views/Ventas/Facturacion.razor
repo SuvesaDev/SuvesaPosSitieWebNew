@@ -1703,19 +1703,21 @@
 
         if (MostrarCobroContado) await _modalCobro.HideAsync();
 
-        // La preventa de contado todavía no emite nada; y sin id de venta no hay PDF que abrir.
-        if (_ruta.Ruta == PoliticaRutaFacturacion.Ruta.GuardarPreventaContado || res.IdVenta <= 0)
+        // Solo el tiquete de contado muestra el comprobante impreso y acelera Hacienda.
+        // Crédito y preventa de contado: resultado en texto; el envío a Hacienda queda
+        // a cargo de los workers (asíncrono) y se reimprime desde la Bandeja.
+        if (!MostrarCobroContado || res.IdVenta <= 0)
         {
             Dialogos.Exito(_avisoResultado ?? "Operación registrada.");
             await Limpiar();
             return;
         }
 
-        // Tiquete o crédito: mostrar el comprobante impreso y, si es electrónico,
-        // firmarlo y enviarlo a Hacienda de forma síncrona para que salga con clave.
+        // Tiquete: mostrar el comprobante impreso y, si es electrónico, firmarlo y
+        // enviarlo a Hacienda de forma síncrona para que salga con clave.
         _docId = res.IdVenta;
-        _docSlug = _esCredito ? "factura-electronica" : "tiquete-electronico";
-        _docFormato = _esCredito ? null : "termico80";
+        _docSlug = "tiquete-electronico";
+        _docFormato = "termico80";
         _avisoComprobante = null;
         _emitiendoHacienda = res.EstadoFiscal != "NoAplica" && res.IdVenta > 0;
         await _modalComprobante.ShowAsync();
@@ -1723,9 +1725,7 @@
         if (_emitiendoHacienda)
         {
             StateHasChanged();
-            var em = _esCredito
-                ? await Preventas.EmitirFactura(res.IdVenta)
-                : await Preventas.EmitirTiquete(res.IdVenta);
+            var em = await Preventas.EmitirTiquete(res.IdVenta);
             _emitiendoHacienda = false;
             _avisoComprobante = em?.Responses?.EsValido == true
                 ? "Comprobante recibido por Hacienda."
