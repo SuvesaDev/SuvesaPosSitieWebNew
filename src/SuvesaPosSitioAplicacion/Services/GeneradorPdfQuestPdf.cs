@@ -259,12 +259,10 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                     foreach (var linea in reporte.Detalle.OrderBy(l => l.Vence ?? l.Fecha))
                     {
                         var fondo = indice++ % 2 == 0 ? "#FFFFFF" : FondoSuave;
-                        CeldaEstadoCuenta(tabla.Cell(), fondo, "izquierda").Column(c =>
-                        {
-                            c.Item().Text(linea.Factura).SemiBold();
-                            if (!string.IsNullOrWhiteSpace(linea.Consecutivo))
-                                c.Item().PaddingTop(1).Text(linea.Consecutivo).FontSize(5.8f).FontColor(Colors.Grey.Darken1);
-                        });
+                        // El consecutivo fiscal completo se conserva en el CSV y
+                        // consulta de pantalla. En un estado de cuenta ocuparía
+                        // varias líneas y ocultaría el importe que se debe cobrar.
+                        CeldaEstadoCuenta(tabla.Cell(), fondo, "izquierda").Text(linea.Factura).SemiBold();
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "centro").Text(linea.Fecha.ToString("dd/MM/yyyy"));
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "centro").Text(linea.Vence?.ToString("dd/MM/yyyy") ?? "—");
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "derecha").Text(FormatearMonto(linea.Original, reporte.Moneda));
@@ -275,12 +273,15 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                     }
                 }
 
-                for (var i = 0; i < 6; i++)
-                    tabla.Cell().Background(FondoSuave).BorderTop(1).BorderColor(Azul).PaddingVertical(5).Text(string.Empty);
-                tabla.Cell().Background(FondoSuave).BorderTop(1).BorderColor(Azul).PaddingVertical(5).PaddingHorizontal(3)
-                    .AlignRight().Text("SALDO TOTAL").SemiBold().FontColor(AzulOscuro);
-                tabla.Cell().Background(FondoSuave).BorderTop(1).BorderColor(Azul).PaddingVertical(5).PaddingHorizontal(3)
-                    .AlignCenter().Text(FormatearMonto(reporte.SaldoAbierto, reporte.Moneda)).SemiBold().FontColor(AzulOscuro);
+            });
+
+            // El total no forma parte de una columna estrecha: se presenta en
+            // una banda propia para que un importe grande nunca se parta.
+            col.Item().Background(FondoSuave).BorderTop(1).BorderColor(Azul).Padding(6).Row(row =>
+            {
+                row.RelativeItem().AlignRight().Text("SALDO TOTAL").SemiBold().FontColor(AzulOscuro);
+                row.ConstantItem(130).AlignRight().Text(FormatearMonto(reporte.SaldoAbierto, reporte.Moneda))
+                    .SemiBold().FontSize(11).FontColor(AzulOscuro);
             });
         });
     }
