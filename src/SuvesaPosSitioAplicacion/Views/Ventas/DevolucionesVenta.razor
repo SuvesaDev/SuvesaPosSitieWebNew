@@ -67,7 +67,16 @@
                                         <option value="0">Seleccione...</option>
                                         @foreach (var linea in _factura.Detalle ?? new List<FacturaDetallesDTO>())
                                         {
-                                            <option value="@linea.IdVentaDetalle">@linea.Descripcion (máx. @Formato.Cantidad(linea.Cantidad))@(linea.IdGrupoBonificacion is not null ? " · Bonificación" : "")</option>
+                                            var restante = RestanteLinea(linea);
+                                            var yaDevuelta = Formato.AImporte(linea.CantidadDevuelta);
+                                            <option value="@linea.IdVentaDetalle" disabled="@(restante <= 0)">
+                                                @linea.Descripcion
+                                                @(restante <= 0
+                                                    ? "· devuelto por completo"
+                                                    : yaDevuelta > 0
+                                                        ? $"(quedan {Formato.Cantidad((float)restante)} de {Formato.Cantidad(linea.Cantidad)})"
+                                                        : $"(máx. {Formato.Cantidad(linea.Cantidad)})")@(linea.IdGrupoBonificacion is not null ? " · Bonificación" : "")
+                                            </option>
                                         }
                                     </select>
                                 </div>
@@ -101,7 +110,7 @@
                 </div>
             </div>
             <div class="col-12 col-lg-4">
-                <div class="card h-100"><div class="card-header"><strong>Totales de la devolución</strong></div><div class="card-body"><dl class="row mb-0"><dt class="col-7 fw-normal text-secondary">Sub. gravado</dt><dd class="col-5 text-end">@Formato.Importe(_subtotalGravado)</dd><dt class="col-7 fw-normal text-secondary">Sub. exento</dt><dd class="col-5 text-end">@Formato.Importe(_totales.SubTotal - _subtotalGravado)</dd><dt class="col-7 fw-normal text-secondary">Impuesto</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Impuesto)</dd><dt class="col-7">Total</dt><dd class="col-5 text-end fs-5">@Formato.Importe(_totales.Total)</dd></dl></div></div>
+                <div class="card h-100"><div class="card-header d-flex justify-content-between align-items-center"><strong>Totales de la devolución</strong>@if (_lineas.Count > 0) { <span class="badge @(EsDevolucionCompleta ? "text-bg-primary" : "text-bg-secondary")">@(EsDevolucionCompleta ? "Completa" : "Parcial")</span> }</div><div class="card-body"><dl class="row mb-0"><dt class="col-7 fw-normal text-secondary">Sub. gravado</dt><dd class="col-5 text-end">@Formato.Importe(_subtotalGravado)</dd><dt class="col-7 fw-normal text-secondary">Sub. exento</dt><dd class="col-5 text-end">@Formato.Importe(_totales.SubTotal - _subtotalGravado)</dd><dt class="col-7 fw-normal text-secondary">Impuesto</dt><dd class="col-5 text-end">@Formato.Importe(_totales.Impuesto)</dd><dt class="col-7">Total</dt><dd class="col-5 text-end fs-5">@Formato.Importe(_totales.Total)</dd></dl></div></div>
             </div>
         </div>
 
@@ -361,13 +370,29 @@
         if (_lotesVendidos.Count == 1) _idLoteSeleccionado = _lotesVendidos[0].Id;
     }
 
+    // Lo que aún se puede devolver de una línea de la factura: lo vendido menos lo
+    // ya devuelto en devoluciones anteriores (dato del API) menos lo que se está por
+    // agregar en esta misma pantalla.
+    private decimal RestanteLinea(FacturaDetallesDTO linea)
+    {
+        var yaDevuelto = Formato.AImporte(linea.CantidadDevuelta);
+        var enBorrador = _lineas.Where(l => l.IdVentaDetalle == linea.IdVentaDetalle).Sum(l => l.Cantidad);
+        return Math.Max(0, Formato.AImporte(linea.Cantidad) - yaDevuelto - enBorrador);
+    }
+
+    // Completa = las líneas del borrador cubren TODO lo que quedaba pendiente de la
+    // factura (contando también devoluciones anteriores). Si no, es parcial.
+    private bool EsDevolucionCompleta
+        => _factura?.Detalle is { Count: > 0 } det
+           && _lineas.Count > 0
+           && det.All(l => RestanteLinea(l) <= 0.001m);
+
     private decimal MaximoDevolucionSeleccionada
     {
         get
         {
             if (_lineaSeleccionada is null) return 0;
-            var agregadoMismaLinea = _lineas.Where(l => l.IdVentaDetalle == _lineaSeleccionada.IdVentaDetalle).Sum(l => l.Cantidad);
-            var disponibleLinea = Math.Max(0, Formato.AImporte(_lineaSeleccionada.Cantidad) - agregadoMismaLinea);
+            var disponibleLinea = RestanteLinea(_lineaSeleccionada);
             if (_lotesVendidos.Count == 0) return disponibleLinea;
             var lote = _lotesVendidos.FirstOrDefault(l => l.Id == _idLoteSeleccionado);
             if (lote is null) return 0;
@@ -388,7 +413,9 @@
         }
         if (_cantidadDevolver <= 0 || _cantidadDevolver > MaximoDevolucionSeleccionada)
         {
-            await Dialogos.ErrorAsync("La cantidad a devolver debe ser mayor a cero y no superar la cantidad vendida pendiente para la línea y el lote.");
+            await Dialogos.ErrorAsync(MaximoDevolucionSeleccionada <= 0
+                ? "Este artículo ya fue devuelto por completo (contando devoluciones anteriores)."
+                : $"La cantidad debe ser mayor a cero y no superar lo pendiente de devolver: {Formato.Cantidad((float)MaximoDevolucionSeleccionada)}.");
             return;
         }
         AgregarLinea(_lineaSeleccionada, _cantidadDevolver, _idLoteSeleccionado > 0 ? _idLoteSeleccionado : null);
@@ -403,17 +430,28 @@
     {
         if (_factura?.Detalle is null || _factura.Detalle.Count == 0) return;
         if (!await Dialogos.ConfirmarAsync("¿Desea devolver todos los artículos de la factura?")) return;
+        var algo = false;
         foreach (var linea in _factura.Detalle)
         {
+            var restante = RestanteLinea(linea);
+            if (restante <= 0) continue; // ya devuelto por completo
+            algo = true;
+
             var lotes = linea.Lotes?.Where(l => l.IdStockLote > 0).ToList();
             if (linea.IdGrupoBonificacion is null && lotes is { Count: > 0 })
             {
                 foreach (var lote in lotes)
-                    AgregarLinea(linea, (decimal)lote.Cantidad, lote.IdStockLote);
+                {
+                    if (restante <= 0) break;
+                    var cant = Math.Min(restante, (decimal)lote.Cantidad);
+                    AgregarLinea(linea, cant, lote.IdStockLote);
+                    restante -= cant;
+                }
             }
             else
-                AgregarLinea(linea, Formato.AImporte(linea.Cantidad), linea.Lote > 0 ? linea.Lote : null);
+                AgregarLinea(linea, restante, linea.Lote > 0 ? linea.Lote : null);
         }
+        if (!algo) await Dialogos.ErrorAsync("Todos los artículos de esta factura ya fueron devueltos.");
         _lineaSeleccionada = null;
         _idVentaDetalleSeleccionado = 0;
     }
