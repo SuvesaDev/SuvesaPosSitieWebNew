@@ -156,19 +156,43 @@
                 }
                 @if (_editorXml == EditorXml.Lotes && LineaXmlSeleccionada is not null)
                 {
-                    <div class="border rounded p-3 mb-3 bg-body-tertiary"><div class="d-flex justify-content-between align-items-center mb-3"><strong>Lote: @LineaXmlSeleccionada.Articulo?.Descripcion</strong><button type="button" class="btn btn-sm btn-primary" @onclick="CancelarEditorXml">Aceptar lote</button></div><div class="row g-3"><div class="col-12 col-md-6"><label class="form-label">Número de lote</label><input class="form-control" @bind="LineaXmlSeleccionada.Lote" /></div><div class="col-12 col-md-6"><label class="form-label">Vencimiento</label><input type="date" class="form-control" @bind="LineaXmlSeleccionada.Vencimiento" /></div></div></div>
+                    <div class="border rounded p-3 mb-3 bg-body-tertiary">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <strong>Lotes: @LineaXmlSeleccionada.Articulo?.Descripcion</strong>
+                            <button type="button" class="btn btn-sm btn-primary" @onclick="CancelarEditorXml">Aceptar lote</button>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6"><label class="form-label">Número de lote</label><input class="form-control" @bind="LineaXmlSeleccionada.Lote" /></div>
+                            <div class="col-12 col-md-6"><label class="form-label">Vencimiento</label><input type="date" class="form-control" @bind="LineaXmlSeleccionada.Vencimiento" /></div>
+                        </div>
+                        <div class="mt-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="form-text mb-0">¿La compra trae varios lotes de este artículo? Agréguelos aquí (la suma debe dar @Formato.Cantidad(LineaXmlSeleccionada.Cantidad); el lote principal toma el resto).</span>
+                                <button type="button" class="btn btn-sm btn-link" @onclick="() => LineaXmlSeleccionada!.LotesExtra.Add(new LoteExtra())">+ Otro lote</button>
+                            </div>
+                            @foreach (var le in LineaXmlSeleccionada.LotesExtra)
+                            {
+                                <div class="row g-2 align-items-end mt-1">
+                                    <div class="col-5"><input class="form-control form-control-sm" placeholder="Número" @bind="le.Numero" /></div>
+                                    <div class="col-4"><input type="date" class="form-control form-control-sm" @bind="le.Vence" /></div>
+                                    <div class="col-2"><input type="number" min="0.001" step="0.001" class="form-control form-control-sm text-end" placeholder="Cant." @bind="le.Cantidad" /></div>
+                                    <div class="col-1"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => LineaXmlSeleccionada!.LotesExtra.Remove(le)"><i class="bi bi-trash" aria-hidden="true"></i></button></div>
+                                </div>
+                            }
+                        </div>
+                    </div>
                 }
                 @if (_editorXml == EditorXml.Precios && LineaXmlSeleccionada is not null)
                 {
                     <div class="border rounded p-3 mb-3 bg-body-tertiary"><div class="d-flex justify-content-between align-items-center mb-2"><strong>Precios de venta: @LineaXmlSeleccionada.Articulo?.Descripcion</strong><button type="button" class="btn btn-sm btn-primary" @onclick="CancelarEditorXml">Guardar precios</button></div><div class="alert alert-light border small">Costo nuevo: <strong>@Formato.Importe(CostoNuevoXml)</strong> · Impuesto: @LineaXmlSeleccionada.Impuesto:N2%</div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Tipo</th><th class="text-end">Utilidad %</th><th class="text-end">Precio</th><th class="text-end">Precio + IV</th></tr></thead><tbody>@foreach (var precio in LineaXmlSeleccionada.Precios) { <tr><td>@precio.Tarifa</td><td><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="precio.Utilidad" @bind:after="RecalcularPrecioXml" /></td><td><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="precio.Precio" @bind:after="RecalcularUtilidadXml" /></td><td class="text-end">@Formato.Importe(precio.Precio * (1 + LineaXmlSeleccionada.Impuesto / 100m))</td></tr> }</tbody></table></div></div>
                 }
                 <div class="alert alert-light border small py-2 mb-3"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>Revise las asociaciones, cantidades, regalías, lotes y precios antes de aplicar. El vínculo proveedor–artículo se guarda explícitamente para las líneas asociadas manualmente.</div>
-                <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>#</th><th>Código prov.</th><th>Descripción prov.</th><th>Código interno</th><th>Descripción interna</th><th>Presentación</th><th class="text-end">Cantidad</th>@if (!EsCostaPetsCompra) { <th class="text-end">Regalía</th> }<th class="text-end">Precio</th><th>Opciones</th></tr></thead><tbody>@for (var i = 0; i < _xml.Lineas.Count; i++) { var linea = _xml.Lineas[i]; var indice = i; <tr><td>@linea.Numero</td><td><code>@linea.CodigoProveedor</code><small class="d-block text-secondary">@linea.Cabys</small></td><td>@linea.Descripcion</td><td>@if (linea.Articulo is null) { <span class="text-warning">Sin asociar</span> } else { <code>@linea.Articulo.Cod_Articulo</code> }</td><td>@(linea.Articulo?.Descripcion ?? "—")</td><td>@linea.Presentacion</td><td style="min-width:7rem"><input type="number" min="0.001" step="0.001" class="form-control form-control-sm text-end" @bind="linea.Cantidad" @bind:after="() => RecalcularLineaXml(linea)" /></td>@if (!EsCostaPetsCompra) { <td style="min-width:6rem"><input type="number" min="0" step="0.001" class="form-control form-control-sm text-end" @bind="linea.Regalia" /></td> }<td class="text-end">@Formato.Importe(linea.Precio)</td><td class="text-nowrap"><button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="() => AsociarArticuloXml(indice)">@((linea.Articulo is null) ? "Asociar" : "Cambiar")</button>@if (linea.Articulo is not null && !linea.VinculoConfirmado) { <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="() => VincularArticuloXml(indice)"><i class="bi bi-link-45deg" aria-hidden="true"></i><span class="visually-hidden">Vincular</span></button> }@if (EsCostaPetsCompra || linea.Articulo?.Lote == true) { <button type="button" class="btn btn-sm btn-outline-secondary me-1" title="Lote" @onclick="() => AbrirLotesXml(indice)"><i class="bi bi-box-seam" aria-hidden="true"></i></button> }@if (linea.Articulo is not null) { <button type="button" class="btn btn-sm btn-outline-success" title="Precios de venta" @onclick="() => AbrirPreciosXml(indice)"><i class="bi bi-currency-dollar" aria-hidden="true"></i></button> }</td></tr>@if ((EsCostaPetsCompra || linea.Articulo?.Lote == true) && (string.IsNullOrWhiteSpace(linea.Lote) || linea.Vencimiento == DateTime.MinValue)) { <tr><td colspan="@(EsCostaPetsCompra ? 9 : 10)" class="small text-warning"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Indique lote y vencimiento para esta línea importada.</td></tr> } }</tbody></table></div>
+                <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>#</th><th>Código prov.</th><th>Descripción prov.</th><th>Código interno</th><th>Descripción interna</th><th>Presentación</th><th class="text-end">Cantidad</th>@if (!EsCostaPetsCompra) { <th class="text-end">Regalía</th> }<th class="text-end">Precio</th><th>Opciones</th></tr></thead><tbody>@for (var i = 0; i < _xml.Lineas.Count; i++) { var linea = _xml.Lineas[i]; var indice = i; <tr><td>@linea.Numero</td><td><code>@linea.CodigoProveedor</code><small class="d-block text-secondary">@linea.Cabys</small></td><td>@linea.Descripcion</td><td>@if (linea.Articulo is null) { <span class="text-warning">Sin asociar</span> } else { <code>@linea.Articulo.Cod_Articulo</code> }</td><td>@(linea.Articulo?.Descripcion ?? "—")</td><td>@linea.Presentacion</td><td style="min-width:7rem"><input type="number" min="0.001" step="0.001" class="form-control form-control-sm text-end" @bind="linea.Cantidad" @bind:after="() => RecalcularLineaXml(linea)" /></td>@if (!EsCostaPetsCompra) { <td style="min-width:6rem"><input type="number" min="0" step="0.001" class="form-control form-control-sm text-end" @bind="linea.Regalia" /></td> }<td class="text-end">@Formato.Importe(linea.Precio)</td><td class="text-nowrap"><button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="() => AsociarArticuloXml(indice)">@((linea.Articulo is null) ? "Asociar" : "Cambiar")</button>@if (linea.Articulo is not null && !linea.VinculoConfirmado) { <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="() => VincularArticuloXml(indice)"><i class="bi bi-link-45deg" aria-hidden="true"></i><span class="visually-hidden">Vincular</span></button> }@if (EsCostaPetsCompra || linea.Articulo?.Lote == true) { <button type="button" class="btn btn-sm btn-outline-secondary me-1" title="Lote" @onclick="() => AbrirLotesXml(indice)"><i class="bi bi-box-seam" aria-hidden="true"></i></button> }@if (linea.Articulo is not null) { <button type="button" class="btn btn-sm btn-outline-success" title="Precios de venta" @onclick="() => AbrirPreciosXml(indice)"><i class="bi bi-currency-dollar" aria-hidden="true"></i></button> }</td></tr>@if (ManejaLoteXml(linea)) { <tr><td colspan="@(EsCostaPetsCompra ? 9 : 10)" class="small @(LoteXmlIncompleto(linea) ? "text-warning" : "text-secondary")"><i class="bi @(LoteXmlIncompleto(linea) ? "bi-exclamation-triangle" : "bi-box-seam") me-1" aria-hidden="true"></i>@(LoteXmlIncompleto(linea) ? "Indique lote y vencimiento para esta línea importada." : ResumenLotesXml(linea))</td></tr> } }</tbody></table></div>
                 @if (_xml.Lineas.Any(l => l.Articulo is null || !l.VinculoConfirmado)) { <p class="form-text mb-0">Asocie y vincule cada línea a un artículo interno antes de aplicar el comprobante.</p> }
             }
         </div>
     </BodyTemplate>
-    <FooterTemplate><button type="button" class="btn btn-outline-secondary" @onclick="CerrarImportadorXml">Cerrar</button><button type="button" class="btn btn-primary" disabled="@(_xml is null || _xml.Lineas.Any(l => l.Articulo is null || !l.VinculoConfirmado) || _proveedorXmlNoExiste)" @onclick="AplicarImportacionXml"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Aplicar a compra</button></FooterTemplate>
+    <FooterTemplate><button type="button" class="btn btn-outline-secondary" @onclick="CerrarImportadorXml">Cerrar</button><button type="button" class="btn btn-primary" disabled="@(_xml is null || _xml.Lineas.Any(l => l.Articulo is null || !l.VinculoConfirmado) || _xml.Lineas.Any(LoteXmlIncompleto) || _proveedorXmlNoExiste)" @onclick="AplicarImportacionXml"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Aplicar a compra</button></FooterTemplate>
 </HxModal>
 
 <HxModal @ref="_modalLotesXml" Title="Lote del artículo importado" Size="ModalSize.Regular">
@@ -237,6 +261,9 @@
         public decimal Impuesto { get; init; }
         public string Lote { get; set; } = string.Empty;
         public DateTime Vencimiento { get; set; } = DateTime.Today;
+        /// <summary>Lotes adicionales cuando la cantidad recibida viene repartida
+        /// en varios lotes (el lote principal <see cref="Lote"/> toma el resto).</summary>
+        public List<LoteExtra> LotesExtra { get; } = new();
         public bool VinculoConfirmado { get; set; }
         public bool PreciosEditados { get; set; }
         public List<PrecioXml> Precios { get; } = new();
@@ -400,6 +427,7 @@
             _xml.Lineas[indice].VinculoConfirmado = false;
             _xml.Lineas[indice].Lote = string.Empty;
             _xml.Lineas[indice].Vencimiento = DateTime.Today;
+            _xml.Lineas[indice].LotesExtra.Clear();
             _xml.Lineas[indice].Precios.Clear();
             PrepararPreciosXml(_xml.Lineas[indice]);
             _indiceXmlAsignacion = null;
@@ -727,6 +755,30 @@
 
     private Task AbrirLotesXml(int indice) { _indiceXmlOpciones = indice; _editorXml = EditorXml.Lotes; return Task.CompletedTask; }
     private void CerrarLotesXml() => CancelarEditorXml();
+
+    private bool ManejaLoteXml(LineaXml l) => EsCostaPetsCompra || l.Articulo?.Lote == true;
+
+    /// <summary>La línea maneja lotes y falta información: número/vencimiento del lote
+    /// principal, o algún lote extra incompleto, o los extras suman ≥ la cantidad de la
+    /// línea (el lote principal quedaría en 0 o negativo).</summary>
+    private bool LoteXmlIncompleto(LineaXml l)
+    {
+        if (!ManejaLoteXml(l)) return false;
+        var corte = _xml?.Fecha.Date ?? DateTime.Today;
+        if (string.IsNullOrWhiteSpace(l.Lote) || l.Vencimiento.Date < corte) return true;
+        if (l.LotesExtra.Count == 0) return false;
+        if (l.LotesExtra.Any(e => string.IsNullOrWhiteSpace(e.Numero) || e.Cantidad <= 0 || e.Vence.Date < corte)) return true;
+        return l.LotesExtra.Sum(e => e.Cantidad) >= l.Cantidad;
+    }
+
+    private string ResumenLotesXml(LineaXml l)
+    {
+        if (l.LotesExtra.Count == 0) return $"Lote {l.Lote} · vence {l.Vencimiento:dd/MM/yyyy}";
+        var principal = l.Cantidad - l.LotesExtra.Sum(e => e.Cantidad);
+        var partes = new List<string> { $"{l.Lote} ({Formato.Cantidad(principal)})" };
+        partes.AddRange(l.LotesExtra.Select(e => $"{e.Numero} ({Formato.Cantidad(e.Cantidad)})"));
+        return "Lotes: " + string.Join(" · ", partes);
+    }
     private Task AbrirPreciosXml(int indice) { _indiceXmlOpciones = indice; if (LineaXmlSeleccionada is { } linea) PrepararPreciosXml(linea); _editorXml = EditorXml.Precios; return Task.CompletedTask; }
     private void CerrarPreciosXml() => CancelarEditorXml();
     private async Task RestaurarImportadorXmlAsync()
@@ -763,8 +815,8 @@
         if (_xml is null || _xml.Lineas.Any(l => l.Articulo is null || !l.VinculoConfirmado)) return;
         var proveedor = _proveedores.FirstOrDefault(p => string.Equals(p.Cedula?.Trim(), _xml.CedulaProveedor, StringComparison.OrdinalIgnoreCase));
         if (proveedor is null) { _proveedorXmlNoExiste = true; return; }
-        var sinLote = _xml.Lineas.Where(l => (EsCostaPetsCompra || l.Articulo?.Lote == true) && (string.IsNullOrWhiteSpace(l.Lote) || l.Vencimiento.Date < _xml.Fecha.Date)).ToList();
-        if (sinLote.Count > 0) { await Dialogos.ErrorAsync($"Indique lote y vencimiento válido para {sinLote.Count} artículo(s) que manejan lotes.", "Importar XML"); return; }
+        var sinLote = _xml.Lineas.Where(LoteXmlIncompleto).ToList();
+        if (sinLote.Count > 0) { await Dialogos.ErrorAsync($"Revise los lotes de {sinLote.Count} artículo(s): falta el número/vencimiento o los lotes no suman la cantidad de la línea.", "Importar XML"); return; }
         if (_xml.Lineas.Any(l => l.Cantidad <= 0)) { await Dialogos.ErrorAsync("Cada línea importada debe tener una cantidad mayor a cero.", "Importar XML"); return; }
 
         _idCompra = 0;
@@ -780,7 +832,16 @@
         _lineas.Clear();
         foreach (var x in _xml.Lineas)
         {
-            var linea = new LineaCompra { Articulo = x.Articulo!, Cabys = x.Cabys, Cantidad = x.Cantidad, Base = x.Precio, Flete = 0, Otros = 0, Regalias = EsCostaPetsCompra ? 0 : Math.Max(0, x.Regalia), Descuento = x.Descuento, Impuesto = x.Impuesto, Lote = x.Lote.Trim(), VenceLote = x.Vencimiento };
+            List<DTOs.Lotes.LoteIngresoCompra>? lotes = null;
+            if (ManejaLoteXml(x) && x.LotesExtra.Count > 0)
+            {
+                lotes = new() { new DTOs.Lotes.LoteIngresoCompra { Numero = x.Lote.Trim(), Vencimiento = DateOnly.FromDateTime(x.Vencimiento), Cantidad = (double)x.Cantidad } };
+                foreach (var le in x.LotesExtra)
+                    lotes.Add(new DTOs.Lotes.LoteIngresoCompra { Numero = le.Numero.Trim(), Vencimiento = DateOnly.FromDateTime(le.Vence), Cantidad = (double)le.Cantidad });
+                // el lote principal se queda con el resto para cuadrar con la cantidad de la línea
+                lotes[0].Cantidad = (double)x.Cantidad - x.LotesExtra.Sum(e => (double)e.Cantidad);
+            }
+            var linea = new LineaCompra { Articulo = x.Articulo!, Cabys = x.Cabys, Cantidad = x.Cantidad, Base = x.Precio, Flete = 0, Otros = 0, Regalias = EsCostaPetsCompra ? 0 : Math.Max(0, x.Regalia), Descuento = x.Descuento, Impuesto = x.Impuesto, Lote = x.Lote.Trim(), VenceLote = x.Vencimiento, Lotes = lotes };
             linea.Recalcular();
             _lineas.Add(linea);
         }
