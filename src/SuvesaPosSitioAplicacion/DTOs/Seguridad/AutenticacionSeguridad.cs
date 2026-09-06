@@ -16,6 +16,16 @@ public partial class Autenticacion
     [JsonPropertyName("perfil")]
     public PerfilLoginDTO? Perfil { get; set; }
 
+    /// <summary>Nombre para mostrar del usuario (menú de la barra superior).</summary>
+    [JsonPropertyName("nombre")]
+    public string? Nombre { get; set; }
+
+    [JsonPropertyName("email")]
+    public string? Email { get; set; }
+
+    [JsonPropertyName("iniciales")]
+    public string? Iniciales { get; set; }
+
     [JsonPropertyName("permisos")]
     public List<PermisoLoginDTO>? Permisos { get; set; }
 

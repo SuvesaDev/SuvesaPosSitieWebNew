@@ -85,4 +85,30 @@ public sealed class Usuarios : ProxyBase, IUsuarios
             var r = await _seguridad.CambiarRolAsync(id, idRol);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "cambiar el rol del usuario");
+
+    public Task<ResponseGeneric<bool>> CambiarClaveInterna(string actual, string nueva)
+        => AutoservicioCredencial("usuario/CambiarClaveInterna",
+            new { ClaveInternaActual = actual, ClaveInternaNueva = nueva }, "cambiar la clave interna");
+
+    public Task<ResponseGeneric<bool>> CambiarContrasenaIngreso(string actual, string nueva)
+        => AutoservicioCredencial("usuario/CambiarContrasenaIngreso",
+            new { ContrasenaActual = actual, ContrasenaNueva = nueva }, "cambiar la contraseña de ingreso");
+
+    private Task<ResponseGeneric<bool>> AutoservicioCredencial(string ruta, object cuerpo, string queSeIntentaba)
+        => Ejecutar(async () =>
+        {
+            // Endpoints fuera del contrato NSwag; se llaman por HttpClient directo
+            // (mismo patrón que ObtenerUno). La clave viaja siempre en el cuerpo.
+            var cliente = _clientes.CreateClient("SeePosApi");
+            var respuesta = await cliente.PostAsJsonAsync(ruta, cuerpo);
+            var texto = await respuesta.Content.ReadAsStringAsync();
+            if (!respuesta.IsSuccessStatusCode)
+                return new ResponseGeneric<bool>($"El API respondió {(int)respuesta.StatusCode}: {texto}");
+
+            var r = System.Text.Json.JsonSerializer.Deserialize<SeguridadEnvelope<bool>>(
+                texto, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))
+                ?? throw new InvalidOperationException("Respuesta vacía del API.");
+
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, queSeIntentaba);
 }

@@ -40,6 +40,32 @@ public sealed class ContextoSesion : IContextoSesion
     public string? Token => Claim(ClaimsSeePos.Token);
     public string? Usuario => _usuario?.Identity?.Name;
 
+    public string? NombreUsuario
+    {
+        get
+        {
+            var n = Claim(ClaimsSeePos.NombreUsuario);
+            return string.IsNullOrWhiteSpace(n) ? Usuario : n;
+        }
+    }
+
+    public string? CorreoUsuario => Claim(ClaimsSeePos.CorreoUsuario);
+
+    public string InicialesUsuario
+    {
+        get
+        {
+            var explicito = Claim(ClaimsSeePos.InicialesUsuario);
+            if (!string.IsNullOrWhiteSpace(explicito)) return explicito.Trim().ToUpperInvariant();
+
+            var fuente = NombreUsuario ?? Usuario ?? "";
+            var palabras = fuente.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (palabras.Length >= 2) return (palabras[0][..1] + palabras[1][..1]).ToUpperInvariant();
+            if (palabras.Length == 1 && palabras[0].Length >= 2) return palabras[0][..2].ToUpperInvariant();
+            return palabras.Length == 1 ? palabras[0].ToUpperInvariant() : "?";
+        }
+    }
+
     public bool EsSuperAdministrador => Claim(ClaimsSeePos.EsSuperAdministrador) == bool.TrueString;
     public bool EsAdministrador => EsSuperAdministrador;
     public string? PerfilCodigo => Claim(ClaimsSeePos.PerfilCodigo);

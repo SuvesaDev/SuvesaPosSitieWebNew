@@ -134,6 +134,9 @@ public sealed class ServicioAutenticacion : IServicioAutenticacion
         var claims = new List<Claim>
         {
             new(ClaimTypes.Name, auth.Usuario ?? string.Empty),
+            new(ClaimsSeePos.NombreUsuario, auth.Nombre ?? string.Empty),
+            new(ClaimsSeePos.CorreoUsuario, auth.Email ?? string.Empty),
+            new(ClaimsSeePos.InicialesUsuario, auth.Iniciales ?? string.Empty),
             new(ClaimsSeePos.Token, auth.Token!),
             new(ClaimsSeePos.Expiracion, auth.Expiracion.ToString("O")),
             new(ClaimsSeePos.EsSuperAdministrador, esSuper.ToString()),

@@ -34,4 +34,10 @@ public interface IUsuarios
     Task<ResponseGeneric<bool>> CambiarPerfil(long id, int idPerfil);
 
     Task<ResponseGeneric<bool>> CambiarRol(long id, int? idRol);
+
+    /// <summary>Autoservicio: el usuario autenticado cambia SU clave interna.</summary>
+    Task<ResponseGeneric<bool>> CambiarClaveInterna(string actual, string nueva);
+
+    /// <summary>Autoservicio: el usuario autenticado cambia SU contraseña de ingreso.</summary>
+    Task<ResponseGeneric<bool>> CambiarContrasenaIngreso(string actual, string nueva);
 }

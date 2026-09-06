@@ -20,6 +20,12 @@ public interface IContextoSesion
     string? Token { get; }
     string? Usuario { get; }
 
+    /// <summary>Nombre para mostrar (cae al login si no vino del API).</summary>
+    string? NombreUsuario => Usuario;
+    string? CorreoUsuario => null;
+    /// <summary>Iniciales para el avatar (derivadas del nombre o del login si faltan).</summary>
+    string InicialesUsuario => "?";
+
     /// <summary>Perfil SUPER_ADMIN: ve todo y no pasa por rol.</summary>
     bool EsSuperAdministrador { get; }
 

@@ -15,6 +15,11 @@ public static class ClaimsSeePos
     /// <summary>Codigo del perfil del usuario (SUPER_ADMIN / ADMIN / USUARIO / ...).</summary>
     public const string PerfilCodigo = "seepos:perfilCodigo";
 
+    /// <summary>Nombre para mostrar del usuario (menú de la barra superior).</summary>
+    public const string NombreUsuario = "seepos:nombreUsuario";
+    public const string CorreoUsuario = "seepos:correoUsuario";
+    public const string InicialesUsuario = "seepos:inicialesUsuario";
+
     public const string IdSucursal = "seepos:idSucursal";
     public const string NombreSucursal = "seepos:nombreSucursal";
     public const string IdRol = "seepos:idRol";
