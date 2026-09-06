@@ -7,8 +7,16 @@ public sealed class DevolucionInternaComandoWebDTO
     public long IdVentaOrigen { get; set; }
     public string Usuario { get; set; } = "";
     public string Motivo { get; set; } = "";
+    public List<DevolucionInternaLineaWebDTO>? Lineas { get; set; }
     /// <summary>true = anula la venta origen (factura rechazada que se recreará).</summary>
     public bool AnularOrigen { get; set; } = true;
+}
+
+public sealed class DevolucionInternaLineaWebDTO
+{
+    public long IdVentaDetalle { get; set; }
+    public double? Cantidad { get; set; }
+    public long? IdStockLote { get; set; }
 }
 
 public sealed class DevolucionInternaResultadoWebDTO

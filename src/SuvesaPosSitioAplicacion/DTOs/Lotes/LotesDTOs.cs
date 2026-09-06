@@ -132,6 +132,7 @@ public sealed class LoteConsumoVenta
 {
     [JsonPropertyName("idStockLote")] public long IdStockLote { get; set; }
     [JsonPropertyName("cantidad")] public double Cantidad { get; set; }
+    [JsonPropertyName("cantidadDevuelta")] public double CantidadDevuelta { get; set; }
 }
 
 public sealed class LoteIngresoCompra

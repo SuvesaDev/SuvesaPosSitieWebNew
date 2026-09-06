@@ -6,6 +6,7 @@
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IDevolucionesVenta Api
+@inject IVentaOrquestada VentaOrquestada
 @inject IFacturacion Facturas
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
@@ -91,7 +92,8 @@
                                                 @if (_lotesVendidos.Count > 1) { <option value="0">Seleccione...</option> }
                                                 @foreach (var lote in _lotesVendidos)
                                                 {
-                                                    <option value="@lote.Id">@lote.Numero · vendido: @Formato.Cantidad(lote.Cantidad)</option>
+                                                    var pendiente = Math.Max(0, lote.Cantidad - lote.CantidadDevuelta);
+                                                    <option value="@lote.Id" disabled="@(pendiente <= 0)">@lote.Numero · disponible para devolver: @Formato.Cantidad((float)pendiente)</option>
                                                 }
                                             </select>
                                         </div>
@@ -344,7 +346,7 @@
         RecalcularTotales();
     }
 
-    private sealed record LoteVendido(long Id, string Numero, decimal Cantidad);
+    private sealed record LoteVendido(long Id, string Numero, decimal Cantidad, decimal CantidadDevuelta);
 
     private async Task AlSeleccionarLinea()
     {
@@ -365,7 +367,11 @@
             nombres = r.Responses.Lotes.ToDictionary(l => l.Id, l => l.Numero);
 
         _lotesVendidos = consumos.GroupBy(l => l.IdStockLote)
-            .Select(g => new LoteVendido(g.Key, nombres.GetValueOrDefault(g.Key, $"Lote #{g.Key}"), (decimal)g.Sum(x => x.Cantidad)))
+            .Select(g => new LoteVendido(
+                g.Key,
+                nombres.GetValueOrDefault(g.Key, $"Lote #{g.Key}"),
+                (decimal)g.Sum(x => x.Cantidad),
+                (decimal)g.Sum(x => x.CantidadDevuelta)))
             .ToList();
         if (_lotesVendidos.Count == 1) _idLoteSeleccionado = _lotesVendidos[0].Id;
     }
@@ -397,7 +403,7 @@
             var lote = _lotesVendidos.FirstOrDefault(l => l.Id == _idLoteSeleccionado);
             if (lote is null) return 0;
             var agregadoLote = _lineas.Where(l => l.IdVentaDetalle == _lineaSeleccionada.IdVentaDetalle && l.IdStockLote == lote.Id).Sum(l => l.Cantidad);
-            return Math.Min(disponibleLinea, Math.Max(0, lote.Cantidad - agregadoLote));
+            return Math.Min(disponibleLinea, Math.Max(0, lote.Cantidad - lote.CantidadDevuelta - agregadoLote));
         }
     }
 
@@ -559,9 +565,40 @@
     private async Task Registrar()
     {
         if (_factura is null || _lineas.Count == 0 || _guardando) return;
-        if (!await Dialogos.ConfirmarAsync("Se registrará la devolución y se afectará el inventario. ¿Desea continuar?")) return;
+        var esInterna = string.Equals(_factura.NaturalezaFiscalDoc, "Interna", StringComparison.OrdinalIgnoreCase);
+        var mensajeConfirmacion = esInterna
+            ? "Se registrará una nota de crédito interna, sin enviarla a Hacienda, y se afectará el inventario. ¿Desea continuar?"
+            : "Se registrará la nota de crédito electrónica y se afectará el inventario. ¿Desea continuar?";
+        if (!await Dialogos.ConfirmarAsync(mensajeConfirmacion)) return;
 
         _guardando = true;
+        if (esInterna)
+        {
+            var interna = await VentaOrquestada.DevolucionInterna(new DTOs.Cobros.DevolucionInternaComandoWebDTO
+            {
+                ClaveIdempotencia = Guid.NewGuid().ToString("N"),
+                IdVentaOrigen = _factura.Id,
+                Motivo = string.IsNullOrWhiteSpace(_notas) ? "Devolución de venta interna" : _notas,
+                // Una devolución comercial, incluso si es completa, conserva la venta
+                // origen para su trazabilidad e impresión histórica.
+                AnularOrigen = false,
+                Lineas = _lineas.Select(l => new DTOs.Cobros.DevolucionInternaLineaWebDTO
+                {
+                    IdVentaDetalle = l.IdVentaDetalle,
+                    Cantidad = (double)l.Cantidad,
+                    IdStockLote = l.IdStockLote
+                }).ToList()
+            });
+            _guardando = false;
+            var resultadoInterno = await Respuestas.DatoAsync(interna, "registrar la devolución interna");
+            if (resultadoInterno is not null)
+            {
+                Dialogos.Exito($"Nota de crédito interna #{resultadoInterno.IdDevolucionInterna} registrada.");
+                Limpiar();
+            }
+            return;
+        }
+
         var dto = new DevolucionVentaDTO
         {
             IdFactura = _factura.Id,

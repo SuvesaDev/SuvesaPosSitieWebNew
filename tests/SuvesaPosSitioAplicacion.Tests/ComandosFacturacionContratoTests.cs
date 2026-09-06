@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SuvesaPosSitioAplicacion.DTOs.Cobros;
 using SuvesaPosSitioAplicacion.DTOs.Fiscal;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 
@@ -91,5 +92,36 @@ public class ComandosFacturacionContratoTests
         Assert.Equal(5000.0, e.Vencido91oMas);
         Assert.Single(e.Detalle);
         Assert.Equal(5000.0, e.Detalle[0].SaldoActual);
+    }
+
+    [Fact]
+    public void DevolucionInterna_ConservaLineaOrigenYLote()
+    {
+        var comando = new DevolucionInternaComandoWebDTO
+        {
+            ClaveIdempotencia = "dev-int:77",
+            IdVentaOrigen = 77,
+            Usuario = "cajero",
+            AnularOrigen = false,
+            Lineas = new()
+            {
+                new() { IdVentaDetalle = 701, Cantidad = 2, IdStockLote = 91 }
+            }
+        };
+
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(comando, Web));
+        var linea = doc.RootElement.GetProperty("lineas")[0];
+        Assert.Equal(701, linea.GetProperty("idVentaDetalle").GetInt64());
+        Assert.Equal(91, linea.GetProperty("idStockLote").GetInt64());
+        Assert.False(doc.RootElement.GetProperty("anularOrigen").GetBoolean());
+    }
+
+    [Fact]
+    public void Factura_DeserializaNaturalezaParaEscogerLaDevolucionCorrecta()
+    {
+        const string cuerpo = """{ "id": 77, "naturalezaFiscalDoc": "Interna" }""";
+        var factura = JsonSerializer.Deserialize<FacturaDTO>(cuerpo, Web)!;
+
+        Assert.Equal("Interna", factura.NaturalezaFiscalDoc);
     }
 }
