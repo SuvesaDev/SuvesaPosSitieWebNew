@@ -1,6 +1,8 @@
 @page "/initial/repayment"
 @page "/sales/repayment"
 @using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Lotes
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IDevolucionesVenta Api
@@ -9,6 +11,7 @@
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
 @inject NavigationManager Navegacion
+@inject ILotesApiCliente LotesApi
 
 @*  Ola 5 — el menu React tiene "Devoluciones" dos veces (/initial/repayment y
     /sales/repayment) porque el enrutador de la SPA manda ambas rutas al MISMO
@@ -70,9 +73,22 @@
                                 @if (_lineaSeleccionada is not null)
                                 {
                                     <div class="col-6 col-md-2"><label class="form-label">Precio</label><input class="form-control" disabled value="@Formato.Importe(_lineaSeleccionada.PrecioUnit)" /></div>
+                                    @if (_lotesVendidos.Count > 0)
+                                    {
+                                        <div class="col-12 col-md-3">
+                                            <label class="form-label">Lote vendido</label>
+                                            <select class="form-select" @bind="_idLoteSeleccionado">
+                                                @if (_lotesVendidos.Count > 1) { <option value="0">Seleccione...</option> }
+                                                @foreach (var lote in _lotesVendidos)
+                                                {
+                                                    <option value="@lote.Id">@lote.Numero · vendido: @Formato.Cantidad(lote.Cantidad)</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    }
                                     <div class="col-6 col-md-2">
                                         <label class="form-label">Cantidad a devolver</label>
-                                        <input type="number" min="0" max="@_lineaSeleccionada.Cantidad" step="0.001" class="form-control" disabled="@(_lineaSeleccionada.IdGrupoBonificacion is not null)" @bind="_cantidadDevolver" @onkeydown="AgregarConEnter" />
+                                        <input type="number" min="0" max="@MaximoDevolucionSeleccionada" step="0.001" class="form-control" disabled="@(_lineaSeleccionada.IdGrupoBonificacion is not null)" @bind="_cantidadDevolver" @onkeydown="AgregarConEnter" />
                                         @if (_lineaSeleccionada.IdGrupoBonificacion is not null) { <small class="text-secondary">El grupo de bonificación se devuelve completo.</small> }
                                     </div>
                                     <div class="col-6 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="Agregar">Agregar</button></div>
@@ -189,6 +205,8 @@
     private long _idVentaDetalleSeleccionado;
     private FacturaDetallesDTO? _lineaSeleccionada;
     private decimal _cantidadDevolver = 1;
+    private long _idLoteSeleccionado;
+    private List<LoteVendido> _lotesVendidos = new();
     private readonly List<LineaDevolucion> _lineas = new();
     private CalculoDocumento.TotalesDocumento _totales;
     private decimal _subtotalGravado;
@@ -270,22 +288,67 @@
         RecalcularTotales();
     }
 
-    private void AlSeleccionarLinea()
-        => _lineaSeleccionada = _factura?.Detalle?.FirstOrDefault(l => l.IdVentaDetalle == _idVentaDetalleSeleccionado);
+    private sealed record LoteVendido(long Id, string Numero, decimal Cantidad);
+
+    private async Task AlSeleccionarLinea()
+    {
+        _lineaSeleccionada = _factura?.Detalle?.FirstOrDefault(l => l.IdVentaDetalle == _idVentaDetalleSeleccionado);
+        _idLoteSeleccionado = 0;
+        _lotesVendidos = new();
+        _cantidadDevolver = 1;
+        if (_lineaSeleccionada is null) return;
+
+        var consumos = _lineaSeleccionada.Lotes?.Where(l => l.IdStockLote > 0).ToList() ?? new List<LoteConsumoVenta>();
+        if (consumos.Count == 0 && _lineaSeleccionada.Lote > 0)
+            consumos.Add(new LoteConsumoVenta { IdStockLote = _lineaSeleccionada.Lote, Cantidad = _lineaSeleccionada.Cantidad });
+        if (consumos.Count == 0) return;
+
+        var nombres = new Dictionary<long, string>();
+        var r = await LotesApi.ExistenciaConsolidadaAsync(_lineaSeleccionada.CodFxArticulo);
+        if (r.Status == ResponseStatus._0 && r.Responses is not null)
+            nombres = r.Responses.Lotes.ToDictionary(l => l.Id, l => l.Numero);
+
+        _lotesVendidos = consumos.GroupBy(l => l.IdStockLote)
+            .Select(g => new LoteVendido(g.Key, nombres.GetValueOrDefault(g.Key, $"Lote #{g.Key}"), (decimal)g.Sum(x => x.Cantidad)))
+            .ToList();
+        if (_lotesVendidos.Count == 1) _idLoteSeleccionado = _lotesVendidos[0].Id;
+    }
+
+    private decimal MaximoDevolucionSeleccionada
+    {
+        get
+        {
+            if (_lineaSeleccionada is null) return 0;
+            var agregadoMismaLinea = _lineas.Where(l => l.IdVentaDetalle == _lineaSeleccionada.IdVentaDetalle).Sum(l => l.Cantidad);
+            var disponibleLinea = Math.Max(0, Formato.AImporte(_lineaSeleccionada.Cantidad) - agregadoMismaLinea);
+            if (_lotesVendidos.Count == 0) return disponibleLinea;
+            var lote = _lotesVendidos.FirstOrDefault(l => l.Id == _idLoteSeleccionado);
+            if (lote is null) return 0;
+            var agregadoLote = _lineas.Where(l => l.IdVentaDetalle == _lineaSeleccionada.IdVentaDetalle && l.IdStockLote == lote.Id).Sum(l => l.Cantidad);
+            return Math.Min(disponibleLinea, Math.Max(0, lote.Cantidad - agregadoLote));
+        }
+    }
 
     private async Task AgregarConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Agregar(); }
 
     private async Task Agregar()
     {
         if (_lineaSeleccionada is null) return;
-        if (_cantidadDevolver <= 0 || _cantidadDevolver > Formato.AImporte(_lineaSeleccionada.Cantidad))
+        if (_lotesVendidos.Count > 0 && _idLoteSeleccionado <= 0)
         {
-            await Dialogos.ErrorAsync("La cantidad a devolver debe ser mayor a cero y no superar la cantidad original.");
+            await Dialogos.ErrorAsync("Seleccione el lote que el cliente está devolviendo.");
             return;
         }
-        AgregarLinea(_lineaSeleccionada, _cantidadDevolver);
+        if (_cantidadDevolver <= 0 || _cantidadDevolver > MaximoDevolucionSeleccionada)
+        {
+            await Dialogos.ErrorAsync("La cantidad a devolver debe ser mayor a cero y no superar la cantidad vendida pendiente para la línea y el lote.");
+            return;
+        }
+        AgregarLinea(_lineaSeleccionada, _cantidadDevolver, _idLoteSeleccionado > 0 ? _idLoteSeleccionado : null);
         _lineaSeleccionada = null;
         _idVentaDetalleSeleccionado = 0;
+        _idLoteSeleccionado = 0;
+        _lotesVendidos = new();
         _cantidadDevolver = 1;
     }
 
@@ -295,13 +358,20 @@
         if (!await Dialogos.ConfirmarAsync("¿Desea devolver todos los artículos de la factura?")) return;
         foreach (var linea in _factura.Detalle)
         {
-            AgregarLinea(linea, Formato.AImporte(linea.Cantidad));
+            var lotes = linea.Lotes?.Where(l => l.IdStockLote > 0).ToList();
+            if (linea.IdGrupoBonificacion is null && lotes is { Count: > 0 })
+            {
+                foreach (var lote in lotes)
+                    AgregarLinea(linea, (decimal)lote.Cantidad, lote.IdStockLote);
+            }
+            else
+                AgregarLinea(linea, Formato.AImporte(linea.Cantidad), linea.Lote > 0 ? linea.Lote : null);
         }
         _lineaSeleccionada = null;
         _idVentaDetalleSeleccionado = 0;
     }
 
-    private void AgregarLinea(FacturaDetallesDTO linea, decimal cantidad)
+    private void AgregarLinea(FacturaDetallesDTO linea, decimal cantidad, long? idStockLote = null)
     {
         // §4.5 — un grupo de bonificación se devuelve entero, a cantidad completa:
         // no se puede devolver solo la línea pagada o solo la de regalo.
@@ -314,9 +384,9 @@
             return;
         }
 
-        if (_lineas.Any(l => l.IdVentaDetalle == linea.IdVentaDetalle))
+        if (_lineas.Any(l => l.IdVentaDetalle == linea.IdVentaDetalle && l.IdStockLote == idStockLote))
         {
-            _lineas.RemoveAll(l => l.IdVentaDetalle == linea.IdVentaDetalle);
+            _lineas.RemoveAll(l => l.IdVentaDetalle == linea.IdVentaDetalle && l.IdStockLote == idStockLote);
         }
 
         var nueva = new LineaDevolucion
@@ -331,7 +401,7 @@
             Descuento = Formato.AImporte(linea.Descuento),
             Impuesto = linea.Impuesto,
             IdBodega = linea.IdBodega,
-            IdStockLote = linea.Lote > 0 ? linea.Lote : null
+            IdStockLote = idStockLote ?? (linea.Lote > 0 ? linea.Lote : null)
         };
         nueva.Calculo = CalculoDocumento.Linea(nueva.Cantidad, nueva.PrecioUnit, nueva.Descuento, nueva.Impuesto);
         _lineas.Add(nueva);
@@ -464,6 +534,8 @@
         _factura = null;
         _idVentaDetalleSeleccionado = 0;
         _lineaSeleccionada = null;
+        _idLoteSeleccionado = 0;
+        _lotesVendidos = new();
         _lineas.Clear();
         _idPersonalRecibe = 0;
         _notas = string.Empty;
