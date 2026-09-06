@@ -162,12 +162,13 @@
                             <button type="button" class="btn btn-sm btn-primary" @onclick="CancelarEditorXml">Aceptar lote</button>
                         </div>
                         <div class="row g-3">
-                            <div class="col-12 col-md-6"><label class="form-label">Número de lote</label><input class="form-control" @bind="LineaXmlSeleccionada.Lote" /></div>
-                            <div class="col-12 col-md-6"><label class="form-label">Vencimiento</label><input type="date" class="form-control" @bind="LineaXmlSeleccionada.Vencimiento" /></div>
+                            <div class="col-12 col-md-5"><label class="form-label">Número de lote</label><input class="form-control" @bind="LineaXmlSeleccionada.Lote" /></div>
+                            <div class="col-12 col-md-4"><label class="form-label">Vencimiento</label><input type="date" class="form-control" @bind="LineaXmlSeleccionada.Vencimiento" /></div>
+                            <div class="col-12 col-md-3"><label class="form-label">Cantidad</label><input type="number" min="0" step="0.001" class="form-control text-end" @bind="LineaXmlSeleccionada.CantidadLotePrincipal" /></div>
                         </div>
                         <div class="mt-2">
                             <div class="d-flex justify-content-between align-items-center">
-                                <span class="form-text mb-0">¿La compra trae varios lotes de este artículo? Agréguelos aquí (la suma debe dar @Formato.Cantidad(LineaXmlSeleccionada.Cantidad); el lote principal toma el resto).</span>
+                                <span class="form-text mb-0">¿La compra trae varios lotes de este artículo? Agréguelos aquí. La suma de todos los lotes debe dar @Formato.Cantidad(LineaXmlSeleccionada.Cantidad).</span>
                                 <button type="button" class="btn btn-sm btn-link" @onclick="() => LineaXmlSeleccionada!.LotesExtra.Add(new LoteExtra())">+ Otro lote</button>
                             </div>
                             @foreach (var le in LineaXmlSeleccionada.LotesExtra)
@@ -179,6 +180,12 @@
                                     <div class="col-1"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => LineaXmlSeleccionada!.LotesExtra.Remove(le)"><i class="bi bi-trash" aria-hidden="true"></i></button></div>
                                 </div>
                             }
+                            @{ var sumaLotes = SumaLotesXml(LineaXmlSeleccionada); }
+                            <div class="small mt-2 @(Math.Abs(sumaLotes - LineaXmlSeleccionada.Cantidad) > 0.001m ? "text-danger" : "text-success")">
+                                Repartido: @Formato.Cantidad(sumaLotes) de @Formato.Cantidad(LineaXmlSeleccionada.Cantidad)
+                                @if (sumaLotes - LineaXmlSeleccionada.Cantidad > 0.001m) { <text>· la suma supera la cantidad de la línea</text> }
+                                else if (LineaXmlSeleccionada.Cantidad - sumaLotes > 0.001m) { <text>· faltan @Formato.Cantidad(LineaXmlSeleccionada.Cantidad - sumaLotes)</text> }
+                            </div>
                         </div>
                     </div>
                 }
@@ -261,8 +268,12 @@
         public decimal Impuesto { get; init; }
         public string Lote { get; set; } = string.Empty;
         public DateTime Vencimiento { get; set; } = DateTime.Today;
+        /// <summary>Cantidad del lote principal <see cref="Lote"/>. Se precarga con la
+        /// cantidad de la línea al importar el XML; con lotes adicionales el usuario la
+        /// ajusta y la suma de todos los lotes debe igualar <see cref="Cantidad"/>.</summary>
+        public decimal CantidadLotePrincipal { get; set; }
         /// <summary>Lotes adicionales cuando la cantidad recibida viene repartida
-        /// en varios lotes (el lote principal <see cref="Lote"/> toma el resto).</summary>
+        /// en varios lotes.</summary>
         public List<LoteExtra> LotesExtra { get; } = new();
         public bool VinculoConfirmado { get; set; }
         public bool PreciosEditados { get; set; }
@@ -431,6 +442,7 @@
             _xml.Lineas[indice].Lote = string.Empty;
             _xml.Lineas[indice].Vencimiento = DateTime.Today;
             _xml.Lineas[indice].LotesExtra.Clear();
+            _xml.Lineas[indice].CantidadLotePrincipal = _xml.Lineas[indice].Cantidad;
             _xml.Lineas[indice].Precios.Clear();
             PrepararPreciosXml(_xml.Lineas[indice]);
             _indiceXmlAsignacion = null;
@@ -624,6 +636,8 @@
             .Select(e => Texto(e, "Codigo") is { Length: > 0 } anidado ? anidado : e.Value.Trim())
             .FirstOrDefault() ?? string.Empty;
 
+        var cantidad = Math.Max(0.001m, Numero(Texto(linea, "Cantidad")));
+
         return new LineaXml
         {
             Numero = Entero(Texto(linea, "NumeroLinea"), predeterminado),
@@ -631,7 +645,10 @@
             Cabys = Texto(linea, "CodigoCABYS"),
             Descripcion = Texto(linea, "Detalle"),
             Presentacion = Texto(linea, "UnidadMedida"),
-            Cantidad = Math.Max(0.001m, Numero(Texto(linea, "Cantidad"))),
+            Cantidad = cantidad,
+            // El lote principal arranca con toda la cantidad de la línea; al agregar
+            // lotes adicionales el usuario la reparte y la suma debe seguir cuadrando.
+            CantidadLotePrincipal = cantidad,
             Precio = Numero(Texto(linea, "PrecioUnitario")),
             Descuento = montoTotal > 0 ? CalculoDocumento.Redondear(montoDescuento * 100m / montoTotal) : 0,
             Impuesto = tarifa
@@ -778,29 +795,40 @@
         }
     }
 
-    private Task AbrirLotesXml(int indice) { _indiceXmlOpciones = indice; _editorXml = EditorXml.Lotes; return Task.CompletedTask; }
+    private Task AbrirLotesXml(int indice)
+    {
+        _indiceXmlOpciones = indice;
+        // Si nunca se tocó el reparto de lotes, el principal lleva toda la cantidad.
+        if (LineaXmlSeleccionada is { } l && l.LotesExtra.Count == 0)
+            l.CantidadLotePrincipal = l.Cantidad;
+        _editorXml = EditorXml.Lotes;
+        return Task.CompletedTask;
+    }
     private void CerrarLotesXml() => CancelarEditorXml();
 
     private bool ManejaLoteXml(LineaXml l) => EsCostaPetsCompra || l.Articulo?.Lote == true;
 
+    /// <summary>Suma de todos los lotes de la línea: principal + adicionales.</summary>
+    private static decimal SumaLotesXml(LineaXml l) => l.CantidadLotePrincipal + l.LotesExtra.Sum(e => e.Cantidad);
+
     /// <summary>La línea maneja lotes y falta información: número/vencimiento del lote
-    /// principal, o algún lote extra incompleto, o los extras suman ≥ la cantidad de la
-    /// línea (el lote principal quedaría en 0 o negativo).</summary>
+    /// principal, cantidad de principal ≤ 0, algún lote extra incompleto, o la suma de
+    /// todos los lotes no cuadra con la cantidad de la línea.</summary>
     private bool LoteXmlIncompleto(LineaXml l)
     {
         if (!ManejaLoteXml(l)) return false;
         var corte = _xml?.Fecha.Date ?? DateTime.Today;
         if (string.IsNullOrWhiteSpace(l.Lote) || l.Vencimiento.Date < corte) return true;
         if (l.LotesExtra.Count == 0) return false;
+        if (l.CantidadLotePrincipal <= 0) return true;
         if (l.LotesExtra.Any(e => string.IsNullOrWhiteSpace(e.Numero) || e.Cantidad <= 0 || e.Vence.Date < corte)) return true;
-        return l.LotesExtra.Sum(e => e.Cantidad) >= l.Cantidad;
+        return Math.Abs(SumaLotesXml(l) - l.Cantidad) > 0.001m;
     }
 
     private string ResumenLotesXml(LineaXml l)
     {
         if (l.LotesExtra.Count == 0) return $"Lote {l.Lote} · vence {l.Vencimiento:dd/MM/yyyy}";
-        var principal = l.Cantidad - l.LotesExtra.Sum(e => e.Cantidad);
-        var partes = new List<string> { $"{l.Lote} ({Formato.Cantidad(principal)})" };
+        var partes = new List<string> { $"{l.Lote} ({Formato.Cantidad(l.CantidadLotePrincipal)})" };
         partes.AddRange(l.LotesExtra.Select(e => $"{e.Numero} ({Formato.Cantidad(e.Cantidad)})"));
         return "Lotes: " + string.Join(" · ", partes);
     }
@@ -812,7 +840,12 @@
         await Task.Delay(350);
         await _modalImportarXml.ShowAsync();
     }
-    private static void RecalcularLineaXml(LineaXml linea) => linea.Cantidad = Math.Max(0.001m, linea.Cantidad);
+    private static void RecalcularLineaXml(LineaXml linea)
+    {
+        linea.Cantidad = Math.Max(0.001m, linea.Cantidad);
+        // Sin reparto manual, el lote principal sigue a la cantidad de la línea.
+        if (linea.LotesExtra.Count == 0) linea.CantidadLotePrincipal = linea.Cantidad;
+    }
     private void RecalcularPrecioXml()
     {
         if (LineaXmlSeleccionada is not { } linea) return;
@@ -860,11 +893,11 @@
             List<DTOs.Lotes.LoteIngresoCompra>? lotes = null;
             if (ManejaLoteXml(x) && x.LotesExtra.Count > 0)
             {
-                lotes = new() { new DTOs.Lotes.LoteIngresoCompra { Numero = x.Lote.Trim(), Vencimiento = DateOnly.FromDateTime(x.Vencimiento), Cantidad = (double)x.Cantidad } };
+                // La cantidad de cada lote es explícita (principal + adicionales) y ya
+                // se validó en LoteXmlIncompleto que la suma cuadra con la línea.
+                lotes = new() { new DTOs.Lotes.LoteIngresoCompra { Numero = x.Lote.Trim(), Vencimiento = DateOnly.FromDateTime(x.Vencimiento), Cantidad = (double)x.CantidadLotePrincipal } };
                 foreach (var le in x.LotesExtra)
                     lotes.Add(new DTOs.Lotes.LoteIngresoCompra { Numero = le.Numero.Trim(), Vencimiento = DateOnly.FromDateTime(le.Vence), Cantidad = (double)le.Cantidad });
-                // el lote principal se queda con el resto para cuadrar con la cantidad de la línea
-                lotes[0].Cantidad = (double)x.Cantidad - x.LotesExtra.Sum(e => (double)e.Cantidad);
             }
             var linea = new LineaCompra { Articulo = x.Articulo!, Cabys = x.Cabys, Cantidad = x.Cantidad, Base = x.Precio, Flete = 0, Otros = 0, Regalias = EsCostaPetsCompra ? 0 : Math.Max(0, x.Regalia), Descuento = x.Descuento, Impuesto = x.Impuesto, Lote = x.Lote.Trim(), VenceLote = x.Vencimiento, Lotes = lotes };
             linea.Recalcular();
