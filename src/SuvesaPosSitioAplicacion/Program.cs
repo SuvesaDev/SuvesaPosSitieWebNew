@@ -416,32 +416,29 @@ app.MapGet("/reportes/estado-cuenta", async (
         return Results.Problem(r.Excepcion ?? "No se pudo consultar el estado de cuenta.");
 
     var e = r.Responses;
-    var filas = e.Detalle
-        .OrderBy(d => d.Vence ?? d.Fecha)
-        .Select(d => (IReadOnlyList<string>)new[]
-        {
-            d.NumFactura.ToString("0"),
-            d.Fecha.ToString("dd/MM/yyyy"),
-            d.Vence?.ToString("dd/MM/yyyy") ?? "—",
-            Formato.Importe((decimal)d.MontoOriginal),
-            Formato.Importe((decimal)d.NotasCreditoAplicadas),
-            Formato.Importe((decimal)d.PagosAplicados),
-            Formato.Importe((decimal)d.SaldoActual),
-        }).ToList();
-
-    var bytes = pdf.Tabla(new ReporteTabular(
-        Titulo: $"Estado de cuenta — {e.Nombre}",
-        Subtitulo: $"Corte {e.FechaCorte:dd/MM/yyyy}  ·  Límite {Formato.Importe((decimal)e.LimiteAprobado)}  ·  "
-                 + $"Saldo {Formato.Importe((decimal)e.SaldoTotal)}  ·  Disponible {Formato.Importe((decimal)e.Disponible)}  ·  "
-                 + $"Antigüedad: por vencer {Formato.Importe((decimal)e.PorVencer)} / "
-                 + $"1-30 {Formato.Importe((decimal)e.Vencido1a30)} / 31-60 {Formato.Importe((decimal)e.Vencido31a60)} / "
-                 + $"61-90 {Formato.Importe((decimal)e.Vencido61a90)} / 91+ {Formato.Importe((decimal)e.Vencido91oMas)}",
-        Encabezados: new[] { "Factura", "Fecha", "Vence", "Original", "NC", "Pagado", "Saldo" },
-        Filas: filas,
-        Totales: new[] { "", "", "", "", "", "Saldo total", Formato.Importe((decimal)e.SaldoTotal) })
-    {
-        ColumnasNumericas = new HashSet<int> { 3, 4, 5, 6 }
-    });
+    var bytes = pdf.EstadoCuenta(new EstadoCuentaPdf(
+        NombreCliente: e.Nombre ?? $"Cliente {idCliente}",
+        IdentificacionCliente: idCliente.ToString(),
+        FechaCorte: e.FechaCorte,
+        LimiteAprobado: (decimal)e.LimiteAprobado,
+        SaldoAbierto: (decimal)e.SaldoTotal,
+        CreditoAFavor: (decimal)e.CreditoAFavor,
+        Disponible: (decimal)e.Disponible,
+        PorVencer: (decimal)e.PorVencer,
+        Vencido1a30: (decimal)e.Vencido1a30,
+        Vencido31a60: (decimal)e.Vencido31a60,
+        Vencido61a90: (decimal)e.Vencido61a90,
+        Vencido91oMas: (decimal)e.Vencido91oMas,
+        Detalle: e.Detalle.Select(d => new LineaEstadoCuentaPdf(
+            Factura: d.NumFactura.ToString("0"),
+            Consecutivo: d.ConsecutivoMh,
+            Fecha: d.Fecha,
+            Vence: d.Vence,
+            Original: (decimal)d.MontoOriginal,
+            NotasCredito: (decimal)d.NotasCreditoAplicadas,
+            Pagado: (decimal)d.PagosAplicados,
+            Saldo: (decimal)d.SaldoActual,
+            EstadoMh: d.EstadoMh)).ToList()));
 
     return Results.File(bytes, "application/pdf", $"estado-cuenta-{idCliente}.pdf");
 });

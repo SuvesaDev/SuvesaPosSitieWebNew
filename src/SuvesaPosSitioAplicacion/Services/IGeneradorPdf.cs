@@ -21,6 +21,9 @@ public interface IGeneradorPdf
 {
     /// <summary>Reporte tabular sencillo: titulo, encabezados y filas.</summary>
     byte[] Tabla(ReporteTabular reporte);
+
+    /// <summary>Estado de cuenta comercial con resumen, antigüedad y saldos abiertos.</summary>
+    byte[] EstadoCuenta(EstadoCuentaPdf reporte);
 }
 
 /// <summary>Lo que necesita un reporte tabular para dibujarse.</summary>
@@ -34,3 +37,32 @@ public sealed record ReporteTabular(
     /// <summary>Columnas que se alinean a la derecha, por llevar importes.</summary>
     public IReadOnlySet<int> ColumnasNumericas { get; init; } = new HashSet<int>();
 }
+
+/// <summary>Datos ya consolidados para el estado de cuenta que recibe el cliente.</summary>
+public sealed record EstadoCuentaPdf(
+    string NombreCliente,
+    string IdentificacionCliente,
+    DateTime FechaCorte,
+    decimal LimiteAprobado,
+    decimal SaldoAbierto,
+    decimal CreditoAFavor,
+    decimal Disponible,
+    decimal PorVencer,
+    decimal Vencido1a30,
+    decimal Vencido31a60,
+    decimal Vencido61a90,
+    decimal Vencido91oMas,
+    IReadOnlyList<LineaEstadoCuentaPdf> Detalle,
+    string Moneda = "CRC");
+
+/// <summary>Una factura con saldo pendiente dentro de un estado de cuenta.</summary>
+public sealed record LineaEstadoCuentaPdf(
+    string Factura,
+    string? Consecutivo,
+    DateTime Fecha,
+    DateTime? Vence,
+    decimal Original,
+    decimal NotasCredito,
+    decimal Pagado,
+    decimal Saldo,
+    string? EstadoMh);
