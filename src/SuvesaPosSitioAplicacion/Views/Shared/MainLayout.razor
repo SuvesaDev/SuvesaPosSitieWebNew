@@ -1,9 +1,15 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @using SuvesaPosSitioAplicacion.Services
 @inject IContextoSesion Sesion
 @inject IEstadoEspacioTrabajo Espacio
+@inject IEstadoOcupado Ocupado
 @inject NavigationManager Navegacion
 @inject IJSRuntime JS
+
+<div class="seepos-barra-carga @(Ocupado.Ocupado ? "seepos-barra-carga-activa" : null)" role="status" aria-hidden="@(Ocupado.Ocupado ? "false" : "true")">
+    <span class="visually-hidden">Cargando</span>
+</div>
 
 <HxMessenger Position="ToastContainerPosition.BottomEnd" />
 <HxMessageBoxHost />
@@ -132,6 +138,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Ocupado.Cambio += AlCambiarOcupado;
         await Sesion.CargarAsync();
 
         if (Sesion.Autenticado && !Sesion.TieneSucursal)
@@ -139,6 +146,10 @@
             Navegacion.NavigateTo("/cuenta/sucursal", forceLoad: true);
         }
     }
+
+    private Task AlCambiarOcupado() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Ocupado.Cambio -= AlCambiarOcupado;
 
     private async Task Salir()
     {

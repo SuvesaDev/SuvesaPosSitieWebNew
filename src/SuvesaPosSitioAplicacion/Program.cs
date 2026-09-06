@@ -235,6 +235,14 @@ builder.Services.AddScoped<IAlertasAdministrador, AlertasAdministrador>();
 builder.Services.AddScoped<IAvisadorAlertas, AvisadorAlertas>();
 builder.Services.AddScoped<ITipoCambio, TipoCambio>();
 
+// Indicador de carga global: cada llamada al API marca "ocupado" el circuito y el
+// layout muestra una barra de progreso arriba (así un botón lento no "parece muerto").
+builder.Services.AddScoped<IEstadoOcupado, EstadoOcupado>();
+builder.Services.AddSingleton<AccesorServiciosCircuito>();
+builder.Services.AddScoped<Microsoft.AspNetCore.Components.Server.Circuits.CircuitHandler, CircuitoServiciosHandler>();
+builder.Services.AddTransient<OcupadoHandler>();
+builder.Services.ConfigureHttpClientDefaults(b => b.AddHttpMessageHandler<OcupadoHandler>());
+
 // Motor de plantillas de impresión (MOTOR_PLANTILLAS_IMPRESION_WEB.md).
 builder.Services.AddScoped<IPlantillasImpresion, PlantillasImpresion>();
 builder.Services.AddScoped<IImpresionDocumentos, ImpresionDocumentos>();

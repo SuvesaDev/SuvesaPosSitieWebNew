@@ -841,3 +841,58 @@ h1:focus {
         align-items: flex-start;
     }
 }
+
+/* ------------------------------------------------------------------ *
+ * Indicador de carga global (barra superior) + AppCargable.
+ * El circuito marca "ocupado" en cada llamada al API (OcupadoHandler)
+ * y esta barra corre mientras haya alguna en vuelo.
+ * ------------------------------------------------------------------ */
+.seepos-barra-carga {
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 3px;
+    z-index: 2000;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s ease .2s; /* retardo: una consulta muy rápida no alcanza a parpadear */
+}
+
+.seepos-barra-carga-activa {
+    opacity: 1;
+    transition: opacity .1s ease;
+}
+
+.seepos-barra-carga::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, var(--bs-primary, #2f6f3e), transparent);
+    animation: seepos-barra-carga-desliza 1.05s ease-in-out infinite;
+}
+
+@keyframes seepos-barra-carga-desliza {
+    0%   { left: -40%; }
+    100% { left: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .seepos-barra-carga::before { animation-duration: 2.5s; }
+}
+
+/* AppCargable: capa con spinner sobre una sección mientras carga. */
+.seepos-cargable {
+    position: relative;
+    min-height: 3rem;
+}
+
+.seepos-cargable-capa {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--bs-body-bg, #fff) 65%, transparent);
+    z-index: 5;
+}

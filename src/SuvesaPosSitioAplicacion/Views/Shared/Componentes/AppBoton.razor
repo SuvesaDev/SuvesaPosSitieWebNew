@@ -1,0 +1,48 @@
+@* Botón que se deshabilita y muestra un spinner mientras corre su OnClick.
+   Evita el doble clic y el "parece que no hizo nada" en acciones que esperan. *@
+
+<button type="@Tipo" class="btn @Clase" disabled="@(Deshabilitado || _ocupado)" @onclick="Ejecutar" @attributes="Extra">
+    @if (_ocupado)
+    {
+        <span class="spinner-border spinner-border-sm @(HayContenido ? "me-2" : null)" role="status" aria-hidden="true"></span>
+    }
+    else if (!string.IsNullOrWhiteSpace(Icono))
+    {
+        <i class="bi @Icono @(HayContenido ? "me-2" : null)" aria-hidden="true"></i>
+    }
+    @if (_ocupado && !string.IsNullOrWhiteSpace(TextoOcupado))
+    {
+        @TextoOcupado
+    }
+    else if (ChildContent is not null)
+    {
+        @ChildContent
+    }
+    else
+    {
+        @Texto
+    }
+</button>
+
+@code {
+    [Parameter] public string? Texto { get; set; }
+    [Parameter] public string? TextoOcupado { get; set; }
+    [Parameter] public string? Icono { get; set; }
+    [Parameter] public string Clase { get; set; } = "btn-primary";
+    [Parameter] public string Tipo { get; set; } = "button";
+    [Parameter] public bool Deshabilitado { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? Extra { get; set; }
+
+    private bool _ocupado;
+    private bool HayContenido => ChildContent is not null || !string.IsNullOrWhiteSpace(Texto) || !string.IsNullOrWhiteSpace(TextoOcupado);
+
+    private async Task Ejecutar()
+    {
+        if (_ocupado) return;
+        _ocupado = true;
+        try { await OnClick.InvokeAsync(); }
+        finally { _ocupado = false; }
+    }
+}
