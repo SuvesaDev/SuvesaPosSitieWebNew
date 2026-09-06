@@ -1568,6 +1568,110 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* ---------- Tablas operativas ----------
+   No todas las consultas usan HxGrid todavía: caja, consignación, producción,
+   documentos y algunos flujos de captura conservan una tabla HTML porque sus
+   filas contienen acciones o controles de edición. Este bloque les aplica la
+   misma lectura de Inventarios/AppRejilla sin reescribir ni alterar su lógica:
+   marco de tarjeta, cabecera fija, bandas discretas, números alineados y scroll
+   contenido. Así una tabla de trámite, predepósito o lote no vuelve a verse como
+   una tabla Bootstrap aislada del resto del POS. */
+.seepos-nivel-a .table-responsive:not(.seepos-rejilla),
+.seepos-nivel-b .table-responsive:not(.seepos-rejilla),
+.seepos-nivel-c .table-responsive:not(.seepos-rejilla) {
+    max-height: min(60vh, 42rem);
+    overflow: auto;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .9rem;
+    background: var(--bs-body-bg);
+    box-shadow: 0 0 .875rem rgba(64, 49, 39, .05);
+}
+
+.seepos-nivel-a .table-responsive:not(.seepos-rejilla) > .table,
+.seepos-nivel-b .table-responsive:not(.seepos-rejilla) > .table,
+.seepos-nivel-c .table-responsive:not(.seepos-rejilla) > .table {
+    width: max(100%, max-content);
+    margin-bottom: 0;
+    font-size: .875rem;
+}
+
+/* También cubre las tablas de captura sin un contenedor responsive, por ejemplo
+   producción, toma física y traslados. El borde vive en el contenedor cuando lo
+   hay; estas reglas se concentran únicamente en la legibilidad de las filas. */
+.seepos-nivel-a .table:not(.table-borderless) thead th,
+.seepos-nivel-b .table:not(.table-borderless) thead th,
+.seepos-nivel-c .table:not(.table-borderless) thead th {
+    padding: .65rem .8rem;
+    color: var(--seepos-gris-texto);
+    font-size: .72rem;
+    font-weight: 750;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    background: var(--seepos-gris-fondo);
+    border-bottom: 2px solid var(--bs-border-color);
+}
+
+.seepos-nivel-a .table-responsive:not(.seepos-rejilla) > .table thead th,
+.seepos-nivel-b .table-responsive:not(.seepos-rejilla) > .table thead th,
+.seepos-nivel-c .table-responsive:not(.seepos-rejilla) > .table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.seepos-nivel-a .table:not(.table-borderless) tbody td,
+.seepos-nivel-b .table:not(.table-borderless) tbody td,
+.seepos-nivel-c .table:not(.table-borderless) tbody td {
+    padding: .56rem .8rem;
+    vertical-align: middle;
+    border-color: color-mix(in srgb, var(--bs-border-color) 62%, transparent);
+}
+
+.seepos-nivel-a .table:not(.table-borderless) tbody tr:nth-child(odd) td,
+.seepos-nivel-b .table:not(.table-borderless) tbody tr:nth-child(odd) td,
+.seepos-nivel-c .table:not(.table-borderless) tbody tr:nth-child(odd) td {
+    background: color-mix(in srgb, var(--seepos-gris-fondo) 42%, transparent);
+}
+
+.seepos-nivel-a .table:not(.table-borderless) tbody tr,
+.seepos-nivel-b .table:not(.table-borderless) tbody tr,
+.seepos-nivel-c .table:not(.table-borderless) tbody tr {
+    transition: background-color .12s ease;
+}
+
+.seepos-nivel-a .table:not(.table-borderless) tbody tr:hover td,
+.seepos-nivel-b .table:not(.table-borderless) tbody tr:hover td,
+.seepos-nivel-c .table:not(.table-borderless) tbody tr:hover td {
+    background: color-mix(in srgb, var(--seepos-verde) 9%, transparent);
+}
+
+.seepos-nivel-a .table :is(.text-end, .seepos-importe),
+.seepos-nivel-b .table :is(.text-end, .seepos-importe),
+.seepos-nivel-c .table :is(.text-end, .seepos-importe) {
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 767.98px) {
+    .seepos-nivel-a .table-responsive:not(.seepos-rejilla),
+    .seepos-nivel-b .table-responsive:not(.seepos-rejilla) {
+        max-height: 55vh;
+        border-radius: .7rem;
+    }
+
+    .seepos-nivel-a .table:not(.table-borderless) thead th,
+    .seepos-nivel-b .table:not(.table-borderless) thead th {
+        padding: .55rem .65rem;
+        font-size: .68rem;
+    }
+
+    .seepos-nivel-a .table:not(.table-borderless) tbody td,
+    .seepos-nivel-b .table:not(.table-borderless) tbody td {
+        padding: .5rem .65rem;
+        white-space: nowrap;
+    }
+}
+
 /* ================================================================
    Isla de MudBlazor (piloto MudDataGrid). Todo lo .mud-* vive aqui.
    Solo dos cosas: (1) dar a la rejilla el marco de tarjeta de la app,
