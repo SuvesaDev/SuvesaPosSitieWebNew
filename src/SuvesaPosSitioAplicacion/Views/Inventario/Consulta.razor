@@ -909,7 +909,7 @@
 <AppBuscadorArticulo @ref="_buscadorRegaloBonificacion" AlElegir="ElegirProductoRegalo" AlCerrar="ReabrirEdicionArticulo" />
 <AppBuscadorArticulo @ref="_buscadorDescarga" AlElegir="ElegirArticuloDescarga" AlCerrar="ReabrirEdicionArticulo" />
 
-<HxModal @ref="_modalCabys" Title="Buscar código CABYS" Size="ModalSize.Large">
+<HxModal @ref="_modalCabys" Title="Buscar código CABYS" Size="ModalSize.Large" OnClosed="ReabrirEdicionArticulo">
     <BodyTemplate>
         <div class="input-group mb-3">
             <input class="form-control" placeholder="Escriba código o descripción" @bind="_textoCabys" @bind:event="oninput" @onkeydown="BuscarCabysConEnter" />
