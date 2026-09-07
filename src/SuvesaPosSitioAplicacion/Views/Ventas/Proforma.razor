@@ -88,7 +88,10 @@
                     <div class="row g-3">
                         <div class="col-12 col-md-6 position-relative">
                             <label class="form-label">Cliente</label>
-                            <input class="form-control" @bind="_documento.NombreCliente" @bind:event="oninput" @onkeydown="BuscarClienteConEnter" placeholder="Escriba parte del nombre y Enter" />
+                            <div class="input-group">
+                                <input class="form-control" @bind="_documento.NombreCliente" @bind:event="oninput" @onkeydown="BuscarClienteConEnter" placeholder="Escriba parte del nombre o la cédula" />
+                                <button type="button" class="btn btn-outline-primary" @onclick="BuscarCliente"><i class="bi bi-search" aria-hidden="true"></i> Buscar</button>
+                            </div>
                             @if (_clientesEncontrados.Count > 0)
                             {
                                 <div class="list-group position-absolute shadow" style="z-index:1050;max-height:14rem;overflow:auto;width:calc(100% - 1.5rem)">
@@ -249,11 +252,23 @@
 
     private async Task BuscarClienteConEnter(KeyboardEventArgs e)
     {
-        if (e.Key != "Enter" || _documento is null) return;
+        if (e.Key == "Enter") await BuscarCliente();
+    }
+
+    private async Task BuscarCliente()
+    {
+        if (_documento is null) return;
         var t = (_documento.NombreCliente ?? string.Empty).Trim();
-        if (t.Length < 2) { _clientesEncontrados = new(); return; }
+        if (t.Length < 2)
+        {
+            _clientesEncontrados = new();
+            await Dialogos.ErrorAsync("Escriba al menos 2 caracteres del nombre o la cédula del cliente.");
+            return;
+        }
         var clientes = await Respuestas.DatoAsync(await ClientesApi.Buscar(t), "buscar clientes");
         _clientesEncontrados = (clientes ?? Array.Empty<DTOs.Generated.FiltranClienteDTO>()).Where(c => !c.Anulado).Take(25).ToList();
+        if (_clientesEncontrados.Count == 0)
+            await Dialogos.ErrorAsync($"Ningún cliente coincide con «{t}».");
     }
 
     private void ElegirCliente(DTOs.Generated.FiltranClienteDTO c)
