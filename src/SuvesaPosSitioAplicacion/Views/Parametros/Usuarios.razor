@@ -61,6 +61,7 @@
                                 {
                                     <button class="btn btn-sm btn-link p-0" @onclick="() => Editar(u)">Editar</button>
                                     <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => AbrirCambioPerfil(u)">Perfil / rol</button>
+                                    <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => AbrirCredenciales(u)">Credenciales</button>
                                 }
                             </ItemTemplate>
                         </HxGridColumn>
@@ -229,6 +230,26 @@
     </FooterTemplate>
 </HxModal>
 
+@* ---------- Modal credenciales del usuario (admin) ---------- *@
+<HxModal @ref="_modalCredenciales" Title="Credenciales del usuario" Size="ModalSize.Regular">
+    <BodyTemplate>
+        <div class="row g-3">
+            <div class="col-12"><strong>@_credencialUsuarioNombre</strong> <span class="text-secondary">(@_credencialUsuarioLogin)</span></div>
+
+            <div class="col-12"><hr class="my-1" /><strong class="small text-secondary">Contraseña de ingreso</strong></div>
+            <div class="col-12"><label class="form-label">Nueva contraseña</label><input type="password" class="form-control" @bind="_credContrasenaNueva" autocomplete="new-password" /></div>
+            <div class="col-12"><button class="btn btn-outline-primary btn-sm" disabled="@_guardandoCredencial" @onclick="RestablecerContrasena">Restablecer contraseña</button></div>
+
+            <div class="col-12"><hr class="my-1" /><strong class="small text-secondary">Clave interna (autoriza caja)</strong></div>
+            <div class="col-12"><label class="form-label">Nueva clave interna</label><input type="text" class="form-control" @bind="_credClaveInternaNueva" /></div>
+            <div class="col-12"><button class="btn btn-outline-primary btn-sm" disabled="@_guardandoCredencial" @onclick="ActualizarClaveInterna">Actualizar clave interna</button></div>
+        </div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modalCredenciales.HideAsync()">Cerrar</button>
+    </FooterTemplate>
+</HxModal>
+
 @code {
     private const string Titulo = "Usuarios";
     private const string Codigo = "PARAMETROS.USUARIOS";
@@ -239,6 +260,13 @@
     private AppRejilla<BuscarUsuarioDTO>? _rejilla;
     private HxModal _modal = default!;
     private HxModal _modalPerfil = default!;
+    private HxModal _modalCredenciales = default!;
+
+    private string _credencialUsuarioLogin = string.Empty;
+    private string _credencialUsuarioNombre = string.Empty;
+    private string _credContrasenaNueva = string.Empty;
+    private string _credClaveInternaNueva = string.Empty;
+    private bool _guardandoCredencial;
 
     private List<PerfilSeguridadDTO> _perfiles = new();
     private List<RolResumenDTO> _roles = new();
@@ -371,6 +399,49 @@
         _idPerfilCambio = completo.IdPerfil;
         _idRolCambio = completo.IdRol ?? 0;
         await _modalPerfil.ShowAsync();
+    }
+
+    private async Task AbrirCredenciales(BuscarUsuarioDTO resumen)
+    {
+        _credencialUsuarioLogin = resumen.IdUsuario ?? string.Empty;
+        _credencialUsuarioNombre = resumen.Nombre ?? string.Empty;
+        _credContrasenaNueva = string.Empty;
+        _credClaveInternaNueva = string.Empty;
+        await _modalCredenciales.ShowAsync();
+    }
+
+    private async Task RestablecerContrasena()
+    {
+        if (_guardandoCredencial) return;
+        if (!ReglaClave.IsMatch(_credContrasenaNueva ?? string.Empty))
+        {
+            await Dialogos.ErrorAsync("La contraseña debe tener al menos 8 caracteres, con mayúscula, minúscula, número y símbolo.");
+            return;
+        }
+        if (!await Dialogos.ConfirmarAsync($"Se restablecerá la contraseña de ingreso de {_credencialUsuarioLogin}.")) return;
+
+        _guardandoCredencial = true;
+        var ok = await Respuestas.CorrectaAsync(
+            await Api.AdminRestablecerContrasena(_credencialUsuarioLogin, _credContrasenaNueva!), "restablecer la contraseña");
+        _guardandoCredencial = false;
+        if (ok) { _credContrasenaNueva = string.Empty; Dialogos.Exito("Contraseña restablecida."); }
+    }
+
+    private async Task ActualizarClaveInterna()
+    {
+        if (_guardandoCredencial) return;
+        if (string.IsNullOrWhiteSpace(_credClaveInternaNueva))
+        {
+            await Dialogos.ErrorAsync("Indique la nueva clave interna.");
+            return;
+        }
+        if (!await Dialogos.ConfirmarAsync($"Se cambiará la clave interna de {_credencialUsuarioLogin}.")) return;
+
+        _guardandoCredencial = true;
+        var ok = await Respuestas.CorrectaAsync(
+            await Api.AdminCambiarClaveInterna(_credencialUsuarioLogin, _credClaveInternaNueva.Trim()), "cambiar la clave interna");
+        _guardandoCredencial = false;
+        if (ok) { _credClaveInternaNueva = string.Empty; Dialogos.Exito("Clave interna actualizada."); }
     }
 
     private async Task GuardarCambioPerfil()

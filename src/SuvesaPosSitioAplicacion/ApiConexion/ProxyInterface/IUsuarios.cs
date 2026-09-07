@@ -40,4 +40,10 @@ public interface IUsuarios
 
     /// <summary>Autoservicio: el usuario autenticado cambia SU contraseña de ingreso.</summary>
     Task<ResponseGeneric<bool>> CambiarContrasenaIngreso(string actual, string nueva);
+
+    /// <summary>Admin: restablece la contraseña de ingreso de OTRO usuario (sin pedir la actual).</summary>
+    Task<ResponseGeneric<bool>> AdminRestablecerContrasena(string idUsuario, string nueva);
+
+    /// <summary>Admin: fija la clave interna de OTRO usuario.</summary>
+    Task<ResponseGeneric<bool>> AdminCambiarClaveInterna(string idUsuario, string nueva);
 }
