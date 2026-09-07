@@ -219,7 +219,10 @@
     private async Task ElegirPreventa(PreventaActivaDTO p)
     {
         _preventasActivas.Clear();
-        var preventa = await Respuestas.DatoAsync(await Api.BuscarPorFicha(p.Ficha, DateTime.Today), "buscar la preventa");
+        // Ficha es un campo legado: si la preventa no la trae, se carga por cliente.
+        var preventa = p.Ficha > 0
+            ? await Respuestas.DatoAsync(await Api.BuscarPorFicha(p.Ficha, DateTime.Today), "buscar la preventa")
+            : await Respuestas.DatoAsync(await Api.BuscarPorCliente(p.CodCliente), "buscar la preventa del cliente");
         await CargarPreventa(preventa);
     }
 
