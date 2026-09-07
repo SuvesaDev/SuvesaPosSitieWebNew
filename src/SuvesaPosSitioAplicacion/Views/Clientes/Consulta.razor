@@ -42,7 +42,7 @@
         <AppFiltros AlBuscar="Buscar" AlLimpiar="LimpiarFiltros" Buscando="_buscando"
                     Resumen="@ResumenConteo()">
             <div class="col-12 col-md-6">
-                <label class="form-label" for="fCliTexto">Cédula o nombre</label>
+                <label class="form-label" for="fCliTexto">Cédula, nombre, sucursal o nombre comercial</label>
                 <input id="fCliTexto" type="search" class="form-control" placeholder="Escriba para filtrar..."
                        value="@_texto" @oninput="AlEscribir" />
             </div>
@@ -434,7 +434,7 @@
                                 </div>
                             }
                         </div>
-                        @if (!_variasSucursales) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre fantasía" @bind-Valor="_edicion.NombreFantasia" /></div> }
+                        @if (!_variasSucursales) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre comercial" @bind-Valor="_edicion.NombreFantasia" /></div> }
                         @if (_edicion.EnviarRecibo) { <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo para recibos" @bind-Valor="_edicion.CorreoRecibo" /></div> }
                         <div class="col-12">
                             <div class="seepos-editor-marcas">
@@ -761,7 +761,9 @@
         if (t.Length > 0)
             q = q.Where(c => Helpers.Texto.Normalizar(c.Nombre).Contains(t)
                           || Helpers.Texto.Normalizar(c.Cedula).Contains(t)
-                          || Helpers.Texto.Normalizar(c.Telefono_01).Contains(t));
+                          || Helpers.Texto.Normalizar(c.Telefono_01).Contains(t)
+                          || Helpers.Texto.Normalizar(c.NombreFantasia).Contains(t)
+                          || Helpers.Texto.Normalizar(c.SucursalesTexto).Contains(t));
 
         _resultados = q.ToList();
         _rejilla?.RefrescarAsync();

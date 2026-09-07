@@ -25,6 +25,11 @@ public partial class FiltranClienteDTO
 {
     [JsonPropertyName("codigoActividad")]
     public string? CodigoActividad { get; set; }
+
+    /// <summary>Sucursal + nombre comercial de cada fila de facturación del cliente,
+    /// unidos, para poder filtrar la lista por esos textos. Se borra al regenerar NSwag.</summary>
+    [JsonPropertyName("sucursalesTexto")]
+    public string? SucursalesTexto { get; set; }
 }
 
 /// <summary>Una actividad económica del cliente (Hacienda). Mismo contrato que
