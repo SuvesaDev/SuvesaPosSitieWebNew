@@ -53,6 +53,26 @@
                 </div>
                 <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="BuscarPorNombre">Buscar por nombre</button></div>
 
+                <div class="col-12 col-md-3 d-grid"><button type="button" class="btn btn-outline-secondary" @onclick="VerPreventasActivas">Ver todas las preventas activas</button></div>
+
+                @if (_preventasActivas.Count > 0)
+                {
+                    <div class="col-12">
+                        <div class="table-responsive" style="max-height:16rem;overflow:auto">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead><tr><th>Ficha</th><th>N.º</th><th>Cliente</th><th>Fecha</th><th class="text-end">Total</th><th></th></tr></thead>
+                                <tbody>
+                                    @foreach (var p in _preventasActivas)
+                                    {
+                                        <tr><td>@p.Ficha</td><td>@p.NumFactura</td><td>@p.Cliente</td><td>@(DateTime.TryParse(p.Fecha, out var f) ? f.ToString("dd/MM/yyyy") : p.Fecha)</td><td class="text-end">@Formato.Importe(p.Total)</td>
+                                            <td class="text-end"><button type="button" class="btn btn-sm btn-primary" @onclick="() => ElegirPreventa(p)">Cobrar</button></td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+
                 @if (_clientesEncontrados.Count > 0)
                 {
                     <div class="col-12">
@@ -151,6 +171,7 @@
     private string _cedulaCliente = string.Empty;
     private string _nombreCliente = string.Empty;
     private List<FiltranClienteDTO> _clientesEncontrados = new();
+    private List<PreventaActivaDTO> _preventasActivas = new();
     private bool _buscandoPorFicha, _buscandoPorCedula;
     private PreventaDTO? _preventa;
     private long _codCliente;
@@ -183,6 +204,22 @@
         _buscandoPorFicha = true;
         var preventa = await Respuestas.DatoAsync(await Api.BuscarPorFicha(_ficha, DateTime.Today), "buscar la preventa");
         _buscandoPorFicha = false;
+        await CargarPreventa(preventa);
+    }
+
+    private async Task VerPreventasActivas()
+    {
+        _clientesEncontrados.Clear();
+        _preventasActivas = (await Respuestas.DatoAsync(await Api.PreventasActivas(), "consultar las preventas activas"))
+            ?.ToList() ?? new();
+        if (_preventasActivas.Count == 0)
+            await Dialogos.ErrorAsync("No hay preventas pendientes de cobro.");
+    }
+
+    private async Task ElegirPreventa(PreventaActivaDTO p)
+    {
+        _preventasActivas.Clear();
+        var preventa = await Respuestas.DatoAsync(await Api.BuscarPorFicha(p.Ficha, DateTime.Today), "buscar la preventa");
         await CargarPreventa(preventa);
     }
 

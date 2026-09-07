@@ -18,6 +18,7 @@ public partial class ConciliacionCaja
     private List<AperturaCajaDTO> _aperturas = new();
     private long _napertura;
     private ConciliacionCajaWebDTO? _datos;
+    private readonly List<OpcionesDePagoCierreCaja> _documentos = new();
     private bool _cargando;
     private bool _cerrando;
 
@@ -28,11 +29,14 @@ public partial class ConciliacionCaja
 
     private async Task Cargar()
     {
-        if (_napertura <= 0) { _datos = null; return; }
+        if (_napertura <= 0) { _datos = null; _documentos.Clear(); return; }
         _cargando = true;
         try
         {
             _datos = await Respuestas.DatoAsync(await Api.Obtener(_napertura), "consultar la conciliación de caja");
+            _documentos.Clear();
+            var docs = await Respuestas.DatoAsync(await CajaApi.DocumentosDeApertura(_napertura), "consultar los documentos de la apertura");
+            _documentos.AddRange(docs ?? Array.Empty<OpcionesDePagoCierreCaja>());
         }
         finally { _cargando = false; }
     }

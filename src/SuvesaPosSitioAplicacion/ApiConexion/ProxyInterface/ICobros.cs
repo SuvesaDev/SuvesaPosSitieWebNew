@@ -17,6 +17,9 @@ public interface ICobros
 
     Task<ResponseGeneric<PreventaDTO>> BuscarPorFicha(int ficha, DateTime fecha);
 
+    /// <summary>Todas las preventas pendientes de cobro/facturación.</summary>
+    Task<ResponseGeneric<ICollection<PreventaActivaDTO>>> PreventasActivas();
+
     Task<ResponseGeneric<long>> CodigoClientePorCedula(string cedula);
 
     Task<ResponseGeneric<PreventaDTO>> BuscarPorCliente(long codCliente);

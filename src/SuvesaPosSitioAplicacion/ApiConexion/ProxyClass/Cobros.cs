@@ -13,12 +13,14 @@ public sealed class Cobros : ProxyBase, ICobros
     private readonly IFormasPagosApiCliente _formasPago;
     private readonly IVentaApiCliente _venta;
     private readonly IClienteApiCliente _clientes;
+    private readonly HttpClient _api;
 
     public Cobros(
         ICobrosApiCliente cobros,
         IFormasPagosApiCliente formasPago,
         IVentaApiCliente venta,
         IClienteApiCliente clientes,
+        IHttpClientFactory factory,
         IContextoSesion sesion,
         ILogger<Cobros> log)
         : base(sesion, log)
@@ -27,7 +29,13 @@ public sealed class Cobros : ProxyBase, ICobros
         _formasPago = formasPago;
         _venta = venta;
         _clientes = clientes;
+        _api = factory.CreateClient("SeePosApi");
     }
+
+    public Task<ResponseGeneric<ICollection<PreventaActivaDTO>>> PreventasActivas()
+        => Ejecutar(async () => await LecturaEnvelope.Leer<ICollection<PreventaActivaDTO>>(
+            await _api.PostAsync("venta/ObtenerPreventasActivas", null)),
+            "consultar las preventas activas");
 
     public Task<ResponseGeneric<ICollection<FormasPagoDTO>>> FormasPago(long codCliente)
         => Ejecutar(async () =>
