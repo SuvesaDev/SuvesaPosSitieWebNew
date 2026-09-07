@@ -242,9 +242,13 @@
         }
         else
         {
-            <div class="form-check mb-3"><input id="catalogo-todos" class="form-check-input" type="checkbox" checked="@CatalogoCompletoSeleccionado" @onchange="SeleccionarTodoCatalogo" /><label class="form-check-label" for="catalogo-todos">Seleccionar todos (@_catalogoImagenes.Count)</label></div>
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                <input class="form-control form-control-sm" style="max-width:20rem" placeholder="Filtrar por descripción o código..." @bind="_filtroCatalogo" @bind:event="oninput" />
+                <div class="form-check ms-2"><input id="catalogo-todos" class="form-check-input" type="checkbox" checked="@CatalogoCompletoSeleccionado" @onchange="SeleccionarTodoCatalogo" /><label class="form-check-label" for="catalogo-todos">Seleccionar todos (@CatalogoFiltrado.Count)</label></div>
+            </div>
+            @if (CatalogoFiltrado.Count == 0) { <p class="text-secondary text-center py-4 mb-0">Ningún artículo coincide con el filtro.</p> }
             <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3" style="max-height: 58vh; overflow-y: auto;">
-                @foreach (var producto in _catalogoImagenes)
+                @foreach (var producto in CatalogoFiltrado)
                 {
                     <div class="col">
                         <div class="card h-100 shadow-sm @(producto.Seleccionado ? "border-primary" : null)">
@@ -893,7 +897,19 @@
     public void Dispose() => _pendienteCliente?.Cancel();
 
 
-    private bool CatalogoCompletoSeleccionado => _catalogoImagenes.Count > 0 && _catalogoImagenes.All(p => p.Seleccionado);
+    private string _filtroCatalogo = string.Empty;
+    private List<ProductoCatalogo> CatalogoFiltrado
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_filtroCatalogo)) return _catalogoImagenes;
+            var t = Helpers.Texto.Normalizar(_filtroCatalogo);
+            return _catalogoImagenes.Where(p =>
+                Helpers.Texto.Normalizar(p.Datos.Descripcion).Contains(t)
+                || Helpers.Texto.Normalizar(p.Datos.Codigo).Contains(t)).ToList();
+        }
+    }
+    private bool CatalogoCompletoSeleccionado => CatalogoFiltrado.Count > 0 && CatalogoFiltrado.All(p => p.Seleccionado);
     private async Task AbrirBuscadorArticulo()
     {
         if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
@@ -929,7 +945,7 @@
     private void SeleccionarTodoCatalogo(ChangeEventArgs e)
     {
         var seleccionar = e.Value is bool valor && valor;
-        foreach (var producto in _catalogoImagenes) producto.Seleccionado = seleccionar;
+        foreach (var producto in CatalogoFiltrado) producto.Seleccionado = seleccionar;
     }
 
     private static string ImagenCatalogo(string base64) => $"data:image/*;base64,{base64}";
