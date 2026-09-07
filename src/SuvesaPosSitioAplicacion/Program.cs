@@ -316,6 +316,20 @@ app.MapGet("/emisores/{idEmisor:int}/logo", async (int idEmisor, IEmisoresFiscal
     return Results.File(logo.Contenido, logo.MimeType, enableRangeProcessing: false);
 });
 
+// Imagen de un artículo para el catálogo visual. Igual patrón BFF: el sitio pide
+// los bytes al API con el token (server-side) y los reenvía; el navegador solo ve
+// una URL de misma-origen. Evita mandar cientos de imágenes base64 por el circuito.
+app.MapGet("/catalogo/imagen/{idInventario:long}", async (long idInventario, IHttpClientFactory factory) =>
+{
+    var http = factory.CreateClient("SeePosApi");
+    var resp = await http.GetAsync($"articulosimagenes/imagen/{idInventario}");
+    if (!resp.IsSuccessStatusCode) return Results.NotFound();
+    var bytes = await resp.Content.ReadAsByteArrayAsync();
+    if (bytes.Length == 0) return Results.NotFound();
+    var mime = resp.Content.Headers.ContentType?.ToString() ?? "image/*";
+    return Results.File(bytes, mime, enableRangeProcessing: false);
+});
+
 // PDF de representación gráfica de un documento (MOTOR_PLANTILLAS_IMPRESION_WEB.md §4).
 // El render vive en el API; este endpoint solo reenvía con el token y hace stream.
 app.MapGet("/documentos/{tipo}/{id:long}/pdf", async (
