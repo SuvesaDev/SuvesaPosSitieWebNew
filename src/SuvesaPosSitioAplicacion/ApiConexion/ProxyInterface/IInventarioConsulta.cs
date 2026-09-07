@@ -31,6 +31,10 @@ public interface IInventarioConsulta
 
     Task<ResponseGeneric<InventarioDTO>> Uno(long codigo);
 
+    /// <summary>Código del último artículo creado, como referencia para el
+    /// consecutivo manual al dar de alta un artículo nuevo.</summary>
+    Task<ResponseGeneric<string>> UltimoCodigo();
+
     Task<ResponseGeneric<InventarioDTO>> Crear(InventarioDTO articulo);
 
     Task<ResponseGeneric<InventarioDTO>> Editar(InventarioDTO articulo);

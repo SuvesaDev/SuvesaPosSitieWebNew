@@ -13,11 +13,13 @@ public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
     private readonly IStockLoteApiCliente _lotes;
     private readonly IStocksApiCliente _stocks;
     private readonly ILogger<InventarioConsulta> _log;
+    private readonly HttpClient _http;
 
     public InventarioConsulta(
         IInventarioApiCliente api,
         IStockLoteApiCliente lotes,
         IStocksApiCliente stocks,
+        IHttpClientFactory factory,
         IContextoSesion sesion,
         ILogger<InventarioConsulta> log)
         : base(sesion, log)
@@ -26,7 +28,13 @@ public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
         _lotes = lotes;
         _stocks = stocks;
         _log = log;
+        _http = factory.CreateClient("SeePosApi");
     }
+
+    public Task<ResponseGeneric<string>> UltimoCodigo()
+        => Ejecutar(async () => await LecturaEnvelope.Leer<string>(
+            await _http.GetAsync("inventario/UltimoCodigoArticulo")),
+            "consultar el último código de artículo");
 
     public Task<ResponseGeneric<ICollection<StockLoteDTO>>> Lotes(long idArticulo)
         => Ejecutar(async () =>

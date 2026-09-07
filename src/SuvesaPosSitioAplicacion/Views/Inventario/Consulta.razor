@@ -365,6 +365,10 @@
                     <div class="col-12 seepos-form-seccion">Identificación</div>
                     <div class="col-12 col-md-4">
                         <AppCampoTexto Etiqueta="Código" @bind-Valor="_edicion.Cod_Articulo" Deshabilitado="@(!_esNuevo)" Requerido="true" />
+                        @if (_esNuevo && !string.IsNullOrWhiteSpace(_ultimoCodigoArticulo))
+                        {
+                            <div class="form-text">Último código ingresado: <code>@_ultimoCodigoArticulo</code></div>
+                        }
                     </div>
                     <div class="col-12 col-md-8">
                         <AppCampoTexto Etiqueta="Descripción" @bind-Valor="_edicion.Descripcion" Requerido="true" />
@@ -943,6 +947,7 @@
     private HxModal _modal = default!;
     private HxModal _modalCabys = default!;
 
+    private string _ultimoCodigoArticulo = string.Empty;
     private string _texto = string.Empty;
     private string _tipo = string.Empty;      // "" todos, "A" articulo, "S" servicio
     private string _estado = "A";             // "A" activos, "I" inhabilitados, "T" todos
@@ -1186,6 +1191,7 @@
         ReiniciarEditorProduccion();
         ReiniciarImagenEditor();
         await CargarCatalogosInventario();
+        _ultimoCodigoArticulo = (await Respuestas.DatoAsync(await Api.UltimoCodigo(), "consultar el último código")) ?? string.Empty;
         _edicion = new InventarioDTO
         {
             Cod_Articulo = string.Empty,
@@ -1247,6 +1253,14 @@
         if (string.IsNullOrWhiteSpace(_edicion.Cod_Articulo) || string.IsNullOrWhiteSpace(_edicion.Descripcion))
         {
             await Dialogos.ErrorAsync("Código y descripción son obligatorios.");
+            return;
+        }
+
+        _edicion.Cod_Articulo = _edicion.Cod_Articulo.Trim();
+
+        if (_esNuevo && _todos.Any(a => string.Equals(a.Cod_Articulo?.Trim(), _edicion.Cod_Articulo, StringComparison.OrdinalIgnoreCase)))
+        {
+            await Dialogos.ErrorAsync($"Ya existe un artículo con el código «{_edicion.Cod_Articulo}». El código debe ser único.");
             return;
         }
 
