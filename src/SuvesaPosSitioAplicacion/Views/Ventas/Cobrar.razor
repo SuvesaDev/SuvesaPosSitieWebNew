@@ -1,5 +1,6 @@
 @page "/initial/charge"
 @using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ICobros Api
@@ -9,6 +10,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IClientesConsulta ClientesApi
 
 @*  Ola 5 — cobro de una preventa (por ficha o por cédula del cliente), con varias
     formas de pago a la vez. Si el documento no es de crédito, además de cobrar se
@@ -44,6 +46,27 @@
                     <input class="form-control" disabled="@_buscandoPorFicha" @bind="_cedulaCliente" @onkeydown="BuscarPorCedulaConEnter" />
                 </div>
                 <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" disabled="@_buscandoPorFicha" @onclick="BuscarPorCedula">Buscar por cédula</button></div>
+
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Nombre del cliente</label>
+                    <input class="form-control" @bind="_nombreCliente" @onkeydown="BuscarPorNombreConEnter" placeholder="Escriba parte del nombre" />
+                </div>
+                <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="BuscarPorNombre">Buscar por nombre</button></div>
+
+                @if (_clientesEncontrados.Count > 0)
+                {
+                    <div class="col-12">
+                        <div class="list-group">
+                            @foreach (var c in _clientesEncontrados)
+                            {
+                                <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between" @onclick="() => ElegirCliente(c)">
+                                    <span><strong>@c.Nombre</strong> <span class="text-secondary ms-2">@c.Cedula</span></span>
+                                    <span class="text-secondary small">Ver preventa pendiente</span>
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
             </div>
         </div>
 
@@ -126,6 +149,8 @@
 
     private int _ficha;
     private string _cedulaCliente = string.Empty;
+    private string _nombreCliente = string.Empty;
+    private List<FiltranClienteDTO> _clientesEncontrados = new();
     private bool _buscandoPorFicha, _buscandoPorCedula;
     private PreventaDTO? _preventa;
     private long _codCliente;
@@ -158,6 +183,30 @@
         _buscandoPorFicha = true;
         var preventa = await Respuestas.DatoAsync(await Api.BuscarPorFicha(_ficha, DateTime.Today), "buscar la preventa");
         _buscandoPorFicha = false;
+        await CargarPreventa(preventa);
+    }
+
+    private async Task BuscarPorNombreConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await BuscarPorNombre(); }
+
+    private async Task BuscarPorNombre()
+    {
+        _clientesEncontrados.Clear();
+        if (string.IsNullOrWhiteSpace(_nombreCliente) || _nombreCliente.Trim().Length < 2)
+        {
+            await Dialogos.ErrorAsync("Escriba al menos 2 letras del nombre del cliente.");
+            return;
+        }
+        var clientes = await Respuestas.DatoAsync(await ClientesApi.Buscar(_nombreCliente.Trim()), "buscar clientes");
+        _clientesEncontrados = (clientes ?? Array.Empty<FiltranClienteDTO>()).Where(c => !c.Anulado).Take(25).ToList();
+        if (_clientesEncontrados.Count == 0)
+            await Dialogos.ErrorAsync($"Ningún cliente coincide con «{_nombreCliente}».");
+    }
+
+    private async Task ElegirCliente(FiltranClienteDTO cliente)
+    {
+        _clientesEncontrados.Clear();
+        _nombreCliente = string.Empty;
+        var preventa = await Respuestas.DatoAsync(await Api.BuscarPorCliente(cliente.Identificacion), "buscar la preventa del cliente");
         await CargarPreventa(preventa);
     }
 
