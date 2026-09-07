@@ -523,7 +523,7 @@
                         <div class="col-12 col-md-4"><label class="form-label">Tarifa</label><select class="form-select" @bind="_tarifaPrecio"><option value="A">Precio A</option><option value="B">Precio B</option><option value="C">Precio C</option><option value="D">Precio D</option><option value="P">Promoción</option></select></div>
                         <div class="col-12 col-md-4"><label class="form-label">Utilidad (%)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_utilidadPrecio" /></div>
                         <div class="col-12 col-md-4 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="CalcularPrecio">Calcular precio</button></div>
-                        <div class="col-12 col-md-6"><label class="form-label">Precio sin impuesto</label><input type="number" min="0" step="0.01" class="form-control" @bind="PrecioTarifaActual" /></div>
+                        <div class="col-12 col-md-6"><label class="form-label">Precio sin impuesto</label><input type="number" min="0" step="0.01" class="form-control" @bind="PrecioTarifaActual" @bind:after="RecalcularUtilidadDesdePrecio" /></div>
                         <div class="col-12 col-md-6"><label class="form-label">Precio con impuesto</label><input type="text" readonly class="form-control" value="@PrecioConImpuestoTexto" /></div>
 
                         <div class="col-12 seepos-form-seccion">Último costo</div>
@@ -1655,6 +1655,24 @@
             ? basePrecio / (1 - utilidad)
             : basePrecio * (1 + utilidad) + (decimal)_edicion.Fletes + (decimal)_edicion.OtrosCargos;
         PrecioTarifaActual = (float)Math.Round(precio, 2);
+    }
+
+    /// <summary>
+    /// Inverso de <see cref="CalcularPrecio"/>: al escribir el precio de venta se
+    /// recalcula la Utilidad (%) a partir del costo, para no tener que pulsar el botón.
+    /// </summary>
+    private void RecalcularUtilidadDesdePrecio()
+    {
+        if (_edicion is null) return;
+        var basePrecio = (decimal)_edicion.PrecioBase;
+        var precio = (decimal)PrecioTarifaActual;
+        if (basePrecio <= 0 || precio <= 0) return;
+
+        decimal utilidad = Sesion.EsCostaPets
+            ? 1 - basePrecio / precio
+            : (precio - (decimal)_edicion.Fletes - (decimal)_edicion.OtrosCargos) / basePrecio - 1;
+
+        _utilidadPrecio = (float)Math.Round(Math.Max(0, utilidad) * 100, 2);
     }
 
     private void ReiniciarEditorProduccion()

@@ -43,12 +43,13 @@
                                     }
                                 </div>
                                 <div class="col-12 col-md-6"><label class="form-label">Proveedor seleccionado</label><div class="form-control bg-body-tertiary text-truncate">@(_proveedor?.Nombre ?? "Seleccione un proveedor")</div></div>
-                                <div class="col-6 col-md-3"><label class="form-label">Número de factura</label><input class="form-control" @bind="_numeroFactura" /></div>
-                                <div class="col-6 col-md-3"><label class="form-label">Condición</label><select class="form-select" @bind="_tipoCompra" @bind:after="ActualizarVencimiento"><option value="2">Contado</option><option value="1">Crédito</option></select></div>
-                                <div class="col-6 col-md-3"><label class="form-label">Fecha</label><input type="date" class="form-control" @bind="_fecha" @bind:after="ActualizarVencimiento" /></div>
-                                <div class="col-6 col-md-3"><label class="form-label">Días de crédito</label><input type="number" min="0" class="form-control" disabled="@(_tipoCompra != 1)" @bind="_diasCredito" @bind:after="ActualizarVencimiento" /></div>
+                                <div class="col-6 col-md-3"><label class="form-label">Número de factura</label><input class="form-control" disabled="@_compraDesdeXml" @bind="_numeroFactura" /></div>
+                                <div class="col-6 col-md-3"><label class="form-label">Condición</label><select class="form-select" disabled="@_compraDesdeXml" @bind="_tipoCompra" @bind:after="ActualizarVencimiento"><option value="2">Contado</option><option value="1">Crédito</option></select></div>
+                                <div class="col-6 col-md-3"><label class="form-label">Fecha</label><input type="date" class="form-control" disabled="@_compraDesdeXml" @bind="_fecha" @bind:after="ActualizarVencimiento" /></div>
+                                <div class="col-6 col-md-3"><label class="form-label">Días de crédito</label><input type="number" min="0" class="form-control" disabled="@(_compraDesdeXml || _tipoCompra != 1)" @bind="_diasCredito" @bind:after="ActualizarVencimiento" /></div>
                                 <div class="col-6 col-md-3"><label class="form-label">Vencimiento</label><input type="date" class="form-control" disabled value="@VencimientoTexto" /></div>
-                                <div class="col-6 col-md-3"><label class="form-label">Moneda</label><select class="form-select" @bind="_moneda"><option value="0">Seleccione...</option>@foreach (var moneda in _monedas) { <option value="@moneda.CodMoneda">@moneda.MonedaNombre</option> }</select></div>
+                                <div class="col-6 col-md-3"><label class="form-label">Moneda</label><select class="form-select" disabled="@_compraDesdeXml" @bind="_moneda"><option value="0">Seleccione...</option>@foreach (var moneda in _monedas) { <option value="@moneda.CodMoneda">@moneda.MonedaNombre</option> }</select></div>
+                                @if (_compraDesdeXml) { <div class="col-12"><small class="text-secondary"><i class="bi bi-lock" aria-hidden="true"></i> Datos tomados del comprobante XML; no se pueden modificar.</small></div> }
                                 <div class="col-12 col-md-3"><label class="form-label">Bodega</label><select class="form-select" @bind="_bodega" @bind:after="ActualizarExistenciaArticuloActualAsync"><option value="0">Seleccione...</option>@foreach (var bodega in _bodegas) { <option value="@bodega.IdBodega">@bodega.NombreBodega</option> }</select></div>
                                 @if (!EsCostaPetsCompra)
                                 {

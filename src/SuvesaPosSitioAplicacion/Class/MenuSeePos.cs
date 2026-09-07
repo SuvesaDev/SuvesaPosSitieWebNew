@@ -416,18 +416,6 @@ public static partial class MenuSeePos
             {
                 new ItemMenu
                 {
-                    Titulo = "Categorias",
-                    Codigo = "CATALOGOS.CATEGORIAS",
-                    Ruta = "/parameters/category",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Monedas",
-                    Codigo = "CATALOGOS.MONEDAS",
-                    Ruta = "/parameters/coins",
-                },
-                new ItemMenu
-                {
                     Titulo = "Presentaciones",
                     Codigo = "CATALOGOS.PRESENTACIONES",
                     Ruta = "/parameters/presentations",
@@ -482,12 +470,6 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
-                    Titulo = "Denominación monedas",
-                    Codigo = "CATALOGOS.DENOMINACION_MONEDAS",
-                    Ruta = "/parameters/denominationcoins",
-                },
-                new ItemMenu
-                {
                     Titulo = "Configuración de Plazos",
                     Codigo = "CATALOGOS.CONFIGURACION_DE_PLAZOS",
                     Ruta = "/parameters/payment-terms",
@@ -503,12 +485,6 @@ public static partial class MenuSeePos
                     Titulo = "Bancos",
                     Codigo = "CATALOGOS.BANCOS",
                     Ruta = "/parameters/bank",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Clientes Frecuentes",
-                    Codigo = "CATALOGOS.CLIENTES_FRECUENTES",
-                    Ruta = "/parameters/usualcustomers",
                 },
                 new ItemMenu
                 {
