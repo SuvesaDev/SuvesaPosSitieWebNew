@@ -706,12 +706,22 @@
         if (detalle.EsCorrecta && detalle.Responses is not null) articulo = detalle.Responses;
         var linea = _xml.Lineas[indice];
         linea.Articulo = articulo;
-        linea.VinculoConfirmado = false;
         linea.Lote = string.Empty;
         linea.Vencimiento = DateTime.Today;
         linea.Precios.Clear();
         PrepararPreciosXml(linea);
         CancelarEditorXml();
+
+        // Asociar = guardar: el vínculo proveedor↔artículo se persiste de una vez,
+        // sin necesidad de un segundo clic en "Vincular".
+        var r = await Api.VincularArticuloXml(new CatalogoProductosInternosDTO
+        {
+            CodigoProveedor = linea.CodigoProveedor,
+            DescripcionProveedor = linea.Descripcion,
+            CodigoInterno = articulo.Cod_Articulo,
+            DescripcionInterno = articulo.Descripcion
+        });
+        linea.VinculoConfirmado = await Respuestas.CorrectaAsync(r, "vincular el artículo importado");
     }
 
     private void CancelarEditorXml()
@@ -877,6 +887,19 @@
         var sinLote = _xml.Lineas.Where(LoteXmlIncompleto).ToList();
         if (sinLote.Count > 0) { await Dialogos.ErrorAsync($"Revise los lotes de {sinLote.Count} artículo(s): falta el número/vencimiento o los lotes no suman la cantidad de la línea.", "Importar XML"); return; }
         if (_xml.Lineas.Any(l => l.Cantidad <= 0)) { await Dialogos.ErrorAsync("Cada línea importada debe tener una cantidad mayor a cero.", "Importar XML"); return; }
+
+        // Red de seguridad: al aplicar se persiste el vínculo proveedor↔artículo de
+        // cada línea asociada, aunque no se haya pulsado "Vincular" por renglón.
+        foreach (var l in _xml.Lineas.Where(l => l.Articulo is not null))
+        {
+            await Api.VincularArticuloXml(new CatalogoProductosInternosDTO
+            {
+                CodigoProveedor = l.CodigoProveedor,
+                DescripcionProveedor = l.Descripcion,
+                CodigoInterno = l.Articulo!.Cod_Articulo,
+                DescripcionInterno = l.Articulo.Descripcion
+            });
+        }
 
         _idCompra = 0;
         _proveedor = proveedor;
