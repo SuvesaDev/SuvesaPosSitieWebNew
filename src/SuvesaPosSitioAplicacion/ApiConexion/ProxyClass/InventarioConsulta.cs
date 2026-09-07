@@ -31,8 +31,8 @@ public sealed class InventarioConsulta : ProxyBase, IInventarioConsulta
         _http = factory.CreateClient("SeePosApi");
     }
 
-    public Task<ResponseGeneric<string>> UltimoCodigo()
-        => Ejecutar(async () => await LecturaEnvelope.Leer<string>(
+    public Task<ResponseGeneric<UltimoCodigoArticuloDTO>> UltimoCodigo()
+        => Ejecutar(async () => await LecturaEnvelope.Leer<UltimoCodigoArticuloDTO>(
             await _http.GetAsync("inventario/UltimoCodigoArticulo")),
             "consultar el último código de artículo");
 

@@ -33,7 +33,7 @@ public interface IInventarioConsulta
 
     /// <summary>Código del último artículo creado, como referencia para el
     /// consecutivo manual al dar de alta un artículo nuevo.</summary>
-    Task<ResponseGeneric<string>> UltimoCodigo();
+    Task<ResponseGeneric<UltimoCodigoArticuloDTO>> UltimoCodigo();
 
     Task<ResponseGeneric<InventarioDTO>> Crear(InventarioDTO articulo);
 

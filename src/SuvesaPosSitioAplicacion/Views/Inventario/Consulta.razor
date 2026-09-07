@@ -1191,7 +1191,7 @@
         ReiniciarEditorProduccion();
         ReiniciarImagenEditor();
         await CargarCatalogosInventario();
-        _ultimoCodigoArticulo = (await Respuestas.DatoAsync(await Api.UltimoCodigo(), "consultar el último código")) ?? string.Empty;
+        _ultimoCodigoArticulo = (await Respuestas.DatoAsync(await Api.UltimoCodigo(), "consultar el último código"))?.Codigo ?? string.Empty;
         _edicion = new InventarioDTO
         {
             Cod_Articulo = string.Empty,
