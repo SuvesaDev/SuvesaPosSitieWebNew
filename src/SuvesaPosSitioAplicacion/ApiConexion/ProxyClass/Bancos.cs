@@ -66,4 +66,31 @@ public sealed class Bancos : ProxyBase, IBancos
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "desactivar el banco");
 
+    public Task<ResponseGeneric<ICollection<CuentaBancariaDTO>>> Cuentas(int idBanco, int idEmpresa = 0)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ObtenerCuentasPorBancoAsync(idBanco, idEmpresa);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar las cuentas del banco");
+
+    public Task<ResponseGeneric<CuentaBancariaDTO>> CrearCuenta(CuentaBancariaDTO cuenta)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.CrearCuentaBancariaAsync(cuenta);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "crear la cuenta bancaria");
+
+    public Task<ResponseGeneric<CuentaBancariaDTO>> EditarCuenta(CuentaBancariaDTO cuenta)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ModificarCuentaBancariaAsync(cuenta);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "editar la cuenta bancaria");
+
+    public Task<ResponseGeneric<CuentaBancariaDTO>> InactivarCuenta(int idCuenta)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.InactivarCuentaBancariaAsync(idCuenta);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "desactivar la cuenta bancaria");
 }

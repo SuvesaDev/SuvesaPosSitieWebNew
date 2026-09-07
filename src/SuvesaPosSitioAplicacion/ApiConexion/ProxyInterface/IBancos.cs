@@ -17,4 +17,13 @@ public interface IBancos
     Task<ResponseGeneric<EntidadesBancariasDTO>> Activar(int id);
 
     Task<ResponseGeneric<EntidadesBancariasDTO>> Inactivar(int id);
+
+    // --- Cuentas bancarias del banco (necesarias para depósitos y recibos CxP) ---
+    Task<ResponseGeneric<ICollection<CuentaBancariaDTO>>> Cuentas(int idBanco, int idEmpresa = 0);
+
+    Task<ResponseGeneric<CuentaBancariaDTO>> CrearCuenta(CuentaBancariaDTO cuenta);
+
+    Task<ResponseGeneric<CuentaBancariaDTO>> EditarCuenta(CuentaBancariaDTO cuenta);
+
+    Task<ResponseGeneric<CuentaBancariaDTO>> InactivarCuenta(int idCuenta);
 }

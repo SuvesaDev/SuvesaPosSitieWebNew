@@ -3,6 +3,8 @@
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IBancos Api
+@inject ICajaOperaciones Caja
+@inject IEmpresas Empresas
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
@@ -65,6 +67,8 @@
                                 {
                                     <button class="btn btn-sm btn-link p-0 me-3"
                                             @onclick="() => Editar(b)">Editar</button>
+                                    <button class="btn btn-sm btn-link p-0 me-3"
+                                            @onclick="() => AbrirCuentas(b)">Cuentas</button>
                                 }
                                 @if (Sesion.Puede(Titulo, AccionPantalla.Borrar))
                                 {
@@ -100,17 +104,58 @@
     </FooterTemplate>
 </HxModal>
 
+@* ---------- Cuentas bancarias del banco ---------- *@
+<HxModal @ref="_modalCuentas" Title="@($"Cuentas de {_bancoCuentas?.Banco}")" Size="ModalSize.Large">
+    <BodyTemplate>
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-4"><label class="form-label">Número de cuenta</label><input class="form-control form-control-sm" @bind="_cuentaNueva.Numero" /></div>
+            <div class="col-6 col-md-3"><label class="form-label">Empresa</label><select class="form-select form-select-sm" @bind="_cuentaNueva.IdEmpresa"><option value="0">Seleccione...</option>@foreach (var e in _empresas) { <option value="@e.Id">@e.Nombre</option> }</select></div>
+            <div class="col-6 col-md-3"><label class="form-label">Moneda</label><select class="form-select form-select-sm" @bind="_cuentaNueva.IdMoneda"><option value="0">Seleccione...</option>@foreach (var m in _monedas) { <option value="@m.CodMoneda">@m.MonedaNombre</option> }</select></div>
+            <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary btn-sm" disabled="@_guardandoCuenta" @onclick="GuardarCuenta">@(_cuentaNueva.Id > 0 ? "Guardar" : "Agregar")</button></div>
+        </div>
+        @if (_cuentaNueva.Id > 0) { <div class="mt-1"><button type="button" class="btn btn-sm btn-link text-secondary p-0" @onclick="CancelarEdicionCuenta">Cancelar edición</button></div> }
+
+        <div class="table-responsive mt-3">
+            <table class="table table-sm">
+                <thead><tr><th>Cuenta</th><th>Empresa</th><th>Moneda</th><th></th></tr></thead>
+                <tbody>
+                    @if (_cuentas.Count == 0) { <tr><td colspan="4" class="text-secondary text-center py-3">Este banco no tiene cuentas registradas.</td></tr> }
+                    @foreach (var c in _cuentas)
+                    {
+                        <tr><td><code>@c.Numero</code></td><td>@c.Empresa</td><td>@c.Moneda</td>
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-link p-0 me-2" @onclick="() => EditarCuenta(c)">Editar</button>
+                                <button type="button" class="btn btn-sm btn-link text-danger p-0" @onclick="() => QuitarCuenta(c)">Quitar</button>
+                            </td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modalCuentas.HideAsync()">Cerrar</button>
+    </FooterTemplate>
+</HxModal>
+
 @code {
     /// <summary>Titulo del menu. Es la llave de permisos, asi que se escribe una sola vez.</summary>
     private const string Titulo = "Bancos";
 
     private AppRejilla<EntidadesBancariasDTO>? _rejilla;
     private HxModal _modal = default!;
+    private HxModal _modalCuentas = default!;
 
     private List<EntidadesBancariasDTO> _bancos = new();
     private EntidadesBancariasDTO? _edicion;
     private bool _guardando;
     private bool _cargado;
+
+    private EntidadesBancariasDTO? _bancoCuentas;
+    private List<CuentaBancariaDTO> _cuentas = new();
+    private CuentaBancariaDTO _cuentaNueva = new();
+    private List<EmpresaDTO> _empresas = new();
+    private List<Moneda> _monedas = new();
+    private bool _guardandoCuenta;
 
     private async Task<GridDataProviderResult<EntidadesBancariasDTO>> Cargar(
         GridDataProviderRequest<EntidadesBancariasDTO> peticion)
@@ -181,6 +226,60 @@
             await _modal.HideAsync();
             Dialogos.Exito(esNuevo ? "Banco creado." : "Banco actualizado.");
             await Recargar();
+        }
+    }
+
+    private async Task AbrirCuentas(EntidadesBancariasDTO banco)
+    {
+        _bancoCuentas = banco;
+        _cuentaNueva = new CuentaBancariaDTO { IdBanco = banco.Id };
+        if (_empresas.Count == 0)
+            _empresas = (await Respuestas.DatoAsync(await Caja.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        if (_monedas.Count == 0)
+            _monedas = (await Respuestas.DatoAsync(await Empresas.Monedas(), "consultar las monedas"))?.ToList() ?? new();
+        await RecargarCuentas();
+        await _modalCuentas.ShowAsync();
+    }
+
+    private async Task RecargarCuentas()
+    {
+        if (_bancoCuentas is null) return;
+        _cuentas = (await Respuestas.DatoAsync(await Api.Cuentas(_bancoCuentas.Id), "consultar las cuentas del banco"))?.ToList() ?? new();
+    }
+
+    private void EditarCuenta(CuentaBancariaDTO c)
+        => _cuentaNueva = new CuentaBancariaDTO { Id = c.Id, IdBanco = c.IdBanco, Numero = c.Numero, IdEmpresa = c.IdEmpresa, IdMoneda = c.IdMoneda };
+
+    private void CancelarEdicionCuenta()
+        => _cuentaNueva = new CuentaBancariaDTO { IdBanco = _bancoCuentas?.Id ?? 0 };
+
+    private async Task GuardarCuenta()
+    {
+        if (_guardandoCuenta || _bancoCuentas is null) return;
+        if (string.IsNullOrWhiteSpace(_cuentaNueva.Numero) || _cuentaNueva.IdEmpresa <= 0 || _cuentaNueva.IdMoneda <= 0)
+        {
+            await Dialogos.ErrorAsync("Indique número de cuenta, empresa y moneda.");
+            return;
+        }
+        _cuentaNueva.IdBanco = _bancoCuentas.Id;
+        _guardandoCuenta = true;
+        var r = _cuentaNueva.Id > 0 ? await Api.EditarCuenta(_cuentaNueva) : await Api.CrearCuenta(_cuentaNueva);
+        _guardandoCuenta = false;
+        if (await Respuestas.CorrectaAsync(r, _cuentaNueva.Id > 0 ? "editar la cuenta" : "crear la cuenta"))
+        {
+            Dialogos.Exito(_cuentaNueva.Id > 0 ? "Cuenta actualizada." : "Cuenta agregada.");
+            CancelarEdicionCuenta();
+            await RecargarCuentas();
+        }
+    }
+
+    private async Task QuitarCuenta(CuentaBancariaDTO c)
+    {
+        if (!await Dialogos.ConfirmarPeligroAsync($"La cuenta {c.Numero} dejará de estar disponible.", "Quitar cuenta")) return;
+        if (await Respuestas.CorrectaAsync(await Api.InactivarCuenta(c.Id), "quitar la cuenta"))
+        {
+            Dialogos.Exito("Cuenta quitada.");
+            await RecargarCuentas();
         }
     }
 
