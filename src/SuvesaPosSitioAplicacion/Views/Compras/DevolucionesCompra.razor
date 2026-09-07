@@ -165,12 +165,17 @@
 
     private async Task BuscarFacturas()
     {
+        if (string.IsNullOrWhiteSpace(_filtroFactura) && string.IsNullOrWhiteSpace(_filtroProveedor))
+        {
+            await Dialogos.ErrorAsync("Indique el número de factura o el nombre del proveedor.");
+            return;
+        }
         var filtro = new FiltroFacturaCompras
         {
-            Numero = _filtroFactura.Trim(),
-            Proveedor = _filtroProveedor.Trim(),
-            FechaDesde = string.Empty,
-            FechaHasta = string.Empty
+            Numero = string.IsNullOrWhiteSpace(_filtroFactura) ? null : _filtroFactura.Trim(),
+            Proveedor = string.IsNullOrWhiteSpace(_filtroProveedor) ? null : _filtroProveedor.Trim(),
+            FechaDesde = null,
+            FechaHasta = null
         };
         _facturasEncontradas = (await Respuestas.DatoAsync(await Compras.Buscar(filtro), "buscar compras"))?.ToList() ?? new();
     }
