@@ -424,45 +424,51 @@
         }
 
         _guardando = true;
-
-        _documento.Validez = _validez ?? 0;
-        _documento.SubTotal = (double)_totales.SubTotal;
-        _documento.Descuento = (double)_totales.Descuento;
-        _documento.PagoImpuesto = (double)_totales.Impuesto;
-        _documento.Total = (double)_totales.Total;
-
-        _documento.Detalle = _lineas.Select(l => new DetalleCotizacionDTO
+        try
         {
-            Codigo = l.Codigo,
-            CodArticulo = l.CodArticulo,
-            Descripcion = l.Descripcion,
-            Cantidad = (double)l.Cantidad,
-            PrecioUnit = (double)l.PrecioUnitario,
-            Descuento = (double)l.Descuento,
-            MontoDescuento = (double)l.Calculo.MontoDescuento,
-            Impuesto = (double)l.Impuesto,
-            MontoImpuesto = (double)l.Calculo.MontoImpuesto,
-            SubTotal = (double)l.Calculo.SubTotal,
-            SubtotalGravado = (double)l.Calculo.SubtotalGravado,
-            Total = (double)l.Calculo.Total
-        }).ToList();
+            _documento.Validez = _validez ?? 0;
+            _documento.SubTotal = (double)_totales.SubTotal;
+            _documento.Descuento = (double)_totales.Descuento;
+            _documento.PagoImpuesto = (double)_totales.Impuesto;
+            _documento.Total = (double)_totales.Total;
 
-        var r = _documento.Cotizacion1 > 0
-            ? await Api.EditarEncabezado(_documento)
-            : await Api.Crear(_documento);
-
-        _guardando = false;
-
-        if (await Respuestas.CorrectaAsync(r, "guardar la proforma"))
-        {
-            Dialogos.Exito("Proforma guardada.");
-            _cargado = false;
-            Cerrar();
-
-            if (_rejilla is not null)
+            _documento.Detalle = _lineas.Select(l => new DetalleCotizacionDTO
             {
-                await _rejilla.RefrescarAsync();
+                Codigo = l.Codigo,
+                CodArticulo = l.CodArticulo,
+                Descripcion = l.Descripcion,
+                Cantidad = (double)l.Cantidad,
+                PrecioUnit = (double)l.PrecioUnitario,
+                Descuento = (double)l.Descuento,
+                MontoDescuento = (double)l.Calculo.MontoDescuento,
+                Impuesto = (double)l.Impuesto,
+                MontoImpuesto = (double)l.Calculo.MontoImpuesto,
+                SubTotal = (double)l.Calculo.SubTotal,
+                SubtotalGravado = (double)l.Calculo.SubtotalGravado,
+                Total = (double)l.Calculo.Total
+            }).ToList();
+
+            var r = _documento.Cotizacion1 > 0
+                ? await Api.EditarEncabezado(_documento)
+                : await Api.Crear(_documento);
+
+            if (await Respuestas.CorrectaAsync(r, "guardar la proforma"))
+            {
+                Dialogos.Exito("Proforma guardada.");
+                _cargado = false;
+                Cerrar();
+
+                if (_rejilla is not null)
+                {
+                    await _rejilla.RefrescarAsync();
+                }
             }
+        }
+        finally
+        {
+            // Ningún error de transporte o render puede dejar el botón bloqueado
+            // indefinidamente en «Guardando…».
+            _guardando = false;
         }
     }
 }

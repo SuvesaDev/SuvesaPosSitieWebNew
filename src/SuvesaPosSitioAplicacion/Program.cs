@@ -319,15 +319,31 @@ app.MapGet("/emisores/{idEmisor:int}/logo", async (int idEmisor, IEmisoresFiscal
 // Imagen de un artículo para el catálogo visual. Igual patrón BFF: el sitio pide
 // los bytes al API con el token (server-side) y los reenvía; el navegador solo ve
 // una URL de misma-origen. Evita mandar cientos de imágenes base64 por el circuito.
-app.MapGet("/catalogo/imagen/{idInventario:long}", async (long idInventario, IHttpClientFactory factory) =>
+app.MapGet("/catalogo/imagen/{idInventario:long}", async (
+    long idInventario,
+    IHttpClientFactory factory,
+    IContextoSesion sesion) =>
 {
-    var http = factory.CreateClient("SeePosApi");
-    var resp = await http.GetAsync($"articulosimagenes/imagen/{idInventario}");
-    if (!resp.IsSuccessStatusCode) return Results.NotFound();
-    var bytes = await resp.Content.ReadAsByteArrayAsync();
-    if (bytes.Length == 0) return Results.NotFound();
-    var mime = resp.Content.Headers.ContentType?.ToString() ?? "image/*";
-    return Results.File(bytes, mime, enableRangeProcessing: false);
+    // Esta ruta se invoca desde un <img>, no desde un proxy Razor. Por ello debe
+    // cargar la sesión y poner el token en el contexto de la llamada antes de
+    // crear el HttpClient; de otro modo el API responde 401 y el navegador solo
+    // muestra una tarjeta vacía.
+    await sesion.CargarAsync();
+    ContextoLlamada.Token = sesion.Token;
+    try
+    {
+        var http = factory.CreateClient("SeePosApi");
+        var resp = await http.GetAsync($"ArticulosImagenes/imagen/{idInventario}");
+        if (!resp.IsSuccessStatusCode) return Results.NotFound();
+        var bytes = await resp.Content.ReadAsByteArrayAsync();
+        if (bytes.Length == 0) return Results.NotFound();
+        var mime = resp.Content.Headers.ContentType?.ToString() ?? "image/*";
+        return Results.File(bytes, mime, enableRangeProcessing: false);
+    }
+    finally
+    {
+        ContextoLlamada.Token = null;
+    }
 });
 
 // PDF de representación gráfica de un documento (MOTOR_PLANTILLAS_IMPRESION_WEB.md §4).

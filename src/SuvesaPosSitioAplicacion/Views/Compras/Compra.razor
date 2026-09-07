@@ -786,9 +786,15 @@
             .ToList();
         var tareas = _xml.Lineas.Select(async linea =>
         {
+            // El código del proveedor es la llave preferida. Algunas facturas
+            // cambian mínimamente la descripción (acentos, espacios o empaque),
+            // por lo que exigir ambas llaves hacía invisible una asociación válida.
             var vinculo = asociaciones.FirstOrDefault(c =>
-                string.Equals(c.CodigoProveedor?.Trim(), linea.CodigoProveedor, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(c.DescripcionProveedor?.Trim(), linea.Descripcion, StringComparison.OrdinalIgnoreCase));
+                !string.IsNullOrWhiteSpace(linea.CodigoProveedor) &&
+                string.Equals(c.CodigoProveedor?.Trim(), linea.CodigoProveedor.Trim(), StringComparison.OrdinalIgnoreCase))
+                ?? asociaciones.FirstOrDefault(c =>
+                    !string.IsNullOrWhiteSpace(linea.Descripcion) &&
+                    string.Equals(c.DescripcionProveedor?.Trim(), linea.Descripcion.Trim(), StringComparison.OrdinalIgnoreCase));
             if (vinculo is null) return;
 
             var encontrados = await Inventario.Buscar(vinculo.CodigoInterno!);
@@ -796,6 +802,10 @@
                 string.Equals(a.Cod_Articulo, vinculo.CodigoInterno, StringComparison.OrdinalIgnoreCase));
             if (articulo is not null)
             {
+                // La búsqueda es una proyección ligera; recupere la ficha completa
+                // para conservar reglas de lote y demás datos al importar.
+                var detalle = await Inventario.Uno(articulo.Codigo);
+                if (detalle.EsCorrecta && detalle.Responses is not null) articulo = detalle.Responses;
                 linea.Articulo = articulo;
                 linea.VinculoConfirmado = true;
                 PrepararPreciosXml(linea);

@@ -145,7 +145,7 @@
                 <dd class="col-7"><code>@_elegido.Cedula</code></dd>
 
                 <dt class="col-5 fw-normal text-secondary">Nombre comercial</dt>
-                <dd class="col-7">@(string.IsNullOrWhiteSpace(_elegido.NombreFantasia) ? "—" : _elegido.NombreFantasia)</dd>
+                <dd class="col-7">@NombreComercialVisible</dd>
 
                 <dt class="col-5 fw-normal text-secondary">Telefono</dt>
                 <dd class="col-7">@(_elegido.Telefono_01 ?? "—")</dd>
@@ -177,6 +177,47 @@
             {
                 <hr />
                 <p class="small text-secondary mb-0">@_elegido.Observaciones</p>
+            }
+
+            <hr />
+            <h3 class="h6 mb-2">Sucursales y datos de facturación</h3>
+            @if (_cargandoDatosSucursal)
+            {
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Cargando sucursales</span>
+                </div>
+            }
+            else if (_datosSucursalesDetalle.Count == 0)
+            {
+                <p class="small text-secondary mb-0">Este cliente no tiene sucursales o nombres comerciales adicionales registrados.</p>
+            }
+            else
+            {
+                <div class="table-responsive seepos-cliente-sucursales">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Sucursal</th>
+                                <th>Nombre comercial</th>
+                                <th>Contacto</th>
+                                <th>Teléfono</th>
+                                <th>Correo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var sucursal in _datosSucursalesDetalle)
+                            {
+                                <tr>
+                                    <td>@(string.IsNullOrWhiteSpace(sucursal.Sucursal) ? "—" : sucursal.Sucursal)</td>
+                                    <td>@(string.IsNullOrWhiteSpace(sucursal.NombreComercial) ? "—" : sucursal.NombreComercial)</td>
+                                    <td>@(string.IsNullOrWhiteSpace(sucursal.Contacto) ? "—" : sucursal.Contacto)</td>
+                                    <td class="text-nowrap">@(string.IsNullOrWhiteSpace(sucursal.Telefono) ? "—" : sucursal.Telefono)</td>
+                                    <td>@(string.IsNullOrWhiteSpace(sucursal.Email) ? "—" : sucursal.Email)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             }
 
             <div class="d-flex gap-2 border-top pt-3 mt-3">
@@ -643,6 +684,8 @@
     private bool _cargandoCarta;
     private bool _cartaEsNueva;
     private bool _guardandoCarta;
+    private List<ClienteDatosSucursalDTO> _datosSucursalesDetalle = new();
+    private bool _cargandoDatosSucursal;
     private ClienteDatosSucursalDTO _datosSucursalEdicion = new();
     // Fila de datos de facturación que se está editando (null = alta nueva).
     private ClienteDatosSucursalDTO? _datosSucursalOriginal;
@@ -673,6 +716,12 @@
     /// false si exige un termino: entonces la pantalla funciona por busqueda.
     /// </summary>
     private bool _modoBusqueda;
+
+    private string NombreComercialVisible
+        => !string.IsNullOrWhiteSpace(_elegido?.NombreFantasia)
+            ? _elegido.NombreFantasia
+            : _datosSucursalesDetalle.Select(d => d.NombreComercial)
+                .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? "—";
 
     // Plazos del catálogo (ConfiguracionPlazos). La ficha del cliente los elige de la
     // lista; se guarda la cantidad de días en PlazoCredito y el API la traduce al
@@ -784,14 +833,18 @@
     private async Task Ver(FiltranClienteDTO cliente)
     {
         _elegido = cliente;
+        _datosSucursalesDetalle = new List<ClienteDatosSucursalDTO>();
+        _cargandoDatosSucursal = true;
         _adjuntos = new List<ClienteAdjuntoDTO>();
         _adjuntosNuevos = new List<ClienteAdjuntoDTO>();
         _cargandoAdjuntos = true;
         _carta = null;
         _cargandoCarta = true;
         await _detalle.ShowAsync();
-        await CargarAdjuntos(cliente.Identificacion);
-        await CargarCarta(cliente.Cedula);
+        await Task.WhenAll(
+            CargarDatosSucursalDetalle(cliente.Identificacion),
+            CargarAdjuntos(cliente.Identificacion),
+            CargarCarta(cliente.Cedula));
     }
 
     private async Task Agregar()
@@ -1480,6 +1533,15 @@
         _adjuntos = (await Respuestas.DatoAsync(await Api.Adjuntos(idCliente), "consultar los adjuntos"))
             ?.ToList() ?? new List<ClienteAdjuntoDTO>();
         _cargandoAdjuntos = false;
+        StateHasChanged();
+    }
+
+    private async Task CargarDatosSucursalDetalle(long idCliente)
+    {
+        _datosSucursalesDetalle = (await Respuestas.DatoAsync(
+            await Api.DatosSucursal(idCliente), "consultar las sucursales del cliente"))?.ToList()
+            ?? new List<ClienteDatosSucursalDTO>();
+        _cargandoDatosSucursal = false;
         StateHasChanged();
     }
 

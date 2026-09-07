@@ -13,14 +13,11 @@ public sealed class Cobros : ProxyBase, ICobros
     private readonly IFormasPagosApiCliente _formasPago;
     private readonly IVentaApiCliente _venta;
     private readonly IClienteApiCliente _clientes;
-    private readonly HttpClient _api;
-
     public Cobros(
         ICobrosApiCliente cobros,
         IFormasPagosApiCliente formasPago,
         IVentaApiCliente venta,
         IClienteApiCliente clientes,
-        IHttpClientFactory factory,
         IContextoSesion sesion,
         ILogger<Cobros> log)
         : base(sesion, log)
@@ -29,13 +26,38 @@ public sealed class Cobros : ProxyBase, ICobros
         _formasPago = formasPago;
         _venta = venta;
         _clientes = clientes;
-        _api = factory.CreateClient("SeePosApi");
     }
 
     public Task<ResponseGeneric<ICollection<PreventaActivaDTO>>> PreventasActivas()
-        => Ejecutar(async () => await LecturaEnvelope.Leer<ICollection<PreventaActivaDTO>>(
-            await _api.PostAsync("venta/ObtenerPreventasActivas", null)),
-            "consultar las preventas activas");
+        => Ejecutar(async () =>
+        {
+            // El endpoint legado venta/ObtenerPreventasActivas no forma parte del
+            // API actual. CargarPreventasActivas devuelve FacturaDTO y es la fuente
+            // real de las preventas pendientes que se muestran en Cobrar.
+            var r = await _venta.CargarPreventasActivasAsync();
+            var facturas = EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+            if (!facturas.EsCorrecta)
+                return new ResponseGeneric<ICollection<PreventaActivaDTO>>(
+                    facturas.Excepcion ?? "No se pudieron consultar las preventas activas.",
+                    facturas.ErroresValidacion);
+
+            ICollection<PreventaActivaDTO> preventas = (facturas.Responses ?? Array.Empty<FacturaDTO>())
+                .Where(f => f.Preventa)
+                .Select(f => new PreventaActivaDTO
+                {
+                    Id = f.Id,
+                    Ficha = f.Ficha ?? 0,
+                    CodCliente = long.TryParse(f.CodCliente, out var cliente) ? cliente : 0,
+                    NumFactura = f.NumFactura,
+                    Cliente = f.NombreCliente,
+                    Fecha = f.Fecha,
+                    Total = f.Total,
+                    Tipo = f.Tipo
+                })
+                .ToList();
+
+            return new ResponseGeneric<ICollection<PreventaActivaDTO>>(preventas);
+        }, "consultar las preventas activas");
 
     public Task<ResponseGeneric<ICollection<FormasPagoDTO>>> FormasPago(long codCliente)
         => Ejecutar(async () =>

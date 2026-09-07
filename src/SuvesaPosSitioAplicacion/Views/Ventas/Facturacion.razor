@@ -252,11 +252,12 @@
                 @foreach (var producto in CatalogoFiltrado.Take(TopeCatalogo))
                 {
                     <div class="col">
-                        <div class="card h-100 shadow-sm @(producto.Seleccionado ? "border-primary" : null)">
-                            <div class="position-relative bg-body-tertiary text-center" style="height: 11rem;">
+                        <div class="card h-100 shadow-sm seepos-catalogo-producto @(producto.Seleccionado ? "border-primary" : null)">
+                            <div class="position-relative bg-body-tertiary text-center seepos-catalogo-imagen-contenedor" style="height: 11rem;">
                                 @* La imagen se pide por URL (BFF), no en base64: el listado ya no
                                    trae la imagen y no hay que renderizar data-URIs enormes. *@
-                                <img class="mw-100 h-100 p-2" style="object-fit: contain;" src="/catalogo/imagen/@producto.Datos.IdInventario" alt="@producto.Datos.Descripcion" loading="lazy" onerror="this.style.display='none'" />
+                                <img class="mw-100 h-100 p-2 seepos-catalogo-imagen" style="object-fit: contain;" src="/catalogo/imagen/@producto.Datos.IdInventario" alt="@producto.Datos.Descripcion" loading="lazy" onerror="this.classList.add('d-none');this.nextElementSibling.classList.remove('d-none')" />
+                                <div class="d-none seepos-catalogo-sin-imagen" aria-label="Imagen no disponible"><i class="bi bi-image" aria-hidden="true"></i><span>Imagen no disponible</span></div>
                                 <div class="position-absolute top-0 end-0 p-2"><input class="form-check-input" type="checkbox" aria-label="Seleccionar @producto.Datos.Descripcion" @bind="producto.Seleccionado" /></div>
                             </div>
                             <div class="card-body py-2"><p class="fw-semibold small mb-1">@producto.Datos.Descripcion</p><div class="small text-secondary">@Formato.Importe(producto.Datos.Precio)</div>@if (producto.Seleccionado) { <div class="input-group input-group-sm mt-2"><span class="input-group-text">Cant.</span><input class="form-control text-end" type="number" min="1" step="1" @bind="producto.Cantidad" /></div> }</div>
@@ -470,23 +471,36 @@
     </FooterTemplate>
 </HxModal>
 
-<HxModal @ref="_modalComprobante" Title="Comprobante emitido" Size="ModalSize.Large" Scrollable="true">
+<HxModal @ref="_modalComprobante" Title="Comprobante emitido" Size="ModalSize.Large" Scrollable="true" CssClass="seepos-modal-comprobante">
     <BodyTemplate>
+        <section class="seepos-comprobante-resumen" aria-live="polite">
+            <div class="seepos-comprobante-icono @(_emitiendoHacienda ? "en-proceso" : "listo")">
+                @if (_emitiendoHacienda) { <span class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Enviando</span></span> }
+                else { <i class="bi bi-check2-circle" aria-hidden="true"></i> }
+            </div>
+            <div class="flex-grow-1">
+                <div class="seepos-comprobante-etiqueta">Estado del documento</div>
+                <h3>@(_emitiendoHacienda ? "Enviando comprobante a Hacienda" : "Comprobante listo para imprimir")</h3>
+                <p>@(_emitiendoHacienda ? "Estamos validando el documento electrónico. No cierre esta ventana." : _avisoComprobante ?? "La operación se registró correctamente.")</p>
+            </div>
+            <div class="seepos-comprobante-total">
+                <span>Total cobrado</span>
+                <strong>@Formato.Importe((decimal)_totales.Total)</strong>
+            </div>
+        </section>
+
         @if (!string.IsNullOrWhiteSpace(_avisoResultado))
         {
-            <p class="mb-2">@_avisoResultado</p>
+            <div class="seepos-comprobante-nota"><i class="bi bi-receipt me-2" aria-hidden="true"></i><span>@_avisoResultado</span></div>
         }
-        @if (!string.IsNullOrWhiteSpace(_avisoComprobante))
-        {
-            <p class="small text-secondary mb-3"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>@_avisoComprobante</p>
-        }
+
         @if (_emitiendoHacienda)
         {
-            <div class="d-flex align-items-center gap-2 text-secondary"><span class="spinner-border spinner-border-sm" role="status"></span> Enviando a Hacienda…</div>
+            <div class="seepos-comprobante-progreso"><span></span></div>
         }
         else if (_docId > 0)
         {
-            <iframe src="@HrefComprobante" style="width:100%;height:70vh;border:0" title="Comprobante"></iframe>
+            <div class="seepos-comprobante-pdf"><iframe src="@HrefComprobante" title="Vista previa del comprobante"></iframe></div>
         }
     </BodyTemplate>
     <FooterTemplate>

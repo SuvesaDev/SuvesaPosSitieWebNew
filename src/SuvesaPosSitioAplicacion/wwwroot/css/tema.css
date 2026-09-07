@@ -13,6 +13,7 @@
     --seepos-verde: #58ba00;
     --seepos-verde-accion: #347000;
     --seepos-verde-accion-oscuro: #285900;
+    --seepos-azul: #1072a9;
     --seepos-naranja: #f87602;
     --seepos-naranja-oscuro: #c75b00;
     --seepos-tierra: #644b3c;
@@ -638,6 +639,167 @@
     background: var(--bs-body-bg);
     border: 1px dashed var(--bs-border-color);
     border-radius: .65rem;
+}
+
+/* Catálogo visual: la foto es el foco, pero una imagen que no pueda descargarse
+   nunca deja una tarjeta vacía ni confunde al cajero. */
+.seepos-catalogo-producto {
+    overflow: hidden;
+    border-radius: .8rem;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.seepos-catalogo-producto:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 .5rem 1.1rem rgba(62, 47, 35, .12) !important;
+}
+
+.seepos-catalogo-imagen-contenedor {
+    display: grid;
+    overflow: hidden;
+    place-items: center;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--seepos-gris-fondo) 72%, white), var(--bs-body-bg)) !important;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.seepos-catalogo-imagen {
+    transition: transform .2s ease;
+}
+
+.seepos-catalogo-producto:hover .seepos-catalogo-imagen { transform: scale(1.035); }
+
+.seepos-catalogo-sin-imagen {
+    display: grid;
+    place-items: center;
+    gap: .35rem;
+    color: var(--seepos-gris-texto);
+    font-size: .75rem;
+}
+
+.seepos-catalogo-sin-imagen .bi { font-size: 2rem; opacity: .45; }
+
+/* Confirmación fiscal: mantiene el cajero informado mientras Hacienda responde y
+   luego presenta la impresión sin parecer un cuadro de error técnico. */
+.seepos-modal-comprobante .modal-content { overflow: hidden; border-radius: 1rem; }
+
+.seepos-comprobante-resumen {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.2rem 1.25rem;
+    background: linear-gradient(115deg, color-mix(in srgb, var(--seepos-verde) 13%, var(--bs-body-bg)), var(--bs-body-bg));
+    border: 1px solid color-mix(in srgb, var(--seepos-verde) 22%, var(--bs-border-color));
+    border-radius: .8rem;
+}
+
+.seepos-comprobante-icono {
+    display: grid;
+    flex: 0 0 2.8rem;
+    width: 2.8rem;
+    height: 2.8rem;
+    place-items: center;
+    border-radius: 50%;
+    color: white;
+    background: var(--seepos-verde-accion);
+}
+
+.seepos-comprobante-icono .bi { font-size: 1.5rem; }
+.seepos-comprobante-icono.en-proceso { background: var(--seepos-azul); }
+
+.seepos-comprobante-etiqueta {
+    margin-bottom: .1rem;
+    color: var(--seepos-gris-texto);
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.seepos-comprobante-resumen h3 {
+    margin: 0 0 .2rem;
+    color: var(--bs-body-color);
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.seepos-comprobante-resumen p {
+    margin: 0;
+    color: var(--seepos-gris-texto);
+    font-size: .84rem;
+}
+
+.seepos-comprobante-total {
+    display: grid;
+    margin-left: auto;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.seepos-comprobante-total span {
+    color: var(--seepos-gris-texto);
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.seepos-comprobante-total strong {
+    color: var(--seepos-verde-accion);
+    font-size: 1.1rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.seepos-comprobante-nota {
+    display: flex;
+    gap: .35rem;
+    padding: .75rem .9rem;
+    margin-top: .85rem;
+    color: var(--seepos-gris-texto);
+    font-size: .82rem;
+    background: var(--seepos-gris-fondo);
+    border-left: .22rem solid var(--seepos-azul);
+    border-radius: .35rem;
+}
+
+.seepos-comprobante-progreso {
+    height: .3rem;
+    margin-top: 1rem;
+    overflow: hidden;
+    background: var(--seepos-gris-fondo);
+    border-radius: 99rem;
+}
+
+.seepos-comprobante-progreso span {
+    display: block;
+    width: 42%;
+    height: 100%;
+    background: var(--seepos-azul);
+    border-radius: inherit;
+    animation: seepos-comprobante-avance 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes seepos-comprobante-avance {
+    from { transform: translateX(-30%); }
+    to { transform: translateX(155%); }
+}
+
+.seepos-comprobante-pdf {
+    margin-top: 1rem;
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+    background: var(--seepos-gris-fondo);
+}
+
+.seepos-comprobante-pdf iframe {
+    display: block;
+    width: 100%;
+    height: min(70vh, 48rem);
+    border: 0;
+}
+
+@media (max-width: 575.98px) {
+    .seepos-comprobante-resumen { align-items: flex-start; flex-wrap: wrap; }
+    .seepos-comprobante-total { width: 100%; margin-left: 3.8rem; text-align: left; }
 }
 
 /* ---------- Compras ---------- */
