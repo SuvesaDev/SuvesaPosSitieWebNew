@@ -39,7 +39,7 @@
                 <div class="card-header"><strong>Datos del cajero</strong></div>
                 <div class="card-body">
                     <div class="row g-3 align-items-end">
-                        <div class="col-12 col-md-5"><label class="form-label">Cajero</label><input class="form-control" value="@Sesion.Usuario" disabled /></div>
+                        <div class="col-12 col-md-5"><label class="form-label">Cajero</label><input class="form-control" value="@(_bloqueo?.UsuarioValidado?.Nombre ?? Sesion.Usuario)" disabled /><div class="form-text">El de la clave interna que desbloqueó la pantalla.</div></div>
                         <div class="col-12 col-md-3"><label class="form-label" for="caja">N.º de caja</label>
                             <InputSelect id="caja" class="form-select" @bind-Value="_numeroCaja" disabled="@_editando"><option value="0">Seleccione...</option>@foreach (var caja in _cajas) { <option value="@caja.NumCaja">Caja @caja.NumCaja</option> }</InputSelect>
                         </div>
@@ -254,9 +254,15 @@
             return;
         }
 
+        // La caja se abre a nombre del usuario de la CLAVE INTERNA (quien desbloqueó),
+        // no del usuario de la sesión: puede ser un cajero distinto al que inició sesión.
+        var cajero = _bloqueo?.UsuarioValidado;
+        var loginCajero = string.IsNullOrWhiteSpace(cajero?.IdUsuario) ? Sesion.Usuario : cajero!.IdUsuario;
+        var nombreCajero = string.IsNullOrWhiteSpace(cajero?.Nombre) ? loginCajero : cajero!.Nombre;
+
         var apertura = new AperturaCajaDTO
         {
-            Fecha = DateTime.Now.ToString("yyyy-MM-dd"), Nombre = Sesion.Usuario, Cedula = Sesion.Usuario,
+            Fecha = DateTime.Now.ToString("yyyy-MM-dd"), Nombre = nombreCajero, Cedula = loginCajero,
             NumCaja = _numeroCaja, IdSucursal = Sesion.IdSucursal, Estado = "A", Observaciones = _observaciones,
             AperturaDenominacion = _denominaciones.Select(d => new AperturaDenominacionDTO { IdDenominacion = d.IdDenominacion, Monto = (double)d.Monto, Cantidad = (double)d.Cantidad, CodMoneda = d.CodMoneda, Tipo = d.Tipo }).ToList(),
             AperturaTotalTope = TotalesPorMoneda.Select(t => new AperturaTotalTopeDTO { CodMoneda = t.Codigo, MontoTope = (double)t.Total, MonedaNombre = t.Nombre }).ToList()
