@@ -1243,6 +1243,15 @@
         await _modal.ShowAsync();
     }
 
+    // El cuadro de diálogo (HxMessageBox) es también un modal y cierra el editor:
+    // tras avisar de una validación hay que reabrirlo para no perder el formulario.
+    private async Task<bool> AvisoValidacion(string mensaje)
+    {
+        await Dialogos.ErrorAsync(mensaje);
+        if (_edicion is not null) await _modal.ShowAsync();
+        return true;
+    }
+
     private async Task Guardar()
     {
         if (_edicion is null || _guardando)
@@ -1250,28 +1259,20 @@
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(_edicion.Cod_Articulo) || string.IsNullOrWhiteSpace(_edicion.Descripcion))
-        {
-            await Dialogos.ErrorAsync("Código y descripción son obligatorios.");
-            return;
-        }
+        if ((string.IsNullOrWhiteSpace(_edicion.Cod_Articulo) || string.IsNullOrWhiteSpace(_edicion.Descripcion))
+            && await AvisoValidacion("Código y descripción son obligatorios.")) return;
 
-        _edicion.Cod_Articulo = _edicion.Cod_Articulo.Trim();
+        _edicion.Cod_Articulo = _edicion.Cod_Articulo!.Trim();
 
-        if (_esNuevo && _todos.Any(a => string.Equals(a.Cod_Articulo?.Trim(), _edicion.Cod_Articulo, StringComparison.OrdinalIgnoreCase)))
-        {
-            await Dialogos.ErrorAsync($"Ya existe un artículo con el código «{_edicion.Cod_Articulo}». El código debe ser único.");
-            return;
-        }
+        if (_esNuevo && _todos.Any(a => string.Equals(a.Cod_Articulo?.Trim(), _edicion.Cod_Articulo, StringComparison.OrdinalIgnoreCase))
+            && await AvisoValidacion($"Ya existe un artículo con el código «{_edicion.Cod_Articulo}». El código debe ser único.")) return;
 
-        if (_edicion.Id_Impuesto <= 0)
-        {
-            await Dialogos.ErrorAsync("Seleccione el impuesto del artículo.");
-            return;
-        }
+        if (_edicion.Id_Impuesto <= 0
+            && await AvisoValidacion("Seleccione el impuesto del artículo.")) return;
 
         if (!await Dialogos.ConfirmarAsync(_esNuevo ? "Se registrará el nuevo artículo." : "Se actualizarán los datos del artículo."))
         {
+            await _modal.ShowAsync();
             return;
         }
 
@@ -1290,6 +1291,12 @@
                 ? (_esNuevo ? "Artículo creado." : "Artículo actualizado.")
                 : (_esNuevo ? "Artículo creado, pero no se pudo guardar la imagen." : "Artículo actualizado, pero no se pudo guardar la imagen."));
             await RecargarDesdeApi();
+        }
+        else if (_edicion is not null)
+        {
+            // El API rechazó (p. ej. código duplicado): el aviso de error cerró el
+            // editor, se reabre para corregir sin volver a llenar todo.
+            await _modal.ShowAsync();
         }
     }
 
