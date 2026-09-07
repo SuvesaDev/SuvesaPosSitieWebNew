@@ -6,6 +6,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IClientesConsulta ClientesApi
 
 @*  ARQUETIPO 03 - DOCUMENTO MAESTRO-DETALLE
     =========================================
@@ -85,8 +86,18 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-12 col-md-6">
-                            <AppCampoTexto Etiqueta="Cliente" @bind-Valor="_documento.NombreCliente" />
+                        <div class="col-12 col-md-6 position-relative">
+                            <label class="form-label">Cliente</label>
+                            <input class="form-control" @bind="_documento.NombreCliente" @bind:event="oninput" @onkeydown="BuscarClienteConEnter" placeholder="Escriba parte del nombre y Enter" />
+                            @if (_clientesEncontrados.Count > 0)
+                            {
+                                <div class="list-group position-absolute shadow" style="z-index:1050;max-height:14rem;overflow:auto;width:calc(100% - 1.5rem)">
+                                    @foreach (var c in _clientesEncontrados)
+                                    {
+                                        <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirCliente(c)"><strong>@c.Nombre</strong><span class="text-secondary ms-2">@c.Cedula</span></button>
+                                    }
+                                </div>
+                            }
                         </div>
                         <div class="col-12 col-md-3">
                             <AppCampoTexto Etiqueta="Cedula" @bind-Valor="_documento.CedulaCliente" />
@@ -230,10 +241,29 @@
     private bool _cargado;
 
     private CotizacionesDTO? _documento;
+    private List<DTOs.Generated.FiltranClienteDTO> _clientesEncontrados = new();
     private readonly List<Linea> _lineas = new();
     private CalculoDocumento.TotalesDocumento _totales;
     private int? _validez = 15;
     private bool _guardando;
+
+    private async Task BuscarClienteConEnter(KeyboardEventArgs e)
+    {
+        if (e.Key != "Enter" || _documento is null) return;
+        var t = (_documento.NombreCliente ?? string.Empty).Trim();
+        if (t.Length < 2) { _clientesEncontrados = new(); return; }
+        var clientes = await Respuestas.DatoAsync(await ClientesApi.Buscar(t), "buscar clientes");
+        _clientesEncontrados = (clientes ?? Array.Empty<DTOs.Generated.FiltranClienteDTO>()).Where(c => !c.Anulado).Take(25).ToList();
+    }
+
+    private void ElegirCliente(DTOs.Generated.FiltranClienteDTO c)
+    {
+        if (_documento is null) return;
+        _documento.NombreCliente = c.Nombre;
+        _documento.CedulaCliente = c.Cedula;
+        _documento.CodCliente = c.Identificacion.ToString();
+        _clientesEncontrados = new();
+    }
 
     private async Task<GridDataProviderResult<CotizacionesDTO>> Cargar(
         GridDataProviderRequest<CotizacionesDTO> peticion)
