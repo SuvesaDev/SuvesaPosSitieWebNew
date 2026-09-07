@@ -244,11 +244,12 @@
         {
             <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
                 <input class="form-control form-control-sm" style="max-width:20rem" placeholder="Filtrar por descripción o código..." @bind="_filtroCatalogo" @bind:event="oninput" />
-                <div class="form-check ms-2"><input id="catalogo-todos" class="form-check-input" type="checkbox" checked="@CatalogoCompletoSeleccionado" @onchange="SeleccionarTodoCatalogo" /><label class="form-check-label" for="catalogo-todos">Seleccionar todos (@CatalogoFiltrado.Count)</label></div>
+                <div class="form-check ms-2"><input id="catalogo-todos" class="form-check-input" type="checkbox" checked="@CatalogoCompletoSeleccionado" @onchange="SeleccionarTodoCatalogo" /><label class="form-check-label" for="catalogo-todos">Seleccionar los mostrados (@Math.Min(TopeCatalogo, CatalogoFiltrado.Count))</label></div>
             </div>
             @if (CatalogoFiltrado.Count == 0) { <p class="text-secondary text-center py-4 mb-0">Ningún artículo coincide con el filtro.</p> }
+            @if (CatalogoFiltrado.Count > TopeCatalogo) { <p class="form-text mb-2"><i class="bi bi-funnel me-1"></i>Mostrando @TopeCatalogo de @CatalogoFiltrado.Count. Use el filtro para acotar el catálogo.</p> }
             <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3" style="max-height: 58vh; overflow-y: auto;">
-                @foreach (var producto in CatalogoFiltrado)
+                @foreach (var producto in CatalogoFiltrado.Take(TopeCatalogo))
                 {
                     <div class="col">
                         <div class="card h-100 shadow-sm @(producto.Seleccionado ? "border-primary" : null)">
@@ -909,7 +910,18 @@
                 || Helpers.Texto.Normalizar(p.Datos.Codigo).Contains(t)).ToList();
         }
     }
-    private bool CatalogoCompletoSeleccionado => CatalogoFiltrado.Count > 0 && CatalogoFiltrado.All(p => p.Seleccionado);
+    // Tope de tarjetas renderizadas: con cientos de imágenes base64 el render
+    // completo tumbaba el circuito ("Rejoining the server..."). El filtro acota.
+    private const int TopeCatalogo = 90;
+
+    private bool CatalogoCompletoSeleccionado
+    {
+        get
+        {
+            var v = CatalogoFiltrado.Take(TopeCatalogo).ToList();
+            return v.Count > 0 && v.All(p => p.Seleccionado);
+        }
+    }
     private async Task AbrirBuscadorArticulo()
     {
         if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
@@ -945,7 +957,7 @@
     private void SeleccionarTodoCatalogo(ChangeEventArgs e)
     {
         var seleccionar = e.Value is bool valor && valor;
-        foreach (var producto in CatalogoFiltrado) producto.Seleccionado = seleccionar;
+        foreach (var producto in CatalogoFiltrado.Take(TopeCatalogo)) producto.Seleccionado = seleccionar;
     }
 
     private static string ImagenCatalogo(string base64) => $"data:image/*;base64,{base64}";
