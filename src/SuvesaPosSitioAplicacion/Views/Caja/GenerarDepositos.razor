@@ -17,7 +17,9 @@
             <div class="col-12 col-md-4"><label class="form-label" for="cuenta">Cuenta</label><InputSelect id="cuenta" class="form-select" @bind-Value="_cuenta" disabled="@(_empresa == 0 || _banco == 0)"><option value="0">Seleccione...</option>@foreach (var c in _cuentas) { <option value="@c.Id">@c.Numero · @c.Moneda</option> }</InputSelect></div>
             <div class="col-12 col-md-4"><label class="form-label" for="numero">Número de depósito</label><InputText id="numero" class="form-control" @bind-Value="_numeroDeposito" /></div>
             <div class="col-6 col-md-4"><label class="form-label" for="fecha">Fecha</label><InputDate id="fecha" class="form-control" @bind-Value="_fecha" /></div>
-            <div class="col-6 col-md-4"><label class="form-label" for="apertura">N.º apertura</label><div class="input-group"><InputNumber id="apertura" class="form-control" min="0" @bind-Value="_apertura" /><button class="btn btn-outline-primary" type="button" @onclick="BuscarPreDepositos">Buscar</button></div></div>
+            <div class="col-6 col-md-4"><label class="form-label" for="apertura">N.º apertura</label><div class="input-group"><InputNumber id="apertura" class="form-control" min="0" disabled="@_todasLasCajas" @bind-Value="_apertura" /><button class="btn btn-outline-primary" type="button" @onclick="BuscarPreDepositos">Buscar</button></div>
+                <div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="todasCajas" checked="@_todasLasCajas" @onchange="AlternarTodasLasCajas" /><label class="form-check-label small" for="todasCajas">Todas las cajas (globalizar depósitos)</label></div>
+            </div>
         </div></div></div>
         <div class="card"><div class="card-header d-flex justify-content-between"><strong>Pre depósitos disponibles</strong><strong>Total seleccionado: @Formato.Importe(MontoSeleccionado)</strong></div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th></th><th>Fecha</th><th>Cajero</th><th>Depositante</th><th class="text-end">Monto</th></tr></thead><tbody>
             @foreach (var pre in _preDepositos) { <tr><td><input type="checkbox" checked="@_seleccionados.Contains(pre.Id)" @onchange="() => Alternar(pre.Id)" aria-label="Seleccionar pre depósito @pre.Id" /></td><td>@pre.Fecha.ToString("dd/MM/yyyy")</td><td>@pre.Cajero</td><td>@pre.Depositante</td><td class="text-end">@Formato.Importe(pre.Monto)</td></tr> }
@@ -30,6 +32,7 @@
 @code {
     private readonly List<EmpresaDTO> _empresas = new(); private readonly List<EntidadesBancariasDTO> _bancos = new(); private readonly List<CuentaBancariaDTO> _cuentas = new(); private readonly List<PreDepositosDTO> _preDepositos = new(); private readonly HashSet<long> _seleccionados = new();
     private int _empresa, _banco, _cuenta; private int _apertura; private string? _numeroDeposito; private DateTime _fecha = DateTime.Today; private bool _cargando, _guardando;
+    private bool _todasLasCajas;
     private AppDesbloqueoClave? _bloqueo;
     private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
     private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
@@ -46,10 +49,18 @@
         _cuentas.Clear(); _cuenta = 0; if (_empresa == 0 || _banco == 0) return;
         var cuentas = await Respuestas.DatoAsync(await Api.Cuentas(_banco, _empresa), "consultar las cuentas bancarias"); _cuentas.AddRange(cuentas ?? Array.Empty<CuentaBancariaDTO>());
     }
+    private void AlternarTodasLasCajas(ChangeEventArgs e)
+    {
+        _todasLasCajas = e.Value is bool b && b;
+        if (_todasLasCajas) _apertura = 0;
+    }
     private async Task BuscarPreDepositos()
     {
-        _preDepositos.Clear(); _seleccionados.Clear(); if (_apertura <= 0) { await Dialogos.InformarAsync("Indique el número de apertura que desea depositar."); return; }
-        var pre = await Respuestas.DatoAsync(await Api.PreDepositosDeApertura(_apertura), "consultar los pre depósitos"); _preDepositos.AddRange((pre ?? Array.Empty<PreDepositosDTO>()).Where(p => p.IdDeposito is null));
+        _preDepositos.Clear(); _seleccionados.Clear();
+        // apertura = 0 (o "Todas las cajas") trae todos los pre depósitos pendientes.
+        if (!_todasLasCajas && _apertura <= 0) { await Dialogos.InformarAsync("Indique el número de apertura, o marque «Todas las cajas»."); return; }
+        var pre = await Respuestas.DatoAsync(await Api.PreDepositosDeApertura(_todasLasCajas ? 0 : _apertura), "consultar los pre depósitos");
+        _preDepositos.AddRange((pre ?? Array.Empty<PreDepositosDTO>()).Where(p => p.IdDeposito is null));
     }
     private void Alternar(long id) { if (!_seleccionados.Add(id)) _seleccionados.Remove(id); }
     private async Task Guardar()

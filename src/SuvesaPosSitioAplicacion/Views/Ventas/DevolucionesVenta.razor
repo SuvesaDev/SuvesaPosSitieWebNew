@@ -128,7 +128,7 @@
             <div class="card-header"><strong>Recepción</strong></div>
             <div class="card-body row g-3">
                 <div class="col-12 col-md-4">
-                    <label class="form-label">Usuario que recibe</label>
+                    <label class="form-label">Usuario que recibe <span class="text-danger">*</span></label>
                     <select class="form-select" @bind="_idPersonalRecibe">
                         <option value="0">Seleccione...</option>
                         @foreach (var p in _personal) { <option value="@p.IdPersonal">@p.NombrePersonal</option> }
@@ -565,6 +565,13 @@
     private async Task Registrar()
     {
         if (_factura is null || _lineas.Count == 0 || _guardando) return;
+
+        if (_idPersonalRecibe <= 0)
+        {
+            await Dialogos.ErrorAsync("Indique el usuario que recibe la devolución.");
+            return;
+        }
+
         var esInterna = string.Equals(_factura.NaturalezaFiscalDoc, "Interna", StringComparison.OrdinalIgnoreCase);
         var mensajeConfirmacion = esInterna
             ? "Se registrará una nota de crédito interna, sin enviarla a Hacienda, y se afectará el inventario. ¿Desea continuar?"

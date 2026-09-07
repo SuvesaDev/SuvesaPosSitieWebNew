@@ -125,7 +125,7 @@
       </table>
 
       <div class="row g-2 align-items-end">
-        <div class="col-md-4"><label class="form-label">Documento / boleta</label><input class="form-control" @bind="_documento" /></div>
+        <div class="col-md-4"><label class="form-label">Documento / boleta <span class="text-secondary small">(opcional)</span></label><input class="form-control" placeholder="N.º de guía, remito o referencia externa" @bind="_documento" /><small class="text-secondary">Referencia del papel físico que respalda el movimiento. Puede dejarse vacío.</small></div>
         <div class="col-md-4"><label class="form-label">Motivo</label><input class="form-control" @bind="_motivo" placeholder="@(_tipo == 2 ? "devolución parcial, cierre..." : "reposición, entrega inicial...")" /></div>
         @if (_tipo == 2)
         {
@@ -136,7 +136,7 @@
     </div></div>
 
     <div class="card mb-3"><div class="card-body row g-2 align-items-end">
-      <div class="col-md-3"><label class="form-label">Anular boleta por N.º</label><input type="number" min="0" class="form-control" @bind="_idBoletaBuscar" /></div>
+      <div class="col-md-3"><label class="form-label">Anular boleta por N.º</label><input type="number" min="0" class="form-control" @bind="_idBoletaBuscar" /><small class="text-secondary">Digite el número de una boleta ya emitida para consultarla y, si aplica, anularla.</small></div>
       <div class="col-md-2 d-grid"><button class="btn btn-outline-secondary" @onclick="() => AbrirBoleta(_idBoletaBuscar)" disabled="@(_idBoletaBuscar <= 0)">Abrir</button></div>
     </div></div>
 

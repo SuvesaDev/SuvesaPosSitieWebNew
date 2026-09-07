@@ -144,6 +144,9 @@
                 <dt class="col-5 fw-normal text-secondary">Cedula</dt>
                 <dd class="col-7"><code>@_elegido.Cedula</code></dd>
 
+                <dt class="col-5 fw-normal text-secondary">Nombre comercial</dt>
+                <dd class="col-7">@(string.IsNullOrWhiteSpace(_elegido.NombreFantasia) ? "—" : _elegido.NombreFantasia)</dd>
+
                 <dt class="col-5 fw-normal text-secondary">Telefono</dt>
                 <dd class="col-7">@(_elegido.Telefono_01 ?? "—")</dd>
 
