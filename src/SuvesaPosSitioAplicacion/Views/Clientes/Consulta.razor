@@ -519,8 +519,21 @@
                 }
                 else if (_pestanaEdicion == "facturacion")
                 {
-                    <div class="row g-3"><div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Sucursal" @bind-Valor="_datosSucursalEdicion.Sucursal" /></div><div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Nombre comercial" @bind-Valor="_datosSucursalEdicion.NombreComercial" /></div><div class="col-12 col-md-2"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_datosSucursalEdicion.Telefono" /></div><div class="col-12 col-md-2"><AppCampoTexto Etiqueta="Correo" @bind-Valor="_datosSucursalEdicion.Email" /></div><div class="col-12 col-md-2 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarDatosSucursal">Agregar</button></div><div class="col-12"><AppCampoTexto Etiqueta="Contacto" @bind-Valor="_datosSucursalEdicion.Contacto" /></div></div>
-                    @if (_edicion.DatosSucursal is { Count: > 0 }) { <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Sucursal</th><th>Nombre comercial</th><th>Contacto</th><th></th></tr></thead><tbody>@foreach (var dato in _edicion.DatosSucursal) { <tr><td>@dato.Sucursal</td><td>@dato.NombreComercial</td><td>@dato.Contacto</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _edicion.DatosSucursal.Remove(dato)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div> }
+                    <div class="row g-3">
+                        <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Sucursal" @bind-Valor="_datosSucursalEdicion.Sucursal" /></div>
+                        <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Nombre comercial" @bind-Valor="_datosSucursalEdicion.NombreComercial" /></div>
+                        <div class="col-12 col-md-2"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_datosSucursalEdicion.Telefono" /></div>
+                        <div class="col-12 col-md-2"><AppCampoTexto Etiqueta="Correo" @bind-Valor="_datosSucursalEdicion.Email" /></div>
+                        <div class="col-12 col-md-2 d-grid align-self-end">
+                            <button type="button" class="btn btn-outline-primary" @onclick="AgregarDatosSucursal">@(_datosSucursalOriginal is null ? "Agregar" : "Guardar cambios")</button>
+                        </div>
+                        <div class="col-12"><AppCampoTexto Etiqueta="Contacto" @bind-Valor="_datosSucursalEdicion.Contacto" /></div>
+                        @if (_datosSucursalOriginal is not null)
+                        {
+                            <div class="col-12"><button type="button" class="btn btn-sm btn-link text-secondary p-0" @onclick="CancelarEdicionDatosSucursal">Cancelar edición</button></div>
+                        }
+                    </div>
+                    @if (_edicion.DatosSucursal is { Count: > 0 }) { <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Sucursal</th><th>Nombre comercial</th><th>Teléfono</th><th>Correo</th><th>Contacto</th><th></th></tr></thead><tbody>@foreach (var dato in _edicion.DatosSucursal) { <tr><td>@dato.Sucursal</td><td>@dato.NombreComercial</td><td>@dato.Telefono</td><td>@dato.Email</td><td>@dato.Contacto</td><td class="text-end text-nowrap"><button type="button" class="btn btn-sm btn-link" @onclick="() => EditarDatosSucursal(dato)"><i class="bi bi-pencil" aria-hidden="true"></i> Editar</button><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarDatosSucursal(dato)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div> }
                 }
                 else if (_pestanaEdicion == "bonificacion")
                 {
@@ -628,6 +641,8 @@
     private bool _cartaEsNueva;
     private bool _guardandoCarta;
     private ClienteDatosSucursalDTO _datosSucursalEdicion = new();
+    // Fila de datos de facturación que se está editando (null = alta nueva).
+    private ClienteDatosSucursalDTO? _datosSucursalOriginal;
     private List<ProvinciaDTO> _provincias = new();
     private List<CantonDTO> _cantones = new();
     private List<DistritoDTO> _distritos = new();
@@ -793,6 +808,7 @@
             DatosSucursal = new List<ClienteDatosSucursalDTO>()
         };
         _datosSucursalEdicion = new ClienteDatosSucursalDTO();
+        _datosSucursalOriginal = null;
         _adjuntos = new List<ClienteAdjuntoDTO>();
         _adjuntosNuevos = new List<ClienteAdjuntoDTO>();
         _cargandoAdjuntos = false;
@@ -820,6 +836,7 @@
             ?? new List<ActividadEconomicaClienteDTO>();
         _actCodigoCliente = _actDescripcionCliente = string.Empty;
         _datosSucursalEdicion = new ClienteDatosSucursalDTO();
+        _datosSucursalOriginal = null;
         _variasSucursales = _edicion.DatosSucursal.Count > 0;
         _pestanaEdicion = "generales";
         _adjuntos = new List<ClienteAdjuntoDTO>();
@@ -1404,8 +1421,53 @@
 
         _datosSucursalEdicion.IdCliente = _edicion.Identificacion;
         _edicion.DatosSucursal ??= new List<ClienteDatosSucursalDTO>();
-        _edicion.DatosSucursal.Add(_datosSucursalEdicion);
+
+        if (_datosSucursalOriginal is not null)
+        {
+            // Edición: se reemplaza la fila en su lugar conservando Id/IdCliente.
+            var indice = _edicion.DatosSucursal.ToList().IndexOf(_datosSucursalOriginal);
+            _datosSucursalEdicion.Id = _datosSucursalOriginal.Id;
+            if (indice >= 0)
+            {
+                var lista = _edicion.DatosSucursal.ToList();
+                lista[indice] = _datosSucursalEdicion;
+                _edicion.DatosSucursal = lista;
+            }
+            _datosSucursalOriginal = null;
+        }
+        else
+        {
+            _edicion.DatosSucursal.Add(_datosSucursalEdicion);
+        }
+
         _datosSucursalEdicion = new ClienteDatosSucursalDTO();
+    }
+
+    private void EditarDatosSucursal(ClienteDatosSucursalDTO dato)
+    {
+        _datosSucursalOriginal = dato;
+        _datosSucursalEdicion = new ClienteDatosSucursalDTO
+        {
+            Id = dato.Id,
+            IdCliente = dato.IdCliente,
+            Sucursal = dato.Sucursal,
+            NombreComercial = dato.NombreComercial,
+            Telefono = dato.Telefono,
+            Email = dato.Email,
+            Contacto = dato.Contacto
+        };
+    }
+
+    private void CancelarEdicionDatosSucursal()
+    {
+        _datosSucursalOriginal = null;
+        _datosSucursalEdicion = new ClienteDatosSucursalDTO();
+    }
+
+    private void QuitarDatosSucursal(ClienteDatosSucursalDTO dato)
+    {
+        _edicion?.DatosSucursal?.Remove(dato);
+        if (ReferenceEquals(_datosSucursalOriginal, dato)) CancelarEdicionDatosSucursal();
     }
 
     private async Task CargarAdjuntos(long idCliente)
