@@ -3,18 +3,23 @@
 @using Microsoft.AspNetCore.Authorization
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
 @using SuvesaPosSitioAplicacion.DTOs.Consignacion
 @using SuvesaPosSitioAplicacion.DTOs.Generated
 @using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Security
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IConsignacionInvApiCliente Api
 @inject IServicioDialogos Dialogos
 @inject NavigationManager Nav
+@inject IContextoSesion Sesion
+@inject ICobros CobrosApi
 
 <AppPantalla Pantalla="Facturación de Consignaciones" Codigo="CONSIGNACION.FACTURACION_DE_CONSIGNACIONES" Icono="bi-receipt"
              Subtitulo="Prefactura editable → aprobar → facturar (contado o crédito)" Nivel="NivelPantalla.Tableta">
  <ChildContent>
   @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+  <AppDesbloqueoClave @ref="_desbloqueo" Titulo="La liquidación de consignaciones" RequiereCajaAbierta="true" />
 
   <div class="card mb-3"><div class="card-body">
     <div class="row g-2 align-items-end">
@@ -103,7 +108,13 @@
             {
               <div><label class="form-label d-block">Plazo (Id)</label><input type="number" min="1" class="form-control" style="width:8rem" @bind="_idPlazo" /></div>
             }
-            <button class="btn btn-success" @onclick="Facturar" disabled="@(_procesando || (_condicion == 2 && (_idPlazo is null or <= 0)))">@(_procesando ? "Facturando..." : "Facturar")</button>
+            else
+            {
+              <div><label class="form-label d-block">Forma de pago</label><select class="form-select" style="width:13rem" @bind="_formaPago"><option value="">Seleccione...</option>@foreach (var forma in _formasPago) { <option value="@forma.Codigo">@forma.Descripcion</option> }</select></div>
+              <div><label class="form-label d-block">Referencia</label><input class="form-control" style="width:12rem" @bind="_referenciaPago" placeholder="Opcional" /></div>
+              <div><label class="form-label d-block">Monto a cobrar</label><input class="form-control" style="width:10rem" value="@($"{_pref.Total:N2}")" readonly /></div>
+            }
+            <button class="btn btn-success" @onclick="Facturar" disabled="@(_procesando || !_desbloqueo.Desbloqueado || (_condicion == 2 && (_idPlazo is null or <= 0)) || (_condicion == 1 && string.IsNullOrWhiteSpace(_formaPago)))">@(_procesando ? "Facturando..." : "Facturar")</button>
           }
           <button class="btn btn-outline-danger ms-auto" @onclick="Anular" disabled="@_procesando">Anular</button>
         </div>
@@ -128,6 +139,7 @@
 @code {
  [SupplyParameterFromQuery] public long Id { get; set; }
  private HxModal _modalAnular = default!;
+ private AppDesbloqueoClave _desbloqueo = default!;
  private string _motivoAnular = "";
 
  private PrefacturaConsignacion? _pref;
@@ -136,6 +148,9 @@
  private long _idBuscar;
  private int _condicion = 1;
  private int? _idPlazo;
+ private string _formaPago = "01";
+ private string? _referenciaPago;
+ private List<FormasPagoDTO> _formasPago = new();
  private string _error = "";
  private bool _procesando;
 
@@ -171,7 +186,7 @@
      if (id <= 0) return;
      _error = "";
      var r = await Api.PrefacturaAsync(id);
-     if (Ok(r)) _pref = r.Responses;
+     if (Ok(r)) { _pref = r.Responses; await CargarFormasPago(); }
      else { _pref = null; await Fallo(r, "No se pudo cargar la prefactura."); }
  }
 
@@ -183,6 +198,15 @@
      4 => "text-bg-secondary",
      _ => "text-bg-light"
  };
+
+ private async Task CargarFormasPago()
+ {
+     if (_pref is null) return;
+     var r = await CobrosApi.FormasPago(_pref.IdCliente);
+     _formasPago = r.EsCorrecta ? (r.Responses?.ToList() ?? new()) : new();
+     if (_formasPago.Count == 1) _formaPago = _formasPago[0].Codigo ?? "";
+     else if (!_formasPago.Any(f => f.Codigo == _formaPago)) _formaPago = "";
+ }
 
  private async Task Aprobar()
  {
@@ -197,11 +221,27 @@
  private async Task Facturar()
  {
      if (_pref is null) return;
+     if (!_desbloqueo.Desbloqueado || _desbloqueo.NumApertura <= 0)
+     {
+         await Dialogos.ErrorAsync("Valide la clave interna de un cajero con una apertura de caja activa.");
+         return;
+     }
      if (!await Dialogos.ConfirmarAsync(
          $"Se facturará la prefactura #{_pref.Id} ({(_condicion == 1 ? "contado" : "crédito")}) y se descontará la bodega de consignación.",
          "Facturar consignación", "Facturar")) return;
      _procesando = true;
-     var r = await Api.FacturarPrefacturaAsync(new FacturarPrefacturaConsignacion { IdPrefactura = _pref.Id, Condicion = _condicion, IdPlazo = _condicion == 2 ? _idPlazo : null });
+     var r = await Api.FacturarPrefacturaAsync(new FacturarPrefacturaConsignacion
+     {
+         IdPrefactura = _pref.Id,
+         Condicion = _condicion,
+         IdPlazo = _condicion == 2 ? _idPlazo : null,
+         NumApertura = _desbloqueo.NumApertura,
+         IdSucursal = Sesion.IdSucursal,
+         Usuario = _desbloqueo.UsuarioValidado?.IdUsuario ?? Sesion.Usuario,
+         Pagos = _condicion == 1
+             ? new() { new PagoPrefacturaConsignacion { FormaPago = _formaPago.Trim(), Referencia = _referenciaPago?.Trim(), Monto = (decimal)_pref.Total } }
+             : new()
+     });
      _procesando = false;
      if (Ok(r))
      {

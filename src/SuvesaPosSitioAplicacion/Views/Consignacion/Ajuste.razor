@@ -14,6 +14,7 @@
 @inject IClientesConsulta Clientes
 @inject IInventarioConsulta Inventario
 @inject IServicioDialogos Dialogos
+@inject IImpresionDocumentos Impresion
 @inject SuvesaPosSitioAplicacion.Security.IContextoSesion Sesion
 
 <AppPantalla Pantalla="Ajuste de Bodega de Consignación" Codigo="CONSIGNACION.AJUSTE" Icono="bi-box-arrow-in-down"
@@ -144,12 +145,16 @@
     {
       <div class="card"><div class="card-header d-flex justify-content-between align-items-center @(_boleta.Anulada ? "text-bg-secondary" : "text-bg-success")">
         <span>Boleta @_boleta.TipoDescripcion #@_boleta.Id @(_boleta.Anulada ? "· ANULADA" : "")</span>
-        @if (!_boleta.Anulada) { <button class="btn btn-sm btn-light" @onclick="AbrirAnular">Anular</button> }
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-light" @onclick="ImprimirBoleta" disabled="@_imprimiendo">@(_imprimiendo ? "Generando..." : "Imprimir PDF")</button>
+          @if (!_boleta.Anulada) { <button class="btn btn-sm btn-light" @onclick="AbrirAnular">Anular</button> }
+        </div>
       </div><div class="card-body">
         <p class="mb-2"><strong>@_boleta.NombreCliente</strong> · @_boleta.Fecha.ToString("dd/MM/yyyy HH:mm") · costo @_boleta.CostoTotal.ToString("N2")
           @if (_boleta.Anulada) { <span class="text-danger d-block small">Anulada: @_boleta.MotivoAnulacion (@_boleta.UsuarioAnulacion, @_boleta.FechaAnulacion?.ToString("dd/MM/yyyy"))</span> }</p>
         <table class="table table-sm mb-0"><thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Cantidad</th></tr></thead>
           <tbody>@foreach (var l in _boleta.Lineas){<tr><td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@l.NumeroLote</td><td class="text-end">@l.Cantidad.ToString("N3")</td></tr>}</tbody></table>
+        @if (!string.IsNullOrWhiteSpace(_pdf)) { <iframe title="Boleta de consignación" class="w-100 mt-3 border" style="height:48rem" src="@_pdf"></iframe> }
       </div></div>
     }
   }
@@ -182,6 +187,8 @@
  private bool _cierreTotal, _guardando;
  private readonly List<BoletaConsignacionLinea> _lineas = new();
  private BoletaConsignacion? _boleta;
+ private bool _imprimiendo;
+ private string? _pdf;
  private long _idBoletaBuscar;
  private HxModal _modalAnular = default!;
  private string _motivoAnular = "";
@@ -262,11 +269,22 @@
      if (id <= 0) return;
      _error = "";
      var r = await Api.BoletaAsync(id);
-     if (Ok(r)) _boleta = r.Responses;
+     if (Ok(r)) { _boleta = r.Responses; _pdf = null; }
      else { _boleta = null; await Fallo(r, "No se pudo abrir la boleta."); }
  }
 
  private async Task AbrirAnular() { _motivoAnular = ""; await _modalAnular.ShowAsync(); }
+
+ private async Task ImprimirBoleta()
+ {
+     if (_boleta is null) return;
+     _imprimiendo = true;
+     var r = await Impresion.Pdf("consignacion-boleta", _boleta.Id, "a4", false);
+     _imprimiendo = false;
+     if (r is { EsCorrecta: true, Responses: { Length: > 0 } bytes })
+         _pdf = "data:application/pdf;base64," + Convert.ToBase64String(bytes);
+     else await Dialogos.ErrorAsync(r.Excepcion ?? "No se pudo generar la boleta.");
+ }
 
  private async Task ConfirmarAnular()
  {

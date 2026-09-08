@@ -298,6 +298,18 @@ public sealed class FacturarPrefacturaConsignacion
     /// <summary>1 = Contado, 2 = Crédito.</summary>
     public int Condicion { get; set; }
     public int? IdPlazo { get; set; }
+    public long? NumApertura { get; set; }
+    public int? IdSucursal { get; set; }
+    public string? Usuario { get; set; }
+    public string? CedulaCajero { get; set; }
+    public List<PagoPrefacturaConsignacion> Pagos { get; set; } = new();
+}
+
+public sealed class PagoPrefacturaConsignacion
+{
+    public string FormaPago { get; set; } = "";
+    public decimal Monto { get; set; }
+    public string? Referencia { get; set; }
 }
 
 public sealed class AnularPrefacturaConsignacion
