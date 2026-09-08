@@ -4,6 +4,7 @@
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ICajaOperaciones Api
 @inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
 @inject IServicioDialogos Dialogos
 @inject IManejadorRespuestas Respuestas
 
@@ -262,7 +263,7 @@
 
         var apertura = new AperturaCajaDTO
         {
-            Fecha = DateTime.Now.ToString("yyyy-MM-dd"), Nombre = nombreCajero, Cedula = loginCajero,
+            Fecha = (await RelojEquipo.AhoraAsync()).ToString("yyyy-MM-dd"), Nombre = nombreCajero, Cedula = loginCajero,
             NumCaja = _numeroCaja, IdSucursal = Sesion.IdSucursal, Estado = "A", Observaciones = _observaciones,
             AperturaDenominacion = _denominaciones.Select(d => new AperturaDenominacionDTO { IdDenominacion = d.IdDenominacion, Monto = (double)d.Monto, Cantidad = (double)d.Cantidad, CodMoneda = d.CodMoneda, Tipo = d.Tipo }).ToList(),
             AperturaTotalTope = TotalesPorMoneda.Select(t => new AperturaTotalTopeDTO { CodMoneda = t.Codigo, MontoTope = (double)t.Total, MonedaNombre = t.Nombre }).ToList()

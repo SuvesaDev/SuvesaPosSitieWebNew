@@ -8,6 +8,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IJSRuntime JS
+@inject IRelojEquipo RelojEquipo
 
 @* Seguimiento de órdenes de compra: entregado → facturado, o cancelar / dar de
    baja por el proveedor. Impresión y reenvío por correo. *@
@@ -150,7 +151,13 @@
     private long _idFactura;
     private string _motivo = "";
 
-    protected override async Task OnInitializedAsync() => await Cargar();
+    protected override async Task OnInitializedAsync()
+    {
+        var hoy = await RelojEquipo.HoyAsync();
+        _desde = hoy.AddMonths(-1);
+        _hasta = hoy;
+        await Cargar();
+    }
 
     private async Task Cargar()
     {
@@ -180,7 +187,7 @@
         _procesando = true;
         try
         {
-            var r = await Respuestas.DatoAsync(await Api.Entregar(_sel.Orden, DateTime.Today), "marcar entregada");
+            var r = await Respuestas.DatoAsync(await Api.Entregar(_sel.Orden, await RelojEquipo.HoyAsync()), "marcar entregada");
             if (r is not null) { Dialogos.Exito("Orden marcada como entregada."); await Refrescar(r); }
         }
         finally { _procesando = false; }

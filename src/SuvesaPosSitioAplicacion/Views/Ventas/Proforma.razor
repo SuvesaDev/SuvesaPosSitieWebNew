@@ -6,6 +6,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IClientesConsulta ClientesApi
 
 @*  ARQUETIPO 03 - DOCUMENTO MAESTRO-DETALLE
@@ -302,9 +303,9 @@
         return peticion.ApplyTo(_proformas);
     }
 
-    private void Nueva()
+    private async Task Nueva()
     {
-        _documento = new CotizacionesDTO { Fecha = DateTime.Today, IdSucursal = Sesion.IdSucursal };
+        _documento = new CotizacionesDTO { Fecha = await RelojEquipo.HoyAsync(), IdSucursal = Sesion.IdSucursal };
         _lineas.Clear();
         Recalcular();
     }

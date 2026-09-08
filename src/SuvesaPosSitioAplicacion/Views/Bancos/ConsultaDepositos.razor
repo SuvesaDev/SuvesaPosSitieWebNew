@@ -6,6 +6,7 @@
 @inject IDepositosConsulta Api
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
+@inject IRelojEquipo RelojEquipo
 
 @*  OLA 1 — replica del ARQUETIPO 02, con filtro por rango de fechas.
     Mismo patron que Documentos Emitidos: se filtra en el API, no en memoria.
@@ -139,6 +140,7 @@
     private bool _hayBusqueda;
     private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
     private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
+    protected override async Task OnInitializedAsync() { var hoy = await RelojEquipo.HoyAsync(); _desde = hoy.AddDays(-7); _hasta = hoy; }
 
     private static DateTime Fecha(ChangeEventArgs e, DateTime actual)
         => DateTime.TryParse(e.Value?.ToString(), out var v) ? v : actual;

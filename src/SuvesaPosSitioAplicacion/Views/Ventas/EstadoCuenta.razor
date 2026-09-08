@@ -8,6 +8,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
 @inject IJSRuntime JS
 
 @* W6 (PLAN_TIQUETE_RUTAS_FACTURACION_WEB.md): estado de cuenta del cliente a una fecha de
@@ -147,6 +148,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _corte = await RelojEquipo.HoyAsync();
         if (IdClienteRuta is { } id && id > 0)
         {
             var r = await Clientes.Buscar(id.ToString());

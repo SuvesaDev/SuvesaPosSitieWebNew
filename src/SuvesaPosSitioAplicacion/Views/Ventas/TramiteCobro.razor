@@ -3,6 +3,7 @@
 @using SuvesaPosSitioAplicacion.DTOs.Compras
 @using SuvesaPosSitioAplicacion.DTOs.Generated
 @using SuvesaPosSitioAplicacion.Services
+@inject IRelojEquipo RelojEquipo
 @using Havit.Blazor.Components.Web.Bootstrap
 @inject ITramitesCobro Api
 @inject IClientesConsulta Clientes
@@ -106,7 +107,7 @@
                                                 <td><input class="form-check-input" type="checkbox" checked="@_seleccion.Contains(f.IdVenta)" @onchange="() => Alternar(f)" /></td>
                                                 <td><code>@f.NumFactura.ToString("0")</code></td>
                                                 <td class="small">@f.Fecha.ToString("dd/MM/yy")</td>
-                                                <td class="small @(f.Vence < DateTime.Today ? "text-danger fw-semibold" : "")">@(f.Vence?.ToString("dd/MM/yy") ?? "—")</td>
+                                                <td class="small @(f.Vence < HoyEquipo ? "text-danger fw-semibold" : "")">@(f.Vence?.ToString("dd/MM/yy") ?? "—")</td>
                                                 <td class="text-end seepos-importe">@Formato.Importe(f.SaldoActual)</td>
                                                 <td style="min-width:10rem">
                                                     <input type="date" class="form-control form-control-sm" disabled="@(!_seleccion.Contains(f.IdVenta))"

@@ -10,6 +10,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IClientesConsulta ClientesApi
 
 @*  Ola 5 — cobro de una preventa (por ficha o por cédula del cliente), con varias
@@ -369,6 +370,7 @@
         }
 
         // Crédito: abono a una factura ya emitida (no factura nada).
+        var fechaCobro = (await RelojEquipo.HoyAsync()).ToString("yyyy-MM-dd");
         var cobros = _formasPago
             .Where(f => f.Codigo is not null && MontoDe(f.Codigo!) > 0)
             .Select(f => new CobroDocumentosDTO
@@ -384,7 +386,7 @@
                 TipoCambio = f.Codigo == "USD" || string.Equals(_preventa.Moneda, "DOLAR", StringComparison.OrdinalIgnoreCase)
                     ? Formato.AImporte(dolar?.ValorCompra ?? 0) is var vc && vc > 0 ? (double)vc : 0
                     : 0,
-                Fecha = DateTime.Today.ToString("yyyy-MM-dd"),
+                Fecha = fechaCobro,
                 Numapertura = _numApertura,
                 Vuelto = f.Codigo == CodigoEfectivo ? (double)_cambio : 0,
                 IdDocumento = _preventa.Id,

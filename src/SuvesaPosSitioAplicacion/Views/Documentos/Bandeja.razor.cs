@@ -36,7 +36,13 @@ public partial class Bandeja
 
     private IReadOnlyList<DocumentoBandeja> Filas => EsFiscal ? _fiscales : _comunes;
 
-    protected override Task OnInitializedAsync() => Cargar();
+    protected override async Task OnInitializedAsync()
+    {
+        var hoy = await RelojEquipo.HoyAsync();
+        _desde = hoy.AddDays(-7);
+        _hasta = hoy;
+        await Cargar();
+    }
 
     private async Task CambiarTab(int t)
     {

@@ -10,6 +10,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
 
 @*  Ola 5 — espejo de Devoluciones de venta, pero el sistema actual NO pide clave
     interna aqui (a diferencia de Facturación/Devoluciones de venta). La busqueda
@@ -350,7 +351,7 @@
             Descuento = (double)_totales.Descuento,
             Impuesto = (double)_totales.Impuesto,
             Monto = (double)_totales.Total,
-            Fecha = DateTime.Today.ToString("dd/MM/yyyy"),
+            Fecha = (await RelojEquipo.HoyAsync()).ToString("dd/MM/yyyy"),
             CedulaUsuario = Sesion.Usuario,
             CodMoneda = 1,
             NombrePro = _factura.NombreProveedor,

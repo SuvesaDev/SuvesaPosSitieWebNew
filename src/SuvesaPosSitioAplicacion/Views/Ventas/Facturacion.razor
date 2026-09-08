@@ -19,6 +19,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
 @inject NavigationManager Navegacion
 @inject IClienteBonificacion ClienteBonificacion
 @inject ICatalogoBonificacion CatalogoBonificacion
@@ -296,7 +297,7 @@
             </p>
         }
         @{ var lotesUsables = _lotesPendientes.Where(l => l.Activo != false && l.Cantidad > 0
-                && (l.Vencimiento is null || l.Vencimiento.Value.Date >= DateTime.Today)).ToList(); }
+                && (l.Vencimiento is null || l.Vencimiento.Value.Date >= _hoyEquipo)).ToList(); }
         @if (lotesUsables.Count == 0) { <div class="alert alert-warning mb-0">El artículo maneja lotes, pero no tiene lotes disponibles no vencidos.</div> }
         else
         {
@@ -738,6 +739,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _hoyEquipo = await RelojEquipo.HoyAsync();
         // REDISENO_TIPOS_SERIES_CONDICION.md: el Tipo ya no lleva Contado/Credito —
         // la condición y la elegibilidad de la serie las resuelve PerfilesApi.Elegibles
         // según la Condición de venta elegida en pantalla.
@@ -1504,7 +1506,7 @@
         {
             var lotes = await LotesDisponiblesEnBodega(articulo.Codigo);
             lotesUsables = lotes.Where(l => l.Activo != false && l.Cantidad > 0
-                && (l.Vencimiento is null || l.Vencimiento.Value.Date >= DateTime.Today)).ToList();
+                && (l.Vencimiento is null || l.Vencimiento.Value.Date >= _hoyEquipo)).ToList();
         }
         return new ItemMezcla
         {
@@ -1622,7 +1624,8 @@
         };
         linea.Recalcular(); _lineas.Add(linea); RecalcularTodo();
     }
-    private decimal PrecioCliente(InventarioDTO articulo) => (_cliente?.Tipoprecio ?? 1) switch { 2 when articulo.Precio_B > 0 => Formato.AImporte(articulo.Precio_B), 3 when articulo.Precio_C > 0 => Formato.AImporte(articulo.Precio_C), 4 when articulo.Precio_D > 0 => Formato.AImporte(articulo.Precio_D), _ => articulo.Promo_Activa && articulo.Promo_Inicio <= DateTime.Today && articulo.Promo_Finaliza >= DateTime.Today ? Formato.AImporte(articulo.Precio_Promo) : Formato.AImporte(articulo.Precio_A) };
+    private DateTime _hoyEquipo = DateTime.Today;
+    private decimal PrecioCliente(InventarioDTO articulo) => (_cliente?.Tipoprecio ?? 1) switch { 2 when articulo.Precio_B > 0 => Formato.AImporte(articulo.Precio_B), 3 when articulo.Precio_C > 0 => Formato.AImporte(articulo.Precio_C), 4 when articulo.Precio_D > 0 => Formato.AImporte(articulo.Precio_D), _ => articulo.Promo_Activa && articulo.Promo_Inicio <= _hoyEquipo && articulo.Promo_Finaliza >= _hoyEquipo ? Formato.AImporte(articulo.Precio_Promo) : Formato.AImporte(articulo.Precio_A) };
     /// <summary>Solo un super administrador puede pasar por encima del descuento
     /// máximo del artículo en una línea puntual — es una excepción deliberada, no un
     /// ajuste de configuración, así que se pide confirmación cada vez.</summary>
@@ -1760,7 +1763,8 @@
         _guardando = true;
         var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
         var perfil = _perfiles.FirstOrDefault(x => x.IdSerie == _idPerfil);
-        var factura = new FacturaDTO { Tipo = _tipoFactura, NumCaja = (perfil?.NumeroTerminal ?? 0).ToString(), Fecha = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), CodCliente = _cliente.Identificacion.ToString(), NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), TipoCambio = _moneda == 2 ? (double?)(_tipoCambio ?? 1m) : null, Agente = _sinAgente, Cod_agente = !_sinAgente && _codAgente > 0 ? _codAgente : null, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = _idEmpresa, Empresa = empresa?.Nombre, CodigoActividadEmisor = string.IsNullOrWhiteSpace(_codActividad) ? null : _codActividad, CodigoActividadReceptor = string.IsNullOrWhiteSpace(_codActividadCliente) ? null : _codActividadCliente, Preventa = EsPrefacturaConsignacion || _ruta.Ruta == PoliticaRutaFacturacion.Ruta.GuardarPreventaContado, EsConsignacion = EsConsignacion, EsCredito = _esCredito, IdSerie = _idPerfil > 0 ? _idPerfil : null, NumApertura = !EsPrefacturaConsignacion && !EsConsignacion ? NumAperturaVenta : null, Pagos = MostrarCobroContado ? _montosContado.Where(kv => kv.Value > 0).Select(kv => new PagoFacturaDTO { FormaPago = kv.Key, Monto = (double)kv.Value, Referencia = _referenciasContado.TryGetValue(kv.Key, out var _rf) ? _rf : null }).ToList() : new(), SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = EsConsignacion ? 0 : _bodega, Lote = l.IdLote, NumeroLote = l.Lote, Lotes = l.Lotes, EsBonificacion = l.EsBonificacion, IdGrupoBonificacion = l.IdGrupoBonificacion, IdConfiguracionBonificacion = l.IdConfiguracionBonificacion, EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null }).ToList() };
+        var factura = new FacturaDTO { Tipo = _tipoFactura, NumCaja = (perfil?.NumeroTerminal ?? 0).ToString(), Fecha = string.Empty, CodCliente = _cliente.Identificacion.ToString(), NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), TipoCambio = _moneda == 2 ? (double?)(_tipoCambio ?? 1m) : null, Agente = _sinAgente, Cod_agente = !_sinAgente && _codAgente > 0 ? _codAgente : null, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = _idEmpresa, Empresa = empresa?.Nombre, CodigoActividadEmisor = string.IsNullOrWhiteSpace(_codActividad) ? null : _codActividad, CodigoActividadReceptor = string.IsNullOrWhiteSpace(_codActividadCliente) ? null : _codActividadCliente, Preventa = EsPrefacturaConsignacion || _ruta.Ruta == PoliticaRutaFacturacion.Ruta.GuardarPreventaContado, EsConsignacion = EsConsignacion, EsCredito = _esCredito, IdSerie = _idPerfil > 0 ? _idPerfil : null, NumApertura = !EsPrefacturaConsignacion && !EsConsignacion ? NumAperturaVenta : null, Pagos = MostrarCobroContado ? _montosContado.Where(kv => kv.Value > 0).Select(kv => new PagoFacturaDTO { FormaPago = kv.Key, Monto = (double)kv.Value, Referencia = _referenciasContado.TryGetValue(kv.Key, out var _rf) ? _rf : null }).ToList() : new(), SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = EsConsignacion ? 0 : _bodega, Lote = l.IdLote, NumeroLote = l.Lote, Lotes = l.Lotes, EsBonificacion = l.EsBonificacion, IdGrupoBonificacion = l.IdGrupoBonificacion, IdConfiguracionBonificacion = l.IdConfiguracionBonificacion, EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null }).ToList() };
+        factura.Fecha = (await RelojEquipo.AhoraAsync()).ToString("yyyy-MM-dd HH:mm:ss");
         if (EsPrefacturaConsignacion)
         {
             var rp = await ConsignacionApi.GenerarPrefacturaAsync(new GenerarPrefacturaConsignacion { IdConteo = ConteoId, Factura = factura });

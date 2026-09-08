@@ -11,6 +11,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
 @inject NavigationManager Navegacion
 @inject ILotesApiCliente LotesApi
 
@@ -615,7 +616,7 @@
             Descuento = (double)_totales.Descuento,
             Impuesto = (double)_totales.Impuesto,
             Monto = (double)_totales.Total,
-            Fecha = DateTime.Today.ToString("dd/MM/yyyy"),
+            Fecha = (await RelojEquipo.HoyAsync()).ToString("dd/MM/yyyy"),
             CedulaUsuario = Sesion.Usuario,
             CodMoneda = 1,
             Caja = 0,

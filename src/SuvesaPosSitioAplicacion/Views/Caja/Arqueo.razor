@@ -3,6 +3,7 @@
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ICajaOperaciones Api
+@inject IRelojEquipo RelojEquipo
 @inject IServicioDialogos Dialogos
 @inject IManejadorRespuestas Respuestas
 
@@ -276,7 +277,7 @@
             Id = _editando ? _idArqueoEditando : 0,
             IdApertura = _editando ? _idAperturaEditando : _idApertura,
             Cajero = _editando ? _cajeroEditando : _aperturaSeleccionada!.Nombre,
-            Fecha = DateTime.Now.ToString("yyyy-MM-dd"), Observaciones = _observaciones,
+            Fecha = (await RelojEquipo.AhoraAsync()).ToString("yyyy-MM-dd"), Observaciones = _observaciones,
             EfectivoColones = (double)EfectivoColones, EfectivoDolares = (double)EfectivoDolares,
             TarjetaColones = (double)TarjetaColones, TarjetaDolares = (double)TarjetaDolares,
             Cheques = (double)_cheques, ChequesDol = (double)_chequesDol,

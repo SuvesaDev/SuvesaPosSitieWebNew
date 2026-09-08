@@ -3,6 +3,7 @@
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IServicioDialogos Dialogos
+@inject IRelojEquipo RelojEquipo
 
 @* Muestra del sistema de diseno. No es una pantalla de negocio: existe para poder
    revisar de un vistazo que los componentes base se ven bien en los tres niveles y
@@ -125,6 +126,7 @@
     private int? _cantidad = 1;
     private decimal? _precio = 2090.91m;
     private DateTime? _fecha = DateTime.Today;
+    protected override async Task OnInitializedAsync() => _fecha = await RelojEquipo.HoyAsync();
     private string? _resultado;
 
     private sealed record Fila(string Codigo, string Descripcion, decimal Existencia, decimal Precio);
