@@ -50,6 +50,7 @@ public class PantallasMigradasTests
         { "/initial/repayment", "Devoluciones" },
         { "/sales/repayment", "Devoluciones" },
         { "/buys/consignment/following", "Seguimiento de Consignaciones" },
+        { "/consignment/dashboard", "Tablero de Consignación" },
         { "/initial/cash/deposits/consultdeposits", "Consulta Depósitos" },
         { "/parameters/family", "Familias" },
         { "/parameters/category", "Categorias" },
@@ -63,7 +64,7 @@ public class PantallasMigradasTests
         { "/moduloInventario", "Módulo Inventario" }
     };
 
-    [Theory]
+    [HechoConCredencialesTheory]
     [MemberData(nameof(Pantallas))]
     public async Task SeAbreSinErrores(string ruta, string textoEsperado)
     {

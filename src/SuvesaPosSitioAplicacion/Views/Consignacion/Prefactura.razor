@@ -8,12 +8,14 @@
 @using SuvesaPosSitioAplicacion.DTOs.Generated
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Security
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IConsignacionInvApiCliente Api
 @inject IServicioDialogos Dialogos
 @inject NavigationManager Nav
 @inject IContextoSesion Sesion
 @inject ICobros CobrosApi
+@inject IConfiguracionPlazosFiscales PlazosApi
 
 <AppPantalla Pantalla="Facturación de Consignaciones" Codigo="CONSIGNACION.FACTURACION_DE_CONSIGNACIONES" Icono="bi-receipt"
              Subtitulo="Prefactura editable → aprobar → facturar (contado o crédito)" Nivel="NivelPantalla.Tableta">
@@ -106,7 +108,7 @@
             </div>
             @if (_condicion == 2)
             {
-              <div><label class="form-label d-block">Plazo (Id)</label><input type="number" min="1" class="form-control" style="width:8rem" @bind="_idPlazo" /></div>
+              <div><label class="form-label d-block">Plazo de crédito</label><select class="form-select" style="width:15rem" @bind="_idPlazo"><option value="">Seleccione...</option>@foreach (var plazo in _plazos) { <option value="@plazo.IdPlazo">@plazo.Descripcion (@plazo.CantidadDias días)</option> }</select></div>
             }
             else
             {
@@ -151,12 +153,18 @@
  private string _formaPago = "01";
  private string? _referenciaPago;
  private List<FormasPagoDTO> _formasPago = new();
+ private List<ConfiguracionPlazoFiscalDTO> _plazos = new();
  private string _error = "";
  private bool _procesando;
 
  private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
 
- protected override async Task OnInitializedAsync() => await CargarLista();
+ protected override async Task OnInitializedAsync()
+ {
+     await CargarLista();
+     var plazos = await PlazosApi.Obtener();
+     _plazos = plazos.EsCorrecta ? (plazos.Responses?.Where(p => p.Activo && p.Consignacion).OrderBy(p => p.CantidadDias).ToList() ?? new()) : new();
+ }
 
  protected override async Task OnParametersSetAsync()
  {

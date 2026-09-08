@@ -1,0 +1,23 @@
+@page "/consignment/dashboard"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Consignacion
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IConsignacionInvApiCliente Api
+
+<AppPantalla Pantalla="Tablero de Consignación" Codigo="CONSIGNACION.TABLERO" Icono="bi-bar-chart-line"
+             Subtitulo="Saldos, ventas de 30 días, antigüedad, rotación y diferencias pendientes" Nivel="NivelPantalla.Tableta">
+ <Acciones><button class="btn btn-sm btn-outline-secondary" @onclick="Cargar">Actualizar</button></Acciones>
+ <ChildContent>
+ @if (_tablero is null) { <div class="text-secondary p-4">Cargando indicadores…</div> }
+ else {
+  <div class="row g-3 mb-3"><div class="col-md-4"><div class="card"><div class="card-body"><span class="text-secondary">Saldo en consignación</span><strong class="d-block fs-4">@_tablero.SaldoEnConsignacion.ToString("N3")</strong></div></div></div><div class="col-md-4"><div class="card"><div class="card-body"><span class="text-secondary">Venta liquidada (30 días)</span><strong class="d-block fs-4">@_tablero.VentaLiquidadaPeriodo.ToString("N2")</strong></div></div></div><div class="col-md-4"><div class="card border-warning"><div class="card-body"><span class="text-secondary">Diferencias pendientes</span><strong class="d-block fs-4 text-warning">@_tablero.DiferenciasPendientes</strong></div></div></div></div>
+  <div class="card mb-3"><div class="card-header">Por cliente</div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Cliente</th><th class="text-end">Saldo</th><th class="text-end">Venta</th><th class="text-end">Días</th><th class="text-end">Diferencias</th></tr></thead><tbody>@foreach(var c in _tablero.Clientes){<tr><td>@c.NombreCliente</td><td class="text-end">@c.Saldo.ToString("N3")</td><td class="text-end">@c.VentaLiquidada.ToString("N2")</td><td class="text-end">@c.DiasEnConsignacion</td><td class="text-end">@c.DiferenciasPendientes</td></tr>}</tbody></table></div></div>
+  <div class="card"><div class="card-header">Rotación por artículo</div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Código</th><th>Artículo</th><th class="text-end">Saldo</th><th class="text-end">Vendido</th><th class="text-end">Rotación</th></tr></thead><tbody>@foreach(var a in _tablero.Articulos){<tr><td><code>@a.Codigo</code></td><td>@a.Descripcion</td><td class="text-end">@a.Saldo.ToString("N3")</td><td class="text-end">@a.VendidoPeriodo.ToString("N3")</td><td class="text-end">@a.Rotacion.ToString("N2")</td></tr>}</tbody></table></div></div>
+ }
+ </ChildContent>
+</AppPantalla>
+
+@code { private TableroConsignacion? _tablero; protected override Task OnInitializedAsync() => Cargar(); private async Task Cargar(){var r=await Api.TableroAsync(); _tablero=r.Responses;} }
