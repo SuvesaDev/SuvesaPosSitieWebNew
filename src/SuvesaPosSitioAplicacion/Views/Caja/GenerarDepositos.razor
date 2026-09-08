@@ -1,6 +1,7 @@
 @page "/initial/cash/deposits/generatedeposits"
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
+@inject IRelojEquipo RelojEquipo
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ICajaOperaciones Api
 @inject IServicioDialogos Dialogos
@@ -38,7 +39,7 @@
     private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
     private IEnumerable<PreDepositosDTO> Seleccionados => _preDepositos.Where(p => _seleccionados.Contains(p.Id));
     private float MontoSeleccionado => Seleccionados.Sum(p => p.Monto);
-    protected override Task OnInitializedAsync() => Cargar();
+    protected override async Task OnInitializedAsync() { _fecha = await RelojEquipo.HoyAsync(); await Cargar(); }
     private async Task Cargar()
     {
         _cargando = true; var empresas = await Respuestas.DatoAsync(await Api.Empresas(), "consultar las empresas"); var bancos = await Respuestas.DatoAsync(await Api.Bancos(), "consultar los bancos");
@@ -68,6 +69,7 @@
         if (_empresa == 0 || _banco == 0 || _cuenta == 0 || string.IsNullOrWhiteSpace(_numeroDeposito) || !Seleccionados.Any()) { await Dialogos.InformarAsync("Complete empresa, banco, cuenta, número de depósito y seleccione al menos un pre depósito."); return; }
         if (!await Dialogos.ConfirmarAsync($"¿Desea generar el depósito número {_numeroDeposito}?", "Generar depósito", "Generar")) return;
         _guardando = true;
+        _fecha = await RelojEquipo.HoyAsync();
         var deposito = new DepositosDTO { NumeroDeposito = _numeroDeposito, Fecha = _fecha, IdCuenta = _cuenta, IdEmpresa = _empresa, MontoDeposito = MontoSeleccionado, PreDepositos = Seleccionados.ToList() };
         var creado = await Respuestas.DatoAsync(await Api.CrearDeposito(deposito), "generar el depósito"); _guardando = false;
         if (creado is null) return; Dialogos.Exito($"Depósito {_numeroDeposito} creado correctamente."); _numeroDeposito = null; _seleccionados.Clear(); await BuscarPreDepositos();

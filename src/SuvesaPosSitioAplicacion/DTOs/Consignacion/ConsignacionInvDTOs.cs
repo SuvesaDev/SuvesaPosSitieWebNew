@@ -14,6 +14,7 @@ public sealed class AbrirBodegaConsignacion
     public int IdBodega { get; set; }
     /// <summary>Centro al que queda ligada la bodega del cliente (el de la sesión).</summary>
     public int? IdSucursal { get; set; }
+    public int? IdEmisor { get; set; }
     public string? Observaciones { get; set; }
 }
 
@@ -30,6 +31,7 @@ public sealed class BodegaConsignacionResumen
     public string Cedula { get; set; } = "";
     public string NombreCliente { get; set; } = "";
     public int IdBodega { get; set; }
+    public int? IdEmisor { get; set; }
     public string NombreBodega { get; set; } = "";
     public DateTime FechaApertura { get; set; }
     public DateTime? FechaCierre { get; set; }
@@ -84,6 +86,7 @@ public sealed class BoletaConsignacion
     public int Tipo { get; set; }
     public string TipoDescripcion { get; set; } = "";
     public long IdCliente { get; set; }
+    public int? IdEmisor { get; set; }
     public long? IdConteoConsignacion { get; set; }
     public string NombreCliente { get; set; } = "";
     public int IdBodega { get; set; }
@@ -109,6 +112,9 @@ public sealed class ConteoConsignacionLineaEntrada
     public long? IdStockLote { get; set; }
     public double Fisico { get; set; }
     public double? PrecioUnitario { get; set; }
+    public string? ClasificacionDiferencia { get; set; }
+    public string? MotivoDiferencia { get; set; }
+    public string? EvidenciaDiferencia { get; set; }
 }
 
 public sealed class ConteoConsignacionRequest
@@ -160,6 +166,17 @@ public sealed class BodegaCentralConsignacion
     public double ExistenciaTotal { get; set; }
 }
 
+/// <summary>Existencia Tipo 2 por lote en la central que el API usa para el cliente.</summary>
+public sealed class ExistenciaCentralConsignacion
+{
+    public int IdBodega { get; set; }
+    public string NombreBodega { get; set; } = "";
+    public int? IdSucursal { get; set; }
+    public long IdCliente { get; set; }
+    public long IdArticulo { get; set; }
+    public List<ExistenciaConsignacionLinea> Lotes { get; set; } = new();
+}
+
 public sealed class AbrirBodegaCentralConsignacion
 {
     public int? IdSucursal { get; set; }
@@ -192,6 +209,13 @@ public sealed class ConteoConsignacionLinea
     public double Fisico { get; set; }
     public double Vendido { get; set; }
     public double Sobrante { get; set; }
+    public string? ClasificacionDiferencia { get; set; }
+    public string? MotivoDiferencia { get; set; }
+    public string? EvidenciaDiferencia { get; set; }
+    public int EstadoAprobacionDiferencia { get; set; }
+    public string? UsuarioAprobacionDiferencia { get; set; }
+    public DateTime? FechaAprobacionDiferencia { get; set; }
+    public string? ComentarioAprobacionDiferencia { get; set; }
     public double PrecioUnitario { get; set; }
     public double Facturado { get; set; }
     public double Repuesto { get; set; }
@@ -205,6 +229,7 @@ public sealed class ConteoConsignacion
     public long IdCliente { get; set; }
     public string NombreCliente { get; set; } = "";
     public int IdBodega { get; set; }
+    public int? IdEmisor { get; set; }
     public DateTime Fecha { get; set; }
     public string? Agente { get; set; }
     public string? Usuario { get; set; }
@@ -218,12 +243,31 @@ public sealed class ConteoConsignacion
     public List<ConteoConsignacionLinea> Lineas { get; set; } = new();
 }
 
+public sealed class AprobarDiferenciasConteoConsignacion
+{
+    public long IdConteo { get; set; }
+    public bool Aprobar { get; set; }
+    public string? Comentario { get; set; }
+}
+
 public sealed class LiquidacionesConsignacionFiltro
 {
     public long? IdCliente { get; set; }
     public DateTime? Desde { get; set; }
     public DateTime? Hasta { get; set; }
 }
+
+public sealed class TableroConsignacion
+{
+    public DateTime GeneradoEn { get; set; }
+    public double SaldoEnConsignacion { get; set; }
+    public double VentaLiquidadaPeriodo { get; set; }
+    public int DiferenciasPendientes { get; set; }
+    public List<TableroConsignacionCliente> Clientes { get; set; } = new();
+    public List<TableroConsignacionArticulo> Articulos { get; set; } = new();
+}
+public sealed class TableroConsignacionCliente { public long IdCliente { get; set; } public string NombreCliente { get; set; } = ""; public double Saldo { get; set; } public double VentaLiquidada { get; set; } public int DiasEnConsignacion { get; set; } public int DiferenciasPendientes { get; set; } }
+public sealed class TableroConsignacionArticulo { public long IdArticulo { get; set; } public string Codigo { get; set; } = ""; public string Descripcion { get; set; } = ""; public double Saldo { get; set; } public double VendidoPeriodo { get; set; } public double Rotacion { get; set; } }
 
 public sealed class LiquidacionConsignacion
 {

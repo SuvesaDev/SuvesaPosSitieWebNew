@@ -6,6 +6,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
 
 <AppPantalla Pantalla="Familias y Sub-Familias" Nivel="NivelPantalla.Tableta">
     <Acciones>
@@ -216,7 +217,7 @@
     private async Task AgregarSubFamilia()
     {
         if (_familiaSeleccionada is null) return;
-        _subFamiliaEdicion = new SubFamiliaDTO { CodigoFamilia = _familiaSeleccionada.Codigo, Estado = true, FechaCreacion = DateTime.Now };
+        _subFamiliaEdicion = new SubFamiliaDTO { CodigoFamilia = _familiaSeleccionada.Codigo, Estado = true, FechaCreacion = await RelojEquipo.AhoraAsync() };
         await _modalSubFamilia.ShowAsync();
     }
 

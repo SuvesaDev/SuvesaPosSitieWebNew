@@ -107,7 +107,7 @@ public class FiltroMenuTests
     public void ElMenuRealSeCargoCompleto()
     {
         static int Contar(IEnumerable<ItemMenu> ns) => ns.Sum(n => 1 + Contar(n.Hijos));
-        Assert.Equal(12, MenuSeePos.Items.Count);
-        Assert.Equal(84, Contar(MenuSeePos.Items));
+        Assert.Equal(10, MenuSeePos.Items.Count);
+        Assert.Equal(82, Contar(MenuSeePos.Items));
     }
 }

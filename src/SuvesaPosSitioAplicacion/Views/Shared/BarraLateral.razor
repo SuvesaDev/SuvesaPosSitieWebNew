@@ -17,6 +17,46 @@
         <span>Menu principal</span>
     </div>
 
+    @if (!Compacto)
+    {
+        <div class="px-2 pt-2">
+            <label class="visually-hidden" for="buscador-menu">Buscar opciones del menú</label>
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-body" aria-hidden="true"><i class="bi bi-search"></i></span>
+                <input id="buscador-menu" class="form-control" @bind="_busqueda" @bind:event="oninput"
+                       placeholder="Buscar opción..." autocomplete="off" />
+                @if (!string.IsNullOrWhiteSpace(_busqueda))
+                {
+                    <button type="button" class="btn btn-outline-secondary" @onclick="LimpiarBusqueda" aria-label="Limpiar búsqueda">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+
+    @if (!Compacto && !string.IsNullOrWhiteSpace(_busqueda))
+    {
+        <div class="seepos-menu-resultados flex-grow-1 px-2 pb-2" role="listbox" aria-label="Resultados del menú">
+            @if (!ResultadosBusqueda.Any())
+            {
+                <div class="small text-secondary px-2 py-3">No se encontraron opciones.</div>
+            }
+            else
+            {
+                @foreach (var resultado in ResultadosBusqueda)
+                {
+                    <button type="button" class="btn btn-link nav-link text-start w-100 px-2 py-1" role="option"
+                            @onclick="() => Abrir(resultado.Item)">
+                        <span class="d-block">@resultado.Item.Titulo</span>
+                        <small class="text-secondary">@resultado.Ruta</small>
+                    </button>
+                }
+            }
+        </div>
+    }
+    else
+    {
     <ul class="seepos-lista-menu nav flex-column flex-grow-1 px-2 pb-2 mb-0">
         @foreach (var raiz in FiltroMenu.Visibles(MenuSeePos.Items, Sesion))
         {
@@ -54,6 +94,7 @@
             </li>
         }
     </ul>
+    }
 
     <div class="seepos-lateral-control">
         <button type="button" class="btn seepos-lateral-control-boton w-100" @onclick="AlAlternar"
@@ -80,6 +121,29 @@
     private string? _raizAbierta;
     private string? _hijoAbierto;
     private string? _idPendienteDeMostrar;
+    private string _busqueda = "";
+
+    private IEnumerable<ResultadoMenu> ResultadosBusqueda
+        => BuscarOpciones(FiltroMenu.Visibles(MenuSeePos.Items, Sesion), Array.Empty<string>())
+            .Where(r => r.Item.Titulo.Contains(_busqueda.Trim(), StringComparison.OrdinalIgnoreCase)
+                     || r.Ruta.Contains(_busqueda.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<ResultadoMenu> BuscarOpciones(IEnumerable<ItemMenu> items, IReadOnlyList<string> padres)
+    {
+        foreach (var item in items)
+        {
+            var ruta = padres.Concat(new[] { item.Titulo }).ToArray();
+            if (!item.EsGrupo && item.Ruta is not null)
+                yield return new ResultadoMenu(item, string.Join(" → ", ruta[..^1]));
+
+            foreach (var resultado in BuscarOpciones(FiltroMenu.Visibles(item.Hijos, Sesion), ruta))
+                yield return resultado;
+        }
+    }
+
+    private void LimpiarBusqueda() => _busqueda = "";
+
+    private sealed record ResultadoMenu(ItemMenu Item, string Ruta);
 
     private string RutaActual => Navegacion.ToBaseRelativePath(Navegacion.Uri).Trim('/');
 

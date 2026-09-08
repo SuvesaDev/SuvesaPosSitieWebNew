@@ -2,6 +2,7 @@
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.DTOs.Compras
 @using SuvesaPosSitioAplicacion.Services
+@inject IRelojEquipo RelojEquipo
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @using Havit.Blazor.Components.Web.Bootstrap
 @inject IOrdenesCompraFlujo Api
@@ -198,6 +199,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _fecha = await RelojEquipo.HoyAsync();
         _proveedores = (await Respuestas.DatoAsync(await Proveedores.Obtener(), "consultar los proveedores"))
                        ?.Where(p => p.Inhabilitado != true).OrderBy(p => p.Nombre).ToList() ?? new();
         _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))?.Where(m => m.Estado).ToList() ?? new();
@@ -265,6 +267,7 @@
         if (!await Dialogos.ConfirmarAsync("¿Registrar esta orden de compra?")) return;
 
         _guardando = true;
+        _fecha = await RelojEquipo.HoyAsync();
         try
         {
             var cmd = new CrearOrdenCompraWebDTO

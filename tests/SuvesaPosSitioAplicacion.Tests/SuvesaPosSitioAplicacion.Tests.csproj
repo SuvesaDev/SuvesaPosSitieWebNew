@@ -23,9 +23,24 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Copia de DevSuvesaPosWeb/ApiSuvesaPos/SecuritySystem/Seed/seed-seguridad.json.
-         Regenerar con tools/generar_semilla_seguridad.py en el repo del API. -->
-    <EmbeddedResource Include="Fixtures\seed-seguridad.json" />
+    <!-- Se embebe la copia local: en CI solo se clona este repo (el del API no
+         está como carpeta hermana). La copia se mantiene fresca con el target
+         SincronizarSemillaSeguridad. -->
+    <EmbeddedResource Include="Fixtures\seed-seguridad.json" LogicalName="SuvesaPosSitioAplicacion.Tests.Fixtures.seed-seguridad.json" />
   </ItemGroup>
+
+  <!-- Fuente única: cuando el repo del API está como carpeta hermana (máquina de
+       desarrollo), su semilla generada sobrescribe la copia local antes de
+       compilar, para que no quede desincronizada. En CI el archivo no existe y
+       este paso simplemente no hace nada. -->
+  <Target Name="SincronizarSemillaSeguridad" BeforeTargets="BeforeBuild">
+    <PropertyGroup>
+      <SemillaApi>$(MSBuildProjectDirectory)\..\..\..\DevSuvesaPosWeb\ApiSuvesaPos\SecuritySystem\Seed\seed-seguridad.json</SemillaApi>
+    </PropertyGroup>
+    <Copy SourceFiles="$(SemillaApi)"
+          DestinationFiles="$(MSBuildProjectDirectory)\Fixtures\seed-seguridad.json"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(SemillaApi)')" />
+  </Target>
 
 </Project>

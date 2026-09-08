@@ -12,6 +12,7 @@
 @inject IImpresionDocumentos Impresion
 @inject IServicioDialogos Dialogos
 @inject NavigationManager Nav
+@inject IRelojEquipo RelojEquipo
 
 <AppPantalla Pantalla="Estados de Consignación" Codigo="CONSIGNACION.ESTADOS_DE_CONSIGNACION" Icono="bi-clipboard2-check"
              Subtitulo="Saldo inicial, físico, venta facturada, recargas, retiros y saldo final por visita" Nivel="NivelPantalla.Tableta">
@@ -61,7 +62,7 @@
  private LiquidacionConsignacion? _liquidacion;
  private string? _pdf;
  private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
- protected override async Task OnInitializedAsync() { await CargarLista(); if (Id > 0) await Abrir(Id); }
+ protected override async Task OnInitializedAsync() { var hoy = await RelojEquipo.HoyAsync(); _desde = hoy.AddDays(-30); _hasta = hoy; await CargarLista(); if (Id > 0) await Abrir(Id); }
  private async Task CargarLista() { var r = await Api.LiquidacionesAsync(new() { Desde = _desde, Hasta = _hasta }); _lista = Ok(r) ? r.Responses! : new(); }
  private Task Abrir() => Abrir(_id);
  private async Task Abrir(long id) { if (id <= 0) return; _cargando = true; var r = await Api.LiquidacionAsync(id); _cargando = false; if (Ok(r)) { _id = id; _liquidacion = r.Responses; _pdf = null; } else await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo cargar el estado."); }
