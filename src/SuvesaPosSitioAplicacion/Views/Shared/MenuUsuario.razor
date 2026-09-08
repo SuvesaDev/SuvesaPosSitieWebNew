@@ -1,0 +1,115 @@
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Security
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IContextoSesion Sesion
+@inject IUsuarios Usuarios
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+@* Menú de la barra superior: avatar con iniciales + acciones de cuenta.
+   Autoservicio de credenciales (clave interna / contraseña de ingreso). *@
+
+<div class="seepos-menu-usuario">
+    <button type="button" class="seepos-avatar" title="@(Sesion.NombreUsuario)" aria-haspopup="true"
+            aria-expanded="@_abierto.ToString().ToLowerInvariant()" @onclick="() => _abierto = !_abierto">
+        @Sesion.InicialesUsuario
+    </button>
+
+    @if (_abierto)
+    {
+        <button type="button" class="seepos-menu-usuario-fondo" aria-label="Cerrar menú" @onclick="() => _abierto = false"></button>
+        <div class="dropdown-menu dropdown-menu-end show seepos-menu-usuario-panel">
+            <div class="px-3 py-2">
+                <div class="fw-semibold text-body">@Sesion.NombreUsuario</div>
+                @if (!string.IsNullOrWhiteSpace(Sesion.CorreoUsuario))
+                {
+                    <div class="small text-secondary">@Sesion.CorreoUsuario</div>
+                }
+                else
+                {
+                    <div class="small text-secondary">@Sesion.Usuario</div>
+                }
+            </div>
+            <div class="dropdown-divider"></div>
+            <button type="button" class="dropdown-item" @onclick="AbrirClaveInterna">
+                <i class="bi bi-key me-2" aria-hidden="true"></i>Actualizar clave interna
+            </button>
+            <button type="button" class="dropdown-item" @onclick="AbrirContrasena">
+                <i class="bi bi-shield-lock me-2" aria-hidden="true"></i>Cambiar contraseña de ingreso
+            </button>
+            <div class="dropdown-divider"></div>
+            <button type="button" class="dropdown-item text-danger" @onclick="OnSalir">
+                <i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>Salir
+            </button>
+        </div>
+    }
+</div>
+
+<HxModal @ref="_modalClaveInterna" Title="Actualizar clave interna" Size="ModalSize.Regular">
+    <BodyTemplate>
+        <p class="small text-secondary">Es la clave que autoriza operaciones de caja. Debe ser única entre los usuarios.</p>
+        <div class="mb-2"><label class="form-label">Clave interna actual</label><input type="password" class="form-control" @bind="_ci.Actual" /></div>
+        <div class="mb-2"><label class="form-label">Nueva clave interna</label><input type="password" class="form-control" @bind="_ci.Nueva" /></div>
+        <div class="mb-0"><label class="form-label">Confirmar nueva</label><input type="password" class="form-control" @bind="_ci.Confirmar" /></div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-outline-secondary" @onclick="() => _modalClaveInterna.HideAsync()">Cancelar</button>
+        <AppBoton Texto="Guardar" TextoOcupado="Guardando..." Icono="bi-check2" OnClick="GuardarClaveInterna" />
+    </FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalContrasena" Title="Cambiar contraseña de ingreso" Size="ModalSize.Regular">
+    <BodyTemplate>
+        <p class="small text-secondary">Se usará la próxima vez que inicie sesión.</p>
+        <div class="mb-2"><label class="form-label">Contraseña actual</label><input type="password" class="form-control" @bind="_cp.Actual" /></div>
+        <div class="mb-2"><label class="form-label">Nueva contraseña</label><input type="password" class="form-control" @bind="_cp.Nueva" /></div>
+        <div class="mb-0"><label class="form-label">Confirmar nueva</label><input type="password" class="form-control" @bind="_cp.Confirmar" /></div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-outline-secondary" @onclick="() => _modalContrasena.HideAsync()">Cancelar</button>
+        <AppBoton Texto="Guardar" TextoOcupado="Guardando..." Icono="bi-check2" OnClick="GuardarContrasena" />
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    [Parameter] public EventCallback OnSalir { get; set; }
+
+    private bool _abierto;
+    private HxModal _modalClaveInterna = default!;
+    private HxModal _modalContrasena = default!;
+
+    private sealed class CambioCred { public string Actual = ""; public string Nueva = ""; public string Confirmar = ""; }
+    private CambioCred _ci = new();
+    private CambioCred _cp = new();
+
+    private async Task AbrirClaveInterna() { _abierto = false; _ci = new(); await _modalClaveInterna.ShowAsync(); }
+    private async Task AbrirContrasena() { _abierto = false; _cp = new(); await _modalContrasena.ShowAsync(); }
+
+    private static string? Validar(CambioCred c) =>
+        string.IsNullOrWhiteSpace(c.Actual) ? "Indique el valor actual."
+        : string.IsNullOrWhiteSpace(c.Nueva) ? "Indique el valor nuevo."
+        : c.Nueva != c.Confirmar ? "La confirmación no coincide."
+        : c.Nueva == c.Actual ? "El valor nuevo debe ser distinto al actual."
+        : null;
+
+    private async Task GuardarClaveInterna()
+    {
+        if (Validar(_ci) is { } err) { await Dialogos.ErrorAsync(err); return; }
+        if (await Respuestas.CorrectaAsync(await Usuarios.CambiarClaveInterna(_ci.Actual, _ci.Nueva), "cambiar la clave interna"))
+        {
+            Dialogos.Exito("Clave interna actualizada.");
+            await _modalClaveInterna.HideAsync();
+        }
+    }
+
+    private async Task GuardarContrasena()
+    {
+        if (Validar(_cp) is { } err) { await Dialogos.ErrorAsync(err); return; }
+        if (await Respuestas.CorrectaAsync(await Usuarios.CambiarContrasenaIngreso(_cp.Actual, _cp.Nueva), "cambiar la contraseña de ingreso"))
+        {
+            Dialogos.Exito("Contraseña de ingreso actualizada. Se usará en el próximo inicio de sesión.");
+            await _modalContrasena.HideAsync();
+        }
+    }
+}

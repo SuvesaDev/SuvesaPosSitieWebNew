@@ -1,0 +1,236 @@
+@page "/initial/downPayment"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IEntregasCuenta Api
+@inject ICajaOperaciones Caja
+@inject ICompras Compras
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  Ola 5 — adelanto de dinero de un cliente contra futuras facturas ("Entrega a
+    Cuenta"). Igual que Facturación, exige que el usuario tenga una caja abierta
+    (se resuelve con ICajaOperaciones, el mismo proxy que ya usan las pantallas
+    de Caja).
+
+    El sistema actual tiene un boton "Anular" que llama al MISMO endpoint de
+    creacion con un id en la URL — el propio codigo lo marca con
+    "//TODO: CAMBIAR URL" y nunca se corrigio. No hay endpoint real de anulacion,
+    asi que ese boton no se replica. *@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="() => _modalBuscar.ShowAsync()">
+            <i class="bi bi-search me-1" aria-hidden="true"></i>Buscar
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nueva entrega</button>
+    </Acciones>
+    <ChildContent>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-3 border rounded bg-body-tertiary">
+            @if (_desbloqueada)
+            {
+                <div><strong><i class="bi bi-unlock-fill me-2 text-success" aria-hidden="true"></i>Desbloqueado</strong><span class="text-secondary ms-2">Responsable: @_usuario?.Nombre</span></div>
+            }
+            else
+            {
+                <div><strong><i class="bi bi-lock-fill me-2 text-warning" aria-hidden="true"></i>Bloqueado</strong><span class="text-secondary ms-2">Ingrese la clave interna para comenzar.</span></div>
+                <button type="button" class="btn btn-sm btn-primary" @onclick="() => _modalDesbloqueo.ShowAsync()">Desbloquear</button>
+            }
+        </div>
+
+        <fieldset disabled="@(!_desbloqueada)" class="border-0 p-0 m-0">
+        <div class="card">
+            <div class="card-body row g-3">
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Identificación del cliente</label>
+                    <div class="input-group">
+                        <input class="form-control" @bind="_cedula" @onkeydown="BuscarClienteConEnter" />
+                        <button type="button" class="btn btn-outline-primary" @onclick="BuscarCliente"><i class="bi bi-search" aria-hidden="true"></i></button>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3"><label class="form-label">Nombre</label><input class="form-control" disabled value="@_nombreCliente" /></div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Moneda</label>
+                    <select class="form-select" @bind="_moneda"><option value="0">Seleccione...</option>@foreach (var m in _monedas) { <option value="@m.CodMoneda">@m.MonedaNombre</option> }</select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Forma de pago</label>
+                    <select class="form-select" @bind="_formaPago"><option value="">Seleccione...</option>@foreach (var f in _formasPago) { <option value="@f.Codigo">@f.Descripcion</option> }</select>
+                </div>
+                <div class="col-12 col-md-3"><label class="form-label">Monto</label><input type="number" min="0" step="0.01" class="form-control" @bind="_monto" /></div>
+                <div class="col-12 col-md-3"><label class="form-label">Responsable</label><input class="form-control" disabled value="@_usuario?.Nombre" /></div>
+                <div class="col-12 col-md-3"><label class="form-label">Fecha</label><input type="date" class="form-control" disabled value="@_fecha.ToString("yyyy-MM-dd")" /></div>
+            </div>
+        </div>
+
+        <button class="btn btn-primary mt-3" disabled="@(_guardando || string.IsNullOrWhiteSpace(_cedula) || _monto <= 0)" @onclick="Guardar">
+            @(_guardando ? "Guardando..." : "Registrar entrega a cuenta")
+        </button>
+        </fieldset>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modalDesbloqueo" Title="Desbloquear entrega a cuenta" Size="ModalSize.Regular">
+    <BodyTemplate>
+        <label class="form-label" for="clave-entrega">Clave interna</label>
+        <input id="clave-entrega" type="password" class="form-control" autocomplete="current-password" @bind="_claveInterna" @onkeydown="DesbloquearConEnter" />
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-primary" disabled="@_validandoClave" @onclick="Desbloquear">@(_validandoClave ? "Validando..." : "Desbloquear")</button>
+    </FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalBuscar" Title="Buscar entregas a cuenta" Size="ModalSize.Large">
+    <BodyTemplate>
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-12 col-md-5"><label class="form-label">Cédula del cliente</label><input class="form-control" @bind="_filtroCedula" /></div>
+            <div class="col-12 col-md-5"><label class="form-label">Nombre</label><input class="form-control" @bind="_filtroNombre" /></div>
+            <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-primary" @onclick="BuscarEntregas">Buscar</button></div>
+        </div>
+        @if (_entregasEncontradas.Count == 0) { <p class="text-secondary text-center py-3 mb-0">Sin resultados todavía.</p> }
+        else { <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Cliente</th><th>Fecha</th><th>Moneda</th><th class="text-end">Monto</th></tr></thead><tbody>@foreach (var e in _entregasEncontradas) { <tr><td>@e.Nombre</td><td>@e.Fecha.ToString("dd/MM/yyyy")</td><td>@e.Moneda</td><td class="text-end">@Formato.Importe(e.Monto)</td></tr> }</tbody></table></div> }
+    </BodyTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Entrega a Cuenta";
+
+    private HxModal _modalDesbloqueo = default!, _modalBuscar = default!;
+
+    private bool _desbloqueada, _validandoClave;
+    private string _claveInterna = string.Empty;
+    private Usuario? _usuario;
+    private long _numApertura;
+
+    private List<Moneda> _monedas = new();
+    private List<FormasPagoDTO> _formasPago = new();
+
+    private string _cedula = string.Empty;
+    private string _nombreCliente = string.Empty;
+    private int _moneda;
+    private string _formaPago = string.Empty;
+    private decimal _monto;
+    private DateTime _fecha = DateTime.Today;
+    private bool _guardando;
+
+    private string _filtroCedula = string.Empty;
+    private string _filtroNombre = string.Empty;
+    private List<EntregaCuentaDTO> _entregasEncontradas = new();
+
+    private async Task DesbloquearConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await Desbloquear(); }
+
+    private async Task Desbloquear()
+    {
+        if (string.IsNullOrWhiteSpace(_claveInterna)) { await Dialogos.ErrorAsync("Ingrese la clave interna."); return; }
+        _validandoClave = true;
+        var r = await Caja.ValidarClaveInterna(_claveInterna);
+        _validandoClave = false;
+        if (!r.EsCorrecta || r.Responses is null)
+        {
+            _claveInterna = string.Empty;
+            await Dialogos.ErrorAsync(r.Excepcion ?? "Contraseña incorrecta.");
+            return;
+        }
+
+        _usuario = r.Responses;
+        _claveInterna = string.Empty;
+
+        var cajeros = await Respuestas.DatoAsync(await Caja.CajerosConCajaAbierta(), "consultar la caja abierta");
+        var cajero = cajeros?.FirstOrDefault(c => string.Equals(c.Nombre, _usuario.Nombre, StringComparison.OrdinalIgnoreCase));
+        if (cajero is null)
+        {
+            await Dialogos.ErrorAsync("Este usuario no tiene ninguna caja abierta.", "No se pudo desbloquear");
+            return;
+        }
+        _numApertura = cajero.IdApertura;
+
+        _desbloqueada = true;
+        await _modalDesbloqueo.HideAsync();
+        await CargarCatalogos();
+    }
+
+    private async Task CargarCatalogos()
+    {
+        _formasPago = (await Respuestas.DatoAsync(await Api.FormasPago(), "consultar las formas de pago"))?.ToList() ?? new();
+        _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))?.Where(m => m.Estado).ToList() ?? new();
+        if (_moneda == 0) _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0;
+    }
+
+    private async Task BuscarClienteConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await BuscarCliente(); }
+
+    private async Task BuscarCliente()
+    {
+        if (!long.TryParse(_cedula.Trim(), out var cedula))
+        {
+            await Dialogos.ErrorAsync("Ingrese una cédula numérica válida.");
+            return;
+        }
+
+        var cliente = await Respuestas.DatoAsync(await Api.BuscarClientePorCedula(cedula), "buscar el cliente");
+        _nombreCliente = cliente?.Nombre ?? string.Empty;
+        if (cliente is null)
+        {
+            await Dialogos.ErrorAsync($"No existe ningún cliente con la cédula {_cedula}.");
+        }
+    }
+
+    private async Task BuscarEntregas()
+    {
+        var filtro = new BuscarEntregaCuentaDTO
+        {
+            Cedula = string.IsNullOrWhiteSpace(_filtroCedula) ? null : _filtroCedula,
+            Nombre = string.IsNullOrWhiteSpace(_filtroNombre) ? null : _filtroNombre
+        };
+        _entregasEncontradas = (await Respuestas.DatoAsync(await Api.Buscar(filtro), "buscar entregas a cuenta"))?.ToList() ?? new();
+    }
+
+    private async Task Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(_cedula) || _monto <= 0 || _guardando) return;
+        if (!await Dialogos.ConfirmarAsync($"¿Desea guardar la entrega a cuenta del cliente {_cedula} {_nombreCliente}?")) return;
+
+        _guardando = true;
+        var monedaSeleccionada = _monedas.FirstOrDefault(m => m.CodMoneda == _moneda);
+        var dto = new EntregaCuentaDTO
+        {
+            Monto = (float)_monto,
+            FormaPago = _formaPago,
+            Usuario = Sesion.Usuario,
+            Nombre = _nombreCliente,
+            CodMoneda = _moneda,
+            Moneda = monedaSeleccionada?.MonedaNombre,
+            Fecha = _fecha,
+            NumApertura = _numApertura,
+            MontoEntregaCuenta = (float)_monto,
+            MontoDisponibleCuenta = (float)_monto,
+            Cedula = _cedula,
+            Sucursal = Sesion.IdSucursal
+        };
+
+        var r = await Api.Crear(dto);
+        _guardando = false;
+        if (await Respuestas.CorrectaAsync(r, "registrar la entrega a cuenta"))
+        {
+            Dialogos.Exito($"Entrega a cuenta del cliente {_cedula} {_nombreCliente} agregada correctamente.");
+            LimpiarFormulario();
+        }
+    }
+
+    private void LimpiarFormulario()
+    {
+        _cedula = string.Empty;
+        _nombreCliente = string.Empty;
+        _moneda = 0;
+        _formaPago = string.Empty;
+        _monto = 0;
+        _fecha = DateTime.Today;
+    }
+
+    private void Limpiar()
+    {
+        LimpiarFormulario();
+        _desbloqueada = false;
+        _usuario = null;
+    }
+}

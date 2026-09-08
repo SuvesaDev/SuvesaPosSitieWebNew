@@ -1,0 +1,341 @@
+@page "/moduloInventario"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Lotes
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IAlbaranes Albaranes
+@inject IInventarioConsulta Inventario
+@inject ILotesApiCliente LotesApi
+@inject IManejadorRespuestas Respuestas
+
+@*  Consulta Estados Albaranes: en el sistema actual (StateBody.jsx) es un panel
+    real, gateado con clave interna, que trae las peticiones de pruebas medicas
+    de Qvet pendientes de facturar y las deja filtrar por personal/estado/prueba.
+    La version anterior de esta pantalla solo mostraba el catalogo de nombres de
+    estado, sin las peticiones de verdad detras. *@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar" aria-label="Actualizar módulo">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
+
+    <ChildContent>
+        <nav class="nav nav-pills gap-2 mb-3 seepos-editor-tabs" aria-label="Secciones del módulo de inventario">
+            <button type="button" class="btn btn-sm @ClasePestanaEstados" @onclick='() => _pestana = "estados"'>Consulta Estados Albaranes</button>
+            <button type="button" class="btn btn-sm @ClasePestanaQr" @onclick='() => _pestana = "qr"'>Inventario QR</button>
+            <button type="button" class="btn btn-sm @ClasePestanaAlertas" @onclick="AbrirAlertas">Alertas operativas</button>
+        </nav>
+
+        @if (_pestana == "estados")
+        {
+            <AppDesbloqueoClave @ref="_desbloqueo" Titulo="la consulta de peticiones" AlCambiar="AlDesbloquear" />
+
+            @if (_desbloqueo?.Desbloqueado == true)
+            {
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row g-3 mb-3 align-items-end">
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="peticion-personal">Personal</label>
+                                <input id="peticion-personal" class="form-control" list="peticion-personal-lista"
+                                       placeholder="Seleccione personal" @bind="_filtroPersonal" @bind:event="oninput" />
+                                <datalist id="peticion-personal-lista">
+                                    @foreach (var nombre in _personal) { <option value="@nombre" /> }
+                                </datalist>
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="peticion-estado">Estado</label>
+                                <select id="peticion-estado" class="form-select" @bind="_filtroEstado">
+                                    <option value="-1">Todos</option>
+                                    @foreach (var estado in _estados.OrderBy(e => e.IdEstado))
+                                    {
+                                        <option value="@estado.IdEstado">@estado.Nombre</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <label class="form-label" for="peticion-prueba">Prueba médica</label>
+                                <input id="peticion-prueba" class="form-control" list="peticion-prueba-lista"
+                                       placeholder="Seleccione prueba médica" @bind="_filtroPrueba" @bind:event="oninput" />
+                                <datalist id="peticion-prueba-lista">
+                                    @foreach (var prueba in _pruebas) { <option value="@prueba.Descripcion" /> }
+                                </datalist>
+                            </div>
+                            <div class="col-12 col-md-3 d-grid">
+                                <button type="button" class="btn btn-dark" disabled="@_cargandoPeticiones" @onclick="CargarPeticiones">
+                                    <i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>
+                                    @(_cargandoPeticiones ? "Obteniendo..." : "Obtener peticiones")
+                                </button>
+                            </div>
+                        </div>
+
+                        @if (_cargandoPeticiones)
+                        {
+                            <div class="d-flex justify-content-center py-4">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando</span></div>
+                            </div>
+                        }
+                        else if (!_peticionesCargadas)
+                        {
+                            <p class="text-secondary small mb-0">Presione "Obtener peticiones" para traer las pendientes de facturar.</p>
+                        }
+                        else if (PeticionesFiltradas.Count == 0)
+                        {
+                            <p class="text-secondary small mb-0">
+                                @(_peticiones.Count == 0 ? "No hay peticiones pendientes." : "Ninguna petición coincide con los filtros.")
+                            </p>
+                        }
+                        else
+                        {
+                            <p class="text-secondary small">@PeticionesFiltradas.Count de @_peticiones.Count peticiones</p>
+                            <div class="d-flex flex-column gap-2">
+                                @foreach (var p in PeticionesFiltradas)
+                                {
+                                    <div class="card">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <span>Referencia Qvet: <strong>@p.Referencia</strong></span>
+                                            <span class="badge @ClaseEstado(p.Estado)">@NombreEstado(p.Estado)</span>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row g-2 small">
+                                                <div class="col-6 col-md-3"><span class="text-secondary d-block">Cliente</span>@p.Cliente</div>
+                                                <div class="col-6 col-md-3"><span class="text-secondary d-block">Mascota</span>@p.Mascota</div>
+                                                <div class="col-6 col-md-3"><span class="text-secondary d-block">Responsable</span>@p.Responsable</div>
+                                                <div class="col-6 col-md-3"><span class="text-secondary d-block">Fecha</span>@p.Fecha</div>
+                                                <div class="col-6 col-md-3"><span class="text-secondary d-block">Código prueba</span>@p.IdQvet</div>
+                                                <div class="col-6 col-md-9"><span class="text-secondary d-block">Prueba médica</span>@p.Descripcion</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+        else if (_pestana == "alertas")
+        {
+            <div class="card">
+                <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                    <div><strong>Control operativo de inventario</strong><span class="d-block small text-secondary">Negativos, vencidos con saldo, mínimos por bodega y movimientos sin documento.</span></div>
+                    <button class="btn btn-sm btn-outline-primary" disabled="@_cargandoAlertas" @onclick="CargarAlertas"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>@(_cargandoAlertas ? "Actualizando..." : "Actualizar")</button>
+                </div>
+                <div class="card-body">
+                    @if (_cargandoAlertas)
+                    {
+                        <div class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando alertas</span></div></div>
+                    }
+                    else if (_alertasOperativas is null)
+                    {
+                        <p class="text-secondary mb-0">Presione “Actualizar” para consultar el control de inventario.</p>
+                    }
+                    else if (_alertasOperativas.Alertas.Count == 0)
+                    {
+                        <div class="alert alert-success mb-0"><i class="bi bi-check-circle me-2" aria-hidden="true"></i>No hay alertas operativas de inventario.</div>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <span class="badge text-bg-danger">@_alertasOperativas.Alertas.Count(a => a.Severidad == "Crítica") críticas</span>
+                            <span class="badge text-bg-warning">@_alertasOperativas.Alertas.Count(a => a.Severidad != "Crítica") advertencias</span>
+                            <span class="small text-secondary align-self-center">Generado @(_alertasOperativas.GeneradoEn.ToString("dd/MM/yyyy HH:mm")); movimientos sin documento desde @(_alertasOperativas.DesdeMovimientosSinDocumento.ToString("dd/MM/yyyy")).</span>
+                        </div>
+                        <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Alerta</th><th>Artículo</th><th>Bodega</th><th>Lote / vencimiento</th><th class="text-end">Existencia</th><th class="text-end">Mínimo</th><th>Referencia</th></tr></thead><tbody>
+                            @foreach (var alerta in _alertasOperativas.Alertas)
+                            {
+                                <tr><td><span class="badge @(alerta.Severidad == "Crítica" ? "text-bg-danger" : "text-bg-warning")">@NombreAlerta(alerta.Tipo)</span></td><td><code>@alerta.CodigoArticulo</code><span class="d-block">@alerta.DescripcionArticulo</span></td><td>@(alerta.NombreBodega ?? "—")</td><td>@(alerta.NumeroLote ?? "—")@if (alerta.Vencimiento is { } vence) { <span class="d-block small text-danger">Vence @vence.ToString("dd/MM/yyyy")</span> }</td><td class="text-end @(alerta.Existencia < 0 ? "text-danger fw-semibold" : "")">@Formato.Cantidad(alerta.Existencia)</td><td class="text-end">@(alerta.Minimo is { } minimo ? Formato.Cantidad(minimo) : "—")</td><td>@if (alerta.FechaMovimiento is { } fecha) { <span class="small">Movimiento @fecha.ToString("dd/MM/yyyy HH:mm")</span> } else { <span class="text-secondary">—</span> }</td></tr>
+                            }
+                        </tbody></table></div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h5">Consulta por código</h2>
+                    <p class="text-secondary small">Admite el valor capturado por un lector QR o de barras; esta Ola solo consulta, no altera existencias.</p>
+                    <div class="input-group mb-3">
+                        <input type="search" class="form-control" aria-label="Código QR o de barras"
+                               placeholder="Código QR o de barras..." @bind="_codigo" @bind:event="onchange" />
+                        <button class="btn btn-primary" @onclick="BuscarArticulo">Consultar</button>
+                    </div>
+
+                    @if (_consultaHecha && _articulos.Count == 0)
+                    {
+                        <p class="text-secondary small mb-0">No se encontró un artículo para ese código.</p>
+                    }
+                    else if (_articulos.Count > 0)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Código</th><th>Descripción</th><th class="seepos-importe">Existencia</th></tr></thead>
+                                <tbody>
+                                    @foreach (var articulo in _articulos)
+                                    {
+                                        <tr>
+                                            <td><code>@articulo.Cod_Articulo</code></td>
+                                            <td>@articulo.Descripcion</td>
+                                            <td class="seepos-importe">@Formato.Cantidad(articulo.Existencia)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Módulo Inventario";
+
+    private string _pestana = "estados";
+    private string ClasePestanaEstados => _pestana == "estados" ? "btn-primary" : "btn-outline-primary";
+    private string ClasePestanaQr => _pestana == "qr" ? "btn-primary" : "btn-outline-primary";
+    private string ClasePestanaAlertas => _pestana == "alertas" ? "btn-primary" : "btn-outline-primary";
+
+    private AppDesbloqueoClave? _desbloqueo;
+
+    private List<EstadoAlbaranesDTO> _estados = new();
+    private List<PruebasMedicas> _pruebas = new();
+    private List<Peticion> _peticiones = new();
+    private List<string> _personal = new();
+    private bool _peticionesCargadas;
+    private bool _cargandoPeticiones;
+
+    private string _filtroPersonal = string.Empty;
+    private string _filtroPrueba = string.Empty;
+    private int _filtroEstado = -1;
+
+    private List<InventarioDTO> _articulos = new();
+    private string _codigo = string.Empty;
+    private bool _consultaHecha;
+    private ReporteAlertasInventario? _alertasOperativas;
+    private bool _cargandoAlertas;
+
+    private sealed record Peticion(
+        string Cliente, string Mascota, string Responsable, string Fecha,
+        long Referencia, long IdQvet, string Descripcion, int Estado);
+
+    private List<Peticion> PeticionesFiltradas => _peticiones.Where(p =>
+        (string.IsNullOrWhiteSpace(_filtroPersonal) || p.Responsable.Contains(_filtroPersonal, StringComparison.OrdinalIgnoreCase)) &&
+        (_filtroEstado < 0 || p.Estado == _filtroEstado) &&
+        (string.IsNullOrWhiteSpace(_filtroPrueba) || p.Descripcion.Contains(_filtroPrueba, StringComparison.OrdinalIgnoreCase)))
+        .ToList();
+
+    private async Task Recargar()
+    {
+        _consultaHecha = false;
+        _articulos = new List<InventarioDTO>();
+
+        if (_desbloqueo?.Desbloqueado == true)
+        {
+            await CargarPeticiones();
+        }
+        if (_pestana == "alertas") await CargarAlertas();
+    }
+
+    private async Task AbrirAlertas()
+    {
+        _pestana = "alertas";
+        if (_alertasOperativas is null) await CargarAlertas();
+    }
+
+    private async Task CargarAlertas()
+    {
+        _cargandoAlertas = true;
+        try
+        {
+            var respuesta = await LotesApi.AlertasOperativasAsync();
+            if (respuesta.Status == DTOs.Generated.ResponseStatus._0)
+                _alertasOperativas = respuesta.Responses;
+            else
+                await Respuestas.CorrectaAsync(new Helpers.ResponseGeneric<bool>(respuesta.CurrentException ?? "No se pudo obtener el reporte operativo."), "consultar las alertas operativas");
+        }
+        finally
+        {
+            _cargandoAlertas = false;
+        }
+    }
+
+    private static string NombreAlerta(string tipo) => tipo switch
+    {
+        "ExistenciaNegativa" => "Existencia negativa",
+        "LoteVencidoConSaldo" => "Lote vencido con saldo",
+        "BajoMinimo" => "Bajo mínimo",
+        "MovimientoSinDocumento" => "Movimiento sin documento",
+        _ => tipo
+    };
+
+    private async Task AlDesbloquear(bool desbloqueado)
+    {
+        if (!desbloqueado) return;
+
+        _estados = (await Respuestas.DatoAsync(await Albaranes.Estados(), "consultar los estados de albaranes"))
+            ?.ToList() ?? new List<EstadoAlbaranesDTO>();
+        _pruebas = (await Respuestas.DatoAsync(await Albaranes.PruebasMedicas(), "consultar las pruebas médicas"))
+            ?.ToList() ?? new List<PruebasMedicas>();
+
+        await CargarPeticiones();
+    }
+
+    private async Task CargarPeticiones()
+    {
+        _cargandoPeticiones = true;
+        StateHasChanged();
+
+        var albaranes = (await Respuestas.DatoAsync(await Albaranes.PendientesDeFacturarFiltrado(), "consultar las peticiones pendientes"))
+            ?.ToList() ?? new List<VentaDTO>();
+
+        _peticiones = albaranes
+            .SelectMany(a => (a.ListaLineas ?? new List<VentaDetalleDTO>()).Select(l => new Peticion(
+                a.Cliente ?? "—",
+                a.Mascota ?? "—",
+                a.ResponsableVenta ?? "—",
+                FormatearFecha(a.Fecha),
+                a.Id,
+                l.IdQvet,
+                l.Descripcion ?? "—",
+                l.Estado)))
+            .ToList();
+
+        _personal = _peticiones.Select(p => p.Responsable).Distinct().OrderBy(n => n).ToList();
+        _peticionesCargadas = true;
+        _cargandoPeticiones = false;
+        StateHasChanged();
+    }
+
+    private static string FormatearFecha(object? fecha)
+        => DateTime.TryParse(fecha?.ToString(), out var valor) ? valor.ToString("dd/MM/yyyy HH:mm") : "—";
+
+    private string NombreEstado(int estado)
+        => _estados.FirstOrDefault(e => e.IdEstado == estado)?.Nombre ?? estado.ToString();
+
+    // Mismos tres colores que el sistema actual: 0 pendiente (rojo), 1 en proceso
+    // (amarillo), 2 listo (verde). Cualquier otro valor no deberia llegar, pero
+    // se pinta neutro en vez de fallar si algun dia Qvet agrega un estado nuevo.
+    private static string ClaseEstado(int estado) => estado switch
+    {
+        0 => "text-bg-danger",
+        1 => "text-bg-warning",
+        2 => "text-bg-success",
+        _ => "text-bg-secondary"
+    };
+
+    private async Task BuscarArticulo()
+    {
+        _articulos = _codigo.Trim().Length < 2
+            ? new List<InventarioDTO>()
+            : (await Respuestas.DatoAsync(await Inventario.Buscar(_codigo), "consultar el artículo"))
+                ?.ToList() ?? new List<InventarioDTO>();
+        _consultaHecha = true;
+    }
+}

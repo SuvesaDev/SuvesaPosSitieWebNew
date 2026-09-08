@@ -1,0 +1,133 @@
+using Havit.Blazor.Components.Web.Bootstrap;
+using SuvesaPosSitioAplicacion.DTOs.Fiscal;
+
+namespace SuvesaPosSitioAplicacion.Views.Parametros;
+
+// REDISENO_TIPOS_SERIES_CONDICION.md: el Tipo de Documento ya no lleva
+// Contado/Credito ni el switch de documento electrónico — eso vive ahora en
+// la Serie de Facturación (Views/Parametros/SeriesFacturacionFiscal.razor).
+public partial class TiposFacturaFiscal
+{
+    private const string Titulo = "Tipos de Factura";
+
+    private HxModal _modal = default!;
+    private List<TipoFacturaFiscalDTO> _tipos = new();
+    private TipoFacturaFiscalDTO? _edicion;
+    private bool _esNuevo, _guardando, _cargado;
+    private int _filtroUso;
+    private int _filtroTiquete;
+    private readonly List<string> _avisos = new();
+
+    private string TituloModal => _esNuevo ? "Nuevo tipo de documento" : "Editar tipo de documento";
+
+    private List<TipoFacturaFiscalDTO> Filtrados => _tipos
+        .Where(t => _filtroUso == 0 || (int)t.Uso == _filtroUso)
+        .Where(t => _filtroTiquete switch
+        {
+            1 => t.Uso == UsoTipoDocumento.Facturacion && t.EsTiquete,
+            2 => !(t.Uso == UsoTipoDocumento.Facturacion && t.EsTiquete),
+            _ => true,
+        })
+        .OrderBy(t => t.Uso).ThenBy(t => t.Descripcion)
+        .ToList();
+
+    protected override async Task OnInitializedAsync() => await CargarTipos();
+
+    private async Task CargarTipos()
+    {
+        if (_cargado) return;
+        _tipos = (await Respuestas.DatoAsync(await Api.Obtener(), "consultar los tipos de documento"))?.ToList() ?? new();
+        _cargado = true;
+    }
+
+    private async Task Recargar()
+    {
+        _cargado = false;
+        await CargarTipos();
+    }
+
+    private async Task Agregar()
+    {
+        _esNuevo = true;
+        // El código interno es correlativo y no lo captura el usuario.
+        var siguienteCodigo = _tipos.Count == 0 ? 1 : _tipos.Max(t => t.Codigo) + 1;
+        _edicion = new TipoFacturaFiscalDTO { Codigo = siguienteCodigo, Uso = UsoTipoDocumento.Facturacion, Activo = true };
+        RecalcularAvisos();
+        await _modal.ShowAsync();
+    }
+
+    private async Task Editar(TipoFacturaFiscalDTO tipo)
+    {
+        _esNuevo = false;
+        _edicion = new TipoFacturaFiscalDTO
+        {
+            Id = tipo.Id,
+            Codigo = tipo.Codigo,
+            Descripcion = tipo.Descripcion,
+            Uso = tipo.Uso,
+            Activo = tipo.Activo,
+            EsTiquete = tipo.EsTiquete,
+        };
+        RecalcularAvisos();
+        await _modal.ShowAsync();
+    }
+
+    private void RecalcularAvisos()
+    {
+        _avisos.Clear();
+        if (_edicion is null) return;
+
+        // Un tipo Tiquete solo tiene sentido en Facturación; al cambiar de uso se apaga
+        // en vez de dejar un estado incoherente que el API rechazaría (decisión A0).
+        if (_edicion.Uso != UsoTipoDocumento.Facturacion && _edicion.EsTiquete)
+            _edicion.EsTiquete = false;
+
+        if (_edicion.Codigo <= 0) _avisos.Add("Indique el código interno.");
+        if (string.IsNullOrWhiteSpace(_edicion.Descripcion)) _avisos.Add("Indique la descripción.");
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null || _guardando) return;
+        _edicion.Descripcion = _edicion.Descripcion?.Trim();
+        RecalcularAvisos();
+        if (_avisos.Count > 0) return;
+
+        _guardando = true;
+        var r = _esNuevo ? await Api.Crear(_edicion) : await Api.Actualizar(_edicion);
+        _guardando = false;
+        if (await Respuestas.CorrectaAsync(r, "guardar el tipo de documento"))
+        {
+            Dialogos.Exito(_esNuevo ? "Tipo de documento creado." : "Tipo de documento actualizado.");
+            await _modal.HideAsync();
+            await Recargar();
+        }
+    }
+
+    private static string UsoTexto(UsoTipoDocumento u) => u switch
+    {
+        UsoTipoDocumento.Facturacion => "Facturación",
+        UsoTipoDocumento.Devolucion => "Devolución",
+        UsoTipoDocumento.Compra => "Compra",
+        UsoTipoDocumento.Consignacion => "Consignación",
+        _ => u.ToString()
+    };
+
+    private static string UsoBadge(UsoTipoDocumento u) => u switch
+    {
+        UsoTipoDocumento.Facturacion => "text-bg-primary",
+        UsoTipoDocumento.Devolucion => "text-bg-danger",
+        UsoTipoDocumento.Compra => "text-bg-secondary",
+        UsoTipoDocumento.Consignacion => "text-bg-info",
+        _ => "text-bg-light"
+    };
+
+    private static string UsoAyuda(UsoTipoDocumento u) => u switch
+    {
+        UsoTipoDocumento.Facturacion => "Aparece en Facturación. La condición (contado/crédito) y el documento electrónico se configuran por Serie.",
+        UsoTipoDocumento.Devolucion => "Aparece solo en Devoluciones de venta.",
+        UsoTipoDocumento.Compra => "Aparece en Compras.",
+        UsoTipoDocumento.Consignacion => "Para las series de consignación.",
+        _ => string.Empty
+    };
+}

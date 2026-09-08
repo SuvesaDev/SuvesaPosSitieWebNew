@@ -1,0 +1,122 @@
+using System.Net.Http.Json;
+using SuvesaPosSitioAplicacion.ApiConexion.Generated;
+using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
+using SuvesaPosSitioAplicacion.DTOs.Generated;
+using SuvesaPosSitioAplicacion.DTOs.Seguridad;
+using SuvesaPosSitioAplicacion.Helpers;
+using SuvesaPosSitioAplicacion.Security;
+
+namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
+
+/// <inheritdoc cref="IUsuarios" />
+public sealed class Usuarios : ProxyBase, IUsuarios
+{
+    private readonly IUsuarioApiCliente _api;
+    private readonly ISeguridadApiCliente _seguridad;
+    private readonly IHttpClientFactory _clientes;
+
+    public Usuarios(
+        IUsuarioApiCliente api,
+        ISeguridadApiCliente seguridad,
+        IHttpClientFactory clientes,
+        IContextoSesion sesion,
+        ILogger<Usuarios> log)
+        : base(sesion, log)
+    {
+        _api = api;
+        _seguridad = seguridad;
+        _clientes = clientes;
+    }
+
+    public Task<ResponseGeneric<ICollection<BuscarUsuarioDTO>>> Buscar(string? texto)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.BuscarUsuariosAsync(new BuscarUsuarioDTO
+            {
+                // El API interpreta Nombre nulo como "sin criterio" y devuelve una
+                // lista vacía. Una cadena vacía conserva el filtro y trae todos.
+                Nombre = texto ?? string.Empty
+            });
+
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "buscar usuarios");
+
+    public Task<ResponseGeneric<UsuarioDetalleDTO>> ObtenerUno(string idUsuario)
+        => Ejecutar(async () =>
+        {
+            // El "id" que hace falta mandar aqui es texto (el usuario de acceso), y el
+            // cliente generado lo tipa como long? porque asi lo declara el OpenAPI.
+            var cliente = _clientes.CreateClient("SeePosApi");
+            var respuesta = await cliente.PostAsync(
+                $"usuario/ObtenerUnUsuario?id={Uri.EscapeDataString(idUsuario)}", null);
+
+            respuesta.EnsureSuccessStatusCode();
+
+            var r = await respuesta.Content.ReadFromJsonAsync<SeguridadEnvelope<UsuarioDetalleDTO>>()
+                     ?? throw new InvalidOperationException("Respuesta vacia del API.");
+
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "obtener el usuario");
+
+    public Task<ResponseGeneric<UsuarioAltaDTO>> Crear(UsuarioAltaDTO usuario)
+        => Ejecutar(async () =>
+        {
+            var r = await _seguridad.CrearUsuarioAsync(usuario);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "crear el usuario");
+
+    public Task<ResponseGeneric<UsuarioDTO>> Editar(long id, UsuarioDTO usuario)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ModificarUsuarioAsync(id, usuario);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "editar el usuario");
+
+    public Task<ResponseGeneric<bool>> CambiarPerfil(long id, int idPerfil)
+        => Ejecutar(async () =>
+        {
+            var r = await _seguridad.CambiarPerfilAsync(id, idPerfil);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "cambiar el perfil del usuario");
+
+    public Task<ResponseGeneric<bool>> CambiarRol(long id, int? idRol)
+        => Ejecutar(async () =>
+        {
+            var r = await _seguridad.CambiarRolAsync(id, idRol);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "cambiar el rol del usuario");
+
+    public Task<ResponseGeneric<bool>> CambiarClaveInterna(string actual, string nueva)
+        => AutoservicioCredencial("usuario/CambiarClaveInterna",
+            new { ClaveInternaActual = actual, ClaveInternaNueva = nueva }, "cambiar la clave interna");
+
+    public Task<ResponseGeneric<bool>> CambiarContrasenaIngreso(string actual, string nueva)
+        => AutoservicioCredencial("usuario/CambiarContrasenaIngreso",
+            new { ContrasenaActual = actual, ContrasenaNueva = nueva }, "cambiar la contraseña de ingreso");
+
+    public Task<ResponseGeneric<bool>> AdminRestablecerContrasena(string idUsuario, string nueva)
+        => AutoservicioCredencial("usuario/AdminRestablecerContrasena",
+            new { IdUsuario = idUsuario, ContrasenaNueva = nueva }, "restablecer la contraseña del usuario");
+
+    public Task<ResponseGeneric<bool>> AdminCambiarClaveInterna(string idUsuario, string nueva)
+        => AutoservicioCredencial("usuario/AdminCambiarClaveInterna",
+            new { IdUsuario = idUsuario, ClaveInternaNueva = nueva }, "cambiar la clave interna del usuario");
+
+    private Task<ResponseGeneric<bool>> AutoservicioCredencial(string ruta, object cuerpo, string queSeIntentaba)
+        => Ejecutar(async () =>
+        {
+            // Endpoints fuera del contrato NSwag; se llaman por HttpClient directo
+            // (mismo patrón que ObtenerUno). La clave viaja siempre en el cuerpo.
+            var cliente = _clientes.CreateClient("SeePosApi");
+            var respuesta = await cliente.PostAsJsonAsync(ruta, cuerpo);
+            var texto = await respuesta.Content.ReadAsStringAsync();
+            if (!respuesta.IsSuccessStatusCode)
+                return new ResponseGeneric<bool>($"El API respondió {(int)respuesta.StatusCode}: {texto}");
+
+            var r = System.Text.Json.JsonSerializer.Deserialize<SeguridadEnvelope<bool>>(
+                texto, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))
+                ?? throw new InvalidOperationException("Respuesta vacía del API.");
+
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, queSeIntentaba);
+}

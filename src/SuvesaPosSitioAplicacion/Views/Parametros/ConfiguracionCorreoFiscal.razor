@@ -1,0 +1,102 @@
+@page "/parameters/mail-settings"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Correo
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@using Havit.Blazor.Components.Web.Bootstrap
+@inject IConfiguracionCorreo Api
+@inject IEmisoresFiscales EmisoresApi
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="@Titulo" Codigo="PARAMETROS.CONFIGURACION_CORREO" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body row g-2 align-items-end">
+                <div class="col-12 col-md-6">
+                    <label class="form-label small">Emisor</label>
+                    <select class="form-select form-select-sm" @bind="_idEmisor" @bind:after="CargarEmisor">
+                        <option value="0">— Seleccione —</option>
+                        @foreach (var e in _emisores)
+                        {
+                            <option value="@e.Id">@e.Nombre (@e.Identificacion)</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        @if (_idEmisor > 0 && _cfg is not null)
+        {
+            <div class="card">
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">1 · Servidor SMTP</h6>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6"><label class="form-label">Servidor SMTP</label><input class="form-control" maxlength="200" @bind="_cfg.SmtpHost" /></div>
+                            <div class="col-6 col-md-3"><label class="form-label">Puerto</label><input class="form-control" type="number" min="1" max="65535" @bind="_cfg.SmtpPuerto" /></div>
+                            <div class="col-6 col-md-3 d-flex align-items-end">
+                                <div class="form-check"><input id="ssl" class="form-check-input" type="checkbox" @bind="_cfg.UsaSsl" /><label class="form-check-label" for="ssl">Requiere SSL/TLS</label></div>
+                            </div>
+                            <div class="col-12 col-md-6"><label class="form-label">Usuario</label><input class="form-control" maxlength="200" @bind="_cfg.Usuario" /></div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Contraseña</label>
+                                <input class="form-control" type="password" placeholder="@(_cfg.ContrasenaAsignada ? "•••• (sin cambios)" : "")" @bind="_contrasena" />
+                                <div class="form-text">@(_cfg.ContrasenaAsignada ? "Hay una contraseña guardada. Déjelo en blanco para conservarla." : "Obligatoria la primera vez.")</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">2 · Remitente</h6>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6"><label class="form-label">Nombre remitente</label><input class="form-control" maxlength="200" @bind="_cfg.RemitenteNombre" /></div>
+                            <div class="col-12 col-md-6"><label class="form-label">Correo remitente</label><input class="form-control" maxlength="200" @bind="_cfg.RemitenteCorreo" /></div>
+                            <div class="col-12"><label class="form-label">Copia oculta (BCC)</label><input class="form-control" maxlength="500" placeholder="separados por ;" @bind="_cfg.CopiaOculta" /></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">3 · Comportamiento</h6>
+                        <div class="d-flex flex-wrap gap-4">
+                            <div class="form-check form-switch"><input id="hab" class="form-check-input" type="checkbox" @bind="_cfg.Habilitado" /><label class="form-check-label" for="hab">Motor de correo habilitado</label></div>
+                            <div class="form-check form-switch"><input id="alertcorr" class="form-check-input" type="checkbox" @bind="_cfg.AlertarPorCorreo" /><label class="form-check-label" for="alertcorr">Notificar rechazos también por correo al emisor</label></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <button class="btn btn-sm btn-link px-0" @onclick="() => _personalizar = !_personalizar">
+                            <i class="bi bi-@(_personalizar ? "chevron-down" : "chevron-right") me-1"></i>Personalizar asunto y cuerpo
+                        </button>
+                        @if (_personalizar)
+                        {
+                            <div class="row g-3 mt-1">
+                                <div class="col-12"><label class="form-label">Asunto</label><input class="form-control" maxlength="300" @bind="_cfg.AsuntoPlantilla" /></div>
+                                <div class="col-12"><label class="form-label">Cuerpo (HTML)</label><textarea class="form-control" rows="4" @bind="_cfg.CuerpoPlantilla"></textarea></div>
+                                <div class="col-12"><div class="form-text">Tokens: <code>{tipo}</code> <code>{consecutivo}</code> <code>{clave}</code> <code>{emisor}</code> <code>{receptor}</code></div></div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" @onclick="Guardar" disabled="@_guardando">Guardar</button>
+                        <button class="btn btn-outline-secondary" @onclick="AbrirProbar" disabled="@_guardando">Enviar correo de prueba</button>
+                    </div>
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modalProbar" Title="Correo de prueba" Size="ModalSize.Small">
+    <BodyTemplate>
+        <label class="form-label">Enviar a</label>
+        <input class="form-control" type="email" @bind="_destinoPrueba" placeholder="correo@ejemplo.cr" />
+        <div class="form-text">Usa la configuración guardada. No modifica nada.</div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-primary" @onclick="Probar" disabled="@_probando">Enviar</button>
+        <button class="btn btn-outline-secondary" @onclick="() => _modalProbar.HideAsync()">Cerrar</button>
+    </FooterTemplate>
+</HxModal>

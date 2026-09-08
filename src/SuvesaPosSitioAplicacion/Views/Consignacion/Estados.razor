@@ -1,0 +1,70 @@
+@page "/consignment/settlements"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Consignacion
+@using SuvesaPosSitioAplicacion.Helpers
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IConsignacionInvApiCliente Api
+@inject IImpresionDocumentos Impresion
+@inject IServicioDialogos Dialogos
+@inject NavigationManager Nav
+
+<AppPantalla Pantalla="Estados de Consignación" Codigo="CONSIGNACION.ESTADOS_DE_CONSIGNACION" Icono="bi-clipboard2-check"
+             Subtitulo="Saldo inicial, físico, venta facturada, recargas, retiros y saldo final por visita" Nivel="NivelPantalla.Tableta">
+ <ChildContent>
+  <div class="card mb-3"><div class="card-body">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3"><label class="form-label">Conteo / liquidación</label><input type="number" min="1" class="form-control" @bind="_id" /></div>
+      <div class="col-md-2 d-grid"><button class="btn btn-primary" @onclick="Abrir" disabled="@(_id <= 0 || _cargando)">Abrir estado</button></div>
+      <div class="col-md-3"><label class="form-label">Desde</label><input type="date" class="form-control" @bind="_desde" /></div>
+      <div class="col-md-3"><label class="form-label">Hasta</label><input type="date" class="form-control" @bind="_hasta" /></div>
+      <div class="col-md-1 d-grid"><button class="btn btn-outline-secondary" @onclick="CargarLista">Buscar</button></div>
+    </div>
+    <div class="table-responsive mt-3"><table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Estado</th><th>Cliente</th><th>Fecha</th><th>Factura</th><th class="text-end">Saldo final</th><th></th></tr></thead>
+      <tbody>@foreach (var x in _lista)
+      {
+        <tr class="@(_liquidacion?.IdConteo == x.IdConteo ? "table-primary" : null)"><td>#@x.NumeroLiquidacion</td><td>@x.NombreCliente</td><td>@(x.FechaLiquidacion ?? x.FechaConteo).ToString("dd/MM/yyyy")</td><td>@(x.NumeroFactura?.ToString("0") ?? "—")</td><td class="text-end">@x.SaldoFinalTotal.ToString("N3")</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" @onclick="() => Abrir(x.IdConteo)">Abrir</button></td></tr>
+      }
+      @if (!_lista.Any()) { <tr><td colspan="6" class="text-secondary">No hay liquidaciones facturadas para el período.</td></tr> }
+      </tbody>
+    </table></div>
+  </div></div>
+
+  @if (_liquidacion is not null)
+  {
+    <div class="card"><div class="card-header d-flex justify-content-between align-items-center">
+      <span>Estado #@_liquidacion.NumeroLiquidacion · @_liquidacion.NombreCliente</span>
+      <div class="d-flex gap-2"><span class="badge text-bg-success">@_liquidacion.Estado</span><button class="btn btn-sm btn-outline-light" @onclick="IrAAjuste">Recargar / retirar</button><button class="btn btn-sm btn-light" @onclick="Imprimir" disabled="@_imprimiendo">@(_imprimiendo ? "Generando..." : "Imprimir PDF")</button></div>
+    </div><div class="card-body">
+      <div class="row small mb-3"><div class="col-md-3"><span class="text-secondary">Conteo</span><strong class="d-block">#@_liquidacion.IdConteo · @_liquidacion.FechaConteo.ToString("dd/MM/yyyy")</strong></div><div class="col-md-3"><span class="text-secondary">Factura</span><strong class="d-block">@(_liquidacion.NumeroFactura?.ToString("0") ?? "—")</strong></div><div class="col-md-3"><span class="text-secondary">Liquidado</span><strong class="d-block">@_liquidacion.FechaLiquidacion?.ToString("dd/MM/yyyy HH:mm")</strong></div><div class="col-md-3"><span class="text-secondary">Saldo final</span><strong class="d-block">@_liquidacion.SaldoFinalTotal.ToString("N3") unidades</strong></div></div>
+      <div class="alert alert-info py-2 small">El saldo final es lo que queda en consignación para el cliente: físico contado, más reposiciones y menos retiros ligados a esta visita.</div>
+      <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Inicial</th><th class="text-end">Físico</th><th class="text-end">Vendido</th><th class="text-end">Facturado</th><th class="text-end">Recargado</th><th class="text-end">Retirado</th><th class="text-end">Saldo final</th></tr></thead><tbody>
+        @foreach (var l in _liquidacion.Lineas) { <tr class="@(Math.Abs(l.Facturado-l.Vendido) > 0.000001 ? "table-warning" : null)"><td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@l.NumeroLote</td><td class="text-end">@l.Consignado.ToString("N3")</td><td class="text-end">@l.Fisico.ToString("N3")</td><td class="text-end">@l.Vendido.ToString("N3")</td><td class="text-end">@l.Facturado.ToString("N3")</td><td class="text-end">@l.Repuesto.ToString("N3")</td><td class="text-end">@l.Retirado.ToString("N3")</td><td class="text-end"><strong>@l.SaldoFinal.ToString("N3")</strong></td></tr> }
+      </tbody></table></div>
+      @if (!string.IsNullOrWhiteSpace(_pdf)) { <iframe title="Estado de consignación" class="w-100 mt-3 border" style="height:48rem" src="@_pdf"></iframe> }
+    </div></div>
+  }
+ </ChildContent>
+</AppPantalla>
+
+@code {
+ [SupplyParameterFromQuery] public long Id { get; set; }
+ private long _id;
+ private DateTime? _desde = DateTime.Today.AddDays(-30), _hasta = DateTime.Today;
+ private bool _cargando, _imprimiendo;
+ private List<LiquidacionConsignacion> _lista = new();
+ private LiquidacionConsignacion? _liquidacion;
+ private string? _pdf;
+ private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
+ protected override async Task OnInitializedAsync() { await CargarLista(); if (Id > 0) await Abrir(Id); }
+ private async Task CargarLista() { var r = await Api.LiquidacionesAsync(new() { Desde = _desde, Hasta = _hasta }); _lista = Ok(r) ? r.Responses! : new(); }
+ private Task Abrir() => Abrir(_id);
+ private async Task Abrir(long id) { if (id <= 0) return; _cargando = true; var r = await Api.LiquidacionAsync(id); _cargando = false; if (Ok(r)) { _id = id; _liquidacion = r.Responses; _pdf = null; } else await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo cargar el estado."); }
+ private void IrAAjuste() { if (_liquidacion is not null) Nav.NavigateTo($"/consignment/adjust?liquidacion={_liquidacion.IdConteo}"); }
+ private async Task Imprimir() { if (_liquidacion is null) return; _imprimiendo = true; var r = await Impresion.Pdf("liquidacion-consignacion", _liquidacion.IdConteo, "a4", false); _imprimiendo = false; if (r is { EsCorrecta: true, Responses: { Length: > 0 } b }) _pdf = "data:application/pdf;base64," + Convert.ToBase64String(b); else await Dialogos.ErrorAsync(r.Excepcion ?? "No se pudo generar el PDF."); }
+}

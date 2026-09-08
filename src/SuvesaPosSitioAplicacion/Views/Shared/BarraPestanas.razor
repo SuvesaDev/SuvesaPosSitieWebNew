@@ -1,0 +1,92 @@
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@implements IDisposable
+@inject IEstadoEspacioTrabajo Espacio
+@inject NavigationManager Navegacion
+@inject IServicioDialogos Dialogos
+
+@* Barra de pestanas del espacio de trabajo. Estilo de pestanas reales (icono +
+   rotulo + cerrar), la activa conectada al contenido. *@
+
+@if (Espacio.Pestanas.Count > 0)
+{
+    <div class="seepos-pestanas" role="tablist" aria-label="Pestañas abiertas">
+        <div class="seepos-pestanas-lista">
+            @foreach (var p in Espacio.Pestanas)
+            {
+                var activa = p.Id == Espacio.Actual?.Id;
+
+                <div class="seepos-pestana @(activa ? "activa" : "")" role="tab" aria-selected="@activa">
+                    <button type="button" class="seepos-pestana-cuerpo"
+                            title="@p.Titulo" @onclick="() => Seleccionar(p)">
+                        <i class="bi @MenuSeePos.IconoDeRuta(p.Ruta) seepos-pestana-icono" aria-hidden="true"></i>
+                        <span class="seepos-pestana-rotulo">@p.Titulo</span>
+                    </button>
+                    <button type="button" class="seepos-pestana-cerrar"
+                            aria-label="@($"Cerrar {p.Titulo}")" @onclick="() => Cerrar(p)">
+                        <i class="bi bi-x-lg" aria-hidden="true"></i>
+                    </button>
+                </div>
+            }
+        </div>
+
+        @if (Espacio.Pestanas.Count > 1)
+        {
+            <button type="button" class="seepos-pestanas-cerrar-todas"
+                    title="Cerrar todas las pestañas" @onclick="CerrarTodas">
+                <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Cerrar todas
+            </button>
+        }
+    </div>
+}
+
+@code {
+    protected override void OnInitialized() => Espacio.Cambio += AlCambiar;
+
+    public void Dispose() => Espacio.Cambio -= AlCambiar;
+
+    private void AlCambiar() => InvokeAsync(StateHasChanged);
+
+    private void Seleccionar(PestanaTrabajo p)
+    {
+        Espacio.Seleccionar(p.Id);
+        Navegacion.NavigateTo(p.Ruta);
+    }
+
+    private async Task Cerrar(PestanaTrabajo p)
+    {
+        // Una venta a medias no se puede cerrar por accidente.
+        if (p.EsVenta)
+        {
+            var confirmado = await Dialogos.ConfirmarPeligroAsync(
+                $"Se perdera lo capturado en {p.Titulo}.",
+                "Cerrar la venta");
+
+            if (!confirmado)
+            {
+                return;
+            }
+        }
+
+        Espacio.Cerrar(p.Id);
+        IrAActual();
+    }
+
+    private async Task CerrarTodas()
+    {
+        var confirmado = await Dialogos.ConfirmarPeligroAsync(
+            "Se cerraran todas las pestanas abiertas.",
+            "Cerrar todas");
+
+        if (!confirmado)
+        {
+            return;
+        }
+
+        Espacio.CerrarTodas();
+        IrAActual();
+    }
+
+    private void IrAActual()
+        => Navegacion.NavigateTo(Espacio.Actual?.Ruta ?? "/");
+}

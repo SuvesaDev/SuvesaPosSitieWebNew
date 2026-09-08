@@ -1,0 +1,109 @@
+@page "/utilities/magitemslist"
+@using MudBlazor
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IInventarioConsulta Api
+@inject IManejadorRespuestas Respuestas
+
+@* PILOTO MudDataGrid — consulta pesada y de solo lectura. Evalua ordenacion,
+   filtro por columna y paginado nativos de Mud sin retirar Bootstrap/Havit: la
+   rejilla vive dentro de <MudIsla>, el resto de la pantalla es Bootstrap. *@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
+    <ChildContent>
+        <AppFiltros AlBuscar="Buscar" AlLimpiar="Limpiar" Buscando="_buscando"
+                    Resumen="@(_buscado ? $"{_articulos.Count} artículo(s) MAG" : null)">
+            <Encabezado>
+                <span class="small text-body-secondary">
+                    Mínimo dos caracteres. Solo artículos marcados como MAG.
+                </span>
+            </Encabezado>
+            <ChildContent>
+                <div class="col-12 col-md-6">
+                    <label class="form-label small" for="mag-texto">Código o descripción</label>
+                    <input id="mag-texto" type="search" class="form-control"
+                           placeholder="Código o descripción..."
+                           @bind="_texto" @bind:event="onchange" />
+                </div>
+            </ChildContent>
+        </AppFiltros>
+
+        @if (_buscado && _articulos.Count == 0)
+        {
+            <div class="text-center text-secondary py-5 small">
+                No hay artículos MAG que coincidan con la búsqueda.
+            </div>
+        }
+        else if (_articulos.Count > 0)
+        {
+            <MudIsla>
+                <MudDataGrid T="InventarioDTO" Items="_articulos"
+                             Dense="true" Hover="true" Bordered="false" Striped="true"
+                             Filterable="true" SortMode="SortMode.Multiple" Groupable="false"
+                             FixedHeader="true" Height="62vh" Class="seepos-mud-grid">
+                    <Columns>
+                        <PropertyColumn Property="a => a.Cod_Articulo" Title="Código" />
+                        <PropertyColumn Property="a => a.Descripcion" Title="Descripción" />
+                        <PropertyColumn Property="a => a.Existencia" Title="Existencia"
+                                        CellClass="justify-end" HeaderClass="justify-end">
+                            <CellTemplate>@Formato.Cantidad(context.Item.Existencia)</CellTemplate>
+                        </PropertyColumn>
+                        <PropertyColumn Property="a => a.Precio_A" Title="Precio A"
+                                        CellClass="justify-end" HeaderClass="justify-end">
+                            <CellTemplate>@Formato.Importe(context.Item.Precio_A)</CellTemplate>
+                        </PropertyColumn>
+                    </Columns>
+                    <PagerContent>
+                        <MudDataGridPager T="InventarioDTO" />
+                    </PagerContent>
+                </MudDataGrid>
+            </MudIsla>
+        }
+        else
+        {
+            <div class="text-center text-secondary py-5 small">
+                Busque un código o una descripción para consultar artículos MAG.
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Lista articulos MAG";
+
+    private string _texto = string.Empty;
+    private List<InventarioDTO> _articulos = new();
+    private bool _buscado;
+    private bool _buscando;
+
+    private async Task Buscar()
+    {
+        if (_texto.Trim().Length < 2)
+        {
+            _articulos = new List<InventarioDTO>();
+            _buscado = false;
+            return;
+        }
+
+        _buscando = true;
+        try
+        {
+            _articulos = (await Respuestas.DatoAsync(await Api.BuscarMag(_texto), "consultar los artículos MAG"))
+                ?.OrderBy(a => a.Descripcion)
+                .ToList() ?? new List<InventarioDTO>();
+            _buscado = true;
+        }
+        finally
+        {
+            _buscando = false;
+        }
+    }
+
+    private void Limpiar()
+    {
+        _texto = string.Empty;
+        _articulos = new List<InventarioDTO>();
+        _buscado = false;
+    }
+}

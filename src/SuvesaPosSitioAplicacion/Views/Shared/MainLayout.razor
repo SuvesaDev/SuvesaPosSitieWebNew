@@ -1,0 +1,190 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@using SuvesaPosSitioAplicacion.Services
+@inject IContextoSesion Sesion
+@inject IEstadoEspacioTrabajo Espacio
+@inject IEstadoOcupado Ocupado
+@inject NavigationManager Navegacion
+@inject IJSRuntime JS
+
+<div class="seepos-barra-carga @(Ocupado.Ocupado ? "seepos-barra-carga-activa" : null)" role="status" aria-hidden="@(Ocupado.Ocupado ? "false" : "true")">
+    <span class="visually-hidden">Cargando</span>
+</div>
+
+<HxMessenger Position="ToastContainerPosition.BottomEnd" />
+<HxMessageBoxHost />
+
+<div class="seepos-shell d-flex flex-column vh-100">
+
+    <nav class="navbar navbar-expand navbar-dark seepos-barra-superior px-3 flex-shrink-0">
+        <button class="btn btn-sm seepos-boton-menu d-lg-none me-2"
+                aria-label="@(_lateralAbierta ? "Cerrar menu" : "Mostrar menu")"
+                aria-controls="seepos-menu-principal"
+                aria-expanded="@_lateralAbierta.ToString().ToLowerInvariant()"
+                @onclick="AlternarMenu">
+            <i class="bi bi-list" aria-hidden="true"></i>
+        </button>
+
+        <a class="navbar-brand mb-0 h1 text-decoration-none seepos-marca" href="/">
+            <img src="img/costavet-logo-compact.png" alt="CostaVet SeePOS" />
+            <span class="visually-hidden">CostaVet SeePOS</span>
+        </a>
+
+        <div class="ms-3 d-none d-md-block">
+            <AtajosNavbar />
+        </div>
+
+        <div class="mx-auto d-none d-md-block">
+            <TipoCambioNavbar />
+        </div>
+
+        <div class="ms-auto d-flex align-items-center gap-3">
+            @if (Sesion.Autenticado)
+            {
+                <span class="text-white-50 small d-none d-md-inline">@Sesion.NombreSucursal</span>
+                <CampanaAlertas />
+                <button type="button" class="btn btn-sm seepos-boton-menu"
+                        aria-label="Cambiar tema" title="Cambiar tema" @onclick="AlternarTema">
+                    <i class="bi @(_oscuro ? "bi-sun" : "bi-moon-stars")" aria-hidden="true"></i>
+                </button>
+                <MenuUsuario OnSalir="Salir" />
+            }
+        </div>
+    </nav>
+
+    <div class="seepos-cuerpo d-flex flex-grow-1 overflow-hidden">
+
+        @if (_lateralAbierta)
+        {
+            <button class="seepos-sombra-menu" type="button" aria-label="Cerrar menu" @onclick="CerrarMenu"></button>
+        }
+
+        <aside id="seepos-menu-principal"
+              class="seepos-contenedor-lateral @(_lateralAbierta ? "seepos-menu-abierto" : "seepos-menu-cerrado") @(_menuCompacto ? "seepos-menu-compacto" : "") flex-shrink-0 overflow-hidden"
+              aria-hidden="@(!_lateralAbierta)">
+            <BarraLateral Compacto="_menuCompacto" AlNavegar="CerrarMenuTrasNavegacionAsync"
+                          AlExpandir="ExpandirMenu" AlAlternar="AlternarMenu"
+                          TextoAlternar="@TextoAlternarMenu" IconoAlternar="@IconoAlternarMenu" />
+        </aside>
+
+        <div class="d-flex flex-column flex-grow-1 overflow-hidden">
+            <BarraPestanas />
+
+            <main class="flex-grow-1 overflow-auto seepos-contenido">
+                @Body
+            </main>
+        </div>
+
+    </div>
+
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Ocurrio un error inesperado.
+    <a href="." class="reload">Recargar</a>
+    <span class="dismiss">&#128937;</span>
+</div>
+
+@code {
+    private bool _lateralAbierta = true;
+    private bool _menuCompacto;
+    private bool _oscuro;
+
+    private string TextoAlternarMenu => _menuCompacto ? "Expandir menu" : "Contraer menu";
+
+    private string IconoAlternarMenu => _menuCompacto ? "bi-chevron-right" : "bi-chevron-left";
+
+    private async Task AlternarTema()
+    {
+        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+        _oscuro = await modulo.InvokeAsync<bool>("alternar");
+        await modulo.DisposeAsync();
+    }
+
+    private async Task AlternarMenu()
+    {
+        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+        var esPantallaPequena = await modulo.InvokeAsync<bool>("esPantallaPequena");
+        await modulo.DisposeAsync();
+
+        if (esPantallaPequena)
+        {
+            _lateralAbierta = !_lateralAbierta;
+            _menuCompacto = false;
+            return;
+        }
+
+        _lateralAbierta = true;
+        _menuCompacto = !_menuCompacto;
+    }
+
+    private void CerrarMenu() => _lateralAbierta = false;
+
+    private void ExpandirMenu() => _menuCompacto = false;
+
+    private async Task CerrarMenuTrasNavegacionAsync()
+    {
+        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+        var esPantallaPequena = await modulo.InvokeAsync<bool>("esPantallaPequena");
+        await modulo.DisposeAsync();
+
+        if (esPantallaPequena)
+        {
+            _lateralAbierta = false;
+            _menuCompacto = false;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Ocupado.Cambio += AlCambiarOcupado;
+        await Sesion.CargarAsync();
+
+        if (Sesion.Autenticado && !Sesion.TieneSucursal)
+        {
+            Navegacion.NavigateTo("/cuenta/sucursal", forceLoad: true);
+        }
+    }
+
+    private Task AlCambiarOcupado() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Ocupado.Cambio -= AlCambiarOcupado;
+
+    private async Task Salir()
+    {
+        // Se borra lo que se sembro para la SPA antes de cerrar la sesion del sitio.
+        try
+        {
+            var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/legado.js");
+            await modulo.InvokeVoidAsync("limpiarSesion");
+            await modulo.DisposeAsync();
+        }
+        catch
+        {
+            // Si falla, el cierre de sesion del servidor sigue adelante igual.
+        }
+
+        Navegacion.NavigateTo("/cuenta/salir", forceLoad: true);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+        // ProtectedLocalStorage necesita el circuito ya establecido.
+        if (primeraVez)
+        {
+            await Espacio.RestaurarAsync();
+
+            var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+            _oscuro = await modulo.InvokeAsync<bool>("esOscuro");
+
+            if (await modulo.InvokeAsync<bool>("esPantallaPequena"))
+            {
+                _lateralAbierta = false;
+                _menuCompacto = false;
+            }
+
+            await modulo.DisposeAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+}

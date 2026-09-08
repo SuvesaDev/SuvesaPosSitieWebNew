@@ -1,0 +1,1887 @@
+/* Identidad visual de SeePOS.
+ *
+ * La paleta y la tipografia se alinean con el libro de marca y CostaVet:
+ * verde #58BA00, naranja #F87602, tierra #644B3C y Montserrat.
+ * El logotipo se sirve como activo original, sin reconstruirlo con una fuente.
+ *
+ * Se expresa sobre las variables de Bootstrap 5.3 para que los componentes de
+ * Havit lo hereden sin tener que estilarlos uno a uno.
+ */
+
+:root {
+    /* Marca. Los tonos de accion se oscurecen para conservar contraste con blanco. */
+    --seepos-verde: #58ba00;
+    --seepos-verde-accion: #347000;
+    --seepos-verde-accion-oscuro: #285900;
+    --seepos-azul: #1072a9;
+    --seepos-naranja: #f87602;
+    --seepos-naranja-oscuro: #c75b00;
+    --seepos-tierra: #644b3c;
+    --seepos-tierra-oscuro: #4d382d;
+
+    /* Neutros calidos: sostienen la marca sin competir con el dato operativo. */
+    --seepos-gris-borde: #d8d0c8;
+    --seepos-gris-suave: #eee9e3;
+    --seepos-gris-fondo: #f8f5f0;
+    --seepos-gris-texto: #716860;
+    --seepos-texto: #302a26;
+    --seepos-halo-verde: rgba(88, 186, 0, .22);
+
+    /* Bootstrap */
+    --bs-primary: var(--seepos-verde-accion);
+    --bs-primary-rgb: 52, 112, 0;
+    /* OJO: no se toca --bs-secondary. En Bootstrap 5.3 es el gris neutro que usan
+       .text-secondary y compania, no un acento de marca. Sobreescribirlo pone naranja
+       todo el texto atenuado de la aplicacion. El naranja se aplica donde toca. */
+    --bs-border-color: var(--seepos-gris-borde);
+    --bs-body-bg: #fffdf9;
+    --bs-body-color: var(--seepos-texto);
+    --bs-emphasis-color: #241f1b;
+    --bs-body-font-family: Montserrat, "Helvetica Neue", Arial, sans-serif;
+    /* Densidad de panel de administracion: 14px de base. El POS muestra mucho dato
+       por pantalla y la tipografia mas compacta deja respirar tablas y formularios. */
+    --bs-body-font-size: 0.875rem;
+    /* Tarjetas sin borde: el relieve lo da una sombra suave, no una linea. */
+    --bs-card-border-width: 0;
+    --bs-card-border-color: transparent;
+    --bs-tertiary-bg: var(--seepos-gris-fondo);
+    --bs-link-color: var(--seepos-verde-accion);
+    --bs-link-hover-color: var(--seepos-verde-accion-oscuro);
+    /* Bootstrap colorea <code> en un magenta de libro de estilo (#d63384) que no
+       es de la marca. Se usa <code> en toda la app para codigos de articulo y la
+       clave fiscal; sin esto, ese magenta se cuela sin que nadie lo haya elegido. */
+    --bs-code-color: var(--seepos-tierra-oscuro);
+
+    /* Densidad: el punto de venta muestra mucho dato por pantalla */
+    --seepos-alto-fila: 2rem;
+}
+
+/* Campos y controles bloqueados (cascada de ubicacion, totales calculados, etc.):
+   un solo lugar para que "deshabilitado" se vea igual en toda la app, en vez de
+   que cada pantalla dependa del contraste debil que trae Bootstrap por defecto. */
+.form-control:disabled,
+.form-control[readonly],
+.form-check-input:disabled {
+    color: var(--seepos-gris-texto);
+    background-color: var(--seepos-gris-suave);
+    cursor: not-allowed;
+    opacity: 1;
+}
+
+/* Bootstrap 5.3 estila los botones con variables propias; sobreescribir
+   --bs-primary no basta. */
+.btn-primary {
+    --bs-btn-bg: var(--seepos-verde-accion);
+    --bs-btn-border-color: var(--seepos-verde-accion);
+    --bs-btn-hover-bg: var(--seepos-verde-accion-oscuro);
+    --bs-btn-hover-border-color: var(--seepos-verde-accion-oscuro);
+    --bs-btn-active-bg: var(--seepos-verde-accion-oscuro);
+    --bs-btn-active-border-color: var(--seepos-verde-accion-oscuro);
+    /* A proposito NO es el mismo verde con opacidad: en pantallas de caja, con el
+       mismo boton repetido decenas de veces al dia, "listo para enviar" y "todavia
+       no" tienen que distinguirse de un vistazo, no leyendo el cursor. */
+    --bs-btn-disabled-bg: var(--seepos-gris-borde);
+    --bs-btn-disabled-border-color: var(--seepos-gris-borde);
+    --bs-btn-disabled-color: var(--seepos-gris-texto);
+}
+
+.btn-secondary {
+    --bs-btn-bg: var(--seepos-tierra);
+    --bs-btn-border-color: var(--seepos-tierra);
+    --bs-btn-hover-bg: var(--seepos-tierra-oscuro);
+    --bs-btn-hover-border-color: var(--seepos-tierra-oscuro);
+    --bs-btn-active-bg: var(--seepos-tierra-oscuro);
+    --bs-btn-active-border-color: var(--seepos-tierra-oscuro);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--seepos-verde-accion);
+    --bs-btn-border-color: var(--seepos-verde-accion);
+    --bs-btn-hover-bg: var(--seepos-verde-accion);
+    --bs-btn-hover-border-color: var(--seepos-verde-accion);
+    --bs-btn-active-bg: var(--seepos-verde-accion);
+    --bs-btn-active-border-color: var(--seepos-verde-accion);
+}
+
+.text-primary { color: var(--seepos-verde-accion) !important; }
+.bg-primary { background-color: var(--seepos-verde-accion) !important; }
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--seepos-verde);
+    box-shadow: 0 0 0 .2rem var(--seepos-halo-verde);
+}
+
+/* Select2-like: se conserva el <select> nativo para no perder accesibilidad,
+   teclado ni los enlaces @bind de Blazor, pero se le da el contenedor,
+   separador y flecha propios de un selector enriquecido. */
+.form-select {
+    min-height: 2.55rem;
+    padding: .5rem 3rem .5rem .78rem;
+    color: var(--bs-body-color);
+    font-weight: 550;
+    background-color: var(--bs-body-bg);
+    background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%23347000' d='m4.2 5.8 3.8 3.8 3.8-3.8 1.1 1.1L8 11.7 3.1 6.9z'/%3E%3C/svg%3E"),
+        linear-gradient(to bottom, transparent 10%, color-mix(in srgb, var(--seepos-tierra) 22%, var(--bs-border-color)) 10%, color-mix(in srgb, var(--seepos-tierra) 22%, var(--bs-border-color)) 90%, transparent 90%);
+    background-position: right .8rem center, right 2.45rem center;
+    background-size: 1rem 1rem, 1px 62%;
+    background-repeat: no-repeat;
+    border-color: color-mix(in srgb, var(--seepos-tierra) 28%, var(--bs-border-color));
+    border-radius: .58rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55);
+}
+
+.form-select:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--seepos-verde-accion) 58%, var(--bs-border-color));
+    background-color: color-mix(in srgb, var(--seepos-verde) 3%, var(--bs-body-bg));
+}
+
+.form-select:disabled {
+    color: var(--seepos-gris-texto);
+    background-color: var(--seepos-gris-suave);
+    cursor: not-allowed;
+    opacity: 1;
+}
+
+[data-bs-theme="dark"] .form-select {
+    background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%23b9f58b' d='m4.2 5.8 3.8 3.8 3.8-3.8 1.1 1.1L8 11.7 3.1 6.9z'/%3E%3C/svg%3E"),
+        linear-gradient(to bottom, transparent 10%, color-mix(in srgb, var(--seepos-tierra) 22%, var(--bs-border-color)) 10%, color-mix(in srgb, var(--seepos-tierra) 22%, var(--bs-border-color)) 90%, transparent 90%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
+}
+
+/* ---------- Tema oscuro ----------
+   Bootstrap 5.3 lo activa con data-bs-theme="dark" en <html>. */
+
+[data-bs-theme="dark"] {
+    --seepos-gris-borde: #4c433c;
+    --seepos-gris-suave: #2d2824;
+    --seepos-gris-fondo: #211d1a;
+    --seepos-gris-texto: #c9c1b8;
+    --seepos-texto: #f3eee8;
+    --seepos-halo-verde: rgba(135, 215, 77, .28);
+
+    --bs-body-bg: #191614;
+    --bs-body-color: var(--seepos-texto);
+    --bs-emphasis-color: #fffaf5;
+    --bs-primary-rgb: 52, 112, 0;
+    --bs-link-color: #9ae55e;
+    --bs-link-hover-color: #b5ee89;
+}
+
+/* ---------- Niveles adaptables ----------
+   A: movil 360, B: tableta 768, C: escritorio 1280. */
+
+/* Una pantalla de nivel C avisa en lugar de romperse en un movil. */
+.seepos-solo-escritorio-aviso { display: none; }
+
+@media (max-width: 1279.98px) {
+    .seepos-nivel-c .seepos-solo-escritorio-aviso { display: block; }
+    .seepos-nivel-c .seepos-solo-escritorio-contenido { display: none; }
+}
+
+@media (max-width: 767.98px) {
+    .seepos-nivel-b .seepos-solo-escritorio-aviso { display: block; }
+    .seepos-nivel-b .seepos-solo-escritorio-contenido { display: none; }
+}
+
+/* ---------- Rejilla ---------- */
+
+.seepos-rejilla table {
+    font-size: 0.875rem;
+}
+
+.seepos-rejilla td,
+.seepos-rejilla th {
+    padding-top: .35rem;
+    padding-bottom: .35rem;
+    vertical-align: middle;
+}
+
+/* Los importes se leen en columna: cifras alineadas y de ancho fijo. */
+.seepos-importe {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* ---------- Pantallas de sesion ---------- */
+
+/* El fondo que queda tras el modal de seleccion de centro. */
+.seepos-fondo-ingreso {
+    min-height: 100vh;
+}
+
+/* Sin JS de por medio, el backdrop se pinta directamente. */
+.modal-backdrop.show {
+    opacity: .5;
+}
+
+/* ---------- Clientes ----------
+   La consulta y el editor son flujos densos. Esta capa presenta la informacion
+   como una herramienta de trabajo, no como un formulario generico. */
+
+.seepos-clientes {
+    max-width: 100rem;
+}
+
+.seepos-clientes-busqueda {
+    position: relative;
+    padding: 1.1rem;
+    overflow: hidden;
+    background: linear-gradient(110deg, color-mix(in srgb, var(--seepos-gris-fondo) 92%, white), var(--bs-body-bg));
+    border: 1px solid var(--bs-border-color);
+    border-radius: 1rem;
+    box-shadow: 0 .35rem 1.15rem rgba(62, 47, 35, .06);
+}
+
+.seepos-clientes-busqueda::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 9rem;
+    height: .22rem;
+    content: "";
+    background: linear-gradient(90deg, var(--seepos-verde), var(--seepos-naranja));
+    border-radius: 0 1rem 0 1rem;
+}
+
+.seepos-clientes-busqueda .input-group-text {
+    color: var(--seepos-verde-accion);
+    background: color-mix(in srgb, var(--seepos-verde) 11%, var(--bs-body-bg));
+    border-color: var(--bs-border-color);
+}
+
+.seepos-clientes-busqueda .form-control {
+    font-weight: 600;
+    letter-spacing: .01em;
+}
+
+.seepos-clientes-busqueda .form-text {
+    margin: .6rem 0 0;
+    color: var(--seepos-gris-texto);
+}
+
+.seepos-clientes-resumen {
+    display: inline-flex;
+    align-items: center;
+    margin: .2rem 0 .75rem;
+    padding: .35rem .65rem;
+    color: var(--seepos-gris-texto);
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    background: var(--seepos-gris-fondo);
+    border-radius: 99rem;
+}
+
+.seepos-clientes-tabla {
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 1rem;
+    box-shadow: 0 .35rem 1.15rem rgba(62, 47, 35, .05);
+}
+
+.seepos-clientes-tabla .card-body {
+    padding: .7rem 1rem 1rem;
+}
+
+.seepos-clientes-tabla thead th {
+    padding-top: .75rem;
+    padding-bottom: .75rem;
+    color: var(--seepos-gris-texto);
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+    background: var(--seepos-gris-fondo);
+    border-bottom-width: 1px;
+}
+
+.seepos-clientes-tabla tbody tr {
+    transition: background-color .16s ease;
+}
+
+.seepos-clientes-tabla tbody tr:hover {
+    background: color-mix(in srgb, var(--seepos-verde) 7%, transparent);
+}
+
+.seepos-clientes-tabla td {
+    padding-top: .7rem;
+    padding-bottom: .7rem;
+    vertical-align: middle;
+}
+
+/* Columna de acciones (Ver / Editar): pegada a la derecha y siempre en una linea,
+   aunque la fila de al lado tenga un nombre que ocupe dos renglones. */
+.seepos-clientes-tabla td:last-child {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.seepos-clientes-tabla td:first-child,
+.seepos-clientes-tabla td:nth-child(5) {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.seepos-clientes-tabla .btn-link {
+    padding: .22rem .42rem !important;
+    font-weight: 700;
+    text-decoration: none;
+    border-radius: .45rem;
+}
+
+.seepos-clientes-tabla .btn-link:hover {
+    background: color-mix(in srgb, var(--seepos-verde) 13%, transparent);
+}
+
+/* ---------- Editores operativos ----------
+   Cliente e inventario comparten la misma composición: encabezado de contexto,
+   pestañas de trabajo y un pie de acciones fijo. Así se leen como herramientas
+   del POS y no como formularios sueltos. */
+.modal:has(.seepos-cliente-editor, .seepos-articulo-editor) .modal-content {
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .85rem;
+    box-shadow: 0 1rem 3rem rgba(42, 28, 18, .18);
+}
+
+.modal:has(.seepos-cliente-editor, .seepos-articulo-editor) .modal-header {
+    padding: 1rem 1.35rem;
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    box-shadow: inset 0 -.16rem 0 var(--seepos-verde);
+}
+
+.modal:has(.seepos-cliente-editor, .seepos-articulo-editor) .modal-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.modal:has(.seepos-cliente-editor, .seepos-articulo-editor) .modal-body {
+    padding: 1.4rem 1.5rem;
+    background: var(--bs-body-bg);
+}
+
+.modal:has(.seepos-cliente-editor, .seepos-articulo-editor) .modal-footer {
+    padding: .85rem 1.5rem;
+    background: var(--bs-body-bg);
+    border-top: 1px solid var(--bs-border-color);
+}
+
+/* ---------- AppModal: aspecto unico para TODO modal de contenido/edicion ----------
+   Cabecera plana con subrayado de marca, cuerpo con aire y pie fijo sobrio. Cualquier
+   pantalla que use <AppModal> lo hereda; no hay que estilar modal por modal. */
+.modal.seepos-modal .modal-content {
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .85rem;
+    box-shadow: 0 1rem 3rem rgba(42, 28, 18, .18);
+}
+
+.modal.seepos-modal .modal-header {
+    padding: 1rem 1.35rem;
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    box-shadow: inset 0 -.16rem 0 var(--seepos-verde);
+}
+
+.modal.seepos-modal .modal-title { font-size: 1.05rem; font-weight: 700; }
+
+.modal.seepos-modal .seepos-modal-sub {
+    display: block;
+    margin-top: .1rem;
+    font-size: .78rem;
+    font-weight: 500;
+    color: var(--seepos-gris-texto);
+}
+
+.modal.seepos-modal .modal-body { padding: 1.4rem 1.5rem; background: var(--bs-body-bg); }
+
+.modal.seepos-modal .modal-footer {
+    padding: .85rem 1.5rem;
+    background: var(--bs-body-bg);
+    border-top: 1px solid var(--bs-border-color);
+}
+
+@media (max-width: 575.98px) {
+    .modal.seepos-modal .modal-body { padding: 1rem; }
+    .modal.seepos-modal .modal-header,
+    .modal.seepos-modal .modal-footer { padding-inline: 1rem; }
+}
+
+/* Pestanas del editor: estilo "nav-tabs" plano, no una caja de pildoras. */
+.seepos-editor-tabs .nav {
+    gap: 0 !important;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.seepos-editor-tabs .btn {
+    min-height: 2.5rem;
+    padding: .5rem .9rem;
+    margin-bottom: -1px;
+    font-size: .82rem;
+    font-weight: 650;
+    border: 0;
+    border-bottom: .16rem solid transparent;
+    border-radius: 0;
+    background: none;
+    color: var(--seepos-gris-texto);
+    box-shadow: none;
+}
+
+.seepos-editor-tabs .btn:hover {
+    color: var(--bs-body-color);
+    background: color-mix(in srgb, var(--seepos-verde) 6%, transparent);
+}
+
+.seepos-editor-tabs .btn.btn-primary,
+.seepos-editor-tabs .btn.btn-primary:hover {
+    color: var(--seepos-verde-accion);
+    background: none;
+    border-bottom-color: var(--seepos-verde-accion);
+    box-shadow: none;
+}
+
+.seepos-articulo-editor .form-label,
+.seepos-articulo-editor .app-campo-texto label,
+.seepos-cliente-editor .form-label,
+.seepos-cliente-editor .app-campo-texto label {
+    margin-bottom: .35rem;
+    color: var(--seepos-gris-texto);
+    font-size: .76rem;
+    font-weight: 750;
+    letter-spacing: .02em;
+}
+
+.seepos-articulo-editor .form-control,
+.seepos-articulo-editor .form-select,
+.seepos-cliente-editor .form-control,
+.seepos-cliente-editor .form-select {
+    min-height: 2.65rem;
+    border-radius: .58rem;
+}
+
+/* Subtitulo de seccion dentro de un formulario largo (Nuevo cliente, Nuevo
+   articulo): rompe la lista plana de campos en grupos que se escanean de un
+   vistazo, sin meter otra tarjeta ni otro borde. */
+.seepos-form-seccion {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin-top: 1.4rem;
+    margin-bottom: .1rem;
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--seepos-verde-accion);
+}
+
+.seepos-form-seccion::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: var(--bs-border-color);
+}
+
+.seepos-form-seccion:first-child { margin-top: 0; }
+
+.seepos-articulo-editor .form-check,
+.seepos-cliente-editor .form-check {
+    padding: .5rem .8rem .5rem 2.2rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .55rem;
+    background: var(--bs-body-bg);
+}
+
+/* Casilla marcada: acento discreto, no un bloque de color. */
+.seepos-articulo-editor .form-check:has(.form-check-input:checked),
+.seepos-cliente-editor .form-check:has(.form-check-input:checked) {
+    border-color: color-mix(in srgb, var(--seepos-verde-accion) 45%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--seepos-verde) 5%, var(--bs-body-bg));
+}
+
+.seepos-articulo-editor .form-check:has(.form-check-input:checked) .form-check-label,
+.seepos-cliente-editor .form-check:has(.form-check-input:checked) .form-check-label {
+    font-weight: 650;
+}
+
+/* Grupo de casillas "marcas" al pie de una seccion: rejilla ordenada. */
+.seepos-editor-marcas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: .5rem;
+}
+
+.seepos-articulo-editor .form-check-input,
+.seepos-cliente-editor .form-check-input {
+    margin-left: -1.35rem;
+}
+
+.seepos-cliente-editor .table {
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .7rem;
+}
+
+.seepos-cliente-editor .table thead th {
+    color: var(--seepos-gris-texto);
+    font-size: .72rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    background: var(--seepos-gris-fondo);
+}
+
+/* ---------- Facturación ---------- */
+
+.seepos-pantalla-encabezado {
+    min-height: 3.1rem;
+    padding: .45rem .15rem .7rem;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.seepos-pantalla-encabezado h1 {
+    font-size: 1.18rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+}
+
+.seepos-facturacion-estado {
+    position: relative;
+    overflow: hidden;
+    padding: 1rem 1.15rem !important;
+    background: linear-gradient(105deg, color-mix(in srgb, var(--seepos-verde) 10%, var(--bs-body-bg)), var(--bs-body-bg)) !important;
+    border-radius: .9rem !important;
+}
+
+.seepos-facturacion-estado::before {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: .28rem;
+    content: "";
+    background: var(--seepos-verde-accion);
+}
+
+.seepos-facturacion .card {
+    overflow: hidden;
+    border-color: color-mix(in srgb, var(--seepos-tierra) 20%, var(--bs-border-color));
+    border-radius: .9rem;
+    box-shadow: 0 .35rem 1.1rem rgba(62, 47, 35, .055);
+}
+
+.seepos-facturacion .card-header {
+    padding: .85rem 1rem;
+    background: linear-gradient(100deg, var(--seepos-gris-fondo), var(--bs-body-bg));
+    border-bottom-color: var(--bs-border-color);
+}
+
+.seepos-facturacion .card-header strong {
+    font-size: .86rem;
+    font-weight: 800;
+    letter-spacing: .01em;
+}
+
+.seepos-facturacion .card-body { padding: 1.05rem; }
+
+.seepos-facturacion .form-label {
+    margin-bottom: .35rem;
+    color: var(--seepos-gris-texto);
+    font-size: .75rem;
+    font-weight: 750;
+}
+
+.seepos-facturacion .form-control,
+.seepos-facturacion .form-select { min-height: 2.55rem; border-radius: .58rem; }
+
+.seepos-facturacion-totales .card-body { padding: 1rem 1.1rem; }
+
+.seepos-facturacion-totales dt,
+.seepos-facturacion-totales dd { padding-top: .3rem; padding-bottom: .3rem; }
+
+.seepos-facturacion-totales dt:last-of-type,
+.seepos-facturacion-totales dd:last-of-type {
+    margin-top: .4rem;
+    padding-top: .75rem;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.seepos-facturacion-totales dd:last-of-type {
+    color: var(--seepos-verde-accion);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.seepos-facturacion-totales .btn-primary {
+    min-height: 2.65rem;
+    font-weight: 750;
+    border-radius: .6rem;
+    box-shadow: 0 .35rem .8rem color-mix(in srgb, var(--seepos-verde-accion) 22%, transparent);
+}
+
+.seepos-facturacion-detalle .card-header { min-height: 3.7rem; }
+
+.seepos-facturacion-detalle .card-body:has(> p) {
+    display: grid;
+    min-height: 9rem;
+    place-items: center;
+    background: repeating-linear-gradient(-45deg, transparent, transparent .7rem, color-mix(in srgb, var(--seepos-gris-fondo) 55%, transparent) .7rem, color-mix(in srgb, var(--seepos-gris-fondo) 55%, transparent) 1.4rem);
+}
+
+.seepos-facturacion-detalle .card-body > p {
+    padding: .7rem 1rem;
+    color: var(--seepos-gris-texto) !important;
+    font-size: .84rem;
+    font-weight: 650;
+    background: var(--bs-body-bg);
+    border: 1px dashed var(--bs-border-color);
+    border-radius: .65rem;
+}
+
+/* Catálogo visual: la foto es el foco, pero una imagen que no pueda descargarse
+   nunca deja una tarjeta vacía ni confunde al cajero. */
+.seepos-catalogo-producto {
+    overflow: hidden;
+    border-radius: .8rem;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.seepos-catalogo-producto:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 .5rem 1.1rem rgba(62, 47, 35, .12) !important;
+}
+
+.seepos-catalogo-imagen-contenedor {
+    display: grid;
+    overflow: hidden;
+    place-items: center;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--seepos-gris-fondo) 72%, white), var(--bs-body-bg)) !important;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.seepos-catalogo-imagen {
+    transition: transform .2s ease;
+}
+
+.seepos-catalogo-producto:hover .seepos-catalogo-imagen { transform: scale(1.035); }
+
+.seepos-catalogo-sin-imagen {
+    display: grid;
+    place-items: center;
+    gap: .35rem;
+    color: var(--seepos-gris-texto);
+    font-size: .75rem;
+}
+
+.seepos-catalogo-sin-imagen .bi { font-size: 2rem; opacity: .45; }
+
+/* Confirmación fiscal: mantiene el cajero informado mientras Hacienda responde y
+   luego presenta la impresión sin parecer un cuadro de error técnico. */
+.seepos-modal-comprobante .modal-content { overflow: hidden; border-radius: 1rem; }
+
+.seepos-comprobante-resumen {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.2rem 1.25rem;
+    background: linear-gradient(115deg, color-mix(in srgb, var(--seepos-verde) 13%, var(--bs-body-bg)), var(--bs-body-bg));
+    border: 1px solid color-mix(in srgb, var(--seepos-verde) 22%, var(--bs-border-color));
+    border-radius: .8rem;
+}
+
+.seepos-comprobante-icono {
+    display: grid;
+    flex: 0 0 2.8rem;
+    width: 2.8rem;
+    height: 2.8rem;
+    place-items: center;
+    border-radius: 50%;
+    color: white;
+    background: var(--seepos-verde-accion);
+}
+
+.seepos-comprobante-icono .bi { font-size: 1.5rem; }
+.seepos-comprobante-icono.en-proceso { background: var(--seepos-azul); }
+
+.seepos-comprobante-etiqueta {
+    margin-bottom: .1rem;
+    color: var(--seepos-gris-texto);
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.seepos-comprobante-resumen h3 {
+    margin: 0 0 .2rem;
+    color: var(--bs-body-color);
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.seepos-comprobante-resumen p {
+    margin: 0;
+    color: var(--seepos-gris-texto);
+    font-size: .84rem;
+}
+
+.seepos-comprobante-total {
+    display: grid;
+    margin-left: auto;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.seepos-comprobante-total span {
+    color: var(--seepos-gris-texto);
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.seepos-comprobante-total strong {
+    color: var(--seepos-verde-accion);
+    font-size: 1.1rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.seepos-comprobante-nota {
+    display: flex;
+    gap: .35rem;
+    padding: .75rem .9rem;
+    margin-top: .85rem;
+    color: var(--seepos-gris-texto);
+    font-size: .82rem;
+    background: var(--seepos-gris-fondo);
+    border-left: .22rem solid var(--seepos-azul);
+    border-radius: .35rem;
+}
+
+.seepos-comprobante-progreso {
+    height: .3rem;
+    margin-top: 1rem;
+    overflow: hidden;
+    background: var(--seepos-gris-fondo);
+    border-radius: 99rem;
+}
+
+.seepos-comprobante-progreso span {
+    display: block;
+    width: 42%;
+    height: 100%;
+    background: var(--seepos-azul);
+    border-radius: inherit;
+    animation: seepos-comprobante-avance 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes seepos-comprobante-avance {
+    from { transform: translateX(-30%); }
+    to { transform: translateX(155%); }
+}
+
+.seepos-comprobante-pdf {
+    margin-top: 1rem;
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+    background: var(--seepos-gris-fondo);
+}
+
+.seepos-comprobante-pdf iframe {
+    display: block;
+    width: 100%;
+    height: min(70vh, 48rem);
+    border: 0;
+}
+
+@media (max-width: 575.98px) {
+    .seepos-comprobante-resumen { align-items: flex-start; flex-wrap: wrap; }
+    .seepos-comprobante-total { width: 100%; margin-left: 3.8rem; text-align: left; }
+}
+
+/* ---------- Compras ---------- */
+
+.seepos-compras-estado {
+    position: relative;
+    overflow: hidden;
+    padding: 1rem 1.15rem !important;
+    background: linear-gradient(105deg, color-mix(in srgb, var(--seepos-tierra) 10%, var(--bs-body-bg)), var(--bs-body-bg)) !important;
+    border-radius: .9rem !important;
+}
+
+.seepos-compras-estado::before {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: .28rem;
+    content: "";
+    background: var(--seepos-tierra);
+}
+
+.seepos-compras .card {
+    overflow: hidden;
+    border-color: color-mix(in srgb, var(--seepos-tierra) 22%, var(--bs-border-color));
+    border-radius: .9rem;
+    box-shadow: 0 .35rem 1.1rem rgba(62, 47, 35, .055);
+}
+
+.seepos-compras .card-header {
+    padding: .85rem 1rem;
+    background: linear-gradient(100deg, var(--seepos-gris-fondo), var(--bs-body-bg));
+    border-bottom-color: var(--bs-border-color);
+}
+
+.seepos-compras .card-header strong {
+    font-size: .86rem;
+    font-weight: 800;
+    letter-spacing: .01em;
+}
+
+.seepos-compras .card-body { padding: 1.05rem; }
+
+.seepos-compras .form-label {
+    margin-bottom: .35rem;
+    color: var(--seepos-gris-texto);
+    font-size: .75rem;
+    font-weight: 750;
+}
+
+.seepos-compras .form-control,
+.seepos-compras .form-select { min-height: 2.55rem; border-radius: .58rem; }
+
+.seepos-compras-totales .card-body { padding: 1rem 1.1rem; }
+
+.seepos-compras-totales dt,
+.seepos-compras-totales dd { padding-top: .3rem; padding-bottom: .3rem; }
+
+.seepos-compras-totales dt:last-of-type,
+.seepos-compras-totales dd:last-of-type {
+    margin-top: .4rem;
+    padding-top: .75rem;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.seepos-compras-totales dd:last-of-type {
+    color: var(--seepos-verde-accion);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.seepos-compras-totales .btn-primary {
+    min-height: 2.65rem;
+    font-weight: 750;
+    border-radius: .6rem;
+}
+
+.seepos-compras-editor {
+    background: color-mix(in srgb, var(--seepos-gris-fondo) 80%, var(--bs-body-bg));
+    border-color: color-mix(in srgb, var(--seepos-tierra) 20%, var(--bs-border-color)) !important;
+}
+
+.seepos-resultados-proveedor {
+    z-index: 1030;
+    width: min(100%, 34rem);
+    max-height: 14rem;
+    overflow-y: auto;
+}
+
+.seepos-compras-detalle .table thead th { white-space: nowrap; }
+
+/* ---------- Lenguaje visual compartido ----------
+   Esta capa unifica las pantallas nuevas sobre Bootstrap sin cambiar sus
+   componentes ni sus flujos. El objetivo es que formularios, resultados y
+   diálogos se lean como parte de un único producto operativo. */
+
+.seepos-contenido:not(:has(> .seepos-legado)) {
+    background:
+        radial-gradient(circle at 100% 0, color-mix(in srgb, var(--seepos-verde) 8%, transparent), transparent 26rem),
+        linear-gradient(180deg, color-mix(in srgb, var(--seepos-gris-fondo) 52%, var(--bs-body-bg)), var(--bs-body-bg) 15rem);
+}
+
+/* Base para toda .card de la app: sin borde, relieve por sombra suave. Las
+   pantallas que ya definen su propia sombra (facturacion, compras...) la conservan
+   por mayor especificidad. */
+.card {
+    border: 0;
+    box-shadow:
+        0 .0625rem .125rem rgba(62, 47, 35, .06),
+        0 .5rem 1.25rem rgba(62, 47, 35, .05);
+}
+
+.seepos-nivel-a .card,
+.seepos-nivel-b .card,
+.seepos-nivel-c .card {
+    border: 0;
+    border-radius: .8rem;
+    box-shadow:
+        0 .0625rem .125rem rgba(62, 47, 35, .06),
+        0 .5rem 1.25rem rgba(62, 47, 35, .05);
+}
+
+.seepos-nivel-a .card-header,
+.seepos-nivel-b .card-header,
+.seepos-nivel-c .card-header {
+    padding: .8rem 1rem;
+    background: transparent;
+    border-bottom: 1px solid color-mix(in srgb, var(--seepos-tierra) 10%, var(--bs-border-color));
+    font-weight: 650;
+}
+
+.seepos-nivel-a .form-label,
+.seepos-nivel-b .form-label,
+.seepos-nivel-c .form-label {
+    margin-bottom: .35rem;
+    color: var(--seepos-gris-texto);
+    font-size: .76rem;
+    font-weight: 750;
+    letter-spacing: .012em;
+}
+
+.seepos-nivel-a .form-control,
+.seepos-nivel-a .form-select,
+.seepos-nivel-b .form-control,
+.seepos-nivel-b .form-select,
+.seepos-nivel-c .form-control,
+.seepos-nivel-c .form-select {
+    border-radius: .58rem;
+    border-color: color-mix(in srgb, var(--seepos-tierra) 24%, var(--bs-border-color));
+    transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+
+.seepos-nivel-a .form-control:hover,
+.seepos-nivel-a .form-select:hover,
+.seepos-nivel-b .form-control:hover,
+.seepos-nivel-b .form-select:hover,
+.seepos-nivel-c .form-control:hover,
+.seepos-nivel-c .form-select:hover {
+    border-color: color-mix(in srgb, var(--seepos-verde-accion) 48%, var(--bs-border-color));
+}
+
+.seepos-nivel-a .btn,
+.seepos-nivel-b .btn,
+.seepos-nivel-c .btn {
+    font-weight: 700;
+    border-radius: .55rem;
+    transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease;
+}
+
+.seepos-nivel-a .btn:not(:disabled):hover,
+.seepos-nivel-b .btn:not(:disabled):hover,
+.seepos-nivel-c .btn:not(:disabled):hover {
+    transform: translateY(-1px);
+}
+
+.seepos-nivel-a .btn-primary:not(:disabled),
+.seepos-nivel-b .btn-primary:not(:disabled),
+.seepos-nivel-c .btn-primary:not(:disabled) {
+    box-shadow: 0 .3rem .75rem color-mix(in srgb, var(--seepos-verde-accion) 23%, transparent);
+}
+
+.seepos-nivel-a .table,
+.seepos-nivel-b .table,
+.seepos-nivel-c .table {
+    margin-bottom: 0;
+}
+
+.seepos-nivel-a .table thead th,
+.seepos-nivel-b .table thead th,
+.seepos-nivel-c .table thead th {
+    color: var(--seepos-gris-texto);
+    font-size: .71rem;
+    font-weight: 800;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+    background: var(--seepos-gris-fondo);
+    border-bottom-width: 1px;
+}
+
+.seepos-nivel-a .table-hover tbody tr,
+.seepos-nivel-b .table-hover tbody tr,
+.seepos-nivel-c .table-hover tbody tr {
+    transition: background-color .14s ease;
+}
+
+.seepos-nivel-a .table-hover tbody tr:hover,
+.seepos-nivel-b .table-hover tbody tr:hover,
+.seepos-nivel-c .table-hover tbody tr:hover {
+    background: color-mix(in srgb, var(--seepos-verde) 6%, transparent);
+}
+
+.modal-content {
+    overflow: hidden;
+    border-color: color-mix(in srgb, var(--seepos-tierra) 30%, var(--bs-border-color));
+    border-radius: 1rem;
+    box-shadow: 0 1.25rem 3.5rem rgba(42, 28, 18, .22);
+}
+
+.modal-header {
+    padding: 1rem 1.2rem;
+    background: linear-gradient(105deg, color-mix(in srgb, var(--seepos-gris-fondo) 84%, white), var(--bs-body-bg));
+    border-bottom-color: var(--bs-border-color);
+}
+
+.modal-title { font-size: 1.05rem; font-weight: 800; }
+.modal-footer { padding: .9rem 1.2rem; background: var(--seepos-gris-fondo); border-top-color: var(--bs-border-color); }
+
+/* ---------- Seleccion de centro ----------
+   El paso entre autenticacion y operacion se presenta como una decision breve
+   y segura. No reutiliza el modal generico: mantiene la jerarquia visual del
+   acceso y deja claro que el usuario esta por entrar a su espacio de trabajo. */
+.seepos-fondo-centro {
+    display: grid;
+    min-height: 100vh;
+    padding: 2rem;
+    place-items: center;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 18% 12%, color-mix(in srgb, var(--seepos-verde) 18%, transparent), transparent 24rem),
+        radial-gradient(circle at 84% 82%, color-mix(in srgb, var(--seepos-naranja) 11%, transparent), transparent 25rem),
+        linear-gradient(135deg, color-mix(in srgb, var(--seepos-gris-fondo) 72%, var(--bs-body-bg)), var(--bs-body-bg));
+}
+
+.seepos-fondo-centro-contenido {
+    display: grid;
+    justify-items: center;
+    gap: 2rem;
+    width: min(100%, 35rem);
+    opacity: .72;
+}
+
+.seepos-fondo-centro-marca {
+    display: grid;
+    justify-items: center;
+    gap: .6rem;
+}
+
+.seepos-fondo-centro-marca img {
+    display: block;
+    width: min(19rem, 62vw);
+    max-height: 11rem;
+    object-fit: contain;
+}
+
+.seepos-fondo-centro-marca span {
+    color: var(--seepos-tierra);
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+}
+
+.seepos-fondo-centro-resumen {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    padding: .85rem 1rem;
+    color: var(--seepos-gris-texto);
+    background: color-mix(in srgb, var(--bs-body-bg) 78%, transparent);
+    border: 1px solid color-mix(in srgb, var(--seepos-tierra) 15%, var(--bs-border-color));
+    border-radius: .85rem;
+    box-shadow: 0 .45rem 1.4rem rgba(62, 47, 35, .06);
+}
+
+.seepos-fondo-centro-icono {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    color: var(--seepos-verde-accion);
+    background: color-mix(in srgb, var(--seepos-verde) 16%, var(--bs-body-bg));
+    border-radius: 50%;
+}
+
+.seepos-fondo-centro-resumen div { display: grid; gap: .06rem; }
+.seepos-fondo-centro-resumen strong { color: var(--bs-body-color); font-size: .82rem; }
+.seepos-fondo-centro-resumen span:not(.seepos-fondo-centro-icono) { font-size: .76rem; }
+
+.modal-backdrop.show { background: rgba(42, 32, 26, .55); opacity: 1; backdrop-filter: blur(2px); }
+
+.seepos-modal-centro-dialog { width: min(calc(100% - 2rem), 29rem); max-width: none; margin-inline: auto; }
+
+.seepos-modal-centro-contenido {
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--seepos-tierra) 36%, var(--bs-border-color));
+    border-radius: 1.1rem;
+    box-shadow: 0 1.5rem 4rem rgba(42, 28, 18, .3);
+}
+
+.seepos-modal-centro-encabezado {
+    padding: 1.05rem 1.2rem;
+    background: linear-gradient(105deg, color-mix(in srgb, var(--seepos-gris-fondo) 85%, var(--bs-body-bg)), var(--bs-body-bg));
+    border-bottom: .18rem solid color-mix(in srgb, var(--seepos-verde) 72%, var(--bs-border-color));
+}
+
+.seepos-modal-centro-identidad { display: flex; align-items: center; gap: .75rem; }
+
+.seepos-modal-centro-icono {
+    display: grid;
+    width: 2.35rem;
+    height: 2.35rem;
+    flex: 0 0 auto;
+    place-items: center;
+    color: var(--seepos-verde-accion);
+    background: color-mix(in srgb, var(--seepos-verde) 14%, var(--bs-body-bg));
+    border: 1px solid color-mix(in srgb, var(--seepos-verde) 27%, var(--bs-border-color));
+    border-radius: .68rem;
+}
+
+.seepos-modal-centro-eyebrow {
+    display: block;
+    margin-bottom: .12rem;
+    color: var(--seepos-gris-texto);
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+}
+
+.seepos-modal-centro .modal-title { margin: 0; font-size: 1.08rem; font-weight: 800; }
+
+.seepos-modal-centro-cuerpo { padding: 1.2rem; }
+
+.seepos-modal-centro-descripcion {
+    margin: 0 0 1rem;
+    color: var(--seepos-gris-texto);
+    font-size: .88rem;
+    line-height: 1.5;
+}
+
+.seepos-modal-centro-etiqueta {
+    margin-bottom: .38rem;
+    color: var(--seepos-gris-texto);
+    font-size: .74rem;
+    font-weight: 800;
+    letter-spacing: .015em;
+}
+
+.seepos-modal-centro .form-select { width: 100%; min-height: 2.75rem; font-weight: 650; }
+
+.seepos-modal-centro-alerta {
+    display: flex;
+    align-items: flex-start;
+    gap: .55rem;
+    margin: 0;
+    padding: .75rem .85rem;
+    font-size: .82rem;
+    line-height: 1.45;
+    border-radius: .65rem;
+}
+
+.seepos-modal-centro-alerta i { margin-top: .12rem; flex: 0 0 auto; }
+
+.seepos-modal-centro-cargando {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    padding: .75rem .85rem;
+    color: var(--seepos-gris-texto);
+    font-size: .84rem;
+    background: var(--seepos-gris-fondo);
+    border-radius: .65rem;
+}
+
+.seepos-modal-centro-cargando .spinner-border { color: var(--seepos-verde-accion); }
+
+.seepos-modal-centro-pie {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .95rem 1.2rem;
+    background: color-mix(in srgb, var(--seepos-gris-fondo) 82%, var(--bs-body-bg));
+}
+
+.seepos-modal-centro-salir {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    min-height: 2.4rem;
+    color: var(--seepos-gris-texto);
+    font-size: .79rem;
+    font-weight: 650;
+    text-decoration: none;
+    transition: color .16s ease, transform .16s ease;
+}
+
+.seepos-modal-centro-salir:hover { color: var(--seepos-verde-accion); transform: translateX(-.1rem); }
+
+.seepos-modal-centro-ingresar {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    min-height: 2.45rem;
+    padding-inline: .9rem;
+    font-size: .85rem;
+    font-weight: 750;
+    box-shadow: 0 .3rem .8rem color-mix(in srgb, var(--seepos-verde-accion) 25%, transparent);
+}
+
+@media (max-width: 420px) {
+    .seepos-fondo-centro { padding: 1rem; }
+    .seepos-fondo-centro-marca img { width: min(15rem, 70vw); }
+    .seepos-modal-centro-dialog { width: calc(100% - 1.25rem); }
+    .seepos-modal-centro-cuerpo, .seepos-modal-centro-encabezado, .seepos-modal-centro-pie { padding-inline: 1rem; }
+    .seepos-modal-centro-pie { align-items: stretch; flex-direction: column-reverse; }
+    .seepos-modal-centro-salir, .seepos-modal-centro-ingresar { justify-content: center; }
+}
+
+[data-bs-theme="dark"] .seepos-fondo-centro-marca span { color: var(--seepos-texto); }
+[data-bs-theme="dark"] .seepos-modal-centro-icono { color: #a9eb75; }
+
+/* Proveedores: el formulario reúne datos de contacto, contabilidad y bancos.
+   Estos grupos hacen la lectura más rápida sin cambiar el flujo de captura. */
+.seepos-proveedores {
+    max-width: 88rem;
+    margin-inline: auto;
+}
+
+.seepos-proveedores-busqueda {
+    max-width: 43rem;
+}
+
+.seepos-proveedores-busqueda .input-group {
+    border-radius: .75rem;
+    box-shadow: 0 .25rem .8rem rgba(62, 47, 35, .06);
+}
+
+.seepos-proveedores-busqueda .input-group-text {
+    color: var(--seepos-verde-accion);
+    background: color-mix(in srgb, var(--seepos-verde) 8%, var(--bs-body-bg));
+    border-color: color-mix(in srgb, var(--seepos-tierra) 22%, var(--bs-border-color));
+}
+
+.seepos-proveedores-busqueda .form-control { min-height: 2.65rem; }
+
+.seepos-proveedores-lista .card-body { padding: .45rem .9rem; }
+
+.seepos-proveedor-editor .form-control,
+.seepos-proveedor-editor .form-select { min-height: 2.55rem; }
+
+.seepos-proveedor-editor .form-text { font-size: .72rem; }
+
+.seepos-proveedor-editor .input-group .btn {
+    min-width: 2.8rem;
+    border-top-right-radius: .58rem;
+    border-bottom-right-radius: .58rem;
+}
+
+.seepos-proveedor-seccion {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .25rem 0 .2rem;
+    color: var(--seepos-tierra);
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+
+.seepos-proveedor-seccion::after {
+    flex: 1;
+    height: 1px;
+    content: "";
+    background: color-mix(in srgb, var(--seepos-tierra) 22%, var(--bs-border-color));
+}
+
+.seepos-proveedor-editor .table {
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--seepos-tierra) 18%, var(--bs-border-color));
+    border-radius: .6rem;
+}
+
+.seepos-proveedor-editor .form-check {
+    padding: .6rem .75rem .6rem 2.1rem;
+    border: 1px solid color-mix(in srgb, var(--seepos-tierra) 18%, var(--bs-border-color));
+    border-radius: .58rem;
+    background: color-mix(in srgb, var(--seepos-gris-fondo) 58%, var(--bs-body-bg));
+}
+
+@media (max-width: 575.98px) {
+    .seepos-clientes-busqueda { padding: .8rem; }
+    .seepos-clientes-busqueda .input-group-lg > .form-control,
+    .seepos-clientes-busqueda .input-group-lg > .input-group-text { min-height: 2.7rem; font-size: .92rem; }
+    .modal:has(.seepos-cliente-editor, .seepos-articulo-editor) .modal-body { padding: 1rem; }
+    .seepos-editor-tabs { gap: .3rem !important; }
+    .seepos-editor-tabs .btn { flex: 1 1 9.5rem; }
+    .seepos-proveedor-editor .table-responsive { margin-inline: -.2rem; }
+}
+
+/* Caja: la clave interna es una compuerta visible y consistente con el resto del sitio. */
+.seepos-desbloqueo-clave {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    padding: .85rem 1rem;
+    color: var(--seepos-tierra);
+    background: color-mix(in srgb, var(--seepos-verde) 9%, var(--bs-body-bg));
+    border: 1px solid color-mix(in srgb, var(--seepos-verde-accion) 32%, var(--bs-border-color));
+    border-radius: .75rem;
+    box-shadow: 0 .25rem .8rem rgba(62, 47, 35, .06);
+}
+
+.seepos-desbloqueo-clave-icono {
+    display: inline-grid;
+    width: 2.35rem;
+    height: 2.35rem;
+    flex: 0 0 2.35rem;
+    place-items: center;
+    color: #fff;
+    background: var(--seepos-verde-accion);
+    border-radius: 50%;
+}
+
+.seepos-desbloqueo-clave strong,
+.seepos-desbloqueo-clave span { display: block; }
+
+.seepos-desbloqueo-clave span { font-size: .8rem; }
+
+.seepos-desbloqueo-clave-campo {
+    width: min(100%, 20rem);
+    flex: 0 1 20rem;
+}
+
+.seepos-desbloqueo-clave-listo {
+    gap: .5rem;
+    color: var(--seepos-verde-accion);
+    background: color-mix(in srgb, var(--seepos-verde) 14%, var(--bs-body-bg));
+}
+
+.seepos-desbloqueo-clave-listo span { font-weight: 700; }
+
+@media (max-width: 575.98px) {
+    .seepos-desbloqueo-clave { align-items: stretch; flex-wrap: wrap; }
+    .seepos-desbloqueo-clave-campo { width: 100%; flex-basis: 100%; }
+}
+
+/* ============================================================================
+   Pulido de nivel POS (capa compartida). Marca CostaVet, densidad de punto de
+   venta. Afecta a AppPantalla, AppRejilla y AppFiltros -> a toda la app.
+   ============================================================================ */
+
+/* ---------- Miga de pan + encabezado de pagina (AppPantalla) ---------- */
+.seepos-miga {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    margin-bottom: .35rem;
+    font-size: .74rem;
+    color: var(--bs-secondary-color);
+}
+
+.seepos-miga .bi { font-size: .62rem; opacity: .7; }
+.seepos-miga-actual { color: var(--bs-body-color); font-weight: 600; }
+
+.seepos-encabezado-pagina {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .85rem;
+    margin-bottom: 1.25rem;
+    padding: 0 0 .9rem;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.seepos-encabezado-pagina-info {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    min-width: 0;
+}
+
+.seepos-encabezado-pagina-icono {
+    display: grid;
+    place-items: center;
+    flex: 0 0 2.6rem;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: .7rem;
+    font-size: 1.2rem;
+    color: var(--seepos-verde-accion);
+    background: color-mix(in srgb, var(--seepos-verde) 15%, transparent);
+}
+
+.seepos-encabezado-pagina h1 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+}
+
+.seepos-encabezado-pagina-sub {
+    margin: .15rem 0 0;
+    font-size: .82rem;
+    color: var(--seepos-gris-texto);
+}
+
+.seepos-encabezado-pagina-acciones {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+/* ---------- Inicio operativo ----------
+   El inicio no repite el estado de la migracion: orienta al usuario hacia su
+   siguiente tarea y deja el resto de funciones en el menu lateral. */
+.seepos-inicio { width: min(100%, 68rem); margin-inline: auto; }
+
+.seepos-inicio-bienvenida {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    padding: clamp(1.25rem, 3vw, 2rem);
+    color: #fff;
+    background:
+        radial-gradient(circle at 100% 0, rgba(88, 186, 0, .42), transparent 15rem),
+        linear-gradient(112deg, var(--seepos-tierra-oscuro), var(--seepos-tierra));
+    border-radius: .95rem;
+    box-shadow: 0 .7rem 1.6rem rgba(62, 47, 35, .15);
+}
+
+.seepos-inicio-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    margin: 0 0 .45rem;
+    color: #dcffbf;
+    font-size: .74rem;
+    font-weight: 750;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+}
+
+.seepos-inicio-bienvenida h1 { margin-bottom: .35rem; font-size: clamp(1.35rem, 3vw, 1.85rem); font-weight: 800; letter-spacing: -.025em; }
+.seepos-inicio-bienvenida > div > p:not(.seepos-inicio-eyebrow) { color: rgba(255, 255, 255, .84); }
+.seepos-inicio-bienvenida-icono { flex: 0 0 auto; font-size: clamp(3.2rem, 8vw, 5.5rem); color: rgba(255, 255, 255, .15); }
+
+.seepos-inicio-pestanas {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    flex: 0 0 auto;
+    padding: .35rem .6rem;
+    color: var(--seepos-gris-texto);
+    font-size: .76rem;
+    font-weight: 700;
+    background: var(--seepos-gris-fondo);
+    border-radius: 99rem;
+}
+
+.seepos-inicio-acciones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+
+.seepos-inicio-sin-acciones {
+    padding: 1rem;
+    color: var(--seepos-gris-texto);
+    font-size: .84rem;
+    background: var(--seepos-gris-fondo);
+    border: 1px dashed var(--bs-border-color);
+    border-radius: .75rem;
+}
+
+.seepos-inicio-accion {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    width: 100%;
+    min-height: 5.35rem;
+    padding: .85rem 1rem;
+    color: var(--bs-body-color);
+    text-align: left;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .8rem;
+    box-shadow: 0 .25rem .9rem rgba(62, 47, 35, .055);
+    transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.seepos-inicio-accion:hover,
+.seepos-inicio-accion:focus-visible {
+    border-color: color-mix(in srgb, var(--seepos-verde-accion) 55%, var(--bs-border-color));
+    box-shadow: 0 .45rem 1.1rem rgba(62, 47, 35, .1);
+    transform: translateY(-2px);
+}
+
+.seepos-inicio-accion:focus-visible { outline: .2rem solid var(--seepos-halo-verde); outline-offset: .12rem; }
+
+.seepos-inicio-accion-icono {
+    display: grid;
+    width: 2.8rem;
+    height: 2.8rem;
+    flex: 0 0 2.8rem;
+    place-items: center;
+    color: var(--seepos-verde-accion);
+    font-size: 1.2rem;
+    background: color-mix(in srgb, var(--seepos-verde) 14%, var(--bs-body-bg));
+    border-radius: .7rem;
+}
+
+.seepos-inicio-accion-texto { display: grid; gap: .15rem; min-width: 0; }
+.seepos-inicio-accion-texto strong { font-size: .9rem; }
+.seepos-inicio-accion-texto small { color: var(--seepos-gris-texto); font-size: .76rem; }
+.seepos-inicio-accion-flecha { margin-left: auto; color: var(--seepos-gris-texto); }
+
+.seepos-inicio-ayuda {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    margin-top: 1.5rem;
+    padding: .9rem 1rem;
+    color: var(--seepos-tierra);
+    background: color-mix(in srgb, var(--seepos-naranja) 8%, var(--bs-body-bg));
+    border: 1px solid color-mix(in srgb, var(--seepos-naranja) 26%, var(--bs-border-color));
+    border-radius: .75rem;
+}
+
+.seepos-inicio-ayuda > i { margin-top: .1rem; color: var(--seepos-naranja-oscuro); }
+.seepos-inicio-ayuda p { color: var(--seepos-gris-texto); font-size: .82rem; }
+
+/* Los iconos solos son rápidos para usuarios expertos, pero el rótulo visible
+   reduce la curva de aprendizaje en pantallas amplias. */
+.seepos-atajo-rotulo { display: none; margin-left: .3rem; }
+@media (min-width: 1400px) { .seepos-atajo-rotulo { display: inline; } }
+
+@media (max-width: 575.98px) {
+    .seepos-inicio-bienvenida { margin-bottom: 1.1rem; }
+    .seepos-inicio-bienvenida-icono { display: none; }
+    .seepos-inicio-acciones { grid-template-columns: 1fr; }
+
+    /* Una pantalla marcada como móvil se usa también con tacto: controles de
+       44 px como mínimo evitan pulsaciones imprecisas sin inflar las tablas. */
+    .seepos-nivel-a .form-control,
+    .seepos-nivel-a .form-select,
+    .seepos-nivel-a .input-group-text,
+    .seepos-nivel-a .seepos-encabezado-pagina-acciones .btn {
+        min-height: 2.75rem;
+    }
+}
+
+/* ---------- Panel de filtros (AppFiltros) ---------- */
+.seepos-panel-filtros {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .9rem;
+    box-shadow: 0 0 .875rem rgba(64, 49, 39, .05);
+    overflow: hidden;
+}
+
+.seepos-panel-filtros-cab {
+    display: flex;
+    align-items: center;
+    padding: .6rem 1rem;
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--seepos-gris-texto);
+    background: var(--seepos-gris-fondo);
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.seepos-panel-filtros .card-body { padding: 1.05rem 1.1rem; }
+
+.seepos-panel-filtros .form-label {
+    margin-bottom: .3rem;
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    color: var(--seepos-gris-texto);
+}
+
+.seepos-panel-filtros-pie {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    margin-top: 1rem;
+    padding-top: .9rem;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.seepos-panel-filtros-limpiar {
+    --bs-btn-color: var(--seepos-gris-texto);
+    --bs-btn-hover-color: var(--seepos-verde-accion);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+/* Boton de busqueda redondo, como el FAB de QVET. */
+.seepos-fab-buscar {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    padding: 0;
+    border-radius: 999rem;
+    font-size: 1.15rem;
+    box-shadow: 0 .35rem .9rem color-mix(in srgb, var(--seepos-verde-accion) 30%, transparent);
+}
+
+.seepos-fab-buscar:active { transform: translateY(1px); }
+
+/* ---------- Rejilla (AppRejilla / HxGrid) ---------- */
+.seepos-rejilla {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .9rem;
+    overflow: hidden;
+    box-shadow: 0 0 .875rem rgba(64, 49, 39, .05);
+}
+
+.seepos-rejilla table {
+    margin-bottom: 0;
+    font-size: .875rem;
+}
+
+.seepos-rejilla thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: .6rem .8rem;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--seepos-gris-texto);
+    background: var(--seepos-gris-fondo);
+    border-bottom: 2px solid var(--bs-border-color) !important;
+    white-space: nowrap;
+}
+
+.seepos-rejilla tbody td {
+    padding: .5rem .8rem;
+    vertical-align: middle;
+    border-color: color-mix(in srgb, var(--bs-border-color) 60%, transparent);
+}
+
+.seepos-rejilla tbody tr {
+    transition: background-color .12s ease;
+}
+
+.seepos-rejilla tbody tr:nth-child(odd) td {
+    background: color-mix(in srgb, var(--seepos-gris-fondo) 45%, transparent);
+}
+
+.seepos-rejilla tbody tr:hover td {
+    background: color-mix(in srgb, var(--seepos-verde) 9%, transparent);
+}
+
+/* Fila seleccionada (HxGrid SelectionEnabled). */
+.seepos-rejilla tbody tr.hx-grid-row-selected td,
+.seepos-rejilla tbody tr[aria-selected="true"] td {
+    background: color-mix(in srgb, var(--seepos-verde) 15%, transparent);
+    box-shadow: inset .18rem 0 0 var(--seepos-verde-accion);
+}
+
+/* Cabeceras ordenables: el cursor y un realce al pasar. */
+.seepos-rejilla thead th:has(button),
+.seepos-rejilla thead th[role="button"],
+.seepos-rejilla thead th.hx-grid-sortable {
+    cursor: pointer;
+}
+
+.seepos-rejilla thead th:has(button):hover {
+    color: var(--seepos-verde-accion);
+}
+
+/* Paginador (Havit HxPager -> .pagination de Bootstrap). */
+.seepos-rejilla .pagination,
+.seepos-paginacion .pagination {
+    margin: 0;
+    padding: .55rem .8rem;
+    background: var(--bs-body-bg);
+    border-top: 1px solid var(--bs-border-color);
+    justify-content: flex-end;
+    gap: .15rem;
+}
+
+.seepos-rejilla .page-link {
+    min-width: 2.1rem;
+    text-align: center;
+    border: 1px solid transparent;
+    border-radius: .5rem !important;
+    color: var(--seepos-gris-texto);
+    font-size: .82rem;
+    font-weight: 600;
+}
+
+.seepos-rejilla .page-link:hover {
+    background: var(--seepos-gris-suave);
+    color: var(--seepos-verde-accion);
+}
+
+.seepos-rejilla .page-item.active .page-link {
+    background: var(--seepos-verde-accion);
+    border-color: var(--seepos-verde-accion);
+    color: #fff;
+}
+
+.seepos-rejilla .page-item.disabled .page-link {
+    color: var(--bs-border-color);
+    background: transparent;
+}
+
+.seepos-rejilla td.text-end,
+.seepos-rejilla th.text-end {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Tablas operativas ----------
+   No todas las consultas usan HxGrid todavía: caja, consignación, producción,
+   documentos y algunos flujos de captura conservan una tabla HTML porque sus
+   filas contienen acciones o controles de edición. Este bloque les aplica la
+   misma lectura de Inventarios/AppRejilla sin reescribir ni alterar su lógica:
+   marco de tarjeta, cabecera fija, bandas discretas, números alineados y scroll
+   contenido. Así una tabla de trámite, predepósito o lote no vuelve a verse como
+   una tabla Bootstrap aislada del resto del POS. */
+.seepos-nivel-a .table-responsive:not(.seepos-rejilla),
+.seepos-nivel-b .table-responsive:not(.seepos-rejilla),
+.seepos-nivel-c .table-responsive:not(.seepos-rejilla) {
+    max-height: min(60vh, 42rem);
+    overflow: auto;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .9rem;
+    background: var(--bs-body-bg);
+    box-shadow: 0 0 .875rem rgba(64, 49, 39, .05);
+}
+
+.seepos-nivel-a .table-responsive:not(.seepos-rejilla) > .table,
+.seepos-nivel-b .table-responsive:not(.seepos-rejilla) > .table,
+.seepos-nivel-c .table-responsive:not(.seepos-rejilla) > .table {
+    width: max(100%, max-content);
+    margin-bottom: 0;
+    font-size: .875rem;
+}
+
+/* También cubre las tablas de captura sin un contenedor responsive, por ejemplo
+   producción, toma física y traslados. El borde vive en el contenedor cuando lo
+   hay; estas reglas se concentran únicamente en la legibilidad de las filas. */
+.seepos-nivel-a .table:not(.table-borderless) thead th,
+.seepos-nivel-b .table:not(.table-borderless) thead th,
+.seepos-nivel-c .table:not(.table-borderless) thead th {
+    padding: .65rem .8rem;
+    color: var(--seepos-gris-texto);
+    font-size: .72rem;
+    font-weight: 750;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    background: var(--seepos-gris-fondo);
+    border-bottom: 2px solid var(--bs-border-color);
+}
+
+.seepos-nivel-a .table-responsive:not(.seepos-rejilla) > .table thead th,
+.seepos-nivel-b .table-responsive:not(.seepos-rejilla) > .table thead th,
+.seepos-nivel-c .table-responsive:not(.seepos-rejilla) > .table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.seepos-nivel-a .table:not(.table-borderless) tbody td,
+.seepos-nivel-b .table:not(.table-borderless) tbody td,
+.seepos-nivel-c .table:not(.table-borderless) tbody td {
+    padding: .56rem .8rem;
+    vertical-align: middle;
+    border-color: color-mix(in srgb, var(--bs-border-color) 62%, transparent);
+}
+
+.seepos-nivel-a .table:not(.table-borderless) tbody tr:nth-child(odd) td,
+.seepos-nivel-b .table:not(.table-borderless) tbody tr:nth-child(odd) td,
+.seepos-nivel-c .table:not(.table-borderless) tbody tr:nth-child(odd) td {
+    background: color-mix(in srgb, var(--seepos-gris-fondo) 42%, transparent);
+}
+
+.seepos-nivel-a .table:not(.table-borderless) tbody tr,
+.seepos-nivel-b .table:not(.table-borderless) tbody tr,
+.seepos-nivel-c .table:not(.table-borderless) tbody tr {
+    transition: background-color .12s ease;
+}
+
+.seepos-nivel-a .table:not(.table-borderless) tbody tr:hover td,
+.seepos-nivel-b .table:not(.table-borderless) tbody tr:hover td,
+.seepos-nivel-c .table:not(.table-borderless) tbody tr:hover td {
+    background: color-mix(in srgb, var(--seepos-verde) 9%, transparent);
+}
+
+.seepos-nivel-a .table :is(.text-end, .seepos-importe),
+.seepos-nivel-b .table :is(.text-end, .seepos-importe),
+.seepos-nivel-c .table :is(.text-end, .seepos-importe) {
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 767.98px) {
+    .seepos-nivel-a .table-responsive:not(.seepos-rejilla),
+    .seepos-nivel-b .table-responsive:not(.seepos-rejilla) {
+        max-height: 55vh;
+        border-radius: .7rem;
+    }
+
+    .seepos-nivel-a .table:not(.table-borderless) thead th,
+    .seepos-nivel-b .table:not(.table-borderless) thead th {
+        padding: .55rem .65rem;
+        font-size: .68rem;
+    }
+
+    .seepos-nivel-a .table:not(.table-borderless) tbody td,
+    .seepos-nivel-b .table:not(.table-borderless) tbody td {
+        padding: .5rem .65rem;
+        white-space: nowrap;
+    }
+}
+
+/* ================================================================
+   Isla de MudBlazor (piloto MudDataGrid). Todo lo .mud-* vive aqui.
+   Solo dos cosas: (1) dar a la rejilla el marco de tarjeta de la app,
+   (2) blindar contra el reboot de Bootstrap lo que haga falta.
+   ================================================================ */
+.seepos-mud-isla {
+    display: block;
+    position: relative;
+}
+
+/* Marco de tarjeta, igual que .card del resto de la app. */
+.seepos-mud-isla .mud-table.seepos-mud-grid {
+    border: 0;
+    border-radius: .8rem;
+    box-shadow:
+        0 .0625rem .125rem rgba(62, 47, 35, .06),
+        0 .5rem 1.25rem rgba(62, 47, 35, .05);
+    overflow: hidden;
+}
+
+/* Cabecera de la rejilla con el gris de marca y mayusculas discretas. */
+.seepos-mud-isla .mud-table-head th,
+.seepos-mud-isla .mud-table-head .mud-table-cell {
+    background: var(--seepos-gris-fondo);
+    color: var(--seepos-gris-texto);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    font-size: .72rem;
+}
+
+/* Importes a la derecha y con cifras de ancho fijo. */
+.seepos-mud-isla .mud-table-cell.justify-end,
+.seepos-mud-isla .mud-table-cell.justify-end > .mud-table-cell-content {
+    justify-content: flex-end;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Bootstrap Reboot pone `table { border-color: inherit }` y algun `th` en negrita
+   a la izquierda; Mud ya trae lo suyo, pero fijamos el color de linea a la marca. */
+.seepos-mud-isla .mud-table-root,
+.seepos-mud-isla .mud-table-cell {
+    border-color: var(--bs-border-color);
+}
+
+/* El paginador de Mud usa un <select> nativo para "filas por pagina"; que no
+   herede el alto raro del form-select de Bootstrap dentro de la isla. */
+.seepos-mud-isla .mud-select .mud-input-slot {
+    min-height: 0;
+}

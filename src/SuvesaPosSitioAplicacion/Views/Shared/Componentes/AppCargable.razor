@@ -1,0 +1,28 @@
+@* Envuelve una sección que carga datos: muestra un spinner encima mientras
+   Cargando, y un mensaje "sin datos" cuando termina y no hay nada. Así un panel
+   o el cuerpo de un modal no se queda en blanco sin explicación. *@
+
+<div class="seepos-cargable">
+    @if (Cargando)
+    {
+        <div class="seepos-cargable-capa">
+            <span class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando</span></span>
+        </div>
+    }
+
+    @if (!Cargando && Vacio)
+    {
+        <p class="text-secondary text-center py-4 mb-0">@TextoVacio</p>
+    }
+    else
+    {
+        @ChildContent
+    }
+</div>
+
+@code {
+    [Parameter] public bool Cargando { get; set; }
+    [Parameter] public bool Vacio { get; set; }
+    [Parameter] public string TextoVacio { get; set; } = "Sin resultados.";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}
