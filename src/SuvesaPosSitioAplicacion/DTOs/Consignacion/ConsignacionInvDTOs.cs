@@ -166,6 +166,17 @@ public sealed class BodegaCentralConsignacion
     public double ExistenciaTotal { get; set; }
 }
 
+/// <summary>Existencia Tipo 2 por lote en la central que el API usa para el cliente.</summary>
+public sealed class ExistenciaCentralConsignacion
+{
+    public int IdBodega { get; set; }
+    public string NombreBodega { get; set; } = "";
+    public int? IdSucursal { get; set; }
+    public long IdCliente { get; set; }
+    public long IdArticulo { get; set; }
+    public List<ExistenciaConsignacionLinea> Lotes { get; set; } = new();
+}
+
 public sealed class AbrirBodegaCentralConsignacion
 {
     public int? IdSucursal { get; set; }

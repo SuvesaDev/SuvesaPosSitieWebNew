@@ -21,12 +21,23 @@ public sealed class DepositosConsulta : ProxyBase, IDepositosConsulta
         string? numero, DateTime? desde, DateTime? hasta)
         => Ejecutar(async () =>
         {
-            var r = await _api.ObtenerDepositosAsync(new FiltroBusquedaDepositosDTO
-            {
-                Numero = string.IsNullOrWhiteSpace(numero) ? null : numero,
-                Desde = desde,
-                Hasta = hasta
-            });
+            var numeroNormalizado = string.IsNullOrWhiteSpace(numero) ? null : numero.Trim();
+
+            // El API no combina criterios: sus consultas esperan numero O fechas,
+            // pero no ambos a la vez. Si hay numero, este tiene prioridad.
+            //
+            // Ademas, la implementacion vigente del API conserva los limites de
+            // fecha invertidos (Fecha <= Desde && Fecha >= Hasta). Adaptamos aqui
+            // el contrato heredado y hacemos inclusivo el ultimo dia solicitado.
+            var filtro = numeroNormalizado is not null
+                ? new FiltroBusquedaDepositosDTO { Numero = numeroNormalizado }
+                : new FiltroBusquedaDepositosDTO
+                {
+                    Desde = hasta?.Date.AddDays(1).AddTicks(-1),
+                    Hasta = desde?.Date
+                };
+
+            var r = await _api.ObtenerDepositosAsync(filtro);
 
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar los depositos");

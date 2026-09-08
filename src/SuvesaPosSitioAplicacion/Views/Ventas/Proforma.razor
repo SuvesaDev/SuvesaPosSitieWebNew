@@ -43,7 +43,7 @@
         {
             <div class="card">
                 <div class="card-body">
-                    <AppRejilla TItem="CotizacionesDTO" Datos="Cargar" @ref="_rejilla"
+                    <AppRejilla TItem="CotizacionesDTO" Datos="Cargar"
                                 TextoVacio="No hay proformas registradas.">
                         <Columnas>
                             <HxGridColumn TItem="CotizacionesDTO" HeaderText="Numero"
@@ -223,9 +223,19 @@
     /// <summary>Una linea en edicion. Los importes viven en decimal, no en double.</summary>
     private sealed class Linea
     {
+        public long Numero { get; init; }
         public string? CodArticulo { get; init; }
         public long Codigo { get; init; }
+        public string? Cabys { get; init; }
         public string? Descripcion { get; init; }
+        public decimal PrecioCosto { get; init; }
+        public decimal PrecioBase { get; init; }
+        public decimal PrecioFlete { get; init; }
+        public decimal PrecioOtros { get; init; }
+        public string? SubFamilia { get; init; }
+        public decimal MaxDescuento { get; init; }
+        public decimal TipoCambioValorCompra { get; init; }
+        public int CodMonedaVenta { get; init; }
         public decimal Cantidad { get; set; } = 1;
         public decimal PrecioUnitario { get; set; }
         public decimal Descuento { get; set; }
@@ -237,7 +247,6 @@
             => Calculo = CalculoDocumento.Linea(Cantidad, PrecioUnitario, Descuento, Impuesto);
     }
 
-    private AppRejilla<CotizacionesDTO>? _rejilla;
     private AppBuscadorArticulo _buscador = default!;
 
     private List<CotizacionesDTO> _proformas = new();
@@ -303,7 +312,7 @@
     private async Task Abrir(CotizacionesDTO resumen)
     {
         var completa = await Respuestas.DatoAsync(
-            await Api.ObtenerPorId(resumen.Cotizacion1), "abrir la proforma");
+            await Api.ObtenerPorId(resumen.Cotizacion1, resumen), "abrir la proforma");
 
         if (completa is null)
         {
@@ -320,9 +329,19 @@
             // y a partir de aqui todo el calculo es decimal.
             var linea = new Linea
             {
+                Numero = d.Numero,
                 CodArticulo = d.CodArticulo,
                 Codigo = d.Codigo,
+                Cabys = d.Cabys,
                 Descripcion = d.Descripcion,
+                PrecioCosto = Formato.AImporte(d.PrecioCosto),
+                PrecioBase = Formato.AImporte(d.PrecioBase),
+                PrecioFlete = Formato.AImporte(d.PrecioFlete),
+                PrecioOtros = Formato.AImporte(d.PrecioOtros),
+                SubFamilia = d.SubFamilia,
+                MaxDescuento = Formato.AImporte(d.MaxDescuento),
+                TipoCambioValorCompra = Formato.AImporte(d.TipoCambioValorCompra),
+                CodMonedaVenta = d.CodMonedaVenta,
                 Cantidad = Formato.AImporte(d.Cantidad),
                 PrecioUnitario = Formato.AImporte(d.PrecioUnit),
                 Descuento = Formato.AImporte(d.Descuento),
@@ -362,7 +381,16 @@
         {
             CodArticulo = articulo.Cod_Articulo,
             Codigo = articulo.Codigo,
+            Cabys = articulo.Codcabys,
             Descripcion = articulo.Descripcion,
+            PrecioCosto = Formato.AImporte(articulo.Costo),
+            PrecioBase = Formato.AImporte(articulo.Costo),
+            PrecioFlete = Formato.AImporte(articulo.Costo),
+            PrecioOtros = Formato.AImporte(articulo.OtrosCargos),
+            SubFamilia = articulo.SubFamilia.ToString(),
+            MaxDescuento = Formato.AImporte(articulo.Max_Descuento),
+            TipoCambioValorCompra = Formato.AImporte(_documento?.TipoCambio ?? 0),
+            CodMonedaVenta = articulo.MonedaVenta,
             Cantidad = 1,
             PrecioUnitario = Formato.AImporte(articulo.Precio_A),
             Impuesto = Formato.AImporte(articulo.IVenta)
@@ -434,9 +462,16 @@
 
             _documento.Detalle = _lineas.Select(l => new DetalleCotizacionDTO
             {
+                Numero = l.Numero,
+                Cotizacion = _documento.Cotizacion1,
                 Codigo = l.Codigo,
                 CodArticulo = l.CodArticulo,
+                Cabys = l.Cabys,
                 Descripcion = l.Descripcion,
+                PrecioCosto = (double)l.PrecioCosto,
+                PrecioBase = (double)l.PrecioBase,
+                PrecioFlete = (double)l.PrecioFlete,
+                PrecioOtros = (double)l.PrecioOtros,
                 Cantidad = (double)l.Cantidad,
                 PrecioUnit = (double)l.PrecioUnitario,
                 Descuento = (double)l.Descuento,
@@ -445,7 +480,12 @@
                 MontoImpuesto = (double)l.Calculo.MontoImpuesto,
                 SubTotal = (double)l.Calculo.SubTotal,
                 SubtotalGravado = (double)l.Calculo.SubtotalGravado,
-                Total = (double)l.Calculo.Total
+                SubTotalExcento = l.Impuesto == 0 ? (double)l.Calculo.SubtotalGravado : 0,
+                Total = (double)l.Calculo.Total,
+                SubFamilia = l.SubFamilia,
+                MaxDescuento = (double)l.MaxDescuento,
+                TipoCambioValorCompra = (double)l.TipoCambioValorCompra,
+                CodMonedaVenta = l.CodMonedaVenta
             }).ToList();
 
             var r = _documento.Cotizacion1 > 0
@@ -456,12 +496,10 @@
             {
                 Dialogos.Exito("Proforma guardada.");
                 _cargado = false;
+                // Al volver al listado se crea una rejilla nueva y Cargar consulta
+                // una sola vez porque _cargado es false. No se intenta refrescar la
+                // rejilla anterior, que ya fue desmontada al entrar al editor.
                 Cerrar();
-
-                if (_rejilla is not null)
-                {
-                    await _rejilla.RefrescarAsync();
-                }
             }
         }
         finally

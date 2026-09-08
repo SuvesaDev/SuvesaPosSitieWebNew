@@ -256,8 +256,14 @@
                             <div class="position-relative bg-body-tertiary text-center seepos-catalogo-imagen-contenedor" style="height: 11rem;">
                                 @* La imagen se pide por URL (BFF), no en base64: el listado ya no
                                    trae la imagen y no hay que renderizar data-URIs enormes. *@
-                                <img class="mw-100 h-100 p-2 seepos-catalogo-imagen" style="object-fit: contain;" src="/catalogo/imagen/@producto.Datos.IdInventario" alt="@producto.Datos.Descripcion" loading="lazy" onerror="this.classList.add('d-none');this.nextElementSibling.classList.remove('d-none')" />
-                                <div class="d-none seepos-catalogo-sin-imagen" aria-label="Imagen no disponible"><i class="bi bi-image" aria-hidden="true"></i><span>Imagen no disponible</span></div>
+                                @if (producto.ImagenNoDisponible)
+                                {
+                                    <div class="seepos-catalogo-sin-imagen" aria-label="Imagen no disponible"><i class="bi bi-image" aria-hidden="true"></i><span>Imagen no disponible</span></div>
+                                }
+                                else
+                                {
+                                    <img class="mw-100 h-100 p-2 seepos-catalogo-imagen" style="object-fit: contain;" src="@UrlImagenCatalogo(producto.Datos.IdInventario)" alt="@producto.Datos.Descripcion" loading="lazy" @onerror="() => producto.ImagenNoDisponible = true" />
+                                }
                                 <div class="position-absolute top-0 end-0 p-2"><input class="form-check-input" type="checkbox" aria-label="Seleccionar @producto.Datos.Descripcion" @bind="producto.Seleccionado" /></div>
                             </div>
                             <div class="card-body py-2"><p class="fw-semibold small mb-1">@producto.Datos.Descripcion</p><div class="small text-secondary">@Formato.Importe(producto.Datos.Precio)</div>@if (producto.Seleccionado) { <div class="input-group input-group-sm mt-2"><span class="input-group-text">Cant.</span><input class="form-control text-end" type="number" min="1" step="1" @bind="producto.Cantidad" /></div> }</div>
@@ -571,6 +577,7 @@
     {
         public required ArticulosImagenesCatalogoDTO Datos { get; init; }
         public bool Seleccionado { get; set; }
+        public bool ImagenNoDisponible { get; set; }
         public decimal Cantidad { get; set; } = 1;
     }
 
@@ -966,6 +973,13 @@
 
     private Task<ResponseGeneric<ICollection<ArticulosImagenesCatalogoDTO>>> ObtenerCatalogoAsync()
         => _catalogoPendiente ??= Imagenes.Catalogo();
+
+    /// <summary>
+    /// Evita una URL que comience por <c>/</c>: publicada bajo un directorio
+    /// virtual de IIS, esa barra abandona la aplicación y devuelve 404.
+    /// </summary>
+    private string UrlImagenCatalogo(long idInventario)
+        => new Uri(new Uri(Navegacion.BaseUri), $"catalogo/imagen/{idInventario}").AbsoluteUri;
 
     private void PrecargarCatalogo() => _catalogoPendiente ??= Imagenes.Catalogo();
 

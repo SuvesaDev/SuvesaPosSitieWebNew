@@ -35,7 +35,7 @@
       <div class="col-12"><span class="form-text">Abrir la bodega de consignación de un cliente nuevo:</span></div>
       <div class="col-md-6 position-relative">
         <input class="form-control" @bind="_texCliente" @bind:event="oninput" @bind:after="BuscarCliente" placeholder="Cédula o nombre del cliente" />
-        @if (_clientes.Count > 0)
+        @if (_clienteSel is null && _clientes.Count > 0)
         {
           <div class="list-group position-absolute shadow w-100" style="z-index:5; max-height:14rem; overflow-y:auto;">
             @foreach (var c in _clientes)
@@ -75,6 +75,7 @@
  private List<FiltranClienteDTO> _clientes = new();
  private FiltranClienteDTO? _clienteSel;
  private string _texto = "", _texCliente = "", _error = "";
+ private long _versionBusquedaCliente;
  private bool _soloCerradas, _cargando, _abriendo;
  private List<EmisorFiscalDTO> _emisores = new();
  private int _idEmisor;
@@ -107,15 +108,18 @@
 
  private async Task BuscarCliente()
  {
+     var version = ++_versionBusquedaCliente;
      var t = _texCliente?.Trim() ?? "";
      _clienteSel = null;
      if (t.Length < 2) { _clientes = new(); return; }
      var r = await Clientes.Buscar(t);
+     if (version != _versionBusquedaCliente) return;
      _clientes = r.EsCorrecta ? (r.Responses ?? new List<FiltranClienteDTO>()).Take(20).ToList() : new();
  }
 
  private void ElegirCliente(FiltranClienteDTO c)
  {
+     ++_versionBusquedaCliente;
      _clienteSel = c;
      _texCliente = $"{c.Cedula} — {c.Nombre}";
      _clientes = new();

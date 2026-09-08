@@ -19,6 +19,7 @@ public interface IConsignacionInvApiCliente
 
     Task<LoteEnvelope<BodegaCentralConsignacion>> AbrirBodegaCentralAsync(AbrirBodegaCentralConsignacion req);
     Task<LoteEnvelope<BodegaCentralConsignacion>> ReponerCentralAsync(ReponerCentralConsignacionRequest req);
+    Task<LoteEnvelope<ExistenciaCentralConsignacion>> ExistenciaCentralAsync(long idCliente, long idArticulo);
 
     Task<LoteEnvelope<BoletaConsignacion>> RegistrarBoletaAsync(BoletaConsignacionRequest req);
     Task<LoteEnvelope<BoletaConsignacion>> BoletaAsync(long id);
@@ -103,6 +104,10 @@ public sealed class ConsignacionInvApiCliente : IConsignacionInvApiCliente
 
     public Task<LoteEnvelope<BodegaCentralConsignacion>> ReponerCentralAsync(ReponerCentralConsignacionRequest req)
         => EnviarAsync<BodegaCentralConsignacion>(HttpMethod.Post, "ConsignacionInventario/ReponerCentral", req);
+
+    public Task<LoteEnvelope<ExistenciaCentralConsignacion>> ExistenciaCentralAsync(long idCliente, long idArticulo)
+        => EnviarAsync<ExistenciaCentralConsignacion>(HttpMethod.Get,
+            $"ConsignacionInventario/ExistenciaCentral?idCliente={idCliente}&idArticulo={idArticulo}");
 
     public Task<LoteEnvelope<ExistenciaConsignacion>> ExistenciaAsync(long idCliente)
         => EnviarAsync<ExistenciaConsignacion>(HttpMethod.Post, "ConsignacionInventario/Existencia", new ExistenciaConsignacionRequest { IdCliente = idCliente });

@@ -27,10 +27,27 @@ public sealed class Cotizaciones : ProxyBase, ICotizaciones
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar las proformas");
 
-    public Task<ResponseGeneric<CotizacionesDTO>> ObtenerPorId(long id)
+    public Task<ResponseGeneric<CotizacionesDTO>> ObtenerPorId(
+        long id, CotizacionesDTO? respaldoDelListado = null)
         => Ejecutar(async () =>
         {
             var r = await _api.ObtenerCotizacionPorIDAsync(id);
+
+            // El endpoint heredado arma el DTO sin asignarle Cotizacion1 y luego
+            // intenta cargar el detalle usando ese valor (0). El listado, en cambio,
+            // si trae el identificador y las lineas. La pantalla ya tiene ese resumen,
+            // asi que se usa como respaldo sin repetir la consulta completa.
+            if (r.Responses is not null)
+            {
+                r.Responses.Cotizacion1 = id;
+
+                if ((r.Responses.Detalle is null || r.Responses.Detalle.Count == 0)
+                    && respaldoDelListado?.Cotizacion1 == id)
+                {
+                    r.Responses.Detalle = respaldoDelListado.Detalle?.ToList();
+                }
+            }
+
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar la proforma");
 

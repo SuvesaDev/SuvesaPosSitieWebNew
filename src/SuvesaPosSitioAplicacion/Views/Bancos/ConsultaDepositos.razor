@@ -32,9 +32,9 @@
                                @onchange="e => _hasta = Fecha(e, _hasta)" />
                     </div>
                     <div class="col-12 col-md-3">
-                        <label class="form-label small" for="numero">Numero</label>
+                        <label class="form-label small" for="numero">Número</label>
                         <input id="numero" type="search" class="form-control form-control-sm"
-                               placeholder="Opcional"
+                               placeholder="Opcional; prioriza este filtro"
                                value="@_numero" @onchange="e => _numero = Texto(e)" />
                     </div>
                     <div class="col-12 col-md-3">
@@ -58,20 +58,20 @@
         else if (!_hayBusqueda)
         {
             <div class="text-center text-secondary py-5 small">
-                Indique un rango de fechas o un numero y pulse Buscar.
+                Indique un rango de fechas o un número y pulse Buscar.
             </div>
         }
         else if (_depositos.Count == 0)
         {
             <div class="text-center text-secondary py-5 small">
-                No se encontraron depositos con esos criterios.
+                No se encontraron depósitos con esos criterios.
             </div>
         }
         else
         {
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <span class="text-secondary small">
-                    @_depositos.Count @(_depositos.Count == 1 ? "deposito" : "depositos")
+                    @_depositos.Count @(_depositos.Count == 1 ? "depósito" : "depósitos")
                 </span>
                 <span class="small fw-semibold">
                     Total: <span class="seepos-importe">@Formato.Importe(_total)</span>
@@ -101,7 +101,7 @@
                     <AppRejilla TItem="DepositosBuscarDTO" Datos="Servir"
                                 Nivel="NivelPantalla.Tableta" @ref="_rejilla">
                         <Columnas>
-                            <HxGridColumn TItem="DepositosBuscarDTO" HeaderText="Numero"
+                            <HxGridColumn TItem="DepositosBuscarDTO" HeaderText="Número"
                                           ItemTextSelector="d => d.Numero"
                                           SortKeySelector="d => d.Numero" />
                             <HxGridColumn TItem="DepositosBuscarDTO" HeaderText="Banco"
