@@ -33,7 +33,10 @@ _NEW = re.compile(r"new\s+ItemMenu\b")
 
 def _strip_comments(s):
     s = re.sub(r"/\*.*?\*/", "", s, flags=re.S)
-    return re.sub(r"//[^\n]*", "", s)
+    s = re.sub(r"//[^\n]*", "", s)
+    # El árbol puede ordenar una colección con LINQ después de declararla;
+    # el parser solo necesita la parte literal del arreglo.
+    return re.sub(r"\}\s*\.OrderBy\(i => i\.Titulo, StringComparer\.CurrentCultureIgnoreCase\)\s*\.ToArray\(\)", "}", s)
 
 
 def _parse_list(s, i):
@@ -96,9 +99,14 @@ def preorden_codigos(raices):
             for h in nodo["hijos"]:
                 visita(h, mcod, [h["titulo"]])
         else:
-            codigos.append(mcod + "." + ".".join(slug(t) for t in cadena))
+            # Catálogos se muestra dentro de Parámetros, pero conserva su módulo
+            # de permisos histórico para no invalidar roles existentes.
+            es_grupo_catalogos = mcod == "PARAMETROS" and cadena[0] == "Catálogos"
+            modulo_codigo = "CATALOGOS" if es_grupo_catalogos or mcod == "CATALOGOS" else mcod
+            tramo = cadena[1:] if es_grupo_catalogos else cadena
+            codigos.append(modulo_codigo if not tramo else modulo_codigo + "." + ".".join(slug(t) for t in tramo))
             for h in nodo["hijos"]:
-                visita(h, mcod, cadena + [h["titulo"]])
+                visita(h, modulo_codigo, cadena[1:] + [h["titulo"]] if modulo_codigo == "CATALOGOS" else cadena + [h["titulo"]])
 
     for r in raices:
         visita(r, None, None)

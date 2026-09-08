@@ -53,14 +53,14 @@ public static partial class MenuSeePos
                     // "Documentos Emitidos" y "Bandeja Fiscal V4.4". Conserva el código
                     // y la ruta de Documentos Emitidos para no perder permisos.
                     Titulo = "Bandeja de documentos",
-                    Codigo = "INICIO.DOCUMENTOS_EMITIDOS",
+                    Codigo = "INICIO.BANDEJA_DE_DOCUMENTOS",
                     Ruta = "/initial/documents",
                 },
                 new ItemMenu
                 {
                     // MOTOR_CORREO_COMPROBANTES_WEB.md §4.
                     Titulo = "Envíos de correo",
-                    Codigo = "INICIO.ENVIOS_CORREO",
+                    Codigo = "INICIO.ENVIOS_DE_CORREO",
                     Ruta = "/initial/mail-outbox",
                 },
                 new ItemMenu
@@ -102,7 +102,7 @@ public static partial class MenuSeePos
                     // legada sigue accesible por ruta directa para consultas históricas,
                     // pero sale del menú (docs PLAN_COBRO_CONTADO_FASE3.md, paso 6).
                     Titulo = "Conciliación de caja",
-                    Codigo = "CAJA.CONCILIACION",
+                    Codigo = "CAJA.CONCILIACION_DE_CAJA",
                     Ruta = "/initial/cash/reconciliation",
                 },
                 new ItemMenu
@@ -194,7 +194,7 @@ public static partial class MenuSeePos
                             // La pantalla (TomaFisica.razor) se gatea con COMPRAS.TOMA_FISICA;
                             // el item vive bajo el grupo "Toma" para que se lea Toma > Toma Física.
                             Titulo = "Toma Física",
-                            Codigo = "COMPRAS.TOMA_FISICA",
+                            Codigo = "COMPRAS.TOMA.TOMA_FISICA",
                             Ruta = "/buys/physical-count",
                         }
                     }
@@ -227,7 +227,7 @@ public static partial class MenuSeePos
                 {
                     // SANEAMIENTO Fase 8.5 — consulta e impresión de recibos de pago.
                     Titulo = "Recibos de pago",
-                    Codigo = "COMPRAS.RECIBOS_PAGO",
+                    Codigo = "COMPRAS.RECIBOS_DE_PAGO",
                     Ruta = "/buys/payment-receipts",
                 }
             }
@@ -278,25 +278,25 @@ public static partial class MenuSeePos
                 new ItemMenu
                 {
                     Titulo = "Bodegas de Consignación",
-                    Codigo = "CONSIGNACION.BODEGAS",
+                    Codigo = "CONSIGNACION.BODEGAS_DE_CONSIGNACION",
                     Ruta = "/consignment/warehouses",
                 },
                 new ItemMenu
                 {
                     Titulo = "Ajuste de Bodega de Consignación",
-                    Codigo = "CONSIGNACION.AJUSTE",
+                    Codigo = "CONSIGNACION.AJUSTE_DE_BODEGA_DE_CONSIGNACION",
                     Ruta = "/consignment/adjust",
                 },
                 new ItemMenu
                 {
                     Titulo = "Inventario Físico de Consignación",
-                    Codigo = "CONSIGNACION.INVENTARIO_FISICO",
+                    Codigo = "CONSIGNACION.INVENTARIO_FISICO_DE_CONSIGNACION",
                     Ruta = "/consignment/count",
                 },
                 new ItemMenu
                 {
                     Titulo = "Kardex de Consignación",
-                    Codigo = "CONSIGNACION.KARDEX",
+                    Codigo = "CONSIGNACION.KARDEX_DE_CONSIGNACION",
                     Ruta = "/consignment/ledger",
                 },
                 new ItemMenu
@@ -325,7 +325,8 @@ public static partial class MenuSeePos
                 {
                     Titulo = "Facturación",
                     Codigo = "VENTAS.FACTURACION",
-                    Ruta = "/sales/billing",
+                    // Misma pantalla funcional de Inicio → Facturación.
+                    Ruta = "/initial/billing",
                 },
                 new ItemMenu
                 {
@@ -337,21 +338,21 @@ public static partial class MenuSeePos
                 {
                     // SANEAMIENTO Fase 8.2 — consulta de recibos emitidos y comprobantes rechazados.
                     Titulo = "Recibos y fallidas",
-                    Codigo = "VENTAS.RECIBOS_EMITIDOS",
+                    Codigo = "VENTAS.RECIBOS_Y_FALLIDAS",
                     Ruta = "/sales/receipts",
                 },
                 new ItemMenu
                 {
                     // SANEAMIENTO Fase 8.3 — series de emisión aplicables por ámbito y modalidad.
                     Titulo = "Perfiles de emisión",
-                    Codigo = "VENTAS.PERFILES_EMISION",
+                    Codigo = "VENTAS.PERFILES_DE_EMISION",
                     Ruta = "/sales/emission-profiles",
                 },
                 new ItemMenu
                 {
                     // Constancia de entrega de facturas al cliente para su trámite interno de pago.
                     Titulo = "Trámite de cobro",
-                    Codigo = "VENTAS.TRAMITE_COBRO",
+                    Codigo = "VENTAS.TRAMITE_DE_COBRO",
                     Ruta = "/sales/collection-process",
                 },
                 new ItemMenu
@@ -388,138 +389,118 @@ public static partial class MenuSeePos
         },
         new ItemMenu
         {
-            Titulo = "Utilidades",
-            Codigo = "UTILIDADES",
-            Ruta = "/utilities",
-            Icono = "bi-tools",
-            Hijos = new ItemMenu[]
-            {
-                new ItemMenu
-                {
-                    Titulo = "Lista articulos MAG",
-                    Codigo = "UTILIDADES.LISTA_ARTICULOS_MAG",
-                    Ruta = "/utilities/magitemslist",
-                }
-            }
-        },
-        new ItemMenu
-        {
-            // Modulo NUEVO (no viene de SidebarData.jsx). Reune los catalogos de
-            // mantenimiento que antes vivian sueltos dentro de "Parametros", para
-            // dejar "Parametros" solo con lo que configura el sistema (usuarios,
-            // roles, emisor electronico, series, plazos).
-            Titulo = "Catálogos",
-            Codigo = "CATALOGOS",
-            Ruta = "/parameters",
-            Icono = "bi-collection",
-            Hijos = new ItemMenu[]
-            {
-                new ItemMenu
-                {
-                    Titulo = "Presentaciones",
-                    Codigo = "CATALOGOS.PRESENTACIONES",
-                    Ruta = "/parameters/presentations",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Tipos de Factura",
-                    Codigo = "CATALOGOS.TIPOS_DE_FACTURA",
-                    Ruta = "/parameters/invoice-types",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Tipos de Identificación",
-                    Codigo = "CATALOGOS.TIPOS_DE_IDENTIFICACION",
-                    Ruta = "/parameters/identification-types",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Impuestos",
-                    Codigo = "CATALOGOS.IMPUESTOS",
-                    Ruta = "/parameters/taxes",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Tipos de Cobro",
-                    Codigo = "CATALOGOS.TIPOS_DE_COBRO",
-                    Ruta = "/parameters/collection-types",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Formas de Pago",
-                    Codigo = "CATALOGOS.FORMAS_DE_PAGO",
-                    Ruta = "/parameters/payment-methods",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Tipos de Exoneración",
-                    Codigo = "CATALOGOS.TIPOS_DE_EXONERACION",
-                    Ruta = "/parameters/exemption-types",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Monedas Fiscales",
-                    Codigo = "CATALOGOS.MONEDAS_FISCALES",
-                    Ruta = "/parameters/currencies",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Denominaciones de Moneda",
-                    Codigo = "CATALOGOS.DENOMINACIONES_DE_MONEDA",
-                    Ruta = "/parameters/currency-denominations",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Configuración de Plazos",
-                    Codigo = "CATALOGOS.CONFIGURACION_DE_PLAZOS",
-                    Ruta = "/parameters/payment-terms",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Geografía Fiscal",
-                    Codigo = "CATALOGOS.GEOGRAFIA_FISCAL",
-                    Ruta = "/parameters/fiscal-geography",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Bancos",
-                    Codigo = "CATALOGOS.BANCOS",
-                    Ruta = "/parameters/bank",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Tarifas",
-                    Codigo = "CATALOGOS.TARIFAS",
-                    Ruta = "/parameters/rates",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Ubicaciones",
-                    Codigo = "CATALOGOS.UBICACIONES",
-                    Ruta = "/parameters/locations",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Familias",
-                    Codigo = "CATALOGOS.FAMILIAS",
-                    Ruta = "/parameters/family",
-                },
-                new ItemMenu
-                {
-                    Titulo = "Tipos de Bonificación",
-                    Codigo = "CATALOGOS.TIPOS_DE_BONIFICACION",
-                    Ruta = "/parameters/bonus-types",
-                }
-            }
-        },
-        new ItemMenu
-        {
             Titulo = "Parametros",
             Codigo = "PARAMETROS",
             Ruta = "/parameters",
             Icono = "bi-gear-fill",
             Hijos = new ItemMenu[]
             {
+                new ItemMenu
+                {
+                    Titulo = "Catálogos",
+                    Codigo = "CATALOGOS",
+                    Ruta = "/parameters",
+                    Icono = "bi-collection",
+                    Hijos = new ItemMenu[]
+                    {
+                        new ItemMenu
+                        {
+                            Titulo = "Bancos",
+                            Codigo = "CATALOGOS.BANCOS",
+                            Ruta = "/parameters/bank",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Configuración de Plazos",
+                            Codigo = "CATALOGOS.CONFIGURACION_DE_PLAZOS",
+                            Ruta = "/parameters/payment-terms",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Denominaciones de Moneda",
+                            Codigo = "CATALOGOS.DENOMINACIONES_DE_MONEDA",
+                            Ruta = "/parameters/currency-denominations",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Familias",
+                            Codigo = "CATALOGOS.FAMILIAS",
+                            Ruta = "/parameters/family",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Formas de Pago",
+                            Codigo = "CATALOGOS.FORMAS_DE_PAGO",
+                            Ruta = "/parameters/payment-methods",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Geografía Fiscal",
+                            Codigo = "CATALOGOS.GEOGRAFIA_FISCAL",
+                            Ruta = "/parameters/fiscal-geography",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Impuestos",
+                            Codigo = "CATALOGOS.IMPUESTOS",
+                            Ruta = "/parameters/taxes",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Monedas Fiscales",
+                            Codigo = "CATALOGOS.MONEDAS_FISCALES",
+                            Ruta = "/parameters/currencies",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Presentaciones",
+                            Codigo = "CATALOGOS.PRESENTACIONES",
+                            Ruta = "/parameters/presentations",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Tarifas",
+                            Codigo = "CATALOGOS.TARIFAS",
+                            Ruta = "/parameters/rates",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Tipos de Bonificación",
+                            Codigo = "CATALOGOS.TIPOS_DE_BONIFICACION",
+                            Ruta = "/parameters/bonus-types",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Tipos de Cobro",
+                            Codigo = "CATALOGOS.TIPOS_DE_COBRO",
+                            Ruta = "/parameters/collection-types",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Tipos de Exoneración",
+                            Codigo = "CATALOGOS.TIPOS_DE_EXONERACION",
+                            Ruta = "/parameters/exemption-types",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Tipos de Factura",
+                            Codigo = "CATALOGOS.TIPOS_DE_FACTURA",
+                            Ruta = "/parameters/invoice-types",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Tipos de Identificación",
+                            Codigo = "CATALOGOS.TIPOS_DE_IDENTIFICACION",
+                            Ruta = "/parameters/identification-types",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Ubicaciones",
+                            Codigo = "CATALOGOS.UBICACIONES",
+                            Ruta = "/parameters/locations",
+                        }
+                    }
+                },
                 new ItemMenu
                 {
                     Titulo = "Usuarios",
@@ -555,21 +536,21 @@ public static partial class MenuSeePos
                 {
                     // SANEAMIENTO Fase 8.1 — propiedades semánticas de las formas de pago.
                     Titulo = "Propiedades de formas de pago",
-                    Codigo = "PARAMETROS.FORMAS_PAGO_PROPIEDADES",
+                    Codigo = "PARAMETROS.PROPIEDADES_DE_FORMAS_DE_PAGO",
                     Ruta = "/parameters/payment-methods-properties",
                 },
                 new ItemMenu
                 {
                     // MOTOR_PLANTILLAS_IMPRESION_WEB.md §3.
                     Titulo = "Plantillas de impresión",
-                    Codigo = "PARAMETROS.PLANTILLAS_IMPRESION",
+                    Codigo = "PARAMETROS.PLANTILLAS_DE_IMPRESION",
                     Ruta = "/parameters/print-templates",
                 },
                 new ItemMenu
                 {
                     // MOTOR_CORREO_COMPROBANTES_WEB.md §3 — configuración SMTP por emisor.
                     Titulo = "Configuración de correo",
-                    Codigo = "PARAMETROS.CONFIGURACION_CORREO",
+                    Codigo = "PARAMETROS.CONFIGURACION_DE_CORREO",
                     Ruta = "/parameters/mail-settings",
                 },
                 new ItemMenu
@@ -604,6 +585,8 @@ public static partial class MenuSeePos
                     Ruta = "/parameters/cash-registers",
                 }
             }
+            .OrderBy(i => i.Titulo, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray()
         },
         new ItemMenu
         {
@@ -619,5 +602,7 @@ public static partial class MenuSeePos
             Ruta = "/moduloReportes",
             Icono = "bi-bar-chart-fill",
         }
-    };
+    }
+    .OrderBy(i => string.Equals(i.Codigo, "PARAMETROS", StringComparison.Ordinal) ? 1 : 0)
+    .ToArray();
 }

@@ -1,6 +1,7 @@
 @page "/buys/pay"
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
+@inject IRelojEquipo RelojEquipo
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ICuentasPorPagar Api
 @inject ICajaOperaciones Caja
@@ -83,6 +84,7 @@
         if (_proveedor is null || _banco <= 0 || _cuentaDestino <= 0 || string.IsNullOrWhiteSpace(_cuenta) || string.IsNullOrWhiteSpace(_recibo)) { await Dialogos.InformarAsync("Complete recibo, banco, cuenta bancaria y cuenta destino antes de registrar."); return; }
         if (_lineas.Any(l => l.Abono < 0 || l.Abono > l.Saldo)) { await Dialogos.InformarAsync("Cada abono debe estar entre cero y el saldo pendiente de su factura."); return; }
         if (!await Dialogos.ConfirmarAsync("¿Desea registrar el abono al proveedor?", "Registrar abono", "Registrar")) return;
+        _fecha = await RelojEquipo.HoyAsync();
         var abono = new AbonoCuentaPagarReciboDTO { Documento = 0, TipoDocumento = "ABONO", CuentaBancaria = _cuenta, CodigoBanco = _banco, SaldoCuenta = 0, Monto = (double)TotalAbono, SaldoActual = 0, Fecha = _fecha, Recibo = _recibo, CedulaUsuario = Sesion.Usuario, CodProveedor = (int)_proveedor.IdProveedor, CodMoneda = _moneda, TipoCambio = (double)_tipoCambio, CuentaDestino = _cuentaDestino, Observaciones = _observaciones, IdSucursal = Sesion.IdSucursal, Detalle = _lineas.Where(l => l.Abono > 0).Select(l => new DetalleAbonoCuentaPagarDTO { Factura = l.Factura.IdFactura, CodProveedor = (int)_proveedor.IdProveedor, MontoFactura = l.Factura.MontoFactura, SaldoAnt = (double)l.Saldo, Abono = (double)l.Abono, AbonoSuMoneda = (double)l.Abono, SaldoActual = (double)(l.Saldo - l.Abono), IdCompra = l.Factura.IdFactura }).ToList() };
         _guardando = true; var creado = await Respuestas.DatoAsync(await Api.CrearAbono(abono), "registrar el abono al proveedor"); _guardando = false; if (creado is null) return;
         Dialogos.Exito("Abono registrado correctamente.");

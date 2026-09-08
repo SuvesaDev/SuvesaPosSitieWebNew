@@ -37,3 +37,13 @@ public sealed class HechoConCredencialesAttribute : FactAttribute
         }
     }
 }
+
+/// <summary>Variante para teorías parametrizadas que usan el usuario real.</summary>
+public sealed class HechoConCredencialesTheoryAttribute : TheoryAttribute
+{
+    public HechoConCredencialesTheoryAttribute()
+    {
+        if (!CredencialesPrueba.Hay)
+            Skip = CredencialesPrueba.Motivo;
+    }
+}

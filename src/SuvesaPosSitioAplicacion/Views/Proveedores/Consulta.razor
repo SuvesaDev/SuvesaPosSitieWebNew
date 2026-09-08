@@ -6,6 +6,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -452,12 +453,12 @@
         if (_esNuevo)
         {
             _edicion.IdUsuarioCreacion = Sesion.Usuario;
-            _edicion.FechaCreacion = DateTime.Today.ToString("d", System.Globalization.CultureInfo.GetCultureInfo("es-CR"));
+            _edicion.FechaCreacion = (await RelojEquipo.HoyAsync()).ToString("d", System.Globalization.CultureInfo.GetCultureInfo("es-CR"));
         }
         else
         {
             _edicion.IdUsuarioModificacion = Sesion.Usuario;
-            _edicion.FechaModificacion = DateTime.Today.ToString("d", System.Globalization.CultureInfo.GetCultureInfo("es-CR"));
+            _edicion.FechaModificacion = (await RelojEquipo.HoyAsync()).ToString("d", System.Globalization.CultureInfo.GetCultureInfo("es-CR"));
         }
         var respuesta = _esNuevo ? await Api.Crear(_edicion) : await Api.Editar(_edicion);
         _guardando = false;

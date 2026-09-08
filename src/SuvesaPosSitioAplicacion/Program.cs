@@ -68,6 +68,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IContextoSesion, ContextoSesion>();
 builder.Services.AddScoped<ApiAuthHeaderHandler>();
 builder.Services.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
+builder.Services.AddScoped<IRelojEquipo, RelojEquipo>();
 
 // Espacio de trabajo por pestanas. Scope de circuito, persistido en el navegador.
 // Sistema de diseno: dialogos y errores del API, cada uno en un solo sitio.

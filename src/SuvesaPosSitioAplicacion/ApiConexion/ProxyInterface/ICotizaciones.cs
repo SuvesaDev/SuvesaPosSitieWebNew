@@ -8,7 +8,8 @@ public interface ICotizaciones
 {
     Task<ResponseGeneric<ICollection<CotizacionesDTO>>> Obtener();
 
-    Task<ResponseGeneric<CotizacionesDTO>> ObtenerPorId(long id);
+    Task<ResponseGeneric<CotizacionesDTO>> ObtenerPorId(
+        long id, CotizacionesDTO? respaldoDelListado = null);
 
     Task<ResponseGeneric<CotizacionesDTO>> Crear(CotizacionesDTO cotizacion);
 

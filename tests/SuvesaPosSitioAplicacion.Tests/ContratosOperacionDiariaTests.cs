@@ -64,6 +64,42 @@ public class ContratosOperacionDiariaTests
     }
 
     [Fact]
+    public async Task Consignacion_ExigeEmisorYDocumentaDiferenciaAntesDeLiquidar()
+    {
+        var handler = new RegistroHttpHandler(_ => """{"status":0,"responses":{}}""");
+        var api = new ConsignacionInvApiCliente(Http(handler), new SesionPrueba("supervisor-carnes"));
+
+        await api.AbrirBodegaAsync(new AbrirBodegaConsignacion
+        {
+            IdCliente = 401, IdSucursal = 3, IdEmisor = 7
+        });
+        await api.RegistrarConteoAsync(new ConteoConsignacionRequest
+        {
+            IdCliente = 401, Completo = true,
+            Lineas = [new()
+            {
+                IdArticulo = 8001, IdStockLote = 55, Fisico = 17.75,
+                ClasificacionDiferencia = "Merma", MotivoDiferencia = "Cadena de frío interrumpida",
+                EvidenciaDiferencia = "ACTA-2026-09-08"
+            }]
+        });
+        await api.AprobarDiferenciasConteoAsync(new AprobarDiferenciasConteoConsignacion
+        {
+            IdConteo = 300, Aprobar = true, Comentario = "Revisado por supervisor"
+        });
+        await api.TableroAsync();
+
+        Assert.Collection(handler.Solicitudes,
+            r => Assert.Equal(("POST", "/ConsignacionInventario/AbrirBodega"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/RegistrarConteo"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/AprobarDiferenciasConteo"), r.VerboYRuta),
+            r => Assert.Equal(("GET", "/ConsignacionInventario/Tablero"), r.VerboYRuta));
+        Assert.Contains("idEmisor", handler.Solicitudes[0].Cuerpo, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Merma", handler.Solicitudes[1].Cuerpo);
+        Assert.Contains("ACTA-2026-09-08", handler.Solicitudes[1].Cuerpo);
+    }
+
+    [Fact]
     public async Task ConsignacionDeCarne_DesdeLaCentralHastaFacturaCredito_ConservaLoteCantidadYEstados()
     {
         // 20 kg salen de la bodega normal hacia la central; se consignan al

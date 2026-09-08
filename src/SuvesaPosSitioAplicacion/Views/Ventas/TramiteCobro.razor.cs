@@ -19,6 +19,7 @@ public partial class TramiteCobro
     private FiltranClienteDTO? _cliente;
 
     private DateTime _fechaEntrega = DateTime.Today;
+    protected DateTime HoyEquipo { get; private set; } = DateTime.Today;
     private string _entrega = "";
     private string _recibe = "";
     private string _observaciones = "";
@@ -39,6 +40,14 @@ public partial class TramiteCobro
     private DateTime? _consultaDesde = DateTime.Today.AddMonths(-1);
     private DateTime? _consultaHasta = DateTime.Today;
     private bool _consultaIncluirAnuladas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var hoy = await RelojEquipo.HoyAsync();
+        HoyEquipo = hoy;
+        _consultaDesde = hoy.AddMonths(-1);
+        _consultaHasta = hoy;
+    }
 
     private async Task CambiarAConsultar()
     {
@@ -79,10 +88,10 @@ public partial class TramiteCobro
     private void Alternar(FacturaTramiteCobroWebDTO f)
     {
         if (!_seleccion.Add(f.IdVenta)) { _seleccion.Remove(f.IdVenta); return; }
-        if (!_fechasPago.ContainsKey(f.IdVenta)) _fechasPago[f.IdVenta] = f.Vence ?? DateTime.Today;
+        if (!_fechasPago.ContainsKey(f.IdVenta)) _fechasPago[f.IdVenta] = f.Vence ?? HoyEquipo;
     }
 
-    private DateTime FechaPago(long idVenta) => _fechasPago.TryGetValue(idVenta, out var d) ? d : DateTime.Today;
+    private DateTime FechaPago(long idVenta) => _fechasPago.TryGetValue(idVenta, out var d) ? d : HoyEquipo;
 
     private void CambiarFechaPago(long idVenta, ChangeEventArgs e)
     {
@@ -95,6 +104,7 @@ public partial class TramiteCobro
         if (!await Dialogos.ConfirmarAsync($"¿Registrar la entrega de {_seleccion.Count} factura(s) a {_recibe}?")) return;
 
         _guardando = true;
+        _fechaEntrega = await RelojEquipo.HoyAsync();
         try
         {
             var cmd = new CrearTramiteCobroWebDTO

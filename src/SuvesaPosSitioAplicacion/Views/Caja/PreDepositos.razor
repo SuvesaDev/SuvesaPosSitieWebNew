@@ -1,6 +1,7 @@
 @page "/initial/cash/deposits/predeposits"
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
+@inject IRelojEquipo RelojEquipo
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ICajaOperaciones Api
 @inject IContextoSesion Sesion
@@ -34,7 +35,7 @@
     private AppDesbloqueoClave? _bloqueo;
     private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
     private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
-    protected override Task OnInitializedAsync() => Cargar();
+    protected override async Task OnInitializedAsync() { _fecha = await RelojEquipo.HoyAsync(); await Cargar(); }
     private async Task Cargar()
     {
         _cargando = true;
@@ -58,6 +59,7 @@
         if (cajero is null || _empresa == 0 || _monto <= 0) { await Dialogos.InformarAsync("Seleccione cajero y empresa, e indique un monto válido."); return; }
         if (!await Dialogos.ConfirmarAsync("¿Desea registrar este pre depósito?", "Registrar pre depósito", "Registrar")) return;
         _guardando = true;
+        _fecha = await RelojEquipo.HoyAsync();
         var pre = new PreDepositosDTO { Fecha = _fecha, Cajero = cajero.Nombre, Cedula = cajero.Id.ToString(), Depositante = Sesion.Usuario, IdEmpresa = _empresa, NumApertura = _numeroApertura, Monto = _monto, Observaciones = _observaciones };
         var creado = await Respuestas.DatoAsync(await Api.CrearPreDeposito(pre), "registrar el pre depósito"); _guardando = false;
         if (creado is null) return; Dialogos.Exito("Pre depósito registrado correctamente."); _monto = 0; _observaciones = null; await CargarRegistrados();
