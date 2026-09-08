@@ -1,0 +1,137 @@
+@page "/parameters/cash-registers"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICajaOperaciones Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  Mantenimiento del catálogo de cajas (tabla Caja_cantidad). Apertura Caja exige
+    que la caja exista aquí. Una caja solo se puede quitar si está libre. *@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Agregar">
+                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar caja
+            </button>
+        }
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+    </Acciones>
+
+    <ChildContent>
+        <div class="card">
+            <div class="card-body">
+                <AppRejilla TItem="CajasCantidad"
+                            Datos="Cargar"
+                            Nivel="NivelPantalla.Tableta"
+                            TextoVacio="No hay cajas registradas."
+                            @ref="_rejilla">
+                    <Columnas>
+                        <HxGridColumn TItem="CajasCantidad" HeaderText="N.º de caja"
+                                      ItemTextSelector="c => c.NumCaja.ToString()"
+                                      SortKeySelector="c => c.NumCaja" />
+
+                        <HxGridColumn TItem="CajasCantidad" HeaderText="Estado"
+                                      SortKeySelector="c => c.NumApertura">
+                            <ItemTemplate Context="c">
+                                @if (c.NumApertura == 0)
+                                {
+                                    <span class="badge text-bg-success">Libre</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">Apertura #@c.NumApertura</span>
+                                }
+                            </ItemTemplate>
+                        </HxGridColumn>
+
+                        <HxGridColumn TItem="CajasCantidad" HeaderText=""
+                                      HeaderCssClass="text-end" ItemCssClass="text-end">
+                            <ItemTemplate Context="c">
+                                @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                {
+                                    <button class="btn btn-sm btn-link text-danger p-0"
+                                            disabled="@(c.NumApertura != 0)"
+                                            title="@(c.NumApertura != 0 ? "La caja tiene una apertura activa" : "Quitar la caja")"
+                                            @onclick="() => Quitar(c)">Quitar</button>
+                                }
+                            </ItemTemplate>
+                        </HxGridColumn>
+                    </Columnas>
+                </AppRejilla>
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modal" Title="Nueva caja" Size="ModalSize.Regular">
+    <BodyTemplate>
+        <label class="form-label">N.º de caja</label>
+        <input type="number" min="1" step="1" class="form-control" @bind="_numCajaNueva" />
+        <div class="form-text">Debe ser un número único. La caja queda libre hasta que se abra una apertura.</div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
+        <AppBoton Texto="Crear" TextoOcupado="Creando..." Icono="bi-check2" OnClick="Guardar" />
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Cajas";
+
+    private AppRejilla<CajasCantidad>? _rejilla;
+    private HxModal _modal = default!;
+
+    private List<CajasCantidad> _cajas = new();
+    private bool _cargado;
+    private long _numCajaNueva;
+
+    private async Task<GridDataProviderResult<CajasCantidad>> Cargar(GridDataProviderRequest<CajasCantidad> peticion)
+    {
+        if (!_cargado)
+        {
+            _cajas = (await Respuestas.DatoAsync(await Api.TodasLasCajas(), "consultar las cajas"))?.ToList() ?? new();
+            _cargado = true;
+        }
+        return peticion.ApplyTo(_cajas);
+    }
+
+    private async Task Recargar()
+    {
+        _cargado = false;
+        if (_rejilla is not null) await _rejilla.RefrescarAsync();
+    }
+
+    private async Task Agregar()
+    {
+        _numCajaNueva = (_cajas.Count > 0 ? _cajas.Max(c => c.NumCaja) : 0) + 1;
+        await _modal.ShowAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_numCajaNueva <= 0) { await Dialogos.ErrorAsync("Indique un número de caja mayor a cero."); return; }
+        if (await Respuestas.CorrectaAsync(await Api.CrearCaja(_numCajaNueva), "crear la caja"))
+        {
+            await _modal.HideAsync();
+            Dialogos.Exito($"Caja {_numCajaNueva} creada.");
+            await Recargar();
+        }
+    }
+
+    private async Task Quitar(CajasCantidad caja)
+    {
+        if (caja.NumApertura != 0) return;
+        if (!await Dialogos.ConfirmarAsync($"¿Quitar la caja {caja.NumCaja}?", "Cajas")) return;
+        if (await Respuestas.CorrectaAsync(await Api.EliminarCaja(caja.IdCaja), "eliminar la caja"))
+        {
+            Dialogos.Exito($"Caja {caja.NumCaja} eliminada.");
+            await Recargar();
+        }
+    }
+}

@@ -1,0 +1,15 @@
+@page "/cuenta/sin-permiso"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+
+<PageTitle>Sin permiso &mdash; SeePOS</PageTitle>
+
+<div class="alert alert-danger" role="alert">
+    <h1 class="h5 alert-heading">Sin permiso</h1>
+    <p class="mb-0">
+        Su rol no tiene acceso a esta pantalla. Si cree que es un error, consulte
+        con el administrador del sistema.
+    </p>
+</div>
+
+<a class="btn btn-outline-secondary btn-sm" href="/">Volver al inicio</a>

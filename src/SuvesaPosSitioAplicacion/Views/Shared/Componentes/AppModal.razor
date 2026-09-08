@@ -1,0 +1,123 @@
+@using Havit.Blazor.Components.Web.Bootstrap
+
+@* Modal de contenido / edicion. Envuelve HxModal para que TODA pantalla del POS
+   tenga la misma cabecera (titulo + subtitulo opcional), el cuerpo scrollable y un
+   pie fijo con "Cancelar" + boton primario con estado "Guardando...".
+
+   Para preguntas si/no, avisos o errores NO se usa esto: se usa IServicioDialogos.
+
+   Uso:
+     <AppModal @ref="_modal" Titulo="Nuevo cliente" AlGuardar="Guardar"
+               Guardando="_guardando" PuedeGuardar="_formValido">
+         ... campos ...
+     </AppModal>
+
+     await _modal.MostrarAsync();
+     await _modal.OcultarAsync();
+*@
+
+<HxModal @ref="_hx"
+         Title="@(Subtitulo is null ? Titulo : null)"
+         HeaderTemplate="@(Subtitulo is null ? null : _cabeceraConSub)"
+         Size="Tamano"
+         Scrollable="Scrollable"
+         Centered="Centrado"
+         CssClass="@(string.IsNullOrWhiteSpace(CssExtra) ? "seepos-modal" : $"seepos-modal {CssExtra}")"
+         OnClosed="AlCerrar">
+    <BodyTemplate>
+        @ChildContent
+    </BodyTemplate>
+    <FooterTemplate>
+        @if (PieIzquierda is not null)
+        {
+            <div class="me-auto d-flex align-items-center gap-2">@PieIzquierda</div>
+        }
+
+        @if (MostrarCancelar)
+        {
+            <button type="button" class="btn btn-outline-secondary" @onclick="OcultarAsync">
+                @TextoCancelar
+            </button>
+        }
+
+        @if (Pie is not null)
+        {
+            @Pie
+        }
+        else if (AlGuardar.HasDelegate)
+        {
+            <button type="button"
+                    class="btn @(Peligro ? "btn-danger" : "btn-primary")"
+                    disabled="@(Guardando || !PuedeGuardar)"
+                    @onclick="AlGuardar">
+                @if (Guardando)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                    <span>@TextoGuardando</span>
+                }
+                else
+                {
+                    <i class="bi @IconoGuardar me-1" aria-hidden="true"></i>
+                    <span>@TextoGuardar</span>
+                }
+            </button>
+        }
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    private HxModal _hx = default!;
+
+    /// <summary>Titulo de la cabecera.</summary>
+    [Parameter, EditorRequired] public string Titulo { get; set; } = default!;
+
+    /// <summary>Segunda linea bajo el titulo. Opcional.</summary>
+    [Parameter] public string? Subtitulo { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [Parameter] public ModalSize Tamano { get; set; } = ModalSize.Large;
+    [Parameter] public bool Scrollable { get; set; } = true;
+    [Parameter] public bool Centrado { get; set; }
+
+    /// <summary>Clase(s) extra sobre el elemento .modal (ademas de "seepos-modal").</summary>
+    [Parameter] public string? CssExtra { get; set; }
+
+    /// <summary>Si se conecta, aparece el boton primario del pie.</summary>
+    [Parameter] public EventCallback AlGuardar { get; set; }
+    [Parameter] public bool Guardando { get; set; }
+
+    /// <summary>Compuerta adicional para habilitar el boton primario.</summary>
+    [Parameter] public bool PuedeGuardar { get; set; } = true;
+
+    /// <summary>Pinta el boton primario como destructivo (btn-danger).</summary>
+    [Parameter] public bool Peligro { get; set; }
+
+    [Parameter] public string TextoGuardar { get; set; } = "Guardar";
+    [Parameter] public string TextoGuardando { get; set; } = "Guardando...";
+    [Parameter] public string IconoGuardar { get; set; } = "bi-check2-circle";
+
+    [Parameter] public bool MostrarCancelar { get; set; } = true;
+    [Parameter] public string TextoCancelar { get; set; } = "Cancelar";
+
+    /// <summary>Reemplaza por completo el boton primario del pie.</summary>
+    [Parameter] public RenderFragment? Pie { get; set; }
+
+    /// <summary>Contenido extra alineado a la izquierda del pie.</summary>
+    [Parameter] public RenderFragment? PieIzquierda { get; set; }
+
+    /// <summary>Se dispara cuando el modal termina de cerrarse.</summary>
+    [Parameter] public EventCallback AlCerrar { get; set; }
+
+    private RenderFragment _cabeceraConSub => __builder =>
+    {
+        <h1 class="modal-title fs-5">
+            @Titulo
+            <span class="seepos-modal-sub">@Subtitulo</span>
+        </h1>
+    };
+
+    public Task MostrarAsync() => _hx.ShowAsync();
+
+    public Task OcultarAsync() => _hx.HideAsync();
+}

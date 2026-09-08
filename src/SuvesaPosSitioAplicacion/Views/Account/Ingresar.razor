@@ -1,0 +1,105 @@
+@page "/cuenta/ingresar"
+@layout LayoutVacio
+@using Microsoft.AspNetCore.Components.Endpoints
+@attribute [ExcludeFromInteractiveRouting]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using SuvesaPosSitioAplicacion.Services
+@inject IServicioAutenticacion Autenticacion
+@inject NavigationManager Navegacion
+@attribute [AllowAnonymous]
+
+@* Render estatico a proposito: establecer la cookie de sesion exige HttpContext,
+   y un componente interactivo ya no lo tiene. *@
+
+<PageTitle>Ingresar &mdash; CostaVet SeePOS</PageTitle>
+
+<div class="seepos-acceso">
+    <section class="seepos-acceso-tarjeta" aria-labelledby="tituloIngreso">
+        <aside class="seepos-acceso-presentacion">
+            <div class="seepos-acceso-presentacion-contenido">
+                <span class="seepos-acceso-eyebrow"><i class="bi bi-heart-pulse-fill" aria-hidden="true"></i> CostaVet SeePOS</span>
+                <h2>La operación veterinaria, siempre bajo control.</h2>
+                <p>Acceda de forma segura para continuar con la gestión de su negocio.</p>
+
+                <ul class="seepos-acceso-beneficios">
+                    <li><i class="bi bi-shield-check" aria-hidden="true"></i> Acceso seguro</li>
+                    <li><i class="bi bi-grid-1x2" aria-hidden="true"></i> Gestión en un solo lugar</li>
+                    <li><i class="bi bi-clock-history" aria-hidden="true"></i> Información disponible cuando la necesita</li>
+                </ul>
+            </div>
+        </aside>
+
+        <div class="seepos-acceso-formulario" data-bs-theme="light">
+            <div class="seepos-acceso-logo">
+                <img src="img/costavet-logo-compact.png" alt="CostaVet - Soluciones de salud veterinaria" />
+            </div>
+
+            <div class="text-center mb-4">
+                <h1 class="h3 mb-2" id="tituloIngreso">Bienvenido</h1>
+                <p class="text-secondary mb-0">Ingrese sus credenciales para continuar.</p>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Error))
+            {
+                <div class="alert alert-danger py-2 small" role="alert">@Error</div>
+            }
+
+            <EditForm Model="Entrada" FormName="ingresar" OnValidSubmit="Validar">
+                <DataAnnotationsValidator />
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="usuario">Usuario</label>
+                    <div class="input-group seepos-acceso-campo">
+                        <span class="input-group-text"><i class="bi bi-person" aria-hidden="true"></i></span>
+                        <InputText id="usuario" class="form-control" @bind-Value="Entrada.Usuario"
+                                   autocomplete="username" autofocus />
+                    </div>
+                    <ValidationMessage For="() => Entrada.Usuario" class="text-danger small" />
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold" for="password">Contraseña</label>
+                    <div class="input-group seepos-acceso-campo">
+                        <span class="input-group-text"><i class="bi bi-key" aria-hidden="true"></i></span>
+                        <InputText id="password" type="password" class="form-control" @bind-Value="Entrada.Password"
+                                   autocomplete="current-password" />
+                    </div>
+                    <ValidationMessage For="() => Entrada.Password" class="text-danger small" />
+                </div>
+
+                <button type="submit" class="btn btn-primary seepos-acceso-enviar w-100">
+                    <span>Iniciar sesión</span><i class="bi bi-arrow-right" aria-hidden="true"></i>
+                </button>
+            </EditForm>
+
+            <p class="seepos-acceso-pie mb-0"><i class="bi bi-lock-fill" aria-hidden="true"></i> Conexión segura</p>
+        </div>
+    </section>
+</div>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    public LoginVM Entrada { get; set; } = default!;
+
+    private string? Error { get; set; }
+
+    // El binder puede dejarla en null tras el POST; se completa aqui, no en el inicializador.
+    protected override void OnInitialized() => Entrada ??= new();
+
+    private async Task Validar()
+    {
+        var r = await Autenticacion.IngresarAsync(HttpContext, Entrada.Usuario, Entrada.Password);
+
+        if (!r.EsCorrecta)
+        {
+            Error = r.Excepcion;
+            return;
+        }
+
+        Navegacion.NavigateTo("/cuenta/sucursal", forceLoad: true);
+    }
+}

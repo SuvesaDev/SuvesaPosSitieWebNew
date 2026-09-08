@@ -1,0 +1,134 @@
+@page "/parameters/invoice-types"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ITiposFactura Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Agregar"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar</button>
+        }
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Uso</label>
+                    <select class="form-select form-select-sm" @bind="_filtroUso">
+                        <option value="0">Todos</option>
+                        <option value="1">Facturación</option>
+                        <option value="2">Devolución (Nota de crédito)</option>
+                        <option value="3">Compra</option>
+                        <option value="4">Consignación</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Modalidad</label>
+                    <select class="form-select form-select-sm" @bind="_filtroTiquete">
+                        <option value="0">Todas</option>
+                        <option value="1">Solo Tiquete</option>
+                        <option value="2">Solo cobro diferido</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card"><div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Código</th><th>Descripción</th><th>Uso</th><th>Modalidad</th><th>Activo</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Filtrados.Count == 0) { <tr><td colspan="6" class="text-secondary text-center py-3">No hay tipos de documento con ese filtro.</td></tr> }
+                        @foreach (var t in Filtrados)
+                        {
+                            <tr class="@(t.Activo ? null : "text-secondary")">
+                                <td><code>@t.Codigo</code></td>
+                                <td>@t.Descripcion</td>
+                                <td><span class="badge @UsoBadge(t.Uso)">@UsoTexto(t.Uso)</span></td>
+                                <td>
+                                    @if (t.Uso != UsoTipoDocumento.Facturacion) { <span class="text-secondary">—</span> }
+                                    else if (t.EsTiquete) { <span class="badge text-bg-dark">Tiquete</span> }
+                                    else { <span class="badge text-bg-light">Cobro diferido</span> }
+                                </td>
+                                <td>@if (t.Activo) { <span class="badge text-bg-light">Sí</span> } else { <span class="badge text-bg-warning">Inactivo</span> }</td>
+                                <td class="text-end">
+                                    @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                                    { <button class="btn btn-sm btn-link p-0" @onclick="() => Editar(t)">Editar</button> }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div></div>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modal" Title="@TituloModal" Size="ModalSize.Regular">
+    <BodyTemplate>
+        @if (_edicion is not null)
+        {
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formTipoDoc">
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">1 · Identificación</h6>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4"><label class="form-label">Código interno</label><input class="form-control" value="@_edicion.Codigo" disabled /><div class="form-text">Automático.</div></div>
+                        <div class="col-12 col-md-8"><label class="form-label">Descripción</label><input class="form-control" maxlength="50" @bind="_edicion.Descripcion" @bind:after="RecalcularAvisos" /></div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">2 · Uso</h6>
+                    <select class="form-select" @bind="_edicion.Uso" @bind:after="RecalcularAvisos">
+                        <option value="@UsoTipoDocumento.Facturacion">Facturación (venta)</option>
+                        <option value="@UsoTipoDocumento.Devolucion">Devolución (Nota de crédito)</option>
+                        <option value="@UsoTipoDocumento.Compra">Compra</option>
+                        <option value="@UsoTipoDocumento.Consignacion">Consignación</option>
+                    </select>
+                    <div class="form-text">@UsoAyuda(_edicion.Uso)</div>
+                </div>
+
+                @if (_edicion.Uso == UsoTipoDocumento.Facturacion)
+                {
+                    <div class="mb-4">
+                        <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">3 · Modalidad</h6>
+                        <div class="form-check form-switch">
+                            <input id="esTiquete" class="form-check-input" type="checkbox" @bind="_edicion.EsTiquete" @bind:after="RecalcularAvisos" />
+                            <label class="form-check-label" for="esTiquete">Tiquete</label>
+                        </div>
+                        <div class="form-text">Cobra y confirma la venta en la pantalla de Facturación, sin crear preventa. La serie define si además requiere documento electrónico.</div>
+                    </div>
+                }
+
+                <div class="mb-2">
+                    <h6 class="text-uppercase text-secondary small border-bottom pb-1 mb-2">@(_edicion.Uso == UsoTipoDocumento.Facturacion ? "4" : "3") · Estado</h6>
+                    <div class="form-check form-switch">
+                        <input id="activo" class="form-check-input" type="checkbox" @bind="_edicion.Activo" />
+                        <label class="form-check-label" for="activo">Activo</label>
+                    </div>
+                    @if (!_edicion.Activo) { <div class="form-text text-warning">Si el tipo ya tiene series o ventas, el API rechazará la desactivación.</div> }
+                </div>
+
+                @if (_avisos.Count > 0)
+                {
+                    <div class="alert alert-danger py-2 mb-0 mt-2"><ul class="mb-0 ps-3 small">@foreach (var a in _avisos) { <li>@a</li> }</ul></div>
+                }
+            </EditForm>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
+        <button class="btn btn-primary" type="submit" form="formTipoDoc" disabled="@(_guardando || _avisos.Count > 0)">@(_guardando ? "Guardando..." : "Guardar")</button>
+    </FooterTemplate>
+</HxModal>

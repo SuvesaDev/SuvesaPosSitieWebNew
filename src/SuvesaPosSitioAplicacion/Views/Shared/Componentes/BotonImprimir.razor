@@ -1,0 +1,59 @@
+@* Abre el PDF de representación gráfica de un documento en una pestaña nueva
+   (MOTOR_PLANTILLAS_IMPRESION_WEB.md §4). El render vive en el API; este botón
+   solo apunta al endpoint local /documentos/{tipo}/{id}/pdf. *@
+
+@if (Id > 0)
+{
+    <a class="btn @Clase" href="@Href" target="_blank" rel="noopener" title="@Titulo" aria-label="@EtiquetaAccesible">
+        <i class="bi bi-file-earmark-pdf @(SoloIcono ? "" : "me-1")" aria-hidden="true"></i>@(SoloIcono ? "" : Texto)
+    </a>
+    @if (MostrarDescarga)
+    {
+        <a class="btn @Clase ms-1" href="@HrefDescarga" title="Descargar PDF" aria-label="Descargar @EtiquetaAccesible">
+            <i class="bi bi-download" aria-hidden="true"></i><span class="visually-hidden">Descargar PDF</span>
+        </a>
+    }
+}
+
+@code {
+    /// <summary>Slug del tipo: factura-electronica, tiquete-electronico, nota-credito, recibo-pago, ...</summary>
+    [Parameter, EditorRequired] public string Tipo { get; set; } = "";
+
+    [Parameter, EditorRequired] public long Id { get; set; }
+
+    /// <summary>a4 | termico80 | null (usa la plantilla predeterminada).</summary>
+    [Parameter] public string? Formato { get; set; }
+
+    [Parameter] public bool Copia { get; set; }
+
+    [Parameter] public string Texto { get; set; } = "PDF";
+
+    [Parameter] public string Titulo { get; set; } = "Descargar / imprimir PDF";
+
+    [Parameter] public string Clase { get; set; } = "btn-sm btn-outline-primary";
+
+    [Parameter] public bool SoloIcono { get; set; }
+
+    /// <summary>Muestra una acción de descarga separada del visor en línea.</summary>
+    [Parameter] public bool MostrarDescarga { get; set; }
+
+    [Parameter] public string? Consecutivo { get; set; }
+
+    private string EtiquetaAccesible => string.IsNullOrWhiteSpace(Consecutivo)
+        ? $"Ver PDF de {Tipo} {Id}"
+        : $"Ver PDF de {Tipo} {Consecutivo}";
+
+    private string HrefDescarga => CrearHref(descargar: true);
+
+    private string Href => CrearHref(descargar: false);
+
+    private string CrearHref(bool descargar)
+    {
+        var q = new List<string>();
+        if (Copia) q.Add("copia=true");
+        if (!string.IsNullOrWhiteSpace(Formato)) q.Add($"formato={Uri.EscapeDataString(Formato)}");
+        if (descargar) q.Add("descargar=true");
+        var qs = q.Count > 0 ? "?" + string.Join("&", q) : "";
+        return $"/documentos/{Uri.EscapeDataString(Tipo)}/{Id}/pdf{qs}";
+    }
+}

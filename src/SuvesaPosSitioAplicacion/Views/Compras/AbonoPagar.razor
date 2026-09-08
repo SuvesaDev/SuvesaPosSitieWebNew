@@ -1,0 +1,93 @@
+@page "/buys/pay"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICuentasPorPagar Api
+@inject ICajaOperaciones Caja
+@inject IProveedoresConsulta Proveedores
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IJSRuntime JS
+
+<AppPantalla Pantalla="Abono Pagar" Nivel="NivelPantalla.Tableta">
+    <Acciones><button class="btn btn-sm btn-outline-secondary" disabled="@(Bloqueada || _cargando)" @onclick="Cargar"><i class="bi bi-arrow-clockwise"></i></button><button class="btn btn-sm btn-primary" disabled="@(Bloqueada || _guardando || !HayAbonos)" @onclick="Guardar">@(_guardando ? "Registrando..." : "Registrar abono")</button></Acciones>
+    <ChildContent>
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="el abono a proveedores" AlCambiar="AlDesbloquear" />
+        <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
+            <div class="card mb-3"><div class="card-header"><strong>Datos del abono</strong></div><div class="card-body"><div class="row g-3">
+                <div class="col-12 col-md-6"><label class="form-label" for="proveedor">Proveedor</label><select id="proveedor" class="form-select" @bind="_idProveedor" @bind:after="SeleccionarProveedor"><option value="0">Seleccione...</option>@foreach (var p in _proveedores) { <option value="@p.IdProveedor">@p.Nombre · @p.Cedula</option> }</select></div>
+                <div class="col-6 col-md-2"><label class="form-label" for="fecha">Fecha</label><InputDate id="fecha" class="form-control" @bind-Value="_fecha" /></div>
+                <div class="col-6 col-md-2"><label class="form-label" for="recibo">Recibo</label><InputText id="recibo" class="form-control" @bind-Value="_recibo" /></div>
+                <div class="col-6 col-md-2"><label class="form-label" for="moneda">Moneda</label><select id="moneda" class="form-select" @bind="_moneda"><option value="1">Colones</option><option value="2">Dólares</option></select></div>
+                <div class="col-6 col-md-2"><label class="form-label" for="banco">Banco</label><select id="banco" class="form-select" @bind="_banco" @bind:after="CargarCuentasBanco"><option value="0">Seleccione...</option>@foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }</select></div>
+                <div class="col-12 col-md-4"><label class="form-label" for="cuenta">Cuenta bancaria</label><select id="cuenta" class="form-select" disabled="@(_banco == 0)" @bind="_cuenta"><option value="">Seleccione...</option>@foreach (var c in _cuentasBanco) { <option value="@c.Numero">@c.Numero · @c.Moneda</option> }</select></div>
+                <div class="col-6 col-md-2"><label class="form-label" for="destino">Cuenta destino</label><select id="destino" class="form-select" disabled="@(_cuentasProveedor.Count == 0)" @bind="_cuentaDestino"><option value="0">Seleccione...</option>@foreach (var c in _cuentasProveedor) { <option value="@c.NumCuenta">@c.NumCuenta · @c.Banco</option> }</select></div>
+                <div class="col-12 col-md-4"><label class="form-label" for="observaciones">Observaciones</label><InputText id="observaciones" class="form-control" @bind-Value="_observaciones" /></div>
+            </div></div></div>
+            @if (_proveedor is null) { <p class="text-secondary text-center py-5">Seleccione un proveedor para ver sus facturas pendientes.</p> }
+            else { <div class="card"><div class="card-header d-flex justify-content-between"><strong>Facturas pendientes</strong><strong>Total abono: @Formato.Importe(TotalAbono)</strong></div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Factura</th><th>Fecha</th><th class="text-end">Saldo</th><th style="width:11rem" class="text-end">Abono</th></tr></thead><tbody>@foreach (var linea in _lineas) { <tr><td>@linea.Factura.NumeroFactura</td><td>@linea.Factura.Fecha.ToString("dd/MM/yyyy")</td><td class="text-end">@Formato.Importe(linea.Saldo)</td><td><input type="number" class="form-control form-control-sm text-end" min="0" max="@linea.Saldo" step="0.01" @bind="linea.Abono" /></td></tr> }</tbody></table></div></div> }
+        </fieldset>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private sealed class LineaAbono { public required FacturasPendientesPagoDTO Factura { get; init; } public decimal Saldo => Formato.AImporte(Factura.SaldoActual ?? 0); public decimal Abono { get; set; } }
+    private readonly List<BuscarProveedorPendientesDTO> _proveedores = new(); private readonly List<LineaAbono> _lineas = new();
+    private readonly List<EntidadesBancariasDTO> _bancos = new(); private readonly List<CuentaBancariaDTO> _cuentasBanco = new(); private readonly List<CuentaBancariaProveedorDTO> _cuentasProveedor = new();
+    private AppDesbloqueoClave? _bloqueo; private BuscarProveedorPendientesDTO? _proveedor; private long _idProveedor; private DateTime _fecha = DateTime.Today; private string? _recibo, _observaciones; private string _cuenta = string.Empty; private int _banco; private long _cuentaDestino; private int _moneda = 1; private decimal _tipoCambio = 1; private bool _cargando, _guardando;
+    private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado; private decimal TotalAbono => _lineas.Sum(l => Math.Min(l.Abono, l.Saldo)); private bool HayAbonos => TotalAbono > 0;
+    private async Task AlDesbloquear(bool _) => await Cargar();
+    private async Task Cargar()
+    {
+        if (Bloqueada) return;
+        _cargando = true;
+        var datos = await Respuestas.DatoAsync(await Api.ObtenerDeudas(), "consultar las cuentas por pagar");
+        _proveedores.Clear(); _proveedores.AddRange(datos ?? Array.Empty<BuscarProveedorPendientesDTO>());
+        _proveedor = null; _idProveedor = 0; _lineas.Clear();
+        _cuentasProveedor.Clear(); _cuentaDestino = 0;
+
+        var bancos = await Respuestas.DatoAsync(await Caja.Bancos(), "consultar los bancos");
+        _bancos.Clear(); _bancos.AddRange(bancos ?? Array.Empty<EntidadesBancariasDTO>());
+        _banco = 0; _cuenta = string.Empty; _cuentasBanco.Clear();
+
+        // Igual que el sistema actual: el tipo de cambio se manda siempre, no
+        // solo cuando la moneda del abono es dólares.
+        var tipoCambio = await Respuestas.DatoAsync(await Caja.TipoCambioDolar(), "consultar el tipo de cambio");
+        if (tipoCambio is not null && tipoCambio.ValorVenta > 0) _tipoCambio = Formato.AImporte(tipoCambio.ValorVenta);
+
+        _cargando = false;
+    }
+    private async Task CargarCuentasBanco()
+    {
+        _cuentasBanco.Clear(); _cuenta = string.Empty;
+        if (_banco == 0) return;
+        // El sistema actual manda la empresa fija en 1 al pedir las cuentas de un
+        // banco para este flujo (`startGetAllCuentasPays(idBanco, 1)`).
+        var cuentas = await Respuestas.DatoAsync(await Caja.Cuentas(_banco, 1), "consultar las cuentas bancarias");
+        _cuentasBanco.AddRange(cuentas ?? Array.Empty<CuentaBancariaDTO>());
+    }
+    private async Task SeleccionarProveedor()
+    {
+        _proveedor = _proveedores.FirstOrDefault(p => p.IdProveedor == _idProveedor);
+        _lineas.Clear();
+        _lineas.AddRange((_proveedor?.Facturas ?? Array.Empty<FacturasPendientesPagoDTO>()).Select(f => new LineaAbono { Factura = f }));
+
+        _cuentasProveedor.Clear(); _cuentaDestino = 0;
+        if (_proveedor is null) return;
+        var proveedor = await Respuestas.DatoAsync(await Proveedores.Uno((int)_proveedor.IdProveedor), "consultar el proveedor");
+        _cuentasProveedor.AddRange(proveedor?.CuentasBancariasProveedors ?? Array.Empty<CuentaBancariaProveedorDTO>());
+    }
+    private async Task Guardar()
+    {
+        if (_proveedor is null || _banco <= 0 || _cuentaDestino <= 0 || string.IsNullOrWhiteSpace(_cuenta) || string.IsNullOrWhiteSpace(_recibo)) { await Dialogos.InformarAsync("Complete recibo, banco, cuenta bancaria y cuenta destino antes de registrar."); return; }
+        if (_lineas.Any(l => l.Abono < 0 || l.Abono > l.Saldo)) { await Dialogos.InformarAsync("Cada abono debe estar entre cero y el saldo pendiente de su factura."); return; }
+        if (!await Dialogos.ConfirmarAsync("¿Desea registrar el abono al proveedor?", "Registrar abono", "Registrar")) return;
+        var abono = new AbonoCuentaPagarReciboDTO { Documento = 0, TipoDocumento = "ABONO", CuentaBancaria = _cuenta, CodigoBanco = _banco, SaldoCuenta = 0, Monto = (double)TotalAbono, SaldoActual = 0, Fecha = _fecha, Recibo = _recibo, CedulaUsuario = Sesion.Usuario, CodProveedor = (int)_proveedor.IdProveedor, CodMoneda = _moneda, TipoCambio = (double)_tipoCambio, CuentaDestino = _cuentaDestino, Observaciones = _observaciones, IdSucursal = Sesion.IdSucursal, Detalle = _lineas.Where(l => l.Abono > 0).Select(l => new DetalleAbonoCuentaPagarDTO { Factura = l.Factura.IdFactura, CodProveedor = (int)_proveedor.IdProveedor, MontoFactura = l.Factura.MontoFactura, SaldoAnt = (double)l.Saldo, Abono = (double)l.Abono, AbonoSuMoneda = (double)l.Abono, SaldoActual = (double)(l.Saldo - l.Abono), IdCompra = l.Factura.IdFactura }).ToList() };
+        _guardando = true; var creado = await Respuestas.DatoAsync(await Api.CrearAbono(abono), "registrar el abono al proveedor"); _guardando = false; if (creado is null) return;
+        Dialogos.Exito("Abono registrado correctamente.");
+        if (creado.IdAbonocpagar > 0 && await Dialogos.ConfirmarAsync("¿Imprimir el recibo de pago?", "Impresión"))
+            await JS.InvokeVoidAsync("open", $"/documentos/recibo-pago/{creado.IdAbonocpagar}/pdf", "_blank");
+        _recibo = _observaciones = null; await Cargar();
+    }
+}
