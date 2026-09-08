@@ -16,7 +16,7 @@ public static class LecturaEnvelope
     {
         var cuerpo = await respuesta.Content.ReadAsStringAsync();
         if (!respuesta.IsSuccessStatusCode)
-            return new ResponseGeneric<T>($"El API respondió {(int)respuesta.StatusCode}: {Recortar(cuerpo)}");
+            return new ResponseGeneric<T>(MensajeErrorHttp(respuesta.StatusCode, cuerpo));
 
         Envelope<T>? envelope;
         try
@@ -41,6 +41,22 @@ public static class LecturaEnvelope
     }
 
     private static string Recortar(string s) => s.Length <= 500 ? s : s[..500] + "…";
+
+    private static string MensajeErrorHttp(System.Net.HttpStatusCode estado, string cuerpo)
+    {
+        // IIS responde una página HTML antes de iniciar .NET cuando el web.config es
+        // inválido o el Hosting Bundle no está instalado. No se debe presentar ese
+        // HTML técnico al usuario final.
+        if (cuerpo.Contains("500.19", StringComparison.OrdinalIgnoreCase))
+            return "El API publicado no pudo iniciarse: IIS reportó el error 500.19 de configuración. " +
+                   "Revise el web.config desplegado y que el servidor tenga instalado el Hosting Bundle de ASP.NET Core/.NET 10.";
+
+        var esHtml = cuerpo.Contains("<html", StringComparison.OrdinalIgnoreCase)
+                     || cuerpo.StartsWith("<!DOCTYPE", StringComparison.OrdinalIgnoreCase);
+        return esHtml
+            ? $"El API respondió {(int)estado} con una página de error del servidor. Revise los registros del API publicado."
+            : $"El API respondió {(int)estado}: {Recortar(cuerpo)}";
+    }
 
     private sealed class Envelope<T>
     {

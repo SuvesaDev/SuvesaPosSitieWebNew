@@ -8,6 +8,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
 
 @*  Ola 5 — adelanto de dinero de un cliente contra futuras facturas ("Entrega a
     Cuenta"). Igual que Facturación, exige que el usuario tenga una caja abierta
@@ -191,6 +192,7 @@
         if (!await Dialogos.ConfirmarAsync($"¿Desea guardar la entrega a cuenta del cliente {_cedula} {_nombreCliente}?")) return;
 
         _guardando = true;
+        _fecha = await RelojEquipo.HoyAsync();
         var monedaSeleccionada = _monedas.FirstOrDefault(m => m.CodMoneda == _moneda);
         var dto = new EntregaCuentaDTO
         {
@@ -213,23 +215,23 @@
         if (await Respuestas.CorrectaAsync(r, "registrar la entrega a cuenta"))
         {
             Dialogos.Exito($"Entrega a cuenta del cliente {_cedula} {_nombreCliente} agregada correctamente.");
-            LimpiarFormulario();
+            await LimpiarFormulario();
         }
     }
 
-    private void LimpiarFormulario()
+    private async Task LimpiarFormulario()
     {
         _cedula = string.Empty;
         _nombreCliente = string.Empty;
         _moneda = 0;
         _formaPago = string.Empty;
         _monto = 0;
-        _fecha = DateTime.Today;
+        _fecha = await RelojEquipo.HoyAsync();
     }
 
-    private void Limpiar()
+    private async Task Limpiar()
     {
-        LimpiarFormulario();
+        await LimpiarFormulario();
         _desbloqueada = false;
         _usuario = null;
     }

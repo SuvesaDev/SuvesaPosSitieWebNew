@@ -46,6 +46,11 @@ export function esPantallaPequena() {
     return window.matchMedia('(max-width: 991.98px)').matches;
 }
 
+// Fecha y hora locales del equipo que usa el navegador (no del servidor).
+export function obtenerFechaHoraEquipo() {
+    return new Date().toISOString();
+}
+
 // Mantiene visible el encabezado que el usuario acaba de desplegar. El menú es
 // el único contenedor que se mueve y solo lo hace si el elemento quedó fuera de
 // su área visible; no altera el desplazamiento de la pantalla de trabajo.

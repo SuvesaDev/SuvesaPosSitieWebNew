@@ -25,7 +25,7 @@
     <div class="col-md-5 position-relative">
       <label class="form-label">Cliente <span class="text-danger">*</span></label>
       <input class="form-control" @bind="_texCliente" @bind:event="oninput" @bind:after="BuscarCliente" placeholder="Cédula o nombre" />
-      @if (_clientes.Count > 0)
+      @if (_idCliente <= 0 && _clientes.Count > 0)
       {
         <div class="list-group position-absolute shadow w-100" style="z-index:5; max-height:14rem; overflow-y:auto;">
           @foreach (var c in _clientes) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirCliente(c)"><strong>@c.Cedula</strong> @c.Nombre</button> }
@@ -72,6 +72,7 @@
  private List<FiltranClienteDTO> _clientes = new();
  private long _idCliente;
  private string _texCliente = "", _error = "";
+ private long _versionBusquedaCliente;
  private DateTime? _desde, _hasta;
  private KardexConsignacion? _kardex;
 
@@ -79,15 +80,18 @@
 
  private async Task BuscarCliente()
  {
+     var version = ++_versionBusquedaCliente;
      var t = _texCliente?.Trim() ?? "";
      _idCliente = 0; _kardex = null;
      if (t.Length < 2) { _clientes = new(); return; }
      var r = await Clientes.Buscar(t);
+     if (version != _versionBusquedaCliente) return;
      _clientes = r.EsCorrecta ? (r.Responses ?? new List<FiltranClienteDTO>()).Take(20).ToList() : new();
  }
 
  private void ElegirCliente(FiltranClienteDTO c)
  {
+     ++_versionBusquedaCliente;
      _idCliente = c.Identificacion;
      _texCliente = $"{c.Cedula} — {c.Nombre}";
      _clientes = new();

@@ -12,6 +12,7 @@
 @inject ICatalogoBonificacion CatalogoBonificacion
 @inject IClienteBonificacion ClienteBonificacion
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IConfiguracionPlazosFiscales Plazos
+@inject IRelojEquipo RelojEquipo
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -1666,8 +1667,8 @@
         _cartaEdicion = new CartaExoneracionDTO
         {
             Cedula = cedula,
-            FechaEmision = DateTime.Today,
-            FechaVence = DateTime.Today.AddYears(1),
+            FechaEmision = await RelojEquipo.HoyAsync(),
+            FechaVence = (await RelojEquipo.HoyAsync()).AddYears(1),
             Estado = true,
             IdUsuarioCreacion = Sesion.Usuario
         };

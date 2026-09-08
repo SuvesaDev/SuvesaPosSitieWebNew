@@ -4,6 +4,7 @@
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ICajaOperaciones Api
 @inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
 @inject IServicioDialogos Dialogos
 @inject IManejadorRespuestas Respuestas
 
@@ -125,7 +126,7 @@
     {
         if (_datos is null || !await Dialogos.ConfirmarAsync("¿Desea registrar el cierre de esta caja?", "Cerrar caja", "Cerrar caja")) return;
         _guardando = true;
-        var cierre = new CierreCajaDTO { NumApertura = _numeroApertura, NombreUsuarioApertura = _datos.Nombre, CedulaUsuarioApertura = _datos.CodigoCajero, NombreUsuarioCierre = Sesion.Usuario, CedulaUsuarioCierre = Sesion.Usuario, Fecha = DateTime.Now, TotalSistema = (float)_datos.TotalSistema };
+        var cierre = new CierreCajaDTO { NumApertura = _numeroApertura, NombreUsuarioApertura = _datos.Nombre, CedulaUsuarioApertura = _datos.CodigoCajero, NombreUsuarioCierre = Sesion.Usuario, CedulaUsuarioCierre = Sesion.Usuario, Fecha = await RelojEquipo.AhoraAsync(), TotalSistema = (float)_datos.TotalSistema };
         var creado = await Respuestas.DatoAsync(await Api.CrearCierre(cierre), "registrar el cierre de caja");
         _guardando = false;
         if (creado is null) return;

@@ -12,6 +12,8 @@ namespace SuvesaPosSitioAplicacion.Views.Ventas;
 
 public partial class CuentasPorCobrar
 {
+    private DateTime HoyEquipo { get; set; } = DateTime.Today;
+    protected override async Task OnInitializedAsync() => HoyEquipo = await RelojEquipo.HoyAsync();
     private const string Titulo = "Abono Cobrar";
     private const string CodigoEfectivo = "EFE";
 

@@ -13,6 +13,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
 @inject IJSRuntime JS
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IFormasPagoFiscales FormasPagoApi
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.ICajaOperaciones CajaApi
@@ -448,7 +449,7 @@
             Inhabilitado = false,
             Actualizado = true,
             IdUsuarioCreacion = Sesion.Usuario,
-            FechaCreacion = DateTime.Today.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("es-CR")),
+            FechaCreacion = (await RelojEquipo.HoyAsync()).ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("es-CR")),
             CuentasBancariasProveedors = new List<CuentaBancariaProveedorDTO>()
         }), "crear el proveedor");
         if (creado is null) return;
@@ -569,14 +570,14 @@
                 if (precios.Count > 0) await Respuestas.CorrectaAsync(await Api.ActualizarPrecios(precios), "actualizar los precios importados");
             }
             Dialogos.Exito(_idCompra > 0 ? "Compra actualizada correctamente." : "Compra registrada correctamente.");
-            NuevaCompra();
+            await NuevaCompra();
         }
     }
     private async Task Anular()
     {
         if (_idCompra <= 0 || !await Dialogos.ConfirmarAsync("Se anulará la compra y se revertirá el movimiento de inventario. ¿Desea continuar?")) return;
         _guardando = true; var respuesta = await Api.Anular(ArmarCompra()); _guardando = false;
-        if (await Respuestas.CorrectaAsync(respuesta, "anular la compra")) { Dialogos.Exito("Compra anulada correctamente."); NuevaCompra(); }
+        if (await Respuestas.CorrectaAsync(respuesta, "anular la compra")) { Dialogos.Exito("Compra anulada correctamente."); await NuevaCompra(); }
     }
 
     private async Task AbrirImportadorXml()
@@ -1003,8 +1004,8 @@
         RecalcularTotales(); LimpiarEditor(); await _modalBuscarCompras.HideAsync();
     }
     private static DateTime Fecha(string? valor) => DateTime.TryParse(valor, out var fecha) ? fecha.Date : DateTime.Today;
-    private void NuevaCompra()
+    private async Task NuevaCompra()
     {
-        _idCompra = 0; _proveedor = null; _textoProveedor = _numeroFactura = string.Empty; _proveedoresEncontrados.Clear(); _fecha = _vence = DateTime.Today; _tipoCompra = 2; _diasCredito = _bodega = 0; _empresa = EsCostaPetsCompra ? 1 : 0; _lineas.Clear(); _compraDesdeXml = false; LimpiarEditor(); RecalcularTotales();
+        _idCompra = 0; _proveedor = null; _textoProveedor = _numeroFactura = string.Empty; _proveedoresEncontrados.Clear(); _fecha = _vence = await RelojEquipo.HoyAsync(); _tipoCompra = 2; _diasCredito = _bodega = 0; _empresa = EsCostaPetsCompra ? 1 : 0; _lineas.Clear(); _compraDesdeXml = false; LimpiarEditor(); RecalcularTotales();
     }
 }

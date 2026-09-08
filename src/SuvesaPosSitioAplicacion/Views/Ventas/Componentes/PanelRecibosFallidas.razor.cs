@@ -21,6 +21,7 @@ public partial class PanelRecibosFallidas
     // Filtro de recibos
     private DateTime? _desde = DateTime.Today.AddDays(-7);
     private DateTime? _hasta = DateTime.Today;
+
     private long _numeroRecibo;
     private long _numApertura;
     private int _estado;
@@ -31,6 +32,9 @@ public partial class PanelRecibosFallidas
 
     protected override async Task OnInitializedAsync()
     {
+        var hoy = await RelojEquipo.HoyAsync();
+        _desde = hoy.AddDays(-7);
+        _hasta = hoy;
         if (VistaEfectiva == "recibos") await CargarRecibos();
         // Las fallidas se cargan siempre: alimentan el badge del contador.
         await CargarFallidas();

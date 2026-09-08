@@ -27,7 +27,7 @@
     <div class="col-md-5 position-relative">
       <label class="form-label">Cliente <span class="text-danger">*</span></label>
       <input class="form-control" @bind="_texCliente" @bind:event="oninput" @bind:after="BuscarCliente" placeholder="Cédula o nombre" />
-      @if (_clientes.Count > 0)
+      @if (_idCliente <= 0 && _clientes.Count > 0)
       {
         <div class="list-group position-absolute shadow w-100" style="z-index:5; max-height:14rem; overflow-y:auto;">
           @foreach (var c in _clientes) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirCliente(c)"><strong>@c.Cedula</strong> @c.Nombre</button> }
@@ -54,7 +54,7 @@
       </div>
       <div class="card-body">
         <table class="table table-sm align-middle">
-          <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Consignado</th><th class="text-end" style="min-width:8rem">Físico <span class="text-danger">*</span></th><th></th></tr></thead>
+          <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Consignado</th><th class="text-end" style="min-width:8rem">Físico <span class="text-danger">*</span></th><th>Clasificación de diferencia</th><th>Motivo / evidencia</th><th></th></tr></thead>
           <tbody>
             @foreach (var f in _filas)
             {
@@ -67,10 +67,23 @@
                          value="@(f.Fisico?.ToString() ?? "")"
                          @onchange="e => SetFisico(f, e.Value?.ToString())" />
                 </td>
+                <td>
+                  @if (f.TieneDiferencia)
+                  {
+                    <select class="form-select form-select-sm" @bind="f.ClasificacionDiferencia"><option value="">Seleccione...</option>@foreach (var tipo in TiposDiferencia) { <option value="@tipo">@tipo</option> }</select>
+                  }
+                </td>
+                <td>
+                  @if (f.TieneDiferencia)
+                  {
+                    <input class="form-control form-control-sm mb-1" @bind="f.MotivoDiferencia" placeholder="Motivo requerido" />
+                    <input class="form-control form-control-sm" @bind="f.EvidenciaDiferencia" placeholder="Foto o acta (opcional)" />
+                  }
+                </td>
                 <td class="text-end">@if (!f.Precargada) { <button class="btn btn-sm btn-link text-danger p-0" @onclick="() => _filas.Remove(f)">Quitar</button> }</td>
               </tr>
             }
-            @if (!_filas.Any()) { <tr><td colspan="5" class="text-secondary">El cliente no tiene artículos en su bodega de consignación.</td></tr> }
+            @if (!_filas.Any()) { <tr><td colspan="7" class="text-secondary">El cliente no tiene artículos en su bodega de consignación.</td></tr> }
           </tbody>
         </table>
 
@@ -106,6 +119,7 @@
           <button class="btn btn-sm btn-light" @onclick="IrAPrefactura">Generar prefactura</button>
         }
       </div><div class="card-body">
+        @if (_conteo.Estado == 5) { <div class="alert alert-warning d-flex justify-content-between align-items-center"><span>Las diferencias deben ser aprobadas antes de generar la prefactura.</span><button class="btn btn-warning" @onclick="AprobarDiferencias">Aprobar diferencias</button></div> }
         <table class="table table-sm mb-0">
           <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Consignado</th><th class="text-end">Físico</th><th class="text-end">Vendido</th><th class="text-end">Sobrante</th></tr></thead>
           <tbody>@foreach (var l in _conteo.Lineas)
@@ -134,11 +148,16 @@
      public double Consignado { get; set; }
      public double? Fisico { get; set; }
      public bool Precargada { get; set; }
+     public string? ClasificacionDiferencia { get; set; }
+     public string? MotivoDiferencia { get; set; }
+     public string? EvidenciaDiferencia { get; set; }
+     public bool TieneDiferencia => Fisico.HasValue && Math.Abs(Fisico.Value - Consignado) > 0.000001;
  }
 
  private List<FiltranClienteDTO> _clientes = new();
  private long _idCliente;
  private string _texCliente = "", _agente = "", _texArt = "", _error = "", _nombreBodega = "";
+ private long _versionBusquedaCliente;
  private bool _cargando;
  private List<InventarioDTO> _arts = new();
  private InventarioDTO? _artSel;
@@ -148,6 +167,7 @@
  private readonly List<Fila> _filas = new();
  private ConteoConsignacion? _conteo;
  private List<BuscarUsuarioDTO> _usuarios = new();
+ private static readonly string[] TiposDiferencia = ["Faltante", "Sobrante", "Merma", "Vencimiento", "Daño", "Cortesía"];
 
  private bool TodoContado => _filas.Count > 0 && _filas.All(f => f.Fisico.HasValue);
 
@@ -162,15 +182,18 @@
 
  private async Task BuscarCliente()
  {
+     var version = ++_versionBusquedaCliente;
      var t = _texCliente?.Trim() ?? "";
      _idCliente = 0;
      if (t.Length < 2) { _clientes = new(); return; }
      var r = await Clientes.Buscar(t);
+     if (version != _versionBusquedaCliente) return;
      _clientes = r.EsCorrecta ? (r.Responses ?? new List<FiltranClienteDTO>()).Take(20).ToList() : new();
  }
 
  private async Task ElegirCliente(FiltranClienteDTO c)
  {
+     ++_versionBusquedaCliente;
      _idCliente = c.Identificacion; _texCliente = $"{c.Cedula} — {c.Nombre}";
      _clientes = new(); _filas.Clear(); _conteo = null; _error = "";
      await CargarExistencia();
@@ -265,7 +288,10 @@
          {
              IdArticulo = f.IdArticulo,
              IdStockLote = f.IdStockLote,
-             Fisico = f.Fisico ?? 0
+             Fisico = f.Fisico ?? 0,
+             ClasificacionDiferencia = f.ClasificacionDiferencia,
+             MotivoDiferencia = f.MotivoDiferencia,
+             EvidenciaDiferencia = f.EvidenciaDiferencia
          }).ToList()
      });
      _guardando = false;
@@ -273,5 +299,14 @@
      _conteo = r.Responses;
      _error = "";
      Dialogos.Exito($"Conteo #{_conteo!.Id} guardado.");
+ }
+
+ private async Task AprobarDiferencias()
+ {
+     if (_conteo is null) return;
+     if (!await Dialogos.ConfirmarAsync("Las diferencias quedarán aprobadas y se habilitará la prefactura.", "Aprobar diferencias", "Aprobar")) return;
+     var r = await Api.AprobarDiferenciasConteoAsync(new() { IdConteo = _conteo.Id, Aprobar = true });
+     if (Ok(r)) { _conteo = r.Responses; Dialogos.Exito("Diferencias aprobadas."); }
+     else await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudieron aprobar las diferencias.");
  }
 }

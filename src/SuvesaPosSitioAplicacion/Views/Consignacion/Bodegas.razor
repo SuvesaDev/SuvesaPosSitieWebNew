@@ -6,17 +6,20 @@
 @using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
 @using SuvesaPosSitioAplicacion.DTOs.Consignacion
 @using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IConsignacionInvApiCliente Api
 @inject IClientesConsulta Clientes
 @inject IServicioDialogos Dialogos
 @inject SuvesaPosSitioAplicacion.Security.IContextoSesion Sesion
+@inject IEmisoresFiscales EmisoresApi
+@inject NavigationManager Nav
 
 <AppPantalla Pantalla="Bodegas de Consignación" Codigo="CONSIGNACION.BODEGAS" Icono="bi-shop"
              Subtitulo="Una bodega de inventario por cliente en consignación" Nivel="NivelPantalla.Tableta">
  <Acciones>
-  <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" disabled="@_cargando">Actualizar</button>
+  <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" disabled="@_cargando">Actualizar</button><button class="btn btn-sm btn-outline-primary" @onclick='() => Nav.NavigateTo("/consignment/dashboard")'>Tablero</button>
  </Acciones>
  <ChildContent>
   @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
@@ -32,7 +35,7 @@
       <div class="col-12"><span class="form-text">Abrir la bodega de consignación de un cliente nuevo:</span></div>
       <div class="col-md-6 position-relative">
         <input class="form-control" @bind="_texCliente" @bind:event="oninput" @bind:after="BuscarCliente" placeholder="Cédula o nombre del cliente" />
-        @if (_clientes.Count > 0)
+        @if (_clienteSel is null && _clientes.Count > 0)
         {
           <div class="list-group position-absolute shadow w-100" style="z-index:5; max-height:14rem; overflow-y:auto;">
             @foreach (var c in _clientes)
@@ -43,7 +46,8 @@
         }
         @if (_clienteSel is not null) { <div class="form-text">Seleccionado: <strong>@_clienteSel.Cedula — @_clienteSel.Nombre</strong></div> }
       </div>
-      <div class="col-md-3 d-grid"><button class="btn btn-primary" @onclick="AbrirBodega" disabled="@(_clienteSel is null || _abriendo)">@(_abriendo ? "Abriendo..." : "Abrir bodega")</button></div>
+      <div class="col-md-3"><label class="form-label">Emisor dueño <span class="text-danger">*</span></label><select class="form-select" @bind="_idEmisor"><option value="0">Seleccione...</option>@foreach (var e in _emisores) { <option value="@e.Id">@e.Nombre (@e.Identificacion)</option> }</select></div>
+      <div class="col-md-3 d-grid"><button class="btn btn-primary" @onclick="AbrirBodega" disabled="@(_clienteSel is null || _idEmisor <= 0 || _abriendo)">@(_abriendo ? "Abriendo..." : "Abrir bodega")</button></div>
     </div>
   </div></div>
 
@@ -71,9 +75,18 @@
  private List<FiltranClienteDTO> _clientes = new();
  private FiltranClienteDTO? _clienteSel;
  private string _texto = "", _texCliente = "", _error = "";
+ private long _versionBusquedaCliente;
  private bool _soloCerradas, _cargando, _abriendo;
+ private List<EmisorFiscalDTO> _emisores = new();
+ private int _idEmisor;
 
- protected override Task OnInitializedAsync() => Cargar();
+ protected override async Task OnInitializedAsync()
+ {
+     await Cargar();
+     var r = await EmisoresApi.Obtener();
+     _emisores = r.EsCorrecta ? (r.Responses?.OrderBy(e => e.Nombre).ToList() ?? new()) : new();
+     if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+ }
 
  private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
 
@@ -95,15 +108,18 @@
 
  private async Task BuscarCliente()
  {
+     var version = ++_versionBusquedaCliente;
      var t = _texCliente?.Trim() ?? "";
      _clienteSel = null;
      if (t.Length < 2) { _clientes = new(); return; }
      var r = await Clientes.Buscar(t);
+     if (version != _versionBusquedaCliente) return;
      _clientes = r.EsCorrecta ? (r.Responses ?? new List<FiltranClienteDTO>()).Take(20).ToList() : new();
  }
 
  private void ElegirCliente(FiltranClienteDTO c)
  {
+     ++_versionBusquedaCliente;
      _clienteSel = c;
      _texCliente = $"{c.Cedula} — {c.Nombre}";
      _clientes = new();
@@ -116,7 +132,8 @@
      var r = await Api.AbrirBodegaAsync(new AbrirBodegaConsignacion
      {
          IdCliente = _clienteSel.Identificacion,
-         IdSucursal = Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null
+         IdSucursal = Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null,
+         IdEmisor = _idEmisor
      });
      _abriendo = false;
      if (!Ok(r)) { await Fallo(r, "No se pudo abrir la bodega."); return; }
