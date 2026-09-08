@@ -1,0 +1,88 @@
+@using MudBlazor
+@implements IDisposable
+@inject IJSRuntime JS
+
+@* Isla de MudBlazor. Envuelve el contenido que use componentes .mud-* (hoy solo
+   MudDataGrid en consultas pesadas) y monta SOLO aqui los proveedores de Mud:
+   tema + popover. Asi Mud no toca el resto de la app — no hay MudThemeProvider
+   global — y Bootstrap/Havit siguen mandando fuera de esta isla.
+
+   El tema replica la paleta de marca (tema.css) para que la rejilla no se vea
+   "de otra libreria". El modo oscuro se lee de data-bs-theme una vez al montar. *@
+
+<MudThemeProvider Theme="_tema" IsDarkMode="_oscuro" />
+<MudPopoverProvider />
+
+<div class="seepos-mud-isla">
+    @ChildContent
+</div>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool _oscuro;
+
+    private readonly MudTheme _tema = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#347000",
+            Secondary = "#f87602",
+            Background = "#fffdf9",
+            Surface = "#fffdf9",
+            AppbarBackground = "#4d382d",
+            TextPrimary = "#302a26",
+            TextSecondary = "#716860",
+            ActionDefault = "#716860",
+            LinesDefault = "#d8d0c8",
+            TableLines = "#d8d0c8",
+            TableStriped = "#f8f5f0",
+            TableHover = "rgba(88,186,0,.08)",
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#82d93b",
+            Secondary = "#f87602",
+        },
+        Typography = new Typography
+        {
+            Default = new DefaultTypography
+            {
+                FontFamily = new[] { "Montserrat", "Helvetica Neue", "Arial", "sans-serif" },
+                FontSize = "0.8125rem",
+            },
+        },
+        LayoutProperties = new LayoutProperties
+        {
+            DefaultBorderRadius = "8px",
+        },
+    };
+
+    protected override async Task OnAfterRenderAsync(bool primeraVez)
+    {
+        if (!primeraVez)
+        {
+            return;
+        }
+
+        try
+        {
+            var tema = await JS.InvokeAsync<string>(
+                "document.documentElement.getAttribute", "data-bs-theme");
+            var oscuro = string.Equals(tema, "dark", StringComparison.OrdinalIgnoreCase);
+            if (oscuro != _oscuro)
+            {
+                _oscuro = oscuro;
+                StateHasChanged();
+            }
+        }
+        catch
+        {
+            // Si el interop falla, la isla se queda en claro. No es critico.
+        }
+    }
+
+    public void Dispose()
+    {
+    }
+}

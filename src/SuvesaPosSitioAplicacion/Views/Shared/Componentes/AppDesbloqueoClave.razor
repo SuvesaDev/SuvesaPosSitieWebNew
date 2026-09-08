@@ -1,0 +1,104 @@
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Services
+@inject ICajaOperaciones Caja
+@inject IManejadorRespuestas Respuestas
+
+@if (!Desbloqueado)
+{
+    <div class="seepos-desbloqueo-clave alert mb-3" role="status">
+        <span class="seepos-desbloqueo-clave-icono"><i class="bi bi-key-fill" aria-hidden="true"></i></span>
+        <div class="flex-grow-1">
+            <strong>Validación requerida</strong>
+            <span>Ingrese la clave interna para activar @Titulo.</span>
+            @if (_error is not null)
+            {
+                <span class="d-block text-danger mt-1"><i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>@_error</span>
+            }
+        </div>
+        <div class="input-group seepos-desbloqueo-clave-campo">
+            <input type="password" class="form-control" placeholder="Clave interna" aria-label="Clave interna"
+                   @bind="_clave" @onkeydown="AlPresionarTecla" disabled="@_validando" />
+            <button type="button" class="btn btn-primary" @onclick="Validar" disabled="@(_validando || string.IsNullOrWhiteSpace(_clave))">
+                @(_validando ? "Validando..." : "Activar")
+            </button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="seepos-desbloqueo-clave seepos-desbloqueo-clave-listo mb-3" role="status">
+        <i class="bi bi-shield-check-fill" aria-hidden="true"></i>
+        <span>@Titulo está activado.@(RequiereCajaAbierta && NumApertura > 0 ? $" Cajero: {UsuarioValidado?.Nombre} · Apertura #{NumApertura}." : "")</span>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Titulo { get; set; } = default!;
+    [Parameter] public EventCallback<bool> AlCambiar { get; set; }
+
+    /// <summary>
+    /// Si es true, además de validar la clave se busca la caja abierta del cajero.
+    /// Sin caja abierta la pantalla NO se desbloquea y se muestra el motivo en el mismo banner.
+    /// </summary>
+    [Parameter] public bool RequiereCajaAbierta { get; set; }
+
+    public bool Desbloqueado { get; private set; }
+    public Usuario? UsuarioValidado { get; private set; }
+
+    /// <summary>Apertura de caja del cajero validado (solo con <see cref="RequiereCajaAbierta"/>).</summary>
+    public long NumApertura { get; private set; }
+
+    private string _clave = string.Empty;
+    private bool _validando;
+    private string? _error;
+
+    private async Task AlPresionarTecla(KeyboardEventArgs evento)
+    {
+        if (evento.Key == "Enter") await Validar();
+    }
+
+    private async Task Validar()
+    {
+        if (_validando || string.IsNullOrWhiteSpace(_clave)) return;
+        _validando = true;
+        _error = null;
+
+        // Cobrar requiere saber que la MISMA persona de la clave es quien abrió
+        // caja. Esta operación es atómica en el API: no compara desde la web la
+        // PK de Usuario con el identificador estable del login de Aperturacaja.
+        if (RequiereCajaAbierta)
+        {
+            var resultado = await Caja.ValidarClaveInternaConCajaAbierta(_clave);
+            _clave = string.Empty;
+            _validando = false;
+
+            if (!resultado.EsCorrecta || resultado.Responses is null)
+            {
+                _error = resultado.Excepcion ?? "No se pudo validar la caja abierta de este usuario.";
+                return;
+            }
+
+            UsuarioValidado = new Usuario
+            {
+                Id = resultado.Responses.IdUsuario,
+                IdUsuario = resultado.Responses.Login,
+                Nombre = resultado.Responses.Nombre,
+            };
+            NumApertura = resultado.Responses.NumeroApertura;
+            Desbloqueado = true;
+            await AlCambiar.InvokeAsync(true);
+            return;
+        }
+
+        var usuario = await Respuestas.DatoAsync(await Caja.ValidarClaveInterna(_clave), "validar la clave interna");
+        if (usuario is null) { _validando = false; _clave = string.Empty; return; }
+
+        UsuarioValidado = usuario;
+        NumApertura = 0;
+
+        _validando = false;
+        _clave = string.Empty;
+        Desbloqueado = true;
+        await AlCambiar.InvokeAsync(true);
+    }
+}

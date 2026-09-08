@@ -1,0 +1,79 @@
+@page "/parameters/settings"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IConfiguracion Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  Ola 5 — el sistema actual (SettingsBody*.jsx) tiene varias pestañas
+    (Tarifas, Permisos, Tipos de bonificaciones, Comunicaciones, Valores), pero solo
+    la de "pronto pago" llama a un endpoint real; el resto llama a codigo comentado
+    en settings.js (mockup muerto). Se migra solo lo real.
+*@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Escritorio">
+    <ChildContent>
+        <div class="card">
+            <div class="card-header">Pronto pago</div>
+            <div class="card-body">
+                @if (!Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                {
+                    <p class="mb-0">Porcentaje actual: <strong>@_porcentaje.ToString("0.##")%</strong></p>
+                }
+                else
+                {
+                    <EditForm Model="this" OnValidSubmit="Guardar">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-12 col-md-4">
+                                <label class="form-label" for="porcentaje">Porcentaje de pronto pago para clientes</label>
+                                <div class="input-group">
+                                    <input id="porcentaje" type="number" min="0" max="100" step="0.01"
+                                           class="form-control" @bind="_porcentaje" />
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <button class="btn btn-primary" type="submit" disabled="@_guardando">
+                                    @(_guardando ? "Guardando..." : "Guardar")
+                                </button>
+                            </div>
+                        </div>
+                    </EditForm>
+                }
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Configuración";
+
+    private float _porcentaje;
+    private bool _guardando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var configuracion = await Respuestas.DatoAsync(await Api.Obtener(), "consultar la configuracion");
+        _porcentaje = (float)(configuracion?.PorcentajeClienteProntoPago ?? 0d);
+    }
+
+    private async Task Guardar()
+    {
+        if (_guardando)
+        {
+            return;
+        }
+
+        _guardando = true;
+        var configuracion = await Respuestas.DatoAsync(await Api.Guardar(_porcentaje), "guardar la configuracion");
+        _guardando = false;
+
+        if (configuracion is not null)
+        {
+            _porcentaje = (float)configuracion.PorcentajeClienteProntoPago;
+            Dialogos.Exito("Configuracion actualizada.");
+        }
+    }
+}

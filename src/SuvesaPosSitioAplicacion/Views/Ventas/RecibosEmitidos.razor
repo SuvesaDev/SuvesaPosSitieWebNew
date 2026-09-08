@@ -1,0 +1,13 @@
+@page "/sales/receipts"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Views.Ventas.Componentes
+
+@* SANEAMIENTO Fase 8.2 — entrada directa al panel de recibos y operaciones
+   fallidas. El mismo panel vive como pestañas dentro de "Cobrar"
+   (/sales/collect). *@
+
+<AppPantalla Pantalla="Recibos y operaciones fallidas" Codigo="VENTAS.RECIBOS_EMITIDOS" Nivel="NivelPantalla.Escritorio">
+    <ChildContent>
+        <PanelRecibosFallidas />
+    </ChildContent>
+</AppPantalla>

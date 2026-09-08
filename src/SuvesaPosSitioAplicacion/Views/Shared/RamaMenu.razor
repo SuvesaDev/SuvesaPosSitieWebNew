@@ -1,0 +1,93 @@
+@* Rama del menu lateral. Se llama a si misma para los niveles 3 y 4. *@
+@inject IJSRuntime JS
+
+<li @ref="_elemento" class="nav-item seepos-menu-rama">
+    @if (Item.EsGrupo)
+    {
+        <button class="btn btn-link nav-link text-start w-100 d-flex align-items-center gap-2 px-2 @(ContieneRutaActiva(Item) ? "seepos-menu-activo" : "")"
+                @onclick="Alternar"
+                aria-expanded="@(Abierto ? "true" : "false")">
+            <span class="flex-grow-1">@Item.Titulo</span>
+            <i class="bi @(Abierto ? "bi-chevron-up" : "bi-chevron-down") small" aria-hidden="true"></i>
+        </button>
+
+        @if (Abierto)
+        {
+            <ul class="seepos-menu-nivel nav flex-column border-start">
+                @foreach (var hijo in Item.Hijos)
+                {
+                    <RamaMenu @key="hijo.Titulo" Item="hijo" AlAbrir="AlAbrir" RutaActual="@RutaActual"
+                              Abierto="@(_hijoAbierto == hijo.Titulo)" AlAlternar="AlternarHijo" />
+                }
+            </ul>
+        }
+    }
+    else
+    {
+        <button class="btn btn-link nav-link text-start w-100 px-2 @(EstaActiva(Item) ? "seepos-menu-activo" : "")"
+                @onclick="() => AlAbrir.InvokeAsync(Item)">
+            @Item.Titulo
+        </button>
+    }
+</li>
+
+@code {
+    [Parameter, EditorRequired]
+    public ItemMenu Item { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public EventCallback<ItemMenu> AlAbrir { get; set; }
+
+    [Parameter, EditorRequired]
+    public string RutaActual { get; set; } = default!;
+
+    // Controlados por el padre (BarraLateral o la RamaMenu que nos contiene), que es
+    // quien decide cual de los hermanos del mismo nivel queda abierto.
+    [Parameter]
+    public bool Abierto { get; set; }
+
+    [Parameter]
+    public EventCallback<ItemMenu> AlAlternar { get; set; }
+
+    // Cual de MIS hijos (nivel siguiente) esta abierto; solo uno a la vez.
+    private string? _hijoAbierto;
+    private bool _abiertoAnterior;
+    private bool _debeMostrar;
+    private ElementReference _elemento;
+
+    private Task Alternar() => AlAlternar.InvokeAsync(Item);
+
+    private void AlternarHijo(ItemMenu hijo)
+        => _hijoAbierto = _hijoAbierto == hijo.Titulo ? null : hijo.Titulo;
+
+    protected override void OnParametersSet()
+    {
+        if (Abierto && !_abiertoAnterior)
+        {
+            _debeMostrar = true;
+        }
+
+        _abiertoAnterior = Abierto;
+    }
+
+    private bool EstaActiva(ItemMenu item)
+        => item.Ruta is not null
+           && (RutaActual.Equals(item.Ruta.Trim('/'), StringComparison.OrdinalIgnoreCase)
+               || RutaActual.StartsWith($"{item.Ruta.Trim('/')}/", StringComparison.OrdinalIgnoreCase));
+
+    private bool ContieneRutaActiva(ItemMenu item)
+        => EstaActiva(item) || item.Hijos.Any(ContieneRutaActiva);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_debeMostrar)
+        {
+            return;
+        }
+
+        _debeMostrar = false;
+        var modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+        await modulo.InvokeVoidAsync("desplazarMenuAVista", _elemento);
+        await modulo.DisposeAsync();
+    }
+}

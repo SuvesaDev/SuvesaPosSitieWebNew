@@ -1,0 +1,107 @@
+@page "/buys/payment-receipts"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Helpers
+@using SuvesaPosSitioAplicacion.Services
+@inject ICuentasPorPagar Api
+@inject IManejadorRespuestas Respuestas
+@inject IJSRuntime JS
+
+@* SANEAMIENTO Fase 8.5 — consulta e impresión de recibos de pago a proveedor. *@
+
+<AppPantalla Pantalla="@Titulo" Codigo="COMPRAS.RECIBOS_PAGO" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" disabled="@_cargando">
+            <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+        </button>
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Buscar (recibo, proveedor)</label>
+                    <input class="form-control form-control-sm" @bind="_texto" @bind:event="oninput" />
+                </div>
+                <div class="col-auto">
+                    <div class="form-check">
+                        <input id="incAnul" class="form-check-input" type="checkbox" @bind="_incluirAnulados" />
+                        <label class="form-check-label small" for="incAnul">Incluir anulados</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_cargando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+        }
+        else if (Filtrados.Count == 0)
+        {
+            <div class="alert alert-light border">Sin recibos de pago.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Recibo</th><th>Fecha</th><th class="text-center">Proveedor</th>
+                            <th class="text-end">Monto</th><th>Moneda</th><th class="text-center">Estado</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in Filtrados)
+                        {
+                            <tr class="@(a.Anulado ? "text-muted" : "")">
+                                <td><code>@(string.IsNullOrWhiteSpace(a.Recibo) ? a.IdAbonocpagar.ToString() : a.Recibo)</code></td>
+                                <td class="small">@a.Fecha.ToString("dd/MM/yyyy")</td>
+                                <td class="text-center">@a.CodProveedor</td>
+                                <td class="text-end seepos-importe">@Formato.Importe(a.Monto)</td>
+                                <td class="small">@(a.CodMoneda == 2 ? "USD" : "CRC")</td>
+                                <td class="text-center">
+                                    <span class="badge @(a.Anulado ? "text-bg-secondary" : "text-bg-success")">
+                                        @(a.Anulado ? "Anulado" : "Vigente")
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Imprimir(a.IdAbonocpagar)">PDF</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Recibos de pago";
+    private List<AbonoCuentaPagarReciboDTO> _abonos = new();
+    private string _texto = "";
+    private bool _incluirAnulados, _cargando = true;
+
+    private List<AbonoCuentaPagarReciboDTO> Filtrados => _abonos
+        .Where(a => _incluirAnulados || !a.Anulado)
+        .Where(a => string.IsNullOrWhiteSpace(_texto)
+                    || (a.Recibo ?? "").Contains(_texto, StringComparison.OrdinalIgnoreCase)
+                    || a.CodProveedor.ToString().Contains(_texto)
+                    || a.IdAbonocpagar.ToString().Contains(_texto))
+        .OrderByDescending(a => a.Fecha)
+        .ToList();
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        try
+        {
+            _abonos = (await Respuestas.DatoAsync(await Api.ListarAbonos(), "consultar los recibos de pago"))?.ToList() ?? new();
+        }
+        finally { _cargando = false; }
+    }
+
+    private async Task Imprimir(long id)
+        => await JS.InvokeVoidAsync("open", $"/documentos/recibo-pago/{id}/pdf", "_blank");
+}

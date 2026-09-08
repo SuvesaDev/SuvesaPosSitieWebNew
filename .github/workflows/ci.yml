@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, 'feature/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SEEPOS_USUARIO: ${{ secrets.SEEPOS_USUARIO }}
+      SEEPOS_PASSWORD: ${{ secrets.SEEPOS_PASSWORD }}
+      SEEPOS_API: https://devapi.pos2650.com
+      SeePos__ApiBaseUrl: https://devapi.pos2650.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restaurar
+        run: dotnet restore SuvesaPosSitioWeb.slnx
+
+      - name: Compilar
+        run: dotnet build SuvesaPosSitioWeb.slnx --no-restore --configuration Release
+
+      - name: Pruebas unitarias
+        run: dotnet test tests/SuvesaPosSitioAplicacion.Tests --no-build --configuration Release --verbosity normal
+
+      # Las E2E levantan la aplicacion y la conducen con un navegador de verdad.
+      # Las autenticadas se ejecutan aparte y solo cuando hay secretos configurados.
+      - name: Instalar navegador para Playwright
+        run: npx --yes playwright install --with-deps chromium
+
+      - name: Pruebas de extremo a extremo
+        run: dotnet test tests/SuvesaPosSitioAplicacion.E2E --no-build --configuration Release --verbosity normal --filter "Categoria!=RequiereCredenciales"
+
+      - name: Pruebas de extremo a extremo con API real
+        if: ${{ env.SEEPOS_USUARIO != '' && env.SEEPOS_PASSWORD != '' }}
+        run: dotnet test tests/SuvesaPosSitioAplicacion.E2E --no-build --configuration Release --verbosity normal --filter "Categoria=RequiereCredenciales"
+
+      - name: Publicar
+        run: dotnet publish src/SuvesaPosSitioAplicacion --no-build --configuration Release --output ./publicado
+
+      - name: Guardar artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: suvesa-pos-sitio
+          path: ./publicado
+          retention-days: 7

@@ -1,0 +1,17 @@
+@* Fecha. *@
+
+<HxInputDate Label="@Etiqueta"
+             TValue="DateTime?"
+             @bind-Value="Valor"
+             @bind-Value:after="AlCambiar"
+             Enabled="@(!Deshabilitado)" />
+
+@code {
+    [Parameter] public DateTime? Valor { get; set; }
+    [Parameter] public EventCallback<DateTime?> ValorChanged { get; set; }
+
+    [Parameter, EditorRequired] public string Etiqueta { get; set; } = default!;
+    [Parameter] public bool Deshabilitado { get; set; }
+
+    private Task AlCambiar() => ValorChanged.InvokeAsync(Valor);
+}

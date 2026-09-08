@@ -1,0 +1,268 @@
+@page "/sales/collect"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.DTOs.Ventas
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@using SuvesaPosSitioAplicacion.Views.Ventas.Componentes
+@using Havit.Blazor.Components.Web.Bootstrap
+@inject ICobros Api
+@inject ICajaOperaciones Caja
+@inject ICompras Compras
+@inject IAbonoCobrarPreventas Preventas
+@inject IComandosFacturacion Comandos
+@inject ICobrosCredito Credito
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+@inject IJSRuntime JS
+
+@*  ABONO_COBRAR_PREVENTAS_WEB.md — el cajero cobra las preventas pendientes de un
+    cliente (1 o varias), contra su caja abierta y con varias formas de pago; al
+    cobrar cada preventa se factura, se pregunta si imprimir (plantilla ligada a la
+    serie) y se emite a Hacienda. Los documentos salen en la Bandeja. *@
+
+<AppPantalla Pantalla="@Titulo" Codigo="VENTAS.ABONO_COBRAR" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        <a class="btn btn-sm btn-outline-secondary" href="/sales/emission-profiles">Perfiles de emisión</a>
+        <a class="btn btn-sm btn-outline-secondary" href="@(_codCliente > 0 ? $"/sales/account-statement/{_codCliente}" : "/sales/account-statement")">Estado de cuenta</a>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nuevo</button>
+    </Acciones>
+    <ChildContent>
+        <AppDesbloqueoClave @ref="_bloqueo" Titulo="el cobro de preventas" RequiereCajaAbierta="true" AlCambiar="AlDesbloquear" />
+
+        @* Pestañas fuera del fieldset: "Recibos" y "Operaciones fallidas" son de
+           sólo lectura y no dependen de la caja abierta. *@
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item"><button class="nav-link @(_modo == "preventas" ? "active" : null)" @onclick='() => CambiarModo("preventas")'>Preventas pendientes</button></li>
+            <li class="nav-item"><button class="nav-link @(_modo == "credito" ? "active" : null)" @onclick='() => CambiarModo("credito")'>Facturas de crédito</button></li>
+            <li class="nav-item"><button class="nav-link @(_modo == "recibos" ? "active" : null)" @onclick='() => CambiarModo("recibos")'>Recibos emitidos</button></li>
+            <li class="nav-item"><button class="nav-link @(_modo == "fallidas" ? "active" : null)" @onclick='() => CambiarModo("fallidas")'>Operaciones fallidas</button></li>
+        </ul>
+
+        @if (_modo == "recibos")
+        {
+            <PanelRecibosFallidas Vista="recibos" />
+        }
+        else if (_modo == "fallidas")
+        {
+            <PanelRecibosFallidas Vista="fallidas" />
+        }
+
+        <fieldset disabled="@(!Desbloqueado)" class="border-0 p-0 m-0" hidden="@(_modo != "preventas" && _modo != "credito")">
+            <div class="card mb-3">
+                <div class="card-body row g-3 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">Cédula del cliente</label>
+                        <input class="form-control" @bind="_cedula" @onkeydown="BuscarConEnter" />
+                    </div>
+                    <div class="col-12 col-md-2 d-grid">
+                        <button type="button" class="btn btn-outline-primary" @onclick="Buscar" disabled="@_buscando">
+                            @(_buscando ? "Buscando..." : (_modo == "credito" ? "Buscar facturas" : "Buscar preventas"))
+                        </button>
+                    </div>
+                    @if (_cliente is not null)
+                    {
+                        <div class="col-12 col-md-6"><span class="text-secondary">Cliente:</span> <strong>@_cliente</strong></div>
+                    }
+                </div>
+            </div>
+
+            @if (_modo == "credito" && _credito is not null)
+            {
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="row text-center g-2">
+                            <div class="col"><div class="text-secondary small">Límite</div><div class="h6 mb-0">@Formato.Importe(_credito.LimiteAprobado)</div></div>
+                            <div class="col"><div class="text-secondary small">Saldo abierto</div><div class="h6 mb-0">@Formato.Importe(_credito.SaldoAbierto)</div></div>
+                            <div class="col"><div class="text-secondary small">Disponible</div><div class="h6 mb-0 text-success">@Formato.Importe(_credito.Disponible)</div></div>
+                            <div class="col"><div class="text-secondary small">Crédito a favor</div><div class="h6 mb-0">@Formato.Importe(_credito.CreditoAFavor)</div></div>
+                            <div class="col"><div class="text-secondary small">Plazo</div><div class="h6 mb-0">@_credito.PlazoDias d</div></div>
+                        </div>
+                        @if (_credito.Bloqueado)
+                        {
+                            <div class="alert alert-warning mt-2 mb-0">@_credito.MotivoBloqueo</div>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (_modo == "credito" && _facturasCredito.Count > 0)
+            {
+                <div class="row g-3">
+                    <div class="col-12 col-lg-7">
+                        <div class="card h-100">
+                            <div class="card-header"><strong>Facturas de crédito con saldo</strong></div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead><tr><th style="width:2.5rem"></th><th>Factura</th><th>Fecha</th><th>Vence</th><th class="text-end">Original</th><th class="text-end">Saldo</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var f in _facturasCredito)
+                                        {
+                                            <tr class="@(_selCredito.Contains(f.IdVenta) ? "table-active" : null)">
+                                                <td><input class="form-check-input" type="checkbox" checked="@_selCredito.Contains(f.IdVenta)" @onchange="() => AlternarCredito(f.IdVenta)" /></td>
+                                                <td><code>@f.NumFactura</code></td>
+                                                <td class="small">@f.Fecha.ToString("dd/MM/yy")</td>
+                                                <td class="small @(f.Vence < DateTime.Today ? "text-danger fw-semibold" : "")">@(f.Vence?.ToString("dd/MM/yy") ?? "—")</td>
+                                                <td class="text-end seepos-importe">@Formato.Importe(f.MontoOriginal)</td>
+                                                <td class="text-end seepos-importe">@Formato.Importe(f.SaldoActual)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot><tr class="border-top"><td colspan="5" class="text-end fw-semibold">Seleccionado</td><td class="text-end fw-semibold seepos-importe">@Formato.Importe(_aCobrarCredito)</td></tr></tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-5">
+                        <div class="card h-100">
+                            <div class="card-header"><strong>Formas de pago</strong></div>
+                            <div class="card-body">
+                                @if (_selCredito.Count == 0)
+                                {
+                                    <p class="text-secondary small mb-0">Seleccione al menos una factura.</p>
+                                }
+                                else
+                                {
+                                    <table class="table table-sm align-middle mb-3">
+                                        <thead><tr><th>Forma</th><th class="text-end">Monto</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var fp in _formasPago)
+                                            {
+                                                <tr><td>@fp.Descripcion</td><td style="min-width:8rem"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="_montos[fp.Codigo!]" @bind:after="RecalcularCredito" /></td></tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                    <dl class="row mb-0">
+                                        <dt class="col-6 fw-normal text-secondary">A cobrar</dt><dd class="col-6 text-end">@Formato.Importe(_aCobrarCredito)</dd>
+                                        <dt class="col-6 fw-normal text-secondary">Entregado</dt><dd class="col-6 text-end">@Formato.Importe(_entregadoCredito)</dd>
+                                    </dl>
+                                    <button class="btn btn-primary w-100 mt-3" disabled="@(_procesando || _entregadoCredito <= 0)" @onclick="CobrarCredito">
+                                        <i class="bi bi-cash-coin me-2"></i>@(_procesando ? "Procesando..." : "Cobrar")
+                                    </button>
+                                    <p class="form-text mb-0">Los abonos parciales van cancelando las facturas de la más vencida a la más nueva.</p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (_modo == "credito" && _cliente is not null && !_buscando)
+            {
+                <div class="alert alert-info">Este cliente no tiene facturas de crédito con saldo.</div>
+            }
+
+            @if (_modo == "preventas" && _preventas.Count > 0)
+            {
+                <div class="row g-3">
+                    <div class="col-12 col-lg-7">
+                        <div class="card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <strong>Preventas pendientes de pago</strong>
+                                <div class="form-check mb-0">
+                                    <input id="chk-todas" class="form-check-input" type="checkbox"
+                                           checked="@TodasSeleccionadas" @onchange="AlternarTodas" />
+                                    <label class="form-check-label small" for="chk-todas">Todas</label>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:2.5rem"></th>
+                                            <th>Consecutivo</th><th>Fecha</th><th>Tipo</th>
+                                            <th>Serie</th><th>Moneda</th><th class="text-end">Total</th><th>FE</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var p in _preventas)
+                                        {
+                                            <tr class="@(_seleccion.Contains(p.Id) ? "table-active" : null)">
+                                                <td><input class="form-check-input" type="checkbox"
+                                                           checked="@_seleccion.Contains(p.Id)"
+                                                           @onchange="() => Alternar(p.Id)" /></td>
+                                                <td><code>@p.NumFactura</code></td>
+                                                <td class="small">@p.Fecha.ToString("dd/MM/yyyy")</td>
+                                                <td class="small">@(p.TipoFacturaDescripcion ?? "—") @(p.EsCredito ? "(crédito)" : "(contado)")</td>
+                                                <td class="small">@p.IdSerie</td>
+                                                <td class="small">@(p.Moneda ?? "CRC")</td>
+                                                <td class="text-end seepos-importe">@Formato.Importe((decimal)p.Total)</td>
+                                                <td class="small">@(p.CodigoFe ?? "—")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="border-top">
+                                            <td colspan="6" class="text-end fw-semibold">Seleccionado</td>
+                                            <td class="text-end fw-semibold seepos-importe">@Formato.Importe(_aCobrar)</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-lg-5">
+                        <div class="card h-100">
+                            <div class="card-header"><strong>Formas de pago</strong></div>
+                            <div class="card-body">
+                                @if (_seleccion.Count == 0)
+                                {
+                                    <p class="text-secondary small mb-0">Seleccione al menos una preventa.</p>
+                                }
+                                else
+                                {
+                                    <PanelPagoVenta Titulo="Pago del lote de preventas"
+                                                    Total="_aCobrar"
+                                                    Formas="_formasPago"
+                                                    NumApertura="NumApertura"
+                                                    @bind-Montos="_montos"
+                                                    @bind-Referencias="_referencias"
+                                                    RepartoChanged="_ => Recalcular()" />
+
+                                    <button class="btn btn-primary w-100 mt-3" disabled="@(_procesando || _entregado < _aCobrar || _aCobrar <= 0)" @onclick="CobrarYFacturar">
+                                        <i class="bi bi-cash-coin me-2"></i>@(_procesando ? "Procesando..." : "Cobrar y facturar")
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (_modo == "preventas" && _cliente is not null && !_buscando)
+            {
+                <div class="alert alert-info">Este cliente no tiene preventas pendientes de pago.</div>
+            }
+
+            @if (_resultados.Count > 0)
+            {
+                <div class="card mt-3">
+                    <div class="card-header"><strong>Resultado</strong></div>
+                    <div class="card-body">
+                        <table class="table table-sm align-middle">
+                            <thead><tr><th>Preventa</th><th>Factura</th><th>Hacienda</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach (var r in _resultados)
+                                {
+                                    <tr>
+                                        <td><code>@r.NumFactura</code></td>
+                                        <td class="small">@(r.Facturada ? "Facturada" : "—")@(r.Error is null ? "" : $" · {r.Error}")</td>
+                                        <td class="small">@(r.EstadoHacienda ?? "—")</td>
+                                        <td>
+                                            @if (r.Facturada && r.Slug is not null)
+                                            {
+                                                <VisorPdf Tipo="@r.Slug" Id="r.Id" Texto="PDF" Titulo="Comprobante de venta" Clase="btn-sm btn-outline-primary" />
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        <p class="small text-secondary mb-0">Los documentos aparecen en <a href="/initial/documents">Bandeja de documentos</a>.</p>
+                    </div>
+                </div>
+            }
+        </fieldset>
+    </ChildContent>
+</AppPantalla>

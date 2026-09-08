@@ -1,0 +1,22 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navegacion
+
+@* Se muestra cuando AuthorizeRouteView rechaza la ruta. *@
+
+<AuthorizeView>
+    <Authorized>
+        <div class="container py-5" style="max-width: 32rem;">
+            <div class="alert alert-danger">
+                <h1 class="h5 alert-heading">Sin permiso</h1>
+                <p class="mb-0">
+                    Su rol no tiene acceso a esta pantalla. Si cree que es un error,
+                    consulte con el administrador del sistema.
+                </p>
+            </div>
+            <a class="btn btn-outline-secondary btn-sm" href="/">Volver al inicio</a>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        @{ Navegacion.NavigateTo($"/cuenta/ingresar", forceLoad: true); }
+    </NotAuthorized>
+</AuthorizeView>

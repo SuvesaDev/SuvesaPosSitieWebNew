@@ -1,0 +1,81 @@
+@using Microsoft.AspNetCore.Components.Endpoints
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+
+    <!-- Bootstrap 5 y los iconos los sirve el paquete de Havit, para que la version
+         del CSS y la de los componentes no se puedan desalinear. -->
+    <link href="_content/Havit.Blazor.Components.Web.Bootstrap/bootstrap.min.css" rel="stylesheet" />
+    <link href="_content/Havit.Blazor.Components.Web.Bootstrap/defaults.css" rel="stylesheet" />
+
+    @* MudBlazor: solo lo consumen los componentes .mud-* de las pantallas que montan
+       <MudIsla> (piloto de MudDataGrid). Va antes de tema.css para que la marca
+       tenga la ultima palabra sobre selectores de elemento compartidos. *@
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet" href="@Assets["css/tema.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["SuvesaPosSitioAplicacion.styles.css"]" />
+
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
+
+    @* Bootstrap 5.3 activa el tema oscuro con data-bs-theme; no lo deduce de
+       prefers-color-scheme por su cuenta. Va en el head y sin esperar a Blazor
+       para que no haya un destello de tema claro al cargar. *@
+    <script>
+        window.seepos = window.seepos || {};
+        window.seepos.descargarTexto = function (nombre, texto, tipo) {
+            var enlace = document.createElement('a');
+            enlace.href = URL.createObjectURL(new Blob([texto], { type: tipo }));
+            enlace.download = nombre; enlace.click(); URL.revokeObjectURL(enlace.href);
+        };
+        (function () {
+            try {
+                var guardado = localStorage.getItem('seepos.tema');
+                var oscuro = guardado
+                    ? guardado === 'dark'
+                    : window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.setAttribute('data-bs-theme', oscuro ? 'dark' : 'light');
+            } catch (e) {
+                document.documentElement.setAttribute('data-bs-theme', 'light');
+            }
+        })();
+    </script>
+
+    <ImportMap />
+    <HeadOutlet @rendermode="ModoDeLaPagina" />
+</head>
+
+<body>
+    <Routes @rendermode="ModoDeLaPagina" />
+
+    <!-- Los componentes de Havit llaman a la API JS de Bootstrap (dropdown, modal,
+         toast), asi que el bundle tiene que cargarse ANTES que Blazor. -->
+    <script src="lib/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="_framework/blazor.web.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+</body>
+
+</html>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    /// <summary>
+    /// La aplicacion es interactiva salvo donde se marque lo contrario con
+    /// <c>[ExcludeFromInteractiveRouting]</c>.
+    ///
+    /// Las pantallas de sesion tienen que quedarse en render estatico: establecer la
+    /// cookie exige HttpContext, y un componente interactivo ya no lo tiene.
+    /// </summary>
+    private IComponentRenderMode? ModoDeLaPagina =>
+        HttpContext.AcceptsInteractiveRouting() ? InteractiveServer : null;
+}
