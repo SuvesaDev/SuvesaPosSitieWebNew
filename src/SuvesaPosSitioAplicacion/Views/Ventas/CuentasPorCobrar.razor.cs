@@ -106,8 +106,10 @@ public partial class CuentasPorCobrar
             var res = await Respuestas.DatoAsync(r, "registrar el cobro de crédito");
             if (!r.EsCorrecta || res is null) return;
 
-            Dialogos.Exito($"Cobro registrado. Recibo N.º {res.NumeroRecibo}. Aplicado {Formato.Importe(res.TotalAplicado)}" +
-                           (res.Vuelto > 0 ? $", vuelto {Formato.Importe(res.Vuelto)}" : "") + ".");
+            Dialogos.Exito(res.PendienteConfirmacion
+                ? $"Recibo N.º {res.NumeroRecibo} registrado. Las facturas quedarán canceladas al confirmar el depósito o cheque."
+                : $"Cobro registrado. Recibo N.º {res.NumeroRecibo}. Aplicado {Formato.Importe(res.TotalAplicado)}" +
+                  (res.Vuelto > 0 ? $", vuelto {Formato.Importe(res.Vuelto)}" : "") + ".");
 
             if (await Dialogos.ConfirmarAsync("¿Imprimir el recibo?", "Impresión"))
                 await JS.InvokeVoidAsync("open", $"/documentos/recibo-cobro/{res.IdCobro}/pdf", "_blank");
@@ -292,7 +294,9 @@ public partial class CuentasPorCobrar
                 continue;
             }
             fila.Facturada = true;
-            fila.EstadoHacienda = res.EstadoFiscal == "NoAplica" ? "Interno (sin Hacienda)" : "En proceso (worker)";
+            fila.EstadoHacienda = res.PagoPendienteConfirmacion
+                ? "Pendiente de confirmar depósito/cheque"
+                : res.EstadoFiscal == "NoAplica" ? "Interno (sin Hacienda)" : "En proceso (worker)";
         }
 
         _procesando = false;

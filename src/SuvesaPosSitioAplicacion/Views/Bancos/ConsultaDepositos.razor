@@ -3,10 +3,13 @@
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@using SuvesaPosSitioAplicacion.DTOs.Caja
 @inject IDepositosConsulta Api
+@inject IInstrumentosConfirmacion Instrumentos
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IRelojEquipo RelojEquipo
+@inject IContextoSesion Sesion
 
 @*  OLA 1 — replica del ARQUETIPO 02, con filtro por rango de fechas.
     Mismo patron que Documentos Emitidos: se filtra en el API, no en memoria.
@@ -14,9 +17,6 @@
 
 <AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
     <ChildContent>
-        <AppDesbloqueoClave @ref="_bloqueo" Titulo="la consulta de depósitos" AlCambiar="AlDesbloquear" />
-        <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
-
         <div class="card mb-3">
             <div class="card-body">
                 <div class="row g-2 align-items-end">
@@ -45,6 +45,31 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header d-flex flex-wrap justify-content-between gap-2 align-items-center"><strong>Confirmación bancaria y cheques</strong><button type="button" class="btn btn-sm btn-outline-primary" @onclick="CargarInstrumentos" disabled="@_cargandoInstrumentos"><i class="bi bi-arrow-clockwise me-1"></i>Actualizar</button></div>
+            <div class="card-body">
+                <div class="row g-2 align-items-end mb-3"><div class="col-12 col-md-4"><label class="form-label small">Estado</label><InputSelect class="form-select form-select-sm" @bind-Value="_estadoInstrumento"><option value="">Todos</option><option value="PendienteConfirmacion">Pendiente de confirmación</option><option value="Confirmado">Confirmado</option><option value="NoConfirmado">No confirmado</option><option value="Recuperacion">Recuperación</option><option value="Cobrado">Cobrado</option><option value="Rechazado">Rechazado</option></InputSelect></div><div class="col-12 col-md-3"><label class="form-label small">Tipo</label><InputSelect class="form-select form-select-sm" @bind-Value="_tipoInstrumento"><option value="">Todos</option><option value="Deposito">Depósito</option><option value="Cheque">Cheque</option></InputSelect></div><div class="col-12 col-md-2 d-grid"><button class="btn btn-sm btn-primary" @onclick="CargarInstrumentos">Consultar</button></div></div>
+                @if (_instrumentos.Count == 0) { <p class="text-secondary small mb-0">No hay instrumentos de confirmación para los criterios seleccionados.</p> }
+                else
+                {
+                    <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Tipo</th><th>Referencia</th><th>Responsable</th><th>Alerta</th><th>Vence</th><th class="text-end">Monto</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead><tbody>
+                    @foreach (var i in _instrumentos)
+                    {
+                        <tr><td>@TipoTexto(i)</td><td><code>@i.Referencia</code></td><td>@i.Responsable</td><td>@i.FechaAlertaUtc.ToLocalTime().ToString("dd/MM/yyyy")</td><td>@i.FechaLimiteUtc.ToLocalTime().ToString("dd/MM/yyyy")</td><td class="text-end">@Formato.Importe(i.Monto)</td><td><span class="badge @ClaseEstado(i.Estado)">@TextoEstado(i.Estado)</span></td><td class="text-end">
+                        @if (Sesion.Puede(Codigo, AccionPantalla.Editar) && i.Estado == "PendienteConfirmacion")
+                        {
+                            <button class="btn btn-sm btn-success me-1" @onclick="() => ConfirmarInstrumento(i)">Confirmar</button>
+                            <button class="btn btn-sm btn-outline-danger me-1" @onclick="() => NoConfirmarInstrumento(i)">@AccionNegativa(i)</button>
+                            <button class="btn btn-sm btn-outline-warning" @onclick="() => RecuperarInstrumento(i)">Recuperación</button>
+                        }
+                        else if (Sesion.Puede(Codigo, AccionPantalla.Editar) && i.Estado == "Recuperacion") { <button class="btn btn-sm btn-outline-success" @onclick="() => CobrarInstrumento(i)">Marcar cobrado</button> }
+                        </td></tr>
+                    }
+                    </tbody></table></div>
+                }
             </div>
         </div>
 
@@ -120,27 +145,57 @@
             </div>
         }
 
-        </fieldset>
     </ChildContent>
 </AppPantalla>
 
+<AppModal @ref="_modalCambioEstado" Titulo="Resolver instrumento bancario"
+          Subtitulo="@(_instrumentoEditando is null ? null : $"{TipoTexto(_instrumentoEditando)} · {_instrumentoEditando.Referencia}")"
+          Tamano="ModalSize.Regular" AlGuardar="GuardarCambioEstado" Guardando="_guardandoCambio"
+          PuedeGuardar="@(_instrumentoEditando is not null && !string.IsNullOrWhiteSpace(_motivoCambio))"
+          TextoGuardar="Guardar resolución" Peligro="@(_estadoCambio is "NoConfirmado" or "Rechazado")">
+    @if (_instrumentoEditando is not null)
+    {
+        <div class="alert alert-warning small">
+            El cambio quedará auditado con el usuario actual. Un depósito o cheque no confirmado no cancela las facturas vinculadas.
+        </div>
+        <div>
+            <label class="form-label" for="motivo-instrumento">Motivo / evidencia <span class="text-danger">*</span></label>
+            <textarea id="motivo-instrumento" class="form-control" rows="4"
+                      placeholder="Indique la respuesta del banco, gestión realizada o evidencia..."
+                      @bind="_motivoCambio"></textarea>
+        </div>
+    }
+</AppModal>
+
 @code {
     private const string Titulo = "Consulta Depósitos";
+    private const string Codigo = "CAJA.DEPOSITOS.CONSULTA_DEPOSITOS";
 
     private AppRejilla<DepositosBuscarDTO>? _rejilla;
-    private AppDesbloqueoClave? _bloqueo;
+    private AppModal _modalCambioEstado = default!;
 
     private DateTime _desde = DateTime.Today.AddDays(-7);
     private DateTime _hasta = DateTime.Today;
     private string _numero = string.Empty;
 
     private List<DepositosBuscarDTO> _depositos = new();
+    private readonly List<InstrumentoConfirmacionWebDTO> _instrumentos = new();
+    private string _estadoInstrumento = "PendienteConfirmacion", _tipoInstrumento = "";
+    private bool _cargandoInstrumentos;
+    private InstrumentoConfirmacionWebDTO? _instrumentoEditando;
+    private string _estadoCambio = string.Empty;
+    private string _motivoCambio = string.Empty;
+    private bool _guardandoCambio;
     private decimal _total;
     private bool _buscando;
     private bool _hayBusqueda;
-    private bool Bloqueada => _bloqueo is null || !_bloqueo.Desbloqueado;
-    private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
-    protected override async Task OnInitializedAsync() { var hoy = await RelojEquipo.HoyAsync(); _desde = hoy.AddDays(-7); _hasta = hoy; }
+    protected override async Task OnInitializedAsync()
+    {
+        var hoy = await RelojEquipo.HoyAsync();
+        _desde = hoy.AddDays(-7);
+        _hasta = hoy;
+        await CargarInstrumentos();
+    }
 
     private static DateTime Fecha(ChangeEventArgs e, DateTime actual)
         => DateTime.TryParse(e.Value?.ToString(), out var v) ? v : actual;
@@ -149,7 +204,7 @@
 
     private async Task Buscar()
     {
-        if (Bloqueada || _buscando)
+        if (_buscando)
         {
             return;
         }
@@ -178,6 +233,53 @@
             await _rejilla.RefrescarAsync();
         }
     }
+
+    private async Task CargarInstrumentos()
+    {
+        if (_cargandoInstrumentos) return;
+        _cargandoInstrumentos = true;
+        var datos = await Respuestas.DatoAsync(await Instrumentos.Buscar(new FiltroInstrumentosConfirmacionWebDTO { Estado = _estadoInstrumento, Tipo = _tipoInstrumento }), "consultar los estados de depósitos y cheques");
+        _instrumentos.Clear(); _instrumentos.AddRange(datos ?? Array.Empty<InstrumentoConfirmacionWebDTO>()); _cargandoInstrumentos = false;
+    }
+
+    private async Task CambiarEstado(InstrumentoConfirmacionWebDTO instrumento, string estado)
+    {
+        if (!await Dialogos.ConfirmarAsync($"¿Desea cambiar el instrumento {instrumento.Referencia} a {TextoEstado(estado)}?", "Confirmar cambio")) return;
+        if (estado is "NoConfirmado" or "Rechazado" or "Recuperacion")
+        {
+            _instrumentoEditando = instrumento;
+            _estadoCambio = estado;
+            _motivoCambio = string.Empty;
+            await _modalCambioEstado.MostrarAsync();
+            return;
+        }
+        if (await Respuestas.CorrectaAsync(await Instrumentos.CambiarEstado(instrumento.Id, new CambioEstadoInstrumentoWebDTO { Estado = estado }), "actualizar el instrumento")) { Dialogos.Exito("Estado actualizado."); await CargarInstrumentos(); }
+    }
+
+    private async Task GuardarCambioEstado()
+    {
+        if (_instrumentoEditando is null || _guardandoCambio || string.IsNullOrWhiteSpace(_motivoCambio)) return;
+        _guardandoCambio = true;
+        try
+        {
+            if (!await Respuestas.CorrectaAsync(await Instrumentos.CambiarEstado(_instrumentoEditando.Id,
+                    new CambioEstadoInstrumentoWebDTO { Estado = _estadoCambio, Motivo = _motivoCambio.Trim() }), "actualizar el instrumento")) return;
+            await _modalCambioEstado.OcultarAsync();
+            Dialogos.Exito("Estado actualizado.");
+            await CargarInstrumentos();
+        }
+        finally { _guardandoCambio = false; }
+    }
+
+    private Task ConfirmarInstrumento(InstrumentoConfirmacionWebDTO i) => CambiarEstado(i, "Confirmado");
+    private Task NoConfirmarInstrumento(InstrumentoConfirmacionWebDTO i) => CambiarEstado(i, i.Tipo == "Cheque" ? "Rechazado" : "NoConfirmado");
+    private Task RecuperarInstrumento(InstrumentoConfirmacionWebDTO i) => CambiarEstado(i, "Recuperacion");
+    private Task CobrarInstrumento(InstrumentoConfirmacionWebDTO i) => CambiarEstado(i, "Cobrado");
+    private static string TipoTexto(InstrumentoConfirmacionWebDTO i) => i.Tipo == "Cheque" ? "Cheque" : "Depósito";
+    private static string AccionNegativa(InstrumentoConfirmacionWebDTO i) => i.Tipo == "Cheque" ? "Rechazar" : "No confirmar";
+
+    private static string TextoEstado(string estado) => estado switch { "PendienteConfirmacion" => "Pendiente de confirmación", "NoConfirmado" => "No confirmado", "Recuperacion" => "Recuperación", _ => estado };
+    private static string ClaseEstado(string estado) => estado switch { "Confirmado" or "Cobrado" => "text-bg-success", "NoConfirmado" or "Rechazado" => "text-bg-danger", "Recuperacion" => "text-bg-warning", _ => "text-bg-secondary" };
 
     private Task<GridDataProviderResult<DepositosBuscarDTO>> Servir(
         GridDataProviderRequest<DepositosBuscarDTO> peticion)

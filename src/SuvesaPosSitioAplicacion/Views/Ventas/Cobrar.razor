@@ -361,9 +361,11 @@
             _ultimoDoc = res.IdVenta;
             _ultimoSlug = string.Equals(_preventa.TipoFactura, "Tiquete", StringComparison.OrdinalIgnoreCase)
                 ? "tiquete-electronico" : "factura-electronica";
-            _ultimoAviso = res.EstadoFiscal == "NoAplica"
-                ? "Cobrado. Documento interno, sin espera de Hacienda."
-                : "Cobrado. Comprobante electrónico en proceso.";
+            _ultimoAviso = res.PagoPendienteConfirmacion
+                ? "Factura emitida. El cobro queda pendiente de confirmar el depósito o cheque."
+                : res.EstadoFiscal == "NoAplica"
+                    ? "Cobrado. Documento interno, sin espera de Hacienda."
+                    : "Cobrado. Comprobante electrónico en proceso.";
             Dialogos.Exito(_ultimoAviso);
             LimpiarTrabajo();
             return;

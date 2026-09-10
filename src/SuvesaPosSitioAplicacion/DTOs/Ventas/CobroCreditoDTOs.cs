@@ -65,4 +65,5 @@ public sealed class CobroCreditoResultadoWebDTO
     public decimal TotalAplicado { get; set; }
     public decimal Vuelto { get; set; }
     public bool FueReintento { get; set; }
+    public bool PendienteConfirmacion { get; set; }
 }
