@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @implements IDisposable
 @using SuvesaPosSitioAplicacion.Services
+@using MudBlazor
 @inject IContextoSesion Sesion
 @inject IEstadoEspacioTrabajo Espacio
 @inject IEstadoOcupado Ocupado
@@ -13,6 +14,11 @@
 
 <HxMessenger Position="ToastContainerPosition.BottomEnd" />
 <HxMessageBoxHost />
+
+@* MudBlazor exige un unico proveedor de popovers por circuito. Se deja en el
+   shell, que no se desmonta al cambiar de pantalla/pestana; las MudIsla siguen
+   limitando el tema y las rejillas a las consultas que realmente las usan. *@
+<MudPopoverProvider />
 
 <div class="seepos-shell d-flex flex-column vh-100">
 

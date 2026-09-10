@@ -2,6 +2,7 @@
 @using SuvesaPosSitioAplicacion.Services
 @inject ICajaOperaciones Caja
 @inject IManejadorRespuestas Respuestas
+@inject IJSRuntime JS
 
 @if (!Desbloqueado)
 {
@@ -17,7 +18,7 @@
         </div>
         <div class="input-group seepos-desbloqueo-clave-campo">
             <input type="password" class="form-control" placeholder="Clave interna" aria-label="Clave interna"
-                   @bind="_clave" @onkeydown="AlPresionarTecla" disabled="@_validando" />
+                   autocomplete="one-time-code" @bind="_clave" @bind:event="oninput" @bind:after="AlEscribirClave" @onkeydown="AlPresionarTecla" disabled="@_validando" />
             <button type="button" class="btn btn-primary" @onclick="Validar" disabled="@(_validando || string.IsNullOrWhiteSpace(_clave))">
                 @(_validando ? "Validando..." : "Activar")
             </button>
@@ -26,7 +27,7 @@
 }
 else
 {
-    <div class="seepos-desbloqueo-clave seepos-desbloqueo-clave-listo mb-3" role="status">
+    <div @ref="_avisoActivado" tabindex="-1" class="seepos-desbloqueo-clave seepos-desbloqueo-clave-listo mb-3" role="status">
         <i class="bi bi-shield-check-fill" aria-hidden="true"></i>
         <span>@Titulo está activado.@(RequiereCajaAbierta && NumApertura > 0 ? $" Cajero: {UsuarioValidado?.Nombre} · Apertura #{NumApertura}." : "")</span>
     </div>
@@ -51,10 +52,27 @@ else
     private string _clave = string.Empty;
     private bool _validando;
     private string? _error;
+    private ElementReference _avisoActivado;
+    private bool _debeMoverFoco;
+    private IJSObjectReference? _moduloTema;
+    private static readonly TimeSpan TiempoMaximoValidacion = TimeSpan.FromSeconds(20);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_debeMoverFoco) return;
+        _debeMoverFoco = false;
+        await _avisoActivado.FocusAsync();
+    }
 
     private async Task AlPresionarTecla(KeyboardEventArgs evento)
     {
         if (evento.Key == "Enter") await Validar();
+    }
+
+    private async Task AlEscribirClave()
+    {
+        _moduloTema ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+        await _moduloTema.InvokeVoidAsync("limpiarBusquedaMenu");
     }
 
     private async Task Validar()
@@ -62,43 +80,71 @@ else
         if (_validando || string.IsNullOrWhiteSpace(_clave)) return;
         _validando = true;
         _error = null;
+        var clave = _clave;
 
-        // Cobrar requiere saber que la MISMA persona de la clave es quien abrió
-        // caja. Esta operación es atómica en el API: no compara desde la web la
-        // PK de Usuario con el identificador estable del login de Aperturacaja.
-        if (RequiereCajaAbierta)
+        try
         {
-            var resultado = await Caja.ValidarClaveInternaConCajaAbierta(_clave);
-            _clave = string.Empty;
-            _validando = false;
-
-            if (!resultado.EsCorrecta || resultado.Responses is null)
+            // Cobrar requiere saber que la MISMA persona de la clave es quien abrió
+            // caja. Esta operación es atómica en el API: no compara desde la web la
+            // PK de Usuario con el identificador estable del login de Aperturacaja.
+            if (RequiereCajaAbierta)
             {
-                _error = resultado.Excepcion ?? "No se pudo validar la caja abierta de este usuario.";
+                var resultado = await Caja.ValidarClaveInternaConCajaAbierta(clave)
+                    .WaitAsync(TiempoMaximoValidacion);
+
+                if (!resultado.EsCorrecta || resultado.Responses is null)
+                {
+                    _error = resultado.Excepcion ?? "No se pudo validar la caja abierta de este usuario.";
+                    return;
+                }
+
+                UsuarioValidado = new Usuario
+                {
+                    Id = resultado.Responses.IdUsuario,
+                    IdUsuario = resultado.Responses.Login,
+                    Nombre = resultado.Responses.Nombre,
+                };
+                NumApertura = resultado.Responses.NumeroApertura;
+                await ActivarAsync();
                 return;
             }
 
-            UsuarioValidado = new Usuario
-            {
-                Id = resultado.Responses.IdUsuario,
-                IdUsuario = resultado.Responses.Login,
-                Nombre = resultado.Responses.Nombre,
-            };
-            NumApertura = resultado.Responses.NumeroApertura;
-            Desbloqueado = true;
-            await AlCambiar.InvokeAsync(true);
-            return;
+            var respuesta = await Caja.ValidarClaveInterna(clave).WaitAsync(TiempoMaximoValidacion);
+            var usuario = await Respuestas.DatoAsync(respuesta, "validar la clave interna");
+            if (usuario is null) return;
+
+            UsuarioValidado = usuario;
+            NumApertura = 0;
+            await ActivarAsync();
         }
+        catch (TimeoutException)
+        {
+            _error = "La validación tardó demasiado. Verifique la conexión e inténtelo de nuevo.";
+        }
+        catch (Exception)
+        {
+            // El proxy normalmente convierte los fallos del API en una respuesta.
+            // Este resguardo evita que una caída de red deje el botón bloqueado.
+            _error = "No se pudo validar la clave en este momento. Inténtelo de nuevo.";
+        }
+        finally
+        {
+            _validando = false;
+            _clave = string.Empty;
+        }
+    }
 
-        var usuario = await Respuestas.DatoAsync(await Caja.ValidarClaveInterna(_clave), "validar la clave interna");
-        if (usuario is null) { _validando = false; _clave = string.Empty; return; }
-
-        UsuarioValidado = usuario;
-        NumApertura = 0;
-
+    private async Task ActivarAsync()
+    {
+        Desbloqueado = true;
+        _debeMoverFoco = true;
         _validando = false;
         _clave = string.Empty;
-        Desbloqueado = true;
+
+        // Las pantallas de Compra cargan varios catálogos después de validar. El
+        // banner debe desaparecer antes de esas consultas para no aparentar que
+        // la clave o la búsqueda de proveedor quedó congelada.
+        await InvokeAsync(StateHasChanged);
         await AlCambiar.InvokeAsync(true);
     }
 }

@@ -8,6 +8,7 @@ public partial class AlertasAdministrador
 
     private PaginaAlertasAdministradorDTO _pagina = new();
     private bool _soloNoLeidas = true;
+    private bool _mostrarTablaLegada => false;
 
     protected override Task OnInitializedAsync() => Cargar();
 

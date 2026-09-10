@@ -20,6 +20,8 @@ public partial class Bandeja
     private const int _tamano = 25;
     private int _total;
     private bool _cargando;
+    // Conserva el marcado anterior para una reversión rápida durante el piloto de la rejilla.
+    private bool _mostrarTablaLegada => false;
 
     private List<DocumentoBandeja> _comunes = new();
     private List<DocumentoFiscalBandeja> _fiscales = new();

@@ -1,4 +1,5 @@
 @page "/initial/customers"
+@using MudBlazor
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
@@ -96,39 +97,23 @@
             </div>
 
             @* Escritorio y tableta: rejilla. *@
-            <div class="d-none d-md-block card seepos-clientes-tabla">
-                <div class="card-body">
-                    <AppRejilla TItem="FiltranClienteDTO" Datos="Servir"
-                                Nivel="NivelPantalla.Tableta" @ref="_rejilla"
-                                TextoVacio="@(_modoBusqueda && _todos.Count == 0 ? "Escriba y pulse Buscar." : "Ningún cliente coincide.")">
-                        <Columnas>
-                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Cedula"
-                                          ItemTextSelector="c => c.Cedula"
-                                          SortKeySelector="c => c.Cedula" />
-                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Nombre"
-                                          ItemTextSelector="c => c.Nombre"
-                                          SortKeySelector="c => c.Nombre" />
-                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Telefono"
-                                          ItemTextSelector="c => c.Telefono_01" />
-                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Correo"
-                                          ItemTextSelector="c => c.E_Mail" />
-                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Credito"
-                                          ItemTextSelector="@(c => Formato.Importe(c.Max_Credito))"
-                                          SortKeySelector="c => c.Max_Credito"
-                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText=""
-                                          HeaderCssClass="text-end" ItemCssClass="text-end text-nowrap align-middle">
-                                <ItemTemplate Context="c">
-                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(c)">Ver</button>
-                                    @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
-                                    {
-                                        <button class="btn btn-sm btn-link p-0 ms-3" @onclick="() => Editar(c)">Editar</button>
-                                    }
-                                </ItemTemplate>
-                            </HxGridColumn>
-                        </Columnas>
-                    </AppRejilla>
-                </div>
+            <div class="d-none d-md-block">
+                <MudIsla>
+                    <MudDataGrid T="FiltranClienteDTO" Items="_resultados" Dense="true" Hover="true" Striped="true"
+                                 Filterable="true" SortMode="SortMode.Multiple" Groupable="false"
+                                 FixedHeader="true" Height="60vh" Class="seepos-mud-grid">
+                        <NoRecordsContent><div class="text-secondary small py-4">@(_modoBusqueda && _todos.Count == 0 ? "Escriba y pulse Buscar." : "Ningún cliente coincide.")</div></NoRecordsContent>
+                        <Columns>
+                            <PropertyColumn Property="c => c.Cedula" Title="Cédula" />
+                            <PropertyColumn Property="c => c.Nombre" Title="Nombre" />
+                            <PropertyColumn Property="c => c.Telefono_01" Title="Teléfono" />
+                            <PropertyColumn Property="c => c.E_Mail" Title="Correo" />
+                            <PropertyColumn Property="c => c.Max_Credito" Title="Crédito" CellClass="justify-end" HeaderClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Max_Credito)</CellTemplate></PropertyColumn>
+                            <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate><div class="d-flex gap-1"><button class="btn btn-sm btn-success" title="Ver detalle" aria-label="Ver detalle" @onclick="() => Ver(context.Item)"><i class="bi bi-eye"></i></button> @if (Sesion.Puede(Titulo, AccionPantalla.Modificar)) { <button class="btn btn-sm btn-outline-success" title="Editar cliente" aria-label="Editar cliente" @onclick="() => Editar(context.Item)"><i class="bi bi-pencil"></i></button> }</div></CellTemplate></TemplateColumn>
+                        </Columns>
+                        <PagerContent><MudDataGridPager T="FiltranClienteDTO" PageSizeOptions="new[] { 25, 50, 100 }" /></PagerContent>
+                    </MudDataGrid>
+                </MudIsla>
             </div>
         }
         </section>
@@ -141,7 +126,9 @@
     <BodyTemplate>
         @if (_elegido is not null)
         {
-            <dl class="row small mb-0">
+            <div class="seepos-cliente-detalle-hero mb-3"><div><span class="small text-secondary d-block">Cliente</span><strong>@_elegido.Nombre</strong></div><span class="badge @(_elegido.Anulado ? "text-bg-secondary" : "text-bg-success")">@(_elegido.Anulado ? "Inactivo" : "Activo")</span></div>
+            <h3 class="seepos-detalle-seccion">Información de contacto</h3>
+            <dl class="row small mb-0 seepos-cliente-datos">
                 <dt class="col-5 fw-normal text-secondary">Cedula</dt>
                 <dd class="col-7"><code>@_elegido.Cedula</code></dd>
 
@@ -162,7 +149,7 @@
             </dl>
 
             <hr />
-
+            <h3 class="seepos-detalle-seccion">Condiciones comerciales</h3>
             <dl class="row small mb-0">
                 <dt class="col-5 fw-normal text-secondary">Credito maximo</dt>
                 <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Max_Credito)</dd>
@@ -221,7 +208,7 @@
                 </div>
             }
 
-            <div class="d-flex gap-2 border-top pt-3 mt-3">
+            <div class="d-flex gap-2 border-top pt-3 mt-3 seepos-detalle-acciones">
                 @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
                 {
                     <button class="btn btn-sm btn-primary" @onclick="() => Editar(_elegido)">Editar</button>
@@ -662,7 +649,6 @@
 @code {
     private const string Titulo = "Clientes";
 
-    private AppRejilla<FiltranClienteDTO>? _rejilla;
     private HxOffcanvas _detalle = default!;
     private HxModal _modal = default!;
     private HxModal _modalCarta = default!;
@@ -819,7 +805,6 @@
                           || Helpers.Texto.Normalizar(c.SucursalesTexto).Contains(t));
 
         _resultados = q.ToList();
-        _rejilla?.RefrescarAsync();
         StateHasChanged();
     }
 
@@ -827,9 +812,6 @@
         => _resultados.Count == 0 ? "Sin resultados"
            : $"{_resultados.Count} de {_todos.Count} cliente{(_todos.Count == 1 ? "" : "s")}";
 
-    private Task<GridDataProviderResult<FiltranClienteDTO>> Servir(
-        GridDataProviderRequest<FiltranClienteDTO> peticion)
-        => Task.FromResult(peticion.ApplyTo(_resultados));
 
     private async Task Ver(FiltranClienteDTO cliente)
     {

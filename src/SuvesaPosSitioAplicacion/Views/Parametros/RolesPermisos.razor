@@ -26,27 +26,8 @@
 
         @if (!_passwordValidada)
         {
-            <div class="card mb-3">
-                <div class="card-body">
-                    <p class="mb-2">
-                        Por seguridad, confirme su propia contrasena antes de ver o cambiar
-                        la configuracion de roles y permisos.
-                    </p>
-                    <div class="row g-2 align-items-end">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label" for="claveGate">Su contrasena</label>
-                            <input id="claveGate" type="password" class="form-control"
-                                   @bind="_passwordGate" @bind:event="oninput"
-                                   @onkeyup="@(async e => { if (e.Key == "Enter") await ValidarGate(); })" />
-                        </div>
-                        <div class="col-12 col-md-3">
-                            <button class="btn btn-primary" disabled="@_validandoGate" @onclick="ValidarGate">
-                                @(_validandoGate ? "Validando..." : "Confirmar")
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <AppDesbloqueoClave Titulo="la configuración de roles y permisos"
+                                 AlCambiar="AlDesbloquear" />
         }
         else
         {
@@ -710,8 +691,6 @@
 
     // gate
     private bool _passwordValidada;
-    private bool _validandoGate;
-    private string _passwordGate = string.Empty;
 
     // roles
     private AppModal _modalRol = default!;
@@ -754,18 +733,13 @@
     private int? _accionOrden;
 
     // ---------- gate ----------
-    private async Task ValidarGate()
+    private async Task AlDesbloquear(bool _)
     {
-        if (string.IsNullOrWhiteSpace(_passwordGate)) return;
-        _validandoGate = true;
-        var r = await Respuestas.DatoAsync(await Api.ValidarPasswordActual(_passwordGate), "validar la clave");
-        _validandoGate = false;
-        _passwordGate = string.Empty;
-        if (r is not null)
-        {
-            _passwordValidada = true;
-            await CargarRolesYResumen();
-        }
+        // AppDesbloqueoClave valida la misma clave interna, con el timeout,
+        // foco y limpieza del buscador del menú que usa el resto del sitio.
+        _passwordValidada = true;
+        await InvokeAsync(StateHasChanged);
+        await CargarRolesYResumen();
     }
 
     /// <summary>

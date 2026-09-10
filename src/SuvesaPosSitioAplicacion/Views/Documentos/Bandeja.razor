@@ -1,4 +1,5 @@
 @page "/initial/documents"
+@using MudBlazor
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.DTOs.Bandeja
 @using SuvesaPosSitioAplicacion.Services
@@ -68,6 +69,23 @@
                 }
                 else
                 {
+                    <MudIsla>
+                    <MudDataGrid T="DocumentoBandeja" Items="Filas" Dense="true" Hover="true" Striped="true" Filterable="true" SortMode="SortMode.Multiple" Groupable="false" FixedHeader="true" Height="60vh" Class="seepos-mud-grid">
+                        <Columns>
+                            <PropertyColumn Property="d => d.Fecha" Title="Fecha"><CellTemplate>@context.Item.Fecha.ToString("dd/MM/yyyy HH:mm")</CellTemplate></PropertyColumn>
+                            <PropertyColumn Property="d => d.Consecutivo" Title="Consecutivo" />
+                            <PropertyColumn Property="d => d.Cliente" Title="Cliente" />
+                            <PropertyColumn Property="d => d.Sucursal" Title="Sucursal" />
+                            <PropertyColumn Property="d => d.Subtotal" Title="Subtotal" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Subtotal)</CellTemplate></PropertyColumn>
+                            <PropertyColumn Property="d => d.Impuesto" Title="Impuesto" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Impuesto)</CellTemplate></PropertyColumn>
+                            <PropertyColumn Property="d => d.Total" Title="Total" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Total)</CellTemplate></PropertyColumn>
+                            <TemplateColumn Title="Estado"><CellTemplate>@if (context.Item is DocumentoFiscalBandeja f && !string.IsNullOrWhiteSpace(f.EstadoHacienda)) { <span class="badge @ClaseEstado(f.EstadoHacienda)">@f.EstadoHacienda</span> } else { @context.Item.EstadoDescripcion }</CellTemplate></TemplateColumn>
+                            <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate Context="context"><div class="d-flex gap-1"><button class="btn btn-sm btn-success" title="Ver detalle" @onclick="() => VerDetalle(context.Item)"><i class="bi bi-eye"></i></button>@if (_tab == 1) { <button class="btn btn-sm btn-outline-danger" title="Devolución" @onclick="() => Devolucion(context.Item)"><i class="bi bi-arrow-return-left"></i></button> }@if (EsFiscal && context.Item is DocumentoFiscalBandeja fa && !string.IsNullOrWhiteSpace(fa.ClaveFacturaElectronica)) { <button class="btn btn-sm btn-outline-primary" title="Opciones fiscales" @onclick="() => AccionFiscal(fa.ClaveFacturaElectronica!)"><i class="bi bi-file-earmark-text"></i></button> }@if (EsFiscal && Sesion.Puede(Titulo, AccionPantalla.Imprimir)) { <BotonImprimir Tipo="@(_tab == 1 ? "factura-electronica" : "nota-credito")" Id="context.Item.Id" Clase="btn-sm btn-outline-secondary" SoloIcono="true" Titulo="Descargar PDF (A4)" /> }</div></CellTemplate></TemplateColumn>
+                        </Columns>
+                    </MudDataGrid>
+                    </MudIsla>
+                    @* Tabla HTML histórica retirada: MudDataGrid da filtros, ordenamiento y navegación consistente con Inventarios. *@
+                    @if (_mostrarTablaLegada) {
                     <div class="table-responsive">
                         <table class="table table-sm align-middle">
                             <thead>
@@ -132,7 +150,7 @@
                                 }
                             </tbody>
                         </table>
-                    </div>
+                    </div> }
                     <div class="d-flex justify-content-between align-items-center">
                         <button class="btn btn-sm btn-outline-secondary" disabled="@(_pagina <= 1 || _cargando)" @onclick="Anterior">Anterior</button>
                         <span class="small text-secondary">Página @_pagina · @_total registro(s)</span>

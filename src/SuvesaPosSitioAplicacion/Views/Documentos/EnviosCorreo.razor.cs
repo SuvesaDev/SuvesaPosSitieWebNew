@@ -17,6 +17,7 @@ public partial class EnviosCorreo
     private DateTime? _desde, _hasta;
     private string? _texto;
     private int _paginaNum = 1;
+    private bool _mostrarTablaLegada => false;
 
     private bool HayMas => _paginaNum * Tamano < _pagina.Total;
 

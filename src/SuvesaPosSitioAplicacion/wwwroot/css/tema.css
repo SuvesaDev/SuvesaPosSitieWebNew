@@ -41,6 +41,18 @@
     /* Densidad de panel de administracion: 14px de base. El POS muestra mucho dato
        por pantalla y la tipografia mas compacta deja respirar tablas y formularios. */
     --bs-body-font-size: 0.875rem;
+
+    /* MudBlazor se carga globalmente para las rejillas, pero su proveedor solo se
+       monta dentro de MudIsla. Sin estas variables, una pantalla sin isla podia
+       heredar la tipografia por defecto de Mud mientras otra con isla heredaba
+       Montserrat; el menu parecia cambiar de estilo al cambiar de pantalla. */
+    --mud-typography-default-family: var(--bs-body-font-family);
+    --mud-typography-default-size: var(--bs-body-font-size);
+    --mud-typography-default-weight: 400;
+    --mud-typography-default-lineheight: 1.5;
+    --mud-typography-body1-family: var(--bs-body-font-family);
+    --mud-typography-body2-family: var(--bs-body-font-family);
+    --mud-typography-button-family: var(--bs-body-font-family);
     /* Tarjetas sin borde: el relieve lo da una sombra suave, no una linea. */
     --bs-card-border-width: 0;
     --bs-card-border-color: transparent;
@@ -54,6 +66,16 @@
 
     /* Densidad: el punto de venta muestra mucho dato por pantalla */
     --seepos-alto-fila: 2rem;
+}
+
+/* La barra lateral no depende de que la pantalla actual monte una MudIsla.
+   Fijar la fuente en el contenedor evita que reglas globales de una rejilla o
+   de un componente aislado alteren la apariencia persistente del menu. */
+body,
+.seepos-lateral,
+.seepos-lateral button,
+.seepos-lateral input {
+    font-family: var(--bs-body-font-family);
 }
 
 /* Campos y controles bloqueados (cascada de ubicacion, totales calculados, etc.):
@@ -281,6 +303,24 @@
     border-radius: 1rem;
     box-shadow: 0 .35rem 1.15rem rgba(62, 47, 35, .05);
 }
+
+.seepos-cliente-detalle-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .75rem .85rem;
+    border-radius: .75rem;
+    background: color-mix(in srgb, var(--seepos-verde) 10%, var(--bs-body-bg));
+    border: 1px solid color-mix(in srgb, var(--seepos-verde) 25%, var(--bs-border-color));
+}
+.seepos-detalle-seccion { font-size: .82rem; font-weight: 700; margin: 0 0 .65rem; color: var(--seepos-verde-oscuro, var(--seepos-verde)); }
+.seepos-cliente-datos dt { padding-top: .25rem; }
+.seepos-cliente-datos dd { padding-top: .25rem; font-weight: 600; }
+.seepos-detalle-acciones .btn { min-width: 5.5rem; }
+.seepos-inventario-lotes { border: 1px solid var(--bs-border-color); border-radius: .6rem; overflow: hidden; }
+.seepos-inventario-lotes thead th { background: var(--seepos-gris-fondo); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+.seepos-alerta-detalle { max-width: 38rem; line-height: 1.35; }
 
 .seepos-clientes-tabla .card-body {
     padding: .7rem 1rem 1rem;
