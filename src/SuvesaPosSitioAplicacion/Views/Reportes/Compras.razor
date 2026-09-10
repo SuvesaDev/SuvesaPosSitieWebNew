@@ -1,64 +1,104 @@
 @page "/moduloReportes"
 @using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Reportes
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
-@inject IReportes Api
+@inject IReportesOperacion Api
 @inject IManejadorRespuestas Respuestas
+@inject IRelojEquipo RelojEquipo
+@inject IJSRuntime JS
 
-@*  OLA 1 — replica del ARQUETIPO 05 (reporte con PDF).
-    Una sola consulta alimenta pantalla y PDF. Los totales se suman en decimal.
-*@
-
-<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+<AppPantalla Pantalla="@Titulo" Codigo="MODULO_REPORTES.MODULO_REPORTES" Nivel="NivelPantalla.Escritorio">
     <Acciones>
-        <a class="btn btn-sm btn-outline-primary" href="/reportes/compras/pdf"
-           target="_blank" rel="noopener">
-            <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Descargar PDF
-        </a>
-        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar">
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Consultar" disabled="@_cargando" title="Actualizar reporte">
             <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
         </button>
     </Acciones>
-
     <ChildContent>
-        <div class="card">
-            <div class="card-body">
-                <AppRejilla TItem="ReporteComprasDTO" Datos="Cargar" Nivel="NivelPantalla.Tableta"
-                            TextoVacio="No hay compras registradas." @ref="_rejilla">
-                    <Columnas>
-                        <HxGridColumn TItem="ReporteComprasDTO" HeaderText="Factura"
-                                      ItemTextSelector="c => c.Factura"
-                                      SortKeySelector="c => c.Factura" />
-                        <HxGridColumn TItem="ReporteComprasDTO" HeaderText="Proveedor"
-                                      ItemTextSelector="c => c.Nombre"
-                                      SortKeySelector="c => c.Nombre" />
-                        <HxGridColumn TItem="ReporteComprasDTO" HeaderText="Fecha"
-                                      ItemTextSelector="@(c => c.Fecha.ToString("dd/MM/yyyy"))"
-                                      SortKeySelector="c => c.Fecha" />
-                        <HxGridColumn TItem="ReporteComprasDTO" HeaderText="Gravado"
-                                      ItemTextSelector="@(c => Formato.Importe(c.SubTotalGravado))"
-                                      SortKeySelector="c => c.SubTotalGravado"
-                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                        <HxGridColumn TItem="ReporteComprasDTO" HeaderText="Impuesto"
-                                      ItemTextSelector="@(c => Formato.Importe(c.Impuesto))"
-                                      SortKeySelector="c => c.Impuesto"
-                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                        <HxGridColumn TItem="ReporteComprasDTO" HeaderText="Total"
-                                      ItemTextSelector="@(c => Formato.Importe(c.TotalFactura))"
-                                      SortKeySelector="c => c.TotalFactura"
-                                      HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                    </Columnas>
-                </AppRejilla>
-
-                @if (_compras.Count > 0)
+        <section class="card mb-3 seepos-catalogo-reportes" aria-label="Catálogo de reportes">
+            <div class="card-header bg-transparent p-0">
+                <nav aria-label="Dominios de reportes">
+                    <div class="nav nav-tabs seepos-pestanas-reportes" role="tablist">
+                        @foreach (var dominio in Grupos)
+                        {
+                            <button type="button" role="tab" aria-selected="@(dominio.Id == _grupoActivo)"
+                                    class="nav-link @(dominio.Id == _grupoActivo ? "active" : string.Empty)"
+                                    @onclick="() => CambiarGrupo(dominio.Id)">
+                                <i class="bi @dominio.Icono me-1" aria-hidden="true"></i>@dominio.Nombre
+                            </button>
+                        }
+                    </div>
+                </nav>
+            </div>
+            <div class="card-body py-3">
+                @if (GrupoActivo is { } grupo)
                 {
-                    <div class="d-flex justify-content-end gap-4 border-top pt-3 mt-3">
-                        <span class="text-secondary small">@_compras.Count facturas</span>
-                        <span class="fw-semibold">
-                            Total: <span class="seepos-importe">@Formato.Importe(_total)</span>
-                        </span>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <span class="small text-body-secondary me-1">Reportes disponibles:</span>
+                        @foreach (var opcion in grupo.Opciones)
+                        {
+                            <button type="button" class="btn btn-sm @(opcion.Valor == _tipo ? "btn-primary" : "btn-outline-primary")" @onclick="() => CambiarTipo(opcion.Valor)">@opcion.Texto</button>
+                        }
                     </div>
                 }
+            </div>
+        </section>
+
+        <AppFiltros Titulo="Filtros" AlBuscar="Consultar" AlLimpiar="Limpiar" Buscando="_cargando" Resumen="@Resumen">
+            <div class="col-12 col-md-3"><AppCampoFecha Etiqueta="Desde" @bind-Valor="_desde" /></div>
+            <div class="col-12 col-md-3"><AppCampoFecha Etiqueta="Hasta" @bind-Valor="_hasta" /></div>
+            <div class="col-12 col-md-5">
+                <label class="form-label small">Texto, documento, cliente, proveedor o artículo</label>
+                <input class="form-control" @bind="_texto" @bind:event="onchange" placeholder="Escriba para filtrar…" />
+            </div>
+            <div class="col-6 col-md-2"><AppCampoNumero Etiqueta="Sucursal (ID)" @bind-Valor="_idSucursal" /></div>
+            <div class="col-6 col-md-2"><AppCampoNumero Etiqueta="Empresa (ID)" @bind-Valor="_idEmpresa" /></div>
+            <div class="col-6 col-md-2"><label class="form-label small">Cliente (ID)</label><input class="form-control" type="number" min="1" @bind="_idCliente" /></div>
+            <div class="col-6 col-md-2"><AppCampoNumero Etiqueta="Proveedor (ID)" @bind-Valor="_idProveedor" /></div>
+            <div class="col-6 col-md-2"><label class="form-label small">Artículo (ID)</label><input class="form-control" type="number" min="1" @bind="_idArticulo" /></div>
+        </AppFiltros>
+
+        @if (_reporte is not null)
+        {
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                <div class="small text-body-secondary"><i class="bi bi-database me-1" aria-hidden="true"></i>@_reporte.Fuente</div>
+                <div class="btn-group" role="group" aria-label="Exportar reporte">
+                    <button class="btn btn-sm btn-outline-success" @onclick="ExportarExcel" disabled="@_cargando"><i class="bi bi-file-earmark-spreadsheet me-1" aria-hidden="true"></i>Excel</button>
+                    <button class="btn btn-sm btn-outline-danger" @onclick="ExportarPdf" disabled="@_cargando"><i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>PDF</button>
+                </div>
+            </div>
+            <div class="row g-3 mb-3">
+                @foreach (var indicador in _reporte.Indicadores)
+                {
+                    <div class="col-12 col-md-4">
+                        <div class="card h-100"><div class="card-body py-3">
+                            <div class="small text-body-secondary">@indicador.Etiqueta</div>
+                            <div class="fs-5 fw-semibold seepos-importe">@(indicador.Formato == "cantidad" ? indicador.Valor.ToString("N2") : Formato.Importe(indicador.Valor))</div>
+                        </div></div>
+                    </div>
+                }
+            </div>
+            @if (_reporte.Limitado)
+            {
+                <div class="alert alert-warning py-2 small">Se alcanzó el límite de seguridad de 2.000 filas. Acote fechas, texto o los identificadores para revisar más detalle.</div>
+            }
+            <AppGraficosReporte TipoReporte="_tipo" Filas="_reporte.Filas" />
+        }
+
+        <div class="card">
+            <div class="card-body p-0">
+                <AppRejilla @ref="_rejilla" TItem="FilaReporteOperacionWebDTO" Datos="CargarRejilla" Nivel="NivelPantalla.Escritorio" TextoVacio="Seleccione un reporte y pulse Buscar.">
+                    <Columnas>
+                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Fecha" ItemTextSelector="@(x => x.Fecha.ToString("dd/MM/yyyy HH:mm"))" SortKeySelector="x => x.Fecha" />
+                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Referencia" ItemTextSelector="x => x.Referencia" SortKeySelector="x => x.Referencia" />
+                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Entidad" ItemTextSelector="x => x.Entidad" SortKeySelector="x => x.Entidad" />
+                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Detalle" ItemTextSelector="x => x.Descripcion" />
+                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Cantidad" ItemTextSelector="@(x => x.Cantidad.ToString("N2"))" SortKeySelector="x => x.Cantidad" HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Monto" ItemTextSelector="@(x => Formato.Importe(x.Monto))" SortKeySelector="x => x.Monto" HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Saldo / existencia" ItemTextSelector="@(x => Formato.Importe(x.Saldo))" SortKeySelector="x => x.Saldo" HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
+                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Estado" ItemTextSelector="x => x.Estado" SortKeySelector="x => x.Estado" />
+                    </Columnas>
+                </AppRejilla>
             </div>
         </div>
     </ChildContent>
@@ -66,36 +106,125 @@
 
 @code {
     private const string Titulo = "Módulo Reportes";
+    private static readonly GrupoReportes[] Grupos =
+    [
+        new("ventas-cartera", "Ventas y cartera", "bi-receipt", [("ventas", "Ventas"), ("cuentas-por-cobrar", "CxC y antigüedad")]),
+        new("caja-bancos", "Caja y bancos", "bi-cash-stack", [("caja", "Movimientos"), ("arqueos-cierres", "Arqueos y cierres"), ("depositos", "Depósitos")]),
+        new("compras", "Compras", "bi-cart-check", [("compras", "Compras y devoluciones"), ("cuentas-por-pagar", "Abonos CxP")]),
+        new("inventario", "Inventario", "bi-box-seam", [("inventario", "Existencias"), ("lotes", "Lotes"), ("trazabilidad", "Trazabilidad"), ("auditoria", "Auditoría")])
+    ];
+    private string _tipo = "ventas";
+    private string _grupoActivo = "ventas-cartera";
+    private GrupoReportes? GrupoActivo => Grupos.FirstOrDefault(x => x.Id == _grupoActivo);
+    private string _texto = string.Empty;
+    private DateTime? _desde;
+    private DateTime? _hasta;
+    private int? _idSucursal;
+    private int? _idEmpresa;
+    private long? _idCliente;
+    private int? _idProveedor;
+    private long? _idArticulo;
+    private bool _cargando;
+    private AppRejilla<FilaReporteOperacionWebDTO>? _rejilla;
+    private ReporteOperacionWebDTO? _reporte;
+    private string Resumen => _reporte is null ? "" : $"{_reporte.TotalRegistros:N0} registros · {_reporte.Titulo}";
 
-    private AppRejilla<ReporteComprasDTO>? _rejilla;
-    private List<ReporteComprasDTO> _compras = new();
-    private decimal _total;
-    private bool _cargado;
-
-    private async Task<GridDataProviderResult<ReporteComprasDTO>> Cargar(
-        GridDataProviderRequest<ReporteComprasDTO> peticion)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!_cargado)
-        {
-            _compras = (await Respuestas.DatoAsync(await Api.Compras(), "consultar el reporte de compras"))
-                       ?.ToList() ?? new List<ReporteComprasDTO>();
-
-            _total = CalculoDocumento.Redondear(
-                _compras.Sum(c => Formato.AImporte(c.TotalFactura)));
-
-            _cargado = true;
-        }
-
-        return peticion.ApplyTo(_compras);
+        if (!firstRender) return;
+        _hasta = await RelojEquipo.HoyAsync();
+        _desde = _hasta.Value.AddDays(-30);
+        await Consultar();
+        StateHasChanged();
     }
 
-    private async Task Recargar()
+    private async Task CambiarTipo(string tipo)
     {
-        _cargado = false;
-
-        if (_rejilla is not null)
-        {
-            await _rejilla.RefrescarAsync();
-        }
+        _tipo = tipo;
+        await Consultar();
     }
+
+    private async Task CambiarGrupo(string grupo)
+    {
+        if (_grupoActivo == grupo) return;
+        _grupoActivo = grupo;
+        var primerReporte = GrupoActivo?.Opciones.FirstOrDefault().Valor;
+        if (!string.IsNullOrWhiteSpace(primerReporte)) await CambiarTipo(primerReporte);
+    }
+
+    private async Task Consultar()
+    {
+        if (_cargando) return;
+        _cargando = true;
+        try
+        {
+            _reporte = await Respuestas.DatoAsync(await Api.Consultar(_tipo, new FiltroReporteOperacionWebDTO
+            {
+                Desde = _desde,
+                Hasta = _hasta,
+                FechaReferencia = await RelojEquipo.AhoraAsync(),
+                IdSucursal = _idSucursal,
+                IdEmpresa = _idEmpresa,
+                IdCliente = _idCliente,
+                IdProveedor = _idProveedor,
+                IdArticulo = _idArticulo,
+                Pagina = 1,
+                TamanoPagina = 25,
+                Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim()
+            }), "consultar el reporte");
+        }
+        finally { _cargando = false; }
+        if (_rejilla is not null) await _rejilla.RefrescarAsync();
+    }
+
+    private async Task Limpiar()
+    {
+        _texto = string.Empty;
+        _idSucursal = null;
+        _idEmpresa = null;
+        _idCliente = null;
+        _idProveedor = null;
+        _idArticulo = null;
+        _hasta = await RelojEquipo.HoyAsync();
+        _desde = _hasta.Value.AddDays(-30);
+        await Consultar();
+    }
+
+    private async Task Exportar(string formato)
+    {
+        if (_reporte is null) return;
+        var generado = await RelojEquipo.AhoraAsync();
+        var parametros = new List<string>
+        {
+            $"generado={Uri.EscapeDataString(generado.ToString("O", System.Globalization.CultureInfo.InvariantCulture))}"
+        };
+        if (_desde.HasValue) parametros.Add($"desde={_desde.Value:yyyy-MM-dd}");
+        if (_hasta.HasValue) parametros.Add($"hasta={_hasta.Value:yyyy-MM-dd}");
+        if (_idSucursal.HasValue) parametros.Add($"idSucursal={_idSucursal}");
+        if (_idEmpresa.HasValue) parametros.Add($"idEmpresa={_idEmpresa}");
+        if (_idCliente.HasValue) parametros.Add($"idCliente={_idCliente}");
+        if (_idProveedor.HasValue) parametros.Add($"idProveedor={_idProveedor}");
+        if (_idArticulo.HasValue) parametros.Add($"idArticulo={_idArticulo}");
+        if (!string.IsNullOrWhiteSpace(_texto)) parametros.Add($"texto={Uri.EscapeDataString(_texto.Trim())}");
+        await JS.InvokeVoidAsync("seepos.descargarUrl", $"/reportes/operacion/{Uri.EscapeDataString(_tipo)}/{formato}?{string.Join("&", parametros)}");
+    }
+
+    private Task ExportarExcel() => Exportar("excel");
+    private Task ExportarPdf() => Exportar("pdf");
+
+    private async Task<GridDataProviderResult<FilaReporteOperacionWebDTO>> CargarRejilla(GridDataProviderRequest<FilaReporteOperacionWebDTO> peticion)
+    {
+        if (_reporte is null) return new GridDataProviderResult<FilaReporteOperacionWebDTO> { Data = [], TotalCount = 0 };
+        var tamano = Math.Max(1, Convert.ToInt32(peticion.Count));
+        var pagina = (Convert.ToInt32(peticion.StartIndex) / tamano) + 1;
+        var datos = await Respuestas.DatoAsync(await Api.Consultar(_tipo, new FiltroReporteOperacionWebDTO
+        {
+            Desde = _desde, Hasta = _hasta, FechaReferencia = await RelojEquipo.AhoraAsync(), Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim(),
+            IdSucursal = _idSucursal, IdEmpresa = _idEmpresa, IdCliente = _idCliente, IdProveedor = _idProveedor, IdArticulo = _idArticulo,
+            Pagina = pagina, TamanoPagina = tamano
+        }), "cargar la página del reporte");
+        return new GridDataProviderResult<FilaReporteOperacionWebDTO> { Data = datos?.Filas ?? [], TotalCount = datos?.TotalRegistros ?? 0 };
+    }
+
+    private sealed record GrupoReportes(string Id, string Nombre, string Icono, (string Valor, string Texto)[] Opciones);
 }

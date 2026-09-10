@@ -8,6 +8,7 @@ using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
+using SuvesaPosSitioAplicacion.DTOs.Reportes;
 using SuvesaPosSitioAplicacion.Helpers;
 using SuvesaPosSitioAplicacion.Security;
 using SuvesaPosSitioAplicacion.Services;
@@ -84,6 +85,7 @@ builder.Services.AddSingleton<ISondaLegado, SondaLegado>();
 // solo por debajo de cierto umbral de facturacion. VERIFICAR antes de produccion.
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 builder.Services.AddSingleton<IGeneradorPdf, GeneradorPdfQuestPdf>();
+builder.Services.AddSingleton<IGeneradorReporteOperacion, GeneradorReporteOperacion>();
 
 builder.Services.AddScoped<IAlmacenEspacioTrabajo, AlmacenEspacioTrabajoNavegador>();
 builder.Services.AddScoped<IEstadoEspacioTrabajo, EstadoEspacioTrabajo>();
@@ -125,6 +127,9 @@ builder.Services.AddHttpClient<IProduccionApiCliente, ProduccionApiCliente>(c =>
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 builder.Services.AddHttpClient<IConsignacionInvApiCliente, ConsignacionInvApiCliente>(c => c.BaseAddress = new Uri(urlApi))
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+// ReportesOperacion recibe IHttpClientFactory y toma el cliente nombrado SeePosApi
+// ya configurado arriba. No es un cliente HTTP tipado (que exige HttpClient directo).
+builder.Services.AddScoped<IReportesOperacion, ReportesOperacion>();
 ClienteApi<ICentrosApiCliente, CentrosApiCliente>();
 ClienteApi<IBancosApiCliente, BancosApiCliente>();
 ClienteApi<IInventarioApiCliente, InventarioApiCliente>();
@@ -396,6 +401,63 @@ app.MapGet("/reportes/compras/pdf", async (IReportes api, IGeneradorPdf pdf) =>
     });
 
     return Results.File(bytes, "application/pdf", "reporte-compras.pdf");
+});
+
+// Exportaciones del módulo nuevo de reportes. Se vuelve a consultar con los mismos
+// filtros de la pantalla para que el archivo no dependa del estado del circuito de
+// Blazor. La hora llega desde el equipo del usuario, nunca desde el servidor.
+app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
+    string tipo,
+    string formato,
+    DateTime? desde,
+    DateTime? hasta,
+    string? texto,
+    int? idSucursal,
+    int? idEmpresa,
+    long? idCliente,
+    int? idProveedor,
+    long? idArticulo,
+    DateTime? generado,
+    IContextoSesion sesion,
+    IReportesOperacion api,
+    IGeneradorReporteOperacion exportador) =>
+{
+    if (formato is not ("pdf" or "excel")) return Results.NotFound();
+    if (tipo is not ("ventas" or "cuentas-por-cobrar" or "cuentas-por-pagar" or "caja" or "arqueos-cierres" or "depositos" or "compras" or "inventario" or "lotes" or "trazabilidad" or "auditoria"))
+        return Results.NotFound();
+    if (!generado.HasValue) return Results.BadRequest("Falta la fecha y hora del equipo para generar el archivo.");
+
+    await sesion.CargarAsync();
+    ContextoLlamada.Token = sesion.Token;
+    try
+    {
+        var resultado = await api.Consultar(tipo, new FiltroReporteOperacionWebDTO
+        {
+            Desde = desde,
+            Hasta = hasta,
+            FechaReferencia = generado.Value,
+            IdSucursal = idSucursal,
+            IdEmpresa = idEmpresa,
+            IdCliente = idCliente,
+            IdProveedor = idProveedor,
+            IdArticulo = idArticulo,
+            TamanoPagina = 2000,
+            Texto = string.IsNullOrWhiteSpace(texto) ? null : texto.Trim()
+        });
+        if (!resultado.EsCorrecta || resultado.Responses is null)
+            return Results.Problem(resultado.Excepcion ?? "No se pudo consultar el reporte.");
+
+        var nombre = $"reporte-{tipo}-{generado.Value:yyyyMMdd-HHmm}";
+        if (formato == "pdf")
+            return Results.File(exportador.Pdf(tipo, resultado.Responses, generado.Value), "application/pdf", $"{nombre}.pdf");
+
+        return Results.File(exportador.Excel(tipo, resultado.Responses, generado.Value),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{nombre}.xlsx");
+    }
+    finally
+    {
+        ContextoLlamada.Token = null;
+    }
 });
 
 app.MapGet("/reportes/cuentas-por-pagar", async (

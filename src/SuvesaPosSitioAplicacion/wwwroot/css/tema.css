@@ -1925,3 +1925,90 @@ body,
 .seepos-mud-isla .mud-select .mud-input-slot {
     min-height: 0;
 }
+
+/* Gráficas de reportes: SVG nativo para no depender de servicios externos ni de
+   librerías de JavaScript. Las barras se actualizan con las mismas filas reales de
+   cada consulta y conservan texto accesible para lector de pantalla. */
+.seepos-graficos-reporte .card {
+    overflow: hidden;
+}
+
+.seepos-catalogo-reportes {
+    border-left: .25rem solid color-mix(in srgb, var(--seepos-verde) 70%, transparent);
+}
+
+.seepos-pestanas-reportes {
+    gap: .25rem;
+    padding: .55rem .75rem 0;
+    border-bottom: 0;
+}
+
+.seepos-pestanas-reportes .nav-link {
+    border: 1px solid transparent;
+    border-bottom: 0;
+    color: var(--bs-body-color);
+    font-weight: 600;
+}
+
+.seepos-pestanas-reportes .nav-link:hover {
+    border-color: color-mix(in srgb, var(--seepos-verde) 28%, transparent);
+    color: var(--seepos-verde-oscuro);
+}
+
+.seepos-pestanas-reportes .nav-link.active {
+    background: color-mix(in srgb, var(--seepos-verde) 11%, var(--bs-body-bg));
+    border-color: color-mix(in srgb, var(--seepos-verde) 35%, transparent);
+    color: var(--seepos-verde-oscuro);
+}
+
+.seepos-grafico {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.seepos-grafico svg {
+    display: block;
+    min-width: 31rem;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+}
+
+.seepos-grafico-etiqueta,
+.seepos-grafico-valor {
+    fill: var(--bs-body-color);
+    color: var(--bs-body-color);
+    font-family: var(--bs-body-font-family);
+    font-size: 12px;
+    line-height: 18px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.seepos-grafico-valor {
+    font-variant-numeric: tabular-nums;
+    text-anchor: start;
+}
+
+.seepos-grafico-pista {
+    fill: color-mix(in srgb, var(--seepos-verde) 10%, var(--bs-tertiary-bg));
+}
+
+.seepos-grafico-barra {
+    fill: var(--seepos-verde);
+}
+
+.seepos-grafico-barra-secundaria {
+    fill: var(--bs-primary);
+}
+
+.seepos-grafico-barra-negativa {
+    fill: var(--bs-warning-text-emphasis);
+}
+
+@media (max-width: 575.98px) {
+    .seepos-grafico svg {
+        min-width: 28rem;
+    }
+}
