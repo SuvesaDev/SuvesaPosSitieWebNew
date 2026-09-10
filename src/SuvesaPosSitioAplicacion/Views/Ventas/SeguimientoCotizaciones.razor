@@ -4,6 +4,8 @@
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ICotizaciones Api
 @inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
 
 @*  OLA 1 — replica del ARQUETIPO 02, con filtro por estado.
     Es la pantalla que un agente de ventas abre en el movil para saber que paso con
@@ -30,6 +32,12 @@
                 <select class="form-select" aria-label="Estado"
                         @onchange="AlCambiarEstado">
                     <option value="vigentes">Vigentes</option>
+                    <option value="contactada">Contactadas</option>
+                    <option value="seguimiento">En seguimiento</option>
+                    <option value="negociacion">En negociación</option>
+                    <option value="aceptada">Aceptadas</option>
+                    <option value="rechazada">Rechazadas</option>
+                    <option value="sin-respuesta">Sin respuesta</option>
                     <option value="anuladas">Anuladas</option>
                     <option value="todas">Todas</option>
                 </select>
@@ -75,10 +83,17 @@
                                 <span class="small text-secondary">
                                     <code>@c.Cotizacion1</code> · @c.Fecha.ToString("dd/MM/yyyy")
                                 </span>
-                                <span class="badge @(c.Anulado ? "text-bg-secondary" : "text-bg-success")">
+                                <span class="badge @ClaseEstado(c)">
                                     @Estado(c)
                                 </span>
                             </div>
+                            @if (PuedeEditarEstado(c))
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-primary mt-2"
+                                        @onclick="() => AbrirCambioEstado(c)">
+                                    <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Actualizar seguimiento
+                                </button>
+                            }
                         </div>
                     </div>
                 }
@@ -107,11 +122,28 @@
                                           HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
                             <HxGridColumn TItem="CotizacionesDTO" HeaderText="Estado">
                                 <ItemTemplate Context="c">
-                                    <span class="badge @(c.Anulado ? "text-bg-secondary" : "text-bg-success")">
+                                    <span class="badge @ClaseEstado(c)">
                                         @Estado(c)
                                     </span>
                                 </ItemTemplate>
                             </HxGridColumn>
+                            @if (Sesion.Puede(Codigo, AccionPantalla.Editar))
+                            {
+                                <HxGridColumn TItem="CotizacionesDTO" HeaderText="Acciones"
+                                              HeaderCssClass="text-end" ItemCssClass="text-end">
+                                    <ItemTemplate Context="c">
+                                        @if (PuedeEditarEstado(c))
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                                    title="Actualizar seguimiento"
+                                                    @onclick="() => AbrirCambioEstado(c)">
+                                                <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                                                <span class="visually-hidden">Actualizar seguimiento</span>
+                                            </button>
+                                        }
+                                    </ItemTemplate>
+                                </HxGridColumn>
+                            }
                         </Columnas>
                     </AppRejilla>
                 </div>
@@ -121,10 +153,45 @@
     </ChildContent>
 </AppPantalla>
 
+<AppModal @ref="_modalEstado" Titulo="Actualizar seguimiento"
+          Subtitulo="@(_cotizacionEditando is null ? null : $"Cotización #{_cotizacionEditando.Cotizacion1} · {_cotizacionEditando.NombreCliente}")"
+          Tamano="ModalSize.Regular" AlGuardar="GuardarEstado" Guardando="_guardandoEstado"
+          PuedeGuardar="@(_cotizacionEditando is not null)" TextoGuardar="Guardar seguimiento">
+    @if (_cotizacionEditando is not null)
+    {
+        <div class="alert alert-light border small">
+            Este cambio registra el seguimiento comercial. No anula la cotización ni la convierte en factura.
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="cotizacion-estado">Estado <span class="text-danger">*</span></label>
+            <select id="cotizacion-estado" class="form-select" @bind="_estadoEdicion">
+                @foreach (var estado in EstadosEdicion())
+                {
+                    <option value="@estado">@estado</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label" for="cotizacion-observacion">Nota del seguimiento</label>
+            <textarea id="cotizacion-observacion" class="form-control" rows="4"
+                      placeholder="Ej.: se llamó al cliente; solicita respuesta el viernes..."
+                      @bind="_observacionEdicion"></textarea>
+            <div class="form-text">Esta nota queda asociada a la cotización.</div>
+        </div>
+    }
+</AppModal>
+
 @code {
     private const string Titulo = "Seguimiento Cotizaciones";
+    private const string Codigo = "PRESUPUESTOS.SEGUIMIENTO_COTIZACIONES";
+    private static readonly string[] EstadosSeguimiento =
+    {
+        "Vigente", "Contactada", "En seguimiento", "En negociación",
+        "Aceptada", "Rechazada", "Sin respuesta"
+    };
 
     private AppRejilla<CotizacionesDTO>? _rejilla;
+    private AppModal _modalEstado = default!;
 
     private List<CotizacionesDTO> _todas = new();
     private List<CotizacionesDTO> _filtradas = new();
@@ -132,6 +199,10 @@
     private string _texto = string.Empty;
     private string _estado = "vigentes";
     private bool _cargado;
+    private CotizacionesDTO? _cotizacionEditando;
+    private string _estadoEdicion = "Vigente";
+    private string _observacionEdicion = string.Empty;
+    private bool _guardandoEstado;
 
     protected override async Task OnInitializedAsync() => await Cargar();
 
@@ -182,6 +253,12 @@
         IEnumerable<CotizacionesDTO> q = _estado switch
         {
             "anuladas" => _todas.Where(c => c.Anulado),
+            "contactada" => _todas.Where(c => EsEstado(c, "Contactada")),
+            "seguimiento" => _todas.Where(c => EsEstado(c, "En seguimiento")),
+            "negociacion" => _todas.Where(c => EsEstado(c, "En negociación")),
+            "aceptada" => _todas.Where(c => EsEstado(c, "Aceptada")),
+            "rechazada" => _todas.Where(c => EsEstado(c, "Rechazada")),
+            "sin-respuesta" => _todas.Where(c => EsEstado(c, "Sin respuesta")),
             "todas" => _todas,
             _ => _todas.Where(c => !c.Anulado)
         };
@@ -203,7 +280,78 @@
     }
 
     private static string Estado(CotizacionesDTO c)
-        => c.Anulado ? "Anulada" : (c.Confirmada == true ? "Confirmada" : "Vigente");
+        => c.Anulado ? "Anulada"
+         : c.Venta ? "Convertida en venta"
+         : c.Confirmada == true ? "Confirmada"
+         : string.IsNullOrWhiteSpace(c.EstadoActual) ? "Vigente"
+         : c.EstadoActual.Trim();
+
+    private static string ClaseEstado(CotizacionesDTO c)
+        => c.Anulado ? "text-bg-secondary"
+         : Estado(c) is "Rechazada" or "Sin respuesta" ? "text-bg-danger"
+         : Estado(c) is "Contactada" or "En seguimiento" or "En negociación" ? "text-bg-warning"
+         : "text-bg-success";
+
+    private static bool EsEstado(CotizacionesDTO c, string estado)
+        => !c.Anulado && string.Equals(Estado(c), estado, StringComparison.OrdinalIgnoreCase);
+
+    private bool PuedeEditarEstado(CotizacionesDTO c)
+        => !c.Anulado && Sesion.Puede(Codigo, AccionPantalla.Editar);
+
+    private IEnumerable<string> EstadosEdicion()
+    {
+        if (!EstadosSeguimiento.Contains(_estadoEdicion, StringComparer.OrdinalIgnoreCase))
+            yield return _estadoEdicion;
+
+        foreach (var estado in EstadosSeguimiento)
+            yield return estado;
+    }
+
+    private async Task AbrirCambioEstado(CotizacionesDTO resumen)
+    {
+        if (!PuedeEditarEstado(resumen)) return;
+
+        // Se usa el encabezado completo para que el endpoint de edición conserve
+        // datos que el listado no necesita mostrar (moneda, condiciones y detalle).
+        var cotizacion = await Respuestas.DatoAsync(
+            await Api.ObtenerPorId(resumen.Cotizacion1, resumen), "consultar la cotización");
+        if (cotizacion is null) return;
+
+        _cotizacionEditando = cotizacion;
+        _estadoEdicion = string.IsNullOrWhiteSpace(cotizacion.EstadoActual)
+            ? "Vigente" : cotizacion.EstadoActual.Trim();
+        _observacionEdicion = cotizacion.ObservacionEstado ?? string.Empty;
+        await _modalEstado.MostrarAsync();
+    }
+
+    private async Task GuardarEstado()
+    {
+        if (_cotizacionEditando is null || _guardandoEstado
+            || string.IsNullOrWhiteSpace(_estadoEdicion)) return;
+
+        if (!await Dialogos.ConfirmarAsync(
+                $"¿Guardar el estado «{_estadoEdicion.Trim()}» para la cotización #{_cotizacionEditando.Cotizacion1}?",
+                "Actualizar seguimiento", "Guardar")) return;
+
+        _guardandoEstado = true;
+        try
+        {
+            _cotizacionEditando.EstadoActual = _estadoEdicion.Trim();
+            _cotizacionEditando.ObservacionEstado = string.IsNullOrWhiteSpace(_observacionEdicion)
+                ? null : _observacionEdicion.Trim();
+
+            if (!await Respuestas.CorrectaAsync(
+                    await Api.EditarEncabezado(_cotizacionEditando), "actualizar el seguimiento")) return;
+
+            await _modalEstado.OcultarAsync();
+            Dialogos.Exito("Seguimiento actualizado.");
+            await Recargar();
+        }
+        finally
+        {
+            _guardandoEstado = false;
+        }
+    }
 
     private Task<GridDataProviderResult<CotizacionesDTO>> Servir(
         GridDataProviderRequest<CotizacionesDTO> peticion)

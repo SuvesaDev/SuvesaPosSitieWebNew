@@ -51,6 +51,37 @@ export function obtenerFechaHoraEquipo() {
     return new Date().toISOString();
 }
 
+// La clave interna nunca debe terminar en el buscador del menú si el navegador
+// restaura o mueve el foco durante un cambio de renderizado.
+export function limpiarBusquedaMenu() {
+    const limpiar = () => {
+        const buscador = document.getElementById('buscador-menu');
+        if (!buscador || !buscador.value) return;
+
+        // Si Blazor ya renderizó el botón, usar su propio evento mantiene también
+        // vacío el estado C# (_busqueda), no solo el valor visual del input.
+        const botonLimpiar = buscador.parentElement?.querySelector(
+            'button[aria-label="Limpiar búsqueda"]');
+        if (botonLimpiar) {
+            botonLimpiar.click();
+            return;
+        }
+
+        buscador.value = '';
+        buscador.dispatchEvent(new InputEvent('input', {
+            bubbles: true,
+            inputType: 'insertText',
+            data: null,
+        }));
+    };
+
+    limpiar();
+    // La restauración de foco/autorrelleno puede ocurrir justo después de la
+    // actualización interactiva. Repetir tras el render impide que una clave
+    // interna termine como texto del filtro del menú.
+    window.setTimeout(limpiar, 50);
+}
+
 // Mantiene visible el encabezado que el usuario acaba de desplegar. El menú es
 // el único contenedor que se mueve y solo lo hace si el elemento quedó fuera de
 // su área visible; no altera el desplazamiento de la pantalla de trabajo.

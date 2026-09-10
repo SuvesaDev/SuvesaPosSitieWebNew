@@ -1,4 +1,5 @@
 @page "/initial/mail-outbox"
+@using MudBlazor
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.DTOs.Correo
 @using SuvesaPosSitioAplicacion.Services
@@ -40,6 +41,23 @@
 
         <div class="card">
             <div class="card-body">
+                <MudIsla>
+                <MudDataGrid T="EnvioCorreoDTO" Items="_pagina.Items" Dense="true" Hover="true" Striped="true" Filterable="true" SortMode="SortMode.Multiple" Groupable="false" FixedHeader="true" Height="60vh" Class="seepos-mud-grid">
+                    <NoRecordsContent><div class="text-secondary text-center py-4">Sin envíos con esos criterios.</div></NoRecordsContent>
+                    <Columns>
+                        <PropertyColumn Property="e => e.FechaCreacionUtc" Title="Creado"><CellTemplate>@context.Item.FechaCreacionUtc.ToLocalTime().ToString("dd/MM/yy HH:mm")</CellTemplate></PropertyColumn>
+                        <PropertyColumn Property="e => e.TipoComprobante" Title="Comprobante" />
+                        <PropertyColumn Property="e => e.Clave" Title="Clave" />
+                        <PropertyColumn Property="e => e.Destinatarios" Title="Destinatarios" />
+                        <TemplateColumn Title="Estado"><CellTemplate><span class="badge bg-@Color(context.Item.Estado)">@Humano(context.Item.Estado)</span></CellTemplate></TemplateColumn>
+                        <PropertyColumn Property="e => e.Intentos" Title="Intentos" CellClass="justify-end"><CellTemplate>@context.Item.Intentos/@context.Item.MaxIntentos</CellTemplate></PropertyColumn>
+                        <PropertyColumn Property="e => e.FechaEnvioUtc" Title="Enviado"><CellTemplate>@(context.Item.FechaEnvioUtc?.ToLocalTime().ToString("dd/MM/yy HH:mm") ?? "—")</CellTemplate></PropertyColumn>
+                        <TemplateColumn Title="Adjuntos"><CellTemplate>@if (context.Item.AdjuntoXmlFirmado) { <span class="badge bg-light text-dark me-1">XML</span> } @if (context.Item.AdjuntoRespuesta) { <span class="badge bg-light text-dark me-1">Resp.</span> } @if (context.Item.AdjuntoPdf) { <span class="badge bg-light text-dark">PDF</span> }</CellTemplate></TemplateColumn>
+                        <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate><div class="d-flex gap-1"><button class="btn btn-sm btn-success" title="Ver detalle" @onclick="() => VerDetalle(context.Item)"><i class="bi bi-eye"></i></button>@if (Reenviable(context.Item.Estado)) { <button class="btn btn-sm btn-outline-primary" title="Reenviar" @onclick="() => Reenviar(context.Item)"><i class="bi bi-arrow-repeat"></i></button> }</div></CellTemplate></TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+                </MudIsla>
+                @if (_mostrarTablaLegada) {
                 <div class="table-responsive">
                     <table class="table table-sm align-middle">
                         <thead>
@@ -79,7 +97,7 @@
                             }
                         </tbody>
                     </table>
-                </div>
+                </div> }
                 <div class="d-flex justify-content-between align-items-center small text-secondary">
                     <span>@_pagina.Total envío(s)</span>
                     <div>

@@ -1,4 +1,5 @@
 @page "/initial/alerts"
+@using MudBlazor
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.DTOs.Correo
 @using SuvesaPosSitioAplicacion.Services
@@ -26,6 +27,20 @@
 
         <div class="card">
             <div class="card-body">
+                <MudIsla>
+                <MudDataGrid T="AlertaAdministradorDTO" Items="_pagina.Items" Dense="true" Hover="true" Striped="true" Filterable="true" SortMode="SortMode.Multiple" Groupable="false" FixedHeader="true" Height="60vh" Class="seepos-mud-grid">
+                    <NoRecordsContent><div class="text-secondary text-center py-4">No hay alertas.</div></NoRecordsContent>
+                    <Columns>
+                        <PropertyColumn Property="a => a.FechaCreacionUtc" Title="Fecha"><CellTemplate>@context.Item.FechaCreacionUtc.ToLocalTime().ToString("dd/MM/yy HH:mm")</CellTemplate></PropertyColumn>
+                        <TemplateColumn Title="Tipo"><CellTemplate><span class="badge bg-@Color(context.Item.Tipo)">@Humano(context.Item.Tipo)</span></CellTemplate></TemplateColumn>
+                        <PropertyColumn Property="a => a.IdEmisor" Title="Emisor" />
+                        <PropertyColumn Property="a => a.Titulo" Title="Título" />
+                        <TemplateColumn Title="Detalle"><CellTemplate><div class="small seepos-alerta-detalle">@context.Item.Detalle @if (!string.IsNullOrWhiteSpace(context.Item.Clave)) { <a class="ms-1" href="/initial/documents?clave=@context.Item.Clave">Ver documento</a> }</div></CellTemplate></TemplateColumn>
+                        <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate>@if (!context.Item.Leida) { <button class="btn btn-sm btn-outline-success" title="Marcar como leída" aria-label="Marcar como leída" @onclick="() => MarcarLeida(context.Item)"><i class="bi bi-check2"></i></button> } else { <span class="badge text-bg-light text-secondary">Leída</span> }</CellTemplate></TemplateColumn>
+                    </Columns>
+                </MudDataGrid>
+                </MudIsla>
+                @if (_mostrarTablaLegada) {
                 <div class="table-responsive">
                     <table class="table table-sm align-middle">
                         <thead>
@@ -60,7 +75,7 @@
                             }
                         </tbody>
                     </table>
-                </div>
+                </div> }
             </div>
         </div>
     </ChildContent>

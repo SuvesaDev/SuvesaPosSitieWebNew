@@ -163,13 +163,15 @@
                                             CellClass="justify-end" HeaderClass="justify-end">
                                 <CellTemplate>@Formato.Importe(context.Item.Precio_A)</CellTemplate>
                             </PropertyColumn>
-                            <TemplateColumn Title="" Sortable="false" Filterable="false">
+                            <TemplateColumn Title="Acciones" Sortable="false" Filterable="false">
                                 <CellTemplate>
-                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(context.Item)">Ver</button>
+                                    <div class="d-flex gap-1">
+                                    <button class="btn btn-sm btn-success" title="Ver detalle" aria-label="Ver detalle" @onclick="() => Ver(context.Item)"><i class="bi bi-eye"></i></button>
                                     @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
                                     {
-                                        <button class="btn btn-sm btn-link p-0 ms-3" @onclick="() => Editar(context.Item)">Editar</button>
+                                        <button class="btn btn-sm btn-outline-success" title="Editar artículo" aria-label="Editar artículo" @onclick="() => Editar(context.Item)"><i class="bi bi-pencil"></i></button>
                                     }
+                                    </div>
                                 </CellTemplate>
                             </TemplateColumn>
                         </Columns>
@@ -188,7 +190,9 @@
     <BodyTemplate>
         @if (_elegido is not null)
         {
-            <dl class="row small mb-0">
+            <div class="seepos-cliente-detalle-hero mb-3"><div><span class="small text-secondary d-block">Artículo</span><strong>@_elegido.Descripcion</strong></div><span class="badge @(_elegido.Inhabilitado ? "text-bg-secondary" : "text-bg-success")">@(_elegido.Inhabilitado ? "Inactivo" : "Activo")</span></div>
+            <h3 class="seepos-detalle-seccion">Identificación y existencias</h3>
+            <dl class="row small mb-0 seepos-cliente-datos">
                 <dt class="col-5 fw-normal text-secondary">Codigo</dt>
                 <dd class="col-7"><code>@_elegido.Cod_Articulo</code></dd>
 
@@ -209,7 +213,7 @@
             </dl>
 
             <hr />
-
+            <h3 class="seepos-detalle-seccion">Precios de venta</h3>
             <dl class="row small mb-0">
                 <dt class="col-5 fw-normal text-secondary">Precio A</dt>
                 <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_A)</dd>
@@ -232,7 +236,7 @@
 
             <hr />
 
-            <p class="small text-secondary mb-2">Lotes</p>
+            <h3 class="seepos-detalle-seccion">Lotes</h3>
 
             @if (_cargandoLotes)
             {
@@ -246,7 +250,7 @@
             }
             else
             {
-                <div class="table-responsive">
+                <div class="table-responsive seepos-inventario-lotes">
                     <table class="table table-sm small mb-0">
                         <thead>
                             <tr>
@@ -281,7 +285,7 @@
                 <p class="small text-secondary mb-0">@_elegido.Observaciones</p>
             }
 
-            <div class="d-flex gap-2 border-top pt-3 mt-3">
+            <div class="d-flex gap-2 border-top pt-3 mt-3 seepos-detalle-acciones">
                 @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
                 {
                     <button class="btn btn-sm btn-primary" @onclick="() => Editar(_elegido)">Editar</button>
@@ -296,12 +300,12 @@
             </div>
 
             <hr />
-            <h3 class="h6">Artículos relacionados</h3>
+            <h3 class="seepos-detalle-seccion">Artículos relacionados</h3>
             <div class="input-group input-group-sm mb-2"><input type="number" min="0" class="form-control" placeholder="Código relacionado" @bind="_codigoRelacionado" @bind:event="onchange" /><input type="number" class="form-control" min="0.01" step="0.01" @bind="_cantidadRelacionada" @bind:event="onchange" /><button class="btn btn-outline-primary" @onclick="AgregarRelacionado">Agregar</button></div>
             @if (_relacionados.Count > 0) { <ul class="list-group list-group-flush small">@foreach (var relacionado in _relacionados) { <li class="list-group-item px-0 d-flex justify-content-between"><span>@relacionado.Descripcion · @Formato.Cantidad(relacionado.Cantidad)</span><button class="btn btn-sm btn-link text-danger p-0" @onclick="() => QuitarRelacionado(relacionado)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></li> }</ul> }
 
             <hr />
-            <h3 class="h6">Imagen del artículo</h3>
+            <h3 class="seepos-detalle-seccion">Imagen del artículo</h3>
             @if (_cargandoImagen)
             {
                 <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando imagen</span></div>
