@@ -36,8 +36,8 @@
 
 @if (VistaEfectiva == "recibos")
 {
-    <div class="card mb-3">
-        <div class="card-body row g-2 align-items-end">
+    <div class="card mb-3 seepos-recibos-filtros">
+        <div class="card-header"><i class="bi bi-funnel me-2 text-primary"></i><strong>Filtros de consulta</strong><span class="text-secondary small ms-2">Busque recibos por fecha, apertura o estado.</span></div><div class="card-body row g-3 align-items-end">
             <div class="col-6 col-md-2"><label class="form-label small">Desde</label><input type="date" class="form-control form-control-sm" @bind="_desde" /></div>
             <div class="col-6 col-md-2"><label class="form-label small">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_hasta" /></div>
             <div class="col-6 col-md-2"><label class="form-label small">N.º recibo</label><input type="number" min="0" class="form-control form-control-sm" @bind="_numeroRecibo" /></div>
@@ -48,7 +48,7 @@
                     <option value="0">Todos</option><option value="1">Confirmado</option><option value="2">Anulado</option>
                 </select>
             </div>
-            <div class="col-auto"><button class="btn btn-sm btn-primary" @onclick="CargarRecibos" disabled="@_cargando">Buscar</button></div>
+            <div class="col-12 col-md-auto d-grid"><button class="btn btn-primary" @onclick="CargarRecibos" disabled="@_cargando"><i class="bi bi-search me-1"></i>Buscar</button></div>
         </div>
     </div>
 
@@ -62,7 +62,7 @@
     }
     else
     {
-        <div class="table-responsive">
+        <div class="seepos-recibos-tabla table-responsive">
             <table class="table table-sm table-hover align-middle">
                 <thead>
                     <tr>
@@ -86,8 +86,8 @@
                             <td class="small">@r.FormasPagoResumen</td>
                             <td class="text-center"><span class="badge @(r.Estado == 1 ? "text-bg-success" : "text-bg-secondary")">@r.EstadoNombre</span></td>
                             <td class="text-end">
-                                <button class="btn btn-sm btn-link p-0 me-2" @onclick="() => VerDetalle(r)">Detalle</button>
-                                <button class="btn btn-sm btn-link p-0" @onclick="() => ImprimirRecibo(r.Id)">PDF</button>
+                                <div class="d-inline-flex gap-1"><button class="btn btn-sm btn-outline-primary" title="Ver detalle" aria-label="Ver detalle" @onclick="() => VerDetalle(r)"><i class="bi bi-eye"></i></button>
+                                <button class="btn btn-sm btn-outline-secondary" title="Descargar PDF" aria-label="Descargar PDF" @onclick="() => ImprimirRecibo(r.Id)"><i class="bi bi-file-earmark-pdf"></i></button></div>
                             </td>
                         </tr>
                     }
@@ -112,7 +112,7 @@ else
             Estos comprobantes fueron <strong>rechazados por Hacienda</strong>. El cobro local
             <strong>no se borra</strong> (D10): corrija y reenvíe, o genere una NC sin ruta fiscal y recree la factura.
         </div>
-        <div class="table-responsive">
+        <div class="seepos-recibos-tabla seepos-recibos-fallidas table-responsive">
             <table class="table table-sm align-middle">
                 <thead>
                     <tr>
@@ -153,7 +153,7 @@ else
                                 else
                                 {
                                     <span class="text-truncate d-inline-block align-bottom" style="max-width:14rem">@f.CausaError</span>
-                                    <button type="button" class="btn btn-sm btn-link p-0 ms-1" title="Ver el error completo" @onclick="() => VerCausaCompleta(f.CausaError!)">
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-1" title="Ver el error completo" aria-label="Ver el error completo" @onclick="() => VerCausaCompleta(f.CausaError!)">
                                         <i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>
                                     </button>
                                 }
@@ -162,8 +162,8 @@ else
                             <td class="text-nowrap">
                                 @if (f.OrigenId is { } idv && string.Equals(f.OrigenTipo, "Venta", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    <button class="btn btn-sm btn-outline-primary mb-1 d-block w-100" disabled="@_procesando" @onclick="() => Reenviar(f)">Reenviar</button>
-                                    <button class="btn btn-sm btn-outline-danger d-block w-100" disabled="@_procesando" @onclick="() => AnularYRecrear(f)">NC interna</button>
+                                    <button class="btn btn-sm btn-outline-primary mb-1 d-block w-100" title="Reenviar comprobante" aria-label="Reenviar comprobante" disabled="@_procesando" @onclick="() => Reenviar(f)"><i class="bi bi-arrow-repeat me-1"></i>Reenviar</button>
+                                    <button class="btn btn-sm btn-outline-danger d-block w-100" title="Crear nota de crédito interna" aria-label="Crear nota de crédito interna" disabled="@_procesando" @onclick="() => AnularYRecrear(f)"><i class="bi bi-file-earmark-minus me-1"></i>NC interna</button>
                                 }
                             </td>
                         </tr>

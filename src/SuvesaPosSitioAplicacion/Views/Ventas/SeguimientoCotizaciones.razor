@@ -21,7 +21,7 @@
 
     <ChildContent>
 
-        <div class="row g-2 mb-3">
+        <div class="card mb-3 seepos-seguimiento-filtros"><div class="card-header"><i class="bi bi-funnel me-2 text-primary"></i><strong>Filtros de consulta</strong><span class="text-secondary small ms-2">Busque por cliente, número o estado.</span></div><div class="card-body row g-3 align-items-end">
             <div class="col-12 col-md-8">
                 <input type="search" class="form-control"
                        placeholder="Cliente o numero..."
@@ -42,7 +42,7 @@
                     <option value="todas">Todas</option>
                 </select>
             </div>
-        </div>
+        </div></div>
 
         @if (!_cargado)
         {
@@ -100,7 +100,7 @@
             </div>
 
             @* Escritorio y tableta: rejilla. *@
-            <div class="d-none d-md-block card">
+            <div class="d-none d-md-block card seepos-seguimiento-resultados">
                 <div class="card-body">
                     <AppRejilla TItem="CotizacionesDTO" Datos="Servir"
                                 Nivel="NivelPantalla.Tableta" @ref="_rejilla">

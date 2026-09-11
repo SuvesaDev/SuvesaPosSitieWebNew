@@ -2,10 +2,13 @@
 @using MudBlazor
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.DTOs.Correo
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @using Havit.Blazor.Components.Web.Bootstrap
 @inject IEnviosCorreo Api
+@inject IClientesConsulta ClientesApi
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 
@@ -48,7 +51,7 @@
                         <PropertyColumn Property="e => e.FechaCreacionUtc" Title="Creado"><CellTemplate>@context.Item.FechaCreacionUtc.ToLocalTime().ToString("dd/MM/yy HH:mm")</CellTemplate></PropertyColumn>
                         <PropertyColumn Property="e => e.TipoComprobante" Title="Comprobante" />
                         <PropertyColumn Property="e => e.Clave" Title="Clave" />
-                        <PropertyColumn Property="e => e.Destinatarios" Title="Destinatarios" />
+                        <TemplateColumn Title="Receptor" Sortable="false"><CellTemplate><span title="@context.Item.Destinatarios">@NombreDestinatario(context.Item.Destinatarios)</span></CellTemplate></TemplateColumn>
                         <TemplateColumn Title="Estado"><CellTemplate><span class="badge bg-@Color(context.Item.Estado)">@Humano(context.Item.Estado)</span></CellTemplate></TemplateColumn>
                         <PropertyColumn Property="e => e.Intentos" Title="Intentos" CellClass="justify-end"><CellTemplate>@context.Item.Intentos/@context.Item.MaxIntentos</CellTemplate></PropertyColumn>
                         <PropertyColumn Property="e => e.FechaEnvioUtc" Title="Enviado"><CellTemplate>@(context.Item.FechaEnvioUtc?.ToLocalTime().ToString("dd/MM/yy HH:mm") ?? "—")</CellTemplate></PropertyColumn>
@@ -62,7 +65,7 @@
                     <table class="table table-sm align-middle">
                         <thead>
                             <tr>
-                                <th>Creado</th><th>Tipo</th><th>Clave</th><th>Destinatarios</th>
+                                <th>Creado</th><th>Tipo</th><th>Clave</th><th>Receptor</th>
                                 <th>Estado</th><th class="text-end">Int.</th><th>Enviado</th><th>Adjuntos</th><th></th>
                             </tr>
                         </thead>
@@ -77,7 +80,7 @@
                                     <td class="small">@e.FechaCreacionUtc.ToLocalTime().ToString("dd/MM/yy HH:mm")</td>
                                     <td class="small">@e.TipoComprobante</td>
                                     <td class="small text-truncate" style="max-width:220px" title="@e.Clave">@e.Clave</td>
-                                    <td class="small text-truncate" style="max-width:200px" title="@e.Destinatarios">@e.Destinatarios</td>
+                                    <td class="small text-truncate" style="max-width:200px" title="@e.Destinatarios">@NombreDestinatario(e.Destinatarios)</td>
                                     <td><span class="badge bg-@Color(e.Estado)">@Humano(e.Estado)</span></td>
                                     <td class="text-end small">@e.Intentos/@e.MaxIntentos</td>
                                     <td class="small">@(e.FechaEnvioUtc?.ToLocalTime().ToString("dd/MM/yy HH:mm") ?? "—")</td>
@@ -119,7 +122,7 @@
                 <dt class="col-4">Clave</dt><dd class="col-8 text-break">@_sel.Clave</dd>
                 <dt class="col-4">Tipo</dt><dd class="col-8">@_sel.TipoComprobante</dd>
                 <dt class="col-4">Estado</dt><dd class="col-8">@Humano(_sel.Estado)</dd>
-                <dt class="col-4">Destinatarios</dt><dd class="col-8 text-break">@_sel.Destinatarios</dd>
+                <dt class="col-4">Receptor</dt><dd class="col-8 text-break"><strong>@NombreDestinatario(_sel.Destinatarios)</strong><small class="d-block text-secondary">@_sel.Destinatarios</small></dd>
                 <dt class="col-4">Intentos</dt><dd class="col-8">@_sel.Intentos / @_sel.MaxIntentos</dd>
                 <dt class="col-4">Próximo intento</dt><dd class="col-8">@(_sel.ProximoIntentoUtc?.ToLocalTime().ToString("g") ?? "—")</dd>
                 <dt class="col-4">Enviado</dt><dd class="col-8">@(_sel.FechaEnvioUtc?.ToLocalTime().ToString("g") ?? "—")</dd>

@@ -36,8 +36,8 @@
             </div>
         }
         <div class="seepos-caja">
-            <div class="card mb-3">
-                <div class="card-header"><strong>Datos del cajero</strong></div>
+            <div class="card mb-3 seepos-caja-identificacion">
+                <div class="card-header"><i class="bi bi-person-badge me-2 text-primary"></i><strong>Datos del cajero</strong><span class="text-secondary small ms-2">Identifique la caja y registre una nota opcional.</span></div>
                 <div class="card-body">
                     <div class="row g-3 align-items-end">
                         <div class="col-12 col-md-5"><label class="form-label">Cajero</label><input class="form-control" value="@(_bloqueo?.UsuarioValidado?.Nombre ?? Sesion.Usuario)" disabled /><div class="form-text">El de la clave interna que desbloqueó la pantalla.</div></div>
@@ -51,14 +51,14 @@
 
             <div class="row g-3">
                 <div class="col-12 col-xl-8">
-                    <div class="card h-100"><div class="card-header"><strong>Detalle de denominaciones</strong><span class="text-secondary small ms-2">Indique la cantidad física inicial.</span></div>
-                        <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Moneda</th><th>Tipo</th><th class="text-end">Denominación</th><th style="width:9rem">Cantidad</th><th class="text-end">Total</th></tr></thead><tbody>
+                    <div class="card h-100 seepos-caja-denominaciones"><div class="card-header"><i class="bi bi-wallet2 me-2 text-primary"></i><strong>Detalle de denominaciones</strong><span class="text-secondary small ms-2">Indique la cantidad física inicial.</span></div>
+                        <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Moneda</th><th>Tipo</th><th class="text-end">Denominación</th><th class="text-end" style="width:9rem">Cantidad</th><th class="text-end">Total</th></tr></thead><tbody>
                         @foreach (var linea in _denominaciones) { <tr><td>@linea.Moneda</td><td>@linea.Tipo</td><td class="text-end">@Formato.Importe(linea.Monto)</td><td><InputNumber class="form-control form-control-sm text-end" min="0" @bind-Value="linea.Cantidad" /></td><td class="text-end fw-semibold">@Formato.Importe(linea.Total)</td></tr> }
                         </tbody></table></div>
                     </div>
                 </div>
                 <div class="col-12 col-xl-4">
-                    <div class="card h-100"><div class="card-header"><strong>Total / tope inicial</strong></div><div class="card-body">
+                    <div class="card h-100 seepos-caja-total"><div class="card-header"><i class="bi bi-calculator me-2 text-primary"></i><strong>Total / tope inicial</strong></div><div class="card-body">
                         @foreach (var total in TotalesPorMoneda) { <div class="d-flex justify-content-between py-2 border-bottom"><span>@total.Nombre</span><strong>@Formato.Importe(total.Total)</strong></div> }
                         <p class="small text-secondary mt-3 mb-0">Los totales se calculan a partir del desglose registrado, como en la pantalla actual.</p>
                     </div></div>

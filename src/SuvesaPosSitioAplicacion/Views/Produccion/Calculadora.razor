@@ -47,16 +47,17 @@
 
 <HxModal @ref="_modal" Size="ModalSize.Large" Scrollable="true" Title="@_tituloModal">
  <BodyTemplate>
+  <div class="seepos-produccion-modal">
   @if (_pt is not null)
   {
     @if (!string.IsNullOrWhiteSpace(_errorModal)) { <div class="alert alert-danger">@_errorModal</div> }
 
     @if (_reporte is null)
     {
-      <h3 class="h6">Fórmula</h3>
-      <table class="table table-sm"><thead><tr><th>Insumo</th><th class="text-end">Cantidad por 1 unidad producida</th></tr></thead>
+      <div class="seepos-produccion-seccion-titulo"><i class="bi bi-diagram-3 me-2"></i><div><h3 class="h6 mb-0">Fórmula</h3><span>Insumos necesarios por unidad producida</span></div></div>
+      <div class="table-responsive"><table class="table table-sm align-middle seepos-produccion-formula"><thead><tr><th>Insumo</th><th class="text-end">Cantidad por 1 unidad producida</th></tr></thead>
         <tbody>@foreach (var c in _formula){<tr><td><code>@c.CodArticulo</code> @c.Descripcion</td><td class="text-end">@c.CantidadPorUnidad.ToString("N3")</td></tr>}
-          @if (!_formula.Any()){<tr><td colspan="2" class="text-secondary">Este producto no tiene fórmula. Configúrela desde la ficha del artículo.</td></tr>}</tbody></table>
+          @if (!_formula.Any()){<tr><td colspan="2" class="text-secondary">Este producto no tiene fórmula. Configúrela desde la ficha del artículo.</td></tr>}</tbody></table></div>
 
       <div class="row mb-3"><div class="col-md-4"><label class="form-label">Cantidad a producir <span class="text-danger">*</span></label>
         <input type="number" min="1" class="form-control" @bind="_cantidadAProducir" @bind:after="InvalidarCalculo" /></div>
@@ -67,7 +68,7 @@
       {
         var disponibles = LotesDe(c.IdInsumo);
         var falta = Requerido(c) - Seleccionado(c);
-        <div class="border rounded p-3 mb-3 @(InsumoCuadra(c) ? "border-success" : "")">
+        <div class="seepos-produccion-insumo @(InsumoCuadra(c) ? "seepos-produccion-insumo-ok" : "")">
           <div class="d-flex justify-content-between align-items-center">
             <strong>@c.CodArticulo — @c.Descripcion</strong>
             <span class="small">Requerido <strong>@Requerido(c).ToString("N3")</strong> · Seleccionado <strong>@Seleccionado(c).ToString("N3")</strong></span>
@@ -91,7 +92,7 @@
         </div>
       }
 
-      <button class="btn btn-primary" @onclick="Calcular" disabled="@(!TodoCuadra() || _calculando)">@(_calculando ? "Calculando..." : "Calcular disponibles")</button>
+      <div class="seepos-produccion-acciones"><button class="btn btn-primary" @onclick="Calcular" disabled="@(!TodoCuadra() || _calculando)"><i class="bi bi-calculator me-1"></i>@(_calculando ? "Calculando..." : "Calcular disponibles")</button></div>
       @if (!TodoCuadra() && !_calculando)
       {
         <div class="form-text text-danger mt-1">
@@ -131,6 +132,7 @@
           <td class="text-end">@l.CantidadConsumida.ToString("N3")</td><td class="text-end">@l.CostoLinea.ToString("N2")</td></tr>}</tbody></table>
     }
   }
+  </div>
  </BodyTemplate>
  <FooterTemplate>
   <button class="btn btn-secondary" @onclick="() => _modal.HideAsync()">Cerrar</button>

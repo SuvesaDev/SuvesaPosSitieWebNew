@@ -19,14 +19,14 @@
  <ChildContent>
   @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
 
-  <div class="card"><div class="card-body">
-    <div class="row g-2 mb-3">
+  <div class="card seepos-produccion-bitacora"><div class="card-header"><i class="bi bi-funnel me-2 text-primary"></i><strong>Filtros de consulta</strong><span class="text-secondary small ms-2">Consulte producciones por fecha o artículo.</span></div><div class="card-body">
+    <div class="row g-3 align-items-end mb-3">
       <div class="col-md-3"><label class="form-label">Desde</label><input type="date" class="form-control" @bind="_desde" /></div>
       <div class="col-md-3"><label class="form-label">Hasta</label><input type="date" class="form-control" @bind="_hasta" /></div>
       <div class="col-md-3"><label class="form-label">Id artículo</label><input type="number" min="0" class="form-control" @bind="_filtroArticulo" /></div>
-      <div class="col-md-3 d-grid"><button class="btn btn-outline-primary align-self-end" @onclick="CargarBitacora">Filtrar</button></div>
+      <div class="col-md-3 d-grid"><button class="btn btn-primary" @onclick="CargarBitacora"><i class="bi bi-search me-1"></i>Filtrar</button></div>
     </div>
-    <div class="table-responsive"><table class="table table-sm">
+    <div class="seepos-produccion-tabla table-responsive"><table class="table table-sm align-middle mb-0">
       <thead><tr><th>Fecha</th><th>Producto terminado</th><th>Lote</th><th class="text-end">Cantidad</th><th class="text-end">Costo</th><th>Estado</th><th></th></tr></thead>
       <tbody>
         @foreach (var p in _bitacora)
@@ -37,8 +37,8 @@
             <td>@p.NumeroLoteProducido</td>
             <td class="text-end">@p.CantidadProducida</td>
             <td class="text-end">@p.CostoTotalInsumos.ToString("N2")</td>
-            <td>@(p.Anulada ? $"Anulada — {p.MotivoAnulacion} ({p.UsuarioAnulacion}, {p.FechaAnulacion:dd/MM/yyyy})" : "Activa")</td>
-            <td class="text-end">@if (!p.Anulada) { <button class="btn btn-sm btn-outline-danger" @onclick="() => PrepararAnulacion(p)">Anular</button> }</td>
+            <td>@if (p.Anulada) { <span class="badge text-bg-secondary">Anulada</span><small class="d-block text-secondary mt-1">@p.MotivoAnulacion</small> } else { <span class="badge text-bg-success">Activa</span> }</td>
+            <td class="text-end">@if (!p.Anulada) { <button class="btn btn-sm btn-outline-danger" title="Anular producción" @onclick="() => PrepararAnulacion(p)"><i class="bi bi-x-circle me-1"></i>Anular</button> }</td>
           </tr>
         }
         @if (!_bitacora.Any()) { <tr><td colspan="7" class="text-secondary">Sin producciones para los filtros indicados.</td></tr> }

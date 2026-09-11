@@ -2,9 +2,12 @@
 @using MudBlazor
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.DTOs.Correo
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IAlertasAdministrador Api
+@inject IEmisoresFiscales EmisoresApi
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IAvisadorAlertas Avisador
@@ -33,7 +36,7 @@
                     <Columns>
                         <PropertyColumn Property="a => a.FechaCreacionUtc" Title="Fecha"><CellTemplate>@context.Item.FechaCreacionUtc.ToLocalTime().ToString("dd/MM/yy HH:mm")</CellTemplate></PropertyColumn>
                         <TemplateColumn Title="Tipo"><CellTemplate><span class="badge bg-@Color(context.Item.Tipo)">@Humano(context.Item.Tipo)</span></CellTemplate></TemplateColumn>
-                        <PropertyColumn Property="a => a.IdEmisor" Title="Emisor" />
+                        <TemplateColumn Title="Emisor" Sortable="false"><CellTemplate><span class="seepos-alerta-emisor">@NombreEmisor(context.Item.IdEmisor)</span></CellTemplate></TemplateColumn>
                         <PropertyColumn Property="a => a.Titulo" Title="Título" />
                         <TemplateColumn Title="Detalle"><CellTemplate><div class="small seepos-alerta-detalle">@context.Item.Detalle @if (!string.IsNullOrWhiteSpace(context.Item.Clave)) { <a class="ms-1" href="/initial/documents?clave=@context.Item.Clave">Ver documento</a> }</div></CellTemplate></TemplateColumn>
                         <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate>@if (!context.Item.Leida) { <button class="btn btn-sm btn-outline-success" title="Marcar como leída" aria-label="Marcar como leída" @onclick="() => MarcarLeida(context.Item)"><i class="bi bi-check2"></i></button> } else { <span class="badge text-bg-light text-secondary">Leída</span> }</CellTemplate></TemplateColumn>
@@ -56,7 +59,7 @@
                                 <tr class="@(a.Leida ? "text-secondary" : "")">
                                     <td class="small">@a.FechaCreacionUtc.ToLocalTime().ToString("dd/MM/yy HH:mm")</td>
                                     <td><span class="badge bg-@Color(a.Tipo)">@Humano(a.Tipo)</span></td>
-                                    <td class="small">@(a.IdEmisor?.ToString() ?? "—")</td>
+                                    <td class="small">@NombreEmisor(a.IdEmisor)</td>
                                     <td class="small">@a.Titulo</td>
                                     <td class="small text-break">
                                         @a.Detalle
