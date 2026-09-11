@@ -21,6 +21,8 @@ public sealed class ReportesOperacion : ProxyBase, IReportesOperacion
         if (f.IdCliente.HasValue) q.Add($"idCliente={f.IdCliente}");
         if (f.IdProveedor.HasValue) q.Add($"idProveedor={f.IdProveedor}");
         if (f.IdArticulo.HasValue) q.Add($"idArticulo={f.IdArticulo}");
+        if (f.IdBodega.HasValue) q.Add($"idBodega={f.IdBodega}");
+        if (!string.IsNullOrWhiteSpace(f.NumeroLote)) q.Add($"numeroLote={Uri.EscapeDataString(f.NumeroLote)}");
         if (!string.IsNullOrWhiteSpace(f.Texto)) q.Add($"texto={Uri.EscapeDataString(f.Texto)}");
         q.Add($"pagina={Math.Max(1, f.Pagina)}");
         q.Add($"tamanoPagina={Math.Clamp(f.TamanoPagina, 1, 2000)}");

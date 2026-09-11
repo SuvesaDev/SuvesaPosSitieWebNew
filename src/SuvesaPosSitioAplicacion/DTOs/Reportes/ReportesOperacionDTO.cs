@@ -10,6 +10,8 @@ public sealed class FiltroReporteOperacionWebDTO
     public long? IdCliente { get; set; }
     public int? IdProveedor { get; set; }
     public long? IdArticulo { get; set; }
+    public int? IdBodega { get; set; }
+    public string? NumeroLote { get; set; }
     public string? Texto { get; set; }
     public int Pagina { get; set; } = 1;
     public int TamanoPagina { get; set; } = 25;
@@ -35,6 +37,7 @@ public sealed class FilaReporteOperacionWebDTO
     public DateTime Fecha { get; set; }
     public string Referencia { get; set; } = string.Empty;
     public string Entidad { get; set; } = string.Empty;
+    public string Lote { get; set; } = string.Empty;
     public string Descripcion { get; set; } = string.Empty;
     public decimal Cantidad { get; set; }
     public decimal Monto { get; set; }

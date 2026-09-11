@@ -417,6 +417,8 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
     long? idCliente,
     int? idProveedor,
     long? idArticulo,
+    int? idBodega,
+    string? numeroLote,
     DateTime? generado,
     IContextoSesion sesion,
     IReportesOperacion api,
@@ -441,6 +443,8 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
             IdCliente = idCliente,
             IdProveedor = idProveedor,
             IdArticulo = idArticulo,
+            IdBodega = idBodega,
+            NumeroLote = numeroLote,
             TamanoPagina = 2000,
             Texto = string.IsNullOrWhiteSpace(texto) ? null : texto.Trim()
         });

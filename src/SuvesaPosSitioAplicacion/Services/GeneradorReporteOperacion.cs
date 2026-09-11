@@ -52,7 +52,7 @@ public sealed class GeneradorReporteOperacion : IGeneradorReporteOperacion
         var hoja = libro.Worksheets.Add("Reporte");
         var graficas = ResumenGraficasReporteOperacion.Crear(tipoReporte, reporte.Filas);
 
-        hoja.Range(1, 1, 1, 8).Merge();
+        hoja.Range(1, 1, 1, 9).Merge();
         hoja.Cell(1, 1).Value = reporte.Titulo;
         hoja.Cell(1, 1).Style.Font.Bold = true;
         hoja.Cell(1, 1).Style.Font.FontSize = 16;
@@ -81,7 +81,7 @@ public sealed class GeneradorReporteOperacion : IGeneradorReporteOperacion
         }
 
         var cabecera = filaIndicadores + ((reporte.Indicadores.Count + 3) / 4) * 2 + 2;
-        var titulos = new[] { "Fecha", "Referencia", "Entidad", "Detalle", "Cantidad", "Monto", "Saldo / existencia", "Estado" };
+        var titulos = new[] { "Fecha", "Referencia", "Entidad", "Lote", "Detalle", "Cantidad", "Monto", "Saldo / existencia", "Estado" };
         for (var i = 0; i < titulos.Length; i++) hoja.Cell(cabecera, i + 1).Value = titulos[i];
 
         for (var i = 0; i < reporte.Filas.Count; i++)
@@ -91,24 +91,25 @@ public sealed class GeneradorReporteOperacion : IGeneradorReporteOperacion
             hoja.Cell(destino, 1).Value = fila.Fecha;
             hoja.Cell(destino, 2).Value = fila.Referencia;
             hoja.Cell(destino, 3).Value = fila.Entidad;
-            hoja.Cell(destino, 4).Value = fila.Descripcion;
-            hoja.Cell(destino, 5).Value = fila.Cantidad;
-            hoja.Cell(destino, 6).Value = fila.Monto;
-            hoja.Cell(destino, 7).Value = fila.Saldo;
-            hoja.Cell(destino, 8).Value = fila.Estado;
+            hoja.Cell(destino, 4).Value = fila.Lote;
+            hoja.Cell(destino, 5).Value = fila.Descripcion;
+            hoja.Cell(destino, 6).Value = fila.Cantidad;
+            hoja.Cell(destino, 7).Value = fila.Monto;
+            hoja.Cell(destino, 8).Value = fila.Saldo;
+            hoja.Cell(destino, 9).Value = fila.Estado;
         }
 
         if (reporte.Filas.Count > 0)
         {
-            var tabla = hoja.Range(cabecera, 1, cabecera + reporte.Filas.Count, 8).CreateTable("DetalleReporteOperacion");
+            var tabla = hoja.Range(cabecera, 1, cabecera + reporte.Filas.Count, 9).CreateTable("DetalleReporteOperacion");
             tabla.Theme = XLTableTheme.TableStyleMedium2;
         }
 
         hoja.Column(1).Style.NumberFormat.Format = "dd/MM/yyyy HH:mm";
-        hoja.Columns(5, 7).Style.NumberFormat.Format = graficas.EsCantidad ? "#,##0.00" : "₡#,##0.00";
+        hoja.Columns(6, 8).Style.NumberFormat.Format = graficas.EsCantidad ? "#,##0.00" : "₡#,##0.00";
         hoja.SheetView.FreezeRows(cabecera);
         hoja.Range(1, 1, Math.Max(cabecera + reporte.Filas.Count, 3), 8).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-        AjustarColumnas(hoja, 8);
+        AjustarColumnas(hoja, 9);
 
         var visual = libro.Worksheets.Add("Gráficas");
         visual.Cell(1, 1).Value = reporte.Titulo;
@@ -186,13 +187,14 @@ public sealed class GeneradorReporteOperacion : IGeneradorReporteOperacion
                 columnas.RelativeColumn(1.15f);
                 columnas.RelativeColumn(1.1f);
                 columnas.RelativeColumn(1.2f);
-                columnas.RelativeColumn(1.55f);
+                columnas.RelativeColumn(.85f);
+                columnas.RelativeColumn(1.45f);
                 columnas.RelativeColumn(.75f);
                 columnas.RelativeColumn(.95f);
                 columnas.RelativeColumn(1.1f);
                 columnas.RelativeColumn(1f);
             });
-            var titulos = new[] { "Fecha", "Referencia", "Entidad", "Detalle", "Cantidad", "Monto", "Saldo", "Estado" };
+            var titulos = new[] { "Fecha", "Referencia", "Entidad", "Lote", "Detalle", "Cantidad", "Monto", "Saldo", "Estado" };
             tabla.Header(cabecera =>
             {
                 foreach (var titulo in titulos) cabecera.Cell().Background(Fondo).Padding(3).Text(titulo).SemiBold().FontSize(6.3f);
@@ -202,6 +204,7 @@ public sealed class GeneradorReporteOperacion : IGeneradorReporteOperacion
                 CeldaPdf(tabla.Cell(), fila.Fecha.ToString("dd/MM/yy HH:mm"));
                 CeldaPdf(tabla.Cell(), fila.Referencia);
                 CeldaPdf(tabla.Cell(), fila.Entidad);
+                CeldaPdf(tabla.Cell(), fila.Lote);
                 CeldaPdf(tabla.Cell(), fila.Descripcion);
                 CeldaPdf(tabla.Cell().AlignRight(), fila.Cantidad.ToString("N2", Cultura));
                 CeldaPdf(tabla.Cell().AlignRight(), Formato.Importe(fila.Monto));

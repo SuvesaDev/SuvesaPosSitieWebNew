@@ -4,6 +4,12 @@
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IReportesOperacion Api
+@inject IClientesConsulta Clientes
+@inject IProveedoresConsulta Proveedores
+@inject IInventarioConsulta Inventarios
+@inject ISeguridad Seguridad
+@inject IFacturacion Facturacion
+@inject ICompras ComprasApi
 @inject IManejadorRespuestas Respuestas
 @inject IRelojEquipo RelojEquipo
 @inject IJSRuntime JS
@@ -51,11 +57,13 @@
                 <label class="form-label small">Texto, documento, cliente, proveedor o artículo</label>
                 <input class="form-control" @bind="_texto" @bind:event="onchange" placeholder="Escriba para filtrar…" />
             </div>
-            <div class="col-6 col-md-2"><AppCampoNumero Etiqueta="Sucursal (ID)" @bind-Valor="_idSucursal" /></div>
-            <div class="col-6 col-md-2"><AppCampoNumero Etiqueta="Empresa (ID)" @bind-Valor="_idEmpresa" /></div>
-            <div class="col-6 col-md-2"><label class="form-label small">Cliente (ID)</label><input class="form-control" type="number" min="1" @bind="_idCliente" /></div>
-            <div class="col-6 col-md-2"><AppCampoNumero Etiqueta="Proveedor (ID)" @bind-Valor="_idProveedor" /></div>
-            <div class="col-6 col-md-2"><label class="form-label small">Artículo (ID)</label><input class="form-control" type="number" min="1" @bind="_idArticulo" /></div>
+            <div class="col-12 col-md-3"><label class="form-label small">Sucursal</label><select class="form-select" @bind="_idSucursal"><option value="">Todas las sucursales</option>@foreach (var sucursal in _sucursales) { <option value="@sucursal.Id">@sucursal.NombreComercial</option> }</select></div>
+            <div class="col-12 col-md-3"><label class="form-label small">Empresa</label><select class="form-select" @bind="_idEmpresa"><option value="">Todas las empresas</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
+            <div class="col-12 col-md-4"><label class="form-label small">Cliente</label><select class="form-select" @bind="_idCliente"><option value="">Todos los clientes</option>@foreach (var cliente in _clientes) { <option value="@cliente.Identificacion">@cliente.Cedula — @cliente.Nombre</option> }</select></div>
+            <div class="col-12 col-md-4"><label class="form-label small">Proveedor</label><select class="form-select" @bind="_idProveedor"><option value="">Todos los proveedores</option>@foreach (var proveedor in _proveedores) { <option value="@proveedor.CodigoProv">@proveedor.Cedula — @proveedor.Nombre</option> }</select></div>
+            <div class="col-12 col-md-4"><label class="form-label small">Artículo</label><select class="form-select" @bind="_idArticulo"><option value="">Todos los artículos</option>@foreach (var articulo in _articulos) { <option value="@articulo.Codigo">@articulo.Cod_Articulo — @articulo.Descripcion</option> }</select></div>
+            <div class="col-12 col-md-3"><label class="form-label small">Bodega</label><select class="form-select" @bind="_idBodega"><option value="">Todas las bodegas</option>@foreach (var bodega in _bodegas) { <option value="@bodega.IdBodega">@bodega.NombreBodega</option> }</select></div>
+            <div class="col-12 col-md-3"><label class="form-label small">Buscar lote</label><input class="form-control" @bind="_numeroLote" @bind:event="onchange" placeholder="Número de lote" /></div>
         </AppFiltros>
 
         @if (_reporte is not null)
@@ -92,6 +100,7 @@
                         <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Fecha" ItemTextSelector="@(x => x.Fecha.ToString("dd/MM/yyyy HH:mm"))" SortKeySelector="x => x.Fecha" />
                         <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Referencia" ItemTextSelector="x => x.Referencia" SortKeySelector="x => x.Referencia" />
                         <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Entidad" ItemTextSelector="x => x.Entidad" SortKeySelector="x => x.Entidad" />
+                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Lote" ItemTextSelector="x => x.Lote" SortKeySelector="x => x.Lote" />
                         <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Detalle" ItemTextSelector="x => x.Descripcion" />
                         <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Cantidad" ItemTextSelector="@(x => x.Cantidad.ToString("N2"))" SortKeySelector="x => x.Cantidad" HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
                         <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Monto" ItemTextSelector="@(x => Formato.Importe(x.Monto))" SortKeySelector="x => x.Monto" HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
@@ -111,7 +120,7 @@
         new("ventas-cartera", "Ventas y cartera", "bi-receipt", [("ventas", "Ventas"), ("cuentas-por-cobrar", "CxC y antigüedad")]),
         new("caja-bancos", "Caja y bancos", "bi-cash-stack", [("caja", "Movimientos"), ("arqueos-cierres", "Arqueos y cierres"), ("depositos", "Depósitos")]),
         new("compras", "Compras", "bi-cart-check", [("compras", "Compras y devoluciones"), ("cuentas-por-pagar", "Abonos CxP")]),
-        new("inventario", "Inventario", "bi-box-seam", [("inventario", "Existencias"), ("lotes", "Lotes"), ("trazabilidad", "Trazabilidad"), ("auditoria", "Auditoría")])
+        new("inventario", "Inventario", "bi-box-seam", [("inventario", "Existencias y lotes"), ("lotes", "Vencimiento de lotes"), ("trazabilidad", "Trazabilidad por lotes"), ("auditoria", "Auditoría")])
     ];
     private string _tipo = "ventas";
     private string _grupoActivo = "ventas-cartera";
@@ -124,6 +133,14 @@
     private long? _idCliente;
     private int? _idProveedor;
     private long? _idArticulo;
+    private int? _idBodega;
+    private string _numeroLote = string.Empty;
+    private List<SucursalDTO> _sucursales = new();
+    private List<EmpresaDTO> _empresas = new();
+    private List<FiltranClienteDTO> _clientes = new();
+    private List<ProveedorDTO> _proveedores = new();
+    private List<InventarioDTO> _articulos = new();
+    private List<Bodega> _bodegas = new();
     private bool _cargando;
     private AppRejilla<FilaReporteOperacionWebDTO>? _rejilla;
     private ReporteOperacionWebDTO? _reporte;
@@ -134,6 +151,7 @@
         if (!firstRender) return;
         _hasta = await RelojEquipo.HoyAsync();
         _desde = _hasta.Value.AddDays(-30);
+        await CargarCatalogosAsync();
         await Consultar();
         StateHasChanged();
     }
@@ -168,8 +186,13 @@
                 IdCliente = _idCliente,
                 IdProveedor = _idProveedor,
                 IdArticulo = _idArticulo,
+                IdBodega = _idBodega,
+                NumeroLote = string.IsNullOrWhiteSpace(_numeroLote) ? null : _numeroLote.Trim(),
                 Pagina = 1,
-                TamanoPagina = 25,
+                // La rejilla pide sus páginas al servidor por separado. Esta
+                // consulta alimenta indicadores y gráficas, así que debe usar
+                // todo el conjunto permitido y no únicamente la primera página.
+                TamanoPagina = 2000,
                 Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim()
             }), "consultar el reporte");
         }
@@ -185,9 +208,27 @@
         _idCliente = null;
         _idProveedor = null;
         _idArticulo = null;
+        _idBodega = null;
+        _numeroLote = string.Empty;
         _hasta = await RelojEquipo.HoyAsync();
         _desde = _hasta.Value.AddDays(-30);
         await Consultar();
+    }
+
+    private async Task CargarCatalogosAsync()
+    {
+        var sucursales = await Seguridad.ObtenerSucursales();
+        var empresas = await Facturacion.Empresas();
+        var clientes = await Clientes.Listar();
+        var proveedores = await Proveedores.Obtener();
+        var articulos = await Inventarios.Listar();
+        var bodegas = await ComprasApi.Bodegas(false);
+        _sucursales = sucursales.EsCorrecta ? (sucursales.Responses ?? []).OrderBy(x => x.NombreComercial).ToList() : [];
+        _empresas = empresas.EsCorrecta ? (empresas.Responses ?? []).OrderBy(x => x.Nombre).ToList() : [];
+        _clientes = clientes.EsCorrecta ? (clientes.Responses ?? []).OrderBy(x => x.Nombre).ToList() : [];
+        _proveedores = proveedores.EsCorrecta ? (proveedores.Responses ?? []).OrderBy(x => x.Nombre).ToList() : [];
+        _articulos = articulos.EsCorrecta ? (articulos.Responses ?? []).OrderBy(x => x.Descripcion).ToList() : [];
+        _bodegas = bodegas.EsCorrecta ? (bodegas.Responses ?? []).Where(x => x.Estado).OrderBy(x => x.NombreBodega).ToList() : [];
     }
 
     private async Task Exportar(string formato)
@@ -205,6 +246,8 @@
         if (_idCliente.HasValue) parametros.Add($"idCliente={_idCliente}");
         if (_idProveedor.HasValue) parametros.Add($"idProveedor={_idProveedor}");
         if (_idArticulo.HasValue) parametros.Add($"idArticulo={_idArticulo}");
+        if (_idBodega.HasValue) parametros.Add($"idBodega={_idBodega}");
+        if (!string.IsNullOrWhiteSpace(_numeroLote)) parametros.Add($"numeroLote={Uri.EscapeDataString(_numeroLote.Trim())}");
         if (!string.IsNullOrWhiteSpace(_texto)) parametros.Add($"texto={Uri.EscapeDataString(_texto.Trim())}");
         await JS.InvokeVoidAsync("seepos.descargarUrl", $"/reportes/operacion/{Uri.EscapeDataString(_tipo)}/{formato}?{string.Join("&", parametros)}");
     }
@@ -221,6 +264,7 @@
         {
             Desde = _desde, Hasta = _hasta, FechaReferencia = await RelojEquipo.AhoraAsync(), Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim(),
             IdSucursal = _idSucursal, IdEmpresa = _idEmpresa, IdCliente = _idCliente, IdProveedor = _idProveedor, IdArticulo = _idArticulo,
+            IdBodega = _idBodega, NumeroLote = string.IsNullOrWhiteSpace(_numeroLote) ? null : _numeroLote.Trim(),
             Pagina = pagina, TamanoPagina = tamano
         }), "cargar la página del reporte");
         return new GridDataProviderResult<FilaReporteOperacionWebDTO> { Data = datos?.Filas ?? [], TotalCount = datos?.TotalRegistros ?? 0 };

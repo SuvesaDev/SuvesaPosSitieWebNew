@@ -44,6 +44,14 @@ public static class ResumenGraficasReporteOperacion
                 .ToList();
         }
 
+        if (tipoReporte == "cuentas-por-pagar")
+        {
+            return filas.GroupBy(x => string.IsNullOrWhiteSpace(x.Estado) ? "Sin antigüedad" : x.Estado)
+                .OrderBy(x => OrdenBandaCxP(x.Key))
+                .Select(x => new PuntoGraficoOperacion(x.Key, x.Sum(f => f.Saldo)))
+                .ToList();
+        }
+
         return filas
             .Where(x => x.Fecha != default)
             .GroupBy(x => x.Fecha.Date)
@@ -56,8 +64,11 @@ public static class ResumenGraficasReporteOperacion
 
     private static IReadOnlyList<PuntoGraficoOperacion> ConstruirComparativo(string tipoReporte, IReadOnlyList<FilaReporteOperacionWebDTO> filas)
     {
-        if (tipoReporte is "ventas" or "compras" or "cuentas-por-pagar")
+        if (tipoReporte is "ventas" or "compras")
             return Agrupar(filas, x => x.Entidad, x => Valor(tipoReporte, x));
+
+        if (tipoReporte == "cuentas-por-pagar")
+            return Agrupar(filas, x => x.Entidad, x => x.Saldo);
 
         if (tipoReporte == "cuentas-por-cobrar")
             return Agrupar(filas, x => x.Entidad, x => x.Saldo);
@@ -98,6 +109,11 @@ public static class ResumenGraficasReporteOperacion
         "Por vencer" => 0, "1–30 días" => 1, "31–60 días" => 2, "+60 días" => 3, _ => 4
     };
 
+    private static int OrdenBandaCxP(string banda) => banda switch
+    {
+        "0–30 días" => 0, "31–60 días" => 1, "61–90 días" => 2, "+90 días" => 3, _ => 4
+    };
+
     private static decimal Valor(string tipoReporte, FilaReporteOperacionWebDTO fila) => tipoReporte switch
     {
         "cuentas-por-cobrar" or "caja" => fila.Saldo,
@@ -110,7 +126,7 @@ public static class ResumenGraficasReporteOperacion
     {
         "ventas" => "Ventas por día",
         "cuentas-por-cobrar" => "Antigüedad de la cartera",
-        "cuentas-por-pagar" => "Abonos a proveedores por día",
+        "cuentas-por-pagar" => "Antigüedad de cuentas por pagar",
         "caja" => "Flujo neto de caja por día",
         "arqueos-cierres" => "Arqueos y cierres por día",
         "depositos" => "Depósitos por día",
@@ -126,7 +142,7 @@ public static class ResumenGraficasReporteOperacion
     {
         "ventas" => "Clientes con mayor venta",
         "cuentas-por-cobrar" => "Clientes con mayor saldo",
-        "cuentas-por-pagar" => "Proveedores con mayor abono",
+        "cuentas-por-pagar" => "Proveedores con mayor saldo",
         "compras" => "Proveedores con mayor compra",
         "inventario" => "Existencia por condición",
         "lotes" => "Unidades por vencimiento",
@@ -146,7 +162,8 @@ public static class ResumenGraficasReporteOperacion
 
     private static string DescripcionComparativo(string tipoReporte) => tipoReporte switch
     {
-        "ventas" or "compras" or "cuentas-por-pagar" => "Los ocho terceros con el mayor importe dentro del período.",
+        "ventas" or "compras" => "Los ocho terceros con el mayor importe dentro del período.",
+        "cuentas-por-pagar" => "Los ocho proveedores con mayor saldo pendiente.",
         "cuentas-por-cobrar" => "Los ocho clientes con mayor saldo pendiente.",
         "auditoria" => "Cantidad de eventos por tipo de acción.",
         _ => "Distribución del resultado por condición operativa."
