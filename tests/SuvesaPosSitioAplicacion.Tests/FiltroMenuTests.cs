@@ -109,8 +109,9 @@ public class FiltroMenuTests
     {
         static int Contar(IEnumerable<ItemMenu> ns) => ns.Sum(n => 1 + Contar(n.Hijos));
         Assert.Equal(10, MenuSeePos.Items.Count);
-        // 84 originales + 19 (arbol de permisos MODULO_REPORTES.*) + 2 (reportes de
-        // Gastos y Cumplimiento CABYS) — ver PLAN_MODULO_REPORTES_ERP_WEB.md.
-        Assert.Equal(105, Contar(MenuSeePos.Items));
+        // 84 originales + 19 (arbol de permisos MODULO_REPORTES.*) + 2 (Gastos,
+        // Cumplimiento CABYS) + 4 (Apartados y préstamos, KPI por ruta, Empaquetado y
+        // maquila, Mermas) — ver PLAN_MODULO_REPORTES_ERP_WEB.md.
+        Assert.Equal(109, Contar(MenuSeePos.Items));
     }
 }

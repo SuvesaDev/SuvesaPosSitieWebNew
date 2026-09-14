@@ -677,6 +677,21 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    // Catálogo N°7 ("Reporte de Apartados y Préstamos").
+                    Titulo = "Apartados y préstamos",
+                    Codigo = "MODULO_REPORTES.APARTADOS_Y_PRESTAMOS",
+                    Ruta = "/moduloReportes?tipo=apartados",
+                },
+                new ItemMenu
+                {
+                    // Anexo "Comportamiento del Agente" del catálogo: ventas, clientes
+                    // atendidos y comisión generada por ruta comercial.
+                    Titulo = "KPI por ruta comercial",
+                    Codigo = "MODULO_REPORTES.KPI_POR_RUTA_COMERCIAL",
+                    Ruta = "/moduloReportes?tipo=kpi-rutas",
+                },
+                new ItemMenu
+                {
                     Titulo = "Caja",
                     Codigo = "MODULO_REPORTES.CAJA",
                     Ruta = "/moduloReportes?tipo=caja",
@@ -742,6 +757,21 @@ public static partial class MenuSeePos
                     Titulo = "Trazabilidad",
                     Codigo = "MODULO_REPORTES.TRAZABILIDAD",
                     Ruta = "/moduloReportes?tipo=trazabilidad",
+                },
+                new ItemMenu
+                {
+                    // Catálogo N°13 ("Reporte de Empaquetado / Maquila").
+                    Titulo = "Empaquetado y maquila",
+                    Codigo = "MODULO_REPORTES.EMPAQUETADO_Y_MAQUILA",
+                    Ruta = "/moduloReportes?tipo=empaquetado",
+                },
+                new ItemMenu
+                {
+                    // Catálogo N°10 propuesto ("Auditoría de Mermas..."). Fuente real hoy:
+                    // diferencias negativas de toma física (ver nota en el manager).
+                    Titulo = "Mermas",
+                    Codigo = "MODULO_REPORTES.MERMAS",
+                    Ruta = "/moduloReportes?tipo=mermas",
                 },
                 new ItemMenu
                 {

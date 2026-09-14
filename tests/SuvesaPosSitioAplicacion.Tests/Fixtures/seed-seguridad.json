@@ -784,11 +784,43 @@
           ]
         },
         {
+          "codigo": "MODULO_REPORTES.APARTADOS_Y_PRESTAMOS",
+          "nombre": "Apartados y préstamos",
+          "ruta": "/moduloReportes?tipo=apartados",
+          "padre": null,
+          "orden": 10,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.KPI_POR_RUTA_COMERCIAL",
+          "nombre": "KPI por ruta comercial",
+          "ruta": "/moduloReportes?tipo=kpi-rutas",
+          "padre": null,
+          "orden": 11,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "MODULO_REPORTES.CAJA",
           "nombre": "Caja",
           "ruta": "/moduloReportes?tipo=caja",
           "padre": null,
-          "orden": 10,
+          "orden": 12,
           "acciones": [
             "VER",
             "CREAR",
@@ -804,7 +836,7 @@
           "nombre": "Arqueos y cierres",
           "ruta": "/moduloReportes?tipo=arqueos-cierres",
           "padre": null,
-          "orden": 11,
+          "orden": 13,
           "acciones": [
             "VER",
             "CREAR",
@@ -820,7 +852,7 @@
           "nombre": "Depósitos",
           "ruta": "/moduloReportes?tipo=depositos",
           "padre": null,
-          "orden": 12,
+          "orden": 14,
           "acciones": [
             "VER",
             "CREAR",
@@ -836,7 +868,7 @@
           "nombre": "Compras",
           "ruta": "/moduloReportes?tipo=compras",
           "padre": null,
-          "orden": 13,
+          "orden": 15,
           "acciones": [
             "VER",
             "CREAR",
@@ -852,7 +884,7 @@
           "nombre": "Gastos",
           "ruta": "/moduloReportes?tipo=gastos",
           "padre": null,
-          "orden": 14,
+          "orden": 16,
           "acciones": [
             "VER",
             "CREAR",
@@ -868,7 +900,7 @@
           "nombre": "Inventario",
           "ruta": "/moduloReportes?tipo=inventario",
           "padre": null,
-          "orden": 15,
+          "orden": 17,
           "acciones": [
             "VER",
             "CREAR",
@@ -884,7 +916,7 @@
           "nombre": "Inventario ABC",
           "ruta": "/moduloReportes?tipo=inventario-abc",
           "padre": null,
-          "orden": 16,
+          "orden": 18,
           "acciones": [
             "VER",
             "CREAR",
@@ -900,7 +932,7 @@
           "nombre": "Rotación de inventario",
           "ruta": "/moduloReportes?tipo=rotacion-inventario",
           "padre": null,
-          "orden": 17,
+          "orden": 19,
           "acciones": [
             "VER",
             "CREAR",
@@ -916,7 +948,7 @@
           "nombre": "Bonificaciones",
           "ruta": "/moduloReportes?tipo=bonificaciones",
           "padre": null,
-          "orden": 18,
+          "orden": 20,
           "acciones": [
             "VER",
             "CREAR",
@@ -932,7 +964,7 @@
           "nombre": "Lotes y vencimientos",
           "ruta": "/moduloReportes?tipo=lotes",
           "padre": null,
-          "orden": 19,
+          "orden": 21,
           "acciones": [
             "VER",
             "CREAR",
@@ -948,7 +980,39 @@
           "nombre": "Trazabilidad",
           "ruta": "/moduloReportes?tipo=trazabilidad",
           "padre": null,
-          "orden": 20,
+          "orden": 22,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.EMPAQUETADO_Y_MAQUILA",
+          "nombre": "Empaquetado y maquila",
+          "ruta": "/moduloReportes?tipo=empaquetado",
+          "padre": null,
+          "orden": 23,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.MERMAS",
+          "nombre": "Mermas",
+          "ruta": "/moduloReportes?tipo=mermas",
+          "padre": null,
+          "orden": 24,
           "acciones": [
             "VER",
             "CREAR",
@@ -964,7 +1028,7 @@
           "nombre": "Auditoría",
           "ruta": "/moduloReportes?tipo=auditoria",
           "padre": null,
-          "orden": 21,
+          "orden": 25,
           "acciones": [
             "VER",
             "CREAR",

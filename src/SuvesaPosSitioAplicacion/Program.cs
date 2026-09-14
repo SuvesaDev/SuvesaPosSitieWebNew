@@ -395,10 +395,10 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
     // cubría 11: el botón Exportar del hub (Views/Reportes/Compras.razor) se mostraba
     // igual para los 8 restantes y el usuario recibía un 404 silencioso al exportar.
     if (tipo is not ("ventas" or "ventas-detalle" or "clientes" or "rentabilidad" or "ventas-compras"
-        or "cuentas-por-cobrar" or "recuperacion-cxc" or "cabys" or "cuentas-por-pagar"
+        or "cuentas-por-cobrar" or "recuperacion-cxc" or "cabys" or "apartados" or "kpi-rutas" or "cuentas-por-pagar"
         or "caja" or "arqueos-cierres" or "depositos" or "compras" or "gastos"
-        or "inventario" or "inventario-abc" or "rotacion-inventario" or "bonificaciones" or "lotes" or "trazabilidad"
-        or "auditoria"))
+        or "inventario" or "inventario-abc" or "rotacion-inventario" or "bonificaciones" or "empaquetado" or "mermas"
+        or "lotes" or "trazabilidad" or "auditoria"))
         return Results.NotFound();
     if (!generado.HasValue) return Results.BadRequest("Falta la fecha y hora del equipo para generar el archivo.");
 

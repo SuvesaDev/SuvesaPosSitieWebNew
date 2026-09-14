@@ -98,10 +98,10 @@ Mapeados 1:1 con la sección "Lo que sigue sin construirse" del plan API — dep
 
 - ✅ **Reporte de Gastos** (catálogo N°3) — hecho 14 sep 2026: pestaña `gastos` en el dominio "Compras" del hub, junto a `compras`, con permiso propio `MODULO_REPORTES.GASTOS` y export Excel/PDF.
 - ✅ **Cumplimiento CABYS** (submenú Ventas N°9) — hecho 14 sep 2026: pestaña `cabys` en el dominio "Ventas y cartera", permiso `MODULO_REPORTES.CUMPLIMIENTO_CABYS`, export Excel/PDF.
-- **Apartados y Préstamos** (catálogo N°7) — pantalla nueva en el dominio "Ventas y cartera".
-- **Empaquetado/Maquila** (catálogo N°13) — pantalla nueva en el dominio "Inventario".
-- **KPI por ruta/agente** (anexo "Comportamiento del Agente") — pantalla nueva, posiblemente junto a `Views/Ventas/Comisiones.razor` ya que comparte `IdRutaComercial`.
-- **Mermas consolidadas** — evaluar si se construye como reporte nuevo o se enriquece "Alertas operativas" (`Modulo.razor`) con filtros de fecha y exportación.
+- ✅ **Apartados y Préstamos** (catálogo N°7) — hecho 14 sep 2026: pestaña `apartados` en "Ventas y cartera", permiso `MODULO_REPORTES.APARTADOS_Y_PRESTAMOS`.
+- ✅ **Empaquetado/Maquila** (catálogo N°13) — hecho 14 sep 2026: pestaña `empaquetado` en "Inventario", permiso `MODULO_REPORTES.EMPAQUETADO_Y_MAQUILA`.
+- ✅ **KPI por ruta** (anexo "Comportamiento del Agente") — hecho 14 sep 2026, parcial: pestaña `kpi-rutas` en "Ventas y cartera" (no junto a Comisiones, quedó como reporte propio en el hub). Es por ruta, no por agente individual, y sin cumplimiento de cuota (no hay meta capturada en el modelo). Ver detalle en el plan API.
+- ✅ **Mermas consolidadas** — hecho 14 sep 2026: pestaña `mermas` en "Inventario", reporte nuevo (no se enriqueció "Alertas operativas") sobre diferencias negativas de toma física — es la única fuente con motivo verificable hoy (`Stock.TipoAjuste` resultó ser un campo sin llenar, ver plan API).
 
 Del anexo "extras" (notas de seguimiento comercial, boletas de cambio, validación de depósito acreditado): son **funcionalidad nueva, no reportes sobre datos existentes** — requieren decisión de Producto sobre alcance antes de diseñar pantalla (ver API, punto 10 de "Lo que sigue sin construirse", y `## Decisiones que debe aprobar Producto` al final de este documento).
 
