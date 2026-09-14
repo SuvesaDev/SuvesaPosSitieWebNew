@@ -9,7 +9,9 @@ de facturación electrónica.
 
 El módulo debe calcular y consultar comisiones de ventas sin alterar la emisión,
 firma, envío a Hacienda, numeración, impuestos, bonificaciones ni los flujos
-existentes de factura, tiquete, devolución, preventa y proforma.
+existentes de factura, tiquete, devolución, preventa y proforma. Una comisión solo
+se muestra como generada o liquidable cuando la factura aceptada esté **totalmente
+cancelada**, tanto si es de contado como si es de crédito.
 
 ## Estado previo que se debe preservar
 
@@ -72,6 +74,10 @@ usuario. Debe recibir movimientos de comisión inmutables con, como mínimo:
 - instantáneas de texto y porcentajes para que los históricos no cambien si se
   modifica después una ruta, perfil, usuario o artículo.
 
+La consulta debe diferenciar al menos “pendiente de pago”, “cancelada elegible” y
+“liquidada”. Una factura de crédito con abonos parciales permanece pendiente; una
+factura de contado solo será elegible cuando su pago quede confirmado.
+
 No modificar DTOs o clientes NSwag generados. Mientras el contrato no sea
 regenerado, crear DTOs y proxies manuales aislados según el patrón del proyecto;
 reemplazarlos al actualizar contratos.
@@ -94,8 +100,9 @@ reemplazarlos al actualizar contratos.
 
 ## Casos que deben probarse
 
-- Factura de contado y crédito, tiquete interno cobrado, rechazo Hacienda,
-  anulación y proforma/borrador sin comisión.
+- Factura de contado pagada y no pagada; factura de crédito con abonos parciales y
+  totalmente cancelada; rechazo Hacienda, anulación y proforma/borrador sin
+  comisión.
 - Emisión por agente, por SAC y por usuario sin ambos perfiles.
 - Artículo con porcentaje cero, descuento por línea, IVA y línea de regalo con
   precio cero.
@@ -106,11 +113,11 @@ reemplazarlos al actualizar contratos.
 - Corte repetido, reintento de persistencia y exportación: no deben duplicar
   movimientos ni totales.
 
-## Decisiones pendientes de negocio antes de habilitar producción
+## Regla confirmada y decisiones pendientes antes de habilitar producción
 
-1. La especificación habla de comisión al aceptar Hacienda y, en el cierre, de
-   documentos cobrados. La recomendación es mantener ambos estados: elegible
-   fiscalmente al aceptar y pagable/liquidable cuando se cobra.
+1. Las facturas de crédito y contado solo generan comisión al estar totalmente
+   canceladas. Hacienda aceptada sigue siendo requisito fiscal previo, pero no es
+   suficiente por sí sola.
 2. Confirmar la regla para un emisor `EsAgente` con varias rutas: se recomienda una
    única ruta predeterminada activa por sucursal.
 3. Confirmar prioridad para usuarios con ambos perfiles; la recomendación actual es
