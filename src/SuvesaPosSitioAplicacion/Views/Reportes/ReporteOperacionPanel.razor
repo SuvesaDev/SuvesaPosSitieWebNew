@@ -20,14 +20,17 @@
 @inject IEstadoEspacioTrabajo Espacio
 @using SuvesaPosSitioAplicacion.Security
 
-@* Cuerpo real del hub de reportes. Vive como componente propio (no como @page)
-   para que Compras.razor pueda instanciarlo con @key="Tipo": cada tipo de
-   reporte fuerza una instancia nueva (estado, filtros y catalogos propios),
-   en vez de compartir un unico estado mutable entre reportes distintos —
-   ver docs/... el bug que resuelve esto era que cambiar de reporte por el
-   menu lateral (ruta distinta, mismo @page) no actualizaba el contenido
-   porque no habia OnParametersSetAsync: la pestana cambiaba de nombre pero
-   el contenido se quedaba pegado en el primer reporte cargado. *@
+@* Cuerpo real de cada reporte. Vive como componente propio (no como @page):
+   cada tipo de reporte tiene su propia pagina delgada (Ventas.razor,
+   Compras.razor, etc., cada una con su propio @page "/moduloReportes/tipo")
+   que solo instancia este panel — asi cada reporte es una pagina y una
+   pestana del espacio de trabajo genuinamente independientes (Blazor Router
+   siempre crea una instancia nueva al navegar entre componentes distintos),
+   en vez de un unico hub compartiendo estado mutable entre reportes.
+   Antes todo el hub era una sola @page que leía el tipo por query string en
+   OnAfterRenderAsync (solo en el primer render): navegar entre reportes por
+   el menu lateral (ruta distinta, mismo @page) cambiaba el nombre de la
+   pestana pero el contenido se quedaba pegado en el primer reporte cargado. *@
 
 <AppPantalla Pantalla="@Titulo" Codigo="MODULO_REPORTES" Nivel="NivelPantalla.Escritorio">
     <Acciones>
@@ -226,10 +229,12 @@
         ]),
     ];
 
-    /// <summary>Tipo de reporte con el que arranca esta instancia (segmento de ruta
-    /// <c>/moduloReportes/{Tipo}</c>). Fijo durante la vida del componente: Compras.razor
-    /// lo instancia con <c>@@key="Tipo"</c>, así que un tipo distinto siempre crea una
-    /// instancia nueva en vez de reutilizar esta con estado mutado.</summary>
+    /// <summary>Tipo de reporte a mostrar, fijado por la página delgada que instancia
+    /// este panel (p. ej. <c>Ventas.razor</c> pasa <c>"ventas"</c>). Cada tipo vive en su
+    /// propia página/ruta, así que Blazor Router siempre crea una instancia nueva del
+    /// panel al navegar entre reportes — nunca reutiliza una con estado de otro tipo.
+    /// Vacío solo en la entrada "en blanco" del hub (<c>ModuloReportes.razor</c>), donde
+    /// se resuelve al primer reporte visible para el usuario.</summary>
     [Parameter, EditorRequired] public string TipoInicial { get; set; } = "";
 
     private string _tipo = "ventas";

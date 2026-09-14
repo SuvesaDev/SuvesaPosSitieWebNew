@@ -1,0 +1,8 @@
+@page "/moduloReportes/gastos"
+
+@* Pagina propia del reporte "gastos": ruta y componente distintos de cualquier
+   otro reporte, asi que el sistema de pestanas (EstadoEspacioTrabajo) y
+   Blazor Router la tratan como una ventana genuinamente independiente, no
+   como un estado compartido dentro de un unico hub. El contenido real vive
+   en ReporteOperacionPanel (filtros, catalogos, consulta, rejilla). *@
+<ReporteOperacionPanel TipoInicial="gastos" />

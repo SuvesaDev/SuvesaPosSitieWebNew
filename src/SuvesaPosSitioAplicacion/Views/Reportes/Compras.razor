@@ -1,17 +1,9 @@
-@page "/moduloReportes"
-@page "/moduloReportes/{Tipo}"
+@page "/moduloReportes/compras"
 
-@* Ruta de entrada del hub de reportes. El contenido real vive en
-   ReporteOperacionPanel, instanciado con @key="Tipo": Blazor destruye y
-   recrea el panel cada vez que Tipo cambia, en lugar de reutilizar la misma
-   instancia (con su mismo estado/filtros) para reportes distintos. Antes
-   todo el hub era una sola @page que leía el tipo por query string en
-   OnAfterRenderAsync (solo en el primer render), así que navegar entre
-   reportes por el menú lateral cambiaba el nombre de la pestaña pero el
-   contenido se quedaba pegado en el primer reporte cargado. *@
-<ReporteOperacionPanel @key="TipoEfectivo" TipoInicial="@TipoEfectivo" />
-
-@code {
-    [Parameter] public string? Tipo { get; set; }
-    private string TipoEfectivo => Tipo?.Trim() ?? "";
-}
+@* Pagina propia del reporte "compras": ruta y componente distintos de
+   cualquier otro reporte, asi que el sistema de pestanas
+   (EstadoEspacioTrabajo) y Blazor Router la tratan como una ventana
+   genuinamente independiente, no como un estado compartido dentro de un
+   unico hub. El contenido real vive en ReporteOperacionPanel (filtros,
+   catalogos, consulta, rejilla). *@
+<ReporteOperacionPanel TipoInicial="compras" />

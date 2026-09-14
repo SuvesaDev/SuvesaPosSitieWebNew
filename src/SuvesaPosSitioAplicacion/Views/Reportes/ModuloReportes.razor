@@ -1,0 +1,7 @@
+@page "/moduloReportes"
+
+@* Entrada "en blanco" del hub, sin tipo en la ruta (bookmark viejo, o el
+   nodo raiz del menu, que no navega — solo expande hijos). Cada hijo real
+   del menu apunta a su propia ruta/pagina (Ventas.razor, Compras.razor,
+   etc.); esta solo elige el primer reporte visible para el usuario. *@
+<ReporteOperacionPanel TipoInicial="" />
