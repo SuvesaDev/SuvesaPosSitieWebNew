@@ -128,15 +128,15 @@
                                             <option value="0">@(_rutasComerciales.Count == 0 ? "No hay rutas configuradas" : "Seleccione...")</option>
                                             @foreach (var ruta in _rutasComerciales) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }
                                         </select>
-                                        <div class="form-text">Rutas asignadas al usuario validado con la clave interna.</div>
+                                        <div class="form-text">@(_rutaEsSeleccionManual ? "Obligatoria: seleccione la ruta de venta (Funcionario SAC)." : "Rutas asignadas al usuario validado con la clave interna.")</div>
                                     </div>
                                     <div class="col-12 col-md-6">
                                         <label class="form-label" for="factura-agente-ruta">Agente asignado</label>
-                                        <select id="factura-agente-ruta" class="form-select" @bind="_idUsuarioAgente" disabled="@(_idRutaComercial <= 0 || _agentesRuta.Count == 0)">
+                                        <select id="factura-agente-ruta" class="form-select" @bind="_idUsuarioAgente" disabled="@(_rutaEsSeleccionManual || _idRutaComercial <= 0 || _agentesRuta.Count == 0)">
                                             <option value="">Seleccione...</option>
                                             @foreach (var agente in _agentesRuta) { <option value="@agente.IdUsuario">@agente.Nombre@(agente.EsPredeterminado ? " (predeterminado)" : "")</option> }
                                         </select>
-                                        <div class="form-text">Se propone el agente predeterminado; puede cambiarlo por otro agente de la ruta.</div>
+                                        <div class="form-text">@(_rutaEsSeleccionManual ? "Agente titular de la ruta (no se puede sustituir)." : "Se propone el agente predeterminado; puede cambiarlo por otro agente de la ruta.")</div>
                                         @if (_idRutaComercial > 0 && _agentesRuta.Count == 0) { <div class="form-text text-danger">La ruta no tiene agentes activos configurados.</div> }
                                     </div>
                                 }
@@ -694,6 +694,10 @@
     private decimal? _tipoCambio;
     private int _idRutaComercial;
     private string _idUsuarioAgente = string.Empty;
+    /// <summary>true cuando el usuario validado es Funcionario SAC: la ruta se elige
+    /// manualmente entre todas las de la sucursal (no hay una propia que preseleccionar) y
+    /// el agente resultante no es sustituible, a diferencia del flujo de Agente.</summary>
+    private bool _rutaEsSeleccionManual;
     private string NombreAgenteRuta => _agentesRuta.FirstOrDefault(a => a.IdUsuario == _idUsuarioAgente)?.Nombre ?? "Sin agente asignado";
     private bool UsuarioValidadoTieneRutas => _usuarioVenta is not null && _rutasComerciales.Count > 0;
     private readonly List<string> _correos = new();
@@ -773,8 +777,24 @@
     {
         _rutasComerciales = ((await Respuestas.DatoAsync(await RutasApi.Listar(Sesion.IdSucursal), "consultar las rutas")) ?? Array.Empty<RutaComercialDTO>())
             .Where(r => r.Activo).ToList();
+        _rutaEsSeleccionManual = false;
         var usuarioValidado = _usuarioVenta?.IdUsuario;
-        if (!string.IsNullOrWhiteSpace(usuarioValidado))
+        if (string.IsNullOrWhiteSpace(usuarioValidado))
+        {
+            _rutasComerciales.Clear();
+            _idRutaComercial = 0;
+            return;
+        }
+
+        // Especificacion_Funcional_Comisiones_TI §1/§3: el flujo depende de si el usuario
+        // validado es Agente (ruta se resuelve sola, entre SUS rutas) o Funcionario SAC
+        // (elige manualmente entre TODAS las rutas activas de la sucursal — no es agente
+        // de ninguna, así que no hay "sus rutas" que filtrar). Antes esto se inferia mal
+        // buscando si el usuario aparecía como agente de alguna ruta, lo que dejaba a SAC
+        // sin selector — nunca veía ruta y por lo tanto nunca generaba comisión.
+        var capacidad = await Respuestas.DatoAsync(await RutasApi.CapacidadComercial(usuarioValidado), "consultar la capacidad comercial del usuario validado");
+
+        if (capacidad?.EsAgente == true)
         {
             _rutasComerciales = _rutasComerciales
                 .Where(r => r.Agentes.Any(a => a.IdUsuario == usuarioValidado))
@@ -782,12 +802,21 @@
             _idRutaComercial = _rutasComerciales.FirstOrDefault(r => r.Agentes
                 .Any(a => a.IdUsuario == usuarioValidado && a.EsRutaPredeterminada))?.IdRuta ?? 0;
             if (_idRutaComercial > 0) await AlCambiarRuta();
+            return;
         }
-        else
+
+        if (capacidad?.EsServicioAlCliente == true)
         {
-            _rutasComerciales.Clear();
+            // Todas las rutas activas de la sucursal quedan disponibles para elegir; no
+            // hay predeterminada propia porque el SAC no es agente de ninguna.
+            _rutaEsSeleccionManual = true;
             _idRutaComercial = 0;
+            return;
         }
+
+        // Ni Agente ni Funcionario SAC: no participa en rutas ni comisiones.
+        _rutasComerciales.Clear();
+        _idRutaComercial = 0;
     }
 
     private async Task AlCambiarRuta()

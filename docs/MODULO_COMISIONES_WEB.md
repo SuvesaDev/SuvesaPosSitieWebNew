@@ -8,16 +8,17 @@ Administración/Ventas/SAC/TI. El detalle completo y la evidencia de código est
 léase antes de tocar este módulo. Resumen de lo que cambia respecto al resto de este
 documento (que sigue vigente salvo lo que se corrige acá):
 
-- **CRÍTICO — el flujo "Funcionario SAC emite" no funciona.** `CargarRutasComerciales`
-  (abajo) filtra `_rutasComerciales` a las rutas donde `usuarioValidado` **es agente**
-  (`r.Agentes.Any(a => a.IdUsuario == usuarioValidado)`). Un Funcionario SAC nunca es
-  agente de ninguna ruta, así que la lista siempre queda vacía, `UsuarioValidadoTieneRutas`
-  da `false`, y **el selector de ruta nunca aparece para SAC** — pese a que la
-  especificación (§3) exige que sea obligatorio. El texto de ayuda de la pantalla ("Rutas
-  asignadas al usuario validado con la clave interna") confirma que el flujo se diseñó
-  solo para "Agente valida su propia ruta", nunca para "SAC elige una ruta". El API tiene
-  el mismo hueco en espejo (`ValidarRutaComercial` sin rama para `EsServicioAlCliente`) —
-  ver plan API. Hay que corregir los dos lados juntos, no por separado.
+- **CRÍTICO — el flujo "Funcionario SAC emite" no funcionaba — ✅ corregido 14 sep 2026.**
+  `CargarRutasComerciales` filtraba `_rutasComerciales` a las rutas donde `usuarioValidado`
+  **es agente** (`r.Agentes.Any(a => a.IdUsuario == usuarioValidado)`). Un Funcionario SAC
+  nunca es agente de ninguna ruta, así que la lista siempre quedaba vacía y **el selector
+  de ruta nunca aparecía para SAC**. Se corrigió consultando primero un endpoint nuevo del
+  API (`GET api/mantenimientos/rutas/capacidad-comercial/{idUsuario}`, sin permiso de
+  administración de seguridad) para saber si el usuario validado es Agente (rutas propias,
+  solo lectura, como antes) o Funcionario SAC (todas las rutas activas de la sucursal,
+  selección obligatoria, agente resultante no sustituible). El API tenía el mismo hueco en
+  espejo (`ValidarRutaComercial` sin rama para `EsServicioAlCliente`) — se corrigió en el
+  mismo cambio, ver plan API.
 - **ALTO — no hay pantalla para el "Módulo de Comisión" por ruta que pide la spec §2.3**
   (porcentaje de comisión configurable por ruta, con precedencia absoluta sobre el del
   artículo). No existe el campo en el modelo todavía — depende de que el API lo agregue

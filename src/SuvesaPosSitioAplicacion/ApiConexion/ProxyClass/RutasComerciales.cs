@@ -24,6 +24,10 @@ public sealed class RutasComerciales : ProxyBase, IRutasComerciales
         => Ejecutar(async () => await LecturaEnvelope.Leer<IReadOnlyList<RutaAgenteDTO>>(
             await _api.GetAsync("api/mantenimientos/rutas/agentes-elegibles")), "consultar los agentes elegibles");
 
+    public Task<ResponseGeneric<CapacidadComercialDTO>> CapacidadComercial(string idUsuario)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<CapacidadComercialDTO>(
+            await _api.GetAsync($"api/mantenimientos/rutas/capacidad-comercial/{Uri.EscapeDataString(idUsuario)}")), "consultar la capacidad comercial del usuario");
+
     public Task<ResponseGeneric<RutaComercialDTO>> Crear(RutaComercialDTO ruta)
         => Ejecutar(async () => await LecturaEnvelope.Leer<RutaComercialDTO>(
             await _api.PostAsJsonAsync("api/mantenimientos/rutas", ruta, LecturaEnvelope.Json)), "crear la ruta");
