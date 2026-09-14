@@ -664,6 +664,13 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    // Submenú Ventas N°9 del catálogo (Reportes_ERP_Distribuidora...docx).
+                    Titulo = "Cumplimiento CABYS",
+                    Codigo = "MODULO_REPORTES.CUMPLIMIENTO_CABYS",
+                    Ruta = "/moduloReportes?tipo=cabys",
+                },
+                new ItemMenu
+                {
                     Titulo = "Cuentas por pagar",
                     Codigo = "MODULO_REPORTES.CUENTAS_POR_PAGAR",
                     Ruta = "/moduloReportes?tipo=cuentas-por-pagar",
@@ -691,6 +698,14 @@ public static partial class MenuSeePos
                     Titulo = "Compras",
                     Codigo = "MODULO_REPORTES.COMPRAS",
                     Ruta = "/moduloReportes?tipo=compras",
+                },
+                new ItemMenu
+                {
+                    // Catálogo N°3 ("Reportes de Gastos"). Complementario de "Compras":
+                    // misma tabla, filtrado por Compras.Gasto = true.
+                    Titulo = "Gastos",
+                    Codigo = "MODULO_REPORTES.GASTOS",
+                    Ruta = "/moduloReportes?tipo=gastos",
                 },
                 new ItemMenu
                 {

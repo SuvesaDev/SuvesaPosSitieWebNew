@@ -96,8 +96,8 @@ Referencia directa entre los tipos ya construidos (o por construir) y los roles 
 
 Mapeados 1:1 con la sección "Lo que sigue sin construirse" del plan API — depende de que el API los construya primero (A4.3–A4.7 de ese documento):
 
-- **Reporte de Gastos** (catálogo N°3) — pantalla nueva en el dominio "Compras" del hub, misma UX que `compras`.
-- **Cumplimiento CABYS** (submenú Ventas N°9) — pantalla nueva, con export.
+- ✅ **Reporte de Gastos** (catálogo N°3) — hecho 14 sep 2026: pestaña `gastos` en el dominio "Compras" del hub, junto a `compras`, con permiso propio `MODULO_REPORTES.GASTOS` y export Excel/PDF.
+- ✅ **Cumplimiento CABYS** (submenú Ventas N°9) — hecho 14 sep 2026: pestaña `cabys` en el dominio "Ventas y cartera", permiso `MODULO_REPORTES.CUMPLIMIENTO_CABYS`, export Excel/PDF.
 - **Apartados y Préstamos** (catálogo N°7) — pantalla nueva en el dominio "Ventas y cartera".
 - **Empaquetado/Maquila** (catálogo N°13) — pantalla nueva en el dominio "Inventario".
 - **KPI por ruta/agente** (anexo "Comportamiento del Agente") — pantalla nueva, posiblemente junto a `Views/Ventas/Comisiones.razor` ya que comparte `IdRutaComercial`.
