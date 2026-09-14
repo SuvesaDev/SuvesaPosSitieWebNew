@@ -193,7 +193,6 @@ builder.Services.AddScoped<IClientesConsulta, ClientesConsulta>();
 builder.Services.AddScoped<IGeografia, Geografia>();
 builder.Services.AddScoped<IProveedoresConsulta, ProveedoresConsulta>();
 builder.Services.AddScoped<ICuentasPorCobrar, CuentasPorCobrar>();
-builder.Services.AddScoped<IReportes, Reportes>();
 builder.Services.AddScoped<IFacturacion, Facturacion>();
 builder.Services.AddScoped<IRutasComerciales, RutasComerciales>();
 builder.Services.AddScoped<IComisiones, Comisiones>();
@@ -368,41 +367,6 @@ app.MapGet("/documentos/{tipo}/{id:long}/pdf", async (
     // Sin nombre de descarga el navegador puede abrir el PDF en línea; la acción
     // explícita de descarga conserva el nombre sugerido sin transportar el JWT.
     return Results.File(bytes, "application/pdf", descargar ? nombre : null, enableRangeProcessing: false);
-});
-
-// Descarga de reportes en PDF. Un endpoint y no una pagina: enviar un archivo desde
-// un componente interactivo obligaria a pasarlo por JS codificado en base64.
-app.MapGet("/reportes/compras/pdf", async (IReportes api, IGeneradorPdf pdf) =>
-{
-    var r = await api.Compras();
-
-    if (!r.EsCorrecta)
-    {
-        return Results.Problem(r.Excepcion ?? "No se pudo consultar el reporte.");
-    }
-
-    var compras = r.Responses ?? (ICollection<ReporteComprasDTO>)Array.Empty<ReporteComprasDTO>();
-
-    var bytes = pdf.Tabla(new ReporteTabular(
-        Titulo: "Reporte de compras",
-        Subtitulo: "Facturas de compra registradas",
-        Encabezados: new[] { "Factura", "Proveedor", "Fecha", "Gravado", "Impuesto", "Total" },
-        Filas: compras.Select(c => (IReadOnlyList<string>)new[]
-        {
-            c.Factura ?? "",
-            c.Nombre ?? "",
-            c.Fecha.ToString("dd/MM/yyyy"),
-            Formato.Importe(c.SubTotalGravado),
-            Formato.Importe(c.Impuesto),
-            Formato.Importe(c.TotalFactura)
-        }).ToList(),
-        Totales: new[] { "", "", "", "", "Total",
-            Formato.Importe(compras.Sum(c => Formato.AImporte(c.TotalFactura))) })
-    {
-        ColumnasNumericas = new HashSet<int> { 3, 4, 5 }
-    });
-
-    return Results.File(bytes, "application/pdf", "reporte-compras.pdf");
 });
 
 // Exportaciones del módulo nuevo de reportes. Se vuelve a consultar con los mismos
