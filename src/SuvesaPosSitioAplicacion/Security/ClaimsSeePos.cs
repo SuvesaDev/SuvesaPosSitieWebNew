@@ -25,7 +25,8 @@ public static class ClaimsSeePos
     public const string IdRol = "seepos:idRol";
     public const string NombreRol = "seepos:nombreRol";
     public const string CostaPets = "seepos:costaPets";
-    public const string AgenteCostaPets = "seepos:agenteCostaPets";
+    public const string EsAgente = "seepos:esAgente";
+    public const string EsServicioAlCliente = "seepos:esServicioAlCliente";
     public const string AceptaConsignacion = "seepos:aceptaConsignacion";
     /// <summary>El perfil deja facturar / mover stock aunque quede en negativo.</summary>
     public const string PermiteExistenciaNegativa = "seepos:permiteExistenciaNegativa";

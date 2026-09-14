@@ -459,6 +459,12 @@ public static partial class MenuSeePos
                         },
                         new ItemMenu
                         {
+                            Titulo = "Rutas",
+                            Codigo = "CATALOGOS.RUTAS",
+                            Ruta = "/parameters/routes",
+                        },
+                        new ItemMenu
+                        {
                             Titulo = "Tarifas",
                             Codigo = "CATALOGOS.TARIFAS",
                             Ruta = "/parameters/rates",

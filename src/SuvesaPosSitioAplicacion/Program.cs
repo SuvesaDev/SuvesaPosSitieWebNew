@@ -195,6 +195,7 @@ builder.Services.AddScoped<IProveedoresConsulta, ProveedoresConsulta>();
 builder.Services.AddScoped<ICuentasPorCobrar, CuentasPorCobrar>();
 builder.Services.AddScoped<IReportes, Reportes>();
 builder.Services.AddScoped<IFacturacion, Facturacion>();
+builder.Services.AddScoped<IRutasComerciales, RutasComerciales>();
 builder.Services.AddScoped<ICompras, Compras>();
 builder.Services.AddScoped<IBandejaDocumentos, BandejaDocumentos>();
 builder.Services.AddScoped<IAlbaranes, Albaranes>();

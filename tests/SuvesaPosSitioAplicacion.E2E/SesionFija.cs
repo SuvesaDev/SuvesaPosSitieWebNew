@@ -19,8 +19,9 @@ public sealed class SesionFija : IContextoSesion
     public bool EsAdministrador => true;
     public string? PerfilCodigo => "SUPER_ADMIN";
     public bool EsCostaPets => false;
-    public bool EsAgenteCostaPets => false;
-        public bool PermitirExistenciaNegativa => false;
+    public bool EsAgente => false;
+    public bool EsServicioAlCliente => false;
+    public bool PermitirExistenciaNegativa => false;
     public int IdSucursal => 0;
     public string? NombreSucursal => null;
     public bool TieneSucursal => false;

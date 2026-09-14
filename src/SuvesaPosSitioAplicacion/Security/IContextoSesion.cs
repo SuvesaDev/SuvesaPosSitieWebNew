@@ -36,7 +36,8 @@ public interface IContextoSesion
     string? PerfilCodigo { get; }
 
     bool EsCostaPets { get; }
-    bool EsAgenteCostaPets { get; }
+    bool EsAgente { get; }
+    bool EsServicioAlCliente { get; }
 
     /// <summary>El perfil deja facturar / mover stock aunque quede en negativo.</summary>
     bool PermitirExistenciaNegativa { get; }

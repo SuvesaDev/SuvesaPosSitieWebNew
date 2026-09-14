@@ -402,7 +402,8 @@ public class ContratosOperacionDiariaTests
         public bool EsAdministrador => false;
         public string? PerfilCodigo => "USUARIO";
         public bool EsCostaPets => false;
-        public bool EsAgenteCostaPets => false;
+        public bool EsAgente => false;
+        public bool EsServicioAlCliente => false;
         public bool PermitirExistenciaNegativa => false;
         public int IdSucursal => 3;
         public string? NombreSucursal => "Central";
