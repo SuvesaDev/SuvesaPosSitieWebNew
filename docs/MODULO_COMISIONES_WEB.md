@@ -1,5 +1,35 @@
 # Módulo de comisiones — guía de trabajo Web
 
+## Auditoría contra `Especificacion_Funcional_Comisiones_TI (2).docx` (14 sep 2026)
+
+Se comparó este diseño (ya construido) contra la especificación funcional oficial de
+Administración/Ventas/SAC/TI. El detalle completo y la evidencia de código están en
+`../../DevSuvesaPosWeb/ApiSuvesaPos/docs/PLAN_COMISIONES_ESPECIFICACION_TI_API.md` —
+léase antes de tocar este módulo. Resumen de lo que cambia respecto al resto de este
+documento (que sigue vigente salvo lo que se corrige acá):
+
+- **CRÍTICO — el flujo "Funcionario SAC emite" no funciona.** `CargarRutasComerciales`
+  (abajo) filtra `_rutasComerciales` a las rutas donde `usuarioValidado` **es agente**
+  (`r.Agentes.Any(a => a.IdUsuario == usuarioValidado)`). Un Funcionario SAC nunca es
+  agente de ninguna ruta, así que la lista siempre queda vacía, `UsuarioValidadoTieneRutas`
+  da `false`, y **el selector de ruta nunca aparece para SAC** — pese a que la
+  especificación (§3) exige que sea obligatorio. El texto de ayuda de la pantalla ("Rutas
+  asignadas al usuario validado con la clave interna") confirma que el flujo se diseñó
+  solo para "Agente valida su propia ruta", nunca para "SAC elige una ruta". El API tiene
+  el mismo hueco en espejo (`ValidarRutaComercial` sin rama para `EsServicioAlCliente`) —
+  ver plan API. Hay que corregir los dos lados juntos, no por separado.
+- **ALTO — no hay pantalla para el "Módulo de Comisión" por ruta que pide la spec §2.3**
+  (porcentaje de comisión configurable por ruta, con precedencia absoluta sobre el del
+  artículo). No existe el campo en el modelo todavía — depende de que el API lo agregue
+  primero (ver plan API, Hallazgo 2). Cuando exista, la pantalla de "Rutas" (Parámetros)
+  es el lugar natural para editarlo, junto al resto de la configuración de ruta.
+- **MEDIO — conflicto de regla sobre "elegibilidad" vs. el punto 1 de "Regla confirmada"
+  más abajo en este documento.** Ver plan API, Hallazgo 3, para el detalle y las dos
+  lecturas posibles; requiere decisión de Producto antes de tocar código en ningún lado.
+- Confirmado sin cambios: cálculo, bonificaciones a $0, reversiones de devolución,
+  consulta/detalle/resumen, cierre y exportación — todo lo demás en este documento sigue
+  describiendo lo que ya existe y funciona.
+
 ## Propósito y alcance
 
 Este documento es el contexto operativo para continuar el módulo de Comisiones en
@@ -117,7 +147,10 @@ reemplazarlos al actualizar contratos.
 
 1. Las facturas de crédito y contado solo generan comisión al estar totalmente
    canceladas. Hacienda aceptada sigue siendo requisito fiscal previo, pero no es
-   suficiente por sí sola.
+   suficiente por sí sola. **⚠️ En conflicto con `Especificacion_Funcional_Comisiones_TI
+   (2).docx` §4.1** (esa spec separa "elegible" = solo Hacienda aceptada, de "incluida en
+   el corte" = además cobrada) — ver la auditoría al inicio de este documento. No cambiar
+   sin que Producto confirme cuál de las dos lecturas rige.
 2. Confirmar la regla para un emisor `EsAgente` con varias rutas: se recomienda una
    única ruta predeterminada activa por sucursal.
 3. Confirmar prioridad para usuarios con ambos perfiles; la recomendación actual es
