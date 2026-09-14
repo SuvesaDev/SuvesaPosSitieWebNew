@@ -42,7 +42,7 @@
     <ChildContent>
         @if (_documento is null)
         {
-            <div class="card">
+            <div class="card seepos-proformas-lista">
                 <div class="card-body">
                     <AppRejilla TItem="CotizacionesDTO" Datos="Cargar"
                                 TextoVacio="No hay proformas registradas.">
@@ -70,7 +70,7 @@
                             <HxGridColumn TItem="CotizacionesDTO" HeaderText=""
                                           HeaderCssClass="text-end" ItemCssClass="text-end">
                                 <ItemTemplate Context="c">
-                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Abrir(c)">Abrir</button>
+                                    <button class="btn btn-sm btn-outline-primary" title="Abrir proforma" aria-label="Abrir proforma" @onclick="() => Abrir(c)"><i class="bi bi-eye"></i></button>
                                 </ItemTemplate>
                             </HxGridColumn>
                         </Columnas>
@@ -205,7 +205,7 @@
                             <div class="d-flex gap-2 mt-3">
                                 <button class="btn btn-primary flex-grow-1" @onclick="Guardar"
                                         disabled="@(_guardando || _lineas.Count == 0)">
-                                    @(_guardando ? "Guardando..." : "Guardar")
+                                    <i class="bi bi-check2-circle me-1"></i>@(_guardando ? "Guardando..." : "Guardar")
                                 </button>
                             </div>
                         </div>

@@ -74,7 +74,7 @@
                                     <td class="text-end">@x.NumeroTerminal.ToString("D5")</td>
                                     <td class="text-end">@x.Secuencia</td>
                                     <td>@if (x.EmisionV44Habilitada) { <span class="badge text-bg-success">Sí</span> } else { <span class="badge text-bg-secondary">No</span> }</td>
-                                    <td class="text-end"><button class="btn btn-sm btn-link p-0" @onclick="() => Editar(x)">Editar</button></td>
+                                    <td class="text-end"><button class="btn btn-sm btn-outline-primary" title="Editar serie" aria-label="Editar serie" @onclick="() => Editar(x)"><i class="bi bi-pencil"></i></button></td>
                                 </tr>
                             }
                         </tbody>

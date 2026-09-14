@@ -194,6 +194,7 @@ builder.Services.AddScoped<ICompras, Compras>();
 builder.Services.AddScoped<IBandejaDocumentos, BandejaDocumentos>();
 builder.Services.AddScoped<IAlbaranes, Albaranes>();
 builder.Services.AddScoped<IDepositosConsulta, DepositosConsulta>();
+builder.Services.AddScoped<IInstrumentosConfirmacion, InstrumentosConfirmacion>();
 builder.Services.AddScoped<IFamilias, Familias>();
 builder.Services.AddScoped<ICategorias, Categorias>();
 builder.Services.AddScoped<IPresentaciones, Presentaciones>();

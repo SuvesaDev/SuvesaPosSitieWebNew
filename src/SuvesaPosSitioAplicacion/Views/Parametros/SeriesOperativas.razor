@@ -111,9 +111,9 @@
                                     </span>
                                 </td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-link p-0 me-2" @onclick="() => Abrir(s)">Editar</button>
-                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Alternar(s)">
-                                        @(s.Activa ? "Desactivar" : "Activar")
+                                    <button class="btn btn-sm btn-outline-primary me-1" title="Editar serie" aria-label="Editar serie" @onclick="() => Abrir(s)"><i class="bi bi-pencil"></i></button>
+                                    <button class="btn btn-sm @(s.Activa ? "btn-outline-danger" : "btn-outline-success")" title="@(s.Activa ? "Desactivar serie" : "Activar serie")" aria-label="@(s.Activa ? "Desactivar serie" : "Activar serie")" @onclick="() => Alternar(s)">
+                                        <i class="bi @(s.Activa ? "bi-slash-circle" : "bi-check-circle")"></i>
                                     </button>
                                 </td>
                             </tr>

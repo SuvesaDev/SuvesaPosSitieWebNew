@@ -207,6 +207,137 @@ body,
     .seepos-nivel-b .seepos-solo-escritorio-contenido { display: none; }
 }
 
+/* Seguimiento de cotizaciones: filtros y rejilla alineados con el estándar. */
+.seepos-seguimiento-filtros .card-header { display:flex; align-items:center; min-height:3rem; }
+.seepos-seguimiento-filtros .card-header > i { font-size:1rem; }
+.seepos-seguimiento-filtros .card-header .text-secondary { font-size:.75rem; }
+.seepos-seguimiento-filtros input, .seepos-seguimiento-filtros select { min-height:2.55rem; }
+.seepos-seguimiento-resultados .card-body { padding:.75rem; }
+.seepos-seguimiento-resultados .hx-grid, .seepos-seguimiento-resultados table { font-size:.82rem; }
+.seepos-seguimiento-resultados .hx-grid thead th, .seepos-seguimiento-resultados table thead th { background:var(--bs-tertiary-bg); color:var(--bs-secondary-color); font-size:.69rem; text-transform:uppercase; letter-spacing:.03em; }
+.seepos-seguimiento-resultados .seepos-importe { font-variant-numeric:tabular-nums; }
+@media (max-width: 767.98px) {
+    .seepos-seguimiento-filtros .card-header { align-items:flex-start; flex-wrap:wrap; gap:.15rem; }
+    .seepos-seguimiento-filtros .card-header .text-secondary { flex-basis:100%; margin-left:1.65rem!important; }
+}
+
+/* Rejilla compartida de catálogos: un único estándar para todas las consultas. */
+.seepos-rejilla { border:1px solid var(--bs-border-color); border-radius:.7rem; overflow:hidden; }
+.seepos-rejilla table { margin-bottom:0; font-size:.82rem; }
+.seepos-rejilla thead th { background:var(--bs-tertiary-bg); color:var(--bs-secondary-color); font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; border-bottom:2px solid var(--bs-primary); }
+.seepos-rejilla tbody td, .seepos-rejilla thead th { padding:.68rem .75rem; border-color:var(--bs-border-color); vertical-align:middle; }
+.seepos-rejilla tbody tr:nth-child(even) { background:color-mix(in srgb, var(--bs-primary) 4%, transparent); }
+.seepos-rejilla tbody td:last-child { white-space:nowrap; text-align:right; }
+.seepos-rejilla .seepos-importe { font-variant-numeric:tabular-nums; text-align:right; }
+.seepos-rejilla tbody td:last-child .btn { min-width:2rem; margin-left:.2rem; border-radius:.4rem; }
+/* Las acciones de los catálogos parten de enlaces por compatibilidad; se les da
+   el mismo tratamiento compacto de los botones con icono del resto del sitio. */
+.seepos-rejilla tbody td:last-child .btn-link { border:1px solid var(--bs-border-color); color:var(--bs-primary); padding:.25rem .5rem; text-decoration:none; }
+.seepos-rejilla tbody td:last-child .btn-link:hover { background:var(--bs-primary-bg-subtle); }
+.seepos-rejilla tbody td:last-child .btn:not(:has(i))::before { content:"✎"; margin-right:.3rem; font-size:.85rem; line-height:1; }
+.seepos-rejilla tbody td:last-child .btn.text-danger:not(:has(i))::before,
+.seepos-rejilla tbody td:last-child .btn[class*="text-danger"]:not(:has(i))::before { content:"×"; font-size:1.05rem; }
+.seepos-rejilla tbody td:last-child .btn.text-success:not(:has(i))::before { content:"✓"; font-size:.9rem; }
+.seepos-rejilla tbody td:last-child .btn.text-warning:not(:has(i))::before { content:"!"; font-weight:700; }
+
+/* Geografía fiscal: navegación jerárquica clara entre provincia, cantón y distrito. */
+.seepos-geografia-ayuda { font-size:.82rem; }
+.seepos-geografia-card { overflow:hidden; }
+.seepos-geografia-card .card-header { display:flex; align-items:center; min-height:3rem; }
+.seepos-geografia-card .card-header > i { font-size:1rem; }
+.seepos-geografia-card .card-header .badge { color:var(--bs-secondary-color); font-weight:600; }
+.seepos-geografia-card .list-group-item { min-height:2.7rem; padding:.6rem .8rem; border-color:var(--bs-border-color); font-size:.84rem; }
+.seepos-geografia-card .list-group-item code { color:var(--bs-secondary-color); font-size:.75rem; }
+.seepos-geografia-card .list-group-item.active code { color:inherit; }
+.seepos-geografia-card .list-group-item > .btn { line-height:1.2; }
+.seepos-geografia-card .list-group-item > .btn:hover { color:var(--bs-primary); background:var(--bs-primary-bg-subtle); }
+
+/* Proformas: consulta y detalle con el mismo acabado de tablas del sistema. */
+.seepos-proformas-lista .table, .seepos-proformas-lista .hx-grid { font-size:.82rem; }
+.seepos-proformas-lista .table thead th { background:var(--bs-tertiary-bg); color:var(--bs-secondary-color); font-size:.69rem; text-transform:uppercase; letter-spacing:.03em; border-bottom:2px solid var(--bs-primary); }
+.seepos-proformas-lista .table td, .seepos-proformas-lista .table th { padding:.68rem .72rem; border-color:var(--bs-border-color); }
+.seepos-proformas-lista .table tbody tr:nth-child(even) { background:color-mix(in srgb, var(--bs-primary) 4%, transparent); }
+.seepos-proformas-lista .seepos-importe { font-variant-numeric:tabular-nums; }
+.seepos-proformas-lista .btn { min-width:2rem; }
+
+/* Trámite de cobro: secciones, tablas y acciones coherentes con los catálogos. */
+.seepos-tramite-seccion .card-header { display:flex; align-items:center; min-height:3rem; }
+.seepos-tramite-seccion .card-header > i { font-size:1rem; }
+.seepos-tramite-seccion .card-header .text-secondary { font-size:.75rem; }
+.seepos-tramite-seccion .form-label { color:var(--bs-secondary-color); font-size:.78rem; font-weight:600; }
+.seepos-tramite-tabla { border:1px solid var(--bs-border-color); border-radius:.65rem; overflow:hidden; }
+.seepos-tramite-tabla table { font-size:.82rem; }
+.seepos-tramite-tabla thead th { background:var(--bs-tertiary-bg); color:var(--bs-secondary-color); font-size:.69rem; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; border-bottom:2px solid var(--bs-primary); }
+.seepos-tramite-tabla td, .seepos-tramite-tabla th { padding:.68rem .72rem; border-color:var(--bs-border-color); }
+.seepos-tramite-tabla tbody tr:nth-child(even) { background:color-mix(in srgb, var(--bs-primary) 4%, transparent); }
+.seepos-tramite-tabla td:nth-child(1), .seepos-tramite-tabla td:nth-child(2), .seepos-tramite-tabla td:nth-child(4), .seepos-tramite-tabla td:nth-child(5) { font-variant-numeric:tabular-nums; }
+.seepos-tramite-tabla .btn { min-width:2rem; }
+.seepos-tramite-resultados .card-header { display:flex; align-items:center; min-height:3rem; }
+.seepos-tramite-resultados .card-header > i { font-size:1rem; }
+.seepos-tramite-resultados .card-header .text-secondary { font-size:.75rem; }
+@media (max-width: 767.98px) {
+    .seepos-tramite-seccion .card-header { align-items:flex-start; flex-wrap:wrap; gap:.15rem; }
+    .seepos-tramite-seccion .card-header .text-secondary { flex-basis:100%; margin-left:1.65rem!important; }
+    .seepos-tramite-resultados .card-header { align-items:flex-start; flex-wrap:wrap; gap:.15rem; }
+    .seepos-tramite-resultados .card-header .text-secondary { flex-basis:100%; margin-left:1.65rem!important; }
+}
+
+/* Recibos y operaciones fallidas: tabla y acciones alineadas con Inventarios. */
+.seepos-recibos-filtros .card-header { display:flex; align-items:center; min-height:3rem; }
+.seepos-recibos-filtros .card-header > i { font-size:1rem; }
+.seepos-recibos-filtros .card-header .text-secondary { font-size:.75rem; }
+.seepos-recibos-filtros .form-label { color:var(--bs-secondary-color); font-size:.78rem; font-weight:600; }
+.seepos-recibos-tabla { border:1px solid var(--bs-border-color); border-radius:.65rem; overflow:hidden; }
+.seepos-recibos-tabla table { margin-bottom:0; font-size:.82rem; }
+.seepos-recibos-tabla thead th { background:var(--bs-tertiary-bg); color:var(--bs-secondary-color); font-size:.69rem; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; border-bottom:2px solid var(--bs-primary); }
+.seepos-recibos-tabla td, .seepos-recibos-tabla th { padding:.68rem .72rem; border-color:var(--bs-border-color); }
+.seepos-recibos-tabla tbody tr:nth-child(even) { background:color-mix(in srgb, var(--bs-primary) 4%, transparent); }
+.seepos-recibos-tabla td:nth-child(1), .seepos-recibos-tabla td:nth-child(2), .seepos-recibos-tabla td:nth-child(4), .seepos-recibos-tabla td:nth-child(5), .seepos-recibos-tabla td:nth-child(6), .seepos-recibos-tabla td:nth-child(7) { font-variant-numeric:tabular-nums; }
+.seepos-recibos-tabla .btn { min-width:2rem; }
+@media (max-width: 767.98px) {
+    .seepos-recibos-filtros .card-header { align-items:flex-start; flex-wrap:wrap; gap:.15rem; }
+    .seepos-recibos-filtros .card-header .text-secondary { flex-basis:100%; margin-left:1.65rem!important; }
+}
+
+/* Producción: modal guiado por pasos, con fórmula y selección de lotes fáciles
+   de escanear visualmente. */
+.seepos-produccion-modal { color:var(--bs-body-color); }
+.seepos-produccion-seccion-titulo { display:flex; align-items:center; gap:.15rem; color:var(--bs-primary); margin-bottom:.7rem; }
+.seepos-produccion-seccion-titulo > i { font-size:1.25rem; }
+.seepos-produccion-seccion-titulo span { display:block; color:var(--bs-secondary-color); font-size:.75rem; margin-top:.12rem; }
+.seepos-produccion-formula { font-size:.82rem; border:1px solid var(--bs-border-color); border-radius:.55rem; overflow:hidden; }
+.seepos-produccion-formula thead th { background:var(--bs-tertiary-bg); color:var(--bs-secondary-color); font-size:.68rem; text-transform:uppercase; letter-spacing:.03em; }
+.seepos-produccion-formula td, .seepos-produccion-formula th { padding:.55rem .7rem; border-color:var(--bs-border-color); }
+.seepos-produccion-insumo { border:1px solid var(--bs-border-color); border-left:3px solid var(--bs-secondary-color); border-radius:.6rem; padding:.85rem; margin-bottom:.8rem; background:var(--bs-body-bg); }
+.seepos-produccion-insumo-ok { border-left-color:var(--bs-success); background:color-mix(in srgb, var(--bs-success) 5%, var(--bs-body-bg)); }
+.seepos-produccion-insumo > .d-flex { gap:.75rem; }
+.seepos-produccion-insumo > .d-flex > strong { font-size:.88rem; }
+.seepos-produccion-insumo > .d-flex > span { color:var(--bs-secondary-color); font-size:.74rem; white-space:nowrap; }
+.seepos-produccion-insumo .form-control, .seepos-produccion-insumo .form-select { min-height:2.65rem; }
+.seepos-produccion-insumo small { display:block; margin-top:.45rem; }
+.seepos-produccion-insumo .table { border-top:1px solid var(--bs-border-color); font-size:.78rem; }
+.seepos-produccion-acciones { border-top:1px solid var(--bs-border-color); padding-top:.85rem; margin-top:.2rem; }
+@media (max-width: 575.98px) {
+    .seepos-produccion-insumo > .d-flex { align-items:flex-start!important; flex-direction:column; }
+    .seepos-produccion-insumo > .d-flex > span { white-space:normal; }
+}
+
+/* Bitácora de producción: filtros y tabla con el mismo patrón de los catálogos. */
+.seepos-produccion-bitacora .card-header { display:flex; align-items:center; min-height:3rem; }
+.seepos-produccion-bitacora .card-header > i { font-size:1rem; }
+.seepos-produccion-bitacora .card-header .text-secondary { font-size:.75rem; }
+.seepos-produccion-bitacora .form-label { color:var(--bs-secondary-color); font-size:.78rem; font-weight:600; }
+.seepos-produccion-tabla { border:1px solid var(--bs-border-color); border-radius:.65rem; overflow:hidden; }
+.seepos-produccion-tabla thead th { background:var(--bs-tertiary-bg); color:var(--bs-secondary-color); font-size:.7rem; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; border-bottom:2px solid var(--bs-primary); }
+.seepos-produccion-tabla td, .seepos-produccion-tabla th { padding:.7rem .75rem; border-color:var(--bs-border-color); }
+.seepos-produccion-tabla tbody tr:nth-child(even) { background:color-mix(in srgb, var(--bs-primary) 4%, transparent); }
+.seepos-produccion-tabla td:nth-child(1), .seepos-produccion-tabla td:nth-child(4), .seepos-produccion-tabla td:nth-child(5) { font-variant-numeric:tabular-nums; white-space:nowrap; }
+.seepos-produccion-tabla td code { color:var(--bs-secondary-color); font-size:.75rem; }
+@media (max-width: 767.98px) {
+    .seepos-produccion-bitacora .card-header { align-items:flex-start; flex-wrap:wrap; gap:.15rem; }
+    .seepos-produccion-bitacora .card-header .text-secondary { flex-basis:100%; margin-left:1.65rem!important; }
+}
+
 /* ---------- Rejilla ---------- */
 
 .seepos-rejilla table {
@@ -1924,4 +2055,78 @@ body,
    herede el alto raro del form-select de Bootstrap dentro de la isla. */
 .seepos-mud-isla .mud-select .mud-input-slot {
     min-height: 0;
+}
+
+/* Detalle de documento: misma jerarquia visual plana y profesional de los
+   catalogos de Inventarios y Clientes, contenida dentro del offcanvas. */
+.seepos-documento-detalle {
+    --seepos-documento-azul: var(--seepos-azul, #1072a9);
+    color: var(--bs-body-color);
+}
+.seepos-documento-cabecera {
+    border: 1px solid var(--bs-border-color);
+    border-radius: .75rem;
+    background: var(--bs-tertiary-bg);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+.seepos-documento-cabecera-principal { display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; }
+.seepos-documento-kicker, .seepos-documento-seccion-titulo {
+    color: var(--seepos-documento-azul); font-size:.7rem; font-weight:700;
+    letter-spacing:.06em; text-transform:uppercase;
+}
+.seepos-documento-titulo { margin:.15rem 0 .2rem; font-weight:700; }
+.seepos-documento-consecutivo { color:var(--bs-secondary-color); font-size:.78rem; }
+.seepos-documento-total { text-align:right; white-space:nowrap; }
+.seepos-documento-total span { display:block; color:var(--bs-secondary-color); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; }
+.seepos-documento-total strong { display:block; color:var(--seepos-documento-azul); font-size:1.2rem; font-variant-numeric:tabular-nums; }
+.seepos-documento-cliente { display:flex; gap:.65rem; align-items:center; border-top:1px solid var(--bs-border-color); margin-top:.85rem; padding-top:.8rem; }
+.seepos-documento-cliente > i { color:var(--seepos-documento-azul); font-size:1.65rem; }
+.seepos-documento-cliente span, .seepos-documento-cliente small { display:block; color:var(--bs-secondary-color); font-size:.72rem; }
+.seepos-documento-cliente strong { display:block; font-size:.88rem; }
+.seepos-documento-meta { margin-top:.8rem; row-gap:.3rem; }
+.seepos-documento-meta dt { color:var(--bs-secondary-color)!important; }
+.seepos-documento-meta dd { overflow-wrap:anywhere; }
+.seepos-documento-seccion { border:1px solid var(--bs-border-color); border-radius:.7rem; padding:.8rem; margin-bottom:.9rem; background:var(--bs-body-bg); }
+.seepos-documento-seccion-titulo { margin-bottom:.55rem; display:flex; align-items:center; }
+.seepos-documento-seccion-titulo .badge { margin-left:.4rem; color:var(--seepos-documento-azul); background:color-mix(in srgb, var(--seepos-documento-azul) 12%, transparent); }
+.seepos-documento-lineas thead th { color:var(--bs-secondary-color); font-size:.68rem; text-transform:uppercase; letter-spacing:.03em; border-bottom:2px solid var(--seepos-documento-azul); white-space:nowrap; }
+.seepos-documento-lineas td { border-bottom:1px solid var(--bs-border-color); padding:.65rem .35rem; }
+.seepos-documento-lineas td:first-child { min-width:10rem; }
+.seepos-documento-lineas td code { display:block; color:var(--bs-secondary-color); font-size:.7rem; margin-top:.12rem; }
+.seepos-documento-lineas td:not(:first-child) { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.seepos-documento-resumen { display:flex; justify-content:space-between; align-items:center; border-radius:.65rem; background:color-mix(in srgb, var(--seepos-documento-azul) 9%, var(--bs-body-bg)); color:var(--bs-secondary-color); padding:.75rem .9rem; margin-bottom:.9rem; }
+.seepos-documento-resumen strong { color:var(--seepos-documento-azul); font-size:1.1rem; font-variant-numeric:tabular-nums; }
+.seepos-documento-mensaje { display:flex; gap:.55rem; margin-top:.7rem; border-radius:.5rem; padding:.6rem .7rem; background:var(--bs-warning-bg-subtle); color:var(--bs-warning-text-emphasis); font-size:.78rem; }
+.seepos-documento-mensaje > i { margin-top:.12rem; }
+.seepos-documento-mensaje strong, .seepos-documento-mensaje span { display:block; }
+@media (max-width: 480px) {
+    .seepos-documento-cabecera-principal { flex-direction:column; }
+    .seepos-documento-total { text-align:left; }
+    .seepos-documento-meta dt, .seepos-documento-meta dd { width:100%; }
+    .seepos-documento-meta dt { margin-top:.35rem; }
+}
+
+/* Apertura de caja: bloques equilibrados y captura de denominaciones alineada. */
+.seepos-caja { max-width: 100%; }
+.seepos-caja .card-header { display:flex; align-items:center; min-height:3rem; }
+.seepos-caja .card-header > i { font-size:1.05rem; }
+.seepos-caja .card-header .text-secondary { font-size:.75rem; }
+.seepos-caja-identificacion .card-body { padding:1.15rem 1rem 1rem; }
+.seepos-caja-identificacion .form-label { color:var(--bs-secondary-color); font-size:.78rem; font-weight:600; }
+.seepos-caja-identificacion .form-control:disabled,
+.seepos-caja-identificacion .form-select:disabled { opacity:1; background-color:var(--bs-tertiary-bg); }
+.seepos-caja-denominaciones .table { font-size:.82rem; }
+.seepos-caja-denominaciones thead th { color:var(--bs-secondary-color); font-size:.7rem; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; border-bottom:2px solid var(--bs-primary); }
+.seepos-caja-denominaciones tbody tr:nth-child(odd) { background-color:color-mix(in srgb, var(--bs-primary) 4%, transparent); }
+.seepos-caja-denominaciones tbody td { padding:.58rem .7rem; border-color:var(--bs-border-color); }
+.seepos-caja-denominaciones .form-control { max-width:8rem; margin-left:auto; font-variant-numeric:tabular-nums; }
+.seepos-caja-denominaciones tbody td:last-child { font-variant-numeric:tabular-nums; }
+.seepos-caja-total .card-body { padding:1rem; }
+.seepos-caja-total .d-flex { min-height:2.5rem; align-items:center; border-color:var(--bs-border-color)!important; }
+.seepos-caja-total .d-flex strong { color:var(--bs-primary); font-size:1rem; font-variant-numeric:tabular-nums; }
+.seepos-caja-total .form-text, .seepos-caja-total p { line-height:1.45; }
+@media (max-width: 767.98px) {
+    .seepos-caja .card-header { align-items:flex-start; flex-wrap:wrap; gap:.15rem; }
+    .seepos-caja .card-header .text-secondary { flex-basis:100%; margin-left:1.65rem!important; }
 }
