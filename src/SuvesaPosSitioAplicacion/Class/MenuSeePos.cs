@@ -350,6 +350,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Comisiones",
+                    Codigo = "VENTAS.COMISIONES",
+                    Ruta = "/sales/commissions",
+                },
+                new ItemMenu
+                {
                     // Constancia de entrega de facturas al cliente para su trámite interno de pago.
                     Titulo = "Trámite de cobro",
                     Codigo = "VENTAS.TRAMITE_DE_COBRO",

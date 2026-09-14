@@ -36,6 +36,15 @@
             enlace.href = URL.createObjectURL(new Blob([texto], { type: tipo }));
             enlace.download = nombre; enlace.click(); URL.revokeObjectURL(enlace.href);
         };
+        window.seepos.descargarBase64 = function (nombre, contenidoBase64, tipo) {
+            var binario = atob(contenidoBase64);
+            var bytes = new Uint8Array(binario.length);
+            for (var i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+            var enlace = document.createElement('a');
+            enlace.href = URL.createObjectURL(new Blob([bytes], { type: tipo }));
+            enlace.download = nombre; enlace.style.display = 'none'; document.body.appendChild(enlace);
+            enlace.click(); enlace.remove(); setTimeout(function () { URL.revokeObjectURL(enlace.href); }, 0);
+        };
         window.seepos.descargarUrl = async function (url) {
             var respuesta = await fetch(url, { credentials: 'same-origin' });
             if (!respuesta.ok) throw new Error('No se pudo generar el archivo (' + respuesta.status + ').');

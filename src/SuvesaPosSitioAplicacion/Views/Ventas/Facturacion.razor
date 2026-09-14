@@ -120,21 +120,22 @@
                                         @foreach (var act in _actividadesEmpresa) { <option value="@act.Codigo">@act.Codigo — @act.Descripcion@(act.Principal == true ? " (principal)" : "")</option> }
                                     </select>
                                 </div>
-                                <div class="col-12 col-md-6">
-                                    <label class="form-label" for="factura-ruta">Ruta</label>
-                                    <select id="factura-ruta" class="form-select" @bind="_idRutaComercial" @bind:after="AlCambiarRuta">
-                                        <option value="0">@(_rutasComerciales.Count == 0 ? "No hay rutas configuradas" : "Seleccione...")</option>
-                                        @foreach (var ruta in _rutasComerciales) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }
-                                    </select>
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <label class="form-label" for="factura-agente-ruta">Agente</label>
-                                    <select id="factura-agente-ruta" class="form-select" @bind="_idUsuarioAgente" disabled="@(_idRutaComercial == 0 || _agentesRuta.Count == 0)">
-                                        <option value="">Seleccione...</option>
-                                        @foreach (var agente in _agentesRuta) { <option value="@agente.IdUsuario">@agente.Nombre</option> }
-                                    </select>
-                                    @if (_idRutaComercial > 0 && _agentesRuta.Count == 0) { <div class="form-text text-danger">La ruta no tiene agentes activos configurados.</div> }
-                                </div>
+                                @if (Sesion.EsAgente || Sesion.EsServicioAlCliente)
+                                {
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label" for="factura-ruta">Ruta comercial @(Sesion.EsServicioAlCliente && !Sesion.EsAgente ? "*" : "")</label>
+                                        <select id="factura-ruta" class="form-select" @bind="_idRutaComercial" @bind:after="AlCambiarRuta" disabled="@Sesion.EsAgente">
+                                            <option value="0">@(_rutasComerciales.Count == 0 ? "No hay rutas configuradas" : "Seleccione...")</option>
+                                            @foreach (var ruta in _rutasComerciales) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }
+                                        </select>
+                                        @if (Sesion.EsAgente) { <div class="form-text">Ruta asignada automáticamente según su perfil de agente.</div> }
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label" for="factura-agente-ruta">Agente asignado</label>
+                                        <input id="factura-agente-ruta" class="form-control" value="@NombreAgenteRuta" readonly />
+                                        @if (_idRutaComercial > 0 && _agentesRuta.Count == 0) { <div class="form-text text-danger">La ruta no tiene agentes activos configurados.</div> }
+                                    </div>
+                                }
                         </div>
                         @if (_clientesEncontrados.Count > 0)
                         {
@@ -689,6 +690,7 @@
     private decimal? _tipoCambio;
     private int _idRutaComercial;
     private string _idUsuarioAgente = string.Empty;
+    private string NombreAgenteRuta => _agentesRuta.FirstOrDefault(a => a.IdUsuario == _idUsuarioAgente)?.Nombre ?? "Sin agente asignado";
     private readonly List<string> _correos = new();
     private string _correoNuevo = string.Empty;
     private int? _correoEditandoIndice;
@@ -766,6 +768,12 @@
     {
         _rutasComerciales = ((await Respuestas.DatoAsync(await RutasApi.Listar(Sesion.IdSucursal), "consultar las rutas")) ?? Array.Empty<RutaComercialDTO>())
             .Where(r => r.Activo).ToList();
+        if (Sesion.EsAgente && !string.IsNullOrWhiteSpace(Sesion.Usuario))
+        {
+            _idRutaComercial = _rutasComerciales
+                .FirstOrDefault(r => r.Agentes.Any(a => a.IdUsuario == Sesion.Usuario && a.EsRutaPredeterminada))?.IdRuta ?? 0;
+            if (_idRutaComercial > 0) await AlCambiarRuta();
+        }
     }
 
     private async Task AlCambiarRuta()
@@ -775,7 +783,8 @@
         if (_idRutaComercial <= 0) return;
 
         _agentesRuta = ((await Respuestas.DatoAsync(await RutasApi.Agentes(_idRutaComercial), "consultar los agentes de la ruta")) ?? Array.Empty<RutaAgenteDTO>()).ToList();
-        _idUsuarioAgente = _agentesRuta.FirstOrDefault(a => a.EsPredeterminado)?.IdUsuario
+        _idUsuarioAgente = (Sesion.EsAgente ? _agentesRuta.FirstOrDefault(a => a.IdUsuario == Sesion.Usuario) : null)?.IdUsuario
+            ?? _agentesRuta.FirstOrDefault(a => a.EsPredeterminado)?.IdUsuario
             ?? _agentesRuta.FirstOrDefault()?.IdUsuario
             ?? string.Empty;
     }
@@ -1740,8 +1749,9 @@
     {
         if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
         if (_cliente is null || _idPerfil == 0 || _tipoFactura == 0 || _moneda == 0 || _lineas.Count == 0) { await Dialogos.ErrorAsync("Seleccione cliente, condición, la serie a emitir, moneda y al menos un artículo."); return; }
-        if (_rutasComerciales.Count > 0 && _idRutaComercial == 0) { await Dialogos.ErrorAsync("Seleccione una ruta para la facturación."); return; }
-        if (_idRutaComercial > 0 && string.IsNullOrWhiteSpace(_idUsuarioAgente)) { await Dialogos.ErrorAsync("Seleccione un agente válido para la ruta."); return; }
+        if (Sesion.EsAgente && _idRutaComercial == 0) { await Dialogos.ErrorAsync("Su perfil de agente no tiene una ruta predeterminada activa en esta sucursal."); return; }
+        if (Sesion.EsServicioAlCliente && !Sesion.EsAgente && _idRutaComercial == 0) { await Dialogos.ErrorAsync("Seleccione la ruta comercial para la facturación."); return; }
+        if ((Sesion.EsAgente || Sesion.EsServicioAlCliente) && string.IsNullOrWhiteSpace(_idUsuarioAgente)) { await Dialogos.ErrorAsync("La ruta no tiene un agente predeterminado activo."); return; }
         if (_moneda == 2 && _tipoCambio is null) { await Dialogos.ErrorAsync("No se pudo obtener el tipo de cambio. Vuelva a seleccionar la moneda dólares."); return; }
         if (_idEmpresa <= 0) { await Dialogos.ErrorAsync("Seleccione una empresa para registrar la facturación."); return; }
         if (!EsConsignacion && _bodega <= 0) { await Dialogos.ErrorAsync("Seleccione la bodega de la que sale el inventario."); return; }

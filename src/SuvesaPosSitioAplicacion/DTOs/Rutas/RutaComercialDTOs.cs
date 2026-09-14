@@ -15,4 +15,5 @@ public sealed class RutaAgenteDTO
     public string IdUsuario { get; set; } = string.Empty;
     public string? Nombre { get; set; }
     public bool EsPredeterminado { get; set; }
+    public bool EsRutaPredeterminada { get; set; }
 }
