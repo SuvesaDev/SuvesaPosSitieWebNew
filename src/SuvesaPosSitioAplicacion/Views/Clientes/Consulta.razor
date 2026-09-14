@@ -14,6 +14,7 @@
 @inject IClienteBonificacion ClienteBonificacion
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IConfiguracionPlazosFiscales Plazos
 @inject IRelojEquipo RelojEquipo
+@inject IJSRuntime JS
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -31,6 +32,9 @@
 
 <AppPantalla Pantalla="@Titulo" Icono="bi-people-fill" Subtitulo="Consulta y alta de clientes y sus mascotas" Nivel="NivelPantalla.Movil">
     <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="ExportarCsv" disabled="@(_resultados.Count == 0)">
+            <i class="bi bi-file-earmark-spreadsheet me-1" aria-hidden="true"></i>Exportar CSV
+        </button>
         @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
         {
             <button class="btn btn-sm btn-primary" @onclick="Agregar">
@@ -657,6 +661,14 @@
     private string _estado = "A";   // "A" activos, "I" inactivos, "T" todos
     private List<FiltranClienteDTO> _todos = new();
     private List<FiltranClienteDTO> _resultados = new();
+
+    private async Task ExportarCsv()
+    {
+        static string Q(string? texto) => "\"" + (texto ?? string.Empty).Replace("\"", "\"\"") + "\"";
+        var csv = "Identificación,Cédula,Nombre,Teléfono,Correo,Dirección,Límite de crédito,Plazo de crédito (días),Estado\n"
+            + string.Join("\n", _resultados.Select(c => $"{c.Identificacion},{Q(c.Cedula)},{Q(c.Nombre)},{Q(c.Telefono_01)},{Q(c.E_Mail)},{Q(c.Direccion)},{c.Max_Credito},{c.Plazo_Credito},{(c.Abierto ? "Activo" : "Inactivo")}"));
+        await JS.InvokeVoidAsync("seepos.descargarTexto", $"clientes-{DateTime.Today:yyyyMMdd}.csv", csv, "text/csv;charset=utf-8");
+    }
     private FiltranClienteDTO? _elegido;
     private bool _buscando;
     private ClienteDTO? _edicion;

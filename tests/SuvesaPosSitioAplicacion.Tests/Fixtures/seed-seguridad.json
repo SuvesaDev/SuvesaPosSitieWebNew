@@ -408,11 +408,27 @@
       "icono": null,
       "funciones": [
         {
+          "codigo": "CONSIGNACION.TABLERO",
+          "nombre": "Tablero",
+          "ruta": "/consignment/dashboard",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "CONSIGNACION.BODEGAS_DE_CONSIGNACION",
           "nombre": "Bodegas de Consignación",
           "ruta": "/consignment/warehouses",
           "padre": null,
-          "orden": 1,
+          "orden": 2,
           "acciones": [
             "VER",
             "CREAR",
@@ -428,7 +444,7 @@
           "nombre": "Ajuste de Bodega de Consignación",
           "ruta": "/consignment/adjust",
           "padre": null,
-          "orden": 2,
+          "orden": 3,
           "acciones": [
             "VER",
             "CREAR",
@@ -444,7 +460,7 @@
           "nombre": "Inventario Físico de Consignación",
           "ruta": "/consignment/count",
           "padre": null,
-          "orden": 3,
+          "orden": 4,
           "acciones": [
             "VER",
             "CREAR",
@@ -460,7 +476,7 @@
           "nombre": "Kardex de Consignación",
           "ruta": "/consignment/ledger",
           "padre": null,
-          "orden": 4,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -476,7 +492,7 @@
           "nombre": "Facturacion de Consignaciones",
           "ruta": "/consignment/prebill",
           "padre": null,
-          "orden": 5,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",
@@ -492,7 +508,7 @@
           "nombre": "Estados de Consignación",
           "ruta": "/consignment/settlements",
           "padre": null,
-          "orden": 6,
+          "orden": 7,
           "acciones": [
             "VER",
             "CREAR",

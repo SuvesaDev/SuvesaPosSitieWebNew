@@ -277,6 +277,15 @@ public static partial class MenuSeePos
                 // retiró junto con sus endpoints en el API (§8).
                 new ItemMenu
                 {
+                    // Existía como pantalla huérfana (Codigo="CONSIGNACION.TABLERO" ya
+                    // escrito a mano en Tablero.razor, sin nodo de menú ni permiso
+                    // gobernado) — ver docs/PLAN_MODULO_REPORTES_ERP_WEB.md, bug #6.
+                    Titulo = "Tablero",
+                    Codigo = "CONSIGNACION.TABLERO",
+                    Ruta = "/consignment/dashboard",
+                },
+                new ItemMenu
+                {
                     Titulo = "Bodegas de Consignación",
                     Codigo = "CONSIGNACION.BODEGAS_DE_CONSIGNACION",
                     Ruta = "/consignment/warehouses",
