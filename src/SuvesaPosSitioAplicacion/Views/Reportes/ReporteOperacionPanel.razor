@@ -160,15 +160,11 @@
             <div class="card-body p-0">
                 <AppRejilla @ref="_rejilla" TItem="FilaReporteOperacionWebDTO" Datos="CargarRejilla" Nivel="NivelPantalla.Escritorio" TextoVacio="Seleccione un reporte y pulse Buscar.">
                     <Columnas>
-                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Fecha" ItemTextSelector="@(x => x.Fecha.ToString("dd/MM/yyyy HH:mm"))" SortKeySelector="x => x.Fecha" />
-                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Referencia" ItemTextSelector="x => x.Referencia" SortKeySelector="x => x.Referencia" />
-                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Entidad" ItemTextSelector="x => x.Entidad" SortKeySelector="x => x.Entidad" />
-                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Lote" ItemTextSelector="x => x.Lote" SortKeySelector="x => x.Lote" />
-                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Detalle" ItemTextSelector="x => x.Descripcion" />
-                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Cantidad" ItemTextSelector="@(x => x.Cantidad.ToString("N2"))" SortKeySelector="x => x.Cantidad" HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Monto" ItemTextSelector="@(x => Formato.Importe(x.Monto))" SortKeySelector="x => x.Monto" HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Saldo / existencia" ItemTextSelector="@(x => Formato.Importe(x.Saldo))" SortKeySelector="x => x.Saldo" HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                        <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="Estado" ItemTextSelector="x => x.Estado" SortKeySelector="x => x.Estado" />
+                        @foreach (var col in ColumnasActuales)
+                        {
+                            <HxGridColumn TItem="FilaReporteOperacionWebDTO" HeaderText="@col.Encabezado" ItemTextSelector="@col.Texto" SortKeySelector="@col.Orden"
+                                          HeaderCssClass="@(col.Numerica ? "seepos-importe" : null)" ItemCssClass="@(col.Numerica ? "seepos-importe" : null)" />
+                        }
                     </Columnas>
                 </AppRejilla>
             </div>
@@ -273,6 +269,65 @@
     private string Resumen => EsReporteComisiones
         ? $"{_comisiones.Movimientos.Count:N0} movimientos de comisión"
         : _reporte is null ? "" : $"{_reporte.TotalRegistros:N0} registros · {_reporte.Titulo}";
+
+    /// <summary>Una columna de la rejilla de detalle. Los 9 reportes que comparten
+    /// FilaReporteOperacionWebDTO (ver ApiSuvesaPos/Class/ReportesOperacionManager.cs)
+    /// meten datos de dominios muy distintos en los mismos campos genéricos — "Entidad"
+    /// es el cliente en Ventas, el artículo en Inventario, la ruta en KPI por ruta, etc.
+    /// Esta tabla traduce cada tipo de reporte a sus propios encabezados y a solo los
+    /// campos que ese reporte realmente usa, en vez de mostrar las 9 columnas genéricas
+    /// (incluyendo "Lote" o "Saldo" vacíos) en todos los reportes por igual.</summary>
+    private sealed record Columna(string Encabezado, System.Linq.Expressions.Expression<Func<FilaReporteOperacionWebDTO, IComparable>> Orden, Func<FilaReporteOperacionWebDTO, string> Texto, bool Numerica = false);
+
+    private static string FFecha(DateTime d) => d == default ? "" : d.ToString("dd/MM/yyyy HH:mm");
+    private static string FVence(DateTime? d) => d.HasValue ? d.Value.ToString("dd/MM/yyyy") : "";
+    private static string FMoneda(decimal v) => Formato.Importe(v);
+    private static string FCantidad(decimal v) => Formato.Cantidad(v);
+
+    private static Columna Col(string encabezado, System.Linq.Expressions.Expression<Func<FilaReporteOperacionWebDTO, IComparable>> orden, Func<FilaReporteOperacionWebDTO, string> texto, bool numerica = false)
+        => new(encabezado, orden, texto, numerica);
+
+    private static readonly Columna ColFecha = Col("Fecha", x => x.Fecha, x => FFecha(x.Fecha));
+    private static readonly Columna ColEstado = Col("Estado", x => x.Estado, x => x.Estado);
+    private static readonly Columna ColDetalle = Col("Detalle", x => x.Descripcion, x => x.Descripcion);
+    private static readonly Columna ColLote = Col("Lote", x => x.Lote, x => x.Lote);
+    private static readonly Columna ColVence = Col("Vence", x => x.FechaVencimiento ?? DateTime.MaxValue, x => FVence(x.FechaVencimiento));
+
+    private static readonly Dictionary<string, Columna[]> ColumnasPorTipo = new()
+    {
+        ["ventas"] = [ColFecha, Col("N° factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Saldo pendiente", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
+        ["ventas-detalle"] = [ColFecha, Col("Factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColLote, ColDetalle, Col("Cantidad", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Margen bruto", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
+        ["ventas-horas"] = [Col("Franja horaria", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Documentos", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Venta", x => x.Monto, x => FMoneda(x.Monto), true)],
+        ["clientes"] = [ColFecha, Col("Cliente", x => x.Entidad, x => x.Entidad), Col("Código", x => x.Referencia, x => x.Referencia), Col("Pedidos", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Venta total", x => x.Monto, x => FMoneda(x.Monto), true), Col("Ticket promedio", x => x.Saldo, x => FMoneda(x.Saldo), true), ColDetalle, ColEstado],
+        ["rentabilidad"] = [ColFecha, Col("Factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), Col("Venta", x => x.Monto, x => FMoneda(x.Monto), true), Col("Margen bruto", x => x.Cantidad, x => FMoneda(x.Cantidad), true), Col("Utilidad tras comisión", x => x.Saldo, x => FMoneda(x.Saldo), true), Col("Comisión", x => x.Estado, x => x.Estado)],
+        ["ventas-compras"] = [ColFecha, ColDetalle, Col("Ventas", x => x.Monto, x => FMoneda(x.Monto), true), Col("Diferencia", x => x.Saldo, x => FMoneda(x.Saldo), true)],
+        ["recuperacion-cxc"] = [ColFecha, Col("Recibo", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Saldo posterior", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
+        ["cuentas-por-cobrar"] = [Col("Cliente", x => x.Entidad, x => x.Entidad), Col("Factura", x => x.Referencia, x => x.Referencia), ColVence, Col("Saldo", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado, ColDetalle],
+        ["cuentas-por-pagar"] = [ColFecha, Col("Proveedor", x => x.Entidad, x => x.Entidad), Col("Factura", x => x.Referencia, x => x.Referencia), Col("Monto original", x => x.Monto, x => FMoneda(x.Monto), true), Col("Saldo", x => x.Saldo, x => FMoneda(x.Saldo), true), Col("Antigüedad", x => x.Estado, x => x.Estado)],
+        ["cabys"] = [Col("Artículo", x => x.Referencia, x => x.Referencia), Col("Descripción", x => x.Entidad, x => x.Entidad), Col("CABYS", x => x.Descripcion, x => x.Descripcion), ColEstado],
+        ["apartados"] = [ColFecha, Col("Apartado", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColVence, Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Saldo", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
+        ["kpi-rutas"] = [Col("Ruta", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Documentos", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Ventas", x => x.Monto, x => FMoneda(x.Monto), true), Col("Comisión", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
+        ["caja"] = [ColFecha, Col("Caja", x => x.Referencia, x => x.Referencia), Col("Usuario", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), ColEstado],
+        ["arqueos-cierres"] = [ColFecha, Col("Documento", x => x.Referencia, x => x.Referencia), Col("Responsable", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Monto sistema", x => x.Monto, x => FMoneda(x.Monto), true), Col("Total contado", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
+        ["depositos"] = [ColFecha, Col("Referencia", x => x.Referencia, x => x.Referencia), Col("Responsable", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Pendiente", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
+        ["compras"] = [ColFecha, Col("Factura", x => x.Referencia, x => x.Referencia), Col("Proveedor", x => x.Entidad, x => x.Entidad), Col("Condición", x => x.Descripcion, x => x.Descripcion), Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Saldo pendiente", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
+        ["gastos"] = [ColFecha, Col("Factura", x => x.Referencia, x => x.Referencia), Col("Proveedor", x => x.Entidad, x => x.Entidad), Col("Condición", x => x.Descripcion, x => x.Descripcion), Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Saldo pendiente", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
+        ["inventario"] = [Col("Artículo", x => x.Referencia, x => x.Referencia), Col("Descripción", x => x.Entidad, x => x.Entidad), ColLote, ColDetalle, Col("Existencia", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Costo unitario", x => x.Monto, x => FMoneda(x.Monto), true), Col("Valor total", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
+        ["inventario-abc"] = [Col("Artículo", x => x.Referencia, x => x.Referencia), Col("Descripción", x => x.Entidad, x => x.Entidad), Col("Unidades", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Venta", x => x.Monto, x => FMoneda(x.Monto), true), Col("% acumulado", x => x.Saldo, x => $"{x.Saldo:N1}%", true), Col("Clase", x => x.Estado, x => x.Estado)],
+        ["rotacion-inventario"] = [Col("Artículo", x => x.Referencia, x => x.Referencia), Col("Descripción", x => x.Entidad, x => x.Entidad), Col("Existencia", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Vendido", x => x.Monto, x => FCantidad(x.Monto), true), Col("DSI (días)", x => x.Saldo, x => FCantidad(x.Saldo), true), ColEstado, ColDetalle],
+        ["bonificaciones"] = [ColFecha, Col("Factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColLote, Col("Artículo", x => x.Descripcion, x => x.Descripcion), Col("Unidades", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Precio de lista", x => x.Monto, x => FMoneda(x.Monto), true), Col("Costo asumido", x => x.Saldo, x => FMoneda(x.Saldo), true)],
+        ["lotes"] = [ColVence, Col("Lote", x => x.Referencia, x => x.Referencia), Col("Artículo", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Cant. inicial", x => x.Monto, x => FCantidad(x.Monto), true), Col("Cant. actual", x => x.Cantidad, x => FCantidad(x.Cantidad), true), ColEstado],
+        ["trazabilidad"] = [ColFecha, Col("Movimiento", x => x.Referencia, x => x.Referencia), Col("Artículo", x => x.Entidad, x => x.Entidad), ColLote, ColDetalle, Col("Cantidad", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Existencia anterior", x => x.Monto, x => FCantidad(x.Monto), true), Col("Existencia nueva", x => x.Saldo, x => FCantidad(x.Saldo), true), ColEstado],
+        ["empaquetado"] = [ColFecha, Col("Documento", x => x.Referencia, x => x.Referencia), Col("Responsable", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Tipo", x => x.Estado, x => x.Estado)],
+        ["mermas"] = [ColFecha, Col("Artículo", x => x.Referencia, x => x.Referencia), Col("Descripción", x => x.Entidad, x => x.Entidad), ColLote, ColDetalle, Col("Unidades perdidas", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Costo unitario", x => x.Monto, x => FMoneda(x.Monto), true), Col("Costo total", x => x.Saldo, x => FMoneda(x.Saldo), true)],
+        ["auditoria"] = [ColFecha, Col("N°", x => x.Referencia, x => x.Referencia), Col("Usuario", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Acción", x => x.Estado, x => x.Estado)],
+    };
+
+    /// <summary>Columnas por defecto cuando el tipo no tiene configuración propia
+    /// (hoy solo "panel-ejecutivo", que no trae filas — solo indicadores).</summary>
+    private static readonly Columna[] ColumnasPorDefecto = [ColFecha, Col("Referencia", x => x.Referencia, x => x.Referencia), Col("Entidad", x => x.Entidad, x => x.Entidad), ColDetalle, ColEstado];
+
+    private Columna[] ColumnasActuales => ColumnasPorTipo.TryGetValue(_tipo, out var columnas) ? columnas : ColumnasPorDefecto;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
