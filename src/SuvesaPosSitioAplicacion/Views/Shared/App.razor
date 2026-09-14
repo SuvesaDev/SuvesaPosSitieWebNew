@@ -36,6 +36,21 @@
             enlace.href = URL.createObjectURL(new Blob([texto], { type: tipo }));
             enlace.download = nombre; enlace.click(); URL.revokeObjectURL(enlace.href);
         };
+        window.seepos.descargarUrl = async function (url) {
+            var respuesta = await fetch(url, { credentials: 'same-origin' });
+            if (!respuesta.ok) throw new Error('No se pudo generar el archivo (' + respuesta.status + ').');
+            var disposition = respuesta.headers.get('content-disposition') || '';
+            var coincidencia = /filename\*?=(?:UTF-8'')?\"?([^;\"]+)/i.exec(disposition);
+            var nombre = coincidencia ? decodeURIComponent(coincidencia[1].trim()) : 'reporte';
+            var enlace = document.createElement('a');
+            enlace.href = URL.createObjectURL(await respuesta.blob());
+            enlace.download = nombre;
+            enlace.style.display = 'none';
+            document.body.appendChild(enlace);
+            enlace.click();
+            enlace.remove();
+            setTimeout(function () { URL.revokeObjectURL(enlace.href); }, 0);
+        };
         (function () {
             try {
                 var guardado = localStorage.getItem('seepos.tema');

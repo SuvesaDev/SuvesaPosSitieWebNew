@@ -1,0 +1,99 @@
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Reportes
+@using SuvesaPosSitioAplicacion.Services
+
+@if (Filas.Count > 0)
+{
+    <section class="seepos-graficos-reporte row g-3 mb-3" aria-label="Gráficas del reporte">
+        <div class="col-12 col-xl-7">
+            <article class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-start justify-content-between gap-3 mb-2">
+                        <div>
+                            <h2 class="h6 mb-1">@TituloEvolucion</h2>
+                            <p class="small text-body-secondary mb-0">@DescripcionEvolucion</p>
+                        </div>
+                        <i class="bi bi-bar-chart-line text-primary fs-5" aria-hidden="true"></i>
+                    </div>
+                    <figure class="seepos-grafico mb-0">
+                        <svg viewBox="0 0 640 @AltoEvolucion" role="img" aria-labelledby="titulo-evolucion descripcion-evolucion" preserveAspectRatio="xMinYMin meet">
+                            <title id="titulo-evolucion">@TituloEvolucion</title>
+                            <desc id="descripcion-evolucion">@DescripcionEvolucion</desc>
+                            @for (var indice = 0; indice < _graficas.Evolucion.Count; indice++)
+                            {
+                                var punto = _graficas.Evolucion[indice];
+                                var y = 30 + (indice * 31);
+                                var ancho = Ancho(punto.Valor, _maximoEvolucion);
+                                <foreignObject x="0" y="@(y - 1)" width="140" height="22"><div xmlns="http://www.w3.org/1999/xhtml" class="seepos-grafico-etiqueta">@Abreviar(punto.Etiqueta, 18)</div></foreignObject>
+                                <rect class="seepos-grafico-pista" x="145" y="@y" width="360" height="18" rx="5" />
+                                <rect class="@(punto.Valor < 0 ? "seepos-grafico-barra-negativa" : "seepos-grafico-barra")" x="145" y="@y" width="@ancho" height="18" rx="5" />
+                                <foreignObject x="520" y="@(y - 1)" width="118" height="22"><div xmlns="http://www.w3.org/1999/xhtml" class="seepos-grafico-valor">@Formatear(punto.Valor)</div></foreignObject>
+                            }
+                        </svg>
+                        <figcaption class="visually-hidden">@DescripcionEvolucion</figcaption>
+                    </figure>
+                </div>
+            </article>
+        </div>
+        <div class="col-12 col-xl-5">
+            <article class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-start justify-content-between gap-3 mb-2">
+                        <div>
+                            <h2 class="h6 mb-1">@TituloEstados</h2>
+                            <p class="small text-body-secondary mb-0">@DescripcionEstados</p>
+                        </div>
+                        <i class="bi bi-pie-chart text-primary fs-5" aria-hidden="true"></i>
+                    </div>
+                    <figure class="seepos-grafico mb-0">
+                        <svg viewBox="0 0 520 @AltoEstados" role="img" aria-labelledby="titulo-estados descripcion-estados" preserveAspectRatio="xMinYMin meet">
+                            <title id="titulo-estados">@TituloEstados</title>
+                            <desc id="descripcion-estados">@DescripcionEstados</desc>
+                            @for (var indice = 0; indice < _graficas.Estados.Count; indice++)
+                            {
+                                var punto = _graficas.Estados[indice];
+                                var y = 30 + (indice * 31);
+                                var ancho = Ancho(punto.Valor, _maximoEstados);
+                                <foreignObject x="0" y="@(y - 1)" width="125" height="22"><div xmlns="http://www.w3.org/1999/xhtml" class="seepos-grafico-etiqueta">@Abreviar(punto.Etiqueta, 16)</div></foreignObject>
+                                <rect class="seepos-grafico-pista" x="130" y="@y" width="260" height="18" rx="5" />
+                                <rect class="seepos-grafico-barra-secundaria" x="130" y="@y" width="@ancho" height="18" rx="5" />
+                                <foreignObject x="405" y="@(y - 1)" width="110" height="22"><div xmlns="http://www.w3.org/1999/xhtml" class="seepos-grafico-valor">@Formatear(punto.Valor)</div></foreignObject>
+                            }
+                        </svg>
+                        <figcaption class="visually-hidden">@DescripcionEstados</figcaption>
+                    </figure>
+                </div>
+            </article>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public string TipoReporte { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public IReadOnlyList<FilaReporteOperacionWebDTO> Filas { get; set; } = [];
+
+    private ResumenGraficoOperacion _graficas = new("Evolución del reporte", "Distribución", "", "", false, [], []);
+    private decimal _maximoEvolucion;
+    private decimal _maximoEstados;
+
+    private bool EsCantidad => _graficas.EsCantidad;
+    private int AltoEvolucion => 42 + (Math.Max(1, _graficas.Evolucion.Count) * 31);
+    private int AltoEstados => 42 + (Math.Max(1, _graficas.Estados.Count) * 31);
+    private string TituloEvolucion => _graficas.TituloEvolucion;
+    private string TituloEstados => _graficas.TituloEstados;
+    private string DescripcionEvolucion => _graficas.DescripcionEvolucion;
+    private string DescripcionEstados => _graficas.DescripcionEstados;
+
+    protected override void OnParametersSet()
+    {
+        _graficas = ResumenGraficasReporteOperacion.Crear(TipoReporte, Filas);
+        _maximoEvolucion = _graficas.Evolucion.Select(x => Math.Abs(x.Valor)).DefaultIfEmpty(0).Max();
+        _maximoEstados = _graficas.Estados.Select(x => Math.Abs(x.Valor)).DefaultIfEmpty(0).Max();
+    }
+
+    private static decimal Ancho(decimal valor, decimal maximo)
+        => maximo == 0 ? 0 : Math.Max(2m, Math.Round(Math.Abs(valor) / maximo * 360, 2));
+
+    private string Formatear(decimal valor) => EsCantidad ? valor.ToString("N2") : Formato.Importe(valor);
+    private static string Abreviar(string texto, int maximo) => texto.Length <= maximo ? texto : $"{texto[..Math.Max(1, maximo - 1)]}…";
+}
