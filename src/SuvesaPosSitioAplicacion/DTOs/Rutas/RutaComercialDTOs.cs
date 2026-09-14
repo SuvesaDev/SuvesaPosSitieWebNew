@@ -7,6 +7,11 @@ public sealed class RutaComercialDTO
     public string? Observaciones { get; set; }
     public int? IdSucursal { get; set; }
     public bool Activo { get; set; } = true;
+    /// <summary>Especificacion_Funcional_Comisiones_TI §2.3: precedencia absoluta sobre
+    /// el % del artículo cuando no es null. Aplica al agente titular de la ruta.</summary>
+    public decimal? PorcentajeComisionAgente { get; set; }
+    /// <summary>Mismo criterio, para el Funcionario SAC que factura con esta ruta.</summary>
+    public decimal? PorcentajeComisionServicioCliente { get; set; }
     public List<RutaAgenteDTO> Agentes { get; set; } = new();
 }
 

@@ -19,14 +19,19 @@ documento (que sigue vigente salvo lo que se corrige acá):
   selección obligatoria, agente resultante no sustituible). El API tenía el mismo hueco en
   espejo (`ValidarRutaComercial` sin rama para `EsServicioAlCliente`) — se corrigió en el
   mismo cambio, ver plan API.
-- **ALTO — no hay pantalla para el "Módulo de Comisión" por ruta que pide la spec §2.3**
-  (porcentaje de comisión configurable por ruta, con precedencia absoluta sobre el del
-  artículo). No existe el campo en el modelo todavía — depende de que el API lo agregue
-  primero (ver plan API, Hallazgo 2). Cuando exista, la pantalla de "Rutas" (Parámetros)
-  es el lugar natural para editarlo, junto al resto de la configuración de ruta.
+- **ALTO — no había pantalla para el "Módulo de Comisión" por ruta que pide la spec §2.3
+  — ✅ corregido 14 sep 2026.** Confirmado por Producto que el porcentaje de ruta aplica
+  tanto a Agente como a SAC (no exclusivo de Agente). API: campos
+  `PorcentajeComisionAgente`/`PorcentajeComisionServicioCliente` en `RutaComercial` +
+  motor de cálculo con precedencia absoluta de ruta sobre artículo (ver plan API,
+  Hallazgo 2). Web: sección "Comisión por ruta" en el modal de edición de
+  `Views/Parametros/Rutas.razor`.
 - **MEDIO — conflicto de regla sobre "elegibilidad" vs. el punto 1 de "Regla confirmada"
-  más abajo en este documento.** Ver plan API, Hallazgo 3, para el detalle y las dos
-  lecturas posibles; requiere decisión de Producto antes de tocar código en ningún lado.
+  más abajo en este documento — ✅ resuelto 14 sep 2026, Opción B.** Se generó el
+  movimiento en cuanto la venta es Hacienda-aceptada/Interna, con `EstadoCobro`
+  ("Pendiente"/"Cancelada") separado, y el **corte** (no la generación) es el que exige
+  cobro. Ver plan API, Hallazgo 3, para el detalle. El punto 1 de "Regla confirmada" más
+  abajo queda desactualizado por este cambio — no aplica más.
 - Confirmado sin cambios: cálculo, bonificaciones a $0, reversiones de devolución,
   consulta/detalle/resumen, cierre y exportación — todo lo demás en este documento sigue
   describiendo lo que ya existe y funciona.
@@ -146,12 +151,12 @@ reemplazarlos al actualizar contratos.
 
 ## Regla confirmada y decisiones pendientes antes de habilitar producción
 
-1. Las facturas de crédito y contado solo generan comisión al estar totalmente
-   canceladas. Hacienda aceptada sigue siendo requisito fiscal previo, pero no es
-   suficiente por sí sola. **⚠️ En conflicto con `Especificacion_Funcional_Comisiones_TI
-   (2).docx` §4.1** (esa spec separa "elegible" = solo Hacienda aceptada, de "incluida en
-   el corte" = además cobrada) — ver la auditoría al inicio de este documento. No cambiar
-   sin que Producto confirme cuál de las dos lecturas rige.
+1. ~~Las facturas de crédito y contado solo generan comisión al estar totalmente
+   canceladas.~~ **Superado 14 sep 2026** — Producto confirmó la lectura de
+   `Especificacion_Funcional_Comisiones_TI (2).docx` §4.1: el movimiento se genera en
+   cuanto la venta es Hacienda-aceptada/Interna (`EstadoCobro = "Pendiente"` si aún no está
+   cobrada); es el **corte** el que exige `EstadoCobro == "Cancelada"`. Ver la auditoría al
+   inicio de este documento y plan API, Hallazgo 3.
 2. Confirmar la regla para un emisor `EsAgente` con varias rutas: se recomienda una
    única ruta predeterminada activa por sucursal.
 3. Confirmar prioridad para usuarios con ambos perfiles; la recomendación actual es

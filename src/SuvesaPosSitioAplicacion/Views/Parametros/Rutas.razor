@@ -44,6 +44,9 @@
                     <div class="col-12 col-md-7"><AppCampoTexto Etiqueta="Nombre de la ruta" @bind-Valor="_edicion.Nombre" Requerido="true" /></div>
                     <div class="col-12 col-md-5"><div class="form-check form-switch mt-4"><input id="ruta-activa" class="form-check-input" type="checkbox" @bind="_edicion.Activo" /><label class="form-check-label" for="ruta-activa">Ruta activa</label></div></div>
                     <div class="col-12"><AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" /></div>
+                    <div class="col-12 seepos-form-seccion">Comisión por ruta <span class="text-secondary fw-normal">(si se indica, sustituye el % del artículo)</span></div>
+                    <div class="col-12 col-md-6"><HxInputNumber Label="% comisión agente" @bind-Value="_edicion.PorcentajeComisionAgente" Decimals="4" Min="0" Max="100" /></div>
+                    <div class="col-12 col-md-6"><HxInputNumber Label="% comisión Servicio al Cliente" @bind-Value="_edicion.PorcentajeComisionServicioCliente" Decimals="4" Min="0" Max="100" /></div>
                     <div class="col-12 seepos-form-seccion">Agentes asignados</div>
                     @if (_agentesElegibles.Count == 0) { <div class="col-12 text-secondary">No hay usuarios activos con el perfil <strong>Es agente</strong>.</div> }
                     @foreach (var agente in _agentesElegibles)
@@ -74,7 +77,7 @@
     private async Task<GridDataProviderResult<RutaComercialDTO>> Cargar(GridDataProviderRequest<RutaComercialDTO> request) { if (!_cargado) { _rutas = ((await Respuestas.DatoAsync(await Api.Listar(Sesion.IdSucursal), "consultar las rutas")) ?? Array.Empty<RutaComercialDTO>()).ToList(); _cargado = true; } return request.ApplyTo(_rutas); }
     private async Task Recargar() { _cargado = false; if (_rejilla is not null) await _rejilla.RefrescarAsync(); }
     private async Task Nueva() { _edicion = new RutaComercialDTO { IdSucursal = Sesion.IdSucursal, Activo = true }; await _modal.ShowAsync(); }
-    private async Task Editar(RutaComercialDTO ruta) { _edicion = new RutaComercialDTO { IdRuta = ruta.IdRuta, Nombre = ruta.Nombre, Observaciones = ruta.Observaciones, IdSucursal = ruta.IdSucursal, Activo = ruta.Activo, Agentes = ruta.Agentes.Select(a => new RutaAgenteDTO { IdUsuario = a.IdUsuario, Nombre = a.Nombre, EsPredeterminado = a.EsPredeterminado, EsRutaPredeterminada = a.EsRutaPredeterminada }).ToList() }; await _modal.ShowAsync(); }
+    private async Task Editar(RutaComercialDTO ruta) { _edicion = new RutaComercialDTO { IdRuta = ruta.IdRuta, Nombre = ruta.Nombre, Observaciones = ruta.Observaciones, IdSucursal = ruta.IdSucursal, Activo = ruta.Activo, PorcentajeComisionAgente = ruta.PorcentajeComisionAgente, PorcentajeComisionServicioCliente = ruta.PorcentajeComisionServicioCliente, Agentes = ruta.Agentes.Select(a => new RutaAgenteDTO { IdUsuario = a.IdUsuario, Nombre = a.Nombre, EsPredeterminado = a.EsPredeterminado, EsRutaPredeterminada = a.EsRutaPredeterminada }).ToList() }; await _modal.ShowAsync(); }
     private bool EstaAsignado(string idUsuario) => _edicion?.Agentes.Any(a => a.IdUsuario == idUsuario) == true;
     private bool EsPredeterminado(string idUsuario) => _edicion?.Agentes.Any(a => a.IdUsuario == idUsuario && a.EsPredeterminado) == true;
     private bool EsRutaPredeterminada(string idUsuario) => _edicion?.Agentes.Any(a => a.IdUsuario == idUsuario && a.EsRutaPredeterminada) == true;
