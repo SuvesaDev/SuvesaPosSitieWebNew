@@ -622,6 +622,15 @@ public static partial class MenuSeePos
             {
                 new ItemMenu
                 {
+                    // KPIs consolidados de Ventas, CxC, Compras, Gastos, Inventario y
+                    // Mermas — reusa los mismos indicadores que cada pestaña de detalle
+                    // (ReportesOperacionManager.PanelEjecutivoAsync), no fórmulas propias.
+                    Titulo = "Panel ejecutivo",
+                    Codigo = "MODULO_REPORTES.PANEL_EJECUTIVO",
+                    Ruta = "/moduloReportes?tipo=panel-ejecutivo",
+                },
+                new ItemMenu
+                {
                     Titulo = "Ventas",
                     Codigo = "MODULO_REPORTES.VENTAS",
                     Ruta = "/moduloReportes?tipo=ventas",

@@ -111,7 +111,7 @@ public class FiltroMenuTests
         Assert.Equal(10, MenuSeePos.Items.Count);
         // 84 originales + 19 (arbol de permisos MODULO_REPORTES.*) + 2 (Gastos,
         // Cumplimiento CABYS) + 4 (Apartados y préstamos, KPI por ruta, Empaquetado y
-        // maquila, Mermas) — ver PLAN_MODULO_REPORTES_ERP_WEB.md.
-        Assert.Equal(109, Contar(MenuSeePos.Items));
+        // maquila, Mermas) + 1 (Panel ejecutivo) — ver PLAN_MODULO_REPORTES_ERP_WEB.md.
+        Assert.Equal(110, Contar(MenuSeePos.Items));
     }
 }

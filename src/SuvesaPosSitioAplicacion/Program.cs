@@ -394,7 +394,7 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
     // Lista completa de los 19 tipos que expone ReportesOperacionController. Antes solo
     // cubría 11: el botón Exportar del hub (Views/Reportes/Compras.razor) se mostraba
     // igual para los 8 restantes y el usuario recibía un 404 silencioso al exportar.
-    if (tipo is not ("ventas" or "ventas-detalle" or "clientes" or "rentabilidad" or "ventas-compras"
+    if (tipo is not ("panel-ejecutivo" or "ventas" or "ventas-detalle" or "clientes" or "rentabilidad" or "ventas-compras"
         or "cuentas-por-cobrar" or "recuperacion-cxc" or "cabys" or "apartados" or "kpi-rutas" or "cuentas-por-pagar"
         or "caja" or "arqueos-cierres" or "depositos" or "compras" or "gastos"
         or "inventario" or "inventario-abc" or "rotacion-inventario" or "bonificaciones" or "empaquetado" or "mermas"

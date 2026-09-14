@@ -189,7 +189,15 @@ Resolver la deuda de W0–W2 antes de sumar los reportes nuevos o pasar a W3, po
 
 - Activar ABC, DSI, margen y comportamiento de clientes solo al aprobar fórmulas y fuentes.
 - Agregar rutas, cuotas, visitas, flete y OTIF después de que sus módulos transaccionales existan y pasen pruebas de calidad de datos.
-- Nuevo en esta revisión: evaluar aquí el **dashboard ejecutivo/BI** pedido en `Reportes_ERP_Distribuidora_Consolidado_Optimizado vf.docx` (sección 7) — decidir si se construye un panel propio (reutilizando/absorbiendo `Tablero.razor` de consignación como precedente) o si el entregable es un feed/export pensado para Power BI/Tableau en vez de un dashboard propio.
+
+### Panel ejecutivo — ✅ hecho 14 sep 2026 (versión mínima, sin librería de gráficos)
+
+Pestaña **"Panel ejecutivo"** (`panel-ejecutivo`, permiso `MODULO_REPORTES.PANEL_EJECUTIVO`), nuevo grupo "Panel ejecutivo" al frente del hub (`Views/Reportes/Compras.razor`). Muestra las 12 tarjetas de indicador que ya devuelve `PanelEjecutivoAsync` (API) — reutiliza el mismo componente de tarjetas que cualquier otro reporte, sin trabajo de UI adicional. No tiene filas (`Filas` vacío), así que la grilla y el gráfico de barras quedan vacíos por diseño (`AppGraficosReporte` ya se oculta solo cuando `Filas.Count == 0`).
+
+**Lo que NO incluye, deliberadamente, por alcance:**
+- **Sin librería de gráficos real.** Sigue sin haber Chart.js/ApexCharts/etc. en el proyecto — el panel es 12 tarjetas de número, no gráficos. Adoptar una librería queda como decisión de Producto/Diseño aparte (bug/deuda #5 de `## Estado actual auditado`, sigue abierto).
+- **Sin feed para Power BI/Tableau.** La recomendación de `Reportes_ERP_Distribuidora_Consolidado_Optimizado vf.docx` (sección 7) de conectar una herramienta de BI externa no se atendió — el panel es una pantalla propia, no un export/API pensado para eso.
+- **No absorbió `Views/Consignacion/Tablero.razor`** (seguía huérfano del menú, bug #6 de `## Estado actual auditado`) — quedan como dos paneles separados; evaluar si conviene fusionarlos más adelante.
 
 ## Pruebas y aceptación web
 
