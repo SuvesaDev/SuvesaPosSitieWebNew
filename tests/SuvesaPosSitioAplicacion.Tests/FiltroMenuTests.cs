@@ -109,6 +109,8 @@ public class FiltroMenuTests
     {
         static int Contar(IEnumerable<ItemMenu> ns) => ns.Sum(n => 1 + Contar(n.Hijos));
         Assert.Equal(10, MenuSeePos.Items.Count);
-        Assert.Equal(84, Contar(MenuSeePos.Items));
+        // +19: "Módulo Reportes" pasó de hoja unica a grupo con un hijo por tipo de
+        // reporte (arbol de permisos MODULO_REPORTES.* — ver PLAN_MODULO_REPORTES_ERP_WEB.md).
+        Assert.Equal(103, Contar(MenuSeePos.Items));
     }
 }

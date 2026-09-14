@@ -15,8 +15,10 @@
 @inject IManejadorRespuestas Respuestas
 @inject IRelojEquipo RelojEquipo
 @inject IJSRuntime JS
+@inject IContextoSesion Sesion
+@using SuvesaPosSitioAplicacion.Security
 
-<AppPantalla Pantalla="@Titulo" Codigo="MODULO_REPORTES.MODULO_REPORTES" Nivel="NivelPantalla.Escritorio">
+<AppPantalla Pantalla="@Titulo" Codigo="MODULO_REPORTES" Nivel="NivelPantalla.Escritorio">
     <Acciones>
         <button class="btn btn-sm btn-outline-secondary" @onclick="Consultar" disabled="@_cargando" title="Actualizar reporte">
             <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
@@ -27,7 +29,7 @@
             <div class="card-header bg-transparent p-0">
                 <nav aria-label="Dominios de reportes">
                     <div class="nav nav-tabs seepos-pestanas-reportes" role="tablist">
-                        @foreach (var dominio in Grupos)
+                        @foreach (var dominio in GruposVisibles)
                         {
                             <button type="button" role="tab" aria-selected="@(dominio.Id == _grupoActivo)"
                                     class="nav-link @(dominio.Id == _grupoActivo ? "active" : string.Empty)"
@@ -43,7 +45,7 @@
                 {
                     <div class="d-flex flex-wrap align-items-center gap-2">
                         <span class="small text-body-secondary me-1">Reportes disponibles:</span>
-                        @foreach (var opcion in grupo.Opciones)
+                        @foreach (var opcion in OpcionesVisibles(grupo))
                         {
                             <button type="button" class="btn btn-sm @(opcion.Valor == _tipo ? "btn-primary" : "btn-outline-primary")" @onclick="() => CambiarTipo(opcion.Valor)">@opcion.Texto</button>
                         }
@@ -147,15 +149,53 @@
 
 @code {
     private const string Titulo = "Módulo Reportes";
+    // El Codigo de cada opción es la función de MenuSeePos.cs (MODULO_REPORTES.*) que le
+    // corresponde — generado por tools/anotar_codigos_menu.py. "comisiones" reutiliza el
+    // permiso propio de esa pantalla (VENTAS.COMISIONES), no uno de Reportes, porque ya
+    // tenía su menú y su controlador aparte.
     private static readonly GrupoReportes[] Grupos =
     [
-        new("ventas-cartera", "Ventas y cartera", "bi-receipt", [("ventas", "Ventas"), ("ventas-detalle", "Ventas detalladas"), ("clientes", "Clientes y comportamiento"), ("rentabilidad", "Rentabilidad"), ("ventas-compras", "Ventas vs. compras"), ("cuentas-por-cobrar", "CxC y antigüedad"), ("recuperacion-cxc", "Recuperación CxC"), ("comisiones", "Comisiones")]),
-        new("caja-bancos", "Caja y bancos", "bi-cash-stack", [("caja", "Movimientos"), ("arqueos-cierres", "Arqueos y cierres"), ("depositos", "Depósitos")]),
-        new("compras", "Compras", "bi-cart-check", [("compras", "Compras y devoluciones"), ("cuentas-por-pagar", "Abonos CxP")]),
-        new("inventario", "Inventario", "bi-box-seam", [("inventario", "Existencias y lotes"), ("inventario-abc", "ABC y Pareto"), ("rotacion-inventario", "Rotación y reorden"), ("lotes", "Vencimiento de lotes"), ("trazabilidad", "Trazabilidad por lotes"), ("bonificaciones", "Bonificaciones y regalías"), ("auditoria", "Auditoría")])
+        new("ventas-cartera", "Ventas y cartera", "bi-receipt",
+        [
+            ("ventas", "Ventas", "MODULO_REPORTES.VENTAS"),
+            ("ventas-detalle", "Ventas detalladas", "MODULO_REPORTES.VENTAS_DETALLE"),
+            ("clientes", "Clientes y comportamiento", "MODULO_REPORTES.COMPORTAMIENTO_DE_CLIENTES"),
+            ("rentabilidad", "Rentabilidad", "MODULO_REPORTES.RENTABILIDAD"),
+            ("ventas-compras", "Ventas vs. compras", "MODULO_REPORTES.VENTAS_VS_COMPRAS"),
+            ("cuentas-por-cobrar", "CxC y antigüedad", "MODULO_REPORTES.CUENTAS_POR_COBRAR"),
+            ("recuperacion-cxc", "Recuperación CxC", "MODULO_REPORTES.RECUPERACION_DE_CARTERA"),
+            ("comisiones", "Comisiones", "VENTAS.COMISIONES"),
+        ]),
+        new("caja-bancos", "Caja y bancos", "bi-cash-stack",
+        [
+            ("caja", "Movimientos", "MODULO_REPORTES.CAJA"),
+            ("arqueos-cierres", "Arqueos y cierres", "MODULO_REPORTES.ARQUEOS_Y_CIERRES"),
+            ("depositos", "Depósitos", "MODULO_REPORTES.DEPOSITOS"),
+        ]),
+        new("compras", "Compras", "bi-cart-check",
+        [
+            ("compras", "Compras y devoluciones", "MODULO_REPORTES.COMPRAS"),
+            ("cuentas-por-pagar", "Abonos CxP", "MODULO_REPORTES.CUENTAS_POR_PAGAR"),
+        ]),
+        new("inventario", "Inventario", "bi-box-seam",
+        [
+            ("inventario", "Existencias y lotes", "MODULO_REPORTES.INVENTARIO"),
+            ("inventario-abc", "ABC y Pareto", "MODULO_REPORTES.INVENTARIO_ABC"),
+            ("rotacion-inventario", "Rotación y reorden", "MODULO_REPORTES.ROTACION_DE_INVENTARIO"),
+            ("lotes", "Vencimiento de lotes", "MODULO_REPORTES.LOTES_Y_VENCIMIENTOS"),
+            ("trazabilidad", "Trazabilidad por lotes", "MODULO_REPORTES.TRAZABILIDAD"),
+            ("bonificaciones", "Bonificaciones y regalías", "MODULO_REPORTES.BONIFICACIONES"),
+            ("auditoria", "Auditoría", "MODULO_REPORTES.AUDITORIA"),
+        ]),
     ];
+
+    /// <summary>Deep link desde el menú: <c>/moduloReportes?tipo=cuentas-por-cobrar</c>.</summary>
+    [Parameter, SupplyParameterFromQuery(Name = "tipo")] public string? TipoQuery { get; set; }
+
     private string _tipo = "ventas";
     private string _grupoActivo = "ventas-cartera";
+    private IEnumerable<GrupoReportes> GruposVisibles => Grupos.Where(g => OpcionesVisibles(g).Any());
+    private IEnumerable<(string Valor, string Texto, string Codigo)> OpcionesVisibles(GrupoReportes g) => g.Opciones.Where(o => Sesion.PuedeVer(o.Codigo));
     private GrupoReportes? GrupoActivo => Grupos.FirstOrDefault(x => x.Id == _grupoActivo);
     private string _texto = string.Empty;
     private DateTime? _desde;
@@ -188,9 +228,30 @@
         if (!firstRender) return;
         _hasta = await RelojEquipo.HoyAsync();
         _desde = _hasta.Value.AddDays(-30);
+        await Sesion.CargarAsync();
+        AplicarTipoDesdeQuery();
         await CargarCatalogosAsync();
         await Consultar();
         StateHasChanged();
+    }
+
+    /// <summary>Si el menú trajo <c>?tipo=</c> y el usuario puede verlo, abre esa pestaña.
+    /// Si no, cae en el primer reporte visible del primer grupo visible.</summary>
+    private void AplicarTipoDesdeQuery()
+    {
+        var grupo = !string.IsNullOrWhiteSpace(TipoQuery)
+            ? Grupos.FirstOrDefault(g => OpcionesVisibles(g).Any(o => o.Valor == TipoQuery))
+            : null;
+        if (grupo is not null)
+        {
+            _grupoActivo = grupo.Id;
+            _tipo = TipoQuery!;
+            return;
+        }
+        var primerGrupoVisible = GruposVisibles.FirstOrDefault();
+        if (primerGrupoVisible is null) return;
+        _grupoActivo = primerGrupoVisible.Id;
+        _tipo = OpcionesVisibles(primerGrupoVisible).First().Valor;
     }
 
     private async Task CambiarTipo(string tipo)
@@ -203,7 +264,7 @@
     {
         if (_grupoActivo == grupo) return;
         _grupoActivo = grupo;
-        var primerReporte = GrupoActivo?.Opciones.FirstOrDefault().Valor;
+        var primerReporte = GrupoActivo is null ? null : OpcionesVisibles(GrupoActivo).FirstOrDefault().Valor;
         if (!string.IsNullOrWhiteSpace(primerReporte)) await CambiarTipo(primerReporte);
     }
 
@@ -327,5 +388,5 @@
         return new GridDataProviderResult<FilaReporteOperacionWebDTO> { Data = datos?.Filas ?? [], TotalCount = datos?.TotalRegistros ?? 0 };
     }
 
-    private sealed record GrupoReportes(string Id, string Nombre, string Icono, (string Valor, string Texto)[] Opciones);
+    private sealed record GrupoReportes(string Id, string Nombre, string Icono, (string Valor, string Texto, string Codigo)[] Opciones);
 }

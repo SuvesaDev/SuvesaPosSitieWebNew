@@ -610,9 +610,131 @@ public static partial class MenuSeePos
         new ItemMenu
         {
             Titulo = "Módulo Reportes",
-            Codigo = "MODULO_REPORTES.MODULO_REPORTES",
+            Codigo = "MODULO_REPORTES",
             Ruta = "/moduloReportes",
             Icono = "bi-bar-chart-fill",
+            // Un hijo por cada "tipo" que expone ReportesOperacionController (18 en la API
+            // mas Compras). La ruta lleva ?tipo= para que el hijo abra directo en esa
+            // pestaña del hub (Views/Reportes/Compras.razor lee ese parametro). El permiso
+            // por hijo (MODULO_REPORTES.<CODIGO>) reemplaza el permiso plano unico que
+            // gobernaba todo el modulo — ver docs/PLAN_MODULO_REPORTES_ERP_WEB.md, bug #4.
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Ventas",
+                    Codigo = "MODULO_REPORTES.VENTAS",
+                    Ruta = "/moduloReportes?tipo=ventas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Ventas detalle",
+                    Codigo = "MODULO_REPORTES.VENTAS_DETALLE",
+                    Ruta = "/moduloReportes?tipo=ventas-detalle",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Comportamiento de clientes",
+                    Codigo = "MODULO_REPORTES.COMPORTAMIENTO_DE_CLIENTES",
+                    Ruta = "/moduloReportes?tipo=clientes",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Rentabilidad",
+                    Codigo = "MODULO_REPORTES.RENTABILIDAD",
+                    Ruta = "/moduloReportes?tipo=rentabilidad",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Ventas vs compras",
+                    Codigo = "MODULO_REPORTES.VENTAS_VS_COMPRAS",
+                    Ruta = "/moduloReportes?tipo=ventas-compras",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Recuperación de cartera",
+                    Codigo = "MODULO_REPORTES.RECUPERACION_DE_CARTERA",
+                    Ruta = "/moduloReportes?tipo=recuperacion-cxc",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Cuentas por cobrar",
+                    Codigo = "MODULO_REPORTES.CUENTAS_POR_COBRAR",
+                    Ruta = "/moduloReportes?tipo=cuentas-por-cobrar",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Cuentas por pagar",
+                    Codigo = "MODULO_REPORTES.CUENTAS_POR_PAGAR",
+                    Ruta = "/moduloReportes?tipo=cuentas-por-pagar",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Caja",
+                    Codigo = "MODULO_REPORTES.CAJA",
+                    Ruta = "/moduloReportes?tipo=caja",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Arqueos y cierres",
+                    Codigo = "MODULO_REPORTES.ARQUEOS_Y_CIERRES",
+                    Ruta = "/moduloReportes?tipo=arqueos-cierres",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Depósitos",
+                    Codigo = "MODULO_REPORTES.DEPOSITOS",
+                    Ruta = "/moduloReportes?tipo=depositos",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Compras",
+                    Codigo = "MODULO_REPORTES.COMPRAS",
+                    Ruta = "/moduloReportes?tipo=compras",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Inventario",
+                    Codigo = "MODULO_REPORTES.INVENTARIO",
+                    Ruta = "/moduloReportes?tipo=inventario",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Inventario ABC",
+                    Codigo = "MODULO_REPORTES.INVENTARIO_ABC",
+                    Ruta = "/moduloReportes?tipo=inventario-abc",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Rotación de inventario",
+                    Codigo = "MODULO_REPORTES.ROTACION_DE_INVENTARIO",
+                    Ruta = "/moduloReportes?tipo=rotacion-inventario",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Bonificaciones",
+                    Codigo = "MODULO_REPORTES.BONIFICACIONES",
+                    Ruta = "/moduloReportes?tipo=bonificaciones",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Lotes y vencimientos",
+                    Codigo = "MODULO_REPORTES.LOTES_Y_VENCIMIENTOS",
+                    Ruta = "/moduloReportes?tipo=lotes",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Trazabilidad",
+                    Codigo = "MODULO_REPORTES.TRAZABILIDAD",
+                    Ruta = "/moduloReportes?tipo=trazabilidad",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Auditoría",
+                    Codigo = "MODULO_REPORTES.AUDITORIA",
+                    Ruta = "/moduloReportes?tipo=auditoria",
+                },
+            }
         }
     }
     .OrderBy(i => string.Equals(i.Codigo, "PARAMETROS", StringComparison.Ordinal) ? 1 : 0)

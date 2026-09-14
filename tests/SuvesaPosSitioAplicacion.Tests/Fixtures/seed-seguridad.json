@@ -640,11 +640,299 @@
       "icono": "bi-bar-chart-fill",
       "funciones": [
         {
-          "codigo": "MODULO_REPORTES.MODULO_REPORTES",
-          "nombre": "Módulo Reportes",
-          "ruta": "/moduloReportes",
+          "codigo": "MODULO_REPORTES.VENTAS",
+          "nombre": "Ventas",
+          "ruta": "/moduloReportes?tipo=ventas",
           "padre": null,
           "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.VENTAS_DETALLE",
+          "nombre": "Ventas detalle",
+          "ruta": "/moduloReportes?tipo=ventas-detalle",
+          "padre": null,
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.COMPORTAMIENTO_DE_CLIENTES",
+          "nombre": "Comportamiento de clientes",
+          "ruta": "/moduloReportes?tipo=clientes",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.RENTABILIDAD",
+          "nombre": "Rentabilidad",
+          "ruta": "/moduloReportes?tipo=rentabilidad",
+          "padre": null,
+          "orden": 4,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.VENTAS_VS_COMPRAS",
+          "nombre": "Ventas vs compras",
+          "ruta": "/moduloReportes?tipo=ventas-compras",
+          "padre": null,
+          "orden": 5,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.RECUPERACION_DE_CARTERA",
+          "nombre": "Recuperación de cartera",
+          "ruta": "/moduloReportes?tipo=recuperacion-cxc",
+          "padre": null,
+          "orden": 6,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.CUENTAS_POR_COBRAR",
+          "nombre": "Cuentas por cobrar",
+          "ruta": "/moduloReportes?tipo=cuentas-por-cobrar",
+          "padre": null,
+          "orden": 7,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.CUENTAS_POR_PAGAR",
+          "nombre": "Cuentas por pagar",
+          "ruta": "/moduloReportes?tipo=cuentas-por-pagar",
+          "padre": null,
+          "orden": 8,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.CAJA",
+          "nombre": "Caja",
+          "ruta": "/moduloReportes?tipo=caja",
+          "padre": null,
+          "orden": 9,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.ARQUEOS_Y_CIERRES",
+          "nombre": "Arqueos y cierres",
+          "ruta": "/moduloReportes?tipo=arqueos-cierres",
+          "padre": null,
+          "orden": 10,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.DEPOSITOS",
+          "nombre": "Depósitos",
+          "ruta": "/moduloReportes?tipo=depositos",
+          "padre": null,
+          "orden": 11,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.COMPRAS",
+          "nombre": "Compras",
+          "ruta": "/moduloReportes?tipo=compras",
+          "padre": null,
+          "orden": 12,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.INVENTARIO",
+          "nombre": "Inventario",
+          "ruta": "/moduloReportes?tipo=inventario",
+          "padre": null,
+          "orden": 13,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.INVENTARIO_ABC",
+          "nombre": "Inventario ABC",
+          "ruta": "/moduloReportes?tipo=inventario-abc",
+          "padre": null,
+          "orden": 14,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.ROTACION_DE_INVENTARIO",
+          "nombre": "Rotación de inventario",
+          "ruta": "/moduloReportes?tipo=rotacion-inventario",
+          "padre": null,
+          "orden": 15,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.BONIFICACIONES",
+          "nombre": "Bonificaciones",
+          "ruta": "/moduloReportes?tipo=bonificaciones",
+          "padre": null,
+          "orden": 16,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.LOTES_Y_VENCIMIENTOS",
+          "nombre": "Lotes y vencimientos",
+          "ruta": "/moduloReportes?tipo=lotes",
+          "padre": null,
+          "orden": 17,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.TRAZABILIDAD",
+          "nombre": "Trazabilidad",
+          "ruta": "/moduloReportes?tipo=trazabilidad",
+          "padre": null,
+          "orden": 18,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.AUDITORIA",
+          "nombre": "Auditoría",
+          "ruta": "/moduloReportes?tipo=auditoria",
+          "padre": null,
+          "orden": 19,
           "acciones": [
             "VER",
             "CREAR",
