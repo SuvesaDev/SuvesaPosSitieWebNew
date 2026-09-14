@@ -107,10 +107,10 @@ Del anexo "extras" (notas de seguimiento comercial, boletas de cambio, validaci�
 
 ### Fase dos requiere validación de datos o nueva captura
 
-- ABC/Pareto, rotación y DSI: viables tras acordar costo base, periodo de consumo, existencia por bodega y tratamiento de bonificaciones/devoluciones.
-- Margen por factura, artículo, vendedor y cliente: requiere costo histórico congelado por línea de venta y una regla para flete, comisiones y costos indirectos.
-- Comisiones, cumplimiento de cuota, rentabilidad por agente y zona: no deben construirse hasta tener metas por agente y periodo, reglas de comisión y costos asociados.
-- Cobertura, visitas, efectividad de ruta, OTIF, carga de vehículos y heatmap: requieren entidad de ruta, planificación, visita real, entrega, motivo de incumplimiento, vehículo y geolocalización. No se infieren desde facturas.
+- ✅ ABC/Pareto, rotación y DSI — construidos (pestañas `inventario-abc`, `rotacion-inventario`); falta solo el sign-off de Producto sobre los cortes 80/95% y la ventana de días, no desarrollo.
+- ✅ Margen por factura y por línea — construido, y con costo histórico real (`VentasDetalle.PrecioCosto`/`CostoReal`, instantánea al facturar, no el costo actual del catálogo). El punto original de este documento asumía que faltaba ese dato; no era así — ver plan API, A3. Margen por vendedor/cliente agregado y una regla explícita de flete/costos indirectos siguen sin construir.
+- Comisiones, cumplimiento de cuota, rentabilidad por agente y zona: comisiones y rentabilidad por ruta ya existen (`comisiones`, `kpi-rutas`); cumplimiento de cuota sigue bloqueado — no hay metas por agente/periodo capturadas en ningún lado.
+- Cobertura, visitas, efectividad de ruta, OTIF, carga de vehículos y heatmap: **confirmado sin modelo transaccional** (`RutaComercial`/`RutaComercialAgente` son catálogo puro, sin tabla de visita/plan/entrega/vehículo). Sigue siendo captura nueva completa, no un reporte — necesita alcance de Producto primero (ver plan API, A3).
 - Churn, reactivación y penetración de catálogo: requieren periodos y definición comercial aprobada; sí pueden iniciar como análisis de última compra y familias compradas.
 - Mermas, quiebres y ventas perdidas: los ajustes existen, pero hace falta clasificar motivo, capturar demanda no atendida y distinguir vencimiento, daño, pérdida y conteo físico.
 - Trazabilidad inversa de producción: hay cabecera y líneas de producción, pero se debe confirmar que cada insumo y producto terminado guarda lote y cantidad trazable.
