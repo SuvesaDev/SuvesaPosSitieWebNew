@@ -1,9 +1,11 @@
 @page "/moduloReportes"
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.DTOs.Reportes
+@using SuvesaPosSitioAplicacion.DTOs.Comisiones
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IReportesOperacion Api
+@inject IComisiones ComisionesApi
 @inject IClientesConsulta Clientes
 @inject IProveedoresConsulta Proveedores
 @inject IInventarioConsulta Inventarios
@@ -53,19 +55,49 @@
         <AppFiltros Titulo="Filtros" AlBuscar="Consultar" AlLimpiar="Limpiar" Buscando="_cargando" Resumen="@Resumen">
             <div class="col-12 col-md-3"><AppCampoFecha Etiqueta="Desde" @bind-Valor="_desde" /></div>
             <div class="col-12 col-md-3"><AppCampoFecha Etiqueta="Hasta" @bind-Valor="_hasta" /></div>
-            <div class="col-12 col-md-5">
-                <label class="form-label small">Texto, documento, cliente, proveedor o artículo</label>
-                <input class="form-control" @bind="_texto" @bind:event="onchange" placeholder="Escriba para filtrar…" />
-            </div>
+            @if (!EsReporteComisiones)
+            {
+                <div class="col-12 col-md-5">
+                    <label class="form-label small">Texto, documento, cliente, proveedor o artículo</label>
+                    <input class="form-control" @bind="_texto" @bind:event="onchange" placeholder="Escriba para filtrar…" />
+                </div>
+            }
             <div class="col-12 col-md-3"><label class="form-label small">Sucursal</label><select class="form-select" @bind="_idSucursal"><option value="">Todas las sucursales</option>@foreach (var sucursal in _sucursales) { <option value="@sucursal.Id">@sucursal.NombreComercial</option> }</select></div>
+            @if (EsReporteComisiones)
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Liquidación</label><select class="form-select" @bind="_estadoComision"><option value="">Todas</option><option>Pendiente</option><option>Liquidada</option></select></div>
+            }
+            @if (!EsReporteComisiones)
+            {
             <div class="col-12 col-md-3"><label class="form-label small">Empresa</label><select class="form-select" @bind="_idEmpresa"><option value="">Todas las empresas</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
             <div class="col-12 col-md-4"><label class="form-label small">Cliente</label><select class="form-select" @bind="_idCliente"><option value="">Todos los clientes</option>@foreach (var cliente in _clientes) { <option value="@cliente.Identificacion">@cliente.Cedula — @cliente.Nombre</option> }</select></div>
             <div class="col-12 col-md-4"><label class="form-label small">Proveedor</label><select class="form-select" @bind="_idProveedor"><option value="">Todos los proveedores</option>@foreach (var proveedor in _proveedores) { <option value="@proveedor.CodigoProv">@proveedor.Cedula — @proveedor.Nombre</option> }</select></div>
             <div class="col-12 col-md-4"><label class="form-label small">Artículo</label><select class="form-select" @bind="_idArticulo"><option value="">Todos los artículos</option>@foreach (var articulo in _articulos) { <option value="@articulo.Codigo">@articulo.Cod_Articulo — @articulo.Descripcion</option> }</select></div>
             <div class="col-12 col-md-3"><label class="form-label small">Bodega</label><select class="form-select" @bind="_idBodega"><option value="">Todas las bodegas</option>@foreach (var bodega in _bodegas) { <option value="@bodega.IdBodega">@bodega.NombreBodega</option> }</select></div>
             <div class="col-12 col-md-3"><label class="form-label small">Buscar lote</label><input class="form-control" @bind="_numeroLote" @bind:event="onchange" placeholder="Número de lote" /></div>
+            }
         </AppFiltros>
 
+        @if (EsReporteComisiones)
+        {
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                <div class="small text-body-secondary"><i class="bi bi-cash-coin me-1" aria-hidden="true"></i>Solo facturas aceptadas y totalmente canceladas.</div>
+                <button class="btn btn-sm btn-outline-success" @onclick="ExportarComisionesXlsx" disabled="@(!_comisiones.Movimientos.Any() || _cargando)"><i class="bi bi-file-earmark-spreadsheet me-1" aria-hidden="true"></i>Excel</button>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-12 col-md-4"><div class="card h-100"><div class="card-body py-3"><div class="small text-body-secondary">Comisiones</div><div class="fs-5 fw-semibold seepos-importe">@Formato.Importe(_comisiones.Movimientos.Sum(x => x.Importe))</div></div></div></div>
+                <div class="col-12 col-md-4"><div class="card h-100"><div class="card-body py-3"><div class="small text-body-secondary">Movimientos</div><div class="fs-5 fw-semibold">@_comisiones.Movimientos.Count</div></div></div></div>
+                <div class="col-12 col-md-4"><div class="card h-100"><div class="card-body py-3"><div class="small text-body-secondary">Beneficiarios</div><div class="fs-5 fw-semibold">@_comisiones.Resumen.Select(x => x.Beneficiario).Distinct(StringComparer.OrdinalIgnoreCase).Count()</div></div></div></div>
+            </div>
+            <div class="card mb-3"><div class="card-header"><strong>Resumen por beneficiario</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Beneficiario</th><th>Tipo</th><th class="text-end">Movimientos</th><th class="text-end">Total</th></tr></thead><tbody>
+                @foreach (var fila in _comisiones.Resumen) { <tr><td>@fila.Beneficiario</td><td>@fila.TipoBeneficiario</td><td class="text-end">@fila.Movimientos</td><td class="text-end fw-semibold">@Formato.Importe(fila.Importe)</td></tr> }
+                @if (!_comisiones.Resumen.Any()) { <tr><td colspan="4" class="text-secondary">No hay comisiones para los filtros indicados.</td></tr> }
+            </tbody></table></div></div></div>
+            <div class="card"><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Fecha</th><th>Documento</th><th>Beneficiario</th><th>Artículo</th><th class="text-end">Base</th><th class="text-end">%</th><th class="text-end">Comisión</th><th>Liquidación</th></tr></thead><tbody>
+                @foreach (var fila in _comisiones.Movimientos) { <tr><td>@fila.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td><code>@fila.Documento</code></td><td>@fila.Beneficiario <small class="text-secondary d-block">@fila.TipoBeneficiario</small></td><td>@fila.Articulo</td><td class="text-end">@Formato.Importe(fila.Base)</td><td class="text-end">@fila.Porcentaje.ToString("N2")%</td><td class="text-end fw-semibold">@Formato.Importe(fila.Importe)</td><td><span class="badge @(fila.EstadoLiquidacion == "Liquidada" ? "text-bg-secondary" : "text-bg-success")">@fila.EstadoLiquidacion</span></td></tr> }
+                @if (!_comisiones.Movimientos.Any()) { <tr><td colspan="8" class="text-secondary">Sin movimientos.</td></tr> }
+            </tbody></table></div></div></div>
+        }
         @if (_reporte is not null)
         {
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
@@ -93,7 +125,7 @@
             <AppGraficosReporte TipoReporte="_tipo" Filas="_reporte.Filas" />
         }
 
-        <div class="card">
+        @if (!EsReporteComisiones) { <div class="card">
             <div class="card-body p-0">
                 <AppRejilla @ref="_rejilla" TItem="FilaReporteOperacionWebDTO" Datos="CargarRejilla" Nivel="NivelPantalla.Escritorio" TextoVacio="Seleccione un reporte y pulse Buscar.">
                     <Columnas>
@@ -109,7 +141,7 @@
                     </Columnas>
                 </AppRejilla>
             </div>
-        </div>
+        </div> }
     </ChildContent>
 </AppPantalla>
 
@@ -117,10 +149,10 @@
     private const string Titulo = "Módulo Reportes";
     private static readonly GrupoReportes[] Grupos =
     [
-        new("ventas-cartera", "Ventas y cartera", "bi-receipt", [("ventas", "Ventas"), ("cuentas-por-cobrar", "CxC y antigüedad")]),
+        new("ventas-cartera", "Ventas y cartera", "bi-receipt", [("ventas", "Ventas"), ("ventas-detalle", "Ventas detalladas"), ("clientes", "Clientes y comportamiento"), ("rentabilidad", "Rentabilidad"), ("ventas-compras", "Ventas vs. compras"), ("cuentas-por-cobrar", "CxC y antigüedad"), ("recuperacion-cxc", "Recuperación CxC"), ("comisiones", "Comisiones")]),
         new("caja-bancos", "Caja y bancos", "bi-cash-stack", [("caja", "Movimientos"), ("arqueos-cierres", "Arqueos y cierres"), ("depositos", "Depósitos")]),
         new("compras", "Compras", "bi-cart-check", [("compras", "Compras y devoluciones"), ("cuentas-por-pagar", "Abonos CxP")]),
-        new("inventario", "Inventario", "bi-box-seam", [("inventario", "Existencias y lotes"), ("lotes", "Vencimiento de lotes"), ("trazabilidad", "Trazabilidad por lotes"), ("auditoria", "Auditoría")])
+        new("inventario", "Inventario", "bi-box-seam", [("inventario", "Existencias y lotes"), ("inventario-abc", "ABC y Pareto"), ("rotacion-inventario", "Rotación y reorden"), ("lotes", "Vencimiento de lotes"), ("trazabilidad", "Trazabilidad por lotes"), ("bonificaciones", "Bonificaciones y regalías"), ("auditoria", "Auditoría")])
     ];
     private string _tipo = "ventas";
     private string _grupoActivo = "ventas-cartera";
@@ -135,6 +167,7 @@
     private long? _idArticulo;
     private int? _idBodega;
     private string _numeroLote = string.Empty;
+    private string _estadoComision = string.Empty;
     private List<SucursalDTO> _sucursales = new();
     private List<EmpresaDTO> _empresas = new();
     private List<FiltranClienteDTO> _clientes = new();
@@ -144,7 +177,11 @@
     private bool _cargando;
     private AppRejilla<FilaReporteOperacionWebDTO>? _rejilla;
     private ReporteOperacionWebDTO? _reporte;
-    private string Resumen => _reporte is null ? "" : $"{_reporte.TotalRegistros:N0} registros · {_reporte.Titulo}";
+    private ComisionConsultaDTO _comisiones = new();
+    private bool EsReporteComisiones => _tipo == "comisiones";
+    private string Resumen => EsReporteComisiones
+        ? $"{_comisiones.Movimientos.Count:N0} movimientos de comisión"
+        : _reporte is null ? "" : $"{_reporte.TotalRegistros:N0} registros · {_reporte.Titulo}";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -176,6 +213,15 @@
         _cargando = true;
         try
         {
+            if (EsReporteComisiones)
+            {
+                _comisiones = (await Respuestas.DatoAsync(await ComisionesApi.Consultar(new FiltroComisionesDTO
+                {
+                    Desde = _desde, Hasta = _hasta, IdSucursal = _idSucursal, EstadoLiquidacion = _estadoComision
+                }), "consultar el reporte de comisiones")) ?? new();
+                _reporte = null;
+                return;
+            }
             _reporte = await Respuestas.DatoAsync(await Api.Consultar(_tipo, new FiltroReporteOperacionWebDTO
             {
                 Desde = _desde,
@@ -210,6 +256,7 @@
         _idArticulo = null;
         _idBodega = null;
         _numeroLote = string.Empty;
+        _estadoComision = string.Empty;
         _hasta = await RelojEquipo.HoyAsync();
         _desde = _hasta.Value.AddDays(-30);
         await Consultar();
@@ -254,6 +301,16 @@
 
     private Task ExportarExcel() => Exportar("excel");
     private Task ExportarPdf() => Exportar("pdf");
+
+    private async Task ExportarComisionesXlsx()
+    {
+        var archivo = await Respuestas.DatoAsync(await ComisionesApi.ExportarXlsx(new FiltroComisionesDTO
+        {
+            Desde = _desde, Hasta = _hasta, IdSucursal = _idSucursal, EstadoLiquidacion = _estadoComision
+        }), "exportar el reporte de comisiones a Excel");
+        if (archivo is not null && archivo.Contenido.Length > 0)
+            await JS.InvokeVoidAsync("seepos.descargarBase64", archivo.Nombre, Convert.ToBase64String(archivo.Contenido), archivo.TipoContenido);
+    }
 
     private async Task<GridDataProviderResult<FilaReporteOperacionWebDTO>> CargarRejilla(GridDataProviderRequest<FilaReporteOperacionWebDTO> peticion)
     {
