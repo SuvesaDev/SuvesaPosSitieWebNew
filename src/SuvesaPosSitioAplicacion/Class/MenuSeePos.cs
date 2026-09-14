@@ -636,76 +636,76 @@ public static partial class MenuSeePos
                     // (ReportesOperacionManager.PanelEjecutivoAsync), no fórmulas propias.
                     Titulo = "Panel ejecutivo",
                     Codigo = "MODULO_REPORTES.PANEL_EJECUTIVO",
-                    Ruta = "/moduloReportes?tipo=panel-ejecutivo",
+                    Ruta = "/moduloReportes/panel-ejecutivo",
                 },
                 new ItemMenu
                 {
                     Titulo = "Ventas",
                     Codigo = "MODULO_REPORTES.VENTAS",
-                    Ruta = "/moduloReportes?tipo=ventas",
+                    Ruta = "/moduloReportes/ventas",
                 },
                 new ItemMenu
                 {
                     Titulo = "Ventas detalle",
                     Codigo = "MODULO_REPORTES.VENTAS_DETALLE",
-                    Ruta = "/moduloReportes?tipo=ventas-detalle",
+                    Ruta = "/moduloReportes/ventas-detalle",
                 },
                 new ItemMenu
                 {
                     // Catálogo submenú Ventas N°10 ("Reporte de Ventas entre Horas").
                     Titulo = "Ventas entre horas",
                     Codigo = "MODULO_REPORTES.VENTAS_ENTRE_HORAS",
-                    Ruta = "/moduloReportes?tipo=ventas-horas",
+                    Ruta = "/moduloReportes/ventas-horas",
                 },
                 new ItemMenu
                 {
                     Titulo = "Comportamiento de clientes",
                     Codigo = "MODULO_REPORTES.COMPORTAMIENTO_DE_CLIENTES",
-                    Ruta = "/moduloReportes?tipo=clientes",
+                    Ruta = "/moduloReportes/clientes",
                 },
                 new ItemMenu
                 {
                     Titulo = "Rentabilidad",
                     Codigo = "MODULO_REPORTES.RENTABILIDAD",
-                    Ruta = "/moduloReportes?tipo=rentabilidad",
+                    Ruta = "/moduloReportes/rentabilidad",
                 },
                 new ItemMenu
                 {
                     Titulo = "Ventas vs compras",
                     Codigo = "MODULO_REPORTES.VENTAS_VS_COMPRAS",
-                    Ruta = "/moduloReportes?tipo=ventas-compras",
+                    Ruta = "/moduloReportes/ventas-compras",
                 },
                 new ItemMenu
                 {
                     Titulo = "Recuperación de cartera",
                     Codigo = "MODULO_REPORTES.RECUPERACION_DE_CARTERA",
-                    Ruta = "/moduloReportes?tipo=recuperacion-cxc",
+                    Ruta = "/moduloReportes/recuperacion-cxc",
                 },
                 new ItemMenu
                 {
                     Titulo = "Cuentas por cobrar",
                     Codigo = "MODULO_REPORTES.CUENTAS_POR_COBRAR",
-                    Ruta = "/moduloReportes?tipo=cuentas-por-cobrar",
+                    Ruta = "/moduloReportes/cuentas-por-cobrar",
                 },
                 new ItemMenu
                 {
                     // Submenú Ventas N°9 del catálogo (Reportes_ERP_Distribuidora...docx).
                     Titulo = "Cumplimiento CABYS",
                     Codigo = "MODULO_REPORTES.CUMPLIMIENTO_CABYS",
-                    Ruta = "/moduloReportes?tipo=cabys",
+                    Ruta = "/moduloReportes/cabys",
                 },
                 new ItemMenu
                 {
                     Titulo = "Cuentas por pagar",
                     Codigo = "MODULO_REPORTES.CUENTAS_POR_PAGAR",
-                    Ruta = "/moduloReportes?tipo=cuentas-por-pagar",
+                    Ruta = "/moduloReportes/cuentas-por-pagar",
                 },
                 new ItemMenu
                 {
                     // Catálogo N°7 ("Reporte de Apartados y Préstamos").
                     Titulo = "Apartados y préstamos",
                     Codigo = "MODULO_REPORTES.APARTADOS_Y_PRESTAMOS",
-                    Ruta = "/moduloReportes?tipo=apartados",
+                    Ruta = "/moduloReportes/apartados",
                 },
                 new ItemMenu
                 {
@@ -713,31 +713,31 @@ public static partial class MenuSeePos
                     // atendidos y comisión generada por ruta comercial.
                     Titulo = "KPI por ruta comercial",
                     Codigo = "MODULO_REPORTES.KPI_POR_RUTA_COMERCIAL",
-                    Ruta = "/moduloReportes?tipo=kpi-rutas",
+                    Ruta = "/moduloReportes/kpi-rutas",
                 },
                 new ItemMenu
                 {
                     Titulo = "Caja",
                     Codigo = "MODULO_REPORTES.CAJA",
-                    Ruta = "/moduloReportes?tipo=caja",
+                    Ruta = "/moduloReportes/caja",
                 },
                 new ItemMenu
                 {
                     Titulo = "Arqueos y cierres",
                     Codigo = "MODULO_REPORTES.ARQUEOS_Y_CIERRES",
-                    Ruta = "/moduloReportes?tipo=arqueos-cierres",
+                    Ruta = "/moduloReportes/arqueos-cierres",
                 },
                 new ItemMenu
                 {
                     Titulo = "Depósitos",
                     Codigo = "MODULO_REPORTES.DEPOSITOS",
-                    Ruta = "/moduloReportes?tipo=depositos",
+                    Ruta = "/moduloReportes/depositos",
                 },
                 new ItemMenu
                 {
                     Titulo = "Compras",
                     Codigo = "MODULO_REPORTES.COMPRAS",
-                    Ruta = "/moduloReportes?tipo=compras",
+                    Ruta = "/moduloReportes/compras",
                 },
                 new ItemMenu
                 {
@@ -745,50 +745,50 @@ public static partial class MenuSeePos
                     // misma tabla, filtrado por Compras.Gasto = true.
                     Titulo = "Gastos",
                     Codigo = "MODULO_REPORTES.GASTOS",
-                    Ruta = "/moduloReportes?tipo=gastos",
+                    Ruta = "/moduloReportes/gastos",
                 },
                 new ItemMenu
                 {
                     Titulo = "Inventario",
                     Codigo = "MODULO_REPORTES.INVENTARIO",
-                    Ruta = "/moduloReportes?tipo=inventario",
+                    Ruta = "/moduloReportes/inventario",
                 },
                 new ItemMenu
                 {
                     Titulo = "Inventario ABC",
                     Codigo = "MODULO_REPORTES.INVENTARIO_ABC",
-                    Ruta = "/moduloReportes?tipo=inventario-abc",
+                    Ruta = "/moduloReportes/inventario-abc",
                 },
                 new ItemMenu
                 {
                     Titulo = "Rotación de inventario",
                     Codigo = "MODULO_REPORTES.ROTACION_DE_INVENTARIO",
-                    Ruta = "/moduloReportes?tipo=rotacion-inventario",
+                    Ruta = "/moduloReportes/rotacion-inventario",
                 },
                 new ItemMenu
                 {
                     Titulo = "Bonificaciones",
                     Codigo = "MODULO_REPORTES.BONIFICACIONES",
-                    Ruta = "/moduloReportes?tipo=bonificaciones",
+                    Ruta = "/moduloReportes/bonificaciones",
                 },
                 new ItemMenu
                 {
                     Titulo = "Lotes y vencimientos",
                     Codigo = "MODULO_REPORTES.LOTES_Y_VENCIMIENTOS",
-                    Ruta = "/moduloReportes?tipo=lotes",
+                    Ruta = "/moduloReportes/lotes",
                 },
                 new ItemMenu
                 {
                     Titulo = "Trazabilidad",
                     Codigo = "MODULO_REPORTES.TRAZABILIDAD",
-                    Ruta = "/moduloReportes?tipo=trazabilidad",
+                    Ruta = "/moduloReportes/trazabilidad",
                 },
                 new ItemMenu
                 {
                     // Catálogo N°13 ("Reporte de Empaquetado / Maquila").
                     Titulo = "Empaquetado y maquila",
                     Codigo = "MODULO_REPORTES.EMPAQUETADO_Y_MAQUILA",
-                    Ruta = "/moduloReportes?tipo=empaquetado",
+                    Ruta = "/moduloReportes/empaquetado",
                 },
                 new ItemMenu
                 {
@@ -796,13 +796,13 @@ public static partial class MenuSeePos
                     // diferencias negativas de toma física (ver nota en el manager).
                     Titulo = "Mermas",
                     Codigo = "MODULO_REPORTES.MERMAS",
-                    Ruta = "/moduloReportes?tipo=mermas",
+                    Ruta = "/moduloReportes/mermas",
                 },
                 new ItemMenu
                 {
                     Titulo = "Auditoría",
                     Codigo = "MODULO_REPORTES.AUDITORIA",
-                    Ruta = "/moduloReportes?tipo=auditoria",
+                    Ruta = "/moduloReportes/auditoria",
                 },
             }
         }
