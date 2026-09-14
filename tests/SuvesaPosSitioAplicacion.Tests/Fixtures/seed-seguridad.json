@@ -704,11 +704,27 @@
           ]
         },
         {
+          "codigo": "MODULO_REPORTES.VENTAS_ENTRE_HORAS",
+          "nombre": "Ventas entre horas",
+          "ruta": "/moduloReportes?tipo=ventas-horas",
+          "padre": null,
+          "orden": 4,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "MODULO_REPORTES.COMPORTAMIENTO_DE_CLIENTES",
           "nombre": "Comportamiento de clientes",
           "ruta": "/moduloReportes?tipo=clientes",
           "padre": null,
-          "orden": 4,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -724,7 +740,7 @@
           "nombre": "Rentabilidad",
           "ruta": "/moduloReportes?tipo=rentabilidad",
           "padre": null,
-          "orden": 5,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",
@@ -740,7 +756,7 @@
           "nombre": "Ventas vs compras",
           "ruta": "/moduloReportes?tipo=ventas-compras",
           "padre": null,
-          "orden": 6,
+          "orden": 7,
           "acciones": [
             "VER",
             "CREAR",
@@ -756,7 +772,7 @@
           "nombre": "Recuperación de cartera",
           "ruta": "/moduloReportes?tipo=recuperacion-cxc",
           "padre": null,
-          "orden": 7,
+          "orden": 8,
           "acciones": [
             "VER",
             "CREAR",
@@ -772,7 +788,7 @@
           "nombre": "Cuentas por cobrar",
           "ruta": "/moduloReportes?tipo=cuentas-por-cobrar",
           "padre": null,
-          "orden": 8,
+          "orden": 9,
           "acciones": [
             "VER",
             "CREAR",
@@ -788,7 +804,7 @@
           "nombre": "Cumplimiento CABYS",
           "ruta": "/moduloReportes?tipo=cabys",
           "padre": null,
-          "orden": 9,
+          "orden": 10,
           "acciones": [
             "VER",
             "CREAR",
@@ -804,7 +820,7 @@
           "nombre": "Cuentas por pagar",
           "ruta": "/moduloReportes?tipo=cuentas-por-pagar",
           "padre": null,
-          "orden": 10,
+          "orden": 11,
           "acciones": [
             "VER",
             "CREAR",
@@ -820,7 +836,7 @@
           "nombre": "Apartados y préstamos",
           "ruta": "/moduloReportes?tipo=apartados",
           "padre": null,
-          "orden": 11,
+          "orden": 12,
           "acciones": [
             "VER",
             "CREAR",
@@ -836,7 +852,7 @@
           "nombre": "KPI por ruta comercial",
           "ruta": "/moduloReportes?tipo=kpi-rutas",
           "padre": null,
-          "orden": 12,
+          "orden": 13,
           "acciones": [
             "VER",
             "CREAR",
@@ -852,7 +868,7 @@
           "nombre": "Caja",
           "ruta": "/moduloReportes?tipo=caja",
           "padre": null,
-          "orden": 13,
+          "orden": 14,
           "acciones": [
             "VER",
             "CREAR",
@@ -868,7 +884,7 @@
           "nombre": "Arqueos y cierres",
           "ruta": "/moduloReportes?tipo=arqueos-cierres",
           "padre": null,
-          "orden": 14,
+          "orden": 15,
           "acciones": [
             "VER",
             "CREAR",
@@ -884,7 +900,7 @@
           "nombre": "Depósitos",
           "ruta": "/moduloReportes?tipo=depositos",
           "padre": null,
-          "orden": 15,
+          "orden": 16,
           "acciones": [
             "VER",
             "CREAR",
@@ -900,7 +916,7 @@
           "nombre": "Compras",
           "ruta": "/moduloReportes?tipo=compras",
           "padre": null,
-          "orden": 16,
+          "orden": 17,
           "acciones": [
             "VER",
             "CREAR",
@@ -916,7 +932,7 @@
           "nombre": "Gastos",
           "ruta": "/moduloReportes?tipo=gastos",
           "padre": null,
-          "orden": 17,
+          "orden": 18,
           "acciones": [
             "VER",
             "CREAR",
@@ -932,7 +948,7 @@
           "nombre": "Inventario",
           "ruta": "/moduloReportes?tipo=inventario",
           "padre": null,
-          "orden": 18,
+          "orden": 19,
           "acciones": [
             "VER",
             "CREAR",
@@ -948,7 +964,7 @@
           "nombre": "Inventario ABC",
           "ruta": "/moduloReportes?tipo=inventario-abc",
           "padre": null,
-          "orden": 19,
+          "orden": 20,
           "acciones": [
             "VER",
             "CREAR",
@@ -964,7 +980,7 @@
           "nombre": "Rotación de inventario",
           "ruta": "/moduloReportes?tipo=rotacion-inventario",
           "padre": null,
-          "orden": 20,
+          "orden": 21,
           "acciones": [
             "VER",
             "CREAR",
@@ -980,7 +996,7 @@
           "nombre": "Bonificaciones",
           "ruta": "/moduloReportes?tipo=bonificaciones",
           "padre": null,
-          "orden": 21,
+          "orden": 22,
           "acciones": [
             "VER",
             "CREAR",
@@ -996,7 +1012,7 @@
           "nombre": "Lotes y vencimientos",
           "ruta": "/moduloReportes?tipo=lotes",
           "padre": null,
-          "orden": 22,
+          "orden": 23,
           "acciones": [
             "VER",
             "CREAR",
@@ -1012,7 +1028,7 @@
           "nombre": "Trazabilidad",
           "ruta": "/moduloReportes?tipo=trazabilidad",
           "padre": null,
-          "orden": 23,
+          "orden": 24,
           "acciones": [
             "VER",
             "CREAR",
@@ -1028,7 +1044,7 @@
           "nombre": "Empaquetado y maquila",
           "ruta": "/moduloReportes?tipo=empaquetado",
           "padre": null,
-          "orden": 24,
+          "orden": 25,
           "acciones": [
             "VER",
             "CREAR",
@@ -1044,7 +1060,7 @@
           "nombre": "Mermas",
           "ruta": "/moduloReportes?tipo=mermas",
           "padre": null,
-          "orden": 25,
+          "orden": 26,
           "acciones": [
             "VER",
             "CREAR",
@@ -1060,7 +1076,7 @@
           "nombre": "Auditoría",
           "ruta": "/moduloReportes?tipo=auditoria",
           "padre": null,
-          "orden": 26,
+          "orden": 27,
           "acciones": [
             "VER",
             "CREAR",

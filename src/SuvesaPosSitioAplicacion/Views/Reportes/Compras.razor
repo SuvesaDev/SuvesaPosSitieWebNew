@@ -12,6 +12,7 @@
 @inject ISeguridad Seguridad
 @inject IFacturacion Facturacion
 @inject ICompras ComprasApi
+@inject IFamilias FamiliasApi
 @inject IManejadorRespuestas Respuestas
 @inject IRelojEquipo RelojEquipo
 @inject IJSRuntime JS
@@ -77,6 +78,21 @@
             <div class="col-12 col-md-4"><label class="form-label small">Artículo</label><select class="form-select" @bind="_idArticulo"><option value="">Todos los artículos</option>@foreach (var articulo in _articulos) { <option value="@articulo.Codigo">@articulo.Cod_Articulo — @articulo.Descripcion</option> }</select></div>
             <div class="col-12 col-md-3"><label class="form-label small">Bodega</label><select class="form-select" @bind="_idBodega"><option value="">Todas las bodegas</option>@foreach (var bodega in _bodegas) { <option value="@bodega.IdBodega">@bodega.NombreBodega</option> }</select></div>
             <div class="col-12 col-md-3"><label class="form-label small">Buscar lote</label><input class="form-control" @bind="_numeroLote" @bind:event="onchange" placeholder="Número de lote" /></div>
+            }
+            @if (EsReporteVentas)
+            {
+            <div class="col-12 col-md-3"><label class="form-label small">Agente (login)</label><input class="form-control" @bind="_idAgente" @bind:event="onchange" placeholder="Ej. jperez" /></div>
+            <div class="col-12 col-md-3"><label class="form-label small">Tipo de venta</label><select class="form-select" @bind="_tipoVenta"><option value="">Contado y crédito</option><option value="01">Contado</option><option value="02">Crédito</option></select></div>
+            @if (_tipo == "ventas-detalle")
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Familia</label><select class="form-select" @bind="_idFamilia"><option value="">Todas las familias</option>@foreach (var familia in _familias) { <option value="@familia.Codigo">@familia.Descripcion</option> }</select></div>
+            }
+            <div class="col-12 col-md-3 d-flex align-items-end">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="fIncluirAnuladas" @bind="_incluirAnuladas" />
+                    <label class="form-check-label small" for="fIncluirAnuladas">Incluir anuladas</label>
+                </div>
+            </div>
             }
         </AppFiltros>
 
@@ -163,6 +179,7 @@
         [
             ("ventas", "Ventas", "MODULO_REPORTES.VENTAS"),
             ("ventas-detalle", "Ventas detalladas", "MODULO_REPORTES.VENTAS_DETALLE"),
+            ("ventas-horas", "Ventas entre horas", "MODULO_REPORTES.VENTAS_ENTRE_HORAS"),
             ("clientes", "Clientes y comportamiento", "MODULO_REPORTES.COMPORTAMIENTO_DE_CLIENTES"),
             ("rentabilidad", "Rentabilidad", "MODULO_REPORTES.RENTABILIDAD"),
             ("ventas-compras", "Ventas vs. compras", "MODULO_REPORTES.VENTAS_VS_COMPRAS"),
@@ -218,17 +235,23 @@
     private int? _idBodega;
     private string _numeroLote = string.Empty;
     private string _estadoComision = string.Empty;
+    private string _idAgente = string.Empty;
+    private int? _idFamilia;
+    private string _tipoVenta = string.Empty;
+    private bool _incluirAnuladas;
     private List<SucursalDTO> _sucursales = new();
     private List<EmpresaDTO> _empresas = new();
     private List<FiltranClienteDTO> _clientes = new();
     private List<ProveedorDTO> _proveedores = new();
     private List<InventarioDTO> _articulos = new();
     private List<Bodega> _bodegas = new();
+    private List<FamiliaDTO> _familias = new();
     private bool _cargando;
     private AppRejilla<FilaReporteOperacionWebDTO>? _rejilla;
     private ReporteOperacionWebDTO? _reporte;
     private ComisionConsultaDTO _comisiones = new();
     private bool EsReporteComisiones => _tipo == "comisiones";
+    private bool EsReporteVentas => _tipo is "ventas" or "ventas-detalle" or "ventas-horas";
     private string Resumen => EsReporteComisiones
         ? $"{_comisiones.Movimientos.Count:N0} movimientos de comisión"
         : _reporte is null ? "" : $"{_reporte.TotalRegistros:N0} registros · {_reporte.Titulo}";
@@ -305,6 +328,10 @@
                 IdArticulo = _idArticulo,
                 IdBodega = _idBodega,
                 NumeroLote = string.IsNullOrWhiteSpace(_numeroLote) ? null : _numeroLote.Trim(),
+                IdAgente = string.IsNullOrWhiteSpace(_idAgente) ? null : _idAgente.Trim(),
+                IdFamilia = _tipo == "ventas-detalle" ? _idFamilia : null,
+                TipoVenta = string.IsNullOrWhiteSpace(_tipoVenta) ? null : _tipoVenta,
+                IncluirAnuladas = _incluirAnuladas,
                 Pagina = 1,
                 // La rejilla pide sus páginas al servidor por separado. Esta
                 // consulta alimenta indicadores y gráficas, así que debe usar
@@ -328,6 +355,10 @@
         _idBodega = null;
         _numeroLote = string.Empty;
         _estadoComision = string.Empty;
+        _idAgente = string.Empty;
+        _idFamilia = null;
+        _tipoVenta = string.Empty;
+        _incluirAnuladas = false;
         _hasta = await RelojEquipo.HoyAsync();
         _desde = _hasta.Value.AddDays(-30);
         await Consultar();
@@ -341,12 +372,14 @@
         var proveedores = await Proveedores.Obtener();
         var articulos = await Inventarios.Listar();
         var bodegas = await ComprasApi.Bodegas(false);
+        var familias = await FamiliasApi.Obtener();
         _sucursales = sucursales.EsCorrecta ? (sucursales.Responses ?? []).OrderBy(x => x.NombreComercial).ToList() : [];
         _empresas = empresas.EsCorrecta ? (empresas.Responses ?? []).OrderBy(x => x.Nombre).ToList() : [];
         _clientes = clientes.EsCorrecta ? (clientes.Responses ?? []).OrderBy(x => x.Nombre).ToList() : [];
         _proveedores = proveedores.EsCorrecta ? (proveedores.Responses ?? []).OrderBy(x => x.Nombre).ToList() : [];
         _articulos = articulos.EsCorrecta ? (articulos.Responses ?? []).OrderBy(x => x.Descripcion).ToList() : [];
         _bodegas = bodegas.EsCorrecta ? (bodegas.Responses ?? []).Where(x => x.Estado).OrderBy(x => x.NombreBodega).ToList() : [];
+        _familias = familias.EsCorrecta ? (familias.Responses ?? []).OrderBy(x => x.Descripcion).ToList() : [];
     }
 
     private async Task Exportar(string formato)
@@ -367,6 +400,10 @@
         if (_idBodega.HasValue) parametros.Add($"idBodega={_idBodega}");
         if (!string.IsNullOrWhiteSpace(_numeroLote)) parametros.Add($"numeroLote={Uri.EscapeDataString(_numeroLote.Trim())}");
         if (!string.IsNullOrWhiteSpace(_texto)) parametros.Add($"texto={Uri.EscapeDataString(_texto.Trim())}");
+        if (!string.IsNullOrWhiteSpace(_idAgente)) parametros.Add($"idAgente={Uri.EscapeDataString(_idAgente.Trim())}");
+        if (_tipo == "ventas-detalle" && _idFamilia.HasValue) parametros.Add($"idFamilia={_idFamilia}");
+        if (!string.IsNullOrWhiteSpace(_tipoVenta)) parametros.Add($"tipoVenta={Uri.EscapeDataString(_tipoVenta)}");
+        if (_incluirAnuladas) parametros.Add("incluirAnuladas=true");
         await JS.InvokeVoidAsync("seepos.descargarUrl", $"/reportes/operacion/{Uri.EscapeDataString(_tipo)}/{formato}?{string.Join("&", parametros)}");
     }
 
@@ -393,6 +430,10 @@
             Desde = _desde, Hasta = _hasta, FechaReferencia = await RelojEquipo.AhoraAsync(), Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim(),
             IdSucursal = _idSucursal, IdEmpresa = _idEmpresa, IdCliente = _idCliente, IdProveedor = _idProveedor, IdArticulo = _idArticulo,
             IdBodega = _idBodega, NumeroLote = string.IsNullOrWhiteSpace(_numeroLote) ? null : _numeroLote.Trim(),
+            IdAgente = string.IsNullOrWhiteSpace(_idAgente) ? null : _idAgente.Trim(),
+            IdFamilia = _tipo == "ventas-detalle" ? _idFamilia : null,
+            TipoVenta = string.IsNullOrWhiteSpace(_tipoVenta) ? null : _tipoVenta,
+            IncluirAnuladas = _incluirAnuladas,
             Pagina = pagina, TamanoPagina = tamano
         }), "cargar la página del reporte");
         return new GridDataProviderResult<FilaReporteOperacionWebDTO> { Data = datos?.Filas ?? [], TotalCount = datos?.TotalRegistros ?? 0 };

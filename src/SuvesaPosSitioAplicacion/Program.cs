@@ -385,16 +385,20 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
     long? idArticulo,
     int? idBodega,
     string? numeroLote,
+    string? idAgente,
+    int? idFamilia,
+    string? tipoVenta,
+    bool? incluirAnuladas,
     DateTime? generado,
     IContextoSesion sesion,
     IReportesOperacion api,
     IGeneradorReporteOperacion exportador) =>
 {
     if (formato is not ("pdf" or "excel")) return Results.NotFound();
-    // Lista completa de los 19 tipos que expone ReportesOperacionController. Antes solo
+    // Lista completa de los 20 tipos que expone ReportesOperacionController. Antes solo
     // cubría 11: el botón Exportar del hub (Views/Reportes/Compras.razor) se mostraba
-    // igual para los 8 restantes y el usuario recibía un 404 silencioso al exportar.
-    if (tipo is not ("panel-ejecutivo" or "ventas" or "ventas-detalle" or "clientes" or "rentabilidad" or "ventas-compras"
+    // igual para los restantes y el usuario recibía un 404 silencioso al exportar.
+    if (tipo is not ("panel-ejecutivo" or "ventas" or "ventas-detalle" or "ventas-horas" or "clientes" or "rentabilidad" or "ventas-compras"
         or "cuentas-por-cobrar" or "recuperacion-cxc" or "cabys" or "apartados" or "kpi-rutas" or "cuentas-por-pagar"
         or "caja" or "arqueos-cierres" or "depositos" or "compras" or "gastos"
         or "inventario" or "inventario-abc" or "rotacion-inventario" or "bonificaciones" or "empaquetado" or "mermas"
@@ -418,6 +422,10 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
             IdArticulo = idArticulo,
             IdBodega = idBodega,
             NumeroLote = numeroLote,
+            IdAgente = idAgente,
+            IdFamilia = idFamilia,
+            TipoVenta = tipoVenta,
+            IncluirAnuladas = incluirAnuladas ?? false,
             TamanoPagina = 2000,
             Texto = string.IsNullOrWhiteSpace(texto) ? null : texto.Trim()
         });

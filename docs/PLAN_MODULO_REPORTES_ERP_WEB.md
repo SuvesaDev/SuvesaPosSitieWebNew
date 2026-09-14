@@ -86,22 +86,22 @@ Referencia directa entre los tipos ya construidos (o por construir) y los roles 
 
 ### Fase uno datos disponibles y de mayor valor — ✅ construida, con deuda (ver `## Estado actual auditado`)
 
-1. **Ventas y facturación:** ventas netas por fecha, cliente, vendedor, familia, proveedor o artículo; detalle de documentos; contado/crédito; descuentos; devoluciones; notas de crédito; ventas por hora; top de clientes, artículos y servicios. — ✅ `ventas`/`ventas-detalle`/`clientes` construidos. **Auditado 14 sep 2026 contra las 10 modalidades exactas del catálogo original** (submenú Ventas N°1):
+1. **Ventas y facturación:** ventas netas por fecha, cliente, vendedor, familia, proveedor o artículo; detalle de documentos; contado/crédito; descuentos; devoluciones; notas de crédito; ventas por hora; top de clientes, artículos y servicios. — ✅ **las 10 modalidades del catálogo quedaron cubiertas el 14 sep 2026** (venía auditado como 4 completas / 4 parciales / 2 sin construir). Se cerraron las 6 que faltaban:
 
-   | # | Modalidad del catálogo | Estado en `ventas`/`ventas-detalle` |
+   | # | Modalidad del catálogo | Estado final |
    |---|---|---|
-   | 1 | Detalladas por cliente y/o general, con modalidad de pago | ✅ `ventas-detalle` filtra por `IdCliente`; contado/crédito se ve en `Descripcion`, no es un filtro dedicado |
+   | 1 | Detalladas por cliente y/o general, con modalidad de pago | ✅ `ventas-detalle` filtra por `IdCliente` y ahora también por `TipoVenta` (contado/crédito) |
    | 2 | Macro por fecha determinada | ✅ `Desde`/`Hasta` |
-   | 3 | Por colaborador | ⚠️ el agente aparece en `Descripcion` y es buscable por `Texto`, pero no hay un filtro `IdAgente` dedicado |
-   | 4 | Por familia de producto | ⚠️ la familia aparece en `Descripcion`, no hay filtro `IdFamilia` |
-   | 5 | Por tipo de venta (Contado/Crédito) | ❌ solo visible en texto, no es un filtro |
-   | 6 | Anuladas y devoluciones | ⚠️ devoluciones sí están (filas `Estado = "Devolución"`); **anuladas no** — `VentasAsync`/`VentasDetalleAsync` las excluyen siempre (`Anulado != true`), no hay ninguna vista que las muestre |
+   | 3 | Por colaborador | ✅ nuevo filtro `IdAgente` (campo de texto, login del agente) en `ventas`/`ventas-detalle`/`ventas-horas` |
+   | 4 | Por familia de producto | ✅ nuevo filtro `IdFamilia` (dropdown poblado desde `IFamilias.Obtener()`) en `ventas-detalle` |
+   | 5 | Por tipo de venta (Contado/Crédito) | ✅ nuevo filtro `TipoVenta` |
+   | 6 | Anuladas y devoluciones | ✅ nuevo checkbox "Incluir anuladas" (`IncluirAnuladas`, default apagado — no cambia el comportamiento de nadie que no lo marque); devoluciones ya estaban |
    | 7 | Comisiones a colaborador | ✅ `comisiones` (reporte aparte) |
    | 8 | Ganancias | ✅ `rentabilidad` |
-   | 9 | Descuento | ⚠️ `MontoDescuento` ya se resta en el neto de `ventas-detalle`, pero no se expone como columna/indicador propio |
-   | 10 | Ventas entre horas | ❌ no existe — ningún reporte agrupa por franja horaria |
+   | 9 | Descuento | ✅ nuevo indicador "Descuento total" en `ventas-detalle` |
+   | 10 | Ventas entre horas | ✅ nuevo tipo **`ventas-horas`** — agrupa la facturación por hora del día (0-23), pestaña propia en el hub |
 
-   Resumen: 4 de 10 completas, 4 parciales (el dato existe pero no como filtro/columna dedicada), 2 sin construir (anuladas, ventas por hora). Ampliar `FiltroReporteOperacionDTO` con `IdAgente`/`IdFamilia`/`TipoVenta` y agregar `IncluirAnuladas` es un cambio de contrato (API + Web + regenerar DTOs) — no se hizo en esta pasada por alcance, queda como pendiente concreto y acotado para la próxima. También falta ampliar exportación (bug #1 de arriba, ya resuelto para los tipos existentes).
+   Filtros nuevos visibles solo cuando aplican (`ventas`/`ventas-detalle`/`ventas-horas`; familia solo en `ventas-detalle`). Incluidos en el whitelist de exportación desde el commit (no se repitió el bug #1).
 2. **Cuentas por cobrar:** antigüedad 1 a 30, 31 a 60, 61 a 90 y más de 90 días; estado de cuenta; facturas pendientes; aplicaciones y recibos; recuperación por periodo; DSO cuando la definición de fecha de vencimiento esté validada. — ✅ construido (`cuentas-por-cobrar`, `EstadoCuenta.razor`), con DSO ya calculado; falta el ajuste de cubetas a 1-30/31-60/61-90/+90 (hoy es por vencer/1-30/31-60/+60, lado API).
 3. **Caja y depósitos:** aperturas, arqueos, cierres, diferencias, movimientos; predepósitos; depósitos y cheques por estado de confirmación. — ✅ construido (`caja`, `arqueos-cierres`, `depositos`, pantallas operativas de Caja).
 4. **Compras y cuentas por pagar:** detalle de compras, proveedor, impuesto, descuentos, vencimiento, saldo y pagos. — ✅ construido pero **duplicado** (bugs #2 y #3 de arriba) — resolver antes de sumar reportes nuevos de este dominio (Gastos).

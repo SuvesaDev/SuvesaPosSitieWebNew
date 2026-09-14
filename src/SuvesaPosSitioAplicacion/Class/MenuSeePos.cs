@@ -652,6 +652,13 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    // Catálogo submenú Ventas N°10 ("Reporte de Ventas entre Horas").
+                    Titulo = "Ventas entre horas",
+                    Codigo = "MODULO_REPORTES.VENTAS_ENTRE_HORAS",
+                    Ruta = "/moduloReportes?tipo=ventas-horas",
+                },
+                new ItemMenu
+                {
                     Titulo = "Comportamiento de clientes",
                     Codigo = "MODULO_REPORTES.COMPORTAMIENTO_DE_CLIENTES",
                     Ruta = "/moduloReportes?tipo=clientes",
