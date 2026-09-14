@@ -59,9 +59,9 @@
                             <ItemTemplate Context="u">
                                 @if (Sesion.Puede(Codigo, AccionPantalla.Modificar))
                                 {
-                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Editar(u)">Editar</button>
-                                    <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => AbrirCambioPerfil(u)">Perfil / rol</button>
-                                    <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => AbrirCredenciales(u)">Credenciales</button>
+                                    <button class="btn btn-sm btn-outline-primary me-1" title="Editar usuario" aria-label="Editar usuario" @onclick="() => Editar(u)"><i class="bi bi-pencil"></i></button>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Perfil y rol" aria-label="Perfil y rol" @onclick="() => AbrirCambioPerfil(u)"><i class="bi bi-person-gear"></i></button>
+                                    <button class="btn btn-sm btn-outline-secondary" title="Credenciales" aria-label="Credenciales" @onclick="() => AbrirCredenciales(u)"><i class="bi bi-key"></i></button>
                                 }
                             </ItemTemplate>
                         </HxGridColumn>

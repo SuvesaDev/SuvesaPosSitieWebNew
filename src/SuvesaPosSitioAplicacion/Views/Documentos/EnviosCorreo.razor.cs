@@ -1,5 +1,7 @@
 using Havit.Blazor.Components.Web.Bootstrap;
+using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 using SuvesaPosSitioAplicacion.DTOs.Correo;
+using SuvesaPosSitioAplicacion.DTOs.Generated;
 
 namespace SuvesaPosSitioAplicacion.Views.Documentos;
 
@@ -11,6 +13,7 @@ public partial class EnviosCorreo
     private HxOffcanvas _detalle = default!;
     private PaginaEnviosCorreoDTO _pagina = new();
     private EnvioCorreoDTO? _sel;
+    private IReadOnlyDictionary<string, string> _nombresClientesPorCorreo = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     private string _estado = "";
     private int _idEmisor;
@@ -21,7 +24,30 @@ public partial class EnviosCorreo
 
     private bool HayMas => _paginaNum * Tamano < _pagina.Total;
 
-    protected override Task OnInitializedAsync() => Cargar();
+    protected override async Task OnInitializedAsync()
+    {
+        var clientes = await Respuestas.DatoAsync(await ClientesApi.Listar(), "consultar los clientes");
+        var mapa = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var cliente in clientes ?? Array.Empty<FiltranClienteDTO>())
+        {
+            foreach (var correo in new[] { cliente.CorreoComprobante, cliente.E_Mail, cliente.CorreoRecibo })
+            {
+                if (!string.IsNullOrWhiteSpace(correo) && !string.IsNullOrWhiteSpace(cliente.Nombre))
+                    mapa[correo.Trim()] = cliente.Nombre.Trim();
+            }
+        }
+        _nombresClientesPorCorreo = mapa;
+        await Cargar();
+    }
+
+    private string NombreDestinatario(string? destinatarios)
+    {
+        if (string.IsNullOrWhiteSpace(destinatarios)) return "Sin destinatario";
+        var partes = destinatarios.Split(new[] { ';', ',', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var nombres = partes.Select(correo => _nombresClientesPorCorreo.TryGetValue(correo, out var nombre) ? nombre : null)
+            .Where(nombre => !string.IsNullOrWhiteSpace(nombre)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return nombres.Count > 0 ? string.Join(", ", nombres) : destinatarios;
+    }
 
     private async Task Buscar()
     {
