@@ -23,7 +23,7 @@
                             {
                                 var punto = _graficas.Evolucion[indice];
                                 var y = 30 + (indice * 31);
-                                var ancho = Ancho(punto.Valor, _maximoEvolucion);
+                                var ancho = Ancho(punto.Valor, _maximoEvolucion, 360);
                                 <foreignObject x="0" y="@(y - 1)" width="140" height="22"><div xmlns="http://www.w3.org/1999/xhtml" class="seepos-grafico-etiqueta">@Abreviar(punto.Etiqueta, 18)</div></foreignObject>
                                 <rect class="seepos-grafico-pista" x="145" y="@y" width="360" height="18" rx="5" />
                                 <rect class="@(punto.Valor < 0 ? "seepos-grafico-barra-negativa" : "seepos-grafico-barra")" x="145" y="@y" width="@ancho" height="18" rx="5" />
@@ -43,7 +43,7 @@
                             <h2 class="h6 mb-1">@TituloEstados</h2>
                             <p class="small text-body-secondary mb-0">@DescripcionEstados</p>
                         </div>
-                        <i class="bi bi-pie-chart text-primary fs-5" aria-hidden="true"></i>
+                        <i class="bi bi-bar-chart-fill text-primary fs-5" aria-hidden="true"></i>
                     </div>
                     <figure class="seepos-grafico mb-0">
                         <svg viewBox="0 0 520 @AltoEstados" role="img" aria-labelledby="titulo-estados descripcion-estados" preserveAspectRatio="xMinYMin meet">
@@ -53,7 +53,7 @@
                             {
                                 var punto = _graficas.Estados[indice];
                                 var y = 30 + (indice * 31);
-                                var ancho = Ancho(punto.Valor, _maximoEstados);
+                                var ancho = Ancho(punto.Valor, _maximoEstados, 260);
                                 <foreignObject x="0" y="@(y - 1)" width="125" height="22"><div xmlns="http://www.w3.org/1999/xhtml" class="seepos-grafico-etiqueta">@Abreviar(punto.Etiqueta, 16)</div></foreignObject>
                                 <rect class="seepos-grafico-pista" x="130" y="@y" width="260" height="18" rx="5" />
                                 <rect class="seepos-grafico-barra-secundaria" x="130" y="@y" width="@ancho" height="18" rx="5" />
@@ -91,8 +91,8 @@
         _maximoEstados = _graficas.Estados.Select(x => Math.Abs(x.Valor)).DefaultIfEmpty(0).Max();
     }
 
-    private static decimal Ancho(decimal valor, decimal maximo)
-        => maximo == 0 ? 0 : Math.Max(2m, Math.Round(Math.Abs(valor) / maximo * 360, 2));
+    private static decimal Ancho(decimal valor, decimal maximo, decimal anchoMaximo)
+        => maximo == 0 ? 0 : Math.Max(2m, Math.Round(Math.Abs(valor) / maximo * anchoMaximo, 2));
 
     private string Formatear(decimal valor) => EsCantidad ? valor.ToString("N2") : Formato.Importe(valor);
     private static string Abreviar(string texto, int maximo) => texto.Length <= maximo ? texto : $"{texto[..Math.Max(1, maximo - 1)]}…";

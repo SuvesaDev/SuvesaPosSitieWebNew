@@ -58,6 +58,10 @@ public sealed class PagoPreventaContadoDTO
     public string FormaPago { get; set; } = "";
     public decimal Monto { get; set; }
     public string? Referencia { get; set; }
+    /// <summary>Solo forma de pago Cheque: número del cheque del cliente.</summary>
+    public string? NumeroCheque { get; set; }
+    /// <summary>Solo forma de pago Cheque: banco emisor (catálogo EntidadesBancaria.IdBanco).</summary>
+    public int? IdBanco { get; set; }
 }
 
 public sealed class FacturarPreventaContadoComandoDTO

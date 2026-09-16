@@ -27,7 +27,8 @@ public class FiltroMenuTests
         public bool EsAdministrador => EsSuperAdministrador;
         public string? PerfilCodigo => EsSuperAdministrador ? "SUPER_ADMIN" : "USUARIO";
         public bool EsCostaPets => false;
-        public bool EsAgenteCostaPets => false;
+        public bool EsAgente => false;
+        public bool EsServicioAlCliente => false;
         public bool PermitirExistenciaNegativa => false;
         public int IdSucursal => 1;
         public string? NombreSucursal => "Central";
@@ -108,6 +109,11 @@ public class FiltroMenuTests
     {
         static int Contar(IEnumerable<ItemMenu> ns) => ns.Sum(n => 1 + Contar(n.Hijos));
         Assert.Equal(10, MenuSeePos.Items.Count);
-        Assert.Equal(82, Contar(MenuSeePos.Items));
+        // 84 originales + 19 (arbol de permisos MODULO_REPORTES.*) + 2 (Gastos,
+        // Cumplimiento CABYS) + 4 (Apartados y préstamos, KPI por ruta, Empaquetado y
+        // maquila, Mermas) + 1 (Panel ejecutivo) + 1 (Tablero de Consignación, pantalla
+        // huérfana que ya existía sin nodo de menú) + 1 (Ventas entre horas) —
+        // ver PLAN_MODULO_REPORTES_ERP_WEB.md.
+        Assert.Equal(113, Contar(MenuSeePos.Items));
     }
 }

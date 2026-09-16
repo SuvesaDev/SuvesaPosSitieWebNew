@@ -163,6 +163,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Documentos aceptados",
+                    Codigo = "COMPRAS.DOCUMENTOS_ACEPTADOS",
+                    Ruta = "/buys/received-messages",
+                },
+                new ItemMenu
+                {
                     Titulo = "Cuentas por pagar",
                     Codigo = "COMPRAS.CUENTAS_POR_PAGAR",
                     Ruta = "/buys/countswihoutpay",
@@ -277,6 +283,15 @@ public static partial class MenuSeePos
                 // retiró junto con sus endpoints en el API (§8).
                 new ItemMenu
                 {
+                    // Existía como pantalla huérfana (Codigo="CONSIGNACION.TABLERO" ya
+                    // escrito a mano en Tablero.razor, sin nodo de menú ni permiso
+                    // gobernado) — ver docs/PLAN_MODULO_REPORTES_ERP_WEB.md, bug #6.
+                    Titulo = "Tablero",
+                    Codigo = "CONSIGNACION.TABLERO",
+                    Ruta = "/consignment/dashboard",
+                },
+                new ItemMenu
+                {
                     Titulo = "Bodegas de Consignación",
                     Codigo = "CONSIGNACION.BODEGAS_DE_CONSIGNACION",
                     Ruta = "/consignment/warehouses",
@@ -347,6 +362,12 @@ public static partial class MenuSeePos
                     Titulo = "Perfiles de emisión",
                     Codigo = "VENTAS.PERFILES_DE_EMISION",
                     Ruta = "/sales/emission-profiles",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Comisiones",
+                    Codigo = "VENTAS.COMISIONES",
+                    Ruta = "/sales/commissions",
                 },
                 new ItemMenu
                 {
@@ -456,6 +477,12 @@ public static partial class MenuSeePos
                             Titulo = "Presentaciones",
                             Codigo = "CATALOGOS.PRESENTACIONES",
                             Ruta = "/parameters/presentations",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Rutas",
+                            Codigo = "CATALOGOS.RUTAS",
+                            Ruta = "/parameters/routes",
                         },
                         new ItemMenu
                         {
@@ -598,9 +625,192 @@ public static partial class MenuSeePos
         new ItemMenu
         {
             Titulo = "Módulo Reportes",
-            Codigo = "MODULO_REPORTES.MODULO_REPORTES",
+            Codigo = "MODULO_REPORTES",
             Ruta = "/moduloReportes",
             Icono = "bi-bar-chart-fill",
+            // Un hijo por cada uno de los 27 tipos genéricos que expone
+            // ReportesOperacionController. Cada ruta abre una hoja independiente. La barra
+            // lateral los presenta en dominios visuales construidos desde CatalogoReportes,
+            // pero este árbol canónico permanece plano para no cambiar códigos ni semilla.
+            // Comisiones es la hoja 28 y reutiliza el permiso VENTAS.COMISIONES.
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    // KPIs consolidados de Ventas, CxC, Compras, Gastos, Inventario y
+                    // Mermas — reusa los mismos indicadores que cada pestaña de detalle
+                    // (ReportesOperacionManager.PanelEjecutivoAsync), no fórmulas propias.
+                    Titulo = "Panel ejecutivo",
+                    Codigo = "MODULO_REPORTES.PANEL_EJECUTIVO",
+                    Ruta = "/moduloReportes/panel-ejecutivo",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Ventas",
+                    Codigo = "MODULO_REPORTES.VENTAS",
+                    Ruta = "/moduloReportes/ventas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Ventas detalle",
+                    Codigo = "MODULO_REPORTES.VENTAS_DETALLE",
+                    Ruta = "/moduloReportes/ventas-detalle",
+                },
+                new ItemMenu
+                {
+                    // Catálogo submenú Ventas N°10 ("Reporte de Ventas entre Horas").
+                    Titulo = "Ventas entre horas",
+                    Codigo = "MODULO_REPORTES.VENTAS_ENTRE_HORAS",
+                    Ruta = "/moduloReportes/ventas-horas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Comportamiento de clientes",
+                    Codigo = "MODULO_REPORTES.COMPORTAMIENTO_DE_CLIENTES",
+                    Ruta = "/moduloReportes/clientes",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Rentabilidad",
+                    Codigo = "MODULO_REPORTES.RENTABILIDAD",
+                    Ruta = "/moduloReportes/rentabilidad",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Ventas vs compras",
+                    Codigo = "MODULO_REPORTES.VENTAS_VS_COMPRAS",
+                    Ruta = "/moduloReportes/ventas-compras",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Recuperación de cartera",
+                    Codigo = "MODULO_REPORTES.RECUPERACION_DE_CARTERA",
+                    Ruta = "/moduloReportes/recuperacion-cxc",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Cuentas por cobrar",
+                    Codigo = "MODULO_REPORTES.CUENTAS_POR_COBRAR",
+                    Ruta = "/moduloReportes/cuentas-por-cobrar",
+                },
+                new ItemMenu
+                {
+                    // Submenú Ventas N°9 del catálogo (Reportes_ERP_Distribuidora...docx).
+                    Titulo = "Cumplimiento CABYS",
+                    Codigo = "MODULO_REPORTES.CUMPLIMIENTO_CABYS",
+                    Ruta = "/moduloReportes/cabys",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Cuentas por pagar",
+                    Codigo = "MODULO_REPORTES.CUENTAS_POR_PAGAR",
+                    Ruta = "/moduloReportes/cuentas-por-pagar",
+                },
+                new ItemMenu
+                {
+                    // Catálogo N°7 ("Reporte de Apartados y Préstamos").
+                    Titulo = "Apartados y préstamos",
+                    Codigo = "MODULO_REPORTES.APARTADOS_Y_PRESTAMOS",
+                    Ruta = "/moduloReportes/apartados",
+                },
+                new ItemMenu
+                {
+                    // Anexo "Comportamiento del Agente" del catálogo: ventas, clientes
+                    // atendidos y comisión generada por ruta comercial.
+                    Titulo = "KPI por ruta comercial",
+                    Codigo = "MODULO_REPORTES.KPI_POR_RUTA_COMERCIAL",
+                    Ruta = "/moduloReportes/kpi-rutas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Caja",
+                    Codigo = "MODULO_REPORTES.CAJA",
+                    Ruta = "/moduloReportes/caja",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Arqueos y cierres",
+                    Codigo = "MODULO_REPORTES.ARQUEOS_Y_CIERRES",
+                    Ruta = "/moduloReportes/arqueos-cierres",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Depósitos",
+                    Codigo = "MODULO_REPORTES.DEPOSITOS",
+                    Ruta = "/moduloReportes/depositos",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Compras",
+                    Codigo = "MODULO_REPORTES.COMPRAS",
+                    Ruta = "/moduloReportes/compras",
+                },
+                new ItemMenu
+                {
+                    // Catálogo N°3 ("Reportes de Gastos"). Complementario de "Compras":
+                    // misma tabla, filtrado por Compras.Gasto = true.
+                    Titulo = "Gastos",
+                    Codigo = "MODULO_REPORTES.GASTOS",
+                    Ruta = "/moduloReportes/gastos",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Inventario",
+                    Codigo = "MODULO_REPORTES.INVENTARIO",
+                    Ruta = "/moduloReportes/inventario",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Inventario ABC",
+                    Codigo = "MODULO_REPORTES.INVENTARIO_ABC",
+                    Ruta = "/moduloReportes/inventario-abc",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Rotación de inventario",
+                    Codigo = "MODULO_REPORTES.ROTACION_DE_INVENTARIO",
+                    Ruta = "/moduloReportes/rotacion-inventario",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Bonificaciones",
+                    Codigo = "MODULO_REPORTES.BONIFICACIONES",
+                    Ruta = "/moduloReportes/bonificaciones",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Lotes y vencimientos",
+                    Codigo = "MODULO_REPORTES.LOTES_Y_VENCIMIENTOS",
+                    Ruta = "/moduloReportes/lotes",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Trazabilidad",
+                    Codigo = "MODULO_REPORTES.TRAZABILIDAD",
+                    Ruta = "/moduloReportes/trazabilidad",
+                },
+                new ItemMenu
+                {
+                    // Catálogo N°13 ("Reporte de Empaquetado / Maquila").
+                    Titulo = "Empaquetado y maquila",
+                    Codigo = "MODULO_REPORTES.EMPAQUETADO_Y_MAQUILA",
+                    Ruta = "/moduloReportes/empaquetado",
+                },
+                new ItemMenu
+                {
+                    // Catálogo N°10 propuesto ("Auditoría de Mermas..."). Fuente real hoy:
+                    // diferencias negativas de toma física (ver nota en el manager).
+                    Titulo = "Mermas",
+                    Codigo = "MODULO_REPORTES.MERMAS",
+                    Ruta = "/moduloReportes/mermas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Auditoría",
+                    Codigo = "MODULO_REPORTES.AUDITORIA",
+                    Ruta = "/moduloReportes/auditoria",
+                },
+            }
         }
     }
     .OrderBy(i => string.Equals(i.Codigo, "PARAMETROS", StringComparison.Ordinal) ? 1 : 0)

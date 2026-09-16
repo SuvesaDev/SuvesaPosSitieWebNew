@@ -17,7 +17,7 @@
       SUPER_ADMIN solo aparece si el usuario en sesion tambien es Super Administrador
       (la compuerta real la aplica el API).
     - Todo perfil que NO sea SUPER_ADMIN exige un ROL asignado.
-    - Las capacidades CostaPets / AgenteCostaPets se HEREDAN del perfil: aqui son de
+    - Las capacidades CostaPets / EsAgente se HEREDAN del perfil: aqui son de
       solo lectura.
     - El perfil y el rol de un usuario ya creado se cambian desde la tabla, con
       endpoints propios (/seguridad/usuarios/{id}/perfil y /rol).
@@ -163,7 +163,7 @@
                         <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" />
                     </div>
 
-                    @if (_perfilActual is { } pa && (pa.CostaPets || pa.AgenteCostaPets || pa.AceptaConsignacion))
+                    @if (_perfilActual is { } pa && (pa.CostaPets || pa.EsAgente || pa.EsServicioAlCliente || pa.AceptaConsignacion))
                     {
                         <div class="col-12">
                             <div class="form-text">
@@ -334,7 +334,8 @@
     private static IEnumerable<string> CapacidadesDe(PerfilSeguridadDTO p)
     {
         if (p.CostaPets) yield return "CostaPets";
-        if (p.AgenteCostaPets) yield return "Agente CostaPets";
+        if (p.EsAgente) yield return "Es agente";
+        if (p.EsServicioAlCliente) yield return "Servicio al Cliente";
         if (p.AceptaConsignacion) yield return "Acepta consignación";
     }
 

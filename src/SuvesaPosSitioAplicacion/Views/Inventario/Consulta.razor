@@ -55,6 +55,9 @@
     <Acciones>
         @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
         {
+            <button class="btn btn-sm btn-outline-secondary" title="Genera la miniatura liviana para las imágenes de artículo subidas antes de esta mejora — el catálogo visual de Facturación abre más rápido. Las imágenes nuevas ya la generan solas." disabled="@_recatalogando" @onclick="RecatalogarImagenes">
+                <i class="bi bi-images me-1" aria-hidden="true"></i>@(_recatalogando ? "Recatalogando..." : "Recatalogar imágenes")
+            </button>
             <button class="btn btn-sm btn-primary" @onclick="Agregar">
                 <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
             </button>
@@ -336,6 +339,7 @@
                 <nav class="nav nav-pills gap-2 mb-4 seepos-editor-tabs" aria-label="Secciones del artículo">
                     <button type="button" class="btn btn-sm @ClasePestanaGenerales" @onclick="MostrarGenerales">Datos generales</button>
                     <button type="button" class="btn btn-sm @ClasePestanaPrecios" @onclick="MostrarPrecios">Precios</button>
+                    <button type="button" class="btn btn-sm @ClasePestanaComisiones" @onclick="MostrarComisiones">Comisiones</button>
                     <button type="button" class="btn btn-sm @ClasePestanaBarras" @onclick="MostrarBarras">Códigos de barras</button>
                     @if (Sesion.EsCostaPets)
                     {
@@ -432,18 +436,15 @@
                             <div class="form-text">La fórmula y conversión aplican a productos terminados.</div>
                         </div>
                     }
-                    @if (!Sesion.EsCostaPets)
-                    {
-                        <div class="col-12 seepos-form-seccion">Niveles de reposición</div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label" for="articulo-minima">Existencia mínima</label>
-                            <input id="articulo-minima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Minima" @bind:event="onchange" />
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label" for="articulo-maxima">Existencia máxima</label>
-                            <input id="articulo-maxima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Maxima" @bind:event="onchange" />
-                        </div>
-                    }
+                    <div class="col-12 seepos-form-seccion">Niveles de reposición</div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-minima">Existencia mínima</label>
+                        <input id="articulo-minima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Minima" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-maxima">Existencia máxima</label>
+                        <input id="articulo-maxima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Maxima" @bind:event="onchange" />
+                    </div>
                     @if (!_esNuevo)
                     {
                         <div class="col-12">
@@ -542,6 +543,22 @@
                         <div class="col-12 col-md-4">
                             <label class="form-label">Costo (base + fletes + otros)</label>
                             <input type="text" readonly class="form-control" value="@Formato.Importe(CostoCalculado)" />
+                        </div>
+                    </div>
+                }
+                else if (_pestanaInventario == "comisiones")
+                {
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <p class="text-secondary mb-0">Estos porcentajes son configuración comercial del artículo; no cambian el precio ni los impuestos del comprobante.</p>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="articulo-comision-agente">Porcentaje de comisión de agentes</label>
+                            <div class="input-group"><input id="articulo-comision-agente" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.PorcentajeComisionAgentes" /><span class="input-group-text">%</span></div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="articulo-comision-servicio">Porcentaje de comisión Servicio al Cliente</label>
+                            <div class="input-group"><input id="articulo-comision-servicio" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.PorcentajeComisionServicioCliente" /><span class="input-group-text">%</span></div>
                         </div>
                     </div>
                 }
@@ -1192,6 +1209,34 @@
         return new List<StockLoteDTO>();
     }
 
+    private bool _recatalogando;
+
+    /// <summary>Botón "Recatalogar imágenes": genera la miniatura liviana para las
+    /// imágenes de artículo subidas antes de que existiera esa columna (las nuevas ya la
+    /// generan solas al subir/editar) — hace que el catálogo visual de Facturación abra
+    /// más rápido para todas ellas de una vez, en lugar de una por una.</summary>
+    private async Task RecatalogarImagenes()
+    {
+        if (_recatalogando) return;
+        if (!await Dialogos.ConfirmarAsync(
+                "Va a revisar todas las imágenes de artículo que todavía no tienen miniatura y generarla. Puede tardar varios minutos según cuántas falten. ¿Continuar?",
+                "Recatalogar imágenes"))
+            return;
+
+        _recatalogando = true;
+        try
+        {
+            var r = await Respuestas.DatoAsync(await Imagenes.Recatalogar(), "recatalogar las imágenes");
+            if (r is not null)
+            {
+                Dialogos.Exito(r.Fallidas > 0
+                    ? $"{r.Procesadas} imagen(es) actualizada(s), {r.Fallidas} no se pudieron procesar (revise que sean archivos de imagen válidos)."
+                    : $"{r.Procesadas} imagen(es) actualizada(s).");
+            }
+        }
+        finally { _recatalogando = false; }
+    }
+
     private async Task Agregar()
     {
         _esNuevo = true;
@@ -1336,6 +1381,7 @@
 
     private string ClasePestanaGenerales => ClasePestana("generales");
     private string ClasePestanaPrecios => ClasePestana("precios");
+    private string ClasePestanaComisiones => ClasePestana("comisiones");
     private string ClasePestanaBarras => ClasePestana("barras");
     private string ClasePestanaImagen => ClasePestana("imagen");
     private string ClasePestanaFormula => ClasePestana("formula");
@@ -1350,6 +1396,7 @@
 
     private void MostrarGenerales() => _pestanaInventario = "generales";
     private void MostrarPrecios() => _pestanaInventario = "precios";
+    private void MostrarComisiones() => _pestanaInventario = "comisiones";
     private void MostrarBarras() => _pestanaInventario = "barras";
     private void MostrarImagen() => _pestanaInventario = "imagen";
     private void MostrarFormula() => _pestanaInventario = "formula";

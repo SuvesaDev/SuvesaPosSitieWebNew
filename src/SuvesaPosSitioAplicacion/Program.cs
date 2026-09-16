@@ -7,12 +7,14 @@ using SuvesaPosSitioAplicacion.ApiConexion;
 using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
+using SuvesaPosSitioAplicacion.Class;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.DTOs.Reportes;
 using SuvesaPosSitioAplicacion.Helpers;
 using SuvesaPosSitioAplicacion.Security;
 using SuvesaPosSitioAplicacion.Services;
 using SuvesaPosSitioAplicacion.Views.Shared;
+using CatalogoReportes = SuvesaPosSitioAplicacion.Views.Reportes.CatalogoReportes;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -89,6 +91,8 @@ builder.Services.AddSingleton<IGeneradorReporteOperacion, GeneradorReporteOperac
 
 builder.Services.AddScoped<IAlmacenEspacioTrabajo, AlmacenEspacioTrabajoNavegador>();
 builder.Services.AddScoped<IEstadoEspacioTrabajo, EstadoEspacioTrabajo>();
+builder.Services.AddScoped<IEstadoReportes, EstadoReportes>();
+builder.Services.AddScoped<IPreferenciasReportes, PreferenciasReportes>();
 
 // ---------------------------------------------------------------------------
 // ApiConexion: un HttpClient tipado por cada cliente generado desde el OpenAPI.
@@ -193,8 +197,9 @@ builder.Services.AddScoped<IClientesConsulta, ClientesConsulta>();
 builder.Services.AddScoped<IGeografia, Geografia>();
 builder.Services.AddScoped<IProveedoresConsulta, ProveedoresConsulta>();
 builder.Services.AddScoped<ICuentasPorCobrar, CuentasPorCobrar>();
-builder.Services.AddScoped<IReportes, Reportes>();
 builder.Services.AddScoped<IFacturacion, Facturacion>();
+builder.Services.AddScoped<IRutasComerciales, RutasComerciales>();
+builder.Services.AddScoped<IComisiones, Comisiones>();
 builder.Services.AddScoped<ICompras, Compras>();
 builder.Services.AddScoped<IBandejaDocumentos, BandejaDocumentos>();
 builder.Services.AddScoped<IAlbaranes, Albaranes>();
@@ -326,8 +331,16 @@ app.MapGet("/emisores/{idEmisor:int}/logo", async (int idEmisor, IEmisoresFiscal
 // Imagen de un artículo para el catálogo visual. Igual patrón BFF: el sitio pide
 // los bytes al API con el token (server-side) y los reenvía; el navegador solo ve
 // una URL de misma-origen. Evita mandar cientos de imágenes base64 por el circuito.
+//
+// El sitio arma esta URL con ?v={rowversion de la imagen} (ver Facturacion.razor,
+// UrlImagenCatalogo) — como la versión cambia solo cuando la imagen cambia, la URL
+// completa identifica un contenido exacto e inmutable. Por eso esta ruta puede decirle
+// al navegador que la cachee "para siempre" (antes no reenviaba ningún header de caché,
+// así que el navegador volvía a descargar las ~40 imágenes del catálogo cada vez que se
+// abría el modal, aunque el API sí intentaba habilitar 24h de caché — nunca llegaba).
 app.MapGet("/catalogo/imagen/{idInventario:long}", async (
     long idInventario,
+    HttpContext contexto,
     IHttpClientFactory factory,
     IContextoSesion sesion) =>
 {
@@ -345,6 +358,7 @@ app.MapGet("/catalogo/imagen/{idInventario:long}", async (
         var bytes = await resp.Content.ReadAsByteArrayAsync();
         if (bytes.Length == 0) return Results.NotFound();
         var mime = resp.Content.Headers.ContentType?.ToString() ?? "image/*";
+        contexto.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
         return Results.File(bytes, mime, enableRangeProcessing: false);
     }
     finally
@@ -368,41 +382,6 @@ app.MapGet("/documentos/{tipo}/{id:long}/pdf", async (
     return Results.File(bytes, "application/pdf", descargar ? nombre : null, enableRangeProcessing: false);
 });
 
-// Descarga de reportes en PDF. Un endpoint y no una pagina: enviar un archivo desde
-// un componente interactivo obligaria a pasarlo por JS codificado en base64.
-app.MapGet("/reportes/compras/pdf", async (IReportes api, IGeneradorPdf pdf) =>
-{
-    var r = await api.Compras();
-
-    if (!r.EsCorrecta)
-    {
-        return Results.Problem(r.Excepcion ?? "No se pudo consultar el reporte.");
-    }
-
-    var compras = r.Responses ?? (ICollection<ReporteComprasDTO>)Array.Empty<ReporteComprasDTO>();
-
-    var bytes = pdf.Tabla(new ReporteTabular(
-        Titulo: "Reporte de compras",
-        Subtitulo: "Facturas de compra registradas",
-        Encabezados: new[] { "Factura", "Proveedor", "Fecha", "Gravado", "Impuesto", "Total" },
-        Filas: compras.Select(c => (IReadOnlyList<string>)new[]
-        {
-            c.Factura ?? "",
-            c.Nombre ?? "",
-            c.Fecha.ToString("dd/MM/yyyy"),
-            Formato.Importe(c.SubTotalGravado),
-            Formato.Importe(c.Impuesto),
-            Formato.Importe(c.TotalFactura)
-        }).ToList(),
-        Totales: new[] { "", "", "", "", "Total",
-            Formato.Importe(compras.Sum(c => Formato.AImporte(c.TotalFactura))) })
-    {
-        ColumnasNumericas = new HashSet<int> { 3, 4, 5 }
-    });
-
-    return Results.File(bytes, "application/pdf", "reporte-compras.pdf");
-});
-
 // Exportaciones del módulo nuevo de reportes. Se vuelve a consultar con los mismos
 // filtros de la pantalla para que el archivo no dependa del estado del circuito de
 // Blazor. La hora llega desde el equipo del usuario, nunca desde el servidor.
@@ -419,17 +398,28 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
     long? idArticulo,
     int? idBodega,
     string? numeroLote,
+    string? idAgente,
+    int? idFamilia,
+    string? tipoVenta,
+    bool? incluirAnuladas,
+    DateTime? fechaReferencia,
     DateTime? generado,
     IContextoSesion sesion,
     IReportesOperacion api,
     IGeneradorReporteOperacion exportador) =>
 {
     if (formato is not ("pdf" or "excel")) return Results.NotFound();
-    if (tipo is not ("ventas" or "cuentas-por-cobrar" or "cuentas-por-pagar" or "caja" or "arqueos-cierres" or "depositos" or "compras" or "inventario" or "lotes" or "trazabilidad" or "auditoria"))
+    // El mismo catálogo que dibuja la pantalla define los tipos exportables; así no
+    // puede volver a desfasarse una lista manual. Comisiones tiene su exportador propio.
+    var definicion = CatalogoReportes.Buscar(tipo);
+    if (definicion is null || tipo == "comisiones")
         return Results.NotFound();
     if (!generado.HasValue) return Results.BadRequest("Falta la fecha y hora del equipo para generar el archivo.");
 
     await sesion.CargarAsync();
+    var accion = formato == "pdf" ? AccionPantalla.Imprimir : AccionPantalla.Exportar;
+    if (!sesion.Puede(definicion.Codigo, AccionPantalla.Ver)
+        || !sesion.Puede(definicion.Codigo, accion)) return Results.Forbid();
     ContextoLlamada.Token = sesion.Token;
     try
     {
@@ -437,7 +427,7 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
         {
             Desde = desde,
             Hasta = hasta,
-            FechaReferencia = generado.Value,
+            FechaReferencia = fechaReferencia ?? generado.Value,
             IdSucursal = idSucursal,
             IdEmpresa = idEmpresa,
             IdCliente = idCliente,
@@ -445,6 +435,10 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
             IdArticulo = idArticulo,
             IdBodega = idBodega,
             NumeroLote = numeroLote,
+            IdAgente = idAgente,
+            IdFamilia = idFamilia,
+            TipoVenta = tipoVenta,
+            IncluirAnuladas = incluirAnuladas ?? false,
             TamanoPagina = 2000,
             Texto = string.IsNullOrWhiteSpace(texto) ? null : texto.Trim()
         });

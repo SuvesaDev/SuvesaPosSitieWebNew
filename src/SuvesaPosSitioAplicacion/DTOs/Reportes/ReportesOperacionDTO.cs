@@ -13,6 +13,11 @@ public sealed class FiltroReporteOperacionWebDTO
     public int? IdBodega { get; set; }
     public string? NumeroLote { get; set; }
     public string? Texto { get; set; }
+    public string? IdAgente { get; set; }
+    public int? IdFamilia { get; set; }
+    /// <summary>"01" contado / "02" crédito.</summary>
+    public string? TipoVenta { get; set; }
+    public bool IncluirAnuladas { get; set; }
     public int Pagina { get; set; } = 1;
     public int TamanoPagina { get; set; } = 25;
 }
@@ -37,6 +42,11 @@ public sealed class FilaReporteOperacionWebDTO
     public DateTime Fecha { get; set; }
     public string Referencia { get; set; } = string.Empty;
     public string Entidad { get; set; } = string.Empty;
+    public string Identificacion { get; set; } = string.Empty;
+    public string Telefono { get; set; } = string.Empty;
+    public string Correo { get; set; } = string.Empty;
+    public string Sucursal { get; set; } = string.Empty;
+    public string NombreFantasia { get; set; } = string.Empty;
     public string Lote { get; set; } = string.Empty;
     public string Descripcion { get; set; } = string.Empty;
     public decimal Cantidad { get; set; }

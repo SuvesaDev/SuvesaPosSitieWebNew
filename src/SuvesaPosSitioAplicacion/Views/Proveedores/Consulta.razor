@@ -7,6 +7,7 @@
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
 @inject IRelojEquipo RelojEquipo
+@inject IJSRuntime JS
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -33,6 +34,9 @@
         }
         <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar" aria-label="Actualizar proveedores">
             <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="ExportarCsv" disabled="@(_filtrados.Count == 0)">
+            <i class="bi bi-file-earmark-spreadsheet me-1" aria-hidden="true"></i>Exportar CSV
         </button>
     </Acciones>
     <ChildContent>
@@ -316,6 +320,14 @@
     private List<ProveedorDTO> _filtrados = new();
     private ProveedorDTO? _elegido;
     private string _texto = string.Empty;
+
+    private async Task ExportarCsv()
+    {
+        static string Q(string? texto) => "\"" + (texto ?? string.Empty).Replace("\"", "\"\"") + "\"";
+        var csv = "Código,Cédula,Nombre,Contacto,Teléfono,Correo,Dirección,Límite de crédito,Plazo (días)\n"
+            + string.Join("\n", _filtrados.Select(p => $"{p.CodigoProv},{Q(p.Cedula)},{Q(p.Nombre)},{Q(p.Contacto)},{Q(p.Telefono1)},{Q(p.Email)},{Q(p.Direccion)},{p.MontoCredito},{p.Plazo}"));
+        await JS.InvokeVoidAsync("seepos.descargarTexto", $"proveedores-{DateTime.Today:yyyyMMdd}.csv", csv, "text/csv;charset=utf-8");
+    }
     private bool _cargado;
     private ProveedorDTO? _edicion;
     private bool _esNuevo;

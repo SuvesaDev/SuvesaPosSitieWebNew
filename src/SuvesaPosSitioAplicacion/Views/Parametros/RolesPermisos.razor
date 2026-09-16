@@ -416,8 +416,12 @@
                             <label class="form-check-label" for="perfilCostaPets">Costa Pets</label>
                         </div></div>
                         <div class="col-12 col-md-6"><div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="perfilAgenteCostaPets" @bind="_perfil.AgenteCostaPets" disabled="@(!_puedeEscribir)" />
-                            <label class="form-check-label" for="perfilAgenteCostaPets">Agente Costa Pets</label>
+                            <input class="form-check-input" type="checkbox" id="perfilEsAgente" @bind="_perfil.EsAgente" disabled="@(!_puedeEscribir)" />
+                            <label class="form-check-label" for="perfilEsAgente">Es agente</label>
+                        </div></div>
+                        <div class="col-12 col-md-6"><div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="perfilServicioCliente" @bind="_perfil.EsServicioAlCliente" disabled="@(!_puedeEscribir)" />
+                            <label class="form-check-label" for="perfilServicioCliente">Servicio al Cliente</label>
                         </div></div>
                         <div class="col-12 col-md-6"><div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="perfilAceptaConsignacion" @bind="_perfil.AceptaConsignacion" disabled="@(!_puedeEscribir)" />
@@ -997,7 +1001,8 @@
             EsSuperAdministracion = origen.EsSuperAdministracion,
             GestionaUsuarios = origen.GestionaUsuarios,
             CostaPets = origen.CostaPets,
-            AgenteCostaPets = origen.AgenteCostaPets,
+            EsAgente = origen.EsAgente,
+            EsServicioAlCliente = origen.EsServicioAlCliente,
             AceptaConsignacion = origen.AceptaConsignacion,
             PermiteExistenciaNegativa = origen.PermiteExistenciaNegativa,
             Activo = origen.Activo
@@ -1050,11 +1055,13 @@
         if (perfil.EsSuperAdministracion) yield return "Super administración";
         if (perfil.GestionaUsuarios) yield return "Gestiona usuarios";
         if (perfil.CostaPets) yield return "Costa Pets";
-        if (perfil.AgenteCostaPets) yield return "Agente Costa Pets";
+        if (perfil.EsAgente) yield return "Es agente";
+        if (perfil.EsServicioAlCliente) yield return "Servicio al Cliente";
         if (perfil.AceptaConsignacion) yield return "Acepta consignación";
         if (perfil.PermiteExistenciaNegativa) yield return "Permite existencia negativa";
         if (!perfil.EsSuperAdministracion && !perfil.GestionaUsuarios && !perfil.CostaPets
-            && !perfil.AgenteCostaPets && !perfil.AceptaConsignacion && !perfil.PermiteExistenciaNegativa)
+            && !perfil.EsAgente && !perfil.EsServicioAlCliente
+            && !perfil.AceptaConsignacion && !perfil.PermiteExistenciaNegativa)
             yield return "Sin capacidades especiales";
     }
 

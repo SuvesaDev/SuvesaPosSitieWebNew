@@ -221,13 +221,8 @@ body,
     .seepos-seguimiento-filtros .card-header .text-secondary { flex-basis:100%; margin-left:1.65rem!important; }
 }
 
-/* Rejilla compartida de catálogos: un único estándar para todas las consultas. */
-.seepos-rejilla { border:1px solid var(--bs-border-color); border-radius:.7rem; overflow:hidden; }
-.seepos-rejilla table { margin-bottom:0; font-size:.82rem; }
-.seepos-rejilla thead th { background:var(--bs-tertiary-bg); color:var(--bs-secondary-color); font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; border-bottom:2px solid var(--bs-primary); }
-.seepos-rejilla tbody td, .seepos-rejilla thead th { padding:.68rem .75rem; border-color:var(--bs-border-color); vertical-align:middle; }
-.seepos-rejilla tbody tr:nth-child(even) { background:color-mix(in srgb, var(--bs-primary) 4%, transparent); }
-.seepos-rejilla tbody td:last-child { white-space:nowrap; text-align:right; }
+/* Acciones compactas de AppRejilla: la estructura visual de la rejilla se define
+   una sola vez en la sección AppRejilla / HxGrid al final del tema. */
 .seepos-rejilla .seepos-importe { font-variant-numeric:tabular-nums; text-align:right; }
 .seepos-rejilla tbody td:last-child .btn { min-width:2rem; margin-left:.2rem; border-radius:.4rem; }
 /* Las acciones de los catálogos parten de enlaces por compatibilidad; se les da
@@ -336,19 +331,6 @@ body,
 @media (max-width: 767.98px) {
     .seepos-produccion-bitacora .card-header { align-items:flex-start; flex-wrap:wrap; gap:.15rem; }
     .seepos-produccion-bitacora .card-header .text-secondary { flex-basis:100%; margin-left:1.65rem!important; }
-}
-
-/* ---------- Rejilla ---------- */
-
-.seepos-rejilla table {
-    font-size: 0.875rem;
-}
-
-.seepos-rejilla td,
-.seepos-rejilla th {
-    padding-top: .35rem;
-    padding-bottom: .35rem;
-    vertical-align: middle;
 }
 
 /* Los importes se leen en columna: cifras alineadas y de ancho fijo. */
@@ -2129,6 +2111,8 @@ body,
 @media (max-width: 767.98px) {
     .seepos-caja .card-header { align-items:flex-start; flex-wrap:wrap; gap:.15rem; }
     .seepos-caja .card-header .text-secondary { flex-basis:100%; margin-left:1.65rem!important; }
+}
+
 /* Gráficas de reportes: SVG nativo para no depender de servicios externos ni de
    librerías de JavaScript. Las barras se actualizan con las mismas filas reales de
    cada consulta y conservan texto accesible para lector de pantalla. */
@@ -2136,32 +2120,94 @@ body,
     overflow: hidden;
 }
 
-.seepos-catalogo-reportes {
-    border-left: .25rem solid color-mix(in srgb, var(--seepos-verde) 70%, transparent);
+/* Catálogo y hoja de reportes. Las tarjetas explican para qué sirve cada opción;
+   los códigos de seguridad quedan en la administración de roles, no en la UI diaria. */
+.seepos-reportes-buscador .input-group { max-width: 46rem; }
+.seepos-reportes-accesos { background: color-mix(in srgb, var(--seepos-verde) 5%, var(--bs-body-bg)); }
+.seepos-reportes-tarjetas {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .75rem;
 }
-
-.seepos-pestanas-reportes {
-    gap: .25rem;
-    padding: .55rem .75rem 0;
-    border-bottom: 0;
+.seepos-reporte-tarjeta {
+    position: relative;
+    min-width: 0;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .8rem;
+    box-shadow: 0 .25rem .9rem rgba(62, 47, 35, .055);
+    transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
-
-.seepos-pestanas-reportes .nav-link {
-    border: 1px solid transparent;
-    border-bottom: 0;
+.seepos-reporte-tarjeta:hover,
+.seepos-reporte-tarjeta:focus-within {
+    border-color: color-mix(in srgb, var(--seepos-verde-accion) 55%, var(--bs-border-color));
+    box-shadow: 0 .45rem 1.1rem rgba(62, 47, 35, .1);
+    transform: translateY(-2px);
+}
+.seepos-reporte-tarjeta-principal {
+    display: flex;
+    align-items: flex-start;
+    gap: .8rem;
+    width: 100%;
+    min-height: 7rem;
+    padding: 1rem 3rem 1rem 1rem;
     color: var(--bs-body-color);
-    font-weight: 600;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-radius: inherit;
 }
-
-.seepos-pestanas-reportes .nav-link:hover {
-    border-color: color-mix(in srgb, var(--seepos-verde) 28%, transparent);
-    color: var(--seepos-verde-oscuro);
+.seepos-reporte-tarjeta-principal:focus-visible { outline: .2rem solid var(--seepos-halo-verde); outline-offset: .12rem; }
+.seepos-reporte-tarjeta-icono,
+.seepos-reporte-inicio-icono {
+    display: inline-grid;
+    width: 2.8rem;
+    height: 2.8rem;
+    flex: 0 0 2.8rem;
+    place-items: center;
+    color: var(--seepos-verde-accion);
+    font-size: 1.2rem;
+    background: color-mix(in srgb, var(--seepos-verde) 14%, var(--bs-body-bg));
+    border-radius: .7rem;
 }
+.seepos-reporte-tarjeta-contenido { display: grid; gap: .3rem; min-width: 0; }
+.seepos-reporte-tarjeta-contenido strong { font-size: .92rem; }
+.seepos-reporte-tarjeta-contenido small { color: var(--bs-secondary-color); line-height: 1.35; }
+.seepos-reporte-filtros { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .15rem; }
+.seepos-reporte-filtros > span {
+    padding: .12rem .4rem;
+    color: var(--bs-secondary-color);
+    font-size: .69rem;
+    background: var(--bs-tertiary-bg);
+    border-radius: 99rem;
+}
+.seepos-reporte-tarjeta-flecha { align-self: center; margin-left: auto; color: var(--bs-secondary-color); }
+.seepos-reporte-favorito {
+    position: absolute;
+    top: .55rem;
+    right: .55rem;
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    color: var(--bs-secondary-color);
+    background: var(--bs-body-bg);
+    border: 0;
+    border-radius: 50%;
+}
+.seepos-reporte-favorito:hover,
+.seepos-reporte-favorito.activo { color: #a56b00; background: color-mix(in srgb, #ffc107 14%, var(--bs-body-bg)); }
+.seepos-reporte-inicio { border: 1px dashed var(--bs-border-color); box-shadow: none; }
+.seepos-reporte-alcance { padding: .7rem .85rem; background: var(--bs-tertiary-bg); border-radius: .65rem; }
+.seepos-reporte-metodo { max-width: 52rem; color: var(--bs-secondary-color); }
+.seepos-reporte-metodo summary { cursor: pointer; font-weight: 600; color: var(--bs-body-color); }
+.seepos-kpi-desglose { color: var(--bs-body-color); border: 0; }
+.seepos-kpi-desglose:hover,
+.seepos-kpi-desglose:focus-visible { outline: 2px solid color-mix(in srgb, var(--seepos-verde) 45%, transparent); }
+.seepos-boton-buscar { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.45rem; padding-inline: 1rem; }
 
-.seepos-pestanas-reportes .nav-link.active {
-    background: color-mix(in srgb, var(--seepos-verde) 11%, var(--bs-body-bg));
-    border-color: color-mix(in srgb, var(--seepos-verde) 35%, transparent);
-    color: var(--seepos-verde-oscuro);
+@media (max-width: 767.98px) {
+    .seepos-reportes-tarjetas { grid-template-columns: 1fr; }
 }
 
 .seepos-grafico {
