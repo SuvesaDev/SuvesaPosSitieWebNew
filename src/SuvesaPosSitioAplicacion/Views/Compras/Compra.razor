@@ -234,13 +234,28 @@
     <BodyTemplate>
         <p class="text-secondary small">La compra ya se guardó. ¿Desea comunicar a Hacienda si acepta, acepta parcialmente o rechaza esta factura del proveedor?</p>
         <div class="row g-3">
-            <div class="col-12"><label class="form-label">Código de mensaje</label><select class="form-select" @bind="_mensajeReceptorCodigo"><option value="1">Aceptado</option><option value="2">Aceptado parcialmente</option><option value="3">Rechazado</option></select></div>
+            <div class="col-12"><label class="form-label">Código de mensaje</label><select class="form-select" @bind="_mensajeReceptorCodigo" @bind:after="AlCambiarMensajeReceptor"><option value="1">Aceptado</option><option value="2">Aceptado parcialmente</option><option value="3">Rechazado</option></select></div>
             <div class="col-12"><label class="form-label">Detalle del mensaje @(_mensajeReceptorCodigo != 1 ? "(obligatorio)" : "(opcional)")</label><textarea class="form-control" rows="2" maxlength="160" @bind="_mensajeReceptorDetalle"></textarea></div>
-            <div class="col-6"><label class="form-label">Monto total del impuesto</label><input class="form-control" disabled value="@Formato.Importe(_mensajeReceptorMontoImpuesto)" /></div>
-            <div class="col-6"><label class="form-label">Monto total de la factura</label><input class="form-control" disabled value="@Formato.Importe(_totales.Total)" /></div>
-            <div class="col-12"><label class="form-label">Condición del impuesto</label><select class="form-select" @bind="_mensajeReceptorCondicionImpuesto"><option value="">Seleccione...</option><option value="01">Genera crédito IVA</option><option value="02">Genera crédito parcial del IVA</option><option value="03">Bienes de capital</option><option value="04">Gasto corriente, no genera IVA</option><option value="05">Proporcionalidad</option></select></div>
-            <div class="col-6"><label class="form-label">Monto total del impuesto a acreditar</label><input type="number" min="0" step="0.01" class="form-control" @bind="_mensajeReceptorMontoAcreditar" /></div>
-            <div class="col-6"><label class="form-label">Monto total del gasto aplicable</label><input type="number" min="0" step="0.01" class="form-control" @bind="_mensajeReceptorMontoGastoAplicable" /></div>
+            @if (_mensajeReceptorCodigo != 3)
+            {
+                <div class="col-6"><label class="form-label">Monto total del impuesto</label><input class="form-control" disabled value="@Formato.Importe(_mensajeReceptorMontoImpuesto)" /></div>
+                <div class="col-6"><label class="form-label">Monto total de la factura</label><input class="form-control" disabled value="@Formato.Importe(_totales.Total)" /></div>
+                <div class="col-12"><label class="form-label">Condición del impuesto</label><select class="form-select" @bind="_mensajeReceptorCondicionImpuesto" @bind:after="RecalcularMontosMensajeReceptor"><option value="">Seleccione...</option><option value="01">Genera crédito IVA</option><option value="02">Genera crédito parcial del IVA</option><option value="03">Bienes de capital</option><option value="04">Gasto corriente, no genera IVA</option><option value="05">Proporcionalidad</option></select></div>
+                @if (_mensajeReceptorCondicionImpuesto == "02")
+                {
+                    <div class="col-12">
+                        <label class="form-label">Tarifa de venta aplicada (%)</label>
+                        <input type="number" min="0" max="100" step="0.01" class="form-control" @bind="_mensajeReceptorTarifaVenta" @bind:after="RecalcularMontosMensajeReceptor" />
+                        <div class="form-text">A qué tarifa de IVA se vende este artículo — determina cuánto del impuesto pagado se puede acreditar.</div>
+                    </div>
+                }
+                <div class="col-6"><label class="form-label">Monto total del impuesto a acreditar</label><input type="number" min="0" step="0.01" class="form-control" @bind="_mensajeReceptorMontoAcreditar" /></div>
+                <div class="col-6"><label class="form-label">Monto total del gasto aplicable</label><input type="number" min="0" step="0.01" class="form-control" @bind="_mensajeReceptorMontoGastoAplicable" /></div>
+            }
+            else
+            {
+                <div class="col-12"><p class="text-secondary small mb-0">Al rechazar el documento no se reclama crédito de impuesto ni gasto deducible sobre él.</p></div>
+            }
         </div>
     </BodyTemplate>
     <FooterTemplate>
@@ -376,6 +391,7 @@
     private decimal _mensajeReceptorMontoImpuesto;
     private decimal _mensajeReceptorMontoAcreditar;
     private decimal _mensajeReceptorMontoGastoAplicable;
+    private decimal _mensajeReceptorTarifaVenta;
     private bool _enviandoMensajeReceptor;
 
     private bool EsCostaPetsCompra => _compraDesbloqueada ? _esCostaPetsCompra : Sesion.EsCostaPets;
@@ -628,8 +644,52 @@
         _mensajeReceptorDetalle = string.Empty;
         _mensajeReceptorCondicionImpuesto = string.Empty;
         _mensajeReceptorMontoImpuesto = _xml?.TotalImpuesto ?? (decimal)_totales.Impuesto;
-        _mensajeReceptorMontoAcreditar = _mensajeReceptorMontoImpuesto;
-        _mensajeReceptorMontoGastoAplicable = _totales.Total;
+        _mensajeReceptorTarifaVenta = 0;
+        // Sin condición del impuesto elegida todavía no hay fórmula que aplicar —
+        // se llenan al elegirla (RecalcularMontosMensajeReceptor), no antes.
+        _mensajeReceptorMontoAcreditar = 0;
+        _mensajeReceptorMontoGastoAplicable = 0;
+    }
+
+    /// <summary>Al rechazar un documento no se reclama crédito ni gasto sobre él —
+    /// limpia lo que se hubiera llenado para no enviar montos que ya no aplican.</summary>
+    private void AlCambiarMensajeReceptor()
+    {
+        if (_mensajeReceptorCodigo != 3) return;
+        _mensajeReceptorCondicionImpuesto = string.Empty;
+        _mensajeReceptorMontoAcreditar = 0;
+        _mensajeReceptorMontoGastoAplicable = 0;
+    }
+
+    /// <summary>Aplica las fórmulas fijas de Hacienda para cada condición del impuesto del
+    /// Mensaje Receptor. MN = subtotal neto (factura menos su propio impuesto); IT = monto
+    /// total del impuesto. 01/03/05 acreditan el 100% del IT y dejan MN como gasto; 04 no
+    /// acredita nada y el gasto es la factura completa; 02 depende de a qué tarifa se
+    /// revende el artículo (Tv), que el usuario debe indicar aparte.</summary>
+    private void RecalcularMontosMensajeReceptor()
+    {
+        var it = _mensajeReceptorMontoImpuesto;
+        var mn = _totales.Total - it;
+        switch (_mensajeReceptorCondicionImpuesto)
+        {
+            case "01" or "03" or "05":
+                _mensajeReceptorMontoAcreditar = it;
+                _mensajeReceptorMontoGastoAplicable = mn;
+                break;
+            case "04":
+                _mensajeReceptorMontoAcreditar = 0;
+                _mensajeReceptorMontoGastoAplicable = mn + it;
+                break;
+            case "02":
+                var acreditar = CalculoDocumento.Redondear(mn * (_mensajeReceptorTarifaVenta / 100m));
+                _mensajeReceptorMontoAcreditar = acreditar;
+                _mensajeReceptorMontoGastoAplicable = mn + (it - acreditar);
+                break;
+            default:
+                _mensajeReceptorMontoAcreditar = 0;
+                _mensajeReceptorMontoGastoAplicable = 0;
+                break;
+        }
     }
 
     private async Task OmitirMensajeReceptor()
@@ -643,6 +703,15 @@
         if (_mensajeReceptorCodigo != 1 && string.IsNullOrWhiteSpace(_mensajeReceptorDetalle))
         {
             await Dialogos.ErrorAsync("Indique el detalle del mensaje cuando la aceptación es parcial o el documento se rechaza.");
+            return;
+        }
+        // Acreditar + Gasto aplicable siempre debe cuadrar con el total de la factura —
+        // con las fórmulas de Hacienda para cada condición esto siempre cuadra exacto;
+        // si no cuadra es porque el usuario editó los montos a mano y se desalinearon.
+        if (_mensajeReceptorCodigo != 3 && !string.IsNullOrWhiteSpace(_mensajeReceptorCondicionImpuesto)
+            && Math.Abs(_mensajeReceptorMontoAcreditar + _mensajeReceptorMontoGastoAplicable - _totales.Total) > 0.01m)
+        {
+            await Dialogos.ErrorAsync("El monto a acreditar más el gasto aplicable no cuadra con el total de la factura. Revise los montos.");
             return;
         }
         _enviandoMensajeReceptor = true;
