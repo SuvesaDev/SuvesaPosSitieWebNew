@@ -13,8 +13,6 @@ public sealed class EnviarMensajeReceptorDTO
     public string? CondicionImpuesto { get; set; }
     public decimal? MontoTotalImpuestoAcreditar { get; set; }
     public decimal? MontoTotalDeGastoAplicable { get; set; }
-    public string TipoIdentificacionEmisor { get; set; } = string.Empty;
-    public DateTimeOffset FechaEmisionDoc { get; set; }
 }
 
 /// <summary>Espejo de ApiSuvesaPos.DTOs.ResultadoMensajeReceptorDTO.</summary>
@@ -25,4 +23,18 @@ public sealed class ResultadoMensajeReceptorDTO
     public long? IdEmision { get; set; }
     public string Estado { get; set; } = string.Empty;
     public IReadOnlyList<string> Errores { get; set; } = Array.Empty<string>();
+}
+
+/// <summary>Fila de "Compras pendientes de Mensaje Receptor" — espejo de
+/// ApiSuvesaPos.DTOs.CompraPendienteMensajeReceptorDTO.</summary>
+public sealed class CompraPendienteMensajeReceptorDTO
+{
+    public long IdCompra { get; set; }
+    public string Factura { get; set; } = string.Empty;
+    public string NombreProveedor { get; set; } = string.Empty;
+    public DateTime Fecha { get; set; }
+    public decimal TotalFactura { get; set; }
+    public decimal Impuesto { get; set; }
+    public string Clave { get; set; } = string.Empty;
+    public string? EstadoDgt { get; set; }
 }

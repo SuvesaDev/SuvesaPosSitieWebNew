@@ -1,0 +1,169 @@
+@using SuvesaPosSitioAplicacion.DTOs.Compras
+@using SuvesaPosSitioAplicacion.Services
+@inject ICompras Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+@* Modal de aceptación de una compra ante Hacienda (Mensaje Receptor). Reutilizable:
+   Compra.razor lo abre justo después de guardar una compra recién importada de XML;
+   Views/Compras/DocumentosAceptados.razor lo abre para compras que ya existen pero
+   nunca tuvieron un envío exitoso ("Pendientes"). El servidor resuelve Clave, cédulas,
+   tipo de identificación y fecha de emisión desde la propia Compra — este componente
+   solo captura lo que el usuario decide (código de mensaje, condición del impuesto,
+   montos). *@
+
+<HxModal @ref="_modal" Title="Aceptación ante Hacienda" Size="ModalSize.Regular">
+    <BodyTemplate>
+        <p class="text-secondary small">¿Desea comunicar a Hacienda si acepta, acepta parcialmente o rechaza esta factura del proveedor?</p>
+        <div class="row g-3">
+            <div class="col-12"><label class="form-label">Código de mensaje</label><select class="form-select" @bind="_codigo" @bind:after="AlCambiarCodigo"><option value="1">Aceptado</option><option value="2">Aceptado parcialmente</option><option value="3">Rechazado</option></select></div>
+            <div class="col-12"><label class="form-label">Detalle del mensaje @(_codigo != 1 ? "(obligatorio)" : "(opcional)")</label><textarea class="form-control" rows="2" maxlength="160" @bind="_detalle"></textarea></div>
+            @if (_codigo != 3)
+            {
+                <div class="col-6"><label class="form-label">Monto total del impuesto</label><input class="form-control" disabled value="@Formato.Importe(_montoImpuesto)" /></div>
+                <div class="col-6"><label class="form-label">Monto total de la factura</label><input class="form-control" disabled value="@Formato.Importe(_totalFactura)" /></div>
+                <div class="col-12"><label class="form-label">Condición del impuesto</label><select class="form-select" @bind="_condicionImpuesto" @bind:after="Recalcular"><option value="">Seleccione...</option><option value="01">Genera crédito IVA</option><option value="02">Genera crédito parcial del IVA</option><option value="03">Bienes de capital</option><option value="04">Gasto corriente, no genera IVA</option><option value="05">Proporcionalidad</option></select></div>
+                @if (_condicionImpuesto == "02")
+                {
+                    <div class="col-12">
+                        <label class="form-label">Tarifa de venta aplicada (%)</label>
+                        <input type="number" min="0" max="100" step="0.01" class="form-control" @bind="_tarifaVenta" @bind:after="Recalcular" />
+                        <div class="form-text">A qué tarifa de IVA se vende este artículo — determina cuánto del impuesto pagado se puede acreditar.</div>
+                    </div>
+                }
+                <div class="col-6"><label class="form-label">Monto total del impuesto a acreditar</label><input type="number" min="0" step="0.01" class="form-control" @bind="_montoAcreditar" /></div>
+                <div class="col-6"><label class="form-label">Monto total del gasto aplicable</label><input type="number" min="0" step="0.01" class="form-control" @bind="_montoGastoAplicable" /></div>
+            }
+            else
+            {
+                <div class="col-12"><p class="text-secondary small mb-0">Al rechazar el documento no se reclama crédito de impuesto ni gasto deducible sobre él.</p></div>
+            }
+        </div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-outline-secondary" disabled="@_enviando" @onclick="Omitir">Ahora no</button>
+        <button type="button" class="btn btn-primary" disabled="@_enviando" @onclick="EnviarAsync">@(_enviando ? "Enviando..." : "Enviar a Hacienda")</button>
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    /// <summary>Se cerró sin enviar ("Ahora no").</summary>
+    [Parameter]
+    public EventCallback AlOmitir { get; set; }
+
+    /// <summary>Se envió correctamente — trae el resultado (estado ante Hacienda).</summary>
+    [Parameter]
+    public EventCallback<ResultadoMensajeReceptorDTO?> AlEnviar { get; set; }
+
+    private HxModal _modal = default!;
+    private long _idCompra;
+    private decimal _totalFactura;
+    private int _codigo = 1;
+    private string _detalle = string.Empty;
+    private string _condicionImpuesto = string.Empty;
+    private decimal _montoImpuesto;
+    private decimal _montoAcreditar;
+    private decimal _montoGastoAplicable;
+    private decimal _tarifaVenta;
+    private bool _enviando;
+
+    /// <summary>Abre el modal para una compra concreta. montoImpuesto/totalFactura solo
+    /// precargan los cálculos — el servidor vuelve a resolver todo desde la Compra al
+    /// enviar, así que no hace falta que sean exactos si se abre desde una bandeja.</summary>
+    public async Task AbrirAsync(long idCompra, decimal totalFactura, decimal montoImpuesto)
+    {
+        _idCompra = idCompra;
+        _totalFactura = totalFactura;
+        _codigo = 1;
+        _detalle = string.Empty;
+        _condicionImpuesto = string.Empty;
+        _montoImpuesto = montoImpuesto;
+        _tarifaVenta = 0;
+        // Sin condición del impuesto elegida todavía no hay fórmula que aplicar — se
+        // llenan al elegirla (Recalcular), no antes.
+        _montoAcreditar = 0;
+        _montoGastoAplicable = 0;
+        await _modal.ShowAsync();
+    }
+
+    /// <summary>Al rechazar un documento no se reclama crédito ni gasto sobre él — limpia
+    /// lo que se hubiera llenado para no enviar montos que ya no aplican.</summary>
+    private void AlCambiarCodigo()
+    {
+        if (_codigo != 3) return;
+        _condicionImpuesto = string.Empty;
+        _montoAcreditar = 0;
+        _montoGastoAplicable = 0;
+    }
+
+    /// <summary>Aplica las fórmulas fijas de Hacienda para cada condición del impuesto del
+    /// Mensaje Receptor. MN = subtotal neto (factura menos su propio impuesto); IT = monto
+    /// total del impuesto. 01/03/05 acreditan el 100% del IT y dejan MN como gasto; 04 no
+    /// acredita nada y el gasto es la factura completa; 02 depende de a qué tarifa se
+    /// revende el artículo (Tv), que el usuario debe indicar aparte.</summary>
+    private void Recalcular()
+    {
+        var it = _montoImpuesto;
+        var mn = _totalFactura - it;
+        switch (_condicionImpuesto)
+        {
+            case "01" or "03" or "05":
+                _montoAcreditar = it;
+                _montoGastoAplicable = mn;
+                break;
+            case "04":
+                _montoAcreditar = 0;
+                _montoGastoAplicable = mn + it;
+                break;
+            case "02":
+                var acreditar = CalculoDocumento.Redondear(mn * (_tarifaVenta / 100m));
+                _montoAcreditar = acreditar;
+                _montoGastoAplicable = mn + (it - acreditar);
+                break;
+            default:
+                _montoAcreditar = 0;
+                _montoGastoAplicable = 0;
+                break;
+        }
+    }
+
+    private async Task Omitir()
+    {
+        await _modal.HideAsync();
+        await AlOmitir.InvokeAsync();
+    }
+
+    private async Task EnviarAsync()
+    {
+        if (_codigo != 1 && string.IsNullOrWhiteSpace(_detalle))
+        {
+            await Dialogos.ErrorAsync("Indique el detalle del mensaje cuando la aceptación es parcial o el documento se rechaza.");
+            return;
+        }
+        // Acreditar + Gasto aplicable siempre debe cuadrar con el total de la factura —
+        // con las fórmulas de Hacienda para cada condición esto siempre cuadra exacto;
+        // si no cuadra es porque el usuario editó los montos a mano y se desalinearon.
+        if (_codigo != 3 && !string.IsNullOrWhiteSpace(_condicionImpuesto)
+            && Math.Abs(_montoAcreditar + _montoGastoAplicable - _totalFactura) > 0.01m)
+        {
+            await Dialogos.ErrorAsync("El monto a acreditar más el gasto aplicable no cuadra con el total de la factura. Revise los montos.");
+            return;
+        }
+        _enviando = true;
+        var respuesta = await Api.EnviarMensajeReceptor(_idCompra, new EnviarMensajeReceptorDTO
+        {
+            Mensaje = _codigo,
+            DetalleMensaje = string.IsNullOrWhiteSpace(_detalle) ? null : _detalle.Trim(),
+            CondicionImpuesto = string.IsNullOrWhiteSpace(_condicionImpuesto) ? null : _condicionImpuesto,
+            MontoTotalImpuestoAcreditar = _montoAcreditar,
+            MontoTotalDeGastoAplicable = _montoGastoAplicable,
+        });
+        _enviando = false;
+        if (await Respuestas.CorrectaAsync(respuesta, "enviar el Mensaje Receptor"))
+        {
+            Dialogos.Exito(respuesta.Responses?.EsValido == true ? "Mensaje Receptor enviado a Hacienda." : $"Mensaje Receptor registrado con estado: {respuesta.Responses?.Estado}.");
+            await _modal.HideAsync();
+            await AlEnviar.InvokeAsync(respuesta.Responses);
+        }
+    }
+}
