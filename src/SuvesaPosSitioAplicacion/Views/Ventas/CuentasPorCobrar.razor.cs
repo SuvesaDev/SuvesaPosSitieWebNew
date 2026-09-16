@@ -38,6 +38,8 @@ public partial class CuentasPorCobrar
     private List<FormasPagoDTO> _formasPago = new();
     private Dictionary<string, decimal> _montos = new();
     private Dictionary<string, string?> _referencias = new();
+    private Dictionary<string, string?> _numerosCheque = new();
+    private Dictionary<string, int?> _idsBanco = new();
     private decimal _aCobrar, _entregado, _cambio;
     private string? _claveLote;
     private bool _procesando;
@@ -264,6 +266,8 @@ public partial class CuentasPorCobrar
                     FormaPago = f.Codigo!,
                     Monto = aplica,
                     Referencia = _referencias.TryGetValue(f.Codigo!, out var rf) ? rf : null,
+                    NumeroCheque = _numerosCheque.TryGetValue(f.Codigo!, out var nc) ? nc : null,
+                    IdBanco = _idsBanco.TryGetValue(f.Codigo!, out var ib) ? ib : null,
                 });
 
                 if (!esUltima && cubierto >= totalDoc) break;

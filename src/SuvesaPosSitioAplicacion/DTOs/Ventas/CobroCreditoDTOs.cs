@@ -56,6 +56,10 @@ public sealed class CobroCreditoFormaPagoWebDTO
     public string CodigoFormaPago { get; set; } = "";
     public decimal MontoRecibido { get; set; }
     public string? Referencia { get; set; }
+    /// <summary>Solo forma de pago Cheque: número del cheque del cliente.</summary>
+    public string? NumeroCheque { get; set; }
+    /// <summary>Solo forma de pago Cheque: banco emisor (catálogo EntidadesBancaria.IdBanco).</summary>
+    public int? IdBanco { get; set; }
 }
 
 public sealed class CobroCreditoResultadoWebDTO
