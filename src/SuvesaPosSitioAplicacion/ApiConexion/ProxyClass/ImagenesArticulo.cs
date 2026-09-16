@@ -26,13 +26,17 @@ public sealed class ImagenesArticulo : ProxyBase, IImagenesArticulo
 
     public Task<ResponseGeneric<ArticulosImagenesDTO>> Obtener(long idArticulo) => Ejecutar(async () => { var r = await _api.ObtenerArticuloImagenAsync(idArticulo); return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses); }, "consultar la imagen del artículo");
 
+    private string LlaveCatalogo => $"catalogo-imagenes:sucursal:{_sesion.IdSucursal}";
+
+    public void InvalidarCatalogo() => _cache.Remove(LlaveCatalogo);
+
     public Task<ResponseGeneric<ICollection<ArticulosImagenesCatalogoDTO>>> Catalogo()
         => Ejecutar(async () =>
         {
             // El endpoint devuelve todas las imágenes base64 de una vez. Guardarlo
             // brevemente evita repetir una descarga muy grande al abrir/cerrar el
             // catálogo o cuando varios cajeros usan la misma sucursal.
-            var llave = $"catalogo-imagenes:sucursal:{_sesion.IdSucursal}";
+            var llave = LlaveCatalogo;
             if (_cache.TryGetValue(llave, out ICollection<ArticulosImagenesCatalogoDTO>? catalogo))
             {
                 return new ResponseGeneric<ICollection<ArticulosImagenesCatalogoDTO>>(catalogo);

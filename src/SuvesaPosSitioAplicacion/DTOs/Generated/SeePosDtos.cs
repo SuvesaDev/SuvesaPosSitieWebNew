@@ -1562,6 +1562,13 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("codigo")]
         public string? Codigo { get; set; } = default!;
 
+        // Agregado a mano (16 sep 2026): tools/actualizar-contratos.sh necesita un API
+        // vivo y no había uno disponible en esta sesión. Coincide exactamente con
+        // ArticulosImagenesCatalogoDTO.Version del API — al regenerar de verdad contra
+        // un servidor, este campo debe salir igual y este comentario ya no hace falta.
+        [System.Text.Json.Serialization.JsonPropertyName("version")]
+        public string? Version { get; set; } = default!;
+
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]

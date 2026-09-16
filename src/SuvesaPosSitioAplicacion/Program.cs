@@ -327,8 +327,16 @@ app.MapGet("/emisores/{idEmisor:int}/logo", async (int idEmisor, IEmisoresFiscal
 // Imagen de un artículo para el catálogo visual. Igual patrón BFF: el sitio pide
 // los bytes al API con el token (server-side) y los reenvía; el navegador solo ve
 // una URL de misma-origen. Evita mandar cientos de imágenes base64 por el circuito.
+//
+// El sitio arma esta URL con ?v={rowversion de la imagen} (ver Facturacion.razor,
+// UrlImagenCatalogo) — como la versión cambia solo cuando la imagen cambia, la URL
+// completa identifica un contenido exacto e inmutable. Por eso esta ruta puede decirle
+// al navegador que la cachee "para siempre" (antes no reenviaba ningún header de caché,
+// así que el navegador volvía a descargar las ~40 imágenes del catálogo cada vez que se
+// abría el modal, aunque el API sí intentaba habilitar 24h de caché — nunca llegaba).
 app.MapGet("/catalogo/imagen/{idInventario:long}", async (
     long idInventario,
+    HttpContext contexto,
     IHttpClientFactory factory,
     IContextoSesion sesion) =>
 {
@@ -346,6 +354,7 @@ app.MapGet("/catalogo/imagen/{idInventario:long}", async (
         var bytes = await resp.Content.ReadAsByteArrayAsync();
         if (bytes.Length == 0) return Results.NotFound();
         var mime = resp.Content.Headers.ContentType?.ToString() ?? "image/*";
+        contexto.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
         return Results.File(bytes, mime, enableRangeProcessing: false);
     }
     finally

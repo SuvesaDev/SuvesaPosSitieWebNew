@@ -255,6 +255,7 @@
             <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
                 <input class="form-control form-control-sm" style="max-width:20rem" placeholder="Filtrar por descripción o código..." @bind="_filtroCatalogo" @bind:event="oninput" />
                 <div class="form-check ms-2"><input id="catalogo-todos" class="form-check-input" type="checkbox" checked="@CatalogoCompletoSeleccionado" @onchange="SeleccionarTodoCatalogo" /><label class="form-check-label" for="catalogo-todos">Seleccionar los mostrados (@Math.Min(TopeCatalogo, CatalogoFiltrado.Count))</label></div>
+                <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" title="Volver a consultar el listado (por si se agregó o cambió una imagen)" disabled="@_cargandoCatalogo" @onclick="ActualizarCatalogoImagenes"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Actualizar</button>
             </div>
             @if (CatalogoFiltrado.Count == 0) { <p class="text-secondary text-center py-4 mb-0">Ningún artículo coincide con el filtro.</p> }
             @if (CatalogoFiltrado.Count > TopeCatalogo) { <p class="form-text mb-2"><i class="bi bi-funnel me-1"></i>Mostrando @TopeCatalogo de @CatalogoFiltrado.Count. Use el filtro para acotar el catálogo.</p> }
@@ -272,7 +273,7 @@
                                 }
                                 else
                                 {
-                                    <img class="mw-100 h-100 p-2 seepos-catalogo-imagen" style="object-fit: contain;" src="@UrlImagenCatalogo(producto.Datos.IdInventario)" alt="@producto.Datos.Descripcion" loading="lazy" @onerror="() => producto.ImagenNoDisponible = true" />
+                                    <img class="mw-100 h-100 p-2 seepos-catalogo-imagen" style="object-fit: contain;" src="@UrlImagenCatalogo(producto.Datos.IdInventario, producto.Datos.Version)" alt="@producto.Datos.Descripcion" loading="lazy" @onerror="() => producto.ImagenNoDisponible = true" />
                                 }
                                 <div class="position-absolute top-0 end-0 p-2"><input class="form-check-input" type="checkbox" aria-label="Seleccionar @producto.Datos.Descripcion" @bind="producto.Seleccionado" /></div>
                             </div>
@@ -1050,12 +1051,38 @@
     private Task<ResponseGeneric<ICollection<ArticulosImagenesCatalogoDTO>>> ObtenerCatalogoAsync()
         => _catalogoPendiente ??= Imagenes.Catalogo();
 
+    /// <summary>Botón "Actualizar" del catálogo visual: descarta el caché de 5 minutos del
+    /// listado (por si se subió o cambió una imagen recién) y lo vuelve a consultar. Las
+    /// imágenes en sí no hace falta "refrescarlas": cada una está versionada en su propia
+    /// URL (?v=rowversion) y el navegador solo vuelve a pedir las que de verdad cambiaron.</summary>
+    private async Task ActualizarCatalogoImagenes()
+    {
+        Imagenes.InvalidarCatalogo();
+        _catalogoPendiente = null;
+        _cargandoCatalogo = true;
+        var respuestaCatalogo = await ObtenerCatalogoAsync();
+        if (!respuestaCatalogo.EsCorrecta)
+        {
+            _catalogoPendiente = null;
+            await Respuestas.DatoAsync(respuestaCatalogo, "actualizar el catálogo visual");
+            _cargandoCatalogo = false;
+            return;
+        }
+        var seleccion = _catalogoImagenes.Where(p => p.Seleccionado).ToDictionary(p => p.Datos.IdInventario, p => p.Cantidad);
+        _catalogoImagenes = (respuestaCatalogo.Responses ?? Array.Empty<ArticulosImagenesCatalogoDTO>())
+            .Select(p => new ProductoCatalogo { Datos = p, Seleccionado = seleccion.ContainsKey(p.IdInventario), Cantidad = seleccion.GetValueOrDefault(p.IdInventario, 1) })
+            .ToList();
+        _cargandoCatalogo = false;
+    }
+
     /// <summary>
     /// Evita una URL que comience por <c>/</c>: publicada bajo un directorio
-    /// virtual de IIS, esa barra abandona la aplicación y devuelve 404.
+    /// virtual de IIS, esa barra abandona la aplicación y devuelve 404. La versión
+    /// (rowversion de la imagen en el API) hace la URL inmutable — el navegador la cachea
+    /// "para siempre" y solo pide una nueva si la imagen realmente cambió.
     /// </summary>
-    private string UrlImagenCatalogo(long idInventario)
-        => new Uri(new Uri(Navegacion.BaseUri), $"catalogo/imagen/{idInventario}").AbsoluteUri;
+    private string UrlImagenCatalogo(long idInventario, string? version)
+        => new Uri(new Uri(Navegacion.BaseUri), $"catalogo/imagen/{idInventario}?v={Uri.EscapeDataString(version ?? "0")}").AbsoluteUri;
 
     private void PrecargarCatalogo() => _catalogoPendiente ??= Imagenes.Catalogo();
 
