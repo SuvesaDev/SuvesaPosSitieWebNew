@@ -1,3 +1,4 @@
+using SuvesaPosSitioAplicacion.DTOs.Compras;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.Helpers;
 
@@ -21,4 +22,5 @@ public interface ICompras
     Task<ResponseGeneric<ICollection<CatalogoProductosInternosDTO>>> CatalogosInternos(ICollection<CatalogoProductosInternosDTO> productos);
     Task<ResponseGeneric<CatalogoProductosInternosDTO>> VincularArticuloXml(CatalogoProductosInternosDTO producto);
     Task<ResponseGeneric<ICollection<ActualizarPreciosArticulosDTO>>> ActualizarPrecios(ICollection<ActualizarPreciosArticulosDTO> precios);
+    Task<ResponseGeneric<ResultadoMensajeReceptorDTO>> EnviarMensajeReceptor(long idCompra, EnviarMensajeReceptorDTO datos);
 }

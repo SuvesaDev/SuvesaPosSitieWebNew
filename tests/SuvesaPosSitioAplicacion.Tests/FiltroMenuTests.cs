@@ -114,6 +114,6 @@ public class FiltroMenuTests
         // maquila, Mermas) + 1 (Panel ejecutivo) + 1 (Tablero de Consignación, pantalla
         // huérfana que ya existía sin nodo de menú) + 1 (Ventas entre horas) —
         // ver PLAN_MODULO_REPORTES_ERP_WEB.md.
-        Assert.Equal(112, Contar(MenuSeePos.Items));
+        Assert.Equal(113, Contar(MenuSeePos.Items));
     }
 }

@@ -1,5 +1,7 @@
+using System.Net.Http.Json;
 using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
+using SuvesaPosSitioAplicacion.DTOs.Compras;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.Helpers;
 using SuvesaPosSitioAplicacion.Security;
@@ -14,6 +16,9 @@ public sealed class Compras : ProxyBase, ICompras
     private readonly IMonedaApiCliente _monedas;
     private readonly IBodegaApiCliente _bodegas;
     private readonly IUsuarioApiCliente _usuarios;
+    // "EnviarMensajeReceptor" es un endpoint nuevo, todavía sin cliente NSwag generado
+    // (mismo criterio que ImagenesArticulo.Recatalogar).
+    private readonly HttpClient _http;
 
     public Compras(
         IComprasApiCliente compras,
@@ -21,6 +26,7 @@ public sealed class Compras : ProxyBase, ICompras
         IMonedaApiCliente monedas,
         IBodegaApiCliente bodegas,
         IUsuarioApiCliente usuarios,
+        IHttpClientFactory factory,
         IContextoSesion sesion,
         ILogger<Compras> log)
         : base(sesion, log)
@@ -30,6 +36,7 @@ public sealed class Compras : ProxyBase, ICompras
         _monedas = monedas;
         _bodegas = bodegas;
         _usuarios = usuarios;
+        _http = factory.CreateClient("SeePosApi");
     }
 
     public Task<ResponseGeneric<ICollection<EmpresaDTO>>> Empresas()
@@ -119,4 +126,8 @@ public sealed class Compras : ProxyBase, ICompras
             var r = await _compras.ActualizarPreciosArticulosAsync(precios);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "actualizar los precios de artículos importados");
+
+    public Task<ResponseGeneric<ResultadoMensajeReceptorDTO>> EnviarMensajeReceptor(long idCompra, EnviarMensajeReceptorDTO datos)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<ResultadoMensajeReceptorDTO>(
+            await _http.PostAsJsonAsync($"Compras/EnviarMensajeReceptor?idCompra={idCompra}", datos, LecturaEnvelope.Json)), "enviar el Mensaje Receptor a Hacienda");
 }

@@ -1,0 +1,198 @@
+@page "/buys/received-messages"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
+@using SuvesaPosSitioAplicacion.Services
+@inject IBandejaFiscal Fiscal
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+@* Bandeja de Mensaje Receptor de Compras — reutiliza la bandeja fiscal genérica V44
+   (la misma que usa Documentos → Bandeja para facturas/NC de venta), filtrada a
+   TipoComprobante=MensajeReceptor + OrigenPosTipo=Compra. No hay tabla propia: cada
+   fila es una emisión de FacturaElectronica.V44.EmisionComprobanteElectronicoV44. *@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small">Clave</label>
+                    <input type="search" class="form-control" placeholder="Clave del comprobante del proveedor" @bind="_clave" @bind:event="oninput" @onkeydown="BuscarConEnter" />
+                </div>
+                <div class="col-8 col-md-4">
+                    <label class="form-label small">Estado ante Hacienda</label>
+                    <input class="form-control" placeholder="Cualquiera" @bind="_estado" />
+                </div>
+                <div class="col-4 col-md-1 d-grid">
+                    <button class="btn btn-primary" disabled="@_cargando" @onclick="Buscar">Buscar</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                @if (_cargando)
+                {
+                    <div class="d-flex justify-content-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando</span></div></div>
+                }
+                else if (_registros.Count == 0)
+                {
+                    <p class="text-secondary text-center py-4 mb-0">No hay mensajes receptor con esos criterios.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Compra</th>
+                                    <th>Clave</th>
+                                    <th>Estado</th>
+                                    <th>Intentos</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in _registros)
+                                {
+                                    <tr>
+                                        <td>@r.FechaCreacionUtc.ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td>@(r.OrigenPosId is { } id ? $"#{id}" : "—")</td>
+                                        <td class="text-break"><span class="small">@r.Clave</span></td>
+                                        <td><span class="badge @ClaseEstado(r.Estado)">@r.Estado</span>@if (!string.IsNullOrWhiteSpace(r.CausaError)) { <div class="text-danger small" title="@r.CausaError">@Truncar(r.CausaError)</div> }</td>
+                                        <td>@r.IntentosEnvio</td>
+                                        <td class="text-end"><button class="btn btn-sm btn-link p-0" @onclick="() => AccionFiscal(r.Clave)">Detalle</button></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <button class="btn btn-sm btn-outline-secondary" disabled="@(_pagina <= 1 || _cargando)" @onclick="Anterior">Anterior</button>
+                        <span class="small text-secondary">Página @_pagina · @_total registro(s)</span>
+                        <button class="btn btn-sm btn-outline-secondary" disabled="@(_pagina * _tamano >= _total || _cargando)" @onclick="Siguiente">Siguiente</button>
+                    </div>
+                }
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modalFiscal" Title="Mensaje Receptor" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_claveFiscal is not null)
+        {
+            <p class="text-break small"><strong>Clave:</strong> @_claveFiscal</p>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+                <button class="btn btn-sm btn-outline-primary" @onclick="VerXml">Ver XML firmado</button>
+                <button class="btn btn-sm btn-outline-primary" @onclick="VerRespuesta">Ver respuesta Hacienda</button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="ConsultarEstadoHacienda">Consultar estado</button>
+                <button class="btn btn-sm btn-outline-danger" @onclick="ReintentarEmision">Reintentar envío</button>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_contenidoFiscal))
+            {
+                <pre class="p-2 bg-light text-break" style="max-height:340px;overflow:auto">@_contenidoFiscal</pre>
+            }
+        }
+    </BodyTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Documentos aceptados";
+    private string _clave = string.Empty;
+    private string _estado = string.Empty;
+    private int _pagina = 1;
+    private const int _tamano = 25;
+    private int _total;
+    private bool _cargando;
+    private List<ItemBandejaFiscalDTO> _registros = new();
+    private HxModal _modalFiscal = default!;
+    private string? _claveFiscal;
+    private string? _contenidoFiscal;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Buscar()
+    {
+        _pagina = 1;
+        await Cargar();
+    }
+
+    private async Task Anterior()
+    {
+        if (_pagina <= 1) return;
+        _pagina--;
+        await Cargar();
+    }
+
+    private async Task Siguiente()
+    {
+        _pagina++;
+        await Cargar();
+    }
+
+    private async Task BuscarConEnter(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Buscar();
+    }
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        var r = await Respuestas.DatoAsync(await Fiscal.Consultar(new FiltroBandejaFiscalDTO
+        {
+            Clave = Nulo(_clave),
+            Estado = Nulo(_estado),
+            TipoComprobante = "MensajeReceptor",
+            OrigenPosTipo = "Compra",
+            Pagina = _pagina,
+            TamanoPagina = _tamano
+        }), "consultar los documentos aceptados");
+        _registros = r?.Registros ?? new();
+        _total = r?.TotalRegistros ?? 0;
+        _cargando = false;
+    }
+
+    private async Task AccionFiscal(string clave)
+    {
+        _claveFiscal = clave;
+        _contenidoFiscal = null;
+        await _modalFiscal.ShowAsync();
+    }
+
+    private async Task VerXml()
+        => _contenidoFiscal = await Respuestas.DatoAsync(await Fiscal.XmlFirmado(_claveFiscal!), "obtener el XML firmado");
+
+    private async Task VerRespuesta()
+        => _contenidoFiscal = await Respuestas.DatoAsync(await Fiscal.RespuestaHacienda(_claveFiscal!), "obtener la respuesta de Hacienda");
+
+    private async Task ConsultarEstadoHacienda()
+    {
+        if (await Respuestas.CorrectaAsync(await Fiscal.ConsultarEstado(_claveFiscal!), "consultar el estado en Hacienda"))
+        {
+            Dialogos.Exito("Estado consultado. Cierre y vuelva a buscar para ver el cambio.");
+        }
+    }
+
+    private async Task ReintentarEmision()
+    {
+        if (await Respuestas.CorrectaAsync(await Fiscal.Reintentar(_claveFiscal!), "reintentar el envío"))
+        {
+            Dialogos.Exito("Envío reencolado.");
+            await _modalFiscal.HideAsync();
+            await Cargar();
+        }
+    }
+
+    private static string? Nulo(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    private static string Truncar(string s) => s.Length <= 60 ? s : s[..60] + "…";
+
+    private static string ClaseEstado(string estado)
+    {
+        var e = estado.ToLowerInvariant();
+        if (e.Contains("acept") || e.Contains("recib")) return "text-bg-success";
+        if (e.Contains("error") || e.Contains("rechaz")) return "text-bg-danger";
+        return "text-bg-secondary";
+    }
+}

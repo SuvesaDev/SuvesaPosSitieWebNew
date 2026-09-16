@@ -163,6 +163,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Documentos aceptados",
+                    Codigo = "COMPRAS.DOCUMENTOS_ACEPTADOS",
+                    Ruta = "/buys/received-messages",
+                },
+                new ItemMenu
+                {
                     Titulo = "Cuentas por pagar",
                     Codigo = "COMPRAS.CUENTAS_POR_PAGAR",
                     Ruta = "/buys/countswihoutpay",

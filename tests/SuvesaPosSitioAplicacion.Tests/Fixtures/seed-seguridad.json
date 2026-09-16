@@ -240,11 +240,27 @@
           ]
         },
         {
+          "codigo": "COMPRAS.DOCUMENTOS_ACEPTADOS",
+          "nombre": "Documentos aceptados",
+          "ruta": "/buys/received-messages",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "COMPRAS.CUENTAS_POR_PAGAR",
           "nombre": "Cuentas por pagar",
           "ruta": "/buys/countswihoutpay",
           "padre": null,
-          "orden": 3,
+          "orden": 4,
           "acciones": [
             "VER",
             "CREAR",
@@ -260,7 +276,7 @@
           "nombre": "Pedidos",
           "ruta": "/buys/orders/warehouseorders",
           "padre": null,
-          "orden": 4,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -292,7 +308,7 @@
           "nombre": "Toma",
           "ruta": "/buys/physical-count",
           "padre": null,
-          "orden": 5,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",
@@ -324,7 +340,7 @@
           "nombre": "Traslado entre bodegas",
           "ruta": "/buys/warehouse-transfer",
           "padre": null,
-          "orden": 6,
+          "orden": 7,
           "acciones": [
             "VER",
             "CREAR",
@@ -340,7 +356,7 @@
           "nombre": "Orden de compra manual",
           "ruta": "/buys/purchaseorder",
           "padre": null,
-          "orden": 7,
+          "orden": 8,
           "acciones": [
             "VER",
             "CREAR",
@@ -356,7 +372,7 @@
           "nombre": "Devoluciones compra",
           "ruta": "/buys/purchasereturns",
           "padre": null,
-          "orden": 8,
+          "orden": 9,
           "acciones": [
             "VER",
             "CREAR",
@@ -372,7 +388,7 @@
           "nombre": "Abono Pagar",
           "ruta": "/buys/pay",
           "padre": null,
-          "orden": 9,
+          "orden": 10,
           "acciones": [
             "VER",
             "CREAR",
@@ -388,7 +404,7 @@
           "nombre": "Recibos de pago",
           "ruta": "/buys/payment-receipts",
           "padre": null,
-          "orden": 10,
+          "orden": 11,
           "acciones": [
             "VER",
             "CREAR",
@@ -658,7 +674,7 @@
         {
           "codigo": "MODULO_REPORTES.PANEL_EJECUTIVO",
           "nombre": "Panel ejecutivo",
-          "ruta": "/moduloReportes?tipo=panel-ejecutivo",
+          "ruta": "/moduloReportes/panel-ejecutivo",
           "padre": null,
           "orden": 1,
           "acciones": [
@@ -674,7 +690,7 @@
         {
           "codigo": "MODULO_REPORTES.VENTAS",
           "nombre": "Ventas",
-          "ruta": "/moduloReportes?tipo=ventas",
+          "ruta": "/moduloReportes/ventas",
           "padre": null,
           "orden": 2,
           "acciones": [
@@ -690,7 +706,7 @@
         {
           "codigo": "MODULO_REPORTES.VENTAS_DETALLE",
           "nombre": "Ventas detalle",
-          "ruta": "/moduloReportes?tipo=ventas-detalle",
+          "ruta": "/moduloReportes/ventas-detalle",
           "padre": null,
           "orden": 3,
           "acciones": [
@@ -706,7 +722,7 @@
         {
           "codigo": "MODULO_REPORTES.VENTAS_ENTRE_HORAS",
           "nombre": "Ventas entre horas",
-          "ruta": "/moduloReportes?tipo=ventas-horas",
+          "ruta": "/moduloReportes/ventas-horas",
           "padre": null,
           "orden": 4,
           "acciones": [
@@ -722,7 +738,7 @@
         {
           "codigo": "MODULO_REPORTES.COMPORTAMIENTO_DE_CLIENTES",
           "nombre": "Comportamiento de clientes",
-          "ruta": "/moduloReportes?tipo=clientes",
+          "ruta": "/moduloReportes/clientes",
           "padre": null,
           "orden": 5,
           "acciones": [
@@ -738,7 +754,7 @@
         {
           "codigo": "MODULO_REPORTES.RENTABILIDAD",
           "nombre": "Rentabilidad",
-          "ruta": "/moduloReportes?tipo=rentabilidad",
+          "ruta": "/moduloReportes/rentabilidad",
           "padre": null,
           "orden": 6,
           "acciones": [
@@ -754,7 +770,7 @@
         {
           "codigo": "MODULO_REPORTES.VENTAS_VS_COMPRAS",
           "nombre": "Ventas vs compras",
-          "ruta": "/moduloReportes?tipo=ventas-compras",
+          "ruta": "/moduloReportes/ventas-compras",
           "padre": null,
           "orden": 7,
           "acciones": [
@@ -770,7 +786,7 @@
         {
           "codigo": "MODULO_REPORTES.RECUPERACION_DE_CARTERA",
           "nombre": "Recuperación de cartera",
-          "ruta": "/moduloReportes?tipo=recuperacion-cxc",
+          "ruta": "/moduloReportes/recuperacion-cxc",
           "padre": null,
           "orden": 8,
           "acciones": [
@@ -786,7 +802,7 @@
         {
           "codigo": "MODULO_REPORTES.CUENTAS_POR_COBRAR",
           "nombre": "Cuentas por cobrar",
-          "ruta": "/moduloReportes?tipo=cuentas-por-cobrar",
+          "ruta": "/moduloReportes/cuentas-por-cobrar",
           "padre": null,
           "orden": 9,
           "acciones": [
@@ -802,7 +818,7 @@
         {
           "codigo": "MODULO_REPORTES.CUMPLIMIENTO_CABYS",
           "nombre": "Cumplimiento CABYS",
-          "ruta": "/moduloReportes?tipo=cabys",
+          "ruta": "/moduloReportes/cabys",
           "padre": null,
           "orden": 10,
           "acciones": [
@@ -818,7 +834,7 @@
         {
           "codigo": "MODULO_REPORTES.CUENTAS_POR_PAGAR",
           "nombre": "Cuentas por pagar",
-          "ruta": "/moduloReportes?tipo=cuentas-por-pagar",
+          "ruta": "/moduloReportes/cuentas-por-pagar",
           "padre": null,
           "orden": 11,
           "acciones": [
@@ -834,7 +850,7 @@
         {
           "codigo": "MODULO_REPORTES.APARTADOS_Y_PRESTAMOS",
           "nombre": "Apartados y préstamos",
-          "ruta": "/moduloReportes?tipo=apartados",
+          "ruta": "/moduloReportes/apartados",
           "padre": null,
           "orden": 12,
           "acciones": [
@@ -850,7 +866,7 @@
         {
           "codigo": "MODULO_REPORTES.KPI_POR_RUTA_COMERCIAL",
           "nombre": "KPI por ruta comercial",
-          "ruta": "/moduloReportes?tipo=kpi-rutas",
+          "ruta": "/moduloReportes/kpi-rutas",
           "padre": null,
           "orden": 13,
           "acciones": [
@@ -866,7 +882,7 @@
         {
           "codigo": "MODULO_REPORTES.CAJA",
           "nombre": "Caja",
-          "ruta": "/moduloReportes?tipo=caja",
+          "ruta": "/moduloReportes/caja",
           "padre": null,
           "orden": 14,
           "acciones": [
@@ -882,7 +898,7 @@
         {
           "codigo": "MODULO_REPORTES.ARQUEOS_Y_CIERRES",
           "nombre": "Arqueos y cierres",
-          "ruta": "/moduloReportes?tipo=arqueos-cierres",
+          "ruta": "/moduloReportes/arqueos-cierres",
           "padre": null,
           "orden": 15,
           "acciones": [
@@ -898,7 +914,7 @@
         {
           "codigo": "MODULO_REPORTES.DEPOSITOS",
           "nombre": "Depósitos",
-          "ruta": "/moduloReportes?tipo=depositos",
+          "ruta": "/moduloReportes/depositos",
           "padre": null,
           "orden": 16,
           "acciones": [
@@ -914,7 +930,7 @@
         {
           "codigo": "MODULO_REPORTES.COMPRAS",
           "nombre": "Compras",
-          "ruta": "/moduloReportes?tipo=compras",
+          "ruta": "/moduloReportes/compras",
           "padre": null,
           "orden": 17,
           "acciones": [
@@ -930,7 +946,7 @@
         {
           "codigo": "MODULO_REPORTES.GASTOS",
           "nombre": "Gastos",
-          "ruta": "/moduloReportes?tipo=gastos",
+          "ruta": "/moduloReportes/gastos",
           "padre": null,
           "orden": 18,
           "acciones": [
@@ -946,7 +962,7 @@
         {
           "codigo": "MODULO_REPORTES.INVENTARIO",
           "nombre": "Inventario",
-          "ruta": "/moduloReportes?tipo=inventario",
+          "ruta": "/moduloReportes/inventario",
           "padre": null,
           "orden": 19,
           "acciones": [
@@ -962,7 +978,7 @@
         {
           "codigo": "MODULO_REPORTES.INVENTARIO_ABC",
           "nombre": "Inventario ABC",
-          "ruta": "/moduloReportes?tipo=inventario-abc",
+          "ruta": "/moduloReportes/inventario-abc",
           "padre": null,
           "orden": 20,
           "acciones": [
@@ -978,7 +994,7 @@
         {
           "codigo": "MODULO_REPORTES.ROTACION_DE_INVENTARIO",
           "nombre": "Rotación de inventario",
-          "ruta": "/moduloReportes?tipo=rotacion-inventario",
+          "ruta": "/moduloReportes/rotacion-inventario",
           "padre": null,
           "orden": 21,
           "acciones": [
@@ -994,7 +1010,7 @@
         {
           "codigo": "MODULO_REPORTES.BONIFICACIONES",
           "nombre": "Bonificaciones",
-          "ruta": "/moduloReportes?tipo=bonificaciones",
+          "ruta": "/moduloReportes/bonificaciones",
           "padre": null,
           "orden": 22,
           "acciones": [
@@ -1010,7 +1026,7 @@
         {
           "codigo": "MODULO_REPORTES.LOTES_Y_VENCIMIENTOS",
           "nombre": "Lotes y vencimientos",
-          "ruta": "/moduloReportes?tipo=lotes",
+          "ruta": "/moduloReportes/lotes",
           "padre": null,
           "orden": 23,
           "acciones": [
@@ -1026,7 +1042,7 @@
         {
           "codigo": "MODULO_REPORTES.TRAZABILIDAD",
           "nombre": "Trazabilidad",
-          "ruta": "/moduloReportes?tipo=trazabilidad",
+          "ruta": "/moduloReportes/trazabilidad",
           "padre": null,
           "orden": 24,
           "acciones": [
@@ -1042,7 +1058,7 @@
         {
           "codigo": "MODULO_REPORTES.EMPAQUETADO_Y_MAQUILA",
           "nombre": "Empaquetado y maquila",
-          "ruta": "/moduloReportes?tipo=empaquetado",
+          "ruta": "/moduloReportes/empaquetado",
           "padre": null,
           "orden": 25,
           "acciones": [
@@ -1058,7 +1074,7 @@
         {
           "codigo": "MODULO_REPORTES.MERMAS",
           "nombre": "Mermas",
-          "ruta": "/moduloReportes?tipo=mermas",
+          "ruta": "/moduloReportes/mermas",
           "padre": null,
           "orden": 26,
           "acciones": [
@@ -1074,7 +1090,7 @@
         {
           "codigo": "MODULO_REPORTES.AUDITORIA",
           "nombre": "Auditoría",
-          "ruta": "/moduloReportes?tipo=auditoria",
+          "ruta": "/moduloReportes/auditoria",
           "padre": null,
           "orden": 27,
           "acciones": [
