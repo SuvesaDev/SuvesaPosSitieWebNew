@@ -1571,6 +1571,20 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
     }
 
+    // Agregado a mano (16 sep 2026), mismo motivo que Version arriba: coincide
+    // exactamente con RecatalogoImagenesResultadoDTO del API.
+    public partial class RecatalogoImagenesResultadoDTO
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("procesadas")]
+        public int Procesadas { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("fallidas")]
+        public int Fallidas { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("yaTeniaMiniatura")]
+        public int YaTeniaMiniatura { get; set; } = default!;
+    }
+
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ArticulosImagenesCatalogoDTOListResponseGeneric
     {
