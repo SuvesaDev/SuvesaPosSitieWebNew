@@ -1563,9 +1563,12 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         public string? Codigo { get; set; } = default!;
 
         // Agregado a mano (16 sep 2026): tools/actualizar-contratos.sh necesita un API
-        // vivo y no había uno disponible en esta sesión. Coincide exactamente con
-        // ArticulosImagenesCatalogoDTO.Version del API — al regenerar de verdad contra
-        // un servidor, este campo debe salir igual y este comentario ya no hace falta.
+        // vivo y no había uno disponible en esta sesión. Coincide exactamente con los
+        // campos del API — al regenerar de verdad contra un servidor, estos campos deben
+        // salir igual y este comentario ya no hace falta.
+        [System.Text.Json.Serialization.JsonPropertyName("existencia")]
+        public double Existencia { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public string? Version { get; set; } = default!;
 

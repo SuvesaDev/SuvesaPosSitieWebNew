@@ -277,7 +277,16 @@
                                 }
                                 <div class="position-absolute top-0 end-0 p-2"><input class="form-check-input" type="checkbox" aria-label="Seleccionar @producto.Datos.Descripcion" @bind="producto.Seleccionado" /></div>
                             </div>
-                            <div class="card-body py-2"><p class="fw-semibold small mb-1">@producto.Datos.Descripcion</p><div class="small text-secondary">@Formato.Importe(producto.Datos.Precio)</div>@if (producto.Seleccionado) { <div class="input-group input-group-sm mt-2"><span class="input-group-text">Cant.</span><input class="form-control text-end" type="number" min="1" step="1" @bind="producto.Cantidad" /></div> }</div>
+                            <div class="card-body py-2">
+                                <p class="fw-semibold small mb-1">@producto.Datos.Descripcion</p>
+                                <div class="d-flex justify-content-between align-items-baseline">
+                                    <span class="small text-secondary">@Formato.Importe(producto.Datos.Precio)</span>
+                                    <span class="small @(producto.Datos.Existencia > 0 ? "text-secondary" : "text-danger fw-semibold")" title="Existencia (global, no por bodega)">
+                                        @(producto.Datos.Existencia > 0 ? $"Exist.: {producto.Datos.Existencia:N2}" : "Sin existencia")
+                                    </span>
+                                </div>
+                                @if (producto.Seleccionado) { <div class="input-group input-group-sm mt-2"><span class="input-group-text">Cant.</span><input class="form-control text-end" type="number" min="1" step="1" @bind="producto.Cantidad" /></div> }
+                            </div>
                         </div>
                     </div>
                 }
@@ -742,7 +751,17 @@
     private List<StockLoteDTO> _lotesPendientes = new();
     private readonly Dictionary<long, double> _repartoConsumo = new();
     private decimal _cantidadArticuloPendiente = 1;
-    private readonly Queue<(InventarioDTO Articulo, decimal Cantidad)> _colaLotesCatalogo = new();
+    /// <summary>Artículos elegidos en el catálogo visual pendientes de procesar uno a la
+    /// vez (bonificación y/o lote pueden necesitar su propio modal) — ver
+    /// ProcesarSiguienteArticuloCatalogo.</summary>
+    private readonly Queue<(InventarioDTO Articulo, decimal Cantidad)> _colaArticulosCatalogo = new();
+
+    /// <summary>Líneas del conteo de prefactura que manejan lote pero el conteo no
+    /// registró un IdStockLote (no se puede facturar "a ciegas") — pendientes de que el
+    /// usuario elija el lote, una a la vez, con el mismo modal — ver
+    /// ProcesarSiguienteLoteConteo/CargarConteoPrefactura.</summary>
+    private readonly Queue<(InventarioDTO Articulo, decimal Cantidad, decimal? Precio)> _colaLotesConteo = new();
+    private decimal? _precioPendienteLoteConteo;
 
     /// <summary>Cuando no es null, "Reparto de lotes" está reabierto para corregir esta
     /// línea ya agregada (p. ej. porque se le subió la cantidad) en vez de agregar una
@@ -965,24 +984,62 @@
             await CargarActividadesCliente(_cliente);
 
             _lineas.Clear();
+            _colaLotesConteo.Clear();
             foreach (var l in _conteoPref.Lineas.Where(x => x.Vendido > 0.000001))
             {
                 var ri = await Inventario.Uno(l.IdArticulo);
                 if (!ri.EsCorrecta || ri.Responses is null) continue;
+                var precio = l.PrecioUnitario > 0 ? (decimal?)l.PrecioUnitario : null;
 
                 if (l.IdStockLote is > 0)
+                {
                     AgregarArticuloConLotes(ri.Responses,
                         new List<DTOs.Lotes.LoteConsumoVenta> { new() { IdStockLote = l.IdStockLote.Value, Cantidad = l.Vendido } },
                         (decimal)l.Vendido);
+                    AplicarPrecioLineaConteo(precio);
+                }
+                else if (ri.Responses.Lote)
+                {
+                    // El conteo no registró de qué lote salió — no se puede facturar "a
+                    // ciegas" para un artículo que sí maneja lotes; se pide elegirlo (cola,
+                    // porque solo puede haber un modal de lotes abierto a la vez).
+                    _colaLotesConteo.Enqueue((ri.Responses, (decimal)l.Vendido, precio));
+                }
                 else
+                {
                     AgregarArticulo(ri.Responses, null, (decimal)l.Vendido);
-
-                var linea = _lineas.LastOrDefault();
-                if (linea is not null && l.PrecioUnitario > 0) { linea.Precio = (decimal)l.PrecioUnitario; linea.Recalcular(); }
+                    AplicarPrecioLineaConteo(precio);
+                }
             }
             RecalcularTodo();
+            await ProcesarSiguienteLoteConteo();
         }
         finally { _cargandoPref = false; }
+    }
+
+    private void AplicarPrecioLineaConteo(decimal? precio)
+    {
+        if (precio is not { } p) return;
+        var linea = _lineas.LastOrDefault();
+        if (linea is null) return;
+        linea.Precio = p;
+        linea.Recalcular();
+        RecalcularTodo();
+    }
+
+    /// <summary>Procesa la cola de líneas del conteo que necesitan elegir lote, una a la
+    /// vez — al resolver "Reparto de lotes" (ConfirmarReparto/CancelarReparto) se vuelve a
+    /// llamar; no hace nada si la cola está vacía.</summary>
+    private async Task ProcesarSiguienteLoteConteo()
+    {
+        if (_colaLotesConteo.Count == 0) return;
+        var (articulo, cantidad, precio) = _colaLotesConteo.Dequeue();
+        _precioPendienteLoteConteo = precio;
+        _articuloPendiente = articulo;
+        _cantidadArticuloPendiente = cantidad;
+        _repartoConsumo.Clear();
+        _lotesPendientes = await LotesDisponiblesEnBodega(articulo.Codigo);
+        await _modalLotes.ShowAsync();
     }
 
     private async Task<FiltranClienteDTO?> BuscarClienteConsignacion(long idCliente, string? nombre)
@@ -1105,14 +1162,60 @@
                 Dialogos.Advertencia($"El artículo '{producto.Datos.Descripcion}' no tiene un código válido.");
                 continue;
             }
+            // El listado del catálogo trae solo id/nombre/precio; se vuelve a consultar el
+            // artículo completo (igual que hace PrepararArticulo con el buscador normal) —
+            // Bonificado, Lote y el resto de los datos que la fila de tarjeta no trae.
             var articulo = await Respuestas.DatoAsync(await Inventario.Uno(codigo), "consultar el artículo del catálogo");
             if (articulo is null) continue;
             var cantidad = Math.Max(1, producto.Cantidad);
-            if (articulo.Lote) _colaLotesCatalogo.Enqueue((articulo, cantidad));
-            else AgregarArticulo(articulo, null, cantidad);
+            _colaArticulosCatalogo.Enqueue((articulo, cantidad));
         }
         _agregandoCatalogo = false;
-        await AbrirSiguienteLoteCatalogo();
+        await ProcesarSiguienteArticuloCatalogo();
+    }
+
+    /// <summary>Procesa la cola del catálogo visual uno a la vez — mismo orden que
+    /// PrepararArticulo (bonificación → lote → validación de existencia → agregar), pero
+    /// serializado porque varios artículos seleccionados a la vez pueden necesitar cada
+    /// uno su propio modal (bonificación y/o lote), y solo puede haber uno abierto por vez.
+    /// Cada punto donde ese modal se resuelve (ConfirmarReparto/CancelarReparto,
+    /// ConfirmarBonificacionArticulo→AplicarGrupoBonificacion/CancelarMezcla,
+    /// OmitirBonificacionArticulo) vuelve a llamar a este método para seguir con el
+    /// siguiente pendiente; si no viene de la cola del catálogo, no hace nada.</summary>
+    private async Task ProcesarSiguienteArticuloCatalogo()
+    {
+        if (_colaArticulosCatalogo.Count == 0) return;
+        var (articulo, cantidad) = _colaArticulosCatalogo.Dequeue();
+
+        if (articulo.Bonificado && await IniciarBonificacion(articulo, cantidad)) return;
+
+        if (articulo.Lote)
+        {
+            _articuloPendiente = articulo;
+            _cantidadArticuloPendiente = cantidad;
+            _repartoConsumo.Clear();
+            _lotesPendientes = await LotesDisponiblesEnBodega(articulo.Codigo);
+            await _modalLotes.ShowAsync();
+            return;
+        }
+
+        if (!await HayExistenciaSuficiente(articulo, cantidad)) { await ProcesarSiguienteArticuloCatalogo(); return; }
+        AgregarArticulo(articulo, null, cantidad);
+        await ProcesarSiguienteArticuloCatalogo();
+    }
+
+    /// <summary>Mismo guard de existencia negativa de PrepararArticulo (aviso temprano; el
+    /// API igual valida) — solo para líneas sin lote, las de lote ya se topan en el reparto.</summary>
+    private async Task<bool> HayExistenciaSuficiente(InventarioDTO articulo, decimal cantidad)
+    {
+        if (Sesion.PermitirExistenciaNegativa) return true;
+        var ex = await Lotes2.ExistenciaConsolidadaAsync(articulo.Codigo);
+        if (ex.Status != DTOs.Generated.ResponseStatus._0 || ex.Responses is not { } consol) return true;
+        var yaEnDetalle = _lineas.Where(l => l.Articulo.Codigo == articulo.Codigo && l.Lotes is null && !l.EsBonificacion).Sum(l => l.Cantidad);
+        var existenciaBodega = consol.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0;
+        if ((decimal)existenciaBodega - yaEnDetalle - cantidad >= 0) return true;
+        await Dialogos.ErrorAsync($"No hay existencia suficiente de {articulo.Descripcion} en la bodega seleccionada (disponible {existenciaBodega:N2}).");
+        return false;
     }
 
     private Task AbrirDesbloqueo()
@@ -1355,22 +1458,7 @@
             return;
         }
 
-        // Follow-up — guard de existencia negativa para líneas SIN lote (las de lote
-        // ya se topan en el reparto). El API igual valida; esto es aviso temprano.
-        if (!Sesion.PermitirExistenciaNegativa)
-        {
-            var ex = await Lotes2.ExistenciaConsolidadaAsync(completo.Codigo);
-            if (ex.Status == DTOs.Generated.ResponseStatus._0 && ex.Responses is { } consol)
-            {
-                var yaEnDetalle = _lineas.Where(l => l.Articulo.Codigo == completo.Codigo && l.Lotes is null && !l.EsBonificacion).Sum(l => l.Cantidad);
-                var existenciaBodega = consol.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0;
-                if ((decimal)existenciaBodega - yaEnDetalle - cantidad < 0)
-                {
-                    await Dialogos.ErrorAsync($"No hay existencia suficiente de {completo.Descripcion} en la bodega seleccionada (disponible {existenciaBodega:N2}).");
-                    return;
-                }
-            }
-        }
+        if (!await HayExistenciaSuficiente(completo, cantidad)) return;
         AgregarArticulo(completo, null, cantidad);
     }
 
@@ -1438,9 +1526,12 @@
             // buscador siempre pide 1 unidad y no deja elegir más; lo que el usuario
             // reparte aquí es lo que define cuánto se factura.
             AgregarArticuloConLotes(_articuloPendiente, consumos, (decimal)RepartoTotal);
+            AplicarPrecioLineaConteo(_precioPendienteLoteConteo);
         }
+        _precioPendienteLoteConteo = null;
         await _modalLotes.HideAsync();
-        await AbrirSiguienteLoteCatalogo();
+        await ProcesarSiguienteArticuloCatalogo();
+        await ProcesarSiguienteLoteConteo();
     }
 
     /// <summary>Corrige el reparto de una línea ya agregada (no crea una línea nueva).</summary>
@@ -1498,17 +1589,13 @@
             RecalcularTodo();
             _lineaEditandoLotes = null;
         }
+        // Si se cancela una línea del conteo, esa unidad vendida simplemente no se factura
+        // sin lote — queda fuera de la factura (no se agrega a ciegas).
+        _precioPendienteLoteConteo = null;
         await _modalLotes.HideAsync();
-    }
-    private async Task AbrirSiguienteLoteCatalogo()
-    {
-        if (_colaLotesCatalogo.Count == 0) return;
-        var pendiente = _colaLotesCatalogo.Dequeue();
-        _articuloPendiente = pendiente.Articulo;
-        _cantidadArticuloPendiente = pendiente.Cantidad;
-        _repartoConsumo.Clear();
-        _lotesPendientes = await LotesDisponiblesEnBodega(pendiente.Articulo.Codigo);
-        await _modalLotes.ShowAsync();
+        // No-op si este cierre no vino de una cola (catálogo o conteo; quedan vacías).
+        await ProcesarSiguienteArticuloCatalogo();
+        await ProcesarSiguienteLoteConteo();
     }
     // ======================= §4.3 — flujo de bonificación =======================
 
@@ -1570,6 +1657,7 @@
         else
         {
             AgregarArticulo(art, null, _cantidadArticuloPendiente);
+            await ProcesarSiguienteArticuloCatalogo();
         }
     }
 
@@ -1689,6 +1777,7 @@
         _configMezclaActiva = null;
         _itemsMezcla = new();
         await _modalMezclaBonificacion.HideAsync();
+        await ProcesarSiguienteArticuloCatalogo();
     }
 
     private async Task CancelarMezcla()
@@ -1697,6 +1786,7 @@
         _configMezclaActiva = null;
         _itemsMezcla = new();
         await _modalMezclaBonificacion.HideAsync();
+        await ProcesarSiguienteArticuloCatalogo();
     }
 
     private void AgregarArticulo(InventarioDTO articulo, StockLoteDTO? lote, decimal cantidad = 1)
