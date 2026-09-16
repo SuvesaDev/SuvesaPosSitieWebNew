@@ -7,12 +7,14 @@ using SuvesaPosSitioAplicacion.ApiConexion;
 using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
+using SuvesaPosSitioAplicacion.Class;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.DTOs.Reportes;
 using SuvesaPosSitioAplicacion.Helpers;
 using SuvesaPosSitioAplicacion.Security;
 using SuvesaPosSitioAplicacion.Services;
 using SuvesaPosSitioAplicacion.Views.Shared;
+using CatalogoReportes = SuvesaPosSitioAplicacion.Views.Reportes.CatalogoReportes;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -89,6 +91,8 @@ builder.Services.AddSingleton<IGeneradorReporteOperacion, GeneradorReporteOperac
 
 builder.Services.AddScoped<IAlmacenEspacioTrabajo, AlmacenEspacioTrabajoNavegador>();
 builder.Services.AddScoped<IEstadoEspacioTrabajo, EstadoEspacioTrabajo>();
+builder.Services.AddScoped<IEstadoReportes, EstadoReportes>();
+builder.Services.AddScoped<IPreferenciasReportes, PreferenciasReportes>();
 
 // ---------------------------------------------------------------------------
 // ApiConexion: un HttpClient tipado por cada cliente generado desde el OpenAPI.
@@ -398,24 +402,24 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
     int? idFamilia,
     string? tipoVenta,
     bool? incluirAnuladas,
+    DateTime? fechaReferencia,
     DateTime? generado,
     IContextoSesion sesion,
     IReportesOperacion api,
     IGeneradorReporteOperacion exportador) =>
 {
     if (formato is not ("pdf" or "excel")) return Results.NotFound();
-    // Lista completa de los 20 tipos que expone ReportesOperacionController. Antes solo
-    // cubría 11: el botón Exportar del hub (Views/Reportes/Compras.razor) se mostraba
-    // igual para los restantes y el usuario recibía un 404 silencioso al exportar.
-    if (tipo is not ("panel-ejecutivo" or "ventas" or "ventas-detalle" or "ventas-horas" or "clientes" or "rentabilidad" or "ventas-compras"
-        or "cuentas-por-cobrar" or "recuperacion-cxc" or "cabys" or "apartados" or "kpi-rutas" or "cuentas-por-pagar"
-        or "caja" or "arqueos-cierres" or "depositos" or "compras" or "gastos"
-        or "inventario" or "inventario-abc" or "rotacion-inventario" or "bonificaciones" or "empaquetado" or "mermas"
-        or "lotes" or "trazabilidad" or "auditoria"))
+    // El mismo catálogo que dibuja la pantalla define los tipos exportables; así no
+    // puede volver a desfasarse una lista manual. Comisiones tiene su exportador propio.
+    var definicion = CatalogoReportes.Buscar(tipo);
+    if (definicion is null || tipo == "comisiones")
         return Results.NotFound();
     if (!generado.HasValue) return Results.BadRequest("Falta la fecha y hora del equipo para generar el archivo.");
 
     await sesion.CargarAsync();
+    var accion = formato == "pdf" ? AccionPantalla.Imprimir : AccionPantalla.Exportar;
+    if (!sesion.Puede(definicion.Codigo, AccionPantalla.Ver)
+        || !sesion.Puede(definicion.Codigo, accion)) return Results.Forbid();
     ContextoLlamada.Token = sesion.Token;
     try
     {
@@ -423,7 +427,7 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
         {
             Desde = desde,
             Hasta = hasta,
-            FechaReferencia = generado.Value,
+            FechaReferencia = fechaReferencia ?? generado.Value,
             IdSucursal = idSucursal,
             IdEmpresa = idEmpresa,
             IdCliente = idCliente,

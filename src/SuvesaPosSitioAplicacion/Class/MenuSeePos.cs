@@ -622,11 +622,11 @@ public static partial class MenuSeePos
             Codigo = "MODULO_REPORTES",
             Ruta = "/moduloReportes",
             Icono = "bi-bar-chart-fill",
-            // Un hijo por cada "tipo" que expone ReportesOperacionController (18 en la API
-            // mas Compras). La ruta lleva ?tipo= para que el hijo abra directo en esa
-            // pestaña del hub (Views/Reportes/Compras.razor lee ese parametro). El permiso
-            // por hijo (MODULO_REPORTES.<CODIGO>) reemplaza el permiso plano unico que
-            // gobernaba todo el modulo — ver docs/PLAN_MODULO_REPORTES_ERP_WEB.md, bug #4.
+            // Un hijo por cada uno de los 27 tipos genéricos que expone
+            // ReportesOperacionController. Cada ruta abre una hoja independiente. La barra
+            // lateral los presenta en dominios visuales construidos desde CatalogoReportes,
+            // pero este árbol canónico permanece plano para no cambiar códigos ni semilla.
+            // Comisiones es la hoja 28 y reutiliza el permiso VENTAS.COMISIONES.
             Hijos = new ItemMenu[]
             {
                 new ItemMenu

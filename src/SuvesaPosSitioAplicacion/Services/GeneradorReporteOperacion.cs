@@ -34,7 +34,8 @@ public sealed class GeneradorReporteOperacion : IGeneradorReporteOperacion
                     fila.ConstantItem(10);
                     fila.RelativeItem().Element(c => GraficoPdf(c, graficas.TituloEstados, graficas.Estados, graficas.EsCantidad));
                 });
-                columna.Item().PaddingTop(10).Element(c => TablaPdf(c, reporte, graficas.EsCantidad));
+                columna.Item().PaddingTop(10).Element(c => TablaPdf(c, reporte, graficas.EsCantidad,
+                    tipoReporte == "clientes", tipoReporte == "cuentas-por-cobrar"));
             });
             pagina.Footer().PaddingTop(6).AlignCenter().Text(t =>
             {
@@ -51,8 +52,11 @@ public sealed class GeneradorReporteOperacion : IGeneradorReporteOperacion
         using var libro = new XLWorkbook();
         var hoja = libro.Worksheets.Add("Reporte");
         var graficas = ResumenGraficasReporteOperacion.Crear(tipoReporte, reporte.Filas);
+        var esClientes = tipoReporte == "clientes";
+        var esCartera = tipoReporte == "cuentas-por-cobrar";
+        var cantidadColumnas = esClientes ? 12 : esCartera ? 8 : 9;
 
-        hoja.Range(1, 1, 1, 9).Merge();
+        hoja.Range(1, 1, 1, cantidadColumnas).Merge();
         hoja.Cell(1, 1).Value = reporte.Titulo;
         hoja.Cell(1, 1).Style.Font.Bold = true;
         hoja.Cell(1, 1).Style.Font.FontSize = 16;
@@ -81,35 +85,82 @@ public sealed class GeneradorReporteOperacion : IGeneradorReporteOperacion
         }
 
         var cabecera = filaIndicadores + ((reporte.Indicadores.Count + 3) / 4) * 2 + 2;
-        var titulos = new[] { "Fecha", "Referencia", "Entidad", "Lote", "Detalle", "Cantidad", "Monto", "Saldo / existencia", "Estado" };
+        var titulos = esClientes
+            ? new[] { "Fecha", "Cliente", "Nombre fantasía", "Identificación", "Teléfono", "Sucursal", "Código", "Pedidos", "Venta total", "Ticket promedio", "Detalle", "Estado" }
+            : esCartera
+                ? new[] { "Cliente", "Teléfono", "Correo", "Factura", "Vence", "Saldo", "Estado", "Detalle" }
+            : new[] { "Fecha", "Referencia", "Entidad", "Lote", "Detalle", "Cantidad", "Monto", "Saldo / existencia", "Estado" };
         for (var i = 0; i < titulos.Length; i++) hoja.Cell(cabecera, i + 1).Value = titulos[i];
 
         for (var i = 0; i < reporte.Filas.Count; i++)
         {
             var fila = reporte.Filas[i];
             var destino = cabecera + 1 + i;
-            hoja.Cell(destino, 1).Value = fila.Fecha;
-            hoja.Cell(destino, 2).Value = fila.Referencia;
-            hoja.Cell(destino, 3).Value = fila.Entidad;
-            hoja.Cell(destino, 4).Value = fila.Lote;
-            hoja.Cell(destino, 5).Value = fila.Descripcion;
-            hoja.Cell(destino, 6).Value = fila.Cantidad;
-            hoja.Cell(destino, 7).Value = fila.Monto;
-            hoja.Cell(destino, 8).Value = fila.Saldo;
-            hoja.Cell(destino, 9).Value = fila.Estado;
+            if (esClientes)
+            {
+                hoja.Cell(destino, 1).Value = fila.Fecha;
+                hoja.Cell(destino, 2).Value = fila.Entidad;
+                hoja.Cell(destino, 3).Value = fila.NombreFantasia;
+                hoja.Cell(destino, 4).Value = fila.Identificacion;
+                hoja.Cell(destino, 5).Value = fila.Telefono;
+                hoja.Cell(destino, 6).Value = fila.Sucursal;
+                hoja.Cell(destino, 7).Value = fila.Referencia;
+                hoja.Cell(destino, 8).Value = fila.Cantidad;
+                hoja.Cell(destino, 9).Value = fila.Monto;
+                hoja.Cell(destino, 10).Value = fila.Saldo;
+                hoja.Cell(destino, 11).Value = fila.Descripcion;
+                hoja.Cell(destino, 12).Value = fila.Estado;
+            }
+            else if (esCartera)
+            {
+                hoja.Cell(destino, 1).Value = fila.Entidad;
+                hoja.Cell(destino, 2).Value = fila.Telefono;
+                hoja.Cell(destino, 3).Value = fila.Correo;
+                hoja.Cell(destino, 4).Value = fila.Referencia;
+                if (fila.FechaVencimiento.HasValue) hoja.Cell(destino, 5).Value = fila.FechaVencimiento.Value;
+                hoja.Cell(destino, 6).Value = fila.Saldo;
+                hoja.Cell(destino, 7).Value = fila.Estado;
+                hoja.Cell(destino, 8).Value = fila.Descripcion;
+            }
+            else
+            {
+                hoja.Cell(destino, 1).Value = fila.Fecha;
+                hoja.Cell(destino, 2).Value = fila.Referencia;
+                hoja.Cell(destino, 3).Value = fila.Entidad;
+                hoja.Cell(destino, 4).Value = fila.Lote;
+                hoja.Cell(destino, 5).Value = fila.Descripcion;
+                hoja.Cell(destino, 6).Value = fila.Cantidad;
+                hoja.Cell(destino, 7).Value = fila.Monto;
+                hoja.Cell(destino, 8).Value = fila.Saldo;
+                hoja.Cell(destino, 9).Value = fila.Estado;
+            }
         }
 
         if (reporte.Filas.Count > 0)
         {
-            var tabla = hoja.Range(cabecera, 1, cabecera + reporte.Filas.Count, 9).CreateTable("DetalleReporteOperacion");
+            var tabla = hoja.Range(cabecera, 1, cabecera + reporte.Filas.Count, cantidadColumnas).CreateTable("DetalleReporteOperacion");
             tabla.Theme = XLTableTheme.TableStyleMedium2;
         }
 
-        hoja.Column(1).Style.NumberFormat.Format = "dd/MM/yyyy HH:mm";
-        hoja.Columns(6, 8).Style.NumberFormat.Format = graficas.EsCantidad ? "#,##0.00" : "₡#,##0.00";
+        if (esClientes)
+        {
+            hoja.Column(1).Style.NumberFormat.Format = "dd/MM/yyyy HH:mm";
+            hoja.Column(8).Style.NumberFormat.Format = "#,##0.00";
+            hoja.Columns(9, 10).Style.NumberFormat.Format = "₡#,##0.00";
+        }
+        else if (esCartera)
+        {
+            hoja.Column(5).Style.NumberFormat.Format = "dd/MM/yyyy";
+            hoja.Column(6).Style.NumberFormat.Format = "₡#,##0.00";
+        }
+        else
+        {
+            hoja.Column(1).Style.NumberFormat.Format = "dd/MM/yyyy HH:mm";
+            hoja.Columns(6, 8).Style.NumberFormat.Format = graficas.EsCantidad ? "#,##0.00" : "₡#,##0.00";
+        }
         hoja.SheetView.FreezeRows(cabecera);
-        hoja.Range(1, 1, Math.Max(cabecera + reporte.Filas.Count, 3), 8).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-        AjustarColumnas(hoja, 9);
+        hoja.Range(1, 1, Math.Max(cabecera + reporte.Filas.Count, 3), cantidadColumnas).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        AjustarColumnas(hoja, cantidadColumnas);
 
         var visual = libro.Worksheets.Add("Gráficas");
         visual.Cell(1, 1).Value = reporte.Titulo;
@@ -177,39 +228,101 @@ public sealed class GeneradorReporteOperacion : IGeneradorReporteOperacion
         }
     });
 
-    private static void TablaPdf(IContainer container, ReporteOperacionWebDTO reporte, bool esCantidad) => container.Column(col =>
+    private static void TablaPdf(IContainer container, ReporteOperacionWebDTO reporte, bool esCantidad, bool esClientes, bool esCartera) => container.Column(col =>
     {
         col.Item().Text("Detalle").SemiBold().FontSize(9).FontColor(Verde);
         col.Item().PaddingTop(3).Table(tabla =>
         {
             tabla.ColumnsDefinition(columnas =>
             {
-                columnas.RelativeColumn(1.15f);
-                columnas.RelativeColumn(1.1f);
-                columnas.RelativeColumn(1.2f);
-                columnas.RelativeColumn(.85f);
-                columnas.RelativeColumn(1.45f);
-                columnas.RelativeColumn(.75f);
-                columnas.RelativeColumn(.95f);
-                columnas.RelativeColumn(1.1f);
-                columnas.RelativeColumn(1f);
+                if (esClientes)
+                {
+                    columnas.RelativeColumn(.8f);
+                    columnas.RelativeColumn(1.25f);
+                    columnas.RelativeColumn(1f);
+                    columnas.RelativeColumn(.8f);
+                    columnas.RelativeColumn(.75f);
+                    columnas.RelativeColumn(.9f);
+                    columnas.RelativeColumn(.5f);
+                    columnas.RelativeColumn(.55f);
+                    columnas.RelativeColumn(.8f);
+                    columnas.RelativeColumn(.8f);
+                    columnas.RelativeColumn(1.25f);
+                    columnas.RelativeColumn(.6f);
+                }
+                else if (esCartera)
+                {
+                    columnas.RelativeColumn(1.35f);
+                    columnas.RelativeColumn(.8f);
+                    columnas.RelativeColumn(1.25f);
+                    columnas.RelativeColumn(.65f);
+                    columnas.RelativeColumn(.75f);
+                    columnas.RelativeColumn(.8f);
+                    columnas.RelativeColumn(.65f);
+                    columnas.RelativeColumn(1.4f);
+                }
+                else
+                {
+                    columnas.RelativeColumn(1.15f);
+                    columnas.RelativeColumn(1.1f);
+                    columnas.RelativeColumn(1.2f);
+                    columnas.RelativeColumn(.85f);
+                    columnas.RelativeColumn(1.45f);
+                    columnas.RelativeColumn(.75f);
+                    columnas.RelativeColumn(.95f);
+                    columnas.RelativeColumn(1.1f);
+                    columnas.RelativeColumn(1f);
+                }
             });
-            var titulos = new[] { "Fecha", "Referencia", "Entidad", "Lote", "Detalle", "Cantidad", "Monto", "Saldo", "Estado" };
+            var titulos = esClientes
+                ? new[] { "Fecha", "Cliente", "Nombre fantasía", "Identificación", "Teléfono", "Sucursal", "Código", "Pedidos", "Venta total", "Ticket promedio", "Detalle", "Estado" }
+                : esCartera
+                    ? new[] { "Cliente", "Teléfono", "Correo", "Factura", "Vence", "Saldo", "Estado", "Detalle" }
+                : new[] { "Fecha", "Referencia", "Entidad", "Lote", "Detalle", "Cantidad", "Monto", "Saldo", "Estado" };
             tabla.Header(cabecera =>
             {
-                foreach (var titulo in titulos) cabecera.Cell().Background(Fondo).Padding(3).Text(titulo).SemiBold().FontSize(6.3f);
+                foreach (var titulo in titulos) cabecera.Cell().Background(Fondo).Padding(3).Text(titulo).SemiBold().FontSize(esClientes ? 5.3f : 6.3f);
             });
             foreach (var fila in reporte.Filas)
             {
-                CeldaPdf(tabla.Cell(), fila.Fecha.ToString("dd/MM/yy HH:mm"));
-                CeldaPdf(tabla.Cell(), fila.Referencia);
-                CeldaPdf(tabla.Cell(), fila.Entidad);
-                CeldaPdf(tabla.Cell(), fila.Lote);
-                CeldaPdf(tabla.Cell(), fila.Descripcion);
-                CeldaPdf(tabla.Cell().AlignRight(), fila.Cantidad.ToString("N2", Cultura));
-                CeldaPdf(tabla.Cell().AlignRight(), Formato.Importe(fila.Monto));
-                CeldaPdf(tabla.Cell().AlignRight(), esCantidad ? fila.Saldo.ToString("N2", Cultura) : Formato.Importe(fila.Saldo));
-                CeldaPdf(tabla.Cell(), fila.Estado);
+                if (esClientes)
+                {
+                    CeldaPdf(tabla.Cell(), fila.Fecha.ToString("dd/MM/yy HH:mm"));
+                    CeldaPdf(tabla.Cell(), fila.Entidad);
+                    CeldaPdf(tabla.Cell(), fila.NombreFantasia);
+                    CeldaPdf(tabla.Cell(), fila.Identificacion);
+                    CeldaPdf(tabla.Cell(), fila.Telefono);
+                    CeldaPdf(tabla.Cell(), fila.Sucursal);
+                    CeldaPdf(tabla.Cell(), fila.Referencia);
+                    CeldaPdf(tabla.Cell().AlignRight(), fila.Cantidad.ToString("N2", Cultura));
+                    CeldaPdf(tabla.Cell().AlignRight(), Formato.Importe(fila.Monto));
+                    CeldaPdf(tabla.Cell().AlignRight(), Formato.Importe(fila.Saldo));
+                    CeldaPdf(tabla.Cell(), fila.Descripcion);
+                    CeldaPdf(tabla.Cell(), fila.Estado);
+                }
+                else if (esCartera)
+                {
+                    CeldaPdf(tabla.Cell(), fila.Entidad);
+                    CeldaPdf(tabla.Cell(), fila.Telefono);
+                    CeldaPdf(tabla.Cell(), fila.Correo);
+                    CeldaPdf(tabla.Cell(), fila.Referencia);
+                    CeldaPdf(tabla.Cell(), fila.FechaVencimiento?.ToString("dd/MM/yyyy") ?? "—");
+                    CeldaPdf(tabla.Cell().AlignRight(), Formato.Importe(fila.Saldo));
+                    CeldaPdf(tabla.Cell(), fila.Estado);
+                    CeldaPdf(tabla.Cell(), fila.Descripcion);
+                }
+                else
+                {
+                    CeldaPdf(tabla.Cell(), fila.Fecha.ToString("dd/MM/yy HH:mm"));
+                    CeldaPdf(tabla.Cell(), fila.Referencia);
+                    CeldaPdf(tabla.Cell(), fila.Entidad);
+                    CeldaPdf(tabla.Cell(), fila.Lote);
+                    CeldaPdf(tabla.Cell(), fila.Descripcion);
+                    CeldaPdf(tabla.Cell().AlignRight(), fila.Cantidad.ToString("N2", Cultura));
+                    CeldaPdf(tabla.Cell().AlignRight(), Formato.Importe(fila.Monto));
+                    CeldaPdf(tabla.Cell().AlignRight(), esCantidad ? fila.Saldo.ToString("N2", Cultura) : Formato.Importe(fila.Saldo));
+                    CeldaPdf(tabla.Cell(), fila.Estado);
+                }
             }
         });
     });

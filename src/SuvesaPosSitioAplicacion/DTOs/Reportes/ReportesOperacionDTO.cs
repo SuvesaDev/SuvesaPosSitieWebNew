@@ -42,6 +42,11 @@ public sealed class FilaReporteOperacionWebDTO
     public DateTime Fecha { get; set; }
     public string Referencia { get; set; } = string.Empty;
     public string Entidad { get; set; } = string.Empty;
+    public string Identificacion { get; set; } = string.Empty;
+    public string Telefono { get; set; } = string.Empty;
+    public string Correo { get; set; } = string.Empty;
+    public string Sucursal { get; set; } = string.Empty;
+    public string NombreFantasia { get; set; } = string.Empty;
     public string Lote { get; set; } = string.Empty;
     public string Descripcion { get; set; } = string.Empty;
     public decimal Cantidad { get; set; }

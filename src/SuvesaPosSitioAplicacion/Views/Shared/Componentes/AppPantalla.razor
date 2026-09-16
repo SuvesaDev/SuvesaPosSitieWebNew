@@ -17,7 +17,7 @@
         </div>
     </div>
 }
-else if (!Sesion.PuedeVer(Codigo ?? Pantalla))
+else if (!OmitirPermiso && !Sesion.PuedeVer(Codigo ?? Pantalla))
 {
     <div class="alert alert-danger">
         <p class="h5 alert-heading">Sin permiso</p>
@@ -89,6 +89,12 @@ else
     /// resuelve desde <see cref="Pantalla"/>. Obligatorio en pantallas de titulo ambiguo.
     /// </summary>
     [Parameter] public string? Codigo { get; set; }
+
+    /// <summary>
+    /// Omite la compuerta propia cuando la vista es solo un catálogo y cada opción
+    /// interna ya valida su permiso individualmente. No debe usarse en pantallas de datos.
+    /// </summary>
+    [Parameter] public bool OmitirPermiso { get; set; }
 
     /// <summary>Desde que ancho tiene sentido. Por debajo se avisa en lugar de romperse.</summary>
     [Parameter]

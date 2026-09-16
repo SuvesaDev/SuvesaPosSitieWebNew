@@ -12,6 +12,15 @@ public sealed class ReportesOperacion : ProxyBase, IReportesOperacion
 
     public Task<ResponseGeneric<ReporteOperacionWebDTO>> Consultar(string reporte, FiltroReporteOperacionWebDTO f)
     {
+        // La ruta de navegación y el tipo interno de la web son "cabys", pero el
+        // contrato publicado por ReportesOperacionController se llama
+        // "cumplimiento-cabys". La traducción pertenece al proxy para que pantalla,
+        // exportaciones y cualquier consumidor futuro usen siempre el mismo contrato.
+        var reporteApi = reporte switch
+        {
+            "cabys" => "cumplimiento-cabys",
+            _ => reporte,
+        };
         var q = new List<string>();
         if (f.Desde.HasValue) q.Add($"desde={f.Desde.Value:yyyy-MM-dd}");
         if (f.Hasta.HasValue) q.Add($"hasta={f.Hasta.Value:yyyy-MM-dd}");
@@ -30,7 +39,7 @@ public sealed class ReportesOperacion : ProxyBase, IReportesOperacion
         if (f.IncluirAnuladas) q.Add("incluirAnuladas=true");
         q.Add($"pagina={Math.Max(1, f.Pagina)}");
         q.Add($"tamanoPagina={Math.Clamp(f.TamanoPagina, 1, 2000)}");
-        var url = $"api/reportes-operacion/{Uri.EscapeDataString(reporte)}{(q.Count == 0 ? string.Empty : "?" + string.Join("&", q))}";
+        var url = $"api/reportes-operacion/{Uri.EscapeDataString(reporteApi)}{(q.Count == 0 ? string.Empty : "?" + string.Join("&", q))}";
         return Ejecutar(async () => await LecturaEnvelope.Leer<ReporteOperacionWebDTO>(await _api.GetAsync(url)), "consultar el reporte");
     }
 }

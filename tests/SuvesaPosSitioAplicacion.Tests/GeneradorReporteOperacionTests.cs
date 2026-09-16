@@ -67,4 +67,94 @@ public sealed class GeneradorReporteOperacionTests
         Assert.Equal("Proveedor B", resumen.Estados[0].Etiqueta);
         Assert.Equal(250m, resumen.Estados[0].Valor);
     }
+
+    [Fact]
+    public void ExportacionesClientes_IncluyenDatosDeLaFicha()
+    {
+        var reporte = new ReporteOperacionWebDTO
+        {
+            Titulo = "Clientes y comportamiento",
+            Desde = new DateTime(2026, 9, 1),
+            Hasta = new DateTime(2026, 9, 30),
+            Indicadores = [new IndicadorReporteOperacionWebDTO { Etiqueta = "Clientes con venta", Valor = 1, Formato = "cantidad" }],
+            Filas =
+            [
+                new FilaReporteOperacionWebDTO
+                {
+                    Fecha = new DateTime(2026, 9, 10, 7, 46, 0),
+                    Referencia = "67",
+                    Entidad = "Rafael Alberto Martínez Quesada",
+                    NombreFantasia = "Veterinaria Rafael",
+                    Identificacion = "1-2345-6789",
+                    Telefono = "8888-9999",
+                    Sucursal = "Sucursal Escazú",
+                    Cantidad = 35,
+                    Monto = 390_379.81m,
+                    Saldo = 11_153.71m,
+                    Descripcion = "Crecimiento vs. período anterior: 0,00%",
+                    Estado = "Con ventas"
+                }
+            ]
+        };
+        var generador = new GeneradorReporteOperacion();
+
+        var pdf = generador.Pdf("clientes", reporte, new DateTime(2026, 9, 16, 9, 0, 0));
+        var excel = generador.Excel("clientes", reporte, new DateTime(2026, 9, 16, 9, 0, 0));
+
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
+        using var libro = new XLWorkbook(new MemoryStream(excel));
+        var hoja = libro.Worksheet("Reporte");
+        var tabla = hoja.Table("DetalleReporteOperacion");
+        var filaCabecera = tabla.RangeAddress.FirstAddress.RowNumber;
+        Assert.Equal("Nombre fantasía", hoja.Cell(filaCabecera, 3).GetString());
+        Assert.Equal("Identificación", hoja.Cell(filaCabecera, 4).GetString());
+        Assert.Equal("Teléfono", hoja.Cell(filaCabecera, 5).GetString());
+        Assert.Equal("Sucursal", hoja.Cell(filaCabecera, 6).GetString());
+        Assert.Equal("Veterinaria Rafael", tabla.DataRange.FirstRow().Cell(3).GetString());
+        Assert.Equal("1-2345-6789", tabla.DataRange.FirstRow().Cell(4).GetString());
+        Assert.Equal("8888-9999", tabla.DataRange.FirstRow().Cell(5).GetString());
+        Assert.Equal("Sucursal Escazú", tabla.DataRange.FirstRow().Cell(6).GetString());
+    }
+
+    [Fact]
+    public void ExportacionesCuentasPorCobrar_IncluyenTelefonoYCorreo()
+    {
+        var reporte = new ReporteOperacionWebDTO
+        {
+            Titulo = "Cuentas por cobrar",
+            Desde = new DateTime(2026, 8, 18),
+            Hasta = new DateTime(2026, 9, 16),
+            Indicadores = [new IndicadorReporteOperacionWebDTO { Etiqueta = "Saldo pendiente", Valor = 24_253.19m }],
+            Filas =
+            [
+                new FilaReporteOperacionWebDTO
+                {
+                    Entidad = "Clínica Veterinaria La Sabana",
+                    Telefono = "8777-6655",
+                    Correo = "cobros@lasabana.example",
+                    Referencia = "2",
+                    FechaVencimiento = new DateTime(2026, 10, 5),
+                    Saldo = 24_253.19m,
+                    Estado = "Pendiente",
+                    Descripcion = "Saldo histórico sin asiento en mayor"
+                }
+            ]
+        };
+        var generador = new GeneradorReporteOperacion();
+
+        var pdf = generador.Pdf("cuentas-por-cobrar", reporte, new DateTime(2026, 9, 16, 9, 0, 0));
+        var excel = generador.Excel("cuentas-por-cobrar", reporte, new DateTime(2026, 9, 16, 9, 0, 0));
+
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
+        using var libro = new XLWorkbook(new MemoryStream(excel));
+        var hoja = libro.Worksheet("Reporte");
+        var tabla = hoja.Table("DetalleReporteOperacion");
+        var filaCabecera = tabla.RangeAddress.FirstAddress.RowNumber;
+        Assert.Equal("Cliente", hoja.Cell(filaCabecera, 1).GetString());
+        Assert.Equal("Teléfono", hoja.Cell(filaCabecera, 2).GetString());
+        Assert.Equal("Correo", hoja.Cell(filaCabecera, 3).GetString());
+        Assert.Equal("Clínica Veterinaria La Sabana", tabla.DataRange.FirstRow().Cell(1).GetString());
+        Assert.Equal("8777-6655", tabla.DataRange.FirstRow().Cell(2).GetString());
+        Assert.Equal("cobros@lasabana.example", tabla.DataRange.FirstRow().Cell(3).GetString());
+    }
 }

@@ -18,103 +18,142 @@
 @inject IContextoSesion Sesion
 @inject NavigationManager Navegacion
 @inject IEstadoEspacioTrabajo Espacio
+@inject IEstadoReportes Estados
+@inject IPreferenciasReportes Preferencias
 @using SuvesaPosSitioAplicacion.Security
 
 @* Cuerpo real de cada reporte. Vive como componente propio (no como @page):
    cada tipo de reporte tiene su propia pagina delgada (Ventas.razor,
    Compras.razor, etc., cada una con su propio @page "/moduloReportes/tipo")
-   que solo instancia este panel — asi cada reporte es una pagina y una
-   pestana del espacio de trabajo genuinamente independientes (Blazor Router
-   siempre crea una instancia nueva al navegar entre componentes distintos),
-   en vez de un unico hub compartiendo estado mutable entre reportes.
+   que solo instancia este panel. IEstadoReportes asigna a cada tipo un contexto
+   propio de filtros, resultado y rejilla mientras su pestaña siga abierta; no hay
+   un único hub compartiendo estado mutable entre reportes.
    Antes todo el hub era una sola @page que leía el tipo por query string en
    OnAfterRenderAsync (solo en el primer render): navegar entre reportes por
    el menu lateral (ruta distinta, mismo @page) cambiaba el nombre de la
    pestana pero el contenido se quedaba pegado en el primer reporte cargado. *@
 
-<AppPantalla Pantalla="@Titulo" Codigo="MODULO_REPORTES" Nivel="NivelPantalla.Escritorio">
+<AppPantalla Pantalla="@Definicion.Titulo" Codigo="@Definicion.Codigo" Nivel="NivelPantalla.Escritorio"
+             Icono="@Definicion.Icono" Subtitulo="@Definicion.Descripcion">
     <Acciones>
-        <button class="btn btn-sm btn-outline-secondary" @onclick="Consultar" disabled="@_cargando" title="Actualizar reporte">
-            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="VolverAlCatalogo" title="Volver al catálogo">
+            <i class="bi bi-grid me-1" aria-hidden="true"></i>Catálogo
         </button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="AlternarFavorito"
+                title="@(Preferencias.EsFavorito(_tipo) ? "Quitar de favoritos" : "Agregar a favoritos")"
+                aria-label="@(Preferencias.EsFavorito(_tipo) ? "Quitar de favoritos" : "Agregar a favoritos")">
+            <i class="bi @(Preferencias.EsFavorito(_tipo) ? "bi-star-fill text-warning" : "bi-star")" aria-hidden="true"></i>
+        </button>
+        @if (_estado.TieneResultado)
+        {
+            <button class="btn btn-sm btn-outline-secondary" @onclick="Consultar" disabled="@_cargando" title="Actualizar reporte">
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+            </button>
+        }
     </Acciones>
     <ChildContent>
-        <section class="card mb-3 seepos-catalogo-reportes" aria-label="Catálogo de reportes">
-            <div class="card-header bg-transparent p-0">
-                <nav aria-label="Dominios de reportes">
-                    <div class="nav nav-tabs seepos-pestanas-reportes" role="tablist">
-                        @foreach (var dominio in GruposVisibles)
-                        {
-                            <button type="button" role="tab" aria-selected="@(dominio.Id == _grupoActivo)"
-                                    class="nav-link @(dominio.Id == _grupoActivo ? "active" : string.Empty)"
-                                    @onclick="() => CambiarGrupo(dominio.Id)">
-                                <i class="bi @dominio.Icono me-1" aria-hidden="true"></i>@dominio.Nombre
-                            </button>
-                        }
-                    </div>
-                </nav>
-            </div>
-            <div class="card-body py-3">
-                @if (GrupoActivo is { } grupo)
-                {
-                    <div class="d-flex flex-wrap align-items-center gap-2">
-                        <span class="small text-body-secondary me-1">Reportes disponibles:</span>
-                        @foreach (var opcion in OpcionesVisibles(grupo))
-                        {
-                            <button type="button" class="btn btn-sm @(opcion.Valor == _tipo ? "btn-primary" : "btn-outline-primary")" @onclick="() => CambiarTipo(opcion.Valor, opcion.Texto)">@opcion.Texto</button>
-                        }
-                    </div>
-                }
-            </div>
-        </section>
-
-        <AppFiltros Titulo="Filtros" AlBuscar="Consultar" AlLimpiar="Limpiar" Buscando="_cargando" Resumen="@Resumen">
-            <div class="col-12 col-md-3"><AppCampoFecha Etiqueta="Desde" @bind-Valor="_desde" /></div>
-            <div class="col-12 col-md-3"><AppCampoFecha Etiqueta="Hasta" @bind-Valor="_hasta" /></div>
-            @if (!EsReporteComisiones)
+        <AppFiltros Titulo="Configure la consulta" AlBuscar="Consultar" AlLimpiar="Limpiar" Buscando="_cargando" Resumen="@Resumen" TextoBuscar="Consultar reporte">
+            @if (Definicion.Tiene(FiltroReporteVisible.Periodo))
             {
-                <div class="col-12 col-md-5">
-                    <label class="form-label small">Texto, documento, cliente, proveedor o artículo</label>
-                    <input class="form-control" @bind="_texto" @bind:event="onchange" placeholder="Escriba para filtrar…" />
+                <div class="col-12">
+                    <div class="d-flex flex-wrap align-items-center gap-1" aria-label="Periodos rápidos">
+                        <span class="small text-body-secondary me-1">Rango rápido:</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => AplicarRango(0)">Hoy</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => AplicarRango(7)">7 días</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => AplicarRango(30)">30 días</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AplicarMesActual">Este mes</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AplicarMesAnterior">Mes anterior</button>
+                    </div>
                 </div>
+                <div class="col-12 col-md-3"><AppCampoFecha Etiqueta="Desde" @bind-Valor="_desde" /></div>
+                <div class="col-12 col-md-3"><AppCampoFecha Etiqueta="Hasta" @bind-Valor="_hasta" /></div>
             }
-            <div class="col-12 col-md-3"><label class="form-label small">Sucursal</label><select class="form-select" @bind="_idSucursal"><option value="">Todas las sucursales</option>@foreach (var sucursal in _sucursales) { <option value="@sucursal.Id">@sucursal.NombreComercial</option> }</select></div>
-            @if (EsReporteComisiones)
+            @if (MostrarFiltro(FiltroReporteVisible.Sucursal))
             {
-                <div class="col-12 col-md-3"><label class="form-label small">Liquidación</label><select class="form-select" @bind="_estadoComision"><option value="">Todas</option><option>Pendiente</option><option>Liquidada</option></select></div>
+                <div class="col-12 col-md-3"><label class="form-label small">Sucursal</label><select class="form-select" @bind="_idSucursal"><option value="">Todas las sucursales</option>@foreach (var sucursal in _sucursales) { <option value="@sucursal.Id">@sucursal.NombreComercial</option> }</select></div>
             }
-            @if (!EsReporteComisiones)
+            @if (MostrarFiltro(FiltroReporteVisible.Cliente))
             {
-            <div class="col-12 col-md-3"><label class="form-label small">Empresa</label><select class="form-select" @bind="_idEmpresa"><option value="">Todas las empresas</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
-            <div class="col-12 col-md-4"><label class="form-label small">Cliente</label><select class="form-select" @bind="_idCliente"><option value="">Todos los clientes</option>@foreach (var cliente in _clientes) { <option value="@cliente.Identificacion">@cliente.Cedula — @cliente.Nombre</option> }</select></div>
-            <div class="col-12 col-md-4"><label class="form-label small">Proveedor</label><select class="form-select" @bind="_idProveedor"><option value="">Todos los proveedores</option>@foreach (var proveedor in _proveedores) { <option value="@proveedor.CodigoProv">@proveedor.Cedula — @proveedor.Nombre</option> }</select></div>
-            <div class="col-12 col-md-4"><label class="form-label small">Artículo</label><select class="form-select" @bind="_idArticulo"><option value="">Todos los artículos</option>@foreach (var articulo in _articulos) { <option value="@articulo.Codigo">@articulo.Cod_Articulo — @articulo.Descripcion</option> }</select></div>
-            <div class="col-12 col-md-3"><label class="form-label small">Bodega</label><select class="form-select" @bind="_idBodega"><option value="">Todas las bodegas</option>@foreach (var bodega in _bodegas) { <option value="@bodega.IdBodega">@bodega.NombreBodega</option> }</select></div>
-            <div class="col-12 col-md-3"><label class="form-label small">Buscar lote</label><input class="form-control" @bind="_numeroLote" @bind:event="onchange" placeholder="Número de lote" /></div>
+                <div class="col-12 col-md-4"><label class="form-label small">Cliente</label><select class="form-select" @bind="_idCliente"><option value="">Todos los clientes</option>@foreach (var cliente in _clientes) { <option value="@cliente.Identificacion">@cliente.Cedula — @cliente.Nombre</option> }</select></div>
             }
-            @if (EsReporteVentas)
+            @if (MostrarFiltro(FiltroReporteVisible.Proveedor))
             {
-            <div class="col-12 col-md-3"><label class="form-label small">Agente (login)</label><input class="form-control" @bind="_idAgente" @bind:event="onchange" placeholder="Ej. jperez" /></div>
-            <div class="col-12 col-md-3"><label class="form-label small">Tipo de venta</label><select class="form-select" @bind="_tipoVenta"><option value="">Contado y crédito</option><option value="01">Contado</option><option value="02">Crédito</option></select></div>
-            @if (_tipo == "ventas-detalle")
+                <div class="col-12 col-md-4"><label class="form-label small">Proveedor</label><select class="form-select" @bind="_idProveedor"><option value="">Todos los proveedores</option>@foreach (var proveedor in _proveedores) { <option value="@proveedor.CodigoProv">@proveedor.Cedula — @proveedor.Nombre</option> }</select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.Articulo))
+            {
+                <div class="col-12 col-md-4"><label class="form-label small">Artículo</label><select class="form-select" @bind="_idArticulo"><option value="">Todos los artículos</option>@foreach (var articulo in _articulos) { <option value="@articulo.Codigo">@articulo.Cod_Articulo — @articulo.Descripcion</option> }</select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.Empresa))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Empresa</label><select class="form-select" @bind="_idEmpresa"><option value="">Todas las empresas</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.Bodega))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Bodega</label><select class="form-select" @bind="_idBodega"><option value="">Todas las bodegas</option>@foreach (var bodega in _bodegas) { <option value="@bodega.IdBodega">@bodega.NombreBodega</option> }</select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.Lote))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Lote</label><input class="form-control" @bind="_numeroLote" @bind:event="onchange" placeholder="Número de lote" /></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.Agente))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Agente (login)</label><input class="form-control" @bind="_idAgente" @bind:event="onchange" placeholder="Ej. jperez" /></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.TipoVenta))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Tipo de venta</label><select class="form-select" @bind="_tipoVenta"><option value="">Contado y crédito</option><option value="01">Contado</option><option value="02">Crédito</option></select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.Familia))
             {
                 <div class="col-12 col-md-3"><label class="form-label small">Familia</label><select class="form-select" @bind="_idFamilia"><option value="">Todas las familias</option>@foreach (var familia in _familias) { <option value="@familia.Codigo">@familia.Descripcion</option> }</select></div>
             }
-            <div class="col-12 col-md-3 d-flex align-items-end">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="fIncluirAnuladas" @bind="_incluirAnuladas" />
-                    <label class="form-check-label small" for="fIncluirAnuladas">Incluir anuladas</label>
+            @if (MostrarFiltro(FiltroReporteVisible.EstadoLiquidacion))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Liquidación</label><select class="form-select" @bind="_estadoComision"><option value="">Todas</option><option>Pendiente</option><option>Liquidada</option></select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.Texto))
+            {
+                <div class="col-12 col-md-5"><label class="form-label small">Buscar en el reporte</label><input class="form-control" @bind="_texto" @bind:event="onchange" placeholder="Documento, nombre, código o detalle…" /></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.IncluirAnuladas))
+            {
+                <div class="col-12 col-md-3 d-flex align-items-end"><div class="form-check"><input class="form-check-input" type="checkbox" id="fIncluirAnuladas" @bind="_incluirAnuladas" /><label class="form-check-label small" for="fIncluirAnuladas">Incluir anuladas</label></div></div>
+            }
+            @if (Definicion.FiltrosAvanzados != FiltroReporteVisible.Ninguno)
+            {
+                <div class="col-12">
+                    <button class="btn btn-sm btn-link px-0" type="button" @onclick="AlternarFiltrosAvanzados" aria-expanded="@_estado.FiltrosAvanzadosAbiertos">
+                        <i class="bi @(_estado.FiltrosAvanzadosAbiertos ? "bi-chevron-up" : "bi-sliders") me-1" aria-hidden="true"></i>
+                        @(_estado.FiltrosAvanzadosAbiertos ? "Ocultar filtros adicionales" : "Más filtros")
+                    </button>
                 </div>
-            </div>
             }
         </AppFiltros>
 
-        @if (EsReporteComisiones)
+        @if (!string.IsNullOrWhiteSpace(_errorFiltros))
         {
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
-                <div class="small text-body-secondary"><i class="bi bi-cash-coin me-1" aria-hidden="true"></i>Solo facturas aceptadas y totalmente canceladas.</div>
-                <button class="btn btn-sm btn-outline-success" @onclick="ExportarComisionesXlsx" disabled="@(!_comisiones.Movimientos.Any() || _cargando)"><i class="bi bi-file-earmark-spreadsheet me-1" aria-hidden="true"></i>Excel</button>
-            </div>
+            <div class="alert alert-warning py-2" role="alert">@_errorFiltros</div>
+        }
+
+        @if (!_estado.TieneResultado && !_cargando)
+        {
+            <section class="seepos-reporte-inicio card" aria-label="Instrucciones del reporte">
+                <div class="card-body text-center py-5">
+                    <span class="seepos-reporte-inicio-icono"><i class="bi @Definicion.Icono" aria-hidden="true"></i></span>
+                    <h2 class="h6 mt-3">Configure los filtros y pulse Consultar reporte</h2>
+                    <p class="small text-body-secondary mb-0">Los datos no se cargan hasta que usted inicie la consulta.</p>
+                </div>
+            </section>
+        }
+
+        @if (EsReporteComisiones && _estado.ConsultadoEn.HasValue)
+        {
+            <ResumenConsultaReporte ConsultadoEn="_estado.ConsultadoEn" Filtros="FiltrosAplicados" />
+            @if (PuedeExportarExcel)
+            {
+                <div class="d-flex justify-content-end mb-2"><button class="btn btn-sm btn-outline-success" @onclick="ExportarComisionesXlsx" disabled="@(!_comisiones.Movimientos.Any() || _cargando)"><i class="bi bi-file-earmark-spreadsheet me-1" aria-hidden="true"></i>Exportar Excel</button></div>
+            }
             <div class="row g-3 mb-3">
                 <div class="col-12 col-md-4"><div class="card h-100"><div class="card-body py-3"><div class="small text-body-secondary">Comisiones</div><div class="fs-5 fw-semibold seepos-importe">@Formato.Importe(_comisiones.Movimientos.Sum(x => x.Importe))</div></div></div></div>
                 <div class="col-12 col-md-4"><div class="card h-100"><div class="card-body py-3"><div class="small text-body-secondary">Movimientos</div><div class="fs-5 fw-semibold">@_comisiones.Movimientos.Count</div></div></div></div>
@@ -131,34 +170,59 @@
         }
         @if (_reporte is not null)
         {
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
-                <div class="small text-body-secondary"><i class="bi bi-database me-1" aria-hidden="true"></i>@_reporte.Fuente</div>
-                <div class="btn-group" role="group" aria-label="Exportar reporte">
-                    <button class="btn btn-sm btn-outline-success" @onclick="ExportarExcel" disabled="@_cargando"><i class="bi bi-file-earmark-spreadsheet me-1" aria-hidden="true"></i>Excel</button>
-                    <button class="btn btn-sm btn-outline-danger" @onclick="ExportarPdf" disabled="@_cargando"><i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>PDF</button>
-                </div>
+            <ResumenConsultaReporte ConsultadoEn="_estado.ConsultadoEn" Filtros="FiltrosAplicados" />
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+                <details class="seepos-reporte-metodo small">
+                    <summary><i class="bi bi-info-circle me-1" aria-hidden="true"></i>Fuente y criterio</summary>
+                    <p class="mb-0 mt-2">@_reporte.Fuente</p>
+                </details>
+                @if (PuedeExportarExcel || PuedeExportarPdf)
+                {
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" disabled="@_cargando">
+                            <i class="bi bi-download me-1" aria-hidden="true"></i>Exportar
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            @if (PuedeExportarExcel) { <li><button class="dropdown-item" type="button" @onclick="ExportarExcel"><i class="bi bi-file-earmark-spreadsheet text-success me-2" aria-hidden="true"></i>Excel</button></li> }
+                            @if (PuedeExportarPdf) { <li><button class="dropdown-item" type="button" @onclick="ExportarPdf"><i class="bi bi-file-earmark-pdf text-danger me-2" aria-hidden="true"></i>PDF</button></li> }
+                        </ul>
+                    </div>
+                }
             </div>
             <div class="row g-3 mb-3">
                 @foreach (var indicador in _reporte.Indicadores)
                 {
                     <div class="col-12 col-md-4">
-                        <div class="card h-100"><div class="card-body py-3">
-                            <div class="small text-body-secondary">@indicador.Etiqueta</div>
-                            <div class="fs-5 fw-semibold seepos-importe">@(indicador.Formato == "cantidad" ? indicador.Valor.ToString("N2") : Formato.Importe(indicador.Valor))</div>
-                        </div></div>
+                        @if (DestinoIndicador(indicador.Etiqueta) is { } destino)
+                        {
+                            <button class="card h-100 w-100 text-start seepos-kpi-desglose" type="button" @onclick="() => AbrirDesglose(destino)"><span class="card-body py-3"><span class="small text-body-secondary d-flex justify-content-between">@indicador.Etiqueta <i class="bi bi-arrow-up-right" aria-hidden="true"></i></span><span class="fs-5 fw-semibold seepos-importe d-block">@FormatearIndicador(indicador)</span></span></button>
+                        }
+                        else
+                        {
+                            <div class="card h-100"><div class="card-body py-3"><div class="small text-body-secondary">@indicador.Etiqueta</div><div class="fs-5 fw-semibold seepos-importe">@FormatearIndicador(indicador)</div></div></div>
+                        }
                     </div>
                 }
             </div>
             @if (_reporte.Limitado)
             {
-                <div class="alert alert-warning py-2 small">Se alcanzó el límite de seguridad de 2.000 filas. Acote fechas, texto o los identificadores para revisar más detalle.</div>
+                <div class="alert alert-warning py-2 small"><strong>Resultado limitado a 2.000 filas.</strong> Los indicadores, la exportación y el detalle reflejan ese alcance. Acote los filtros para obtener una lectura completa; las gráficas se ocultan para no presentar una muestra como si fuera el total.</div>
             }
-            <AppGraficosReporte TipoReporte="_tipo" Filas="_reporte.Filas" />
+            @if (Definicion.MostrarGraficas && !_reporte.Limitado)
+            {
+                <AppGraficosReporte TipoReporte="_tipo" Filas="_reporte.Filas" />
+            }
+            @if (_reporte.TotalRegistros == 0 && !_reporte.Indicadores.Any())
+            {
+                <div class="seepos-reporte-vacio card mb-3"><div class="card-body text-center py-4"><i class="bi bi-inbox fs-3 text-secondary" aria-hidden="true"></i><p class="fw-semibold mt-2 mb-1">No hay datos para los filtros seleccionados.</p><p class="small text-secondary mb-0">Amplíe el periodo o limpie algún filtro e intente nuevamente.</p></div></div>
+            }
         }
 
-        @if (!EsReporteComisiones) { <div class="card">
+        @if (!EsReporteComisiones && _reporte is { TotalRegistros: > 0 } && _tipo != "panel-ejecutivo") { <div class="card">
             <div class="card-body p-0">
-                <AppRejilla @ref="_rejilla" TItem="FilaReporteOperacionWebDTO" Datos="CargarRejilla" Nivel="NivelPantalla.Escritorio" TextoVacio="Seleccione un reporte y pulse Buscar.">
+                <AppRejilla @ref="_rejilla" TItem="FilaReporteOperacionWebDTO" Datos="CargarRejilla" Nivel="NivelPantalla.Escritorio"
+                            EstadoUsuario="_estado.EstadoRejilla" EstadoUsuarioChanged="AlCambiarEstadoRejilla"
+                            TextoVacio="No hay filas para los filtros seleccionados.">
                     <Columnas>
                         @foreach (var col in ColumnasActuales)
                         {
@@ -173,55 +237,50 @@
 </AppPantalla>
 
 @code {
-    private const string Titulo = "Módulo Reportes";
-    // Catálogo (dominios, tipos, permisos) en CatalogoReportes.cs — compartido con
-    // ModuloReportes.razor, que lo usa para el catálogo de entrada.
-    private static readonly GrupoReportes[] Grupos = CatalogoReportes.Grupos;
-
     /// <summary>Tipo de reporte a mostrar, fijado por la página delgada que instancia
     /// este panel (p. ej. <c>Ventas.razor</c> pasa <c>"ventas"</c>). Cada tipo vive en su
-    /// propia página/ruta, así que Blazor Router siempre crea una instancia nueva del
-    /// panel al navegar entre reportes — nunca reutiliza una con estado de otro tipo.
-    /// Vacío solo en la entrada "en blanco" del hub (<c>ModuloReportes.razor</c>), donde
-    /// se resuelve al primer reporte visible para el usuario.</summary>
+    /// propia página/ruta y obtiene un contexto independiente en <see cref="IEstadoReportes"/>.</summary>
     [Parameter, EditorRequired] public string TipoInicial { get; set; } = "";
 
-    private string _tipo = "ventas";
-    private string _grupoActivo = "ventas-cartera";
-    private IEnumerable<GrupoReportes> GruposVisibles => Grupos.Where(g => OpcionesVisibles(g).Any());
-    private IEnumerable<(string Valor, string Texto, string Codigo)> OpcionesVisibles(GrupoReportes g) => g.Opciones.Where(o => Sesion.PuedeVer(o.Codigo));
-    private GrupoReportes? GrupoActivo => Grupos.FirstOrDefault(x => x.Id == _grupoActivo);
-    private string _texto = string.Empty;
-    private DateTime? _desde;
-    private DateTime? _hasta;
-    private int? _idSucursal;
-    private int? _idEmpresa;
-    private long? _idCliente;
-    private int? _idProveedor;
-    private long? _idArticulo;
-    private int? _idBodega;
-    private string _numeroLote = string.Empty;
-    private string _estadoComision = string.Empty;
-    private string _idAgente = string.Empty;
-    private int? _idFamilia;
-    private string _tipoVenta = string.Empty;
-    private bool _incluirAnuladas;
-    private List<SucursalDTO> _sucursales = new();
-    private List<EmpresaDTO> _empresas = new();
-    private List<FiltranClienteDTO> _clientes = new();
-    private List<ProveedorDTO> _proveedores = new();
-    private List<InventarioDTO> _articulos = new();
-    private List<Bodega> _bodegas = new();
-    private List<FamiliaDTO> _familias = new();
+    private ReporteCatalogo? _definicion;
+    private EstadoReportePestana _estado = new() { Tipo = string.Empty };
+    private ReporteCatalogo Definicion => _definicion ?? throw new InvalidOperationException($"Tipo de reporte desconocido: {TipoInicial}");
+    private string _tipo => Definicion.Tipo;
+
+    private string _texto { get => _estado.Texto; set => _estado.Texto = value; }
+    private DateTime? _desde { get => _estado.Desde; set => _estado.Desde = value; }
+    private DateTime? _hasta { get => _estado.Hasta; set => _estado.Hasta = value; }
+    private int? _idSucursal { get => _estado.IdSucursal; set => _estado.IdSucursal = value; }
+    private int? _idEmpresa { get => _estado.IdEmpresa; set => _estado.IdEmpresa = value; }
+    private long? _idCliente { get => _estado.IdCliente; set => _estado.IdCliente = value; }
+    private int? _idProveedor { get => _estado.IdProveedor; set => _estado.IdProveedor = value; }
+    private long? _idArticulo { get => _estado.IdArticulo; set => _estado.IdArticulo = value; }
+    private int? _idBodega { get => _estado.IdBodega; set => _estado.IdBodega = value; }
+    private string _numeroLote { get => _estado.NumeroLote; set => _estado.NumeroLote = value; }
+    private string _estadoComision { get => _estado.EstadoComision; set => _estado.EstadoComision = value; }
+    private string _idAgente { get => _estado.IdAgente; set => _estado.IdAgente = value; }
+    private int? _idFamilia { get => _estado.IdFamilia; set => _estado.IdFamilia = value; }
+    private string _tipoVenta { get => _estado.TipoVenta; set => _estado.TipoVenta = value; }
+    private bool _incluirAnuladas { get => _estado.IncluirAnuladas; set => _estado.IncluirAnuladas = value; }
+    private List<SucursalDTO> _sucursales => _estado.Sucursales;
+    private List<EmpresaDTO> _empresas => _estado.Empresas;
+    private List<FiltranClienteDTO> _clientes => _estado.Clientes;
+    private List<ProveedorDTO> _proveedores => _estado.Proveedores;
+    private List<InventarioDTO> _articulos => _estado.Articulos;
+    private List<Bodega> _bodegas => _estado.Bodegas;
+    private List<FamiliaDTO> _familias => _estado.Familias;
     private bool _cargando;
+    private string? _errorFiltros;
     private AppRejilla<FilaReporteOperacionWebDTO>? _rejilla;
-    private ReporteOperacionWebDTO? _reporte;
-    private ComisionConsultaDTO _comisiones = new();
+    private ReporteOperacionWebDTO? _reporte { get => _estado.Reporte; set => _estado.Reporte = value; }
+    private ComisionConsultaDTO _comisiones { get => _estado.Comisiones; set => _estado.Comisiones = value; }
     private bool EsReporteComisiones => _tipo == "comisiones";
-    private bool EsReporteVentas => _tipo is "ventas" or "ventas-detalle" or "ventas-horas";
     private string Resumen => EsReporteComisiones
-        ? $"{_comisiones.Movimientos.Count:N0} movimientos de comisión"
-        : _reporte is null ? "" : $"{_reporte.TotalRegistros:N0} registros · {_reporte.Titulo}";
+        ? (_estado.ConsultadoEn.HasValue ? $"{_comisiones.Movimientos.Count:N0} movimientos" : "Listo para consultar")
+        : _reporte is null ? "Listo para consultar" : $"{_reporte.TotalRegistros:N0} registros";
+    private bool PuedeExportarExcel => Sesion.Puede(Definicion.Codigo, AccionPantalla.Exportar);
+    private bool PuedeExportarPdf => Sesion.Puede(Definicion.Codigo, AccionPantalla.Imprimir);
+    private IReadOnlyList<string> FiltrosAplicados => ConstruirFiltrosAplicados();
 
     /// <summary>Una columna de la rejilla de detalle. Los 9 reportes que comparten
     /// FilaReporteOperacionWebDTO (ver ApiSuvesaPos/Class/ReportesOperacionManager.cs)
@@ -251,11 +310,11 @@
         ["ventas"] = [ColFecha, Col("N° factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Saldo pendiente", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
         ["ventas-detalle"] = [ColFecha, Col("Factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColLote, ColDetalle, Col("Cantidad", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Margen bruto", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
         ["ventas-horas"] = [Col("Franja horaria", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Documentos", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Venta", x => x.Monto, x => FMoneda(x.Monto), true)],
-        ["clientes"] = [ColFecha, Col("Cliente", x => x.Entidad, x => x.Entidad), Col("Código", x => x.Referencia, x => x.Referencia), Col("Pedidos", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Venta total", x => x.Monto, x => FMoneda(x.Monto), true), Col("Ticket promedio", x => x.Saldo, x => FMoneda(x.Saldo), true), ColDetalle, ColEstado],
+        ["clientes"] = [ColFecha, Col("Cliente", x => x.Entidad, x => x.Entidad), Col("Nombre fantasía", x => x.NombreFantasia, x => x.NombreFantasia), Col("Identificación", x => x.Identificacion, x => x.Identificacion), Col("Teléfono", x => x.Telefono, x => x.Telefono), Col("Sucursal", x => x.Sucursal, x => x.Sucursal), Col("Código", x => x.Referencia, x => x.Referencia), Col("Pedidos", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Venta total", x => x.Monto, x => FMoneda(x.Monto), true), Col("Ticket promedio", x => x.Saldo, x => FMoneda(x.Saldo), true), ColDetalle, ColEstado],
         ["rentabilidad"] = [ColFecha, Col("Factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), Col("Venta", x => x.Monto, x => FMoneda(x.Monto), true), Col("Margen bruto", x => x.Cantidad, x => FMoneda(x.Cantidad), true), Col("Utilidad tras comisión", x => x.Saldo, x => FMoneda(x.Saldo), true), Col("Comisión", x => x.Estado, x => x.Estado)],
         ["ventas-compras"] = [ColFecha, ColDetalle, Col("Ventas", x => x.Monto, x => FMoneda(x.Monto), true), Col("Diferencia", x => x.Saldo, x => FMoneda(x.Saldo), true)],
         ["recuperacion-cxc"] = [ColFecha, Col("Recibo", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Saldo posterior", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
-        ["cuentas-por-cobrar"] = [Col("Cliente", x => x.Entidad, x => x.Entidad), Col("Factura", x => x.Referencia, x => x.Referencia), ColVence, Col("Saldo", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado, ColDetalle],
+        ["cuentas-por-cobrar"] = [Col("Cliente", x => x.Entidad, x => x.Entidad), Col("Teléfono", x => x.Telefono, x => x.Telefono), Col("Correo", x => x.Correo, x => x.Correo), Col("Factura", x => x.Referencia, x => x.Referencia), ColVence, Col("Saldo", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado, ColDetalle],
         ["cuentas-por-pagar"] = [ColFecha, Col("Proveedor", x => x.Entidad, x => x.Entidad), Col("Factura", x => x.Referencia, x => x.Referencia), Col("Monto original", x => x.Monto, x => FMoneda(x.Monto), true), Col("Saldo", x => x.Saldo, x => FMoneda(x.Saldo), true), Col("Antigüedad", x => x.Estado, x => x.Estado)],
         ["cabys"] = [Col("Artículo", x => x.Referencia, x => x.Referencia), Col("Descripción", x => x.Entidad, x => x.Entidad), Col("CABYS", x => x.Descripcion, x => x.Descripcion), ColEstado],
         ["apartados"] = [ColFecha, Col("Apartado", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColVence, Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Saldo", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
@@ -285,95 +344,107 @@
 
     private Columna[] ColumnasActuales => ColumnasPorTipo.TryGetValue(_tipo, out var columnas) ? columnas : ColumnasPorDefecto;
 
+    protected override void OnParametersSet()
+    {
+        _definicion = CatalogoReportes.Buscar(TipoInicial)
+            ?? throw new InvalidOperationException($"Tipo de reporte desconocido: {TipoInicial}");
+        _estado = Estados.Obtener(_definicion.Tipo);
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        _hasta = await RelojEquipo.HoyAsync();
-        _desde = _hasta.Value.AddDays(-30);
         await Sesion.CargarAsync();
-        AplicarTipoInicial();
-        await CargarCatalogosAsync();
-        await Consultar();
-        StateHasChanged();
-    }
+        if (!Sesion.PuedeVer(Definicion.Codigo)) return;
 
-    /// <summary>Si la ruta trajo un tipo válido y visible para el usuario, arranca ahí.
-    /// Si no, cae en el primer reporte visible del primer grupo visible.</summary>
-    private void AplicarTipoInicial()
-    {
-        var grupo = !string.IsNullOrWhiteSpace(TipoInicial)
-            ? Grupos.FirstOrDefault(g => OpcionesVisibles(g).Any(o => o.Valor == TipoInicial))
-            : null;
-        if (grupo is not null)
+        await Preferencias.CargarAsync();
+        await Preferencias.RegistrarRecienteAsync(_tipo);
+        if (!_estado.Inicializado)
         {
-            _grupoActivo = grupo.Id;
-            _tipo = TipoInicial;
-            return;
+            await InicializarPredeterminadosAsync();
+            _estado.Inicializado = true;
         }
-        var primerGrupoVisible = GruposVisibles.FirstOrDefault();
-        if (primerGrupoVisible is null) return;
-        _grupoActivo = primerGrupoVisible.Id;
-        _tipo = OpcionesVisibles(primerGrupoVisible).First().Valor;
+        _estado.LimpiarFiltrosNoAplicables(Definicion);
+        await CargarCatalogosAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
-    /// <summary>Cambiar de reporte navega a su propia ruta (<c>/moduloReportes/{tipo}</c>)
-    /// y abre/activa su propia pestaña del espacio de trabajo — cada reporte es una
-    /// pestaña independiente con sus propios filtros y datos, no un estado compartido
-    /// dentro de una única pestaña "Módulo Reportes".</summary>
-    private void CambiarTipo(string tipo, string titulo)
+    private void VolverAlCatalogo()
     {
-        if (tipo == _tipo) return;
-        var ruta = $"/moduloReportes/{tipo}";
-        Espacio.Abrir(titulo, ruta);
-        Navegacion.NavigateTo(ruta);
+        var pestana = Espacio.Abrir("Reportes", "/moduloReportes");
+        Navegacion.NavigateTo(pestana.Ruta);
     }
 
-    private void CambiarGrupo(string grupo)
+    private async Task AlternarFavorito()
     {
-        if (_grupoActivo == grupo) return;
-        var siguiente = Grupos.FirstOrDefault(x => x.Id == grupo);
-        var primerReporte = siguiente is null ? default : OpcionesVisibles(siguiente).FirstOrDefault();
-        if (primerReporte is { Valor.Length: > 0 }) CambiarTipo(primerReporte.Valor, primerReporte.Texto);
+        await Preferencias.AlternarFavoritoAsync(_tipo);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private bool MostrarFiltro(FiltroReporteVisible filtro)
+        => Definicion.FiltrosBasicos.HasFlag(filtro)
+           || (_estado.FiltrosAvanzadosAbiertos && Definicion.FiltrosAvanzados.HasFlag(filtro));
+
+    private void AlternarFiltrosAvanzados()
+        => _estado.FiltrosAvanzadosAbiertos = !_estado.FiltrosAvanzadosAbiertos;
+
+    private async Task AplicarRango(int dias)
+    {
+        var hoy = await RelojEquipo.HoyAsync();
+        _hasta = hoy;
+        _desde = dias <= 1 ? hoy : hoy.AddDays(-(dias - 1));
+    }
+
+    private async Task AplicarMesActual()
+    {
+        var hoy = await RelojEquipo.HoyAsync();
+        _desde = new DateTime(hoy.Year, hoy.Month, 1);
+        _hasta = hoy;
+    }
+
+    private async Task AplicarMesAnterior()
+    {
+        var hoy = await RelojEquipo.HoyAsync();
+        var primeroActual = new DateTime(hoy.Year, hoy.Month, 1);
+        _desde = primeroActual.AddMonths(-1);
+        _hasta = primeroActual.AddDays(-1);
     }
 
     private async Task Consultar()
     {
         if (_cargando) return;
+        _errorFiltros = ValidarFiltros();
+        if (_errorFiltros is not null) return;
+
+        _estado.LimpiarFiltrosNoAplicables(Definicion);
         _cargando = true;
         try
         {
+            var ahora = await RelojEquipo.AhoraAsync();
+            var filtro = CrearFiltro(ahora);
             if (EsReporteComisiones)
             {
-                _comisiones = (await Respuestas.DatoAsync(await ComisionesApi.Consultar(new FiltroComisionesDTO
+                var resultado = await Respuestas.DatoAsync(await ComisionesApi.Consultar(new FiltroComisionesDTO
                 {
                     Desde = _desde, Hasta = _hasta, IdSucursal = _idSucursal, EstadoLiquidacion = _estadoComision
-                }), "consultar el reporte de comisiones")) ?? new();
+                }), "consultar el reporte de comisiones");
+                if (resultado is null) return;
+                _comisiones = resultado;
                 _reporte = null;
-                return;
+                _estado.FiltroAplicado = filtro;
+                _estado.EstadoLiquidacionAplicado = _estadoComision;
             }
-            _reporte = await Respuestas.DatoAsync(await Api.Consultar(_tipo, new FiltroReporteOperacionWebDTO
+            else
             {
-                Desde = _desde,
-                Hasta = _hasta,
-                FechaReferencia = await RelojEquipo.AhoraAsync(),
-                IdSucursal = _idSucursal,
-                IdEmpresa = _idEmpresa,
-                IdCliente = _idCliente,
-                IdProveedor = _idProveedor,
-                IdArticulo = _idArticulo,
-                IdBodega = _idBodega,
-                NumeroLote = string.IsNullOrWhiteSpace(_numeroLote) ? null : _numeroLote.Trim(),
-                IdAgente = string.IsNullOrWhiteSpace(_idAgente) ? null : _idAgente.Trim(),
-                IdFamilia = _tipo == "ventas-detalle" ? _idFamilia : null,
-                TipoVenta = string.IsNullOrWhiteSpace(_tipoVenta) ? null : _tipoVenta,
-                IncluirAnuladas = _incluirAnuladas,
-                Pagina = 1,
-                // La rejilla pide sus páginas al servidor por separado. Esta
-                // consulta alimenta indicadores y gráficas, así que debe usar
-                // todo el conjunto permitido y no únicamente la primera página.
-                TamanoPagina = 2000,
-                Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim()
-            }), "consultar el reporte");
+                var resultado = await Respuestas.DatoAsync(await Api.Consultar(_tipo, filtro), "consultar el reporte");
+                if (resultado is null) return;
+                _reporte = resultado;
+                _comisiones = new();
+                _estado.FiltroAplicado = filtro;
+                _estado.EstadoLiquidacionAplicado = string.Empty;
+            }
+            _estado.ConsultadoEn = ahora;
+            _estado.EstadoRejilla = new GridUserState(0, []);
         }
         finally { _cargando = false; }
         if (_rejilla is not null) await _rejilla.RefrescarAsync();
@@ -394,51 +465,170 @@
         _idFamilia = null;
         _tipoVenta = string.Empty;
         _incluirAnuladas = false;
-        _hasta = await RelojEquipo.HoyAsync();
-        _desde = _hasta.Value.AddDays(-30);
-        await Consultar();
+        _reporte = null;
+        _comisiones = new();
+        _estado.ConsultadoEn = null;
+        _estado.EstadoRejilla = new GridUserState(0, []);
+        _estado.FiltroAplicado = null;
+        _estado.EstadoLiquidacionAplicado = string.Empty;
+        _errorFiltros = null;
+        await InicializarPredeterminadosAsync();
     }
 
     private async Task CargarCatalogosAsync()
     {
-        var sucursales = await Seguridad.ObtenerSucursales();
-        var empresas = await Facturacion.Empresas();
-        var clientes = await Clientes.Listar();
-        var proveedores = await Proveedores.Obtener();
-        var articulos = await Inventarios.Listar();
-        var bodegas = await ComprasApi.Bodegas(false);
-        var familias = await FamiliasApi.Obtener();
-        _sucursales = sucursales.EsCorrecta ? (sucursales.Responses ?? []).OrderBy(x => x.NombreComercial).ToList() : [];
-        _empresas = empresas.EsCorrecta ? (empresas.Responses ?? []).OrderBy(x => x.Nombre).ToList() : [];
-        _clientes = clientes.EsCorrecta ? (clientes.Responses ?? []).OrderBy(x => x.Nombre).ToList() : [];
-        _proveedores = proveedores.EsCorrecta ? (proveedores.Responses ?? []).OrderBy(x => x.Nombre).ToList() : [];
-        _articulos = articulos.EsCorrecta ? (articulos.Responses ?? []).OrderBy(x => x.Descripcion).ToList() : [];
-        _bodegas = bodegas.EsCorrecta ? (bodegas.Responses ?? []).Where(x => x.Estado).OrderBy(x => x.NombreBodega).ToList() : [];
-        _familias = familias.EsCorrecta ? (familias.Responses ?? []).OrderBy(x => x.Descripcion).ToList() : [];
+        if (_estado.CatalogosCargados) return;
+        var tareas = new List<Task>();
+        if (Definicion.Tiene(FiltroReporteVisible.Sucursal)) tareas.Add(CargarSucursalesAsync());
+        if (Definicion.Tiene(FiltroReporteVisible.Empresa)) tareas.Add(CargarEmpresasAsync());
+        if (Definicion.Tiene(FiltroReporteVisible.Cliente)) tareas.Add(CargarClientesAsync());
+        if (Definicion.Tiene(FiltroReporteVisible.Proveedor)) tareas.Add(CargarProveedoresAsync());
+        if (Definicion.Tiene(FiltroReporteVisible.Articulo)) tareas.Add(CargarArticulosAsync());
+        if (Definicion.Tiene(FiltroReporteVisible.Bodega)) tareas.Add(CargarBodegasAsync());
+        if (Definicion.Tiene(FiltroReporteVisible.Familia)) tareas.Add(CargarFamiliasAsync());
+        await Task.WhenAll(tareas);
+        _estado.CatalogosCargados = true;
+    }
+
+    private async Task CargarSucursalesAsync() { var r = await Seguridad.ObtenerSucursales(); _estado.Sucursales = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.NombreComercial).ToList() : []; }
+    private async Task CargarEmpresasAsync() { var r = await Facturacion.Empresas(); _estado.Empresas = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Nombre).ToList() : []; }
+    private async Task CargarClientesAsync() { var r = await Clientes.Listar(); _estado.Clientes = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Nombre).ToList() : []; }
+    private async Task CargarProveedoresAsync() { var r = await Proveedores.Obtener(); _estado.Proveedores = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Nombre).ToList() : []; }
+    private async Task CargarArticulosAsync() { var r = await Inventarios.Listar(); _estado.Articulos = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Descripcion).ToList() : []; }
+    private async Task CargarBodegasAsync() { var r = await ComprasApi.Bodegas(false); _estado.Bodegas = r.EsCorrecta ? (r.Responses ?? []).Where(x => x.Estado).OrderBy(x => x.NombreBodega).ToList() : []; }
+    private async Task CargarFamiliasAsync() { var r = await FamiliasApi.Obtener(); _estado.Familias = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Descripcion).ToList() : []; }
+
+    private async Task InicializarPredeterminadosAsync()
+    {
+        if (Definicion.Tiene(FiltroReporteVisible.Periodo)) await AplicarRango(30);
+        if (Definicion.Tiene(FiltroReporteVisible.Sucursal) && Sesion.IdSucursal > 0) _idSucursal = Sesion.IdSucursal;
+    }
+
+    private string? ValidarFiltros()
+    {
+        if (!Definicion.Tiene(FiltroReporteVisible.Periodo)) return null;
+        if (!_desde.HasValue || !_hasta.HasValue) return "Seleccione las fechas Desde y Hasta para consultar el reporte.";
+        return _desde.Value.Date > _hasta.Value.Date ? "La fecha Desde no puede ser posterior a la fecha Hasta." : null;
+    }
+
+    private FiltroReporteOperacionWebDTO CrearFiltro(DateTime referencia) => new()
+    {
+        Desde = _desde,
+        Hasta = _hasta,
+        FechaReferencia = referencia,
+        IdSucursal = _idSucursal,
+        IdEmpresa = _idEmpresa,
+        IdCliente = _idCliente,
+        IdProveedor = _idProveedor,
+        IdArticulo = _idArticulo,
+        IdBodega = _idBodega,
+        NumeroLote = string.IsNullOrWhiteSpace(_numeroLote) ? null : _numeroLote.Trim(),
+        IdAgente = string.IsNullOrWhiteSpace(_idAgente) ? null : _idAgente.Trim(),
+        IdFamilia = _idFamilia,
+        TipoVenta = string.IsNullOrWhiteSpace(_tipoVenta) ? null : _tipoVenta,
+        IncluirAnuladas = _incluirAnuladas,
+        Pagina = 1,
+        TamanoPagina = 2000,
+        Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim()
+    };
+
+    private IReadOnlyList<string> ConstruirFiltrosAplicados()
+    {
+        var aplicado = _estado.FiltroAplicado;
+        if (aplicado is null) return [];
+
+        var filtros = new List<string>();
+        if (Definicion.Tiene(FiltroReporteVisible.Periodo) && aplicado.Desde.HasValue && aplicado.Hasta.HasValue)
+            filtros.Add($"{Definicion.EtiquetaPeriodo}: {aplicado.Desde:dd/MM/yyyy} – {aplicado.Hasta:dd/MM/yyyy}");
+        if (aplicado.IdSucursal.HasValue)
+            filtros.Add($"Sucursal: {_sucursales.FirstOrDefault(x => x.Id == aplicado.IdSucursal)?.NombreComercial ?? aplicado.IdSucursal.ToString()}");
+        if (aplicado.IdEmpresa.HasValue)
+            filtros.Add($"Empresa: {_empresas.FirstOrDefault(x => x.Id == aplicado.IdEmpresa)?.Nombre ?? aplicado.IdEmpresa.ToString()}");
+        if (aplicado.IdCliente.HasValue)
+            filtros.Add($"Cliente: {_clientes.FirstOrDefault(x => x.Identificacion == aplicado.IdCliente)?.Nombre ?? aplicado.IdCliente.ToString()}");
+        if (aplicado.IdProveedor.HasValue)
+            filtros.Add($"Proveedor: {_proveedores.FirstOrDefault(x => x.CodigoProv == aplicado.IdProveedor)?.Nombre ?? aplicado.IdProveedor.ToString()}");
+        if (aplicado.IdArticulo.HasValue)
+            filtros.Add($"Artículo: {_articulos.FirstOrDefault(x => x.Codigo == aplicado.IdArticulo)?.Descripcion ?? aplicado.IdArticulo.ToString()}");
+        if (aplicado.IdBodega.HasValue)
+            filtros.Add($"Bodega: {_bodegas.FirstOrDefault(x => x.IdBodega == aplicado.IdBodega)?.NombreBodega ?? aplicado.IdBodega.ToString()}");
+        if (!string.IsNullOrWhiteSpace(aplicado.NumeroLote)) filtros.Add($"Lote: {aplicado.NumeroLote}");
+        if (!string.IsNullOrWhiteSpace(aplicado.IdAgente)) filtros.Add($"Agente: {aplicado.IdAgente}");
+        if (aplicado.IdFamilia.HasValue)
+            filtros.Add($"Familia: {_familias.FirstOrDefault(x => x.Codigo == aplicado.IdFamilia)?.Descripcion ?? aplicado.IdFamilia.ToString()}");
+        if (!string.IsNullOrWhiteSpace(aplicado.TipoVenta)) filtros.Add($"Tipo: {(aplicado.TipoVenta == "01" ? "Contado" : "Crédito")}");
+        if (!string.IsNullOrWhiteSpace(_estado.EstadoLiquidacionAplicado)) filtros.Add($"Liquidación: {_estado.EstadoLiquidacionAplicado}");
+        if (aplicado.IncluirAnuladas) filtros.Add("Incluye anuladas");
+        if (!string.IsNullOrWhiteSpace(aplicado.Texto)) filtros.Add($"Búsqueda: {aplicado.Texto}");
+        if (filtros.Count == 0) filtros.Add("Sin filtros adicionales");
+        return filtros;
+    }
+
+    private static string FormatearIndicador(IndicadorReporteOperacionWebDTO indicador)
+        => indicador.Formato == "cantidad" ? indicador.Valor.ToString("N2") : Formato.Importe(indicador.Valor);
+
+    private string? DestinoIndicador(string etiqueta)
+    {
+        if (_tipo != "panel-ejecutivo") return null;
+        return etiqueta switch
+        {
+            "Facturación neta" or "Documentos de venta" or "Pendiente de cobro" => "ventas",
+            "Compras" => "compras",
+            "Gastos" => "gastos",
+            "Margen bruto estimado" => "rentabilidad",
+            "Cartera pendiente (CxC)" or "DSO estimado" or "Cartera vencida +90 días" => "cuentas-por-cobrar",
+            "Valor de inventario a costo" => "inventario",
+            "Costo de mermas del período" or "Líneas con merma" => "mermas",
+            _ => null,
+        };
+    }
+
+    private void AbrirDesglose(string tipo)
+    {
+        var reporte = CatalogoReportes.Buscar(tipo);
+        if (reporte is null || !Sesion.PuedeVer(reporte.Codigo)) return;
+        var destino = Estados.Obtener(tipo);
+        destino.CopiarFiltrosDesde(_estado, reporte);
+        destino.Reporte = null;
+        destino.Comisiones = new();
+        destino.ConsultadoEn = null;
+        destino.EstadoRejilla = new GridUserState(0, []);
+        destino.FiltroAplicado = null;
+        destino.EstadoLiquidacionAplicado = string.Empty;
+        var pestana = Espacio.Abrir(reporte.Titulo, reporte.Ruta);
+        Navegacion.NavigateTo(pestana.Ruta);
+    }
+
+    private Task AlCambiarEstadoRejilla(GridUserState estado)
+    {
+        _estado.EstadoRejilla = estado;
+        return Task.CompletedTask;
     }
 
     private async Task Exportar(string formato)
     {
-        if (_reporte is null) return;
+        var filtro = _estado.FiltroAplicado;
+        if (_reporte is null || filtro is null) return;
         var generado = await RelojEquipo.AhoraAsync();
         var parametros = new List<string>
         {
-            $"generado={Uri.EscapeDataString(generado.ToString("O", System.Globalization.CultureInfo.InvariantCulture))}"
+            $"generado={Uri.EscapeDataString(generado.ToString("O", System.Globalization.CultureInfo.InvariantCulture))}",
+            $"fechaReferencia={Uri.EscapeDataString((filtro.FechaReferencia ?? generado).ToString("O", System.Globalization.CultureInfo.InvariantCulture))}"
         };
-        if (_desde.HasValue) parametros.Add($"desde={_desde.Value:yyyy-MM-dd}");
-        if (_hasta.HasValue) parametros.Add($"hasta={_hasta.Value:yyyy-MM-dd}");
-        if (_idSucursal.HasValue) parametros.Add($"idSucursal={_idSucursal}");
-        if (_idEmpresa.HasValue) parametros.Add($"idEmpresa={_idEmpresa}");
-        if (_idCliente.HasValue) parametros.Add($"idCliente={_idCliente}");
-        if (_idProveedor.HasValue) parametros.Add($"idProveedor={_idProveedor}");
-        if (_idArticulo.HasValue) parametros.Add($"idArticulo={_idArticulo}");
-        if (_idBodega.HasValue) parametros.Add($"idBodega={_idBodega}");
-        if (!string.IsNullOrWhiteSpace(_numeroLote)) parametros.Add($"numeroLote={Uri.EscapeDataString(_numeroLote.Trim())}");
-        if (!string.IsNullOrWhiteSpace(_texto)) parametros.Add($"texto={Uri.EscapeDataString(_texto.Trim())}");
-        if (!string.IsNullOrWhiteSpace(_idAgente)) parametros.Add($"idAgente={Uri.EscapeDataString(_idAgente.Trim())}");
-        if (_tipo == "ventas-detalle" && _idFamilia.HasValue) parametros.Add($"idFamilia={_idFamilia}");
-        if (!string.IsNullOrWhiteSpace(_tipoVenta)) parametros.Add($"tipoVenta={Uri.EscapeDataString(_tipoVenta)}");
-        if (_incluirAnuladas) parametros.Add("incluirAnuladas=true");
+        if (filtro.Desde.HasValue) parametros.Add($"desde={filtro.Desde.Value:yyyy-MM-dd}");
+        if (filtro.Hasta.HasValue) parametros.Add($"hasta={filtro.Hasta.Value:yyyy-MM-dd}");
+        if (filtro.IdSucursal.HasValue) parametros.Add($"idSucursal={filtro.IdSucursal}");
+        if (filtro.IdEmpresa.HasValue) parametros.Add($"idEmpresa={filtro.IdEmpresa}");
+        if (filtro.IdCliente.HasValue) parametros.Add($"idCliente={filtro.IdCliente}");
+        if (filtro.IdProveedor.HasValue) parametros.Add($"idProveedor={filtro.IdProveedor}");
+        if (filtro.IdArticulo.HasValue) parametros.Add($"idArticulo={filtro.IdArticulo}");
+        if (filtro.IdBodega.HasValue) parametros.Add($"idBodega={filtro.IdBodega}");
+        if (!string.IsNullOrWhiteSpace(filtro.NumeroLote)) parametros.Add($"numeroLote={Uri.EscapeDataString(filtro.NumeroLote)}");
+        if (!string.IsNullOrWhiteSpace(filtro.Texto)) parametros.Add($"texto={Uri.EscapeDataString(filtro.Texto)}");
+        if (!string.IsNullOrWhiteSpace(filtro.IdAgente)) parametros.Add($"idAgente={Uri.EscapeDataString(filtro.IdAgente)}");
+        if (filtro.IdFamilia.HasValue) parametros.Add($"idFamilia={filtro.IdFamilia}");
+        if (!string.IsNullOrWhiteSpace(filtro.TipoVenta)) parametros.Add($"tipoVenta={Uri.EscapeDataString(filtro.TipoVenta)}");
+        if (filtro.IncluirAnuladas) parametros.Add("incluirAnuladas=true");
         await JS.InvokeVoidAsync("seepos.descargarUrl", $"/reportes/operacion/{Uri.EscapeDataString(_tipo)}/{formato}?{string.Join("&", parametros)}");
     }
 
@@ -447,30 +637,27 @@
 
     private async Task ExportarComisionesXlsx()
     {
+        var filtro = _estado.FiltroAplicado;
+        if (filtro is null) return;
         var archivo = await Respuestas.DatoAsync(await ComisionesApi.ExportarXlsx(new FiltroComisionesDTO
         {
-            Desde = _desde, Hasta = _hasta, IdSucursal = _idSucursal, EstadoLiquidacion = _estadoComision
+            Desde = filtro.Desde,
+            Hasta = filtro.Hasta,
+            IdSucursal = filtro.IdSucursal,
+            EstadoLiquidacion = _estado.EstadoLiquidacionAplicado
         }), "exportar el reporte de comisiones a Excel");
         if (archivo is not null && archivo.Contenido.Length > 0)
             await JS.InvokeVoidAsync("seepos.descargarBase64", archivo.Nombre, Convert.ToBase64String(archivo.Contenido), archivo.TipoContenido);
     }
 
-    private async Task<GridDataProviderResult<FilaReporteOperacionWebDTO>> CargarRejilla(GridDataProviderRequest<FilaReporteOperacionWebDTO> peticion)
+    private Task<GridDataProviderResult<FilaReporteOperacionWebDTO>> CargarRejilla(GridDataProviderRequest<FilaReporteOperacionWebDTO> peticion)
     {
-        if (_reporte is null) return new GridDataProviderResult<FilaReporteOperacionWebDTO> { Data = [], TotalCount = 0 };
-        var tamano = Math.Max(1, Convert.ToInt32(peticion.Count));
-        var pagina = (Convert.ToInt32(peticion.StartIndex) / tamano) + 1;
-        var datos = await Respuestas.DatoAsync(await Api.Consultar(_tipo, new FiltroReporteOperacionWebDTO
-        {
-            Desde = _desde, Hasta = _hasta, FechaReferencia = await RelojEquipo.AhoraAsync(), Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim(),
-            IdSucursal = _idSucursal, IdEmpresa = _idEmpresa, IdCliente = _idCliente, IdProveedor = _idProveedor, IdArticulo = _idArticulo,
-            IdBodega = _idBodega, NumeroLote = string.IsNullOrWhiteSpace(_numeroLote) ? null : _numeroLote.Trim(),
-            IdAgente = string.IsNullOrWhiteSpace(_idAgente) ? null : _idAgente.Trim(),
-            IdFamilia = _tipo == "ventas-detalle" ? _idFamilia : null,
-            TipoVenta = string.IsNullOrWhiteSpace(_tipoVenta) ? null : _tipoVenta,
-            IncluirAnuladas = _incluirAnuladas,
-            Pagina = pagina, TamanoPagina = tamano
-        }), "cargar la página del reporte");
-        return new GridDataProviderResult<FilaReporteOperacionWebDTO> { Data = datos?.Filas ?? [], TotalCount = datos?.TotalRegistros ?? 0 };
+        if (_reporte is null)
+            return Task.FromResult(new GridDataProviderResult<FilaReporteOperacionWebDTO> { Data = [], TotalCount = 0 });
+
+        // El API entrega el conjunto autorizado (máximo 2.000 filas). Aplicar aquí
+        // orden y página hace que la rejilla responda de verdad a sus encabezados y
+        // permite restaurar exactamente la vista al volver a la pestaña.
+        return Task.FromResult(peticion.ApplyTo(_reporte.Filas));
     }
 }
