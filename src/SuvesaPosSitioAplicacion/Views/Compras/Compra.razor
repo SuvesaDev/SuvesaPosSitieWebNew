@@ -473,7 +473,7 @@
     private void ActualizarVencimiento() => _vence = _tipoCompra == 1 ? _fecha.AddDays(Math.Max(0, _diasCredito)) : _fecha;
     private async Task AbrirBuscadorArticulo()
     {
-        if (_proveedor is null || string.IsNullOrWhiteSpace(_numeroFactura) || _bodega <= 0 || _moneda <= 0 || (!EsCostaPetsCompra && _empresa <= 0)) { await Dialogos.ErrorAsync("Seleccione proveedor, factura, moneda, bodega y empresa antes de agregar artículos."); return; }
+        if (_proveedor is null || _proveedor.CodigoProv <= 0 || string.IsNullOrWhiteSpace(_numeroFactura) || _bodega <= 0 || _moneda <= 0 || (!EsCostaPetsCompra && _empresa <= 0)) { await Dialogos.ErrorAsync("Seleccione proveedor, factura, moneda, bodega y empresa antes de agregar artículos."); return; }
         await _buscadorArticulo.AbrirAsync();
     }
     private async Task ElegirArticulo(InventarioDTO articulo)
@@ -569,7 +569,7 @@
     private async Task Guardar()
     {
         if (!_compraDesbloqueada) { await AbrirDesbloqueo(); return; }
-        if (_proveedor is null || string.IsNullOrWhiteSpace(_numeroFactura) || _bodega <= 0 || _moneda <= 0 || _lineas.Count == 0 || (!EsCostaPetsCompra && _empresa <= 0)) { await Dialogos.ErrorAsync("Complete encabezado, empresa y al menos un artículo antes de guardar."); return; }
+        if (_proveedor is null || _proveedor.CodigoProv <= 0 || string.IsNullOrWhiteSpace(_numeroFactura) || _bodega <= 0 || _moneda <= 0 || _lineas.Count == 0 || (!EsCostaPetsCompra && _empresa <= 0)) { await Dialogos.ErrorAsync("Complete encabezado, empresa y al menos un artículo antes de guardar."); return; }
         if (_tipoCompra == 2 && _idCompra == 0 && string.IsNullOrWhiteSpace(_formaPagoCompra)) { await Dialogos.ErrorAsync("Indique la forma de pago de la compra de contado."); return; }
         var accion = _idCompra > 0 ? "actualizar" : "registrar";
         if (!await Dialogos.ConfirmarAsync($"Se va a {accion} la compra y afectar el inventario. ¿Desea continuar?")) return;

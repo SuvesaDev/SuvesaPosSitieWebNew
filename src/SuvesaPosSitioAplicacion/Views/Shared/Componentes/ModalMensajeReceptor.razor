@@ -164,6 +164,15 @@
             Dialogos.Exito(respuesta.Responses?.EsValido == true ? "Mensaje Receptor enviado a Hacienda." : $"Mensaje Receptor registrado con estado: {respuesta.Responses?.Estado}.");
             await _modal.HideAsync();
             await AlEnviar.InvokeAsync(respuesta.Responses);
+            return;
         }
+
+        // La compra ya está guardada de todas formas (este modal se abre después de
+        // guardarla, o desde "Pendientes" sobre una ya guardada) — que falle el envío no
+        // debe dejar al usuario atascado en el modal ni en el formulario de la compra.
+        // Se puede reintentar más tarde desde Documentos aceptados → Pendientes.
+        await Dialogos.InformarAsync("La compra ya está guardada. Puede reintentar el Mensaje Receptor más tarde desde Compras → Documentos aceptados → Pendientes.");
+        await _modal.HideAsync();
+        await AlOmitir.InvokeAsync();
     }
 }
