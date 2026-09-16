@@ -1,7 +1,70 @@
 @page "/moduloReportes"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IContextoSesion Sesion
+@inject IEstadoEspacioTrabajo Espacio
+@inject NavigationManager Navegacion
 
-@* Entrada "en blanco" del hub, sin tipo en la ruta (bookmark viejo, o el
-   nodo raiz del menu, que no navega — solo expande hijos). Cada hijo real
-   del menu apunta a su propia ruta/pagina (Ventas.razor, Compras.razor,
-   etc.); esta solo elige el primer reporte visible para el usuario. *@
-<ReporteOperacionPanel TipoInicial="" />
+@* Catálogo de entrada del módulo de reportes (PLAN_MODULO_REPORTES_ERP_WEB.md,
+   "Página inicial"): tarjetas navegables agrupadas por dominio, cada una a su propia
+   página/ruta — no la fila de tabs de dominio que vive dentro de cada reporte
+   (ReporteOperacionPanel, para saltar rápido entre reportes ya abierto uno). Antes de
+   16 sep 2026 esta ruta caía directo en el primer reporte visible sin catálogo propio. *@
+
+<AppPantalla Pantalla="Módulo Reportes" Codigo="MODULO_REPORTES" Nivel="NivelPantalla.Escritorio">
+    <ChildContent>
+        @if (!_cargado)
+        {
+            <p class="text-secondary">Cargando catálogo…</p>
+        }
+        else if (GruposVisibles.Length == 0)
+        {
+            <p class="text-secondary">No tiene reportes asignados. Contacte a un administrador si necesita acceso.</p>
+        }
+        else
+        {
+            @foreach (var grupo in GruposVisibles)
+            {
+                <section class="mb-4" aria-labelledby="@($"dominio-{grupo.Id}")">
+                    <h2 class="h6 mb-2" id="@($"dominio-{grupo.Id}")"><i class="bi @grupo.Icono me-2" aria-hidden="true"></i>@grupo.Nombre</h2>
+                    <div class="seepos-inicio-acciones">
+                        @foreach (var opcion in OpcionesVisibles(grupo))
+                        {
+                            <button type="button" class="seepos-inicio-accion" @onclick="() => Abrir(opcion.Texto, opcion.Valor)">
+                                <span class="seepos-inicio-accion-icono"><i class="bi @grupo.Icono" aria-hidden="true"></i></span>
+                                <span class="seepos-inicio-accion-texto">
+                                    <strong>@opcion.Texto</strong>
+                                    <small>Permiso: @opcion.Codigo</small>
+                                </span>
+                                <i class="bi bi-arrow-right seepos-inicio-accion-flecha" aria-hidden="true"></i>
+                            </button>
+                        }
+                    </div>
+                </section>
+            }
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private bool _cargado;
+
+    private GrupoReportes[] GruposVisibles => CatalogoReportes.Grupos.Where(g => OpcionesVisibles(g).Any()).ToArray();
+
+    private IEnumerable<(string Valor, string Texto, string Codigo)> OpcionesVisibles(GrupoReportes g)
+        => g.Opciones.Where(o => Sesion.PuedeVer(o.Codigo));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Sesion.CargarAsync();
+        _cargado = true;
+    }
+
+    private void Abrir(string titulo, string tipo)
+    {
+        var ruta = $"/moduloReportes/{tipo}";
+        var pestana = Espacio.Abrir(titulo, ruta);
+        Navegacion.NavigateTo(pestana.Ruta);
+    }
+}

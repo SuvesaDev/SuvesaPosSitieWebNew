@@ -137,7 +137,11 @@ Del anexo "extras" (notas de seguimiento comercial, boletas de cambio, validaci�
 
 La ruta `/moduloReportes` pasa a ser un catálogo, no un reporte de compras. Muestra tarjetas agrupadas por Ventas, Finanzas y Caja, Compras, Inventario y Trazabilidad, Comercial y Auditoría. Cada tarjeta indica su objetivo, filtros disponibles, última actualización y permisos requeridos. Las funciones no autorizadas no aparecen.
 
-**Estado (16 sep 2026):** `/moduloReportes` ya dejó de ser un reporte único de compras (eso está cumplido). Hasta el 14 sep 2026 había quedado como pestañas dentro de una sola página (`Compras.razor`, `?tipo=` por query string, arreglo estático `Grupos`); el 16 sep se corrigió un bug real de esa forma (cambiar de reporte por el menú no actualizaba el contenido porque no había `OnParametersSetAsync`) separando cada tipo en su propia página/ruta real (`/moduloReportes/<tipo>`, 28 archivos en `Views/Reportes/`, cada uno instanciando `ReporteOperacionPanel`). Sigue pendiente la intención original de este párrafo — tarjetas navegables por dominio con "última actualización" en vez de la fila de tabs "Ventas y cartera / Caja y bancos / Compras / Inventario" que hoy vive dentro de `ReporteOperacionPanel` — porque es una mejora de UX, no un bug; ya no depende de crear el árbol de permisos (`MODULO_REPORTES.<TIPO>` ya existe por tipo, ver punto 4 de arriba).
+**Estado (16 sep 2026):** `/moduloReportes` ya dejó de ser un reporte único de compras (eso está cumplido). Hasta el 14 sep 2026 había quedado como pestañas dentro de una sola página (`Compras.razor`, `?tipo=` por query string, arreglo estático `Grupos`); el 16 sep se corrigió un bug real de esa forma (cambiar de reporte por el menú no actualizaba el contenido porque no había `OnParametersSetAsync`) separando cada tipo en su propia página/ruta real (`/moduloReportes/<tipo>`, 28 archivos en `Views/Reportes/`, cada uno instanciando `ReporteOperacionPanel`).
+
+**✅ Catálogo de entrada — hecho 16 sep 2026.** `/moduloReportes` (sin tipo) ahora es `ModuloReportes.razor`: tarjetas navegables agrupadas por dominio (mismo catálogo `CatalogoReportes.Grupos`, extraído de `ReporteOperacionPanel` para no duplicarlo), cada tarjeta abre su propia página/pestaña. Cada tarjeta muestra el código de permiso requerido; las no autorizadas no aparecen (`Sesion.PuedeVer`). La fila de tabs de dominio dentro de `ReporteOperacionPanel` se conserva aparte, como selector rápido entre reportes ya abierto uno — no es redundante con el catálogo, es el atajo para cuando ya estás dentro de un reporte y querés saltar a otro sin volver a la entrada.
+
+**Pendiente, no bloqueante:** "última actualización" por tarjeta. No existe hoy ningún endpoint que devuelva cuándo se generó por última vez un tipo de reporte (ni una noción de "caché" o corrida programada que lo tenga) — mostrarlo requeriría diseñar esa fuente de dato primero, no es un dato que la web pueda inventar ni derivar de lo que ya consulta. Se dejó fuera de esta iteración en vez de simular un valor falso.
 
 ### Patrón de una pantalla de reporte
 
@@ -171,10 +175,10 @@ Los DTOs del sitio se crean a partir de contratos regenerados o, mientras el con
 
 ## Secuencia de implementación web
 
-### W0 contrato y navegación — ⚠️ parcial
+### W0 contrato y navegación — ✅ hecho (16 sep 2026)
 
 - Crear el árbol de funciones bajo `REPORTES` con categorías y reportes hoja. Regenerar la semilla de seguridad desde `MenuSeePos.cs` y revisar permisos de rol. — ✅ hecho (14 sep 2026), ver bug/deuda #4 de arriba.
-- Convertir `/moduloReportes` en catálogo y conservar el reporte de compras como una hoja concreta, no como página raíz. — ⚠️ hecho a medias: ya no es solo compras y cada tipo es su propia página/ruta (16 sep 2026), pero la navegación entre dominios sigue siendo una fila de tabs dentro de `ReporteOperacionPanel`, no tarjetas navegables con "última actualización".
+- Convertir `/moduloReportes` en catálogo y conservar el reporte de compras como una hoja concreta, no como página raíz. — ✅ hecho (16 sep 2026): `ModuloReportes.razor` es el catálogo de tarjetas por dominio, cada tipo (incluido `compras`) es su propia página/ruta hoja. Queda pendiente, no bloqueante, mostrar "última actualización" por tarjeta (no hay fuente de ese dato todavía).
 - Definir el componente compartido de filtros, estado de carga, formato de totales, explicación de métricas y exportación. — ✅ hecho (`AppFiltros`, `AppRejilla`, `GeneradorReporteOperacion`).
 
 ### W1 finanzas operativas — ✅ hecho, con deuda
