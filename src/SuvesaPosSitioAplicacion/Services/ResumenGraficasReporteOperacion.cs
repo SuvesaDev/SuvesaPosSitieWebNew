@@ -7,7 +7,7 @@ public static class ResumenGraficasReporteOperacion
 {
     public static ResumenGraficoOperacion Crear(string tipoReporte, IReadOnlyList<FilaReporteOperacionWebDTO> filas)
     {
-        var esCantidad = tipoReporte is "inventario" or "lotes" or "trazabilidad" or "auditoria";
+        var esCantidad = tipoReporte is "inventario" or "lotes" or "trazabilidad" or "auditoria" or "empaquetado" or "cabys";
         var evolucion = ConstruirEvolucion(tipoReporte, filas);
         var comparativo = ConstruirComparativo(tipoReporte, filas);
 
@@ -52,6 +52,25 @@ public static class ResumenGraficasReporteOperacion
                 .ToList();
         }
 
+        // Sin fecha real por fila (son agregados de todo el período, no un hecho puntual):
+        // la agrupación por día por defecto daría una serie vacía. Se usa el mismo eje que
+        // el comparativo (franja horaria / ruta), ordenado en vez de recortado a 8, porque
+        // aquí "evolución" significa "a lo largo de la franja/ruta", no del calendario.
+        if (tipoReporte == "ventas-horas")
+            return filas.OrderBy(x => x.Entidad).Select(x => new PuntoGraficoOperacion(x.Entidad, x.Monto)).ToList();
+
+        if (tipoReporte == "kpi-rutas")
+            return filas.OrderByDescending(x => Math.Abs(x.Saldo)).Take(8)
+                .Select(x => new PuntoGraficoOperacion(x.Entidad, x.Saldo)).ToList();
+
+        // Ya viene ordenado por venta descendente desde la API (ReportesOperacionManager.
+        // InventarioAbcAsync) — tomar los primeros 8 es el propio vistazo Pareto: las
+        // barras de mayor a menor son la lectura visual del 80/20, aunque el renderizador
+        // solo dibuje barras (no hay curva acumulada real, ver plan de reportes bug #5).
+        if (tipoReporte == "inventario-abc")
+            return filas.OrderByDescending(x => x.Monto).Take(8)
+                .Select(x => new PuntoGraficoOperacion(x.Entidad, x.Monto)).ToList();
+
         return filas
             .Where(x => x.Fecha != default)
             .GroupBy(x => x.Fecha.Date)
@@ -75,6 +94,25 @@ public static class ResumenGraficasReporteOperacion
 
         if (tipoReporte == "auditoria")
             return Agrupar(filas, x => x.Estado, _ => 1m);
+
+        // Estado es prácticamente único por fila en estos tres (una nota de comisión, o
+        // una constante fija en las otras dos), así que agrupar por Estado da un balde
+        // por fila o un solo balde — no una distribución útil. Se agrupa por la entidad
+        // real de negocio (cliente/artículo) en su lugar, mismo patrón que ventas/compras.
+        if (tipoReporte == "rentabilidad")
+            return Agrupar(filas, x => x.Entidad, x => x.Monto);
+        if (tipoReporte == "bonificaciones")
+            return Agrupar(filas, x => x.Entidad, x => x.Monto);
+        if (tipoReporte == "mermas")
+            return Agrupar(filas, x => x.Entidad, x => x.Saldo);
+
+        // Estado siempre es la misma constante ("Ventas menos compras"): la única
+        // distribución con sentido es agregar la serie diaria por mes.
+        if (tipoReporte == "ventas-compras")
+            return filas.GroupBy(x => new DateTime(x.Fecha.Year, x.Fecha.Month, 1))
+                .OrderBy(x => x.Key)
+                .Select(x => new PuntoGraficoOperacion(x.Key.ToString("MMM yyyy"), x.Sum(f => f.Saldo)))
+                .ToList();
 
         var puntos = filas
             .GroupBy(x => string.IsNullOrWhiteSpace(x.Estado) ? "Sin estado" : x.Estado.Trim())
@@ -118,7 +156,9 @@ public static class ResumenGraficasReporteOperacion
     {
         "cuentas-por-cobrar" or "caja" => fila.Saldo,
         "inventario" or "lotes" or "trazabilidad" => fila.Cantidad,
-        "auditoria" => 1m,
+        // Empaquetado y CABYS no traen Monto/Cantidad/Saldo (no aplica a su dominio) —
+        // sumar esos campos siempre da cero. Se cuenta, igual que Auditoría.
+        "auditoria" or "empaquetado" or "cabys" => 1m,
         _ => fila.Monto
     };
 
@@ -135,6 +175,11 @@ public static class ResumenGraficasReporteOperacion
         "lotes" => "Existencia por lote",
         "trazabilidad" => "Movimientos por día",
         "auditoria" => "Eventos de auditoría por día",
+        "empaquetado" => "Registros de empaquetado por día",
+        "cabys" => "Artículos actualizados por día",
+        "ventas-horas" => "Venta por franja horaria",
+        "kpi-rutas" => "Comisión generada por ruta",
+        "inventario-abc" => "Artículos con mayor participación en la venta",
         _ => "Evolución del reporte"
     };
 
@@ -148,6 +193,11 @@ public static class ResumenGraficasReporteOperacion
         "lotes" => "Unidades por vencimiento",
         "trazabilidad" => "Unidades por movimiento",
         "auditoria" => "Acciones registradas",
+        "rentabilidad" => "Clientes con mayor venta",
+        "bonificaciones" => "Clientes con más bonificaciones",
+        "mermas" => "Artículos con mayor costo de merma",
+        "ventas-compras" => "Diferencia mensual (ventas − compras)",
+        "cabys" => "Cobertura del código CABYS",
         _ => "Distribución por estado"
     };
 
@@ -157,6 +207,11 @@ public static class ResumenGraficasReporteOperacion
         "inventario" or "lotes" => "Los ocho artículos o lotes con mayor existencia dentro del resultado.",
         "trazabilidad" => "Unidades netas movidas por fecha.",
         "auditoria" => "Cantidad de cambios registrados por fecha.",
+        "empaquetado" => "Cantidad de registros de empaquetado o maquila por fecha.",
+        "cabys" => "Cantidad de artículos con actualización de catálogo por fecha.",
+        "ventas-horas" => "Venta total de cada franja horaria, ordenada de 00 a 23 horas.",
+        "kpi-rutas" => "Las ocho rutas con mayor comisión generada en el período.",
+        "inventario-abc" => "Los ocho artículos que más aportan a la venta neta del período (lectura Pareto).",
         _ => "Evolución diaria de los valores del reporte."
     };
 
@@ -166,6 +221,11 @@ public static class ResumenGraficasReporteOperacion
         "cuentas-por-pagar" => "Los ocho proveedores con mayor saldo pendiente.",
         "cuentas-por-cobrar" => "Los ocho clientes con mayor saldo pendiente.",
         "auditoria" => "Cantidad de eventos por tipo de acción.",
+        "rentabilidad" => "Los ocho clientes con mayor venta dentro del resultado.",
+        "bonificaciones" => "Los ocho clientes con mayor precio de lista bonificado.",
+        "mermas" => "Los ocho artículos con mayor costo de merma en el período.",
+        "ventas-compras" => "Diferencia entre ventas y compras acumulada por mes.",
+        "cabys" => "Cantidad de artículos válidos, sin código o con código inválido.",
         _ => "Distribución del resultado por condición operativa."
     };
 }
