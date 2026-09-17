@@ -40,6 +40,11 @@ public partial class SeriesFacturacionFiscal
         ("01", "Factura electrónica"),
         ("03", "Nota de crédito electrónica"),
         ("04", "Tiquete electrónico"),
+        // No pasa por la emisión automática 4.4 de Ventas (esa solo escanea 01/03/04) — es
+        // la serie que usa Compras para reservar el consecutivo del Mensaje Receptor
+        // (confirmación de aceptación/rechazo de una compra). El tipo real que se envía a
+        // Hacienda (05/06/07) se decide por cada mensaje, no se lee de esta serie.
+        ("05", "Mensaje Receptor (confirmación de compra)"),
     };
 
     private string TituloModal => _nuevo ? "Nueva serie de facturación" : "Editar serie de facturación";
