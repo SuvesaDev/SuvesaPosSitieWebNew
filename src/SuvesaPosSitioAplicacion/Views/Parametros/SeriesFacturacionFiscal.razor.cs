@@ -66,6 +66,10 @@ public partial class SeriesFacturacionFiscal
     /// <summary>La condición (contado/crédito) solo aplica a series de Facturación.</summary>
     private bool EsUsoFacturacion => TipoSel?.Uso == "facturacion";
 
+    /// <summary>Solo Factura/Nota de crédito/Tiquete pasan por la emisión automática 4.4 de
+    /// Ventas — Mensaje Receptor (05) nunca puede activarla, el API la rechaza si se intenta.</summary>
+    private bool EsCompatibleV44 => _edicion?.CodigoFE is "01" or "03" or "04";
+
     protected override async Task OnInitializedAsync()
     {
         _cat = await Respuestas.DatoAsync(await Api.Catalogos(), "consultar los catálogos de series");
@@ -131,6 +135,15 @@ public partial class SeriesFacturacionFiscal
     }
 
     private void AlCambiarCondicion() => RecalcularAvisos();
+
+    private void AlCambiarCodigoElectronico()
+    {
+        // Mensaje Receptor (05) no pasa por la emisión automática 4.4 de Ventas — si el
+        // usuario tenía marcado el switch con otro tipo y cambia a 05, se destilda para no
+        // chocar con la validación del API ("Solo se puede activar... Factura/NC/Tiquete").
+        if (_edicion is not null && !EsCompatibleV44) _edicion.EmisionV44Habilitada = false;
+        RecalcularAvisos();
+    }
 
     private void AlToggleElectronico()
     {
