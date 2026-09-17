@@ -473,8 +473,23 @@
     private void ActualizarVencimiento() => _vence = _tipoCompra == 1 ? _fecha.AddDays(Math.Max(0, _diasCredito)) : _fecha;
     private async Task AbrirBuscadorArticulo()
     {
-        if (_proveedor is null || _proveedor.CodigoProv <= 0 || string.IsNullOrWhiteSpace(_numeroFactura) || _bodega <= 0 || _moneda <= 0 || (!EsCostaPetsCompra && _empresa <= 0)) { await Dialogos.ErrorAsync("Seleccione proveedor, factura, moneda, bodega y empresa antes de agregar artículos."); return; }
+        var error = ValidarEncabezado();
+        if (error is not null) { await Dialogos.ErrorAsync(error); return; }
         await _buscadorArticulo.AbrirAsync();
+    }
+
+    /// <summary>Antes decía "Complete encabezado, empresa y al menos un artículo" para
+    /// cualquiera de seis condiciones distintas — quien lo veía no sabía cuál de los seis
+    /// campos era el que faltaba. Ahora dice exactamente cuál.</summary>
+    private string? ValidarEncabezado()
+    {
+        if (_proveedor is null) return "Seleccione el proveedor.";
+        if (_proveedor.CodigoProv <= 0) return "El proveedor seleccionado no tiene un código válido; vuelva a buscarlo o elija otro.";
+        if (string.IsNullOrWhiteSpace(_numeroFactura)) return "Indique el número de factura.";
+        if (_bodega <= 0) return "Seleccione la bodega.";
+        if (_moneda <= 0) return "Seleccione la moneda.";
+        if (!EsCostaPetsCompra && _empresa <= 0) return "Seleccione la empresa.";
+        return null;
     }
     private async Task ElegirArticulo(InventarioDTO articulo)
     {
@@ -569,7 +584,9 @@
     private async Task Guardar()
     {
         if (!_compraDesbloqueada) { await AbrirDesbloqueo(); return; }
-        if (_proveedor is null || _proveedor.CodigoProv <= 0 || string.IsNullOrWhiteSpace(_numeroFactura) || _bodega <= 0 || _moneda <= 0 || _lineas.Count == 0 || (!EsCostaPetsCompra && _empresa <= 0)) { await Dialogos.ErrorAsync("Complete encabezado, empresa y al menos un artículo antes de guardar."); return; }
+        var errorEncabezado = ValidarEncabezado();
+        if (errorEncabezado is not null) { await Dialogos.ErrorAsync(errorEncabezado); return; }
+        if (_lineas.Count == 0) { await Dialogos.ErrorAsync("Agregue al menos un artículo antes de guardar."); return; }
         if (_tipoCompra == 2 && _idCompra == 0 && string.IsNullOrWhiteSpace(_formaPagoCompra)) { await Dialogos.ErrorAsync("Indique la forma de pago de la compra de contado."); return; }
         var accion = _idCompra > 0 ? "actualizar" : "registrar";
         if (!await Dialogos.ConfirmarAsync($"Se va a {accion} la compra y afectar el inventario. ¿Desea continuar?")) return;
