@@ -26,13 +26,39 @@
             <div class="col-12 col-md-3"><label class="form-label">Estado</label><select class="form-select" @bind="_estado"><option value="">Todos</option><option>Pendiente</option><option>Liquidada</option></select></div>
             <div class="col-12 col-md-3 d-flex gap-2"><button class="btn btn-primary flex-grow-1" @onclick="Cargar"><i class="bi bi-search me-1"></i>Consultar</button><button class="btn btn-outline-success" disabled="@(!_datos.Movimientos.Any(m => m.EstadoLiquidacion == "Pendiente"))" @onclick="Cerrar"><i class="bi bi-lock me-1"></i>Cerrar período</button></div>
         </div></div></div>
-        <div class="card mb-3"><div class="card-header"><strong>Resumen por beneficiario</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Beneficiario</th><th>Tipo</th><th class="text-end">Movimientos</th><th class="text-end">Total</th></tr></thead><tbody>
-        @foreach (var r in _datos.Resumen) { <tr><td>@r.Beneficiario</td><td>@r.TipoBeneficiario</td><td class="text-end">@r.Movimientos</td><td class="text-end fw-semibold">@r.Importe.ToString("N2")</td></tr> }
+        <div class="card mb-3"><div class="card-header"><strong>Resumen por beneficiario</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0"><thead class="table-light"><tr><th>Beneficiario</th><th>Tipo</th><th class="text-end">Movimientos</th><th class="text-end">Total</th></tr></thead><tbody>
+        @foreach (var r in _datos.Resumen) { <tr><td>@r.Beneficiario</td><td><span class="badge text-bg-light border">@r.TipoBeneficiario</span></td><td class="text-end">@r.Movimientos</td><td class="text-end fw-semibold">@r.Importe.ToString("N2")</td></tr> }
         @if (!_datos.Resumen.Any()) { <tr><td colspan="4" class="text-secondary">No hay comisiones que cumplan los filtros. Las facturas de crédito y contado solo aparecen tras su cancelación total.</td></tr> }
         </tbody></table></div></div></div>
-        <div class="card"><div class="card-header"><strong>Detalle auditable</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th>Nombre comercial</th><th>Ruta comercial</th><th>Beneficiario</th><th>Artículo</th><th class="text-end">Base</th><th class="text-end">%</th><th class="text-end">Comisión</th><th>Estado</th></tr></thead><tbody>
-        @foreach (var m in _datos.Movimientos) { <tr><td>@m.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td><code>@m.Documento</code></td><td>@m.Cliente</td><td>@m.NombreComercial</td><td>@m.RutaComercial</td><td>@m.Beneficiario <small class="text-secondary d-block">@m.TipoBeneficiario</small></td><td>@m.Articulo</td><td class="text-end">@m.Base.ToString("N2")</td><td class="text-end">@m.Porcentaje.ToString("N2")%</td><td class="text-end fw-semibold">@m.Importe.ToString("N2")</td><td><span class="badge @(m.EstadoLiquidacion == "Liquidada" ? "text-bg-secondary" : "text-bg-success")">@m.EstadoLiquidacion</span></td></tr> }
-        @if (!_datos.Movimientos.Any()) { <tr><td colspan="11" class="text-secondary">Sin movimientos.</td></tr> }
+        <div class="card"><div class="card-header d-flex justify-content-between align-items-center"><strong>Detalle auditable</strong><span class="text-secondary small">@_datos.Movimientos.Count movimiento(s)</span></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0"><thead class="table-light"><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th>Ruta comercial</th><th>Beneficiario</th><th>Artículo</th><th class="text-end">Base</th><th class="text-end">%</th><th class="text-end">Comisión</th><th>Estado</th></tr></thead><tbody>
+        @foreach (var m in _datos.Movimientos)
+        {
+            <tr>
+                <td class="text-nowrap">
+                    @m.Fecha.ToLocalTime().ToString("dd/MM/yyyy")
+                    <small class="text-secondary d-block">@m.Fecha.ToLocalTime().ToString("HH:mm")</small>
+                </td>
+                <td class="text-nowrap"><span class="badge text-bg-light font-monospace fw-normal">@m.Documento</span></td>
+                <td>
+                    @m.Cliente
+                    @if (!string.IsNullOrWhiteSpace(m.NombreComercial) && m.NombreComercial != m.Cliente)
+                    {
+                        <small class="text-secondary d-block">@m.NombreComercial</small>
+                    }
+                </td>
+                <td class="text-nowrap">@m.RutaComercial</td>
+                <td class="text-nowrap">
+                    @m.Beneficiario
+                    <small class="text-secondary d-block">@m.TipoBeneficiario</small>
+                </td>
+                <td>@m.Articulo</td>
+                <td class="text-end text-nowrap">@m.Base.ToString("N2")</td>
+                <td class="text-end text-nowrap">@m.Porcentaje.ToString("N2")%</td>
+                <td class="text-end text-nowrap fw-semibold">@m.Importe.ToString("N2")</td>
+                <td class="text-nowrap"><span class="badge @(m.EstadoLiquidacion == "Liquidada" ? "text-bg-secondary" : "text-bg-success")">@m.EstadoLiquidacion</span></td>
+            </tr>
+        }
+        @if (!_datos.Movimientos.Any()) { <tr><td colspan="10" class="text-secondary">Sin movimientos.</td></tr> }
         </tbody></table></div></div></div>
     </ChildContent>
 </AppPantalla>
