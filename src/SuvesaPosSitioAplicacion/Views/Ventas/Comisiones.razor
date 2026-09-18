@@ -30,9 +30,9 @@
         @foreach (var r in _datos.Resumen) { <tr><td>@r.Beneficiario</td><td>@r.TipoBeneficiario</td><td class="text-end">@r.Movimientos</td><td class="text-end fw-semibold">@r.Importe.ToString("N2")</td></tr> }
         @if (!_datos.Resumen.Any()) { <tr><td colspan="4" class="text-secondary">No hay comisiones que cumplan los filtros. Las facturas de crédito y contado solo aparecen tras su cancelación total.</td></tr> }
         </tbody></table></div></div></div>
-        <div class="card"><div class="card-header"><strong>Detalle auditable</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Fecha</th><th>Documento</th><th>Beneficiario</th><th>Artículo</th><th class="text-end">Base</th><th class="text-end">%</th><th class="text-end">Comisión</th><th>Estado</th></tr></thead><tbody>
-        @foreach (var m in _datos.Movimientos) { <tr><td>@m.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td><code>@m.Documento</code></td><td>@m.Beneficiario <small class="text-secondary d-block">@m.TipoBeneficiario</small></td><td>@m.Articulo</td><td class="text-end">@m.Base.ToString("N2")</td><td class="text-end">@m.Porcentaje.ToString("N2")%</td><td class="text-end fw-semibold">@m.Importe.ToString("N2")</td><td><span class="badge @(m.EstadoLiquidacion == "Liquidada" ? "text-bg-secondary" : "text-bg-success")">@m.EstadoLiquidacion</span></td></tr> }
-        @if (!_datos.Movimientos.Any()) { <tr><td colspan="8" class="text-secondary">Sin movimientos.</td></tr> }
+        <div class="card"><div class="card-header"><strong>Detalle auditable</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th>Nombre comercial</th><th>Beneficiario</th><th>Artículo</th><th class="text-end">Base</th><th class="text-end">%</th><th class="text-end">Comisión</th><th>Estado</th></tr></thead><tbody>
+        @foreach (var m in _datos.Movimientos) { <tr><td>@m.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td><code>@m.Documento</code></td><td>@m.Cliente</td><td>@m.NombreComercial</td><td>@m.Beneficiario <small class="text-secondary d-block">@m.TipoBeneficiario</small></td><td>@m.Articulo</td><td class="text-end">@m.Base.ToString("N2")</td><td class="text-end">@m.Porcentaje.ToString("N2")%</td><td class="text-end fw-semibold">@m.Importe.ToString("N2")</td><td><span class="badge @(m.EstadoLiquidacion == "Liquidada" ? "text-bg-secondary" : "text-bg-success")">@m.EstadoLiquidacion</span></td></tr> }
+        @if (!_datos.Movimientos.Any()) { <tr><td colspan="10" class="text-secondary">Sin movimientos.</td></tr> }
         </tbody></table></div></div></div>
     </ChildContent>
 </AppPantalla>
@@ -54,8 +54,8 @@
     private async Task Exportar()
     {
         static string Q(string? texto) => "\"" + (texto ?? string.Empty).Replace("\"", "\"\"") + "\"";
-        var csv = "Fecha,Documento,Beneficiario,Tipo,Articulo,Base,Porcentaje,Comision,Estado fiscal,Estado cobro,Estado liquidacion,Corte\n"
-            + string.Join("\n", _datos.Movimientos.Select(m => $"{m.Fecha:yyyy-MM-dd HH:mm},{Q(m.Documento)},{Q(m.Beneficiario)},{Q(m.TipoBeneficiario)},{Q(m.Articulo)},{m.Base},{m.Porcentaje},{m.Importe},{Q(m.EstadoFiscal)},{Q(m.EstadoCobro)},{Q(m.EstadoLiquidacion)},{m.IdCorte}"));
+        var csv = "Fecha,Documento,Cliente,Nombre comercial,Beneficiario,Tipo,Articulo,Base,Porcentaje,Comision,Estado fiscal,Estado cobro,Estado liquidacion,Corte\n"
+            + string.Join("\n", _datos.Movimientos.Select(m => $"{m.Fecha:yyyy-MM-dd HH:mm},{Q(m.Documento)},{Q(m.Cliente)},{Q(m.NombreComercial)},{Q(m.Beneficiario)},{Q(m.TipoBeneficiario)},{Q(m.Articulo)},{m.Base},{m.Porcentaje},{m.Importe},{Q(m.EstadoFiscal)},{Q(m.EstadoCobro)},{Q(m.EstadoLiquidacion)},{m.IdCorte}"));
         await JS.InvokeVoidAsync("seepos.descargarTexto", $"comisiones-{DateTime.Today:yyyyMMdd}.csv", csv, "text/csv;charset=utf-8");
     }
     private async Task ExportarXlsx()
