@@ -107,7 +107,11 @@
     /// <summary>Se dispara cada vez que cambia el reparto (el padre lee <see cref="Reparto"/>).</summary>
     [Parameter] public EventCallback<PreparacionPagoVenta.Reparto> RepartoChanged { get; set; }
 
-    private PreparacionPagoVenta.Reparto _reparto;
+    // Valor inicial no-default: OnInitializedAsync (carga de bancos) puede no completar
+    // de forma síncrona, y Blazor renderiza una vez antes de que OnParametersSet corra
+    // Recalcular() — con el struct en su default, Errores/Formas quedan null y revientan
+    // en el @if de la línea ~73.
+    private PreparacionPagoVenta.Reparto _reparto = new(0, 0, 0, 0, 0, Array.Empty<PreparacionPagoVenta.AplicacionForma>(), Array.Empty<string>());
     private List<EntidadesBancariasDTO> _bancos = new();
 
     /// <summary>Reparto actual — el padre lo consulta para habilitar/deshabilitar "Cobrar".</summary>
