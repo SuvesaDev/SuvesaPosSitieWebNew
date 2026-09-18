@@ -14,6 +14,9 @@ public sealed class ComisionMovimientoDTO
     public long IdVenta { get; set; }
     public DateTime Fecha { get; set; }
     public string Documento { get; set; } = string.Empty;
+    public string Cliente { get; set; } = string.Empty;
+    public string NombreComercial { get; set; } = string.Empty;
+    public string RutaComercial { get; set; } = string.Empty;
     public string Beneficiario { get; set; } = string.Empty;
     public string TipoBeneficiario { get; set; } = string.Empty;
     public string Articulo { get; set; } = string.Empty;

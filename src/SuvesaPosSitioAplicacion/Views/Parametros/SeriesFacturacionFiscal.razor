@@ -184,15 +184,19 @@
                         <div class="row g-3 mt-1">
                             <div class="col-12 col-md-6">
                                 <label class="form-label">Tipo de documento electrónico</label>
-                                <select class="form-select" @bind="_edicion.CodigoFE" @bind:after="RecalcularAvisos">
+                                <select class="form-select" @bind="_edicion.CodigoFE" @bind:after="AlCambiarCodigoElectronico">
                                     @foreach (var c in CodigosElectronicos) { <option value="@c.Codigo">@c.Nombre (FE @c.Codigo)</option> }
                                 </select>
                             </div>
-                            <div class="col-12 col-md-6 d-flex align-items-center">
+                            <div class="col-12 col-md-6 d-flex flex-column justify-content-center">
                                 <div class="form-check">
-                                    <input id="v44" class="form-check-input" type="checkbox" @bind="_edicion.EmisionV44Habilitada" @bind:after="RecalcularAvisos" />
+                                    <input id="v44" class="form-check-input" type="checkbox" disabled="@(!EsCompatibleV44)" @bind="_edicion.EmisionV44Habilitada" @bind:after="RecalcularAvisos" />
                                     <label class="form-check-label" for="v44">Emitir comprobante electrónico 4.4 automáticamente</label>
                                 </div>
+                                @if (!EsCompatibleV44)
+                                {
+                                    <div class="form-text">Solo disponible para Factura, Nota de crédito o Tiquete — Mensaje Receptor no pasa por la emisión automática.</div>
+                                }
                             </div>
                         </div>
                     }

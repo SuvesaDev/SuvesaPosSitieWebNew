@@ -280,6 +280,18 @@ builder.Services.AddScoped<INotaCreditoCxC, NotaCreditoCxC>();
 
 var app = builder.Build();
 
+// Cultura del sitio: es-CR en toda petición. Sin esto, componentes de terceros que
+// dependen de CultureInfo.CurrentUICulture (p. ej. los textos "Cancel"/"Yes"/"No" de
+// HxMessageBox) caían al inglés por defecto del framework. El satélite es/ propio
+// (ver SuvesaPosSitioAplicacion.csproj) recién surte efecto con esta cultura activa.
+var culturaSitio = new System.Globalization.CultureInfo("es-CR");
+app.UseRequestLocalization(new Microsoft.AspNetCore.Builder.RequestLocalizationOptions
+{
+    DefaultRequestCulture = new Microsoft.AspNetCore.Localization.RequestCulture(culturaSitio),
+    SupportedCultures = new[] { culturaSitio },
+    SupportedUICultures = new[] { culturaSitio },
+});
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/error", createScopeForErrors: true);
