@@ -159,13 +159,39 @@
                 <div class="col-12 col-md-4"><div class="card h-100"><div class="card-body py-3"><div class="small text-body-secondary">Movimientos</div><div class="fs-5 fw-semibold">@_comisiones.Movimientos.Count</div></div></div></div>
                 <div class="col-12 col-md-4"><div class="card h-100"><div class="card-body py-3"><div class="small text-body-secondary">Beneficiarios</div><div class="fs-5 fw-semibold">@_comisiones.Resumen.Select(x => x.Beneficiario).Distinct(StringComparer.OrdinalIgnoreCase).Count()</div></div></div></div>
             </div>
-            <div class="card mb-3"><div class="card-header"><strong>Resumen por beneficiario</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Beneficiario</th><th>Tipo</th><th class="text-end">Movimientos</th><th class="text-end">Total</th></tr></thead><tbody>
-                @foreach (var fila in _comisiones.Resumen) { <tr><td>@fila.Beneficiario</td><td>@fila.TipoBeneficiario</td><td class="text-end">@fila.Movimientos</td><td class="text-end fw-semibold">@Formato.Importe(fila.Importe)</td></tr> }
+            <div class="card mb-3"><div class="card-header"><strong>Resumen por beneficiario</strong></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0"><thead class="table-light"><tr><th>Beneficiario</th><th>Tipo</th><th class="text-end">Movimientos</th><th class="text-end">Total</th></tr></thead><tbody>
+                @foreach (var fila in _comisiones.Resumen) { <tr><td>@fila.Beneficiario</td><td><span class="badge text-bg-light border">@fila.TipoBeneficiario</span></td><td class="text-end">@fila.Movimientos</td><td class="text-end fw-semibold">@Formato.Importe(fila.Importe)</td></tr> }
                 @if (!_comisiones.Resumen.Any()) { <tr><td colspan="4" class="text-secondary">No hay comisiones para los filtros indicados.</td></tr> }
             </tbody></table></div></div></div>
-            <div class="card"><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Fecha</th><th>Documento</th><th>Beneficiario</th><th>Artículo</th><th class="text-end">Base</th><th class="text-end">%</th><th class="text-end">Comisión</th><th>Liquidación</th></tr></thead><tbody>
-                @foreach (var fila in _comisiones.Movimientos) { <tr><td>@fila.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td><code>@fila.Documento</code></td><td>@fila.Beneficiario <small class="text-secondary d-block">@fila.TipoBeneficiario</small></td><td>@fila.Articulo</td><td class="text-end">@Formato.Importe(fila.Base)</td><td class="text-end">@fila.Porcentaje.ToString("N2")%</td><td class="text-end fw-semibold">@Formato.Importe(fila.Importe)</td><td><span class="badge @(fila.EstadoLiquidacion == "Liquidada" ? "text-bg-secondary" : "text-bg-success")">@fila.EstadoLiquidacion</span></td></tr> }
-                @if (!_comisiones.Movimientos.Any()) { <tr><td colspan="8" class="text-secondary">Sin movimientos.</td></tr> }
+            <div class="card"><div class="card-header d-flex justify-content-between align-items-center"><strong>Detalle auditable</strong><span class="text-secondary small">@_comisiones.Movimientos.Count movimiento(s)</span></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0"><thead class="table-light"><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th>Ruta comercial</th><th>Beneficiario</th><th>Artículo</th><th class="text-end">Base</th><th class="text-end">%</th><th class="text-end">Comisión</th><th>Estado</th></tr></thead><tbody>
+                @foreach (var fila in _comisiones.Movimientos)
+                {
+                    <tr>
+                        <td class="text-nowrap">
+                            @fila.Fecha.ToLocalTime().ToString("dd/MM/yyyy")
+                            <small class="text-secondary d-block">@fila.Fecha.ToLocalTime().ToString("HH:mm")</small>
+                        </td>
+                        <td class="text-nowrap"><span class="badge text-bg-light font-monospace fw-normal">@fila.Documento</span></td>
+                        <td>
+                            @fila.Cliente
+                            @if (!string.IsNullOrWhiteSpace(fila.NombreComercial) && fila.NombreComercial != fila.Cliente)
+                            {
+                                <small class="text-secondary d-block">@fila.NombreComercial</small>
+                            }
+                        </td>
+                        <td class="text-nowrap">@fila.RutaComercial</td>
+                        <td class="text-nowrap">
+                            @fila.Beneficiario
+                            <small class="text-secondary d-block">@fila.TipoBeneficiario</small>
+                        </td>
+                        <td>@fila.Articulo</td>
+                        <td class="text-end text-nowrap">@Formato.Importe(fila.Base)</td>
+                        <td class="text-end text-nowrap">@fila.Porcentaje.ToString("N2")%</td>
+                        <td class="text-end text-nowrap fw-semibold">@Formato.Importe(fila.Importe)</td>
+                        <td class="text-nowrap"><span class="badge @(fila.EstadoLiquidacion == "Liquidada" ? "text-bg-secondary" : "text-bg-success")">@fila.EstadoLiquidacion</span></td>
+                    </tr>
+                }
+                @if (!_comisiones.Movimientos.Any()) { <tr><td colspan="10" class="text-secondary">Sin movimientos.</td></tr> }
             </tbody></table></div></div></div>
         }
         @if (_reporte is not null)
