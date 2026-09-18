@@ -54,4 +54,12 @@ public sealed class FilaReporteOperacionWebDTO
     public decimal Saldo { get; set; }
     public DateTime? FechaVencimiento { get; set; }
     public string Estado { get; set; } = string.Empty;
+    /// <summary>Clave del comprobante electrónico del proveedor (solo compras importadas
+    /// de un XML de Hacienda la tienen).</summary>
+    public string ClaveHacienda { get; set; } = string.Empty;
+    /// <summary>Último estado del Mensaje Receptor enviado por esta compra — vacío si
+    /// nunca se envió.</summary>
+    public string EstadoHacienda { get; set; } = string.Empty;
+    /// <summary>Condición del impuesto (01-05) enviada en el Mensaje Receptor, en texto.</summary>
+    public string CondicionImpuestoHacienda { get; set; } = string.Empty;
 }
