@@ -38,3 +38,30 @@ public sealed class CompraPendienteMensajeReceptorDTO
     public string Clave { get; set; } = string.Empty;
     public string? EstadoDgt { get; set; }
 }
+
+/// <summary>Fila del historial de Mensaje Receptor — espejo de
+/// ApiSuvesaPos.DTOs.ItemHistorialMensajeReceptorDTO.</summary>
+public sealed class ItemHistorialMensajeReceptorDTO
+{
+    public long IdEmision { get; set; }
+    public long IdCompra { get; set; }
+    public string Factura { get; set; } = string.Empty;
+    public string NombreProveedor { get; set; } = string.Empty;
+    public decimal TotalFactura { get; set; }
+    public decimal Impuesto { get; set; }
+    public string? CondicionImpuesto { get; set; }
+    public string Clave { get; set; } = string.Empty;
+    public string Estado { get; set; } = string.Empty;
+    public string? CausaError { get; set; }
+    public DateTime FechaCreacionUtc { get; set; }
+    public int IntentosEnvio { get; set; }
+}
+
+/// <summary>Espejo de ApiSuvesaPos.DTOs.ResultadoHistorialMensajeReceptorDTO.</summary>
+public sealed class ResultadoHistorialMensajeReceptorDTO
+{
+    public int Pagina { get; set; }
+    public int TamanoPagina { get; set; }
+    public int TotalRegistros { get; set; }
+    public List<ItemHistorialMensajeReceptorDTO> Registros { get; set; } = new();
+}

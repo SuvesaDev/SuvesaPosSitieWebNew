@@ -12,9 +12,12 @@
    - Pendientes: compras con Clave de Hacienda que nunca tuvieron un envío exitoso
      (se guardaron y no se aceptó/rechazó en el momento, o el envío falló) — permite
      generarlo ahora mismo con ModalMensajeReceptor.
-   - Historial: reutiliza la bandeja fiscal genérica V44 (la misma que usa
-     Documentos → Bandeja para facturas/NC de venta), filtrada a
-     TipoComprobante=MensajeReceptor + OrigenPosTipo=Compra. *@
+   - Historial: consulta propia de Compras (Compras/HistorialMensajeReceptor) — a
+     diferencia de la bandeja fiscal genérica V44 (la que usa Documentos → Bandeja
+     para facturas/NC de venta), esta sí trae proveedor/factura/totales/condición de
+     IVA porque hace el join con Compra del lado del servidor. El detalle (ver XML,
+     respuesta Hacienda, reintentar) sigue usando IBandejaFiscal por Clave, que es
+     genérico y ya sirve para cualquier tipo de comprobante. *@
 
 <AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
     <ChildContent>
@@ -106,6 +109,11 @@
                                     <tr>
                                         <th>Fecha</th>
                                         <th>Compra</th>
+                                        <th>Proveedor</th>
+                                        <th>Consecutivo</th>
+                                        <th class="text-end">Total factura</th>
+                                        <th class="text-end">Total impuesto</th>
+                                        <th>Condición IVA</th>
                                         <th>Clave</th>
                                         <th>Estado</th>
                                         <th>Intentos</th>
@@ -117,7 +125,12 @@
                                     {
                                         <tr>
                                             <td>@r.FechaCreacionUtc.ToString("dd/MM/yyyy HH:mm")</td>
-                                            <td>@(r.OrigenPosId is { } id ? $"#{id}" : "—")</td>
+                                            <td>@(r.IdCompra > 0 ? $"#{r.IdCompra}" : "—")</td>
+                                            <td>@(string.IsNullOrWhiteSpace(r.NombreProveedor) ? "—" : r.NombreProveedor)</td>
+                                            <td><code class="small">@(string.IsNullOrWhiteSpace(r.Factura) ? "—" : r.Factura)</code></td>
+                                            <td class="text-end seepos-importe">@Formato.Importe((double)r.TotalFactura)</td>
+                                            <td class="text-end seepos-importe">@Formato.Importe((double)r.Impuesto)</td>
+                                            <td>@CondicionImpuestoTexto(r.CondicionImpuesto)</td>
                                             <td class="text-break"><span class="small">@r.Clave</span></td>
                                             <td><span class="badge @ClaseEstado(r.Estado)">@r.Estado</span>@if (!string.IsNullOrWhiteSpace(r.CausaError)) { <div class="text-danger small" title="@r.CausaError">@Truncar(r.CausaError)</div> }</td>
                                             <td>@r.IntentosEnvio</td>
@@ -169,7 +182,7 @@
     private const int _tamano = 25;
     private int _total;
     private bool _cargando;
-    private List<ItemBandejaFiscalDTO> _registros = new();
+    private List<ItemHistorialMensajeReceptorDTO> _registros = new();
     private HxModal _modalFiscal = default!;
     private string? _claveFiscal;
     private string? _contenidoFiscal;
@@ -222,15 +235,7 @@
         }
 
         _cargando = true;
-        var r = await Respuestas.DatoAsync(await Fiscal.Consultar(new FiltroBandejaFiscalDTO
-        {
-            Clave = Nulo(_clave),
-            Estado = Nulo(_estado),
-            TipoComprobante = "MensajeReceptor",
-            OrigenPosTipo = "Compra",
-            Pagina = _pagina,
-            TamanoPagina = _tamano
-        }), "consultar los documentos aceptados");
+        var r = await Respuestas.DatoAsync(await ComprasApi.HistorialMensajeReceptor(Nulo(_clave), Nulo(_estado), _pagina, _tamano), "consultar los documentos aceptados");
         _registros = r?.Registros ?? new();
         _total = r?.TotalRegistros ?? 0;
         _cargando = false;
@@ -280,4 +285,16 @@
         if (e.Contains("error") || e.Contains("rechaz")) return "text-bg-danger";
         return "text-bg-secondary";
     }
+
+    // Mismo catálogo de ModalMensajeReceptor.razor — solo se guarda el código (01-05) en
+    // la Compra, el nombre se resuelve al mostrar.
+    private static string CondicionImpuestoTexto(string? codigo) => codigo switch
+    {
+        "01" => "Genera crédito IVA",
+        "02" => "Genera crédito parcial del IVA",
+        "03" => "Bienes de capital",
+        "04" => "Gasto corriente, no genera IVA",
+        "05" => "Proporcionalidad",
+        _ => "—",
+    };
 }
