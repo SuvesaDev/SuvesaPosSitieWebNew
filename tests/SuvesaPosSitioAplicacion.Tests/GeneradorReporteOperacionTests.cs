@@ -47,6 +47,14 @@ public sealed class GeneradorReporteOperacionTests
         Assert.Equal(3, libro.Worksheet("Reporte").Table("DetalleReporteOperacion").DataRange.RowCount());
         Assert.Equal("Lote", libro.Worksheet("Reporte").Cell(9, 4).GetString());
         Assert.Equal("LT-001", libro.Worksheet("Reporte").Cell(10, 4).GetString());
+
+        // Regresión: el formato de fecha de la columna "Fecha" del detalle se aplicaba
+        // a la columna 1 ENTERA, pisando el formato numérico del primer indicador (que
+        // también cae en la columna 1) — Excel mostraba el monto como una fecha
+        // absurda (p. ej. "16/05/2130"). El indicador debe seguir siendo un número.
+        var celdaIndicador = libro.Worksheet("Reporte").Cell(6, 1);
+        Assert.Equal(45000m, celdaIndicador.GetValue<decimal>());
+        Assert.DoesNotContain("yyyy", celdaIndicador.Style.NumberFormat.Format, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
