@@ -142,21 +142,31 @@ public sealed class GeneradorReporteOperacion : IGeneradorReporteOperacion
             tabla.Theme = XLTableTheme.TableStyleMedium2;
         }
 
-        if (esClientes)
+        // El formato se aplica solo a las filas de la tabla de detalle (cabecera+1 en
+        // adelante), nunca a la columna entera: los indicadores (arriba, en la fila
+        // filaIndicadores) también caen en las columnas 1/6/8 según el tipo de reporte,
+        // y un formato de columna completa les pisaba el suyo (número → visto como fecha
+        // corrupta, p. ej. "16/05/2130").
+        if (reporte.Filas.Count > 0)
         {
-            hoja.Column(1).Style.NumberFormat.Format = "dd/MM/yyyy HH:mm";
-            hoja.Column(8).Style.NumberFormat.Format = "#,##0.00";
-            hoja.Columns(9, 10).Style.NumberFormat.Format = "₡#,##0.00";
-        }
-        else if (esCartera)
-        {
-            hoja.Column(5).Style.NumberFormat.Format = "dd/MM/yyyy";
-            hoja.Column(6).Style.NumberFormat.Format = "₡#,##0.00";
-        }
-        else
-        {
-            hoja.Column(1).Style.NumberFormat.Format = "dd/MM/yyyy HH:mm";
-            hoja.Columns(6, 8).Style.NumberFormat.Format = graficas.EsCantidad ? "#,##0.00" : "₡#,##0.00";
+            var primeraFilaDatos = cabecera + 1;
+            var ultimaFilaDatos = cabecera + reporte.Filas.Count;
+            if (esClientes)
+            {
+                hoja.Range(primeraFilaDatos, 1, ultimaFilaDatos, 1).Style.NumberFormat.Format = "dd/MM/yyyy HH:mm";
+                hoja.Range(primeraFilaDatos, 8, ultimaFilaDatos, 8).Style.NumberFormat.Format = "#,##0.00";
+                hoja.Range(primeraFilaDatos, 9, ultimaFilaDatos, 10).Style.NumberFormat.Format = "₡#,##0.00";
+            }
+            else if (esCartera)
+            {
+                hoja.Range(primeraFilaDatos, 5, ultimaFilaDatos, 5).Style.NumberFormat.Format = "dd/MM/yyyy";
+                hoja.Range(primeraFilaDatos, 6, ultimaFilaDatos, 6).Style.NumberFormat.Format = "₡#,##0.00";
+            }
+            else
+            {
+                hoja.Range(primeraFilaDatos, 1, ultimaFilaDatos, 1).Style.NumberFormat.Format = "dd/MM/yyyy HH:mm";
+                hoja.Range(primeraFilaDatos, 6, ultimaFilaDatos, 8).Style.NumberFormat.Format = graficas.EsCantidad ? "#,##0.00" : "₡#,##0.00";
+            }
         }
         hoja.SheetView.FreezeRows(cabecera);
         hoja.Range(1, 1, Math.Max(cabecera + reporte.Filas.Count, 3), cantidadColumnas).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
