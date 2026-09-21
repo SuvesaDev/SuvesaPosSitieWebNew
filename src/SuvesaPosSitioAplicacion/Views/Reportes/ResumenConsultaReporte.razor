@@ -1,0 +1,18 @@
+<section class="seepos-reporte-alcance mb-3" aria-label="Alcance de la consulta">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <span class="small fw-semibold"><i class="bi bi-check2-circle text-success me-1" aria-hidden="true"></i>Consulta mostrada</span>
+        @foreach (var filtro in Filtros)
+        {
+            <span class="badge rounded-pill text-bg-light">@filtro</span>
+        }
+        @if (ConsultadoEn.HasValue)
+        {
+            <span class="small text-body-secondary ms-md-auto">Actualizado @ConsultadoEn.Value.ToString("dd/MM/yyyy HH:mm")</span>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public DateTime? ConsultadoEn { get; set; }
+    [Parameter] public IReadOnlyList<string> Filtros { get; set; } = [];
+}

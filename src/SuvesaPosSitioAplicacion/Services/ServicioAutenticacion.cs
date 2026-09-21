@@ -142,7 +142,8 @@ public sealed class ServicioAutenticacion : IServicioAutenticacion
             new(ClaimsSeePos.EsSuperAdministrador, esSuper.ToString()),
             new(ClaimsSeePos.PerfilCodigo, auth.Perfil?.Codigo ?? string.Empty),
             new(ClaimsSeePos.CostaPets, (auth.Perfil?.CostaPets ?? auth.CostaPets).ToString()),
-            new(ClaimsSeePos.AgenteCostaPets, (auth.Perfil?.AgenteCostaPets ?? auth.AgenteCostaPets).ToString()),
+            new(ClaimsSeePos.EsAgente, (auth.Perfil?.EsAgente ?? auth.EsAgente).ToString()),
+            new(ClaimsSeePos.EsServicioAlCliente, (auth.Perfil?.EsServicioAlCliente ?? auth.EsServicioAlCliente).ToString()),
             new(ClaimsSeePos.AceptaConsignacion, (auth.Perfil?.AceptaConsignacion ?? auth.AceptaConsignacion).ToString()),
             new(ClaimsSeePos.PermiteExistenciaNegativa, (auth.Perfil?.PermiteExistenciaNegativa ?? auth.PermiteExistenciaNegativa).ToString())
         };

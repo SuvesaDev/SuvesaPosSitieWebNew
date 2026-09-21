@@ -1,0 +1,300 @@
+@page "/buys/received-messages"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Compras
+@using SuvesaPosSitioAplicacion.DTOs.Fiscal
+@using SuvesaPosSitioAplicacion.Services
+@inject ICompras ComprasApi
+@inject IBandejaFiscal Fiscal
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+@* Bandeja de Mensaje Receptor de Compras. Dos pestañas:
+   - Pendientes: compras con Clave de Hacienda que nunca tuvieron un envío exitoso
+     (se guardaron y no se aceptó/rechazó en el momento, o el envío falló) — permite
+     generarlo ahora mismo con ModalMensajeReceptor.
+   - Historial: consulta propia de Compras (Compras/HistorialMensajeReceptor) — a
+     diferencia de la bandeja fiscal genérica V44 (la que usa Documentos → Bandeja
+     para facturas/NC de venta), esta sí trae proveedor/factura/totales/condición de
+     IVA porque hace el join con Compra del lado del servidor. El detalle (ver XML,
+     respuesta Hacienda, reintentar) sigue usando IBandejaFiscal por Clave, que es
+     genérico y ya sirve para cualquier tipo de comprobante. *@
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item"><button type="button" class="nav-link @(_tab == 0 ? "active" : null)" @onclick="() => CambiarTab(0)">Pendientes</button></li>
+            <li class="nav-item"><button type="button" class="nav-link @(_tab == 1 ? "active" : null)" @onclick="() => CambiarTab(1)">Historial</button></li>
+        </ul>
+
+        @if (_tab == 0)
+        {
+            <div class="card">
+                <div class="card-body">
+                    @if (_cargandoPendientes)
+                    {
+                        <div class="d-flex justify-content-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando</span></div></div>
+                    }
+                    else if (_pendientes.Count == 0)
+                    {
+                        <p class="text-secondary text-center py-4 mb-0">No hay compras pendientes de Mensaje Receptor.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Factura</th>
+                                        <th>Proveedor</th>
+                                        <th class="text-end">Total</th>
+                                        <th>Clave</th>
+                                        <th>Último estado</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var c in _pendientes)
+                                    {
+                                        <tr>
+                                            <td>@c.Fecha.ToString("dd/MM/yyyy")</td>
+                                            <td><code class="small">@c.Factura</code></td>
+                                            <td>@c.NombreProveedor</td>
+                                            <td class="text-end seepos-importe">@Formato.Importe((double)c.TotalFactura)</td>
+                                            <td class="text-break"><span class="small">@c.Clave</span></td>
+                                            <td>@(string.IsNullOrWhiteSpace(c.EstadoDgt) ? "Nunca enviado" : c.EstadoDgt)</td>
+                                            <td class="text-end"><button class="btn btn-sm btn-primary" @onclick="() => GenerarMensajeReceptor(c)">Generar</button></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card mb-3">
+                <div class="card-body row g-2 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small">Clave</label>
+                        <input type="search" class="form-control" placeholder="Clave del comprobante del proveedor" @bind="_clave" @bind:event="oninput" @onkeydown="BuscarConEnter" />
+                    </div>
+                    <div class="col-8 col-md-4">
+                        <label class="form-label small">Estado ante Hacienda</label>
+                        <input class="form-control" placeholder="Cualquiera" @bind="_estado" />
+                    </div>
+                    <div class="col-4 col-md-1 d-grid">
+                        <button class="btn btn-primary" disabled="@_cargando" @onclick="Buscar">Buscar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    @if (_cargando)
+                    {
+                        <div class="d-flex justify-content-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando</span></div></div>
+                    }
+                    else if (_registros.Count == 0)
+                    {
+                        <p class="text-secondary text-center py-4 mb-0">No hay mensajes receptor con esos criterios.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Compra</th>
+                                        <th>Proveedor</th>
+                                        <th>Consecutivo</th>
+                                        <th class="text-end">Total factura</th>
+                                        <th class="text-end">Total impuesto</th>
+                                        <th>Condición IVA</th>
+                                        <th>Clave</th>
+                                        <th>Estado</th>
+                                        <th>Intentos</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var r in _registros)
+                                    {
+                                        <tr>
+                                            <td>@r.FechaCreacionUtc.ToString("dd/MM/yyyy HH:mm")</td>
+                                            <td>@(r.IdCompra > 0 ? $"#{r.IdCompra}" : "—")</td>
+                                            <td>@(string.IsNullOrWhiteSpace(r.NombreProveedor) ? "—" : r.NombreProveedor)</td>
+                                            <td><code class="small">@(string.IsNullOrWhiteSpace(r.Factura) ? "—" : r.Factura)</code></td>
+                                            <td class="text-end seepos-importe">@Formato.Importe((double)r.TotalFactura)</td>
+                                            <td class="text-end seepos-importe">@Formato.Importe((double)r.Impuesto)</td>
+                                            <td>@CondicionImpuestoTexto(r.CondicionImpuesto)</td>
+                                            <td class="text-break"><span class="small">@r.Clave</span></td>
+                                            <td><span class="badge @ClaseEstado(r.Estado)">@r.Estado</span>@if (!string.IsNullOrWhiteSpace(r.CausaError)) { <div class="text-danger small" title="@r.CausaError">@Truncar(r.CausaError)</div> }</td>
+                                            <td>@r.IntentosEnvio</td>
+                                            <td class="text-end"><button class="btn btn-sm btn-link p-0" @onclick="() => AccionFiscal(r.Clave)">Detalle</button></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button class="btn btn-sm btn-outline-secondary" disabled="@(_pagina <= 1 || _cargando)" @onclick="Anterior">Anterior</button>
+                            <span class="small text-secondary">Página @_pagina · @_total registro(s)</span>
+                            <button class="btn btn-sm btn-outline-secondary" disabled="@(_pagina * _tamano >= _total || _cargando)" @onclick="Siguiente">Siguiente</button>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+<SuvesaPosSitioAplicacion.Views.Shared.Componentes.ModalMensajeReceptor @ref="_modalMensajeReceptor" AlOmitir="Cargar" AlEnviar="_ => Cargar()" />
+
+<HxModal @ref="_modalFiscal" Title="Mensaje Receptor" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_claveFiscal is not null)
+        {
+            <p class="text-break small"><strong>Clave:</strong> @_claveFiscal</p>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+                <button class="btn btn-sm btn-outline-primary" @onclick="VerXml">Ver XML firmado</button>
+                <button class="btn btn-sm btn-outline-primary" @onclick="VerRespuesta">Ver respuesta Hacienda</button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="ConsultarEstadoHacienda">Consultar estado</button>
+                <button class="btn btn-sm btn-outline-danger" @onclick="ReintentarEmision">Reintentar envío</button>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_contenidoFiscal))
+            {
+                <pre class="p-2 bg-light text-break" style="max-height:340px;overflow:auto">@_contenidoFiscal</pre>
+            }
+        }
+    </BodyTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Documentos aceptados";
+    private int _tab;
+    private string _clave = string.Empty;
+    private string _estado = string.Empty;
+    private int _pagina = 1;
+    private const int _tamano = 25;
+    private int _total;
+    private bool _cargando;
+    private List<ItemHistorialMensajeReceptorDTO> _registros = new();
+    private HxModal _modalFiscal = default!;
+    private string? _claveFiscal;
+    private string? _contenidoFiscal;
+
+    private bool _cargandoPendientes;
+    private List<CompraPendienteMensajeReceptorDTO> _pendientes = new();
+    private SuvesaPosSitioAplicacion.Views.Shared.Componentes.ModalMensajeReceptor _modalMensajeReceptor = default!;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task CambiarTab(int t)
+    {
+        if (_tab == t) return;
+        _tab = t;
+        await Cargar();
+    }
+
+    private async Task Buscar()
+    {
+        _pagina = 1;
+        await Cargar();
+    }
+
+    private async Task Anterior()
+    {
+        if (_pagina <= 1) return;
+        _pagina--;
+        await Cargar();
+    }
+
+    private async Task Siguiente()
+    {
+        _pagina++;
+        await Cargar();
+    }
+
+    private async Task BuscarConEnter(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Buscar();
+    }
+
+    private async Task Cargar()
+    {
+        if (_tab == 0)
+        {
+            _cargandoPendientes = true;
+            _pendientes = (await Respuestas.DatoAsync(await ComprasApi.PendientesMensajeReceptor(), "consultar las compras pendientes"))?.ToList() ?? new();
+            _cargandoPendientes = false;
+            return;
+        }
+
+        _cargando = true;
+        var r = await Respuestas.DatoAsync(await ComprasApi.HistorialMensajeReceptor(Nulo(_clave), Nulo(_estado), _pagina, _tamano), "consultar los documentos aceptados");
+        _registros = r?.Registros ?? new();
+        _total = r?.TotalRegistros ?? 0;
+        _cargando = false;
+    }
+
+    private async Task GenerarMensajeReceptor(CompraPendienteMensajeReceptorDTO compra)
+        => await _modalMensajeReceptor.AbrirAsync(compra.IdCompra, compra.TotalFactura, compra.Impuesto);
+
+    private async Task AccionFiscal(string clave)
+    {
+        _claveFiscal = clave;
+        _contenidoFiscal = null;
+        await _modalFiscal.ShowAsync();
+    }
+
+    private async Task VerXml()
+        => _contenidoFiscal = await Respuestas.DatoAsync(await Fiscal.XmlFirmado(_claveFiscal!), "obtener el XML firmado");
+
+    private async Task VerRespuesta()
+        => _contenidoFiscal = await Respuestas.DatoAsync(await Fiscal.RespuestaHacienda(_claveFiscal!), "obtener la respuesta de Hacienda");
+
+    private async Task ConsultarEstadoHacienda()
+    {
+        if (await Respuestas.CorrectaAsync(await Fiscal.ConsultarEstado(_claveFiscal!), "consultar el estado en Hacienda"))
+        {
+            Dialogos.Exito("Estado consultado. Cierre y vuelva a buscar para ver el cambio.");
+        }
+    }
+
+    private async Task ReintentarEmision()
+    {
+        if (await Respuestas.CorrectaAsync(await Fiscal.Reintentar(_claveFiscal!), "reintentar el envío"))
+        {
+            Dialogos.Exito("Envío reencolado.");
+            await _modalFiscal.HideAsync();
+            await Cargar();
+        }
+    }
+
+    private static string? Nulo(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+    private static string Truncar(string s) => s.Length <= 60 ? s : s[..60] + "…";
+
+    private static string ClaseEstado(string estado)
+    {
+        var e = estado.ToLowerInvariant();
+        if (e.Contains("acept") || e.Contains("recib")) return "text-bg-success";
+        if (e.Contains("error") || e.Contains("rechaz")) return "text-bg-danger";
+        return "text-bg-secondary";
+    }
+
+    // Mismo catálogo de ModalMensajeReceptor.razor — solo se guarda el código (01-05) en
+    // la Compra, el nombre se resuelve al mostrar.
+    private static string CondicionImpuestoTexto(string? codigo) => codigo switch
+    {
+        "01" => "Genera crédito IVA",
+        "02" => "Genera crédito parcial del IVA",
+        "03" => "Bienes de capital",
+        "04" => "Gasto corriente, no genera IVA",
+        "05" => "Proporcionalidad",
+        _ => "—",
+    };
+}

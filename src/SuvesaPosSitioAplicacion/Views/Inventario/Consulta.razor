@@ -55,6 +55,9 @@
     <Acciones>
         @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
         {
+            <button class="btn btn-sm btn-outline-secondary" title="Genera la miniatura liviana para las imágenes de artículo subidas antes de esta mejora — el catálogo visual de Facturación abre más rápido. Las imágenes nuevas ya la generan solas." disabled="@_recatalogando" @onclick="RecatalogarImagenes">
+                <i class="bi bi-images me-1" aria-hidden="true"></i>@(_recatalogando ? "Recatalogando..." : "Recatalogar imágenes")
+            </button>
             <button class="btn btn-sm btn-primary" @onclick="Agregar">
                 <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
             </button>
@@ -163,13 +166,15 @@
                                             CellClass="justify-end" HeaderClass="justify-end">
                                 <CellTemplate>@Formato.Importe(context.Item.Precio_A)</CellTemplate>
                             </PropertyColumn>
-                            <TemplateColumn Title="" Sortable="false" Filterable="false">
+                            <TemplateColumn Title="Acciones" Sortable="false" Filterable="false">
                                 <CellTemplate>
-                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(context.Item)">Ver</button>
+                                    <div class="d-flex gap-1">
+                                    <button class="btn btn-sm btn-success" title="Ver detalle" aria-label="Ver detalle" @onclick="() => Ver(context.Item)"><i class="bi bi-eye"></i></button>
                                     @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
                                     {
-                                        <button class="btn btn-sm btn-link p-0 ms-3" @onclick="() => Editar(context.Item)">Editar</button>
+                                        <button class="btn btn-sm btn-outline-success" title="Editar artículo" aria-label="Editar artículo" @onclick="() => Editar(context.Item)"><i class="bi bi-pencil"></i></button>
                                     }
+                                    </div>
                                 </CellTemplate>
                             </TemplateColumn>
                         </Columns>
@@ -188,7 +193,9 @@
     <BodyTemplate>
         @if (_elegido is not null)
         {
-            <dl class="row small mb-0">
+            <div class="seepos-cliente-detalle-hero mb-3"><div><span class="small text-secondary d-block">Artículo</span><strong>@_elegido.Descripcion</strong></div><span class="badge @(_elegido.Inhabilitado ? "text-bg-secondary" : "text-bg-success")">@(_elegido.Inhabilitado ? "Inactivo" : "Activo")</span></div>
+            <h3 class="seepos-detalle-seccion">Identificación y existencias</h3>
+            <dl class="row small mb-0 seepos-cliente-datos">
                 <dt class="col-5 fw-normal text-secondary">Codigo</dt>
                 <dd class="col-7"><code>@_elegido.Cod_Articulo</code></dd>
 
@@ -209,7 +216,7 @@
             </dl>
 
             <hr />
-
+            <h3 class="seepos-detalle-seccion">Precios de venta</h3>
             <dl class="row small mb-0">
                 <dt class="col-5 fw-normal text-secondary">Precio A</dt>
                 <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_A)</dd>
@@ -232,7 +239,7 @@
 
             <hr />
 
-            <p class="small text-secondary mb-2">Lotes</p>
+            <h3 class="seepos-detalle-seccion">Lotes</h3>
 
             @if (_cargandoLotes)
             {
@@ -246,7 +253,7 @@
             }
             else
             {
-                <div class="table-responsive">
+                <div class="table-responsive seepos-inventario-lotes">
                     <table class="table table-sm small mb-0">
                         <thead>
                             <tr>
@@ -281,7 +288,7 @@
                 <p class="small text-secondary mb-0">@_elegido.Observaciones</p>
             }
 
-            <div class="d-flex gap-2 border-top pt-3 mt-3">
+            <div class="d-flex gap-2 border-top pt-3 mt-3 seepos-detalle-acciones">
                 @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
                 {
                     <button class="btn btn-sm btn-primary" @onclick="() => Editar(_elegido)">Editar</button>
@@ -296,12 +303,12 @@
             </div>
 
             <hr />
-            <h3 class="h6">Artículos relacionados</h3>
+            <h3 class="seepos-detalle-seccion">Artículos relacionados</h3>
             <div class="input-group input-group-sm mb-2"><input type="number" min="0" class="form-control" placeholder="Código relacionado" @bind="_codigoRelacionado" @bind:event="onchange" /><input type="number" class="form-control" min="0.01" step="0.01" @bind="_cantidadRelacionada" @bind:event="onchange" /><button class="btn btn-outline-primary" @onclick="AgregarRelacionado">Agregar</button></div>
             @if (_relacionados.Count > 0) { <ul class="list-group list-group-flush small">@foreach (var relacionado in _relacionados) { <li class="list-group-item px-0 d-flex justify-content-between"><span>@relacionado.Descripcion · @Formato.Cantidad(relacionado.Cantidad)</span><button class="btn btn-sm btn-link text-danger p-0" @onclick="() => QuitarRelacionado(relacionado)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></li> }</ul> }
 
             <hr />
-            <h3 class="h6">Imagen del artículo</h3>
+            <h3 class="seepos-detalle-seccion">Imagen del artículo</h3>
             @if (_cargandoImagen)
             {
                 <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Cargando imagen</span></div>
@@ -332,6 +339,7 @@
                 <nav class="nav nav-pills gap-2 mb-4 seepos-editor-tabs" aria-label="Secciones del artículo">
                     <button type="button" class="btn btn-sm @ClasePestanaGenerales" @onclick="MostrarGenerales">Datos generales</button>
                     <button type="button" class="btn btn-sm @ClasePestanaPrecios" @onclick="MostrarPrecios">Precios</button>
+                    <button type="button" class="btn btn-sm @ClasePestanaComisiones" @onclick="MostrarComisiones">Comisiones</button>
                     <button type="button" class="btn btn-sm @ClasePestanaBarras" @onclick="MostrarBarras">Códigos de barras</button>
                     @if (Sesion.EsCostaPets)
                     {
@@ -428,18 +436,15 @@
                             <div class="form-text">La fórmula y conversión aplican a productos terminados.</div>
                         </div>
                     }
-                    @if (!Sesion.EsCostaPets)
-                    {
-                        <div class="col-12 seepos-form-seccion">Niveles de reposición</div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label" for="articulo-minima">Existencia mínima</label>
-                            <input id="articulo-minima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Minima" @bind:event="onchange" />
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label" for="articulo-maxima">Existencia máxima</label>
-                            <input id="articulo-maxima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Maxima" @bind:event="onchange" />
-                        </div>
-                    }
+                    <div class="col-12 seepos-form-seccion">Niveles de reposición</div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-minima">Existencia mínima</label>
+                        <input id="articulo-minima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Minima" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="articulo-maxima">Existencia máxima</label>
+                        <input id="articulo-maxima" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Maxima" @bind:event="onchange" />
+                    </div>
                     @if (!_esNuevo)
                     {
                         <div class="col-12">
@@ -538,6 +543,22 @@
                         <div class="col-12 col-md-4">
                             <label class="form-label">Costo (base + fletes + otros)</label>
                             <input type="text" readonly class="form-control" value="@Formato.Importe(CostoCalculado)" />
+                        </div>
+                    </div>
+                }
+                else if (_pestanaInventario == "comisiones")
+                {
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <p class="text-secondary mb-0">Estos porcentajes son configuración comercial del artículo; no cambian el precio ni los impuestos del comprobante.</p>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="articulo-comision-agente">Porcentaje de comisión de agentes</label>
+                            <div class="input-group"><input id="articulo-comision-agente" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.PorcentajeComisionAgentes" /><span class="input-group-text">%</span></div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="articulo-comision-servicio">Porcentaje de comisión Servicio al Cliente</label>
+                            <div class="input-group"><input id="articulo-comision-servicio" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.PorcentajeComisionServicioCliente" /><span class="input-group-text">%</span></div>
                         </div>
                     </div>
                 }
@@ -1188,6 +1209,34 @@
         return new List<StockLoteDTO>();
     }
 
+    private bool _recatalogando;
+
+    /// <summary>Botón "Recatalogar imágenes": genera la miniatura liviana para las
+    /// imágenes de artículo subidas antes de que existiera esa columna (las nuevas ya la
+    /// generan solas al subir/editar) — hace que el catálogo visual de Facturación abra
+    /// más rápido para todas ellas de una vez, en lugar de una por una.</summary>
+    private async Task RecatalogarImagenes()
+    {
+        if (_recatalogando) return;
+        if (!await Dialogos.ConfirmarAsync(
+                "Va a revisar todas las imágenes de artículo que todavía no tienen miniatura y generarla. Puede tardar varios minutos según cuántas falten. ¿Continuar?",
+                "Recatalogar imágenes"))
+            return;
+
+        _recatalogando = true;
+        try
+        {
+            var r = await Respuestas.DatoAsync(await Imagenes.Recatalogar(), "recatalogar las imágenes");
+            if (r is not null)
+            {
+                Dialogos.Exito(r.Fallidas > 0
+                    ? $"{r.Procesadas} imagen(es) actualizada(s), {r.Fallidas} no se pudieron procesar (revise que sean archivos de imagen válidos)."
+                    : $"{r.Procesadas} imagen(es) actualizada(s).");
+            }
+        }
+        finally { _recatalogando = false; }
+    }
+
     private async Task Agregar()
     {
         _esNuevo = true;
@@ -1332,6 +1381,7 @@
 
     private string ClasePestanaGenerales => ClasePestana("generales");
     private string ClasePestanaPrecios => ClasePestana("precios");
+    private string ClasePestanaComisiones => ClasePestana("comisiones");
     private string ClasePestanaBarras => ClasePestana("barras");
     private string ClasePestanaImagen => ClasePestana("imagen");
     private string ClasePestanaFormula => ClasePestana("formula");
@@ -1346,6 +1396,7 @@
 
     private void MostrarGenerales() => _pestanaInventario = "generales";
     private void MostrarPrecios() => _pestanaInventario = "precios";
+    private void MostrarComisiones() => _pestanaInventario = "comisiones";
     private void MostrarBarras() => _pestanaInventario = "barras";
     private void MostrarImagen() => _pestanaInventario = "imagen";
     private void MostrarFormula() => _pestanaInventario = "formula";

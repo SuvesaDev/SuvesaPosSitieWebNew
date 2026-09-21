@@ -1,4 +1,5 @@
 @page "/initial/documents"
+@using MudBlazor
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.DTOs.Bandeja
 @using SuvesaPosSitioAplicacion.Services
@@ -68,6 +69,23 @@
                 }
                 else
                 {
+                    <MudIsla>
+                    <MudDataGrid T="DocumentoBandeja" Items="Filas" Dense="true" Hover="true" Striped="true" Filterable="true" SortMode="SortMode.Multiple" Groupable="false" FixedHeader="true" Height="60vh" Class="seepos-mud-grid">
+                        <Columns>
+                            <PropertyColumn Property="d => d.Fecha" Title="Fecha"><CellTemplate>@context.Item.Fecha.ToString("dd/MM/yyyy HH:mm")</CellTemplate></PropertyColumn>
+                            <PropertyColumn Property="d => d.Consecutivo" Title="Consecutivo" />
+                            <PropertyColumn Property="d => d.Cliente" Title="Cliente" />
+                            <PropertyColumn Property="d => d.Sucursal" Title="Sucursal" />
+                            <PropertyColumn Property="d => d.Subtotal" Title="Subtotal" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Subtotal)</CellTemplate></PropertyColumn>
+                            <PropertyColumn Property="d => d.Impuesto" Title="Impuesto" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Impuesto)</CellTemplate></PropertyColumn>
+                            <PropertyColumn Property="d => d.Total" Title="Total" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Total)</CellTemplate></PropertyColumn>
+                            <TemplateColumn Title="Estado"><CellTemplate>@if (context.Item is DocumentoFiscalBandeja f && !string.IsNullOrWhiteSpace(f.EstadoHacienda)) { <span class="badge @ClaseEstado(f.EstadoHacienda)">@f.EstadoHacienda</span> } else { @context.Item.EstadoDescripcion }</CellTemplate></TemplateColumn>
+                            <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate Context="context"><div class="d-flex gap-1"><button class="btn btn-sm btn-success" title="Ver detalle" @onclick="() => VerDetalle(context.Item)"><i class="bi bi-eye"></i></button>@if (_tab == 1) { <button class="btn btn-sm btn-outline-danger" title="Devolución" @onclick="() => Devolucion(context.Item)"><i class="bi bi-arrow-return-left"></i></button> }@if (EsFiscal && context.Item is DocumentoFiscalBandeja fa && !string.IsNullOrWhiteSpace(fa.ClaveFacturaElectronica)) { <button class="btn btn-sm btn-outline-primary" title="Opciones fiscales" @onclick="() => AccionFiscal(fa.ClaveFacturaElectronica!)"><i class="bi bi-file-earmark-text"></i></button> }@if (EsFiscal && Sesion.Puede(Titulo, AccionPantalla.Imprimir)) { <BotonImprimir Tipo="@(_tab == 1 ? "factura-electronica" : "nota-credito")" Id="context.Item.Id" Clase="btn-sm btn-outline-secondary" SoloIcono="true" Titulo="Descargar PDF (A4)" /> }</div></CellTemplate></TemplateColumn>
+                        </Columns>
+                    </MudDataGrid>
+                    </MudIsla>
+                    @* Tabla HTML histórica retirada: MudDataGrid da filtros, ordenamiento y navegación consistente con Inventarios. *@
+                    @if (_mostrarTablaLegada) {
                     <div class="table-responsive">
                         <table class="table table-sm align-middle">
                             <thead>
@@ -85,7 +103,7 @@
                                         <th>Nº electrónico</th>
                                         <th>Clave</th>
                                         <th>Estado Hacienda</th>
-                                        <th>Rechazo</th>
+                                        <th>Mensaje Hacienda</th>
                                     }
                                     <th></th>
                                 </tr>
@@ -132,7 +150,7 @@
                                 }
                             </tbody>
                         </table>
-                    </div>
+                    </div> }
                     <div class="d-flex justify-content-between align-items-center">
                         <button class="btn btn-sm btn-outline-secondary" disabled="@(_pagina <= 1 || _cargando)" @onclick="Anterior">Anterior</button>
                         <span class="small text-secondary">Página @_pagina · @_total registro(s)</span>
@@ -146,17 +164,22 @@
 
 <HxOffcanvas @ref="_detalle" Title="Detalle del documento" Placement="OffcanvasPlacement.End">
     <BodyTemplate>
+        <div class="seepos-documento-detalle">
         @if (_detFactura is not null)
         {
             @RenderEncabezado(_detFactura.Encabezado)
-            <dl class="row small mb-0">
+            <div class="seepos-documento-seccion">
+            <div class="seepos-documento-seccion-titulo"><i class="bi bi-receipt me-2"></i>Información de cobro</div>
+            <dl class="row small mb-0 seepos-documento-meta">
                 <dt class="col-5 fw-normal text-secondary">Cajero</dt><dd class="col-7">@(_detFactura.Cajero ?? "—")</dd>
                 <dt class="col-5 fw-normal text-secondary">Moneda</dt><dd class="col-7">@(_detFactura.Moneda ?? "—")</dd>
                 <dt class="col-5 fw-normal text-secondary">Subtotal gravado</dt><dd class="col-7 seepos-importe">@Formato.Importe(_detFactura.SubtotalGravado)</dd>
                 <dt class="col-5 fw-normal text-secondary">Subtotal exento</dt><dd class="col-7 seepos-importe">@Formato.Importe(_detFactura.SubtotalExento)</dd>
                 <dt class="col-5 fw-normal text-secondary">Descuento</dt><dd class="col-7 seepos-importe">@Formato.Importe(_detFactura.Descuento)</dd>
             </dl>
+            </div>
             @RenderLineas(_detFactura.Lineas)
+            <div class="seepos-documento-resumen"><span>Total del documento</span><strong>@Formato.Importe(_detFactura.Encabezado.Total)</strong></div>
             @if (_detFactura.PuedeDevolver)
             {
                 <button class="btn btn-outline-danger btn-sm mt-3 w-100" @onclick="() => DevolucionPorVentaId(_detFactura.Encabezado.Id)">Realizar devolución</button>
@@ -165,18 +188,23 @@
         else if (_detNC is not null)
         {
             @RenderEncabezado(_detNC.Encabezado)
-            <dl class="row small mb-0">
+            <div class="seepos-documento-seccion">
+            <div class="seepos-documento-seccion-titulo"><i class="bi bi-journal-text me-2"></i>Información de la nota</div>
+            <dl class="row small mb-0 seepos-documento-meta">
                 <dt class="col-5 fw-normal text-secondary">Factura origen</dt><dd class="col-7">@(_detNC.NumeroFactura ?? "—")</dd>
                 <dt class="col-5 fw-normal text-secondary">Notas</dt><dd class="col-7">@(_detNC.Notas ?? "—")</dd>
                 <dt class="col-5 fw-normal text-secondary">Subtotal gravado</dt><dd class="col-7 seepos-importe">@Formato.Importe(_detNC.SubtotalGravado)</dd>
                 <dt class="col-5 fw-normal text-secondary">Subtotal exento</dt><dd class="col-7 seepos-importe">@Formato.Importe(_detNC.SubtotalExento)</dd>
             </dl>
+            </div>
             @RenderLineas(_detNC.Lineas)
+            <div class="seepos-documento-resumen"><span>Total del documento</span><strong>@Formato.Importe(_detNC.Encabezado.Total)</strong></div>
         }
         else if (_detComun is not null)
         {
             @RenderEncabezado(_detComun)
         }
+        </div>
     </BodyTemplate>
 </HxOffcanvas>
 
@@ -203,38 +231,47 @@
     private RenderFragment RenderEncabezado(DocumentoFiscalBandeja e) => RenderEncabezadoBase(e, e);
     private RenderFragment RenderEncabezado(DocumentoBandeja e) => RenderEncabezadoBase(e, null);
 
-    private RenderFragment RenderEncabezadoBase(DocumentoBandeja e, DocumentoFiscalBandeja? f) => @<div>
-        <dl class="row small mb-0">
-            <dt class="col-5 fw-normal text-secondary">Consecutivo</dt><dd class="col-7">@e.Consecutivo</dd>
+    private RenderFragment RenderEncabezadoBase(DocumentoBandeja e, DocumentoFiscalBandeja? f) => @<div class="seepos-documento-cabecera">
+        <div class="seepos-documento-cabecera-principal">
+            <div>
+                <div class="seepos-documento-kicker">DOCUMENTO ELECTRÓNICO</div>
+                <h5 class="seepos-documento-titulo">@(string.IsNullOrWhiteSpace(e.TipoDescripcion) ? "Documento" : e.TipoDescripcion)</h5>
+                <div class="seepos-documento-consecutivo">Consecutivo <strong>#@e.Consecutivo</strong></div>
+            </div>
+            <div class="seepos-documento-total"><span>Total</span><strong>@Formato.Importe(e.Total)</strong></div>
+        </div>
+        <div class="seepos-documento-cliente"><i class="bi bi-person-circle"></i><div><span>Cliente</span><strong>@(e.Cliente ?? "—")</strong><small><i class="bi bi-geo-alt me-1"></i>@(e.Sucursal ?? "Sucursal no indicada")</small></div></div>
+        <dl class="row small mb-0 seepos-documento-meta">
             <dt class="col-5 fw-normal text-secondary">Fecha</dt><dd class="col-7">@e.Fecha.ToString("dd/MM/yyyy HH:mm")</dd>
-            <dt class="col-5 fw-normal text-secondary">Cliente</dt><dd class="col-7">@(e.Cliente ?? "—")</dd>
-            <dt class="col-5 fw-normal text-secondary">Sucursal</dt><dd class="col-7">@(e.Sucursal ?? "—")</dd>
             @if (!string.IsNullOrWhiteSpace(e.TipoDescripcion)) { <dt class="col-5 fw-normal text-secondary">Tipo</dt><dd class="col-7">@e.TipoDescripcion</dd> }
             @if (!string.IsNullOrWhiteSpace(e.EstadoDescripcion)) { <dt class="col-5 fw-normal text-secondary">Estado</dt><dd class="col-7">@e.EstadoDescripcion</dd> }
-            <dt class="col-5 fw-normal text-secondary">Total</dt><dd class="col-7 seepos-importe fw-semibold">@Formato.Importe(e.Total)</dd>
             @if (f is not null)
             {
                 <dt class="col-5 fw-normal text-secondary">Nº electrónico</dt><dd class="col-7">@(f.NumeroFacturaElectronica ?? "—")</dd>
                 <dt class="col-5 fw-normal text-secondary">Clave</dt><dd class="col-7 text-break small">@(f.ClaveFacturaElectronica ?? "—")</dd>
                 <dt class="col-5 fw-normal text-secondary">Estado Hacienda</dt><dd class="col-7">@(f.EstadoHacienda ?? "—")</dd>
-                @if (!string.IsNullOrWhiteSpace(f.MensajeRechazoHacienda)) { <dt class="col-5 fw-normal text-danger">Rechazo</dt><dd class="col-7 text-danger">@f.MensajeRechazoHacienda</dd> }
             }
         </dl>
+        @if (f is not null && !string.IsNullOrWhiteSpace(f.MensajeRechazoHacienda))
+        {
+            <div class="seepos-documento-mensaje"><i class="bi bi-info-circle-fill"></i><div><strong>Mensaje Hacienda</strong><span>@f.MensajeRechazoHacienda</span></div></div>
+        }
         <hr />
     </div>;
 
-    private RenderFragment RenderLineas(List<DocumentoBandejaLinea> lineas) => @<div>
+    private RenderFragment RenderLineas(List<DocumentoBandejaLinea> lineas) => @<div class="seepos-documento-seccion seepos-documento-lineas-seccion">
         @if (lineas.Count > 0)
         {
-            <table class="table table-sm mt-2">
+            <div class="seepos-documento-seccion-titulo"><i class="bi bi-list-ul me-2"></i>Detalle de artículos <span class="badge rounded-pill">@lineas.Count</span></div>
+            <div class="table-responsive"><table class="table table-sm align-middle mb-0 seepos-documento-lineas">
                 <thead><tr><th>Artículo</th><th class="text-end">Cant.</th><th class="text-end">P. Unit.</th><th class="text-end">Total</th></tr></thead>
                 <tbody>
                     @foreach (var l in lineas)
                     {
-                        <tr><td>@l.Descripcion<br /><code class="small text-secondary">@l.CodArticulo</code></td><td class="text-end">@l.Cantidad.ToString("N2")</td><td class="text-end seepos-importe">@Formato.Importe(l.PrecioUnitario)</td><td class="text-end seepos-importe">@Formato.Importe(l.Total)</td></tr>
+                        <tr><td><strong>@l.Descripcion</strong><code>@l.CodArticulo</code></td><td class="text-end">@l.Cantidad.ToString("N2")</td><td class="text-end seepos-importe">@Formato.Importe(l.PrecioUnitario)</td><td class="text-end seepos-importe fw-semibold">@Formato.Importe(l.Total)</td></tr>
                     }
                 </tbody>
-            </table>
+            </table></div>
         }
     </div>;
 }

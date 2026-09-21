@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="Havit.Blazor.Components.Web.Bootstrap" Version="4.26.1" />
     <!-- Solo para MudDataGrid en pantallas de consulta pesada (piloto). NO se usa
          MudThemeProvider global ni se retira Bootstrap: los proveedores de Mud viven
@@ -15,6 +16,21 @@
     <PackageReference Include="MudBlazor" Version="9.9.0" />
     <PackageReference Include="QuestPDF" Version="2026.8.0" />
     <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
+  </ItemGroup>
+
+  <!-- Havit.Blazor.Components.Web.Bootstrap no trae traducción es (solo cs/de/it-IT/uk/
+       zh-CN) — sus botones (Cancelar/Sí/No/Aceptar...) y otros textos salían en inglés.
+       Este es un satélite de recursos es compilado aparte (src/Localizacion.HavitEs,
+       mismas claves que el recurso neutro en inglés) y solo se copia al bin/es/ del
+       sitio; no se referencia como proyecto para no colisionar de nombre con el DLL
+       real de Havit. Ver src/Localizacion.HavitEs/Localizacion.HavitEs.csproj para
+       regenerarlo si Havit agrega/renombra claves en una actualización de versión. -->
+  <ItemGroup>
+    <None Include="Localizacion/es/Havit.Blazor.Components.Web.Bootstrap.resources.dll">
+      <Link>es/Havit.Blazor.Components.Web.Bootstrap.resources.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

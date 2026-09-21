@@ -47,8 +47,8 @@
                 </div>
             }
 
-            <div class="card mb-3">
-                <div class="card-header"><strong>Cliente</strong></div>
+            <div class="card mb-3 seepos-tramite-seccion">
+                <div class="card-header"><i class="bi bi-person me-2 text-primary"></i><strong>Cliente</strong><span class="text-secondary small ms-2">Seleccione el cliente para consultar sus facturas pendientes.</span></div>
                 <div class="card-body">
                     <div class="position-relative">
                         <div class="input-group">
@@ -74,8 +74,8 @@
 
             @if (_cliente is not null)
             {
-                <div class="card mb-3">
-                    <div class="card-header"><strong>Datos de la boleta</strong></div>
+                <div class="card mb-3 seepos-tramite-seccion">
+                    <div class="card-header"><i class="bi bi-file-earmark-text me-2 text-primary"></i><strong>Datos de la boleta</strong></div>
                     <div class="card-body row g-3">
                         <div class="col-12 col-md-3"><label class="form-label">Fecha de entrega</label><input type="date" class="form-control" @bind="_fechaEntrega" /></div>
                         <div class="col-12 col-md-4"><label class="form-label">Entrega</label><input class="form-control" @bind="_entrega" placeholder="@Sesion.Usuario" /></div>
@@ -84,8 +84,8 @@
                     </div>
                 </div>
 
-                <div class="card mb-3">
-                    <div class="card-header"><strong>Facturas pendientes</strong></div>
+                <div class="card mb-3 seepos-tramite-seccion">
+                    <div class="card-header"><i class="bi bi-receipt me-2 text-primary"></i><strong>Facturas pendientes</strong><span class="text-secondary small ms-2">Marque las facturas que desea incluir en la boleta.</span></div>
                     <div class="card-body p-0">
                         @if (_cargandoFacturas)
                         {
@@ -98,7 +98,7 @@
                         else
                         {
                             <div class="table-responsive">
-                                <table class="table table-sm align-middle mb-0">
+                                <table class="table table-sm align-middle mb-0 seepos-tramite-tabla">
                                     <thead><tr><th style="width:2.5rem"></th><th>Factura</th><th>Fecha</th><th>Vence</th><th class="text-end">Saldo</th><th>Fecha de pago comprometida</th></tr></thead>
                                     <tbody>
                                         @foreach (var f in _facturas)
@@ -124,14 +124,14 @@
                 </div>
 
                 <button class="btn btn-primary" disabled="@(_guardando || _seleccion.Count == 0 || string.IsNullOrWhiteSpace(_recibe))" @onclick="Guardar">
-                    @(_guardando ? "Guardando..." : "Registrar boleta")
+                    <i class="bi bi-check2-circle me-1"></i>@(_guardando ? "Guardando..." : "Registrar boleta")
                 </button>
             }
         }
         else
         {
-            <div class="card mb-3">
-                <div class="card-body row g-2 align-items-end">
+            <div class="card mb-3 seepos-tramite-seccion">
+                <div class="card-header"><i class="bi bi-search me-2 text-primary"></i><strong>Buscar boletas</strong></div><div class="card-body row g-3 align-items-end">
                     <div class="col-6 col-md-2"><label class="form-label small">N.º</label><input type="number" min="0" class="form-control form-control-sm" @bind="_consultaConsecutivo" /></div>
                     <div class="col-6 col-md-2"><label class="form-label small">Desde</label><input type="date" class="form-control form-control-sm" @bind="_consultaDesde" /></div>
                     <div class="col-6 col-md-2"><label class="form-label small">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_consultaHasta" /></div>
@@ -150,8 +150,10 @@
             }
             else
             {
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover align-middle">
+                <div class="card seepos-tramite-resultados">
+                    <div class="card-header"><i class="bi bi-list-check me-2 text-primary"></i><strong>Boletas registradas</strong><span class="text-secondary small ms-2">Consulte, comparta o anule una boleta vigente.</span></div>
+                    <div class="seepos-tramite-tabla table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
                         <thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th class="text-center">Facturas</th><th class="text-end">Total</th><th>Recibe</th><th class="text-center">Estado</th><th></th></tr></thead>
                         <tbody>
                             @foreach (var b in _boletas)
@@ -165,17 +167,18 @@
                                     <td class="small">@b.Recibe</td>
                                     <td class="text-center"><span class="badge @(b.Anulado ? "text-bg-secondary" : "text-bg-success")">@(b.Anulado ? "Anulada" : "Vigente")</span></td>
                                     <td class="text-end text-nowrap">
-                                        <button class="btn btn-sm btn-link p-0 me-2" @onclick="() => Imprimir(b.Id)">PDF</button>
-                                        <button class="btn btn-sm btn-link p-0 me-2" @onclick="() => Enviar(b.Id)">Correo</button>
+                                        <button class="btn btn-sm btn-outline-secondary me-1" title="Descargar PDF" aria-label="Descargar PDF" @onclick="() => Imprimir(b.Id)"><i class="bi bi-file-earmark-pdf"></i></button>
+                                        <button class="btn btn-sm btn-outline-primary me-1" title="Enviar por correo" aria-label="Enviar por correo" @onclick="() => Enviar(b.Id)"><i class="bi bi-envelope"></i></button>
                                         @if (!b.Anulado)
                                         {
-                                            <button class="btn btn-sm btn-link p-0 text-danger" @onclick="() => Anular(b)">Anular</button>
+                                            <button class="btn btn-sm btn-outline-danger" title="Anular boleta" aria-label="Anular boleta" @onclick="() => Anular(b)"><i class="bi bi-x-circle"></i></button>
                                         }
                                     </td>
                                 </tr>
                             }
                         </tbody>
                     </table>
+                    </div>
                 </div>
             }
         }

@@ -22,7 +22,8 @@ public sealed class PerfilLoginDTO
     [JsonPropertyName("esSuperAdministracion")] public bool EsSuperAdministracion { get; set; }
     [JsonPropertyName("gestionaUsuarios")] public bool GestionaUsuarios { get; set; }
     [JsonPropertyName("costaPets")] public bool CostaPets { get; set; }
-    [JsonPropertyName("agenteCostaPets")] public bool AgenteCostaPets { get; set; }
+    [JsonPropertyName("esAgente")] public bool EsAgente { get; set; }
+    [JsonPropertyName("esServicioAlCliente")] public bool EsServicioAlCliente { get; set; }
     [JsonPropertyName("aceptaConsignacion")] public bool AceptaConsignacion { get; set; }
     [JsonPropertyName("permiteExistenciaNegativa")] public bool PermiteExistenciaNegativa { get; set; }
 }
@@ -113,7 +114,8 @@ public sealed class PerfilSeguridadDTO
     [JsonPropertyName("esSuperAdministracion")] public bool EsSuperAdministracion { get; set; }
     [JsonPropertyName("gestionaUsuarios")] public bool GestionaUsuarios { get; set; }
     [JsonPropertyName("costaPets")] public bool CostaPets { get; set; }
-    [JsonPropertyName("agenteCostaPets")] public bool AgenteCostaPets { get; set; }
+    [JsonPropertyName("esAgente")] public bool EsAgente { get; set; }
+    [JsonPropertyName("esServicioAlCliente")] public bool EsServicioAlCliente { get; set; }
     [JsonPropertyName("aceptaConsignacion")] public bool AceptaConsignacion { get; set; }
     [JsonPropertyName("permiteExistenciaNegativa")] public bool PermiteExistenciaNegativa { get; set; }
     [JsonPropertyName("activo")] public bool Activo { get; set; } = true;

@@ -1,5 +1,7 @@
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
 @using SuvesaPosSitioAplicacion.DTOs.Generated
 @using SuvesaPosSitioAplicacion.Services
+@inject IBancos Bancos
 
 @* W4 (PLAN_TIQUETE_RUTAS_FACTURACION_WEB.md §4): captura de pago reutilizable por Tiquete
    (Facturación) y Cobrar. El reparto lo calcula PreparacionPagoVenta; este componente solo
@@ -33,14 +35,27 @@
                             <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end"
                                    value="@MontoTexto(cod)" @onchange="e => SetMonto(cod, e.Value)" />
                         </td>
-                        @if (noEfectivo)
+                        @if (f.Cheque)
                         {
                             <td style="min-width:8rem">
+                                <input type="text" class="form-control form-control-sm" placeholder="N° cheque"
+                                       value="@NumeroChequeDe(cod)" @onchange="e => SetNumeroCheque(cod, e.Value?.ToString())" />
+                            </td>
+                            <td style="min-width:9rem">
+                                <select class="form-select form-select-sm" value="@BancoTexto(cod)" @onchange="e => SetBanco(cod, e.Value?.ToString())">
+                                    <option value="">Banco...</option>
+                                    @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
+                                </select>
+                            </td>
+                        }
+                        else if (noEfectivo)
+                        {
+                            <td style="min-width:8rem" colspan="2">
                                 <input type="text" class="form-control form-control-sm" placeholder="Referencia"
                                        value="@RefDe(cod)" @onchange="e => SetRef(cod, e.Value?.ToString())" />
                             </td>
                         }
-                        else { <td></td> }
+                        else { <td colspan="2"></td> }
                     </tr>
                 }
             </tbody>
@@ -75,22 +90,43 @@
     [Parameter] public Dictionary<string, decimal> Montos { get; set; } = new();
     [Parameter] public EventCallback<Dictionary<string, decimal>> MontosChanged { get; set; }
 
-    /// <summary>Referencias por código de forma de pago (two-way).</summary>
+    /// <summary>Referencias por código de forma de pago (two-way). Para Cheque, este mismo
+    /// diccionario no se usa — ver <see cref="NumerosCheque"/> y <see cref="Bancos"/>.</summary>
     [Parameter] public Dictionary<string, string?> Referencias { get; set; } = new();
     [Parameter] public EventCallback<Dictionary<string, string?>> ReferenciasChanged { get; set; }
+
+    /// <summary>Solo Cheque: número del cheque por código de forma de pago (two-way).</summary>
+    [Parameter] public Dictionary<string, string?> NumerosCheque { get; set; } = new();
+    [Parameter] public EventCallback<Dictionary<string, string?>> NumerosChequeChanged { get; set; }
+
+    /// <summary>Solo Cheque: banco emisor (catálogo EntidadesBancaria.IdBanco) por código de
+    /// forma de pago (two-way).</summary>
+    [Parameter] public Dictionary<string, int?> IdsBanco { get; set; } = new();
+    [Parameter] public EventCallback<Dictionary<string, int?>> IdsBancoChanged { get; set; }
 
     /// <summary>Se dispara cada vez que cambia el reparto (el padre lee <see cref="Reparto"/>).</summary>
     [Parameter] public EventCallback<PreparacionPagoVenta.Reparto> RepartoChanged { get; set; }
 
-    private PreparacionPagoVenta.Reparto _reparto;
+    // Valor inicial no-default: OnInitializedAsync (carga de bancos) puede no completar
+    // de forma síncrona, y Blazor renderiza una vez antes de que OnParametersSet corra
+    // Recalcular() — con el struct en su default, Errores/Formas quedan null y revientan
+    // en el @if de la línea ~73.
+    private PreparacionPagoVenta.Reparto _reparto = new(0, 0, 0, 0, 0, Array.Empty<PreparacionPagoVenta.AplicacionForma>(), Array.Empty<string>());
+    private List<EntidadesBancariasDTO> _bancos = new();
 
     /// <summary>Reparto actual — el padre lo consulta para habilitar/deshabilitar "Cobrar".</summary>
     public PreparacionPagoVenta.Reparto Reparto => _reparto;
+
+    protected override async Task OnInitializedAsync()
+        => _bancos = ((await Bancos.Obtener()).Responses ?? Array.Empty<EntidadesBancariasDTO>()).OrderBy(b => b.Banco).ToList();
 
     protected override void OnParametersSet() => Recalcular();
 
     private decimal MontoDe(string cod) => Montos.TryGetValue(cod, out var m) ? m : 0m;
     private string? RefDe(string cod) => Referencias.TryGetValue(cod, out var r) ? r : null;
+    private string? NumeroChequeDe(string cod) => NumerosCheque.TryGetValue(cod, out var n) ? n : null;
+    private int? BancoDe(string cod) => IdsBanco.TryGetValue(cod, out var b) ? b : null;
+    private string BancoTexto(string cod) => BancoDe(cod)?.ToString() ?? "";
 
     // El <input type="number"> exige el punto como separador decimal; renderizar el
     // decimal con la cultura actual (es-CR usa coma) lo dejaría vacío tras un re-render.
@@ -117,6 +153,22 @@
         await RepartoChanged.InvokeAsync(_reparto);
     }
 
+    private async Task SetNumeroCheque(string cod, string? valor)
+    {
+        NumerosCheque[cod] = string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+        await NumerosChequeChanged.InvokeAsync(NumerosCheque);
+        Recalcular();
+        await RepartoChanged.InvokeAsync(_reparto);
+    }
+
+    private async Task SetBanco(string cod, string? valor)
+    {
+        IdsBanco[cod] = int.TryParse(valor, out var id) ? id : null;
+        await IdsBancoChanged.InvokeAsync(IdsBanco);
+        Recalcular();
+        await RepartoChanged.InvokeAsync(_reparto);
+    }
+
     // Una forma es "efectivo" (puede dar vuelto) si viene marcada así o si no es
     // tarjeta / depósito / cheque. La bandera Efectivo del catálogo no siempre está
     // puesta; sin este respaldo, pagar en efectivo por encima del total se rechazaba
@@ -131,6 +183,6 @@
                 f.Codigo!, MontoDe(f.Codigo!),
                 EsEfectivo: EsEfectivo(f),
                 RequiereReferencia: f.Tarjeta || f.Deposito || f.Cheque,
-                Referencia: RefDe(f.Codigo!))));
+                Referencia: f.Cheque ? NumeroChequeDe(f.Codigo!) : RefDe(f.Codigo!))));
     }
 }

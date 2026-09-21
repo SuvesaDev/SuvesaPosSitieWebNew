@@ -1,6 +1,7 @@
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Security
 @using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Reportes
 @implements IDisposable
 @inject IContextoSesion Sesion
 @inject IEstadoEspacioTrabajo Espacio
@@ -74,7 +75,7 @@
                     @if (!Compacto && Abierto(raiz.Titulo))
                     {
                         <ul class="seepos-menu-nivel nav flex-column border-start">
-                            @foreach (var hijo in FiltroMenu.Visibles(raiz.Hijos, Sesion))
+                            @foreach (var hijo in HijosVisibles(raiz))
                             {
                                 <RamaMenu @key="hijo.Titulo" Item="hijo" AlAbrir="Abrir" RutaActual="@RutaActual"
                                           Abierto="@(_hijoAbierto == hijo.Titulo)" AlAlternar="AlternarHijo" />
@@ -142,6 +143,43 @@
     }
 
     private void LimpiarBusqueda() => _busqueda = "";
+
+    /// <summary>
+    /// Reportes conserva intacto su árbol real de permisos, pero se presenta en los
+    /// ocho dominios del catálogo para no obligar al usuario a recorrer 27 hojas
+    /// planas. Los nodos de agrupación son únicamente de interfaz.
+    /// </summary>
+    private IEnumerable<ItemMenu> HijosVisibles(ItemMenu raiz)
+    {
+        if (!string.Equals(raiz.Codigo, "MODULO_REPORTES", StringComparison.OrdinalIgnoreCase))
+            return FiltroMenu.Visibles(raiz.Hijos, Sesion);
+
+        var grupos = CatalogoReportes.Grupos
+            .Select(grupo => new ItemMenu
+            {
+                Titulo = grupo.Nombre,
+                Codigo = raiz.Codigo,
+                Hijos = grupo.Opciones
+                    .Where(reporte => Sesion.PuedeVer(reporte.Codigo))
+                    .Select(reporte => new ItemMenu
+                    {
+                        Titulo = reporte.Titulo,
+                        Codigo = reporte.Codigo,
+                        Ruta = reporte.Ruta,
+                    })
+                    .ToArray(),
+            })
+            .Where(grupo => grupo.Hijos.Count > 0)
+            .ToList();
+
+        grupos.Insert(0, new ItemMenu
+        {
+            Titulo = "Catálogo de reportes",
+            Codigo = raiz.Codigo,
+            Ruta = "/moduloReportes",
+        });
+        return grupos;
+    }
 
     private sealed record ResultadoMenu(ItemMenu Item, string Ruta);
 

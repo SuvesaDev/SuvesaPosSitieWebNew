@@ -8,9 +8,19 @@ public sealed class RelojEquipo(IJSRuntime js) : IRelojEquipo, IAsyncDisposable
 
     public async Task<DateTime> AhoraAsync(CancellationToken cancellationToken = default)
     {
-        _modulo ??= await js.InvokeAsync<IJSObjectReference>("import", cancellationToken, "./js/tema.js");
-        var iso = await _modulo.InvokeAsync<string>("obtenerFechaHoraEquipo", cancellationToken);
-        return DateTime.SpecifyKind(DateTime.Parse(iso, null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime(), DateTimeKind.Unspecified);
+        try
+        {
+            _modulo ??= await js.InvokeAsync<IJSObjectReference>("import", cancellationToken, "./js/tema.js");
+            var iso = await _modulo.InvokeAsync<string>("obtenerFechaHoraEquipo", cancellationToken);
+            return DateTime.SpecifyKind(DateTime.Parse(iso, null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime(), DateTimeKind.Unspecified);
+        }
+        catch (InvalidOperationException)
+        {
+            // Prerenderizado estático: todavía no hay circuito interactivo para hacer
+            // interop con JS. OnInitializedAsync se vuelve a ejecutar cuando el
+            // circuito conecta, y ahí sí se obtiene la hora real del equipo.
+            return DateTime.Now;
+        }
     }
 
     public async Task<DateTime> HoyAsync(CancellationToken cancellationToken = default)

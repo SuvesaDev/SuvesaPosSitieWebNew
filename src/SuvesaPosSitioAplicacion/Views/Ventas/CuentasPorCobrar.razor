@@ -220,6 +220,8 @@
                                                     NumApertura="NumApertura"
                                                     @bind-Montos="_montos"
                                                     @bind-Referencias="_referencias"
+                                                    @bind-NumerosCheque="_numerosCheque"
+                                                    @bind-IdsBanco="_idsBanco"
                                                     RepartoChanged="_ => Recalcular()" />
 
                                     <button class="btn btn-primary w-100 mt-3" disabled="@(_procesando || _entregado < _aCobrar || _aCobrar <= 0)" @onclick="CobrarYFacturar">

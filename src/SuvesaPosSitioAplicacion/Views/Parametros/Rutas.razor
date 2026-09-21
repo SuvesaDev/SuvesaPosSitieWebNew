@@ -1,0 +1,89 @@
+@page "/parameters/routes"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Rutas
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IRutasComerciales Api
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta" Subtitulo="Asigne agentes comerciales y defina el responsable predeterminado por ruta.">
+    <Acciones>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Nueva"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
+        }
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar"><i class="bi bi-arrow-clockwise"></i></button>
+    </Acciones>
+    <ChildContent>
+        <div class="card"><div class="card-body">
+            <AppRejilla TItem="RutaComercialDTO" Datos="Cargar" TextoVacio="No hay rutas configuradas." @ref="_rejilla">
+                <Columnas>
+                    <HxGridColumn TItem="RutaComercialDTO" HeaderText="Ruta" ItemTextSelector="r => r.Nombre" SortKeySelector="r => r.Nombre" />
+                    <HxGridColumn TItem="RutaComercialDTO" HeaderText="Agente predeterminado"><ItemTemplate Context="r">@r.Agentes.FirstOrDefault(a => a.EsPredeterminado)?.Nombre</ItemTemplate></HxGridColumn>
+                    <HxGridColumn TItem="RutaComercialDTO" HeaderText="Agentes"><ItemTemplate Context="r">@r.Agentes.Count</ItemTemplate></HxGridColumn>
+                    <HxGridColumn TItem="RutaComercialDTO" HeaderText="Estado"><ItemTemplate Context="r"><span class="badge @(r.Activo ? "text-bg-success" : "text-bg-secondary")">@(r.Activo ? "Activa" : "Inactiva")</span></ItemTemplate></HxGridColumn>
+                    <HxGridColumn TItem="RutaComercialDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end"><ItemTemplate Context="r">
+                        @if (Sesion.Puede(Titulo, AccionPantalla.Modificar)) { <button class="btn btn-sm btn-outline-primary me-1" title="Editar ruta" @onclick="() => Editar(r)"><i class="bi bi-pencil"></i></button> }
+                        @if (Sesion.Puede(Titulo, AccionPantalla.Borrar) && r.Activo) { <button class="btn btn-sm btn-outline-danger" title="Desactivar ruta" @onclick="() => Desactivar(r)"><i class="bi bi-slash-circle"></i></button> }
+                    </ItemTemplate></HxGridColumn>
+                </Columnas>
+            </AppRejilla>
+        </div></div>
+    </ChildContent>
+</AppPantalla>
+
+<HxModal @ref="_modal" Title="@(_edicion?.IdRuta > 0 ? "Editar ruta" : "Nueva ruta")" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_edicion is not null)
+        {
+            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formRuta"><DataAnnotationsValidator />
+                <div class="row g-3">
+                    <div class="col-12 col-md-7"><AppCampoTexto Etiqueta="Nombre de la ruta" @bind-Valor="_edicion.Nombre" Requerido="true" /></div>
+                    <div class="col-12 col-md-5"><div class="form-check form-switch mt-4"><input id="ruta-activa" class="form-check-input" type="checkbox" @bind="_edicion.Activo" /><label class="form-check-label" for="ruta-activa">Ruta activa</label></div></div>
+                    <div class="col-12"><AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" /></div>
+                    <div class="col-12 seepos-form-seccion">Comisión por ruta <span class="text-secondary fw-normal">(si se indica, sustituye el % del artículo)</span></div>
+                    <div class="col-12 col-md-6"><HxInputNumber Label="% comisión agente" @bind-Value="_edicion.PorcentajeComisionAgente" Decimals="4" Min="0" Max="100" /></div>
+                    <div class="col-12 col-md-6"><HxInputNumber Label="% comisión Servicio al Cliente" @bind-Value="_edicion.PorcentajeComisionServicioCliente" Decimals="4" Min="0" Max="100" /></div>
+                    <div class="col-12 seepos-form-seccion">Agentes asignados</div>
+                    @if (_agentesElegibles.Count == 0) { <div class="col-12 text-secondary">No hay usuarios activos con el perfil <strong>Es agente</strong>.</div> }
+                    @foreach (var agente in _agentesElegibles)
+                    {
+                        var seleccionado = EstaAsignado(agente.IdUsuario);
+                        <div class="col-12 col-md-6"><div class="border rounded p-2 d-flex align-items-center justify-content-between">
+                            <div class="form-check"><input id="ruta-agente-@agente.IdUsuario" class="form-check-input" type="checkbox" checked="@seleccionado" @onchange="e => AlternarAgente(agente, e.Value is bool marcado && marcado)" /><label class="form-check-label" for="ruta-agente-@agente.IdUsuario">@agente.Nombre</label></div>
+                            @if (seleccionado) { <div class="d-flex gap-2"><div class="form-check"><input id="ruta-default-@agente.IdUsuario" class="form-check-input" type="radio" name="agentePredeterminado" checked="@EsPredeterminado(agente.IdUsuario)" @onchange="() => MarcarPredeterminado(agente.IdUsuario)" /><label class="form-check-label small" for="ruta-default-@agente.IdUsuario">Agente de ruta</label></div><div class="form-check"><input id="ruta-principal-@agente.IdUsuario" class="form-check-input" type="checkbox" checked="@EsRutaPredeterminada(agente.IdUsuario)" @onchange="e => MarcarRutaPredeterminada(agente.IdUsuario, e.Value is bool marcada && marcada)" /><label class="form-check-label small" for="ruta-principal-@agente.IdUsuario">Ruta del agente</label></div></div> }
+                        </div></div>
+                    }
+                </div>
+            </EditForm>
+        }
+    </BodyTemplate>
+    <FooterTemplate><button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button><button class="btn btn-primary" type="submit" form="formRuta" disabled="@_guardando">@(_guardando ? "Guardando..." : "Guardar")</button></FooterTemplate>
+</HxModal>
+
+@code {
+    private const string Titulo = "Rutas";
+    private AppRejilla<RutaComercialDTO>? _rejilla;
+    private HxModal _modal = default!;
+    private List<RutaComercialDTO> _rutas = new();
+    private List<RutaAgenteDTO> _agentesElegibles = new();
+    private RutaComercialDTO? _edicion;
+    private bool _cargado, _guardando;
+
+    protected override async Task OnInitializedAsync() => _agentesElegibles = ((await Respuestas.DatoAsync(await Api.AgentesElegibles(), "consultar los agentes elegibles")) ?? Array.Empty<RutaAgenteDTO>()).ToList();
+    private async Task<GridDataProviderResult<RutaComercialDTO>> Cargar(GridDataProviderRequest<RutaComercialDTO> request) { if (!_cargado) { _rutas = ((await Respuestas.DatoAsync(await Api.Listar(Sesion.IdSucursal), "consultar las rutas")) ?? Array.Empty<RutaComercialDTO>()).ToList(); _cargado = true; } return request.ApplyTo(_rutas); }
+    private async Task Recargar() { _cargado = false; if (_rejilla is not null) await _rejilla.RefrescarAsync(); }
+    private async Task Nueva() { _edicion = new RutaComercialDTO { IdSucursal = Sesion.IdSucursal, Activo = true }; await _modal.ShowAsync(); }
+    private async Task Editar(RutaComercialDTO ruta) { _edicion = new RutaComercialDTO { IdRuta = ruta.IdRuta, Nombre = ruta.Nombre, Observaciones = ruta.Observaciones, IdSucursal = ruta.IdSucursal, Activo = ruta.Activo, PorcentajeComisionAgente = ruta.PorcentajeComisionAgente, PorcentajeComisionServicioCliente = ruta.PorcentajeComisionServicioCliente, Agentes = ruta.Agentes.Select(a => new RutaAgenteDTO { IdUsuario = a.IdUsuario, Nombre = a.Nombre, EsPredeterminado = a.EsPredeterminado, EsRutaPredeterminada = a.EsRutaPredeterminada }).ToList() }; await _modal.ShowAsync(); }
+    private bool EstaAsignado(string idUsuario) => _edicion?.Agentes.Any(a => a.IdUsuario == idUsuario) == true;
+    private bool EsPredeterminado(string idUsuario) => _edicion?.Agentes.Any(a => a.IdUsuario == idUsuario && a.EsPredeterminado) == true;
+    private bool EsRutaPredeterminada(string idUsuario) => _edicion?.Agentes.Any(a => a.IdUsuario == idUsuario && a.EsRutaPredeterminada) == true;
+    private void AlternarAgente(RutaAgenteDTO agente, bool asignar) { if (_edicion is null) return; var actual = _edicion.Agentes.FirstOrDefault(a => a.IdUsuario == agente.IdUsuario); if (asignar && actual is null) _edicion.Agentes.Add(new RutaAgenteDTO { IdUsuario = agente.IdUsuario, Nombre = agente.Nombre, EsPredeterminado = _edicion.Agentes.Count == 0 }); else if (!asignar && actual is not null) { var eraPredeterminado = actual.EsPredeterminado; _edicion.Agentes.Remove(actual); if (eraPredeterminado && _edicion.Agentes.Count > 0) _edicion.Agentes[0].EsPredeterminado = true; } }
+    private void MarcarPredeterminado(string idUsuario) { if (_edicion is null) return; foreach (var agente in _edicion.Agentes) agente.EsPredeterminado = agente.IdUsuario == idUsuario; }
+    private void MarcarRutaPredeterminada(string idUsuario, bool marcada) { if (_edicion is null) return; var agente = _edicion.Agentes.FirstOrDefault(a => a.IdUsuario == idUsuario); if (agente is not null) agente.EsRutaPredeterminada = marcada; }
+    private async Task Guardar() { if (_edicion is null || string.IsNullOrWhiteSpace(_edicion.Nombre) || _edicion.Agentes.Count == 0 || _edicion.Agentes.Count(a => a.EsPredeterminado) != 1) { await Dialogos.ErrorAsync("Indique el nombre, al menos un agente y un único agente predeterminado."); return; } _guardando = true; var r = _edicion.IdRuta == 0 ? await Api.Crear(_edicion) : await Api.Actualizar(_edicion.IdRuta, _edicion); _guardando = false; if (await Respuestas.CorrectaAsync(r, "guardar la ruta")) { await _modal.HideAsync(); await Recargar(); Dialogos.Exito("Ruta guardada."); } }
+    private async Task Desactivar(RutaComercialDTO ruta) { if (!await Dialogos.ConfirmarAsync($"¿Desactivar la ruta {ruta.Nombre}?")) return; if (await Respuestas.CorrectaAsync(await Api.Desactivar(ruta.IdRuta), "desactivar la ruta")) { await Recargar(); Dialogos.Exito("Ruta desactivada."); } }
+}

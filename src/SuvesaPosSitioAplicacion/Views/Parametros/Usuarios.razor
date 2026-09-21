@@ -17,7 +17,7 @@
       SUPER_ADMIN solo aparece si el usuario en sesion tambien es Super Administrador
       (la compuerta real la aplica el API).
     - Todo perfil que NO sea SUPER_ADMIN exige un ROL asignado.
-    - Las capacidades CostaPets / AgenteCostaPets se HEREDAN del perfil: aqui son de
+    - Las capacidades CostaPets / EsAgente se HEREDAN del perfil: aqui son de
       solo lectura.
     - El perfil y el rol de un usuario ya creado se cambian desde la tabla, con
       endpoints propios (/seguridad/usuarios/{id}/perfil y /rol).
@@ -59,9 +59,9 @@
                             <ItemTemplate Context="u">
                                 @if (Sesion.Puede(Codigo, AccionPantalla.Modificar))
                                 {
-                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Editar(u)">Editar</button>
-                                    <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => AbrirCambioPerfil(u)">Perfil / rol</button>
-                                    <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => AbrirCredenciales(u)">Credenciales</button>
+                                    <button class="btn btn-sm btn-outline-primary me-1" title="Editar usuario" aria-label="Editar usuario" @onclick="() => Editar(u)"><i class="bi bi-pencil"></i></button>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Perfil y rol" aria-label="Perfil y rol" @onclick="() => AbrirCambioPerfil(u)"><i class="bi bi-person-gear"></i></button>
+                                    <button class="btn btn-sm btn-outline-secondary" title="Credenciales" aria-label="Credenciales" @onclick="() => AbrirCredenciales(u)"><i class="bi bi-key"></i></button>
                                 }
                             </ItemTemplate>
                         </HxGridColumn>
@@ -163,7 +163,7 @@
                         <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" />
                     </div>
 
-                    @if (_perfilActual is { } pa && (pa.CostaPets || pa.AgenteCostaPets || pa.AceptaConsignacion))
+                    @if (_perfilActual is { } pa && (pa.CostaPets || pa.EsAgente || pa.EsServicioAlCliente || pa.AceptaConsignacion))
                     {
                         <div class="col-12">
                             <div class="form-text">
@@ -334,7 +334,8 @@
     private static IEnumerable<string> CapacidadesDe(PerfilSeguridadDTO p)
     {
         if (p.CostaPets) yield return "CostaPets";
-        if (p.AgenteCostaPets) yield return "Agente CostaPets";
+        if (p.EsAgente) yield return "Es agente";
+        if (p.EsServicioAlCliente) yield return "Servicio al Cliente";
         if (p.AceptaConsignacion) yield return "Acepta consignación";
     }
 
