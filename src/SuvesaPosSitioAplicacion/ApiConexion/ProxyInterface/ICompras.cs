@@ -23,4 +23,6 @@ public interface ICompras
     Task<ResponseGeneric<CatalogoProductosInternosDTO>> VincularArticuloXml(CatalogoProductosInternosDTO producto);
     Task<ResponseGeneric<ICollection<ActualizarPreciosArticulosDTO>>> ActualizarPrecios(ICollection<ActualizarPreciosArticulosDTO> precios);
     Task<ResponseGeneric<ResultadoMensajeReceptorDTO>> EnviarMensajeReceptor(long idCompra, EnviarMensajeReceptorDTO datos);
+    Task<ResponseGeneric<List<CompraPendienteMensajeReceptorDTO>>> PendientesMensajeReceptor();
+    Task<ResponseGeneric<ResultadoHistorialMensajeReceptorDTO>> HistorialMensajeReceptor(string? clave, string? estado, int pagina, int tamanoPagina);
 }

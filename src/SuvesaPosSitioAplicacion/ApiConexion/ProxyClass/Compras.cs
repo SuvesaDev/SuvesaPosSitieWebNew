@@ -130,4 +130,13 @@ public sealed class Compras : ProxyBase, ICompras
     public Task<ResponseGeneric<ResultadoMensajeReceptorDTO>> EnviarMensajeReceptor(long idCompra, EnviarMensajeReceptorDTO datos)
         => Ejecutar(async () => await LecturaEnvelope.Leer<ResultadoMensajeReceptorDTO>(
             await _http.PostAsJsonAsync($"Compras/EnviarMensajeReceptor?idCompra={idCompra}", datos, LecturaEnvelope.Json)), "enviar el Mensaje Receptor a Hacienda");
+
+    public Task<ResponseGeneric<List<CompraPendienteMensajeReceptorDTO>>> PendientesMensajeReceptor()
+        => Ejecutar(async () => await LecturaEnvelope.Leer<List<CompraPendienteMensajeReceptorDTO>>(
+            await _http.GetAsync("Compras/PendientesMensajeReceptor")), "consultar las compras pendientes de Mensaje Receptor");
+
+    public Task<ResponseGeneric<ResultadoHistorialMensajeReceptorDTO>> HistorialMensajeReceptor(string? clave, string? estado, int pagina, int tamanoPagina)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<ResultadoHistorialMensajeReceptorDTO>(
+            await _http.GetAsync($"Compras/HistorialMensajeReceptor?clave={Uri.EscapeDataString(clave ?? string.Empty)}&estado={Uri.EscapeDataString(estado ?? string.Empty)}&pagina={pagina}&tamanoPagina={tamanoPagina}")),
+            "consultar el historial de Mensaje Receptor");
 }
