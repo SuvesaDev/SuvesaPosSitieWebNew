@@ -29,6 +29,9 @@ public sealed class EstadoReportePestana
     public string NumeroLote { get; set; } = string.Empty;
     public string Texto { get; set; } = string.Empty;
     public string EstadoComision { get; set; } = string.Empty;
+    public int? IdRutaComercialComision { get; set; }
+    public string IdUsuarioBeneficiarioComision { get; set; } = string.Empty;
+    public long? IdCorteComision { get; set; }
     public string IdAgente { get; set; } = string.Empty;
     public int? IdFamilia { get; set; }
     public string TipoVenta { get; set; } = string.Empty;
@@ -48,6 +51,7 @@ public sealed class EstadoReportePestana
     public List<InventarioDTO> Articulos { get; set; } = [];
     public List<Bodega> Bodegas { get; set; } = [];
     public List<FamiliaDTO> Familias { get; set; } = [];
+    public List<DTOs.Rutas.RutaComercialDTO> RutasComerciales { get; set; } = [];
 
     public bool TieneResultado => Reporte is not null || Comisiones.Movimientos.Count > 0 || ConsultadoEn.HasValue;
 
@@ -86,6 +90,9 @@ public sealed class EstadoReportePestana
         if (!reporte.Tiene(FiltroReporteVisible.TipoVenta)) TipoVenta = string.Empty;
         if (!reporte.Tiene(FiltroReporteVisible.IncluirAnuladas)) IncluirAnuladas = false;
         if (!reporte.Tiene(FiltroReporteVisible.EstadoLiquidacion)) EstadoComision = string.Empty;
+        if (!reporte.Tiene(FiltroReporteVisible.RutaComercial)) IdRutaComercialComision = null;
+        if (!reporte.Tiene(FiltroReporteVisible.BeneficiarioComision)) IdUsuarioBeneficiarioComision = string.Empty;
+        if (!reporte.Tiene(FiltroReporteVisible.Corte)) IdCorteComision = null;
     }
 }
 
