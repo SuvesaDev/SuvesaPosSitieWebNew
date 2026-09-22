@@ -416,13 +416,17 @@
                             <label class="form-check-label" for="perfilCostaPets">Costa Pets</label>
                         </div></div>
                         <div class="col-12 col-md-6"><div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="perfilEsAgente" @bind="_perfil.EsAgente" disabled="@(!_puedeEscribir)" />
+                            <input class="form-check-input" type="checkbox" id="perfilEsAgente" @bind="_perfil.EsAgente" @bind:after="() => { if (_perfil.EsAgente) _perfil.EsServicioAlCliente = false; }" disabled="@(!_puedeEscribir)" />
                             <label class="form-check-label" for="perfilEsAgente">Es agente</label>
                         </div></div>
                         <div class="col-12 col-md-6"><div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="perfilServicioCliente" @bind="_perfil.EsServicioAlCliente" disabled="@(!_puedeEscribir)" />
+                            <input class="form-check-input" type="checkbox" id="perfilServicioCliente" @bind="_perfil.EsServicioAlCliente" @bind:after="() => { if (_perfil.EsServicioAlCliente) _perfil.EsAgente = false; }" disabled="@(!_puedeEscribir)" />
                             <label class="form-check-label" for="perfilServicioCliente">Servicio al Cliente</label>
                         </div></div>
+                        @if (_perfil.EsAgente || _perfil.EsServicioAlCliente)
+                        {
+                            <div class="col-12"><div class="form-text">Agente y Servicio al Cliente son roles excluyentes para el cálculo de comisiones: solo puede activarse uno.</div></div>
+                        }
                         <div class="col-12 col-md-6"><div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="perfilAceptaConsignacion" @bind="_perfil.AceptaConsignacion" disabled="@(!_puedeEscribir)" />
                             <label class="form-check-label" for="perfilAceptaConsignacion">Acepta consignacion</label>

@@ -10,13 +10,22 @@ public sealed class Comisiones : ProxyBase, IComisiones
 {
     private readonly HttpClient _api;
     public Comisiones(IHttpClientFactory factory, IContextoSesion sesion, ILogger<Comisiones> log) : base(sesion, log) => _api = factory.CreateClient("SeePosApi");
-    public Task<ResponseGeneric<ComisionConsultaDTO>> Consultar(FiltroComisionesDTO f)
+    private static List<string> ArmarQuery(FiltroComisionesDTO f)
     {
         var q = new List<string>();
         if (f.Desde.HasValue) q.Add($"Desde={Uri.EscapeDataString(f.Desde.Value.ToString("O"))}");
         if (f.Hasta.HasValue) q.Add($"Hasta={Uri.EscapeDataString(f.Hasta.Value.ToString("O"))}");
         if (f.IdSucursal.HasValue) q.Add($"IdSucursal={f.IdSucursal}");
         if (!string.IsNullOrWhiteSpace(f.EstadoLiquidacion)) q.Add($"EstadoLiquidacion={Uri.EscapeDataString(f.EstadoLiquidacion)}");
+        if (f.IdRutaComercial.HasValue) q.Add($"IdRutaComercial={f.IdRutaComercial}");
+        if (!string.IsNullOrWhiteSpace(f.IdUsuarioBeneficiario)) q.Add($"IdUsuarioBeneficiario={Uri.EscapeDataString(f.IdUsuarioBeneficiario)}");
+        if (f.IdCorte.HasValue) q.Add($"IdCorte={f.IdCorte}");
+        return q;
+    }
+
+    public Task<ResponseGeneric<ComisionConsultaDTO>> Consultar(FiltroComisionesDTO f)
+    {
+        var q = ArmarQuery(f);
         var url = "api/comisiones" + (q.Count == 0 ? string.Empty : "?" + string.Join("&", q));
         return Ejecutar(async () => await LecturaEnvelope.Leer<ComisionConsultaDTO>(await _api.GetAsync(url)), "consultar las comisiones");
     }
@@ -27,10 +36,7 @@ public sealed class Comisiones : ProxyBase, IComisiones
         => Ejecutar(async () =>
         {
             var q = new List<string> { "formato=xlsx" };
-            if (f.Desde.HasValue) q.Add($"Desde={Uri.EscapeDataString(f.Desde.Value.ToString("O"))}");
-            if (f.Hasta.HasValue) q.Add($"Hasta={Uri.EscapeDataString(f.Hasta.Value.ToString("O"))}");
-            if (f.IdSucursal.HasValue) q.Add($"IdSucursal={f.IdSucursal}");
-            if (!string.IsNullOrWhiteSpace(f.EstadoLiquidacion)) q.Add($"EstadoLiquidacion={Uri.EscapeDataString(f.EstadoLiquidacion)}");
+            q.AddRange(ArmarQuery(f));
             using var respuesta = await _api.GetAsync("api/comisiones/exportar?" + string.Join("&", q));
             if (!respuesta.IsSuccessStatusCode)
                 return new ResponseGeneric<ArchivoComisionesDTO>($"No se pudo exportar el Excel ({(int)respuesta.StatusCode}).");

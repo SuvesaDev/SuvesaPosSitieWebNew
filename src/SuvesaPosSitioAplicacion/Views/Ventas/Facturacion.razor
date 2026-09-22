@@ -132,11 +132,11 @@
                                     </div>
                                     <div class="col-12 col-md-6">
                                         <label class="form-label" for="factura-agente-ruta">Agente asignado</label>
-                                        <select id="factura-agente-ruta" class="form-select" @bind="_idUsuarioAgente" disabled="@(_rutaEsSeleccionManual || _idRutaComercial <= 0 || _agentesRuta.Count == 0)">
+                                        <select id="factura-agente-ruta" class="form-select" @bind="_idUsuarioAgente" disabled>
                                             <option value="">Seleccione...</option>
                                             @foreach (var agente in _agentesRuta) { <option value="@agente.IdUsuario">@agente.Nombre@(agente.EsPredeterminado ? " (predeterminado)" : "")</option> }
                                         </select>
-                                        <div class="form-text">@(_rutaEsSeleccionManual ? "Agente titular de la ruta (no se puede sustituir)." : "Se propone el agente predeterminado; puede cambiarlo por otro agente de la ruta.")</div>
+                                        <div class="form-text">Agente titular de la ruta (no se selecciona manualmente).</div>
                                         @if (_idRutaComercial > 0 && _agentesRuta.Count == 0) { <div class="form-text text-danger">La ruta no tiene agentes activos configurados.</div> }
                                     </div>
                                 }
