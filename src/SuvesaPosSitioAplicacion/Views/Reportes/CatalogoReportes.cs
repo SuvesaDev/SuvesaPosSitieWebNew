@@ -18,6 +18,9 @@ public enum FiltroReporteVisible
     TipoVenta = 1 << 11,
     IncluirAnuladas = 1 << 12,
     EstadoLiquidacion = 1 << 13,
+    RutaComercial = 1 << 14,
+    BeneficiarioComision = 1 << 15,
+    Corte = 1 << 16,
 }
 
 /// <summary>
@@ -63,6 +66,9 @@ public static class CatalogoReportes
     private const FiltroReporteVisible TipoVenta = FiltroReporteVisible.TipoVenta;
     private const FiltroReporteVisible Anuladas = FiltroReporteVisible.IncluirAnuladas;
     private const FiltroReporteVisible Liquidacion = FiltroReporteVisible.EstadoLiquidacion;
+    private const FiltroReporteVisible RutaComercial = FiltroReporteVisible.RutaComercial;
+    private const FiltroReporteVisible BeneficiarioComision = FiltroReporteVisible.BeneficiarioComision;
+    private const FiltroReporteVisible Corte = FiltroReporteVisible.Corte;
 
     public static readonly GrupoReportes[] Grupos =
     [
@@ -99,7 +105,8 @@ public static class CatalogoReportes
                 Periodo | Sucursal | Texto, Periodo | Sucursal),
             R("comisiones", "Comisiones", "VENTAS.COMISIONES",
                 "Comisiones generadas y estado de liquidación por beneficiario.", "bi-cash-coin",
-                Periodo | Sucursal | Liquidacion, Periodo | Sucursal | Liquidacion, false),
+                Periodo | Sucursal | Liquidacion | RutaComercial | BeneficiarioComision | Corte,
+                Periodo | Sucursal | Liquidacion, false),
         ]),
         new("cartera", "Cartera", "bi-wallet2",
         [
@@ -203,6 +210,9 @@ public static class CatalogoReportes
         FiltroReporteVisible.TipoVenta => "Tipo de venta",
         FiltroReporteVisible.IncluirAnuladas => "Anuladas",
         FiltroReporteVisible.EstadoLiquidacion => "Liquidación",
+        FiltroReporteVisible.RutaComercial => "Ruta comercial",
+        FiltroReporteVisible.BeneficiarioComision => "Beneficiario",
+        FiltroReporteVisible.Corte => "N° de corte",
         _ => string.Empty,
     };
 
