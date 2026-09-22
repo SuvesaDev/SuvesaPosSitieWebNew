@@ -1,6 +1,7 @@
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.DTOs.Reportes
 @using SuvesaPosSitioAplicacion.DTOs.Comisiones
+@using SuvesaPosSitioAplicacion.DTOs.Rutas
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IReportesOperacion Api
@@ -12,6 +13,7 @@
 @inject IFacturacion Facturacion
 @inject ICompras ComprasApi
 @inject IFamilias FamiliasApi
+@inject IRutasComerciales RutasApi
 @inject IManejadorRespuestas Respuestas
 @inject IRelojEquipo RelojEquipo
 @inject IJSRuntime JS
@@ -111,6 +113,18 @@
             @if (MostrarFiltro(FiltroReporteVisible.EstadoLiquidacion))
             {
                 <div class="col-12 col-md-3"><label class="form-label small">Liquidación</label><select class="form-select" @bind="_estadoComision"><option value="">Todas</option><option>Pendiente</option><option>Liquidada</option></select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.RutaComercial))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Ruta comercial</label><select class="form-select" @bind="_idRutaComercialComision"><option value="">Todas</option>@foreach (var ruta in _rutasComision) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }</select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.BeneficiarioComision))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Beneficiario</label><select class="form-select" @bind="_idUsuarioBeneficiarioComision"><option value="">Todos</option>@foreach (var b in _beneficiariosComision) { <option value="@b.IdUsuarioBeneficiario">@b.Beneficiario (@b.TipoBeneficiario)</option> }</select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.Corte))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">N° de corte</label><input type="number" min="1" class="form-control" placeholder="Todos" @bind="_idCorteComision" /></div>
             }
             @if (MostrarFiltro(FiltroReporteVisible.Texto))
             {
@@ -284,6 +298,14 @@
     private int? _idBodega { get => _estado.IdBodega; set => _estado.IdBodega = value; }
     private string _numeroLote { get => _estado.NumeroLote; set => _estado.NumeroLote = value; }
     private string _estadoComision { get => _estado.EstadoComision; set => _estado.EstadoComision = value; }
+    private int? _idRutaComercialComision { get => _estado.IdRutaComercialComision; set => _estado.IdRutaComercialComision = value; }
+    private string _idUsuarioBeneficiarioComision { get => _estado.IdUsuarioBeneficiarioComision; set => _estado.IdUsuarioBeneficiarioComision = value; }
+    private long? _idCorteComision { get => _estado.IdCorteComision; set => _estado.IdCorteComision = value; }
+    private List<RutaComercialDTO> _rutasComision => _estado.RutasComerciales;
+    /// <summary>Beneficiarios para el filtro: se arman con el último resultado consultado
+    /// (no hay un catálogo propio de "todos los beneficiarios posibles").</summary>
+    private readonly Dictionary<string, ResumenComisionDTO> _beneficiariosComisionVistos = new();
+    private IEnumerable<ResumenComisionDTO> _beneficiariosComision => _beneficiariosComisionVistos.Values.OrderBy(b => b.Beneficiario);
     private string _idAgente { get => _estado.IdAgente; set => _estado.IdAgente = value; }
     private int? _idFamilia { get => _estado.IdFamilia; set => _estado.IdFamilia = value; }
     private string _tipoVenta { get => _estado.TipoVenta; set => _estado.TipoVenta = value; }
@@ -452,10 +474,14 @@
             {
                 var resultado = await Respuestas.DatoAsync(await ComisionesApi.Consultar(new FiltroComisionesDTO
                 {
-                    Desde = _desde, Hasta = _hasta, IdSucursal = _idSucursal, EstadoLiquidacion = _estadoComision
+                    Desde = _desde, Hasta = _hasta, IdSucursal = _idSucursal, EstadoLiquidacion = _estadoComision,
+                    IdRutaComercial = _idRutaComercialComision,
+                    IdUsuarioBeneficiario = string.IsNullOrWhiteSpace(_idUsuarioBeneficiarioComision) ? null : _idUsuarioBeneficiarioComision,
+                    IdCorte = _idCorteComision,
                 }), "consultar el reporte de comisiones");
                 if (resultado is null) return;
                 _comisiones = resultado;
+                foreach (var b in _comisiones.Resumen) _beneficiariosComisionVistos[b.IdUsuarioBeneficiario] = b;
                 _reporte = null;
                 _estado.FiltroAplicado = filtro;
                 _estado.EstadoLiquidacionAplicado = _estadoComision;
@@ -512,6 +538,7 @@
         if (Definicion.Tiene(FiltroReporteVisible.Articulo)) tareas.Add(CargarArticulosAsync());
         if (Definicion.Tiene(FiltroReporteVisible.Bodega)) tareas.Add(CargarBodegasAsync());
         if (Definicion.Tiene(FiltroReporteVisible.Familia)) tareas.Add(CargarFamiliasAsync());
+        if (Definicion.Tiene(FiltroReporteVisible.RutaComercial)) tareas.Add(CargarRutasComercialesAsync());
         await Task.WhenAll(tareas);
         _estado.CatalogosCargados = true;
     }
@@ -523,6 +550,7 @@
     private async Task CargarArticulosAsync() { var r = await Inventarios.Listar(); _estado.Articulos = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Descripcion).ToList() : []; }
     private async Task CargarBodegasAsync() { var r = await ComprasApi.Bodegas(false); _estado.Bodegas = r.EsCorrecta ? (r.Responses ?? []).Where(x => x.Estado).OrderBy(x => x.NombreBodega).ToList() : []; }
     private async Task CargarFamiliasAsync() { var r = await FamiliasApi.Obtener(); _estado.Familias = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Descripcion).ToList() : []; }
+    private async Task CargarRutasComercialesAsync() { var r = await RutasApi.Listar(Sesion.IdSucursal); _estado.RutasComerciales = r.EsCorrecta ? (r.Responses ?? []).Where(x => x.Activo).OrderBy(x => x.Nombre).ToList() : []; }
 
     private async Task InicializarPredeterminadosAsync()
     {
@@ -670,7 +698,10 @@
             Desde = filtro.Desde,
             Hasta = filtro.Hasta,
             IdSucursal = filtro.IdSucursal,
-            EstadoLiquidacion = _estado.EstadoLiquidacionAplicado
+            EstadoLiquidacion = _estado.EstadoLiquidacionAplicado,
+            IdRutaComercial = _idRutaComercialComision,
+            IdUsuarioBeneficiario = string.IsNullOrWhiteSpace(_idUsuarioBeneficiarioComision) ? null : _idUsuarioBeneficiarioComision,
+            IdCorte = _idCorteComision,
         }), "exportar el reporte de comisiones a Excel");
         if (archivo is not null && archivo.Contenido.Length > 0)
             await JS.InvokeVoidAsync("seepos.descargarBase64", archivo.Nombre, Convert.ToBase64String(archivo.Contenido), archivo.TipoContenido);

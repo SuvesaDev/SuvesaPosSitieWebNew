@@ -6,6 +6,9 @@ public sealed class FiltroComisionesDTO
     public DateTime? Hasta { get; set; }
     public int? IdSucursal { get; set; }
     public string? EstadoLiquidacion { get; set; }
+    public int? IdRutaComercial { get; set; }
+    public string? IdUsuarioBeneficiario { get; set; }
+    public long? IdCorte { get; set; }
 }
 
 public sealed class ComisionMovimientoDTO
@@ -31,6 +34,7 @@ public sealed class ComisionMovimientoDTO
 
 public sealed class ResumenComisionDTO
 {
+    public string IdUsuarioBeneficiario { get; set; } = string.Empty;
     public string Beneficiario { get; set; } = string.Empty;
     public string TipoBeneficiario { get; set; } = string.Empty;
     public decimal Importe { get; set; }
