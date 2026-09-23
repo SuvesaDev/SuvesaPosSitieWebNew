@@ -182,11 +182,17 @@
         public decimal Cantidad { get; set; } = 1;
         public decimal CostoUnitario { get; set; }
         public decimal PorcDescuento { get; set; }
+        /// <summary>IVA propio del artículo; se conserva aunque la orden sea internacional.</summary>
+        public decimal PorcImpuestoCatalogo { get; set; }
         public decimal PorcImpuesto { get; set; }
         public decimal Bruto => Math.Round(Cantidad * CostoUnitario, 2);
         public decimal Desc => Math.Round(Bruto * PorcDescuento / 100m, 2);
-        public decimal Imp => Math.Round((Bruto - Desc) * PorcImpuesto / 100m, 2);
-        public decimal Total => Bruto - Desc + Imp;
+        public decimal Neto => Bruto - Desc;
+        // En una orden nacional el precio digitado ya incluye IVA: se lo extrae
+        // para mostrar la base y el impuesto, sin volver a sumarlo al total.
+        public decimal Base => PorcImpuesto == 0 ? Neto : Math.Round(Neto / (1 + PorcImpuesto / 100m), 2);
+        public decimal Imp => Neto - Base;
+        public decimal Total => Neto;
     }
 
     private AppBuscadorArticulo _buscador = default!;
@@ -254,7 +260,7 @@
             Codigo = art.Codigo,
             Descripcion = art.Descripcion ?? $"Artículo {art.Codigo}",
             CostoUnitario = Formato.AImporte(art.Costo),
-            PorcImpuesto = Formato.AImporte(art.IVenta),
+            PorcImpuestoCatalogo = Formato.AImporte(art.IVenta),
         });
         Recalcular();
     }
@@ -268,11 +274,12 @@
             l.Cantidad = Math.Max(0.001m, l.Cantidad);
             l.CostoUnitario = Math.Max(0, l.CostoUnitario);
             l.PorcDescuento = Math.Clamp(l.PorcDescuento, 0, 100);
-            l.PorcImpuesto = _tipoOrdenCompra == 2 ? 0 : Math.Clamp(l.PorcImpuesto, 0, 100);
+            l.PorcImpuestoCatalogo = Math.Clamp(l.PorcImpuestoCatalogo, 0, 100);
+            l.PorcImpuesto = _tipoOrdenCompra == 2 ? 0 : l.PorcImpuestoCatalogo;
         }
         _descuento = _lineas.Sum(l => l.Desc);
         _impuesto = _lineas.Sum(l => l.Imp);
-        _subtotal = _lineas.Sum(l => l.Bruto - l.Desc);
+        _subtotal = _lineas.Sum(l => l.Base);
         _total = _lineas.Sum(l => l.Total);
     }
 
