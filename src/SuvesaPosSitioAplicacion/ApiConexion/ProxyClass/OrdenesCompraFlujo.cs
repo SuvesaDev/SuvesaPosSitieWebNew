@@ -24,13 +24,14 @@ public sealed class OrdenesCompraFlujo : ProxyBase, IOrdenesCompraFlujo
             await _api.PostAsJsonAsync("api/ordenes-compra", cmd, LecturaEnvelope.Json)), "crear la orden de compra");
 
     public Task<ResponseGeneric<IReadOnlyList<OrdenCompraFlujoWebDTO>>> Listar(
-        int? idProveedor = null, int? estado = null, bool incluirAnuladas = false,
+        int? idProveedor = null, int? estado = null, int? tipoOrdenCompra = null, bool incluirAnuladas = false,
         DateTime? desde = null, DateTime? hasta = null, long? consecutivo = null, int limite = 200)
         => Ejecutar(async () =>
         {
             var q = new List<string> { $"incluirAnuladas={incluirAnuladas.ToString().ToLowerInvariant()}", $"limite={limite}" };
             if (idProveedor is { } p) q.Add($"idProveedor={p}");
             if (estado is { } e) q.Add($"estado={e}");
+            if (tipoOrdenCompra is { } t) q.Add($"tipoOrdenCompra={t}");
             if (desde is { } d) q.Add($"desde={d:yyyy-MM-dd}");
             if (hasta is { } h) q.Add($"hasta={h:yyyy-MM-dd}");
             if (consecutivo is { } c) q.Add($"consecutivo={c}");
