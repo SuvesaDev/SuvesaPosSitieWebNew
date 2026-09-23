@@ -36,6 +36,10 @@ public sealed class Importaciones : ProxyBase, IImportaciones
         => Ejecutar(async () => await LecturaEnvelope.Leer<ImportacionResumenWebDTO>(
             await _api.PostAsJsonAsync($"api/importaciones/{idImportacion}/costos", cmd, LecturaEnvelope.Json)), "agregar el costo de importación");
 
+    public Task<ResponseGeneric<ImportacionResumenWebDTO>> ActualizarTributoDua(long idImportacion, ActualizarTributoDuaImportacionWebDTO cmd)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<ImportacionResumenWebDTO>(
+            await _api.PutAsJsonAsync($"api/importaciones/{idImportacion}/tributo-dua", cmd, LecturaEnvelope.Json)), "actualizar el tributo DUA de la línea");
+
     public Task<ResponseGeneric<ImportacionResumenWebDTO>> AgregarDocumento(long idImportacion, ImportacionDocumentoCargaWebDTO cmd)
         => Ejecutar(async () => await LecturaEnvelope.Leer<ImportacionResumenWebDTO>(
             await _api.PostAsJsonAsync($"api/importaciones/{idImportacion}/documentos", cmd, LecturaEnvelope.Json)), "adjuntar el documento de importación");

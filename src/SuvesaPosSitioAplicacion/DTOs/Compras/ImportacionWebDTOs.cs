@@ -24,8 +24,15 @@ public class ImportacionLineaWebDTO
     public string DescripcionProveedor { get; set; } = "";
     public decimal Cantidad { get; set; }
     public decimal CostoProveedorMonedaUnitario { get; set; }
+    public decimal TributoDuaUnitario { get; set; }
     public decimal? PrecioAAplicado { get; set; }
     public List<ImportacionLoteWebDTO> Lotes { get; set; } = new();
+}
+
+public sealed class ActualizarTributoDuaImportacionWebDTO
+{
+    public long IdImportacionLinea { get; set; }
+    public decimal TributoDuaUnitario { get; set; }
 }
 
 public sealed class ImportacionLoteWebDTO
@@ -50,6 +57,7 @@ public sealed class ImportacionDocumentoCargaWebDTO
     public string TipoMime { get; set; } = "application/octet-stream";
     public byte[] Contenido { get; set; } = Array.Empty<byte>();
     public string? ClaveFiscal { get; set; }
+    public int? IdProveedorLocal { get; set; }
 }
 
 public sealed class ImportacionDocumentoResumenWebDTO
@@ -61,6 +69,9 @@ public sealed class ImportacionDocumentoResumenWebDTO
     public string? EstadoFiscal { get; set; }
     public string? DetalleFiscal { get; set; }
     public int IntentosEnvioFiscal { get; set; }
+    public int? IdProveedorLocal { get; set; }
+    public string? NombreProveedorLocal { get; set; }
+    public long? IdCompraGenerada { get; set; }
 }
 
 public sealed class ActualizarEstadoFiscalImportacionWebDTO
@@ -114,15 +125,28 @@ public sealed class ImportacionResumenWebDTO
     public decimal Unidades { get; set; }
     public decimal CostoMercanciaCrc { get; set; }
     public decimal CostosImportacionCrc { get; set; }
+    public decimal TributosDuaCrc { get; set; }
     public decimal CostoNacionalizadoCrc { get; set; }
     public List<ImportacionCostoWebDTO> Costos { get; set; } = new();
     public List<ImportacionDocumentoResumenWebDTO> Documentos { get; set; } = new();
     public List<ImportacionLineaResultadoWebDTO> Lineas { get; set; } = new();
+    public List<ImportacionCompraGeneradaWebDTO> ComprasGeneradas { get; set; } = new();
+}
+
+public sealed class ImportacionCompraGeneradaWebDTO
+{
+    public long IdCompra { get; set; }
+    public string Proveedor { get; set; } = "";
+    public string Factura { get; set; } = "";
+    public decimal TotalFactura { get; set; }
+    public int CodMoneda { get; set; }
 }
 
 public sealed class ImportacionLineaResultadoWebDTO : ImportacionLineaWebDTO
 {
+    public long IdImportacionLinea { get; set; }
     public decimal CostoProveedorCrcUnitario { get; set; }
     public decimal CostoImportacionUnitario { get; set; }
     public decimal CostoNacionalizadoUnitario { get; set; }
+    public string? DescripcionArticulo { get; set; }
 }
