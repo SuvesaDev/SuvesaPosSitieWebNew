@@ -46,4 +46,8 @@ public interface IUsuarios
 
     /// <summary>Admin: fija la clave interna de OTRO usuario.</summary>
     Task<ResponseGeneric<bool>> AdminCambiarClaveInterna(string idUsuario, string nueva);
+
+    /// <summary>Admin: levanta el bloqueo temporal de login (5 intentos fallidos / 5
+    /// minutos) de OTRO usuario antes de que expire solo.</summary>
+    Task<ResponseGeneric<bool>> DesbloquearUsuario(string idUsuario);
 }

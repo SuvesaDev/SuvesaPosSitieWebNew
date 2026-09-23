@@ -102,6 +102,10 @@ public sealed class Usuarios : ProxyBase, IUsuarios
         => AutoservicioCredencial("usuario/AdminCambiarClaveInterna",
             new { IdUsuario = idUsuario, ClaveInternaNueva = nueva }, "cambiar la clave interna del usuario");
 
+    public Task<ResponseGeneric<bool>> DesbloquearUsuario(string idUsuario)
+        => AutoservicioCredencial("usuario/DesbloquearUsuario",
+            new { IdUsuario = idUsuario }, "desbloquear el usuario");
+
     private Task<ResponseGeneric<bool>> AutoservicioCredencial(string ruta, object cuerpo, string queSeIntentaba)
         => Ejecutar(async () =>
         {

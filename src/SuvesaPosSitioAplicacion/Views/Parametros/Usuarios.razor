@@ -243,6 +243,13 @@
             <div class="col-12"><hr class="my-1" /><strong class="small text-secondary">Clave interna (autoriza caja)</strong></div>
             <div class="col-12"><label class="form-label">Nueva clave interna</label><input type="text" class="form-control" @bind="_credClaveInternaNueva" /></div>
             <div class="col-12"><button class="btn btn-outline-primary btn-sm" disabled="@_guardandoCredencial" @onclick="ActualizarClaveInterna">Actualizar clave interna</button></div>
+
+            <div class="col-12">
+                <hr class="my-1" />
+                <strong class="small text-secondary">Inicio de sesión</strong>
+                <div class="form-text">Tras 5 intentos fallidos, el login queda bloqueado 5 minutos aunque la contraseña ya se escriba bien.</div>
+            </div>
+            <div class="col-12"><button class="btn btn-outline-warning btn-sm" disabled="@_guardandoCredencial" @onclick="DesbloquearUsuario"><i class="bi bi-unlock me-1" aria-hidden="true"></i>Desbloquear inicio de sesión</button></div>
         </div>
     </BodyTemplate>
     <FooterTemplate>
@@ -443,6 +450,18 @@
             await Api.AdminCambiarClaveInterna(_credencialUsuarioLogin, _credClaveInternaNueva.Trim()), "cambiar la clave interna");
         _guardandoCredencial = false;
         if (ok) { _credClaveInternaNueva = string.Empty; Dialogos.Exito("Clave interna actualizada."); }
+    }
+
+    private async Task DesbloquearUsuario()
+    {
+        if (_guardandoCredencial) return;
+        if (!await Dialogos.ConfirmarAsync($"Se levantará el bloqueo temporal de inicio de sesión de {_credencialUsuarioLogin}.")) return;
+
+        _guardandoCredencial = true;
+        var ok = await Respuestas.CorrectaAsync(
+            await Api.DesbloquearUsuario(_credencialUsuarioLogin), "desbloquear el usuario");
+        _guardandoCredencial = false;
+        if (ok) Dialogos.Exito("Inicio de sesión desbloqueado.");
     }
 
     private async Task GuardarCambioPerfil()
