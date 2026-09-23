@@ -22,6 +22,7 @@ public sealed class SesionFija : IContextoSesion
     public bool EsAgente => false;
     public bool EsServicioAlCliente => false;
     public bool PermitirExistenciaNegativa => false;
+    public bool HabilitaImportaciones => true;
     public int IdSucursal => 0;
     public string? NombreSucursal => null;
     public bool TieneSucursal => false;
