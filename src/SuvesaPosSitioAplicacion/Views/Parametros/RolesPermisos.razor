@@ -435,6 +435,10 @@
                             <input class="form-check-input" type="checkbox" id="perfilPermiteExistenciaNegativa" @bind="_perfil.PermiteExistenciaNegativa" disabled="@(!_puedeEscribir)" />
                             <label class="form-check-label" for="perfilPermiteExistenciaNegativa">Permite existencia negativa</label>
                         </div></div>
+                        <div class="col-12 col-md-6"><div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="perfilHabilitaImportaciones" @bind="_perfil.HabilitaImportaciones" disabled="@(!_puedeEscribir)" />
+                            <label class="form-check-label" for="perfilHabilitaImportaciones">Importación</label>
+                        </div></div>
                     </div>
                 </div>
             </div>
@@ -1009,6 +1013,7 @@
             EsServicioAlCliente = origen.EsServicioAlCliente,
             AceptaConsignacion = origen.AceptaConsignacion,
             PermiteExistenciaNegativa = origen.PermiteExistenciaNegativa,
+            HabilitaImportaciones = origen.HabilitaImportaciones,
             Activo = origen.Activo
         };
         _modalPerfil.MostrarAsync();
@@ -1063,9 +1068,10 @@
         if (perfil.EsServicioAlCliente) yield return "Servicio al Cliente";
         if (perfil.AceptaConsignacion) yield return "Acepta consignación";
         if (perfil.PermiteExistenciaNegativa) yield return "Permite existencia negativa";
+        if (perfil.HabilitaImportaciones) yield return "Importación";
         if (!perfil.EsSuperAdministracion && !perfil.GestionaUsuarios && !perfil.CostaPets
             && !perfil.EsAgente && !perfil.EsServicioAlCliente
-            && !perfil.AceptaConsignacion && !perfil.PermiteExistenciaNegativa)
+            && !perfil.AceptaConsignacion && !perfil.PermiteExistenciaNegativa && !perfil.HabilitaImportaciones)
             yield return "Sin capacidades especiales";
     }
 

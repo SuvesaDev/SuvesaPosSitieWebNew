@@ -76,6 +76,7 @@ public class CotizacionesTests
         public bool EsAgente => false;
         public bool EsServicioAlCliente => false;
         public bool PermitirExistenciaNegativa => false;
+        public bool HabilitaImportaciones => false;
         public int IdSucursal => 1;
         public string? NombreSucursal => "Central";
         public bool TieneSucursal => true;

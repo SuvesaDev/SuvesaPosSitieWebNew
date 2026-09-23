@@ -74,6 +74,7 @@ public sealed class ContextoSesion : IContextoSesion
     public bool EsAgente => Claim(ClaimsSeePos.EsAgente) == bool.TrueString;
     public bool EsServicioAlCliente => Claim(ClaimsSeePos.EsServicioAlCliente) == bool.TrueString;
     public bool PermitirExistenciaNegativa => Claim(ClaimsSeePos.PermiteExistenciaNegativa) == bool.TrueString;
+    public bool HabilitaImportaciones => EsSuperAdministrador || Claim(ClaimsSeePos.HabilitaImportaciones) == bool.TrueString;
 
     public int IdSucursal => int.TryParse(Claim(ClaimsSeePos.IdSucursal), out var id) ? id : 0;
     public string? NombreSucursal => Claim(ClaimsSeePos.NombreSucursal);
