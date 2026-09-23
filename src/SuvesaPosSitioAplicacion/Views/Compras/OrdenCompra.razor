@@ -34,7 +34,11 @@
                         <div class="small text-secondary">@_creada.NombreProveedor · @Formato.Importe(_creada.Total) @_creada.MonedaNombre
                             @(_creada.CodMoneda != 1 ? $" (≈ {Formato.Importe(_creada.TotalColones)} CRC)" : "")</div>
                     </div>
-                    <div class="ms-auto d-flex gap-2">
+                    <div class="ms-auto d-flex flex-wrap align-items-end gap-2">
+                        <div>
+                            <label class="form-label small mb-1" for="oc-correo-destino">Correo destino</label>
+                            <input id="oc-correo-destino" type="email" class="form-control form-control-sm" style="min-width:16rem" placeholder="correo@proveedor.com" @bind="_correoDestino" />
+                        </div>
                         <button class="btn btn-outline-primary" @onclick="() => Imprimir(_creada.Orden)"><i class="bi bi-printer me-1"></i>Imprimir</button>
                         <button class="btn btn-primary" disabled="@_enviando" @onclick="() => Enviar(_creada.Orden)">
                             <i class="bi bi-envelope me-1"></i>@(_enviando ? "Enviando..." : "Enviar al proveedor")
@@ -76,6 +80,13 @@
             <div class="card-header"><strong>Datos de la orden</strong></div>
             <div class="card-body row g-3">
                 <div class="col-6 col-md-3"><label class="form-label">Fecha</label><input type="date" class="form-control" @bind="_fecha" /></div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Tipo de orden</label>
+                    <div class="d-flex gap-3 pt-2">
+                        <div class="form-check"><input id="oc-nacional" class="form-check-input" type="radio" name="tipo-oc" checked="@(_tipoOrdenCompra == 1)" @onclick="() => SeleccionarTipoOrden(1)" /><label class="form-check-label" for="oc-nacional">Nacional <small class="d-block text-secondary">Precios con IVA</small></label></div>
+                        <div class="form-check"><input id="oc-internacional" class="form-check-input" type="radio" name="tipo-oc" checked="@(_tipoOrdenCompra == 2)" @onclick="() => SeleccionarTipoOrden(2)" /><label class="form-check-label" for="oc-internacional">Internacional <small class="d-block text-secondary">Precios sin IVA</small></label></div>
+                    </div>
+                </div>
                 <div class="col-6 col-md-3">
                     <label class="form-label">Moneda <span class="text-secondary small">(opcional)</span></label>
                     <select class="form-select" @bind="_moneda" @bind:after="AlCambiarMoneda">
@@ -111,7 +122,7 @@
                 {
                     <div class="table-responsive">
                         <table class="table table-sm align-middle mb-0">
-                            <thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Costo</th><th class="text-end">Desc. %</th><th class="text-end">Imp. %</th><th class="text-end">Total</th><th></th></tr></thead>
+                            <thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">@(_tipoOrdenCompra == 1 ? "Costo c/ IVA" : "Costo s/ IVA")</th><th class="text-end">Desc. %</th>@if (_tipoOrdenCompra == 1) { <th class="text-end">IVA %</th> }<th class="text-end">Total</th><th></th></tr></thead>
                             <tbody>
                                 @foreach (var l in _lineas)
                                 {
@@ -121,7 +132,7 @@
                                         <td style="min-width:6rem" class="text-end"><input type="number" min="0.001" step="0.001" class="form-control form-control-sm text-end" @bind="l.Cantidad" @bind:after="Recalcular" /></td>
                                         <td style="min-width:7rem" class="text-end"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="l.CostoUnitario" @bind:after="Recalcular" /></td>
                                         <td style="min-width:5rem" class="text-end"><input type="number" min="0" max="100" step="0.01" class="form-control form-control-sm text-end" @bind="l.PorcDescuento" @bind:after="Recalcular" /></td>
-                                        <td style="min-width:5rem" class="text-end"><input type="number" min="0" max="100" step="0.01" class="form-control form-control-sm text-end" @bind="l.PorcImpuesto" @bind:after="Recalcular" /></td>
+                                        @if (_tipoOrdenCompra == 1) { <td class="text-end">@Formato.Cantidad(l.PorcImpuesto)%</td> }
                                         <td class="text-end fw-semibold">@Formato.Importe(l.Total)</td>
                                         <td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(l)"><i class="bi bi-trash"></i></button></td>
                                     </tr>
@@ -139,7 +150,8 @@
                     <dl class="row mb-0">
                         <dt class="col-7 fw-normal text-secondary">Subtotal</dt><dd class="col-5 text-end">@Formato.Importe(_subtotal)</dd>
                         <dt class="col-7 fw-normal text-secondary">Descuento</dt><dd class="col-5 text-end">@Formato.Importe(_descuento)</dd>
-                        <dt class="col-7 fw-normal text-secondary">Impuesto</dt><dd class="col-5 text-end">@Formato.Importe(_impuesto)</dd>
+                        @if (_tipoOrdenCompra == 1) { <dt class="col-7 fw-normal text-secondary">IVA incluido</dt><dd class="col-5 text-end">@Formato.Importe(_impuesto)</dd> }
+                        else { <dt class="col-7 fw-normal text-secondary">IVA</dt><dd class="col-5 text-end">No aplica</dd> }
                         <dt class="col-7">Total (@MonedaTexto)</dt><dd class="col-5 text-end fs-5">@Formato.Importe(_total)</dd>
                         @if (_moneda != 1)
                         {
@@ -181,10 +193,12 @@
     private List<ProveedorDTO> _proveedores = new(), _proveedoresEncontrados = new();
     private string _textoProveedor = "";
     private ProveedorDTO? _proveedor;
+    private string _correoDestino = "";
     private List<Moneda> _monedas = new();
 
     private DateTime _fecha = DateTime.Today;
     private int _moneda = 1;
+    private int _tipoOrdenCompra = 1;
     private double _tipoCambio = 1;
     private bool _credito;
     private int _diasCredito;
@@ -227,6 +241,7 @@
     {
         _proveedor = p;
         _textoProveedor = p.Cedula ?? p.Nombre ?? "";
+        _correoDestino = p.Email ?? "";
         _proveedoresEncontrados.Clear();
     }
 
@@ -238,7 +253,7 @@
         {
             Codigo = art.Codigo,
             Descripcion = art.Descripcion ?? $"Artículo {art.Codigo}",
-            CostoUnitario = Formato.AImporte(art.PrecioBase),
+            CostoUnitario = Formato.AImporte(art.Costo),
             PorcImpuesto = Formato.AImporte(art.IVenta),
         });
         Recalcular();
@@ -253,7 +268,7 @@
             l.Cantidad = Math.Max(0.001m, l.Cantidad);
             l.CostoUnitario = Math.Max(0, l.CostoUnitario);
             l.PorcDescuento = Math.Clamp(l.PorcDescuento, 0, 100);
-            l.PorcImpuesto = Math.Clamp(l.PorcImpuesto, 0, 100);
+            l.PorcImpuesto = _tipoOrdenCompra == 2 ? 0 : Math.Clamp(l.PorcImpuesto, 0, 100);
         }
         _descuento = _lineas.Sum(l => l.Desc);
         _impuesto = _lineas.Sum(l => l.Imp);
@@ -267,7 +282,6 @@
         if (!await Dialogos.ConfirmarAsync("¿Registrar esta orden de compra?")) return;
 
         _guardando = true;
-        _fecha = await RelojEquipo.HoyAsync();
         try
         {
             var cmd = new CrearOrdenCompraWebDTO
@@ -276,6 +290,7 @@
                 IdSucursal = Sesion.IdSucursal,
                 Fecha = _fecha,
                 CodMoneda = _moneda,
+                TipoOrdenCompra = _tipoOrdenCompra,
                 TipoCambio = _moneda == 1 ? 1 : (_tipoCambio > 0 ? _tipoCambio : 1),
                 Credito = _credito,
                 Plazo = _credito ? _diasCredito : 0,
@@ -311,7 +326,8 @@
         _enviando = true;
         try
         {
-            var res = await Respuestas.DatoAsync(await Api.EnviarCorreo(orden, null), "enviar la orden por correo");
+            var destino = string.IsNullOrWhiteSpace(_correoDestino) ? null : _correoDestino.Trim();
+            var res = await Respuestas.DatoAsync(await Api.EnviarCorreo(orden, destino), "enviar la orden por correo");
             if (res is null) return;
             if (res.Enviado) Dialogos.Exito($"Orden enviada a {res.Destino}.");
             else await Dialogos.ErrorAsync(res.Error ?? "No se pudo enviar el correo.", "Envío fallido");
@@ -319,14 +335,24 @@
         finally { _enviando = false; }
     }
 
+    private async Task SeleccionarTipoOrden(int tipo)
+    {
+        if (_tipoOrdenCompra == tipo) return;
+        if (_lineas.Count > 0 && !await Dialogos.ConfirmarAsync("Al cambiar el tipo se conservarán los precios digitados y se recalcularán los totales. ¿Continuar?")) return;
+        _tipoOrdenCompra = tipo;
+        Recalcular();
+    }
+
     private void Limpiar()
     {
         _creada = null;
         _proveedor = null;
         _textoProveedor = "";
+        _correoDestino = "";
         _proveedoresEncontrados.Clear();
         _fecha = DateTime.Today;
         _moneda = 1; _tipoCambio = 1;
+        _tipoOrdenCompra = 1;
         _credito = false; _diasCredito = 0;
         _entregar = ""; _observaciones = "";
         _lineas.Clear();
