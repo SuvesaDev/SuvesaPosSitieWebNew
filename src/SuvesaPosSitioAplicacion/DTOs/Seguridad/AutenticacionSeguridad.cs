@@ -33,6 +33,9 @@ public partial class Autenticacion
     [JsonPropertyName("permiteExistenciaNegativa")]
     public bool PermiteExistenciaNegativa { get; set; }
 
+    [JsonPropertyName("habilitaImportaciones")]
+    public bool HabilitaImportaciones { get; set; }
+
     [JsonPropertyName("esAgente")]
     public bool EsAgente { get; set; }
 

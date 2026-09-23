@@ -17,6 +17,8 @@ public static class FiltroMenu
     /// </summary>
     public static bool EsVisible(ItemMenu item, IContextoSesion sesion)
     {
+        if (string.Equals(item.Codigo, "COMPRAS.IMPORTACIONES", StringComparison.OrdinalIgnoreCase) && !sesion.HabilitaImportaciones)
+            return false;
         if (sesion.EsSuperAdministrador)
         {
             return true;

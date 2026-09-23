@@ -1,0 +1,210 @@
+@page "/buys/importations"
+@using Microsoft.AspNetCore.Components.Forms
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Compras
+@using SuvesaPosSitioAplicacion.Services
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IImportaciones Api
+@inject IManejadorRespuestas Respuestas
+@inject IContextoSesion Sesion
+@inject IJSRuntime JS
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.ICompras ComprasApi
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IEmisoresFiscales EmisoresApi
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.ISeriesFacturacionFiscales SeriesApi
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IProveedoresConsulta ProveedoresApi
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IInventarioConsulta InventarioApi
+
+<AppPantalla Pantalla="Importaciones" Icono="bi-box-seam" Subtitulo="Expedientes de compra extranjera, nacionalización y evidencia documental" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-primary" @onclick="Nueva"><i class="bi bi-plus-lg me-1"></i>Nueva importación</button>
+    </Acciones>
+    <ChildContent>
+        <div class="row g-3">
+            <div class="col-12 col-xxl-8">
+                <div class="card">
+                    <div class="card-header"><strong>@(_actual is null ? "Nueva importación" : $"Importación #{_actual.IdImportacion}")</strong></div>
+                    <div class="card-body">
+                        @if (_actual is null)
+                        {
+                            <div class="row g-3">
+                                <div class="col-md-4"><label class="form-label">Factura extranjera *</label><input class="form-control" @bind="_nueva.FacturaExtranjera" /></div>
+                                <div class="col-md-4"><label class="form-label">DUA</label><input class="form-control" @bind="_nueva.Dua" /></div>
+                                <div class="col-md-4"><label class="form-label">Embarque / BL</label><input class="form-control" @bind="_nueva.Embarque" /></div>
+                                <div class="col-md-3"><label class="form-label">Proveedor extranjero *</label><select class="form-select" @bind="_nueva.IdProveedorExtranjero"><option value="0">Seleccione...</option>@foreach(var p in _proveedores){<option value="@p.CodigoProv">@p.Nombre</option>}</select></div>
+                                <div class="col-md-3"><label class="form-label">Bodega *</label><select class="form-select" @bind="_nueva.IdBodega"><option value="0">Seleccione...</option>@foreach(var b in _bodegas){<option value="@b.IdBodega">@b.NombreBodega</option>}</select></div>
+                                <div class="col-md-3"><label class="form-label">Empresa</label><select class="form-select" @bind="_nueva.IdEmpresa"><option value="">Seleccione...</option>@foreach(var e in _empresas){<option value="@e.Id">@e.Nombre</option>}</select></div>
+                                <div class="col-md-3"><label class="form-label">Emisor</label><select class="form-select" @bind="_nueva.IdEmisor"><option value="">Seleccione...</option>@foreach(var e in _emisores){<option value="@e.Id">@e.Nombre · @e.Identificacion</option>}</select></div>
+                                <div class="col-md-3"><label class="form-label">Serie mensaje receptor</label><select class="form-select" @bind="_nueva.IdSerieMensajeReceptor"><option value="">Seleccione...</option>@foreach(var s in _series.Where(s=>s.IdEmisor==_nueva.IdEmisor && s.CodigoFE=="05")){<option value="@s.IdSerie">@s.Descripcion</option>}</select></div>
+                                <div class="col-md-2"><label class="form-label">Moneda *</label><select class="form-select" @bind="_nueva.CodMoneda"><option value="2">USD</option><option value="1">CRC</option></select></div>
+                                <div class="col-md-2"><label class="form-label">Tipo cambio DUA *</label><input type="number" min="0.000001" step="0.000001" class="form-control" @bind="_nueva.TipoCambioDua" /></div>
+                                <div class="col-md-2"><label class="form-label">Fecha TC DUA *</label><input type="date" class="form-control" @bind="_nueva.FechaTipoCambioDua" /></div>
+                                <div class="col-12"><label class="form-label">Observaciones</label><input class="form-control" @bind="_nueva.Observaciones" /></div>
+                            </div>
+                            <hr />
+                            <h6>Artículos de la factura extranjera</h6>
+                            <div class="row g-2 align-items-end mb-3">
+                                <div class="col-md-2"><label class="form-label">Buscar artículo</label><input class="form-control" @bind="_textoArticulo" @bind:event="oninput" @bind:after="BuscarArticulos" /></div>
+                                <div class="col-md-2"><label class="form-label">Código proveedor</label><input class="form-control" @bind="_linea.CodigoProveedor" /></div>
+                                <div class="col-md-3"><label class="form-label">Descripción proveedor</label><input class="form-control" @bind="_linea.DescripcionProveedor" /></div>
+                                <div class="col-md-2"><label class="form-label">Unidades</label><input type="number" min="0.001" step="0.001" class="form-control" @bind="_linea.Cantidad" /></div>
+                                <div class="col-md-2"><label class="form-label">Costo unitario moneda</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_linea.CostoProveedorMonedaUnitario" /></div>
+                                <div class="col-md-1"><button type="button" class="btn btn-outline-primary w-100" @onclick="AgregarLinea">Agregar</button></div>
+                            </div>
+                            @if (_articulos.Count > 0) { <div class="list-group mb-3">@foreach(var articulo in _articulos.Take(8)){<button type="button" class="list-group-item list-group-item-action" @onclick="()=>ElegirArticulo(articulo)"><strong>@articulo.Descripcion</strong><span class="text-secondary ms-2">@articulo.Cod_Articulo</span></button>}</div> }
+                            <div class="row g-2 mb-3"><div class="col-md-3"><label class="form-label">Precio A a aplicar (opcional, IVA incluido)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_linea.PrecioAAplicado" /><small class="text-secondary">Si se deja vacío, el cierre actualiza solo el costo. El redondeo se decide manualmente.</small></div></div>
+                            <div class="row g-2 align-items-end mb-3"><div class="col-md-3"><label class="form-label">Lote (si aplica)</label><input class="form-control" @bind="_lote.Numero" /></div><div class="col-md-3"><label class="form-label">Vencimiento</label><input type="date" class="form-control" @bind="_lote.FechaVencimiento" /></div><div class="col-md-2"><label class="form-label">Unidades lote</label><input type="number" min="0.001" step="0.001" class="form-control" @bind="_lote.Cantidad" /></div><div class="col-md-2"><button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AgregarLote">Agregar lote</button></div><div class="col-md-2"><small class="text-secondary">Solo use lotes cuando el artículo los maneje.</small></div></div>
+                            @if (_linea.Lotes.Count > 0) { <p class="small text-secondary">Lotes de la línea actual: @string.Join(", ", _linea.Lotes.Select(x => $"{x.Numero} ({x.Cantidad})"))</p> }
+                            @if (_nueva.Lineas.Count == 0) { <p class="text-secondary mb-0">Agregue los artículos de la factura extranjera.</p> }
+                            else { <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Artículo</th><th>Código proveedor</th><th>Descripción</th><th class="text-end">Unidades</th><th class="text-end">Costo unitario</th><th></th></tr></thead><tbody>@foreach (var item in _nueva.Lineas) { <tr><td>@item.IdArticulo</td><td>@item.CodigoProveedor</td><td>@item.DescripcionProveedor</td><td class="text-end">@item.Cantidad</td><td class="text-end">@item.CostoProveedorMonedaUnitario:N6</td><td><button class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(item)"><i class="bi bi-trash"></i></button></td></tr> }</tbody></table></div> }
+                            <button class="btn btn-primary mt-3" disabled="@(_guardando || _nueva.Lineas.Count == 0)" @onclick="Crear">@(_guardando ? "Guardando..." : "Crear expediente")</button>
+                        }
+                        else
+                        {
+                            <dl class="row mb-0"><dt class="col-7 text-secondary fw-normal">Mercancía</dt><dd class="col-5 text-end">₡@_actual.CostoMercanciaCrc:N2</dd><dt class="col-7 text-secondary fw-normal">Costos de importación</dt><dd class="col-5 text-end">₡@_actual.CostosImportacionCrc:N2</dd><dt class="col-7">Costo nacionalizado</dt><dd class="col-5 text-end fw-bold">₡@_actual.CostoNacionalizadoCrc:N2</dd></dl>
+                            <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Artículo</th><th class="text-end">Unidades</th><th class="text-end">Costo proveedor</th><th class="text-end">Importación/unidad</th><th class="text-end">Nacionalizado/unidad</th></tr></thead><tbody>@foreach (var item in _actual.Lineas) { <tr><td>@item.IdArticulo · @item.DescripcionProveedor</td><td class="text-end">@item.Cantidad</td><td class="text-end">₡@item.CostoProveedorCrcUnitario:N6</td><td class="text-end">₡@item.CostoImportacionUnitario:N6</td><td class="text-end fw-semibold">₡@item.CostoNacionalizadoUnitario:N6</td></tr> }</tbody></table></div>
+                            <hr />
+                            <h6>Costos capitalizables</h6>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-3"><label class="form-label">Categoría</label><select class="form-select" @bind="_costo.Categoria"><option value="2">Flete</option><option value="3">Seguro</option><option value="4">Tributo DUA</option><option value="5">Agencia aduanal</option><option value="6">Documentación</option><option value="7">Almacenaje</option><option value="8">Manejo</option><option value="9">Transporte local</option><option value="10">Otro</option></select></div>
+                                <div class="col-md-4"><label class="form-label">Descripción</label><input class="form-control" @bind="_costo.Descripcion" /></div>
+                                <div class="col-md-3"><label class="form-label">Monto capitalizable (CRC)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_costo.MontoCapitalizable" /></div>
+                                <div class="col-md-2"><label class="form-label">IVA acreditable</label><input type="number" min="0" step="0.01" class="form-control" @bind="_costo.IvaAcreditable" /></div>
+                                <div class="col-12"><button class="btn btn-outline-primary" @onclick="AgregarCosto">Agregar costo</button><small class="text-secondary ms-2">El IVA acreditable se conserva para control, pero no forma parte del costo nacionalizado.</small></div>
+                            </div>
+                            <div class="mt-3 border-top pt-3"><label class="form-label">Fecha de recepción física</label><div class="input-group"><input type="date" class="form-control" @bind="_cierre.FechaRecepcion" /><button class="btn btn-success" disabled="@(_guardando || _actual.Estado == 6)" @onclick="Cerrar">@(_actual.Estado == 6 ? "Importación cerrada" : "Cerrar y registrar inventario")</button></div><small class="text-secondary">El cierre es definitivo: registra existencias y actualiza el costo global del artículo. No genera cuentas por pagar ni caja.</small></div>
+                            <hr />
+                            <h6>Documentos y evidencia</h6>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-3"><label class="form-label">Tipo</label><select class="form-select" @bind="_tipoDocumento"><option value="1">Factura extranjera PDF</option><option value="2">DUA</option><option value="3">Conocimiento de embarque</option><option value="4">XML fiscal nacional</option><option value="5">PDF fiscal nacional</option><option value="6">Evidencia interna</option></select></div>
+                                <div class="col-md-4"><label class="form-label">Archivo</label><InputFile class="form-control" OnChange="SeleccionarArchivo" /></div>
+                                <div class="col-md-3"><label class="form-label">Clave fiscal XML</label><input class="form-control" @bind="_claveFiscal" /></div>
+                                <div class="col-md-2"><button class="btn btn-outline-primary w-100" disabled="@(_archivo is null)" @onclick="Adjuntar">Adjuntar</button></div>
+                            </div>
+                            @if (_actual.Documentos.Count > 0) { <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Documento</th><th>Clave fiscal</th><th>Estado Hacienda</th><th>Detalle</th><th></th></tr></thead><tbody>@foreach (var doc in _actual.Documentos) { <tr><td>@doc.NombreArchivo</td><td><small>@doc.ClaveFiscal</small></td><td>@if (doc.EstadoFiscal == "Rechazado") { <span class="badge text-bg-warning">Rechazado</span> } else { @doc.EstadoFiscal }</td><td class="small text-secondary">@doc.DetalleFiscal</td><td>@if (doc.Tipo == 4) { <button class="btn btn-sm btn-outline-primary" @onclick="() => EnviarMensajeReceptor(doc.IdImportacionDocumento)">Enviar / reintentar</button> }</td></tr> }</tbody></table></div> }
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-xxl-4"><div class="card"><div class="card-header"><strong>Importaciones recientes</strong></div><div class="list-group list-group-flush">@foreach (var item in _lista) { <button class="list-group-item list-group-item-action" @onclick="() => _actual = item"><strong>@item.FacturaExtranjera</strong><span class="d-block small text-secondary">DUA @(item.Dua ?? "pendiente") · @item.Unidades unidades · ₡@item.CostoNacionalizadoCrc:N2</span></button> } @if (_lista.Count == 0) { <span class="list-group-item text-secondary">No hay importaciones registradas.</span> }</div></div>
+                <div class="card mt-3"><div class="card-header"><strong>Reporte y KPI</strong></div><div class="card-body"><div class="row g-2"><div class="col-12"><label class="form-label">DUA</label><input class="form-control form-control-sm" @bind="_filtroReporte.Dua" /></div><div class="col-6"><label class="form-label">Proveedor (ID)</label><input type="number" class="form-control form-control-sm" @bind="_filtroReporte.IdProveedor" /></div><div class="col-6"><label class="form-label">Desde</label><input type="date" class="form-control form-control-sm" @bind="_filtroReporte.Desde" /></div><div class="col-6"><label class="form-label">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_filtroReporte.Hasta" /></div><div class="col-12"><button class="btn btn-sm btn-outline-primary" @onclick="ConsultarReporte">Consultar KPI</button>@if (Sesion.Puede("COMPRAS.IMPORTACIONES", AccionPantalla.Exportar)) { <button class="btn btn-sm btn-outline-success ms-2" disabled="@(_reporte is null)" @onclick="ExportarCsv"><i class="bi bi-filetype-csv me-1"></i>Excel (CSV)</button> }</div></div>
+                @if (_reporte is not null) { <dl class="row small mt-3 mb-0"><dt class="col-7 fw-normal text-secondary">Costo nacionalizado</dt><dd class="col-5 text-end">₡@_reporte.CostoNacionalizado:N2</dd><dt class="col-7 fw-normal text-secondary">Logística</dt><dd class="col-5 text-end">@_reporte.PorcentajeLogistico:N2%</dd><dt class="col-7 fw-normal text-secondary">Días nacionalización</dt><dd class="col-5 text-end">@_reporte.DiasPromedioNacionalizacion:N1</dd><dt class="col-7 fw-normal text-secondary">Docs. pendientes</dt><dd class="col-5 text-end">@_reporte.DocumentosPendientes</dd><dt class="col-7 fw-normal text-secondary">Margen esperado</dt><dd class="col-5 text-end">@_reporte.MargenEsperado:N2%</dd></dl><div class="table-responsive mt-3"><table class="table table-sm small"><thead><tr><th>DUA</th><th class="text-end">Costo</th><th class="text-end">Docs.</th></tr></thead><tbody>@foreach (var fila in _reporte.Filas) { <tr><td>@(fila.Dua ?? fila.FacturaExtranjera)</td><td class="text-end">₡@fila.CostoNacionalizado:N2</td><td class="text-end">@fila.DocumentosPendientes</td></tr> }</tbody></table></div> }</div></div></div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private CrearImportacionWebDTO _nueva = new() { TipoCambioDua = 1 };
+    private ImportacionLineaWebDTO _linea = new();
+    private ImportacionCostoWebDTO _costo = new() { Categoria = 2 };
+    private ImportacionLoteWebDTO _lote = new();
+    private CerrarImportacionWebDTO _cierre = new();
+    private FiltroReporteImportacionWebDTO _filtroReporte = new();
+    private ReporteImportacionWebDTO? _reporte;
+    private List<ImportacionResumenWebDTO> _lista = new();
+    private ImportacionResumenWebDTO? _actual;
+    private IBrowserFile? _archivo;
+    private int _tipoDocumento = 1;
+    private string? _claveFiscal;
+    private bool _guardando;
+
+    private List<SuvesaPosSitioAplicacion.DTOs.Generated.Bodega> _bodegas = new();
+    private List<SuvesaPosSitioAplicacion.DTOs.Generated.EmpresaDTO> _empresas = new();
+    private List<SuvesaPosSitioAplicacion.DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private List<SuvesaPosSitioAplicacion.DTOs.Fiscal.SerieFacturacionFiscalDTO> _series = new();
+    private List<SuvesaPosSitioAplicacion.DTOs.Generated.ProveedorDTO> _proveedores = new();
+    private List<SuvesaPosSitioAplicacion.DTOs.Generated.InventarioDTO> _articulos = new();
+    private string _textoArticulo = string.Empty;
+    protected override async Task OnInitializedAsync()
+    {
+        await Cargar();
+        _bodegas = ((await Respuestas.DatoAsync(await ComprasApi.Bodegas(false))) ?? []).ToList();
+        _empresas = ((await Respuestas.DatoAsync(await ComprasApi.Empresas())) ?? []).ToList();
+        _emisores = ((await Respuestas.DatoAsync(await EmisoresApi.Obtener())) ?? []).ToList();
+        _series = ((await Respuestas.DatoAsync(await SeriesApi.Obtener())) ?? []).ToList();
+        _proveedores = ((await Respuestas.DatoAsync(await ProveedoresApi.Obtener())) ?? []).ToList();
+    }
+    private async Task Cargar()
+    {
+        var datos = await Respuestas.DatoAsync(await Api.Listar());
+        if (datos is not null) _lista = datos.ToList();
+    }
+    private void AgregarLinea()
+    {
+        if (_linea.IdArticulo <= 0 || _linea.Cantidad <= 0 || _linea.CostoProveedorMonedaUnitario < 0) return;
+        _nueva.Lineas.Add(_linea);
+        _linea = new();
+        _lote = new();
+    }
+    private async Task BuscarArticulos()
+    {
+        if (_textoArticulo.Trim().Length < 2) { _articulos.Clear(); return; }
+        _articulos = ((await Respuestas.DatoAsync(await InventarioApi.Buscar(_textoArticulo))) ?? []).ToList();
+    }
+    private void ElegirArticulo(SuvesaPosSitioAplicacion.DTOs.Generated.InventarioDTO articulo)
+    {
+        _linea.IdArticulo = articulo.Codigo;
+        _linea.DescripcionProveedor = string.IsNullOrWhiteSpace(_linea.DescripcionProveedor) ? articulo.Descripcion ?? string.Empty : _linea.DescripcionProveedor;
+        _textoArticulo = articulo.Descripcion ?? articulo.Cod_Articulo ?? string.Empty;
+        _articulos.Clear();
+    }
+    private void AgregarLote()
+    {
+        if (string.IsNullOrWhiteSpace(_lote.Numero) || _lote.Cantidad <= 0) return;
+        _linea.Lotes.Add(_lote);
+        _lote = new();
+    }
+    private void QuitarLinea(ImportacionLineaWebDTO linea) => _nueva.Lineas.Remove(linea);
+    private async Task Crear()
+    {
+        _guardando = true;
+        try
+        {
+            var dato = await Respuestas.DatoAsync(await Api.Crear(_nueva), "crear el expediente de importación");
+            if (dato is not null) { _actual = dato; await Cargar(); }
+        }
+        finally { _guardando = false; }
+    }
+    private async Task AgregarCosto()
+    {
+        if (_actual is null) return;
+        var dato = await Respuestas.DatoAsync(await Api.AgregarCosto(_actual.IdImportacion, _costo), "agregar el costo");
+        if (dato is not null) { _actual = dato; _costo = new() { Categoria = 2 }; await Cargar(); }
+    }
+    private async Task SeleccionarArchivo(InputFileChangeEventArgs e) => _archivo = e.File;
+    private async Task Adjuntar()
+    {
+        if (_actual is null || _archivo is null) return;
+        await using var flujo = _archivo.OpenReadStream(20 * 1024 * 1024);
+        using var memoria = new MemoryStream();
+        await flujo.CopyToAsync(memoria);
+        var dato = await Respuestas.DatoAsync(await Api.AgregarDocumento(_actual.IdImportacion, new ImportacionDocumentoCargaWebDTO { Tipo = _tipoDocumento, NombreArchivo = _archivo.Name, TipoMime = _archivo.ContentType, Contenido = memoria.ToArray(), ClaveFiscal = _claveFiscal }), "adjuntar el documento");
+        if (dato is not null) { _actual = dato; _archivo = null; _claveFiscal = null; await Cargar(); }
+    }
+    private async Task Cerrar()
+    {
+        if (_actual is null) return;
+        _guardando = true;
+        try
+        {
+            var dato = await Respuestas.DatoAsync(await Api.Cerrar(_actual.IdImportacion, _cierre), "cerrar la importación");
+            if (dato is not null) { _actual = dato; await Cargar(); }
+        }
+        finally { _guardando = false; }
+    }
+    private async Task EnviarMensajeReceptor(long idDocumento)
+    {
+        if (_actual is null) return;
+        var dato = await Respuestas.DatoAsync(await Api.EnviarMensajeReceptor(_actual.IdImportacion, idDocumento), "enviar el Mensaje Receptor");
+        if (dato is not null) { _actual = dato; await Cargar(); }
+    }
+    private async Task ConsultarReporte()
+        => _reporte = await Respuestas.DatoAsync(await Api.Reporte(_filtroReporte), "consultar los KPI de importación");
+    private async Task ExportarCsv()
+    {
+        if (_reporte is null) return;
+        static string Q(string? texto) => "\"" + (texto ?? string.Empty).Replace("\"", "\"\"") + "\"";
+        var csv = "Importación,Factura extranjera,DUA,Costo nacionalizado,Porcentaje logístico,Días nacionalización,Documentos pendientes,Margen esperado\n"
+            + string.Join("\n", _reporte.Filas.Select(x => $"{x.IdImportacion},{Q(x.FacturaExtranjera)},{Q(x.Dua)},{x.CostoNacionalizado},{x.PorcentajeLogistico},{x.DiasNacionalizacion},{x.DocumentosPendientes},{x.MargenEsperado}"));
+        await JS.InvokeVoidAsync("seepos.descargarTexto", $"importaciones-{DateTime.Today:yyyyMMdd}.csv", csv, "text/csv;charset=utf-8");
+    }
+    private void Nueva() { _actual = null; _nueva = new() { TipoCambioDua = 1 }; _linea = new(); _lote = new(); _cierre = new(); }
+}

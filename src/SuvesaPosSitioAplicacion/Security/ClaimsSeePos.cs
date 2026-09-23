@@ -30,6 +30,7 @@ public static class ClaimsSeePos
     public const string AceptaConsignacion = "seepos:aceptaConsignacion";
     /// <summary>El perfil deja facturar / mover stock aunque quede en negativo.</summary>
     public const string PermiteExistenciaNegativa = "seepos:permiteExistenciaNegativa";
+    public const string HabilitaImportaciones = "seepos:habilitaImportaciones";
 
     /// <summary>Un claim por funcion. Valor: "moduloCodigo|funcionCodigo|VER,CREAR,...".</summary>
     public const string Permiso = "seepos:permiso";

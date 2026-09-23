@@ -41,6 +41,7 @@ public interface IContextoSesion
 
     /// <summary>El perfil deja facturar / mover stock aunque quede en negativo.</summary>
     bool PermitirExistenciaNegativa { get; }
+    bool HabilitaImportaciones { get; }
 
     int IdSucursal { get; }
     string? NombreSucursal { get; }
