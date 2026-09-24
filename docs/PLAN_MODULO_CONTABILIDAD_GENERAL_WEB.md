@@ -124,6 +124,18 @@ Cierra el entregable de W5 ("Cierre, balanza, estados y exportaciones"):
 | Reapertura excepcional en cascada | **Un solo flujo**: muestra la lista completa de períodos que se reabrirán antes de pedir una confirmación única | La cascada ya es obligatoria por decisión de A5 — ejecutarla período por período no agrega control real (el resultado final es el mismo) y sí agrega riesgo de que el usuario abandone a la mitad dejando el sistema en un estado inconsistente. El control real está en mostrar el alcance completo antes de la única reautenticación. |
 | Evidencia de autorización del cierre/reapertura | **Registro de auditoría con motivo en texto, más adjunto de archivo opcional** (ej. acta firmada externamente, correo de aprobación) | Más allá del registro automático en `accounting_audit_log` (usuario, fecha, reautenticación de A1, motivo) ya exigido por el plan, la pantalla también permite adjuntar evidencia externa cuando Tico Foodster maneje una aprobación formal fuera del sistema. Requiere almacenamiento y validación de tipo/tamaño de archivo — alcance nuevo para W5, no cubierto aún por ninguna infraestructura existente de adjuntos en Contabilidad. |
 
+## W6 — Decisiones cerradas (esta sesión)
+
+Cierra el entregable de W6 ("Casos de contador, accesibilidad y
+regresión"), última fase del plan Web:
+
+| Tema | Decisión | Nota |
+|---|---|---|
+| Ambiente de UAT | **Mismo ambiente en modo sombra** (decidido en A6), con datos reales de Tico Foodster | Es exactamente para esto que A6 decidió el modo sombra: generar pólizas para revisión sin bloquear ni depender de nada operativo. Datos sintéticos no prueban si el motor maneja la variedad real de casos ya pasados por el sistema — mismo criterio ya usado para los datos de simulación de A2. |
+| Evidencia de aceptación del UAT | **Documento/acta externo referenciado**, sin pantalla nueva dentro de Contabilidad | El UAT es un evento único de aceptación por emisor al activar Contabilidad, no una operación recurrente como el cierre mensual — no justifica una pantalla permanente en el sistema. |
+| Accesibilidad | **WCAG 2.1 AA verificado con herramienta automatizada** (axe-core/Lighthouse), no solo revisión manual | Contabilidad maneja estados financieros oficiales y lo usa tanto el contador como personal administrativo. Un criterio formal y verificable deja un estándar objetivo para las ~20+ pantallas nuevas del módulo, sin depender de que alguien lo revise a ojo cada vez. |
+| Gate de regresión | **Toda la suite existente del sitio** (`tests/SuvesaPosSitioAplicacion.Tests` + E2E) además de las pruebas nuevas de Contabilidad | Ya es la práctica establecida en esta sesión (build completo y suite completa antes de cerrar cualquier fase, tras fallos previos de CI por no hacerlo). Contabilidad toca el menú global y el flujo de Facturación (selector de emisor) — un cambio ahí puede romper pantallas que no son de Contabilidad sin que las pruebas nuevas lo detecten (ej. `FiltroMenuTests` por el módulo raíz nuevo). |
+
 ## Criterios de aceptación web
 
 - Ninguna pantalla contable se muestra o llama al API si el feature flag está apagado.
