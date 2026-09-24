@@ -115,8 +115,9 @@ public class FiltroMenuTests
         // maquila, Mermas) + 1 (Panel ejecutivo) + 1 (Tablero de Consignación, pantalla
         // huérfana que ya existía sin nodo de menú) + 1 (Ventas entre horas) + 1
         // (Importaciones) — ver PLAN_MODULO_REPORTES_ERP_WEB.md. + 3 (módulo
-        // Contabilidad: raíz + Configuración emisor + Catálogo cuentas, W1).
-        Assert.Equal(117, Contar(MenuSeePos.Items));
+        // Contabilidad: raíz + Configuración emisor + Catálogo cuentas, W1) + 2
+        // (Dimensiones, Plantillas, W2).
+        Assert.Equal(119, Contar(MenuSeePos.Items));
     }
 
     private sealed class ContabilidadFalsa : IContextoContabilidad

@@ -29,6 +29,21 @@ public class ContextoContabilidadTests
         public Task<ResponseGeneric<long>> ActivarEmisor(ActivarEmisorDTO comando) => Task.FromResult(new ResponseGeneric<long>(1L));
         public Task<ResponseGeneric<bool>> DesactivarEmisor(int idEmisor) => Task.FromResult(new ResponseGeneric<bool>(true));
         public Task<ResponseGeneric<bool>> ConfirmarClave(string contrasena) => Task.FromResult(new ResponseGeneric<bool>(true));
+
+        public Task<ResponseGeneric<ICollection<CuentaContableDTO>>> ListarCuentas(long idLibroContable) => throw new NotImplementedException();
+        public Task<ResponseGeneric<CuentaContableDTO>> CrearCuenta(CrearCuentaContableDTO comando) => throw new NotImplementedException();
+        public Task<ResponseGeneric<CuentaContableDTO>> EditarCuenta(long idCuenta, EditarCuentaContableDTO comando) => throw new NotImplementedException();
+        public Task<ResponseGeneric<ICollection<DimensionContableDTO>>> ListarDimensiones(long idLibroContable) => throw new NotImplementedException();
+        public Task<ResponseGeneric<long>> CrearDimension(CrearDimensionContableDTO comando) => throw new NotImplementedException();
+        public Task<ResponseGeneric<ICollection<ValorDimensionContableDTO>>> ListarValoresDimension(long idDimension) => throw new NotImplementedException();
+        public Task<ResponseGeneric<long>> CrearValorDimension(CrearValorDimensionDTO comando) => throw new NotImplementedException();
+        public Task<ResponseGeneric<ICollection<PlantillaContableDTO>>> ListarPlantillas(long idLibroContable) => throw new NotImplementedException();
+        public Task<ResponseGeneric<long>> CrearPlantilla(CrearPlantillaContableDTO comando) => throw new NotImplementedException();
+        public Task<ResponseGeneric<ICollection<VersionPlantillaDTO>>> ListarVersiones(long idPlantilla) => throw new NotImplementedException();
+        public Task<ResponseGeneric<VersionPlantillaDetalleDTO>> ObtenerVersion(long idVersion) => throw new NotImplementedException();
+        public Task<ResponseGeneric<VersionPlantillaDTO>> CrearVersion(long idPlantilla, CrearVersionPlantillaDTO comando) => throw new NotImplementedException();
+        public Task<ResponseGeneric<VersionPlantillaDTO>> ActivarVersion(long idVersion) => throw new NotImplementedException();
+        public Task<ResponseGeneric<ResultadoSimulacionDTO>> Simular(long idVersion, string payloadJson) => throw new NotImplementedException();
     }
 
     [Fact]

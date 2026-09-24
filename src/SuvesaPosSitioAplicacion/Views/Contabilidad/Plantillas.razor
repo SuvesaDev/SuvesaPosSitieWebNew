@@ -1,0 +1,429 @@
+@page "/accounting/templates"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IContextoSesion Sesion
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* W2: plantillas contables versionadas. El editor de fórmula es un campo de texto
+   plano (decisión ya cerrada) — no hay endpoint de validación en vivo, el error de
+   sintaxis (si lo hay) aparece inline al intentar guardar la versión. *@
+
+<AppPantalla Pantalla="Plantillas" Codigo="CONTABILIDAD.PLANTILLAS" Icono="bi-journal-text">
+    <Acciones>
+        @if (_idLibroContable > 0 && Sesion.Puede("CONTABILIDAD.PLANTILLAS", AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="NuevaPlantilla"><i class="bi bi-plus-lg me-1"></i>Nueva plantilla</button>
+        }
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="pl-empresa">Empresa</label>
+                        <select id="pl-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="pl-emisor">Emisor</label>
+                        <select id="pl-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_cargando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+        }
+        else if (_idLibroContable == 0)
+        {
+            <p class="text-secondary mb-0">Seleccione empresa y emisor para ver las plantillas.</p>
+        }
+        else
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Evento</th><th>Descripción</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var plantilla in _plantillas)
+                            {
+                                <tr class="@(_plantillaSeleccionada?.Id == plantilla.Id ? "table-active" : "")">
+                                    <td>@plantilla.TipoEvento</td>
+                                    <td>@plantilla.Descripcion</td>
+                                    <td class="text-end"><button class="btn btn-sm btn-link p-0" @onclick="() => SeleccionarPlantilla(plantilla)">Versiones</button></td>
+                                </tr>
+                            }
+                            @if (_plantillas.Count == 0) { <tr><td colspan="3" class="text-secondary">Sin plantillas todavía.</td></tr> }
+                        </tbody>
+                    </table></div>
+                </div>
+            </div>
+
+            @if (_plantillaSeleccionada is not null)
+            {
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0">Versiones de "@_plantillaSeleccionada.TipoEvento"</h6>
+                            @if (Sesion.Puede("CONTABILIDAD.PLANTILLAS", AccionPantalla.Crear))
+                            {
+                                <button class="btn btn-sm btn-outline-primary" @onclick="NuevaVersion"><i class="bi bi-plus-lg me-1"></i>Nueva versión</button>
+                            }
+                        </div>
+                        @if (_cargandoVersiones)
+                        {
+                            <div class="text-center py-2"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                                <thead><tr><th>Versión</th><th>Estado</th><th>Vigencia</th><th></th></tr></thead>
+                                <tbody>
+                                    @foreach (var version in _versiones)
+                                    {
+                                        <tr>
+                                            <td>@version.Version</td>
+                                            <td><span class="badge @ClaseEstado(version.Estado)">@version.Estado</span></td>
+                                            <td class="small text-secondary">@version.EfectivaDesde.ToString("yyyy-MM-dd") @(version.EfectivaHasta is not null ? " — " + version.EfectivaHasta.Value.ToString("yyyy-MM-dd") : "")</td>
+                                            <td class="text-end text-nowrap">
+                                                <button class="btn btn-sm btn-link p-0" @onclick="() => VerDetalle(version)">Detalle</button>
+                                                <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => AbrirSimulacion(version)">Simular</button>
+                                                @if (version.Estado == "Borrador" && Sesion.Puede("CONTABILIDAD.PLANTILLAS", AccionPantalla.Activar))
+                                                {
+                                                    <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => ActivarVersion(version)">Activar</button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                    @if (_versiones.Count == 0) { <tr><td colspan="4" class="text-secondary">Sin versiones todavía.</td></tr> }
+                                </tbody>
+                            </table></div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modalPlantilla" Titulo="Nueva plantilla" Tamano="ModalSize.Regular" AlGuardar="GuardarPlantilla" Guardando="_guardando">
+    <div class="row g-2">
+        <div class="col-12">
+            <label class="form-label" for="np-evento">Tipo de evento</label>
+            <input id="np-evento" class="form-control" @bind="_nuevaPlantilla.TipoEvento" placeholder="VentaEmitida" />
+        </div>
+        <div class="col-12">
+            <label class="form-label" for="np-desc">Descripción</label>
+            <input id="np-desc" class="form-control" @bind="_nuevaPlantilla.Descripcion" />
+        </div>
+    </div>
+</AppModal>
+
+<AppModal @ref="_modalVersion" Titulo="Nueva versión" Tamano="ModalSize.ExtraLarge" AlGuardar="GuardarVersion" Guardando="_guardando">
+    <div class="row g-2 mb-3">
+        <div class="col-4">
+            <label class="form-label" for="nv-prioridad">Prioridad</label>
+            <input id="nv-prioridad" type="number" class="form-control" @bind="_nuevaVersion.Prioridad" />
+        </div>
+        <div class="col-4">
+            <label class="form-label" for="nv-desde">Efectiva desde</label>
+            <input id="nv-desde" type="date" class="form-control" @bind="_nuevaVersion.EfectivaDesde" />
+        </div>
+        <div class="col-4">
+            <label class="form-label" for="nv-hasta">Efectiva hasta (opcional)</label>
+            <input id="nv-hasta" type="date" class="form-control" @bind="_efectivaHasta" />
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Líneas</h6>
+        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AgregarLinea"><i class="bi bi-plus-lg me-1"></i>Agregar línea</button>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead><tr><th>Orden</th><th>Movimiento</th><th>Cuenta</th><th>Fórmula</th><th>Moneda</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var linea in _lineas)
+                {
+                    <tr>
+                        <td style="width:5rem"><input type="number" class="form-control form-control-sm" @bind="linea.Orden" /></td>
+                        <td style="width:9rem">
+                            <select class="form-select form-select-sm" @bind="linea.TipoMovimiento">
+                                <option value="Debito">Débito</option>
+                                <option value="Credito">Crédito</option>
+                            </select>
+                        </td>
+                        <td style="min-width:12rem">
+                            <select class="form-select form-select-sm" @bind="linea.IdCuentaContable">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var c in _cuentasMovimiento)
+                                {
+                                    <option value="@c.Id">@c.Codigo — @c.Descripcion</option>
+                                }
+                            </select>
+                        </td>
+                        <td style="min-width:10rem"><input class="form-control form-control-sm" @bind="linea.Formula" placeholder="Total" /></td>
+                        <td style="width:8rem">
+                            <select class="form-select form-select-sm" @bind="linea.Moneda">
+                                <option value="Funcional">Funcional</option>
+                                <option value="Documento">Documento</option>
+                            </select>
+                        </td>
+                        <td><button type="button" class="btn btn-sm btn-link text-danger p-0" @onclick="() => _lineas.Remove(linea)"><i class="bi bi-trash"></i></button></td>
+                    </tr>
+                }
+                @if (_lineas.Count == 0) { <tr><td colspan="6" class="text-secondary">Agregue al menos una línea Débito y una Crédito.</td></tr> }
+            </tbody>
+        </table>
+    </div>
+</AppModal>
+
+<AppModal @ref="_modalDetalle" Titulo="Detalle de la versión" Tamano="ModalSize.Large" MostrarCancelar="true" TextoCancelar="Cerrar">
+    @if (_detalle is not null)
+    {
+        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Orden</th><th>Movimiento</th><th>Cuenta</th><th>Fórmula</th><th>Moneda</th><th>Descripción</th></tr></thead>
+            <tbody>
+                @foreach (var linea in _detalle.Lineas ?? new List<LineaPlantillaDetalleDTO>())
+                {
+                    <tr>
+                        <td>@linea.Orden</td>
+                        <td>@linea.TipoMovimiento</td>
+                        <td class="font-monospace">@linea.CodigoCuenta</td>
+                        <td>@linea.Formula</td>
+                        <td>@linea.Moneda</td>
+                        <td>@linea.Descripcion</td>
+                    </tr>
+                }
+            </tbody>
+        </table></div>
+    }
+</AppModal>
+
+<AppModal @ref="_modalSimulacion" Titulo="Simular versión" Tamano="ModalSize.Large" AlGuardar="Simular" Guardando="_simulando" TextoGuardar="Simular" IconoGuardar="bi-play-fill">
+    <div class="mb-3">
+        <label class="form-label" for="sim-payload">Payload de prueba (JSON)</label>
+        <textarea id="sim-payload" class="form-control font-monospace" rows="4" @bind="_payloadSimulacion"></textarea>
+    </div>
+    @if (_resultadoSimulacion is not null)
+    {
+        <div class="table-responsive"><table class="table table-sm align-middle mb-2">
+            <thead><tr><th>Movimiento</th><th>Cuenta</th><th class="text-end">Monto</th></tr></thead>
+            <tbody>
+                @foreach (var linea in _resultadoSimulacion.Lineas ?? new List<LineaSimuladaDTO>())
+                {
+                    <tr><td>@linea.TipoMovimiento</td><td class="font-monospace">@linea.CodigoCuenta</td><td class="text-end">@linea.Monto.ToString("N2")</td></tr>
+                }
+            </tbody>
+        </table></div>
+        <span class="badge @(_resultadoSimulacion.Cuadra == true ? "text-bg-success" : "text-bg-danger")">
+            @(_resultadoSimulacion.Cuadra == true ? "Cuadra" : "No cuadra")
+        </span>
+    }
+</AppModal>
+
+@code {
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+    private bool _cargando;
+    private bool _cargandoVersiones;
+    private bool _guardando;
+    private bool _simulando;
+
+    private List<PlantillaContableDTO> _plantillas = new();
+    private List<CuentaContableDTO> _cuentasMovimiento = new();
+    private PlantillaContableDTO? _plantillaSeleccionada;
+    private List<VersionPlantillaDTO> _versiones = new();
+
+    private AppModal _modalPlantilla = default!;
+    private CrearPlantillaContableDTO _nuevaPlantilla = new();
+
+    private AppModal _modalVersion = default!;
+    private CrearVersionPlantillaDTO _nuevaVersion = new();
+    private DateTimeOffset? _efectivaHasta;
+    private List<CrearLineaPlantillaDTO> _lineas = new();
+
+    private AppModal _modalDetalle = default!;
+    private VersionPlantillaDetalleDTO? _detalle;
+
+    private AppModal _modalSimulacion = default!;
+    private VersionPlantillaDTO? _versionSimulando;
+    private string _payloadSimulacion = "{}";
+    private ResultadoSimulacionDTO? _resultadoSimulacion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _plantillas = new();
+        _plantillaSeleccionada = null;
+        _versiones = new();
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        _cargando = true;
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+        if (_idLibroContable > 0)
+        {
+            _plantillas = (await Respuestas.DatoAsync(await Contabilidad.ListarPlantillas(_idLibroContable), "consultar las plantillas"))?.ToList() ?? new();
+            var cuentas = (await Respuestas.DatoAsync(await Contabilidad.ListarCuentas(_idLibroContable), "consultar las cuentas"))?.ToList() ?? new();
+            _cuentasMovimiento = cuentas.Where(c => c.PermiteMovimiento == true).ToList();
+        }
+        _cargando = false;
+    }
+
+    private async Task SeleccionarPlantilla(PlantillaContableDTO plantilla)
+    {
+        _plantillaSeleccionada = plantilla;
+        _cargandoVersiones = true;
+        _versiones = (await Respuestas.DatoAsync(await Contabilidad.ListarVersiones(plantilla.Id), "consultar las versiones"))?.ToList() ?? new();
+        _cargandoVersiones = false;
+    }
+
+    private async Task RecargarVersiones()
+    {
+        if (_plantillaSeleccionada is null) return;
+        _versiones = (await Respuestas.DatoAsync(await Contabilidad.ListarVersiones(_plantillaSeleccionada.Id), "consultar las versiones"))?.ToList() ?? new();
+    }
+
+    private static string ClaseEstado(string? estado) => estado switch
+    {
+        "Activa" => "text-bg-success",
+        "Borrador" => "text-bg-secondary",
+        "Reemplazada" => "text-bg-light text-secondary",
+        _ => "text-bg-light",
+    };
+
+    private async Task NuevaPlantilla()
+    {
+        _nuevaPlantilla = new CrearPlantillaContableDTO { IdLibroContable = _idLibroContable };
+        await _modalPlantilla.MostrarAsync();
+    }
+
+    private async Task GuardarPlantilla()
+    {
+        if (string.IsNullOrWhiteSpace(_nuevaPlantilla.TipoEvento) || string.IsNullOrWhiteSpace(_nuevaPlantilla.Descripcion))
+        {
+            await Dialogos.ErrorAsync("Tipo de evento y descripción son obligatorios.");
+            return;
+        }
+
+        _guardando = true;
+        var respuesta = await Contabilidad.CrearPlantilla(_nuevaPlantilla);
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "crear la plantilla"))
+        {
+            Dialogos.Exito("Plantilla creada.");
+            await _modalPlantilla.OcultarAsync();
+            await AlCambiarSeleccion();
+        }
+    }
+
+    private async Task NuevaVersion()
+    {
+        if (_plantillaSeleccionada is null) return;
+        _nuevaVersion = new CrearVersionPlantillaDTO { IdPlantillaContable = _plantillaSeleccionada.Id, Prioridad = 1, EfectivaDesde = DateTimeOffset.UtcNow };
+        _efectivaHasta = null;
+        _lineas = new()
+        {
+            new CrearLineaPlantillaDTO { Orden = 1, TipoMovimiento = "Debito", Moneda = "Funcional" },
+            new CrearLineaPlantillaDTO { Orden = 2, TipoMovimiento = "Credito", Moneda = "Funcional" },
+        };
+        await _modalVersion.MostrarAsync();
+    }
+
+    private void AgregarLinea()
+        => _lineas.Add(new CrearLineaPlantillaDTO { Orden = _lineas.Count + 1, TipoMovimiento = "Debito", Moneda = "Funcional" });
+
+    private async Task GuardarVersion()
+    {
+        if (_lineas.Count == 0 || _lineas.Any(l => l.IdCuentaContable == 0 || string.IsNullOrWhiteSpace(l.Formula)))
+        {
+            await Dialogos.ErrorAsync("Cada línea necesita cuenta y fórmula.");
+            return;
+        }
+
+        _nuevaVersion.EfectivaHasta = _efectivaHasta;
+        _nuevaVersion.Lineas = _lineas;
+
+        _guardando = true;
+        var respuesta = await Contabilidad.CrearVersion(_nuevaVersion.IdPlantillaContable, _nuevaVersion);
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "crear la versión de la plantilla"))
+        {
+            Dialogos.Exito("Versión creada en borrador.");
+            await _modalVersion.OcultarAsync();
+            await RecargarVersiones();
+        }
+    }
+
+    private async Task VerDetalle(VersionPlantillaDTO version)
+    {
+        _detalle = await Respuestas.DatoAsync(await Contabilidad.ObtenerVersion(version.Id), "consultar el detalle de la versión");
+        await _modalDetalle.MostrarAsync();
+    }
+
+    private async Task ActivarVersion(VersionPlantillaDTO version)
+    {
+        if (!await Dialogos.ConfirmarAsync($"¿Activar la versión {version.Version}? Reemplazará la versión activa actual.", "Activar versión"))
+            return;
+
+        var respuesta = await Contabilidad.ActivarVersion(version.Id);
+        if (await Respuestas.CorrectaAsync(respuesta, "activar la versión"))
+        {
+            Dialogos.Exito("Versión activada.");
+            await RecargarVersiones();
+        }
+    }
+
+    private async Task AbrirSimulacion(VersionPlantillaDTO version)
+    {
+        _versionSimulando = version;
+        _payloadSimulacion = "{}";
+        _resultadoSimulacion = null;
+        await _modalSimulacion.MostrarAsync();
+    }
+
+    private async Task Simular()
+    {
+        if (_versionSimulando is null) return;
+
+        _simulando = true;
+        var respuesta = await Contabilidad.Simular(_versionSimulando.Id, _payloadSimulacion);
+        _simulando = false;
+
+        _resultadoSimulacion = await Respuestas.DatoAsync(respuesta, "simular la versión");
+    }
+}

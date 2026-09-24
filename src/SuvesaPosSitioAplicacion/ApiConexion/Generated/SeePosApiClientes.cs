@@ -34571,6 +34571,35 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
 
     [System.CodeDom.Compiler.GeneratedCode("NSwag", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
 
+    public partial class FileParameter
+    {
+        public FileParameter(System.IO.Stream data)
+            : this (data, null, null)
+        {
+        }
+
+        public FileParameter(System.IO.Stream data, string? fileName)
+            : this (data, fileName, null)
+        {
+        }
+
+        public FileParameter(System.IO.Stream data, string? fileName, string? contentType)
+        {
+            Data = data;
+            FileName = fileName;
+            ContentType = contentType;
+        }
+
+        public System.IO.Stream Data { get; private set; }
+
+        public string? FileName { get; private set; }
+
+        public string? ContentType { get; private set; }
+    }
+
+
+    [System.CodeDom.Compiler.GeneratedCode("NSwag", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
     public partial interface IContabilidadApiCliente
     {
 
@@ -34617,17 +34646,27 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<CuentaContableDTOIReadOnlyListResponseGeneric> CuentasGETAsync(long? idLibroContable = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>OK</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
         System.Threading.Tasks.Task<CuentaContableDTOResponseGeneric> CuentasPUTAsync(long idCuenta, EditarCuentaContableDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<Int64ResponseGeneric> DimensionesAsync(CrearDimensionContableDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+        System.Threading.Tasks.Task<Int64ResponseGeneric> DimensionesPOSTAsync(CrearDimensionContableDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<Int64ResponseGeneric> ValoresAsync(CrearValorDimensionDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+        System.Threading.Tasks.Task<DimensionContableDTOIReadOnlyListResponseGeneric> DimensionesGETAsync(long? idLibroContable = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>OK</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<Int64ResponseGeneric> ValoresPOSTAsync(CrearValorDimensionDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
@@ -34647,12 +34686,22 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<Int64ResponseGeneric> PlantillasAsync(CrearPlantillaContableDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+        System.Threading.Tasks.Task<Int64ResponseGeneric> PlantillasPOSTAsync(CrearPlantillaContableDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<VersionPlantillaDTOResponseGeneric> VersionesAsync(long idPlantilla, CrearVersionPlantillaDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+        System.Threading.Tasks.Task<PlantillaContableDTOIReadOnlyListResponseGeneric> PlantillasGETAsync(long? idLibroContable = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>OK</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<VersionPlantillaDTOResponseGeneric> VersionesPOSTAsync(long idPlantilla, CrearVersionPlantillaDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>OK</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<VersionPlantillaDTOIReadOnlyListResponseGeneric> VersionesGETAsync(long idPlantilla, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
@@ -34663,6 +34712,16 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
         System.Threading.Tasks.Task<ResultadoSimulacionDTOResponseGeneric> SimularAsync(long idVersion, SimularPlantillaDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>OK</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<ValorDimensionContableDTOIReadOnlyListResponseGeneric> ValoresGETAsync(long idDimension, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>OK</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        System.Threading.Tasks.Task<VersionPlantillaDetalleDTOResponseGeneric> VersionesGET2Async(long idVersion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
@@ -35436,6 +35495,83 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<CuentaContableDTOIReadOnlyListResponseGeneric> CuentasGETAsync(long? idLibroContable = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/contabilidad/cuentas"
+                    urlBuilder_.Append("api/contabilidad/cuentas");
+                    urlBuilder_.Append('?');
+                    if (idLibroContable != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("idLibroContable")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(idLibroContable, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    urlBuilder_.Length--;
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<CuentaContableDTOIReadOnlyListResponseGeneric>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new ApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
+                            throw new ApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>OK</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
         public virtual async System.Threading.Tasks.Task<CuentaContableDTOResponseGeneric> CuentasPUTAsync(long idCuenta, EditarCuentaContableDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             if (idCuenta == null)
@@ -35515,7 +35651,7 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<Int64ResponseGeneric> DimensionesAsync(CrearDimensionContableDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<Int64ResponseGeneric> DimensionesPOSTAsync(CrearDimensionContableDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -35590,7 +35726,84 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<Int64ResponseGeneric> ValoresAsync(CrearValorDimensionDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<DimensionContableDTOIReadOnlyListResponseGeneric> DimensionesGETAsync(long? idLibroContable = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/contabilidad/dimensiones"
+                    urlBuilder_.Append("api/contabilidad/dimensiones");
+                    urlBuilder_.Append('?');
+                    if (idLibroContable != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("idLibroContable")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(idLibroContable, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    urlBuilder_.Length--;
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<DimensionContableDTOIReadOnlyListResponseGeneric>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new ApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
+                            throw new ApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>OK</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<Int64ResponseGeneric> ValoresPOSTAsync(CrearValorDimensionDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -35890,7 +36103,7 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<Int64ResponseGeneric> PlantillasAsync(CrearPlantillaContableDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<Int64ResponseGeneric> PlantillasPOSTAsync(CrearPlantillaContableDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -35965,7 +36178,84 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<VersionPlantillaDTOResponseGeneric> VersionesAsync(long idPlantilla, CrearVersionPlantillaDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<PlantillaContableDTOIReadOnlyListResponseGeneric> PlantillasGETAsync(long? idLibroContable = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/contabilidad/plantillas"
+                    urlBuilder_.Append("api/contabilidad/plantillas");
+                    urlBuilder_.Append('?');
+                    if (idLibroContable != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("idLibroContable")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(idLibroContable, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    urlBuilder_.Length--;
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<PlantillaContableDTOIReadOnlyListResponseGeneric>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new ApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
+                            throw new ApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>OK</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<VersionPlantillaDTOResponseGeneric> VersionesPOSTAsync(long idPlantilla, CrearVersionPlantillaDTO? body = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             if (idPlantilla == null)
                 throw new System.ArgumentNullException("idPlantilla");
@@ -36016,6 +36306,82 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
                         if (status_ == 200)
                         {
                             var objectResponse_ = await ReadObjectResponseAsync<VersionPlantillaDTOResponseGeneric>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new ApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
+                            throw new ApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>OK</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<VersionPlantillaDTOIReadOnlyListResponseGeneric> VersionesGETAsync(long idPlantilla, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (idPlantilla == null)
+                throw new System.ArgumentNullException("idPlantilla");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/contabilidad/plantillas/{idPlantilla}/versiones"
+                    urlBuilder_.Append("api/contabilidad/plantillas/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(idPlantilla, System.Globalization.CultureInfo.InvariantCulture)));
+                    urlBuilder_.Append("/versiones");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<VersionPlantillaDTOIReadOnlyListResponseGeneric>(response_, headers_, cancellationToken).ConfigureAwait(false);
                             if (objectResponse_.Object == null)
                             {
                                 throw new ApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
@@ -36173,6 +36539,157 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
                         if (status_ == 200)
                         {
                             var objectResponse_ = await ReadObjectResponseAsync<ResultadoSimulacionDTOResponseGeneric>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new ApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
+                            throw new ApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>OK</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<ValorDimensionContableDTOIReadOnlyListResponseGeneric> ValoresGETAsync(long idDimension, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (idDimension == null)
+                throw new System.ArgumentNullException("idDimension");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/contabilidad/dimensiones/{idDimension}/valores"
+                    urlBuilder_.Append("api/contabilidad/dimensiones/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(idDimension, System.Globalization.CultureInfo.InvariantCulture)));
+                    urlBuilder_.Append("/valores");
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ValorDimensionContableDTOIReadOnlyListResponseGeneric>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new ApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            return objectResponse_.Object;
+                        }
+                        else
+                        {
+                            var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
+                            throw new ApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+                        }
+                    }
+                    finally
+                    {
+                        if (disposeResponse_)
+                            response_.Dispose();
+                    }
+                }
+            }
+            finally
+            {
+                if (disposeClient_)
+                    client_.Dispose();
+            }
+        }
+
+        /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
+        /// <returns>OK</returns>
+        /// <exception cref="ApiException">A server side error occurred.</exception>
+        public virtual async System.Threading.Tasks.Task<VersionPlantillaDetalleDTOResponseGeneric> VersionesGET2Async(long idVersion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        {
+            if (idVersion == null)
+                throw new System.ArgumentNullException("idVersion");
+
+            var client_ = _httpClient;
+            var disposeClient_ = false;
+            try
+            {
+                using (var request_ = new System.Net.Http.HttpRequestMessage())
+                {
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                
+                    // Operation Path: "api/contabilidad/plantillas/versiones/{idVersion}"
+                    urlBuilder_.Append("api/contabilidad/plantillas/versiones/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(idVersion, System.Globalization.CultureInfo.InvariantCulture)));
+
+                    PrepareRequest(client_, request_, urlBuilder_);
+
+                    var url_ = urlBuilder_.ToString();
+                    request_.RequestUri = new System.Uri(url_, System.UriKind.RelativeOrAbsolute);
+
+                    PrepareRequest(client_, request_, url_);
+
+                    var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    var disposeResponse_ = true;
+                    try
+                    {
+                        var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                        foreach (var item_ in response_.Headers)
+                            headers_[item_.Key] = item_.Value;
+                        if (response_.Content != null && response_.Content.Headers != null)
+                        {
+                            foreach (var item_ in response_.Content.Headers)
+                                headers_[item_.Key] = item_.Value;
+                        }
+
+                        ProcessResponse(client_, response_);
+
+                        var status_ = (int)response_.StatusCode;
+                        if (status_ == 200)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<VersionPlantillaDetalleDTOResponseGeneric>(response_, headers_, cancellationToken).ConfigureAwait(false);
                             if (objectResponse_.Object == null)
                             {
                                 throw new ApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
@@ -38184,34 +38701,6 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
             var result = System.Convert.ToString(value, cultureInfo);
             return result == null ? "" : result;
         }
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NSwag", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
-
-    public partial class FileParameter
-    {
-        public FileParameter(System.IO.Stream data)
-            : this (data, null, null)
-        {
-        }
-
-        public FileParameter(System.IO.Stream data, string? fileName)
-            : this (data, fileName, null)
-        {
-        }
-
-        public FileParameter(System.IO.Stream data, string? fileName, string? contentType)
-        {
-            Data = data;
-            FileName = fileName;
-            ContentType = contentType;
-        }
-
-        public System.IO.Stream Data { get; private set; }
-
-        public string? FileName { get; private set; }
-
-        public string? ContentType { get; private set; }
     }
 
 }

@@ -838,6 +838,18 @@ public static partial class MenuSeePos
                     Codigo = "CONTABILIDAD.CATALOGO_CUENTAS",
                     Ruta = "/accounting/chart-of-accounts",
                 },
+                new ItemMenu
+                {
+                    Titulo = "Dimensiones",
+                    Codigo = "CONTABILIDAD.DIMENSIONES",
+                    Ruta = "/accounting/dimensions",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Plantillas",
+                    Codigo = "CONTABILIDAD.PLANTILLAS",
+                    Ruta = "/accounting/templates",
+                },
             }
         }
     }

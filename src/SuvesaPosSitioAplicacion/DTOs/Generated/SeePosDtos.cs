@@ -13682,6 +13682,254 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
     }
 
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class CuentaContableDTOIReadOnlyListResponseGeneric
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public ResponseStatus Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("currentException")]
+        public string? CurrentException { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("validationErrors")]
+        public System.Collections.Generic.ICollection<string>? ValidationErrors { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("responses")]
+        public System.Collections.Generic.ICollection<CuentaContableDTO>? Responses { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class DimensionContableDTO
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public long Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idLibroContable")]
+        public long IdLibroContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("codigo")]
+        public string? Codigo { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("nombre")]
+        public string? Nombre { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("activo")]
+        public bool Activo { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class DimensionContableDTOIReadOnlyListResponseGeneric
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public ResponseStatus Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("currentException")]
+        public string? CurrentException { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("validationErrors")]
+        public System.Collections.Generic.ICollection<string>? ValidationErrors { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("responses")]
+        public System.Collections.Generic.ICollection<DimensionContableDTO>? Responses { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class ValorDimensionContableDTO
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public long Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idDimensionContable")]
+        public long IdDimensionContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("codigo")]
+        public string? Codigo { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("nombre")]
+        public string? Nombre { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("activo")]
+        public bool Activo { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class ValorDimensionContableDTOIReadOnlyListResponseGeneric
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public ResponseStatus Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("currentException")]
+        public string? CurrentException { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("validationErrors")]
+        public System.Collections.Generic.ICollection<string>? ValidationErrors { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("responses")]
+        public System.Collections.Generic.ICollection<ValorDimensionContableDTO>? Responses { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class PlantillaContableDTO
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public long Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idLibroContable")]
+        public long IdLibroContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoEvento")]
+        public string? TipoEvento { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("descripcion")]
+        public string? Descripcion { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("activa")]
+        public bool Activa { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class PlantillaContableDTOIReadOnlyListResponseGeneric
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public ResponseStatus Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("currentException")]
+        public string? CurrentException { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("validationErrors")]
+        public System.Collections.Generic.ICollection<string>? ValidationErrors { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("responses")]
+        public System.Collections.Generic.ICollection<PlantillaContableDTO>? Responses { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class VersionPlantillaDTOIReadOnlyListResponseGeneric
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public ResponseStatus Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("currentException")]
+        public string? CurrentException { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("validationErrors")]
+        public System.Collections.Generic.ICollection<string>? ValidationErrors { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("responses")]
+        public System.Collections.Generic.ICollection<VersionPlantillaDTO>? Responses { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class VersionPlantillaDetalleDTO
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public long Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idPlantillaContable")]
+        public long IdPlantillaContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("version")]
+        public int Version { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("prioridad")]
+        public int Prioridad { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("estado")]
+        public string? Estado { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("efectivaDesde")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(DateFormatConverter))]
+        public System.DateTimeOffset EfectivaDesde { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("efectivaHasta")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(DateFormatConverter))]
+        public System.DateTimeOffset? EfectivaHasta { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("lineas")]
+        public System.Collections.Generic.ICollection<LineaPlantillaDetalleDTO>? Lineas { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class VersionPlantillaDetalleDTOResponseGeneric
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public ResponseStatus Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("currentException")]
+        public string? CurrentException { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("validationErrors")]
+        public System.Collections.Generic.ICollection<string>? ValidationErrors { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("responses")]
+        public VersionPlantillaDetalleDTO Responses { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class LineaPlantillaDetalleDTO
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public long Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("orden")]
+        public int Orden { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoMovimiento")]
+        public string? TipoMovimiento { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idCuentaContable")]
+        public long IdCuentaContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("codigoCuenta")]
+        public string? CodigoCuenta { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("formula")]
+        public string? Formula { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("moneda")]
+        public string? Moneda { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idDimensionContable")]
+        public long? IdDimensionContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("descripcion")]
+        public string? Descripcion { get; set; } = default!;
+
+    }
+
 }
 
 #pragma warning restore  108

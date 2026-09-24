@@ -61,4 +61,104 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             var r = await _api.ConfirmarClaveAsync(new ConfirmarClaveDTO { Contrasena = contrasena });
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "confirmar la contraseña");
+
+    // ---- W2: catálogo de cuentas, dimensiones y plantillas ----
+
+    public Task<ResponseGeneric<ICollection<CuentaContableDTO>>> ListarCuentas(long idLibroContable)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.CuentasGETAsync(idLibroContable);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar el catálogo de cuentas");
+
+    public Task<ResponseGeneric<CuentaContableDTO>> CrearCuenta(CrearCuentaContableDTO comando)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.CuentasPOSTAsync(comando);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "crear la cuenta contable");
+
+    public Task<ResponseGeneric<CuentaContableDTO>> EditarCuenta(long idCuenta, EditarCuentaContableDTO comando)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.CuentasPUTAsync(idCuenta, comando);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "editar la cuenta contable");
+
+    public Task<ResponseGeneric<ICollection<DimensionContableDTO>>> ListarDimensiones(long idLibroContable)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.DimensionesGETAsync(idLibroContable);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar las dimensiones contables");
+
+    public Task<ResponseGeneric<long>> CrearDimension(CrearDimensionContableDTO comando)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.DimensionesPOSTAsync(comando);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "crear la dimensión contable");
+
+    public Task<ResponseGeneric<ICollection<ValorDimensionContableDTO>>> ListarValoresDimension(long idDimension)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ValoresGETAsync(idDimension);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar los valores de la dimensión");
+
+    public Task<ResponseGeneric<long>> CrearValorDimension(CrearValorDimensionDTO comando)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ValoresPOSTAsync(comando);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "crear el valor de dimensión");
+
+    public Task<ResponseGeneric<ICollection<PlantillaContableDTO>>> ListarPlantillas(long idLibroContable)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.PlantillasGETAsync(idLibroContable);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar las plantillas contables");
+
+    public Task<ResponseGeneric<long>> CrearPlantilla(CrearPlantillaContableDTO comando)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.PlantillasPOSTAsync(comando);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "crear la plantilla contable");
+
+    public Task<ResponseGeneric<ICollection<VersionPlantillaDTO>>> ListarVersiones(long idPlantilla)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.VersionesGETAsync(idPlantilla);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar las versiones de la plantilla");
+
+    public Task<ResponseGeneric<VersionPlantillaDetalleDTO>> ObtenerVersion(long idVersion)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.VersionesGET2Async(idVersion);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar el detalle de la versión");
+
+    public Task<ResponseGeneric<VersionPlantillaDTO>> CrearVersion(long idPlantilla, CrearVersionPlantillaDTO comando)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.VersionesPOSTAsync(idPlantilla, comando);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "crear la versión de la plantilla");
+
+    public Task<ResponseGeneric<VersionPlantillaDTO>> ActivarVersion(long idVersion)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.Activar3Async(idVersion);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "activar la versión de la plantilla");
+
+    public Task<ResponseGeneric<ResultadoSimulacionDTO>> Simular(long idVersion, string payloadJson)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.SimularAsync(idVersion, new SimularPlantillaDTO { PayloadJson = payloadJson });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "simular la versión de la plantilla");
 }

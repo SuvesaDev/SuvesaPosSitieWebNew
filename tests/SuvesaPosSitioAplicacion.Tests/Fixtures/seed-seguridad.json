@@ -593,6 +593,38 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "CONTABILIDAD.DIMENSIONES",
+          "nombre": "Dimensiones",
+          "ruta": "/accounting/dimensions",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CONTABILIDAD.PLANTILLAS",
+          "nombre": "Plantillas",
+          "ruta": "/accounting/templates",
+          "padre": null,
+          "orden": 4,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
         }
       ]
     },

@@ -1,0 +1,31 @@
+@typeparam TItem
+
+@* Árbol jerárquico genérico y reutilizable (W2) — primer uso: catálogo de cuentas
+   contables. A diferencia del menú lateral (RamaMenu.razor, acordeón de un hermano
+   abierto a la vez), aquí cada nodo expande/colapsa de forma independiente: un
+   catálogo de cientos de cuentas necesita varias ramas abiertas a la vez.
+
+   Uso:
+     <AppArbol TItem="CuentaContableDTO" Raices="_raices"
+               ObtenerHijos="c => _porPadre.TryGetValue(c.Id, out var h) ? h : Enumerable.Empty<CuentaContableDTO>()"
+               ObtenerClave="c => c.Id">
+         <NodoTemplate Context="cuenta">
+             <span>@cuenta.Codigo — @cuenta.Descripcion</span>
+         </NodoTemplate>
+     </AppArbol>
+*@
+
+<ul class="seepos-arbol list-unstyled mb-0">
+    @foreach (var raiz in Raices)
+    {
+        <AppArbolNodo TItem="TItem" Item="raiz" ObtenerHijos="ObtenerHijos" ObtenerClave="ObtenerClave"
+                      NodoTemplate="NodoTemplate" Nivel="0" />
+    }
+</ul>
+
+@code {
+    [Parameter, EditorRequired] public IEnumerable<TItem> Raices { get; set; } = default!;
+    [Parameter, EditorRequired] public Func<TItem, IEnumerable<TItem>> ObtenerHijos { get; set; } = default!;
+    [Parameter, EditorRequired] public Func<TItem, object> ObtenerClave { get; set; } = default!;
+    [Parameter, EditorRequired] public RenderFragment<TItem> NodoTemplate { get; set; } = default!;
+}

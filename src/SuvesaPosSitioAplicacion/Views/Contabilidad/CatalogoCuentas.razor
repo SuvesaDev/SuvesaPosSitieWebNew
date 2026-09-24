@@ -1,20 +1,312 @@
 @page "/accounting/chart-of-accounts"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IContextoSesion Sesion
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
 
-@* Placeholder deliberado de W1 — el catálogo de cuentas necesita un árbol jerárquico
-   nuevo y reutilizable (decisión ya cerrada de W2, docs/PLAN_MODULO_CONTABILIDAD_GENERAL_WEB.md
-   §W2), que todavía no existe en el sitio. Construir la pantalla completa ahora
-   contradiría esa decisión. *@
+@* W2: árbol jerárquico del catálogo de cuentas (AppArbol, componente nuevo y
+   reutilizable — decisión ya cerrada). Editar una cuenta con pólizas ya publicadas
+   no permite tocar Código/Naturaleza/Tipo: el propio EditarCuentaContableDTO del API
+   no los acepta, así que el formulario de edición simplemente no los muestra. *@
 
 <AppPantalla Pantalla="Catálogo cuentas" Codigo="CONTABILIDAD.CATALOGO_CUENTAS" Icono="bi-journal-text">
+    <Acciones>
+        @if (_idLibroContable > 0 && Sesion.Puede("CONTABILIDAD.CATALOGO_CUENTAS", AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="NuevaCuenta"><i class="bi bi-plus-lg me-1"></i>Nueva cuenta</button>
+        }
+    </Acciones>
     <ChildContent>
-        <div class="alert alert-info mb-0">
-            <p class="h6 alert-heading">En construcción</p>
-            <p class="mb-0">
-                El catálogo de cuentas se habilita en la siguiente fase del módulo de
-                Contabilidad (árbol jerárquico de cuentas). Mientras tanto, la
-                activación de Contabilidad por empresa/emisor ya está disponible en
-                <a href="/accounting/issuer-setup">Configuración emisor</a>.
-            </p>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="cc-empresa">Empresa</label>
+                        <select id="cc-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="cc-emisor">Emisor</label>
+                        <select id="cc-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        @if (_cargando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+        }
+        else if (_idLibroContable == 0)
+        {
+            <p class="text-secondary mb-0">Seleccione empresa y emisor para ver el catálogo de cuentas.</p>
+        }
+        else if (_cuentas.Count == 0)
+        {
+            <p class="text-secondary mb-0">Este libro todavía no tiene cuentas. Use "Nueva cuenta" para empezar.</p>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-body">
+                    <AppArbol TItem="CuentaContableDTO" Raices="_raices" ObtenerHijos="ObtenerHijos" ObtenerClave="c => c.Id">
+                        <NodoTemplate Context="cuenta">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="font-monospace">@cuenta.Codigo</span>
+                                <span>@cuenta.Descripcion</span>
+                                <span class="badge text-bg-light text-secondary">@cuenta.Tipo</span>
+                                @if (cuenta.EsControl == true) { <span class="badge text-bg-warning">Control</span> }
+                                @if (cuenta.EsEfectivo == true) { <span class="badge text-bg-info">Efectivo</span> }
+                                @if (cuenta.Activo != true) { <span class="badge text-bg-secondary">Inactiva</span> }
+                                @if (Sesion.Puede("CONTABILIDAD.CATALOGO_CUENTAS", AccionPantalla.Editar))
+                                {
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => EditarCuenta(cuenta)">Editar</button>
+                                }
+                            </div>
+                        </NodoTemplate>
+                    </AppArbol>
+                </div>
+            </div>
+        }
     </ChildContent>
 </AppPantalla>
+
+<AppModal @ref="_modalNueva" Titulo="Nueva cuenta" Tamano="ModalSize.Regular" AlGuardar="GuardarNueva" Guardando="_guardando">
+    <div class="row g-2">
+        <div class="col-12">
+            <label class="form-label" for="nc-padre">Cuenta padre</label>
+            <select id="nc-padre" class="form-select" @bind="_nueva.IdCuentaPadre">
+                <option value="">— Ninguna (raíz) —</option>
+                @foreach (var c in _cuentas.Where(c => c.PermiteMovimiento != true))
+                {
+                    <option value="@c.Id">@c.Codigo — @c.Descripcion</option>
+                }
+            </select>
+        </div>
+        <div class="col-6">
+            <label class="form-label" for="nc-codigo">Código</label>
+            <input id="nc-codigo" class="form-control" @bind="_nueva.Codigo" />
+        </div>
+        <div class="col-6">
+            <label class="form-label" for="nc-tipo">Tipo</label>
+            <select id="nc-tipo" class="form-select" @bind="_nueva.Tipo">
+                <option value="Activo">Activo</option>
+                <option value="Pasivo">Pasivo</option>
+                <option value="Patrimonio">Patrimonio</option>
+                <option value="Ingreso">Ingreso</option>
+                <option value="Gasto">Gasto</option>
+                <option value="Costo">Costo</option>
+            </select>
+        </div>
+        <div class="col-12">
+            <label class="form-label" for="nc-desc">Descripción</label>
+            <input id="nc-desc" class="form-control" @bind="_nueva.Descripcion" />
+        </div>
+        <div class="col-6">
+            <label class="form-label" for="nc-nat">Naturaleza</label>
+            <select id="nc-nat" class="form-select" @bind="_nueva.Naturaleza">
+                <option value="Deudora">Deudora</option>
+                <option value="Acreedora">Acreedora</option>
+            </select>
+        </div>
+        <div class="col-6">
+            <label class="form-label" for="nc-mon">Moneda (opcional)</label>
+            <input id="nc-mon" class="form-control" maxlength="3" @bind="_nueva.Moneda" placeholder="CRC" />
+        </div>
+        <div class="col-12 d-flex flex-wrap gap-3 mt-2">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="nc-mov" @bind="_permiteMovimiento" />
+                <label class="form-check-label" for="nc-mov">Permite movimiento (cuenta hoja)</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="nc-control" @bind="_nueva.EsControl" />
+                <label class="form-check-label" for="nc-control">Cuenta de control</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="nc-efectivo" @bind="_nueva.EsEfectivo" />
+                <label class="form-check-label" for="nc-efectivo">Es efectivo (caja/bancos)</label>
+            </div>
+        </div>
+    </div>
+</AppModal>
+
+<AppModal @ref="_modalEditar" Titulo="Editar cuenta" Tamano="ModalSize.Regular" AlGuardar="GuardarEdicion" Guardando="_guardando">
+    @if (_edicion is not null)
+    {
+        <div class="row g-2">
+            <div class="col-12">
+                <p class="text-secondary small mb-2">
+                    <strong>@_edicionOriginal?.Codigo</strong> — código, naturaleza y tipo no se editan aquí:
+                    son la identidad contable de la cuenta.
+                </p>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="ec-desc">Descripción</label>
+                <input id="ec-desc" class="form-control" @bind="_edicion.Descripcion" />
+            </div>
+            <div class="col-6">
+                <label class="form-label" for="ec-mon">Moneda (opcional)</label>
+                <input id="ec-mon" class="form-control" maxlength="3" @bind="_edicion.Moneda" />
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-3 mt-2">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="ec-control" @bind="_edicion.EsControl" />
+                    <label class="form-check-label" for="ec-control">Cuenta de control</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="ec-efectivo" @bind="_edicion.EsEfectivo" />
+                    <label class="form-check-label" for="ec-efectivo">Es efectivo (caja/bancos)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="ec-activo" @bind="_edicion.Activo" />
+                    <label class="form-check-label" for="ec-activo">Activa</label>
+                </div>
+            </div>
+        </div>
+    }
+</AppModal>
+
+@code {
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+    private bool _cargando;
+    private bool _guardando;
+
+    private List<CuentaContableDTO> _cuentas = new();
+    private List<CuentaContableDTO> _raices = new();
+    private Dictionary<long, List<CuentaContableDTO>> _porPadre = new();
+
+    private AppModal _modalNueva = default!;
+    private CrearCuentaContableDTO _nueva = new();
+    private bool _permiteMovimiento = true;
+
+    private AppModal _modalEditar = default!;
+    private EditarCuentaContableDTO? _edicion;
+    private CuentaContableDTO? _edicionOriginal;
+    private long _idCuentaEditando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _cuentas = new();
+        ArmarArbol();
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        _cargando = true;
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+        if (_idLibroContable > 0)
+            await CargarCuentas();
+        _cargando = false;
+    }
+
+    private async Task CargarCuentas()
+    {
+        _cuentas = (await Respuestas.DatoAsync(await Contabilidad.ListarCuentas(_idLibroContable), "consultar el catálogo de cuentas"))?.ToList() ?? new();
+        ArmarArbol();
+    }
+
+    private void ArmarArbol()
+    {
+        _porPadre = _cuentas.Where(c => c.IdCuentaPadre.HasValue).GroupBy(c => c.IdCuentaPadre!.Value).ToDictionary(g => g.Key, g => g.ToList());
+        _raices = _cuentas.Where(c => !c.IdCuentaPadre.HasValue).ToList();
+    }
+
+    private IEnumerable<CuentaContableDTO> ObtenerHijos(CuentaContableDTO cuenta)
+        => _porPadre.TryGetValue(cuenta.Id, out var hijos) ? hijos : Enumerable.Empty<CuentaContableDTO>();
+
+    private async Task NuevaCuenta()
+    {
+        _nueva = new CrearCuentaContableDTO { IdLibroContable = _idLibroContable, Tipo = "Activo", Naturaleza = "Deudora" };
+        _permiteMovimiento = true;
+        await _modalNueva.MostrarAsync();
+    }
+
+    private async Task GuardarNueva()
+    {
+        if (string.IsNullOrWhiteSpace(_nueva.Codigo) || string.IsNullOrWhiteSpace(_nueva.Descripcion))
+        {
+            await Dialogos.ErrorAsync("Código y descripción son obligatorios.");
+            return;
+        }
+        _nueva.PermiteMovimiento = _permiteMovimiento;
+
+        _guardando = true;
+        var respuesta = await Contabilidad.CrearCuenta(_nueva);
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "crear la cuenta contable"))
+        {
+            Dialogos.Exito("Cuenta creada.");
+            await _modalNueva.OcultarAsync();
+            await CargarCuentas();
+        }
+    }
+
+    private async Task EditarCuenta(CuentaContableDTO cuenta)
+    {
+        _idCuentaEditando = cuenta.Id;
+        _edicionOriginal = cuenta;
+        _edicion = new EditarCuentaContableDTO
+        {
+            Descripcion = cuenta.Descripcion ?? string.Empty,
+            EsControl = cuenta.EsControl == true,
+            MapeoFinanciero = cuenta.MapeoFinanciero,
+            Moneda = cuenta.Moneda,
+            EsEfectivo = cuenta.EsEfectivo == true,
+            ClasificacionFlujo = cuenta.ClasificacionFlujo,
+            Activo = cuenta.Activo != false,
+        };
+        await _modalEditar.MostrarAsync();
+    }
+
+    private async Task GuardarEdicion()
+    {
+        if (_edicion is null) return;
+        if (string.IsNullOrWhiteSpace(_edicion.Descripcion))
+        {
+            await Dialogos.ErrorAsync("La descripción es obligatoria.");
+            return;
+        }
+
+        _guardando = true;
+        var respuesta = await Contabilidad.EditarCuenta(_idCuentaEditando, _edicion);
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "editar la cuenta contable"))
+        {
+            Dialogos.Exito("Cuenta actualizada.");
+            await _modalEditar.OcultarAsync();
+            await CargarCuentas();
+        }
+    }
+}

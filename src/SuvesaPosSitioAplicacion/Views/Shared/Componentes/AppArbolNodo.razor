@@ -1,0 +1,49 @@
+@typeparam TItem
+
+@* Nodo recursivo de AppArbol.razor — mismo patrón de auto-referencia que RamaMenu.razor,
+   pero cada nodo controla su propio estado de apertura (no hay "un hermano a la vez"). *@
+
+<li class="seepos-arbol-nodo">
+    <div class="seepos-arbol-fila d-flex align-items-center gap-1" style="padding-left: @(Nivel * 1.25)rem">
+        @if (_hijos.Any())
+        {
+            <button type="button" class="btn btn-sm btn-link p-0 seepos-arbol-toggle" @onclick="Alternar"
+                    aria-expanded="@(_abierto ? "true" : "false")" aria-label="@(_abierto ? "Colapsar" : "Expandir")">
+                <i class="bi @(_abierto ? "bi-chevron-down" : "bi-chevron-right")" aria-hidden="true"></i>
+            </button>
+        }
+        else
+        {
+            <span class="seepos-arbol-toggle-espacio"></span>
+        }
+        <div class="flex-grow-1">
+            @NodoTemplate(Item)
+        </div>
+    </div>
+
+    @if (_abierto && _hijos.Any())
+    {
+        <ul class="list-unstyled mb-0">
+            @foreach (var hijo in _hijos)
+            {
+                <AppArbolNodo @key="ObtenerClave(hijo)" TItem="TItem" Item="hijo" ObtenerHijos="ObtenerHijos"
+                              ObtenerClave="ObtenerClave" NodoTemplate="NodoTemplate" Nivel="@(Nivel + 1)" />
+            }
+        </ul>
+    }
+</li>
+
+@code {
+    [Parameter, EditorRequired] public TItem Item { get; set; } = default!;
+    [Parameter, EditorRequired] public Func<TItem, IEnumerable<TItem>> ObtenerHijos { get; set; } = default!;
+    [Parameter, EditorRequired] public Func<TItem, object> ObtenerClave { get; set; } = default!;
+    [Parameter, EditorRequired] public RenderFragment<TItem> NodoTemplate { get; set; } = default!;
+    [Parameter] public int Nivel { get; set; }
+
+    private bool _abierto;
+    private IEnumerable<TItem> _hijos = Enumerable.Empty<TItem>();
+
+    protected override void OnParametersSet() => _hijos = ObtenerHijos(Item);
+
+    private void Alternar() => _abierto = !_abierto;
+}

@@ -1,0 +1,249 @@
+@page "/accounting/dimensions"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IContextoSesion Sesion
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* W2: dimensiones contables (ej. "Centro de Costo") y sus valores (ej. "Productos
+   Veterinarios", "Alimento animales y accesorios" — A0). Sin esta pantalla no hay
+   forma de dar de alta esos datos — el selector de centro de costo predeterminado
+   en Artículo/Familia queda fuera de este pase (ver plan), pero la data ya queda
+   lista para cuando se conecte. *@
+
+<AppPantalla Pantalla="Dimensiones" Codigo="CONTABILIDAD.DIMENSIONES" Icono="bi-journal-text">
+    <Acciones>
+        @if (_idLibroContable > 0 && Sesion.Puede("CONTABILIDAD.DIMENSIONES", AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="NuevaDimension"><i class="bi bi-plus-lg me-1"></i>Nueva dimensión</button>
+        }
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="dim-empresa">Empresa</label>
+                        <select id="dim-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="dim-emisor">Emisor</label>
+                        <select id="dim-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_cargando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+        }
+        else if (_idLibroContable == 0)
+        {
+            <p class="text-secondary mb-0">Seleccione empresa y emisor para ver las dimensiones.</p>
+        }
+        else if (_dimensiones.Count == 0)
+        {
+            <p class="text-secondary mb-0">Este libro todavía no tiene dimensiones.</p>
+        }
+        else
+        {
+            <div class="accordion" id="acordeon-dimensiones">
+                @foreach (var dimension in _dimensiones)
+                {
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" @onclick="() => AlternarDimension(dimension)">
+                                <span class="font-monospace me-2">@dimension.Codigo</span> @dimension.Nombre
+                            </button>
+                        </h2>
+                        @if (_dimensionAbierta == dimension.Id)
+                        {
+                            <div class="accordion-body">
+                                @if (Sesion.Puede("CONTABILIDAD.DIMENSIONES", AccionPantalla.Crear))
+                                {
+                                    <button class="btn btn-sm btn-outline-primary mb-2" @onclick="() => NuevoValor(dimension)">
+                                        <i class="bi bi-plus-lg me-1"></i>Nuevo valor
+                                    </button>
+                                }
+                                @if (_cargandoValores)
+                                {
+                                    <div class="text-center py-2"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>
+                                }
+                                else if (_valores.Count == 0)
+                                {
+                                    <p class="text-secondary small mb-0">Sin valores todavía.</p>
+                                }
+                                else
+                                {
+                                    <ul class="list-unstyled mb-0">
+                                        @foreach (var valor in _valores)
+                                        {
+                                            <li><span class="font-monospace">@valor.Codigo</span> — @valor.Nombre</li>
+                                        }
+                                    </ul>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modalDimension" Titulo="Nueva dimensión" Tamano="ModalSize.Regular" AlGuardar="GuardarDimension" Guardando="_guardando">
+    <div class="row g-2">
+        <div class="col-6">
+            <label class="form-label" for="nd-codigo">Código</label>
+            <input id="nd-codigo" class="form-control" @bind="_nuevaDimension.Codigo" />
+        </div>
+        <div class="col-6">
+            <label class="form-label" for="nd-nombre">Nombre</label>
+            <input id="nd-nombre" class="form-control" @bind="_nuevaDimension.Nombre" />
+        </div>
+    </div>
+</AppModal>
+
+<AppModal @ref="_modalValor" Titulo="Nuevo valor" Tamano="ModalSize.Regular" AlGuardar="GuardarValor" Guardando="_guardando">
+    <div class="row g-2">
+        <div class="col-6">
+            <label class="form-label" for="nv-codigo">Código</label>
+            <input id="nv-codigo" class="form-control" @bind="_nuevoValor.Codigo" />
+        </div>
+        <div class="col-6">
+            <label class="form-label" for="nv-nombre">Nombre</label>
+            <input id="nv-nombre" class="form-control" @bind="_nuevoValor.Nombre" />
+        </div>
+    </div>
+</AppModal>
+
+@code {
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+    private bool _cargando;
+    private bool _cargandoValores;
+    private bool _guardando;
+
+    private List<DimensionContableDTO> _dimensiones = new();
+    private long? _dimensionAbierta;
+    private List<ValorDimensionContableDTO> _valores = new();
+
+    private AppModal _modalDimension = default!;
+    private CrearDimensionContableDTO _nuevaDimension = new();
+
+    private AppModal _modalValor = default!;
+    private CrearValorDimensionDTO _nuevoValor = new();
+    private DimensionContableDTO? _dimensionParaValor;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _dimensiones = new();
+        _dimensionAbierta = null;
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        _cargando = true;
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+        if (_idLibroContable > 0)
+            _dimensiones = (await Respuestas.DatoAsync(await Contabilidad.ListarDimensiones(_idLibroContable), "consultar las dimensiones"))?.ToList() ?? new();
+        _cargando = false;
+    }
+
+    private async Task AlternarDimension(DimensionContableDTO dimension)
+    {
+        if (_dimensionAbierta == dimension.Id)
+        {
+            _dimensionAbierta = null;
+            return;
+        }
+        _dimensionAbierta = dimension.Id;
+        _cargandoValores = true;
+        _valores = (await Respuestas.DatoAsync(await Contabilidad.ListarValoresDimension(dimension.Id), "consultar los valores de la dimensión"))?.ToList() ?? new();
+        _cargandoValores = false;
+    }
+
+    private async Task NuevaDimension()
+    {
+        _nuevaDimension = new CrearDimensionContableDTO { IdLibroContable = _idLibroContable };
+        await _modalDimension.MostrarAsync();
+    }
+
+    private async Task GuardarDimension()
+    {
+        if (string.IsNullOrWhiteSpace(_nuevaDimension.Codigo) || string.IsNullOrWhiteSpace(_nuevaDimension.Nombre))
+        {
+            await Dialogos.ErrorAsync("Código y nombre son obligatorios.");
+            return;
+        }
+
+        _guardando = true;
+        var respuesta = await Contabilidad.CrearDimension(_nuevaDimension);
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "crear la dimensión"))
+        {
+            Dialogos.Exito("Dimensión creada.");
+            await _modalDimension.OcultarAsync();
+            await AlCambiarSeleccion();
+        }
+    }
+
+    private async Task NuevoValor(DimensionContableDTO dimension)
+    {
+        _dimensionParaValor = dimension;
+        _nuevoValor = new CrearValorDimensionDTO { IdDimensionContable = dimension.Id };
+        await _modalValor.MostrarAsync();
+    }
+
+    private async Task GuardarValor()
+    {
+        if (_dimensionParaValor is null) return;
+        if (string.IsNullOrWhiteSpace(_nuevoValor.Codigo) || string.IsNullOrWhiteSpace(_nuevoValor.Nombre))
+        {
+            await Dialogos.ErrorAsync("Código y nombre son obligatorios.");
+            return;
+        }
+
+        _guardando = true;
+        var respuesta = await Contabilidad.CrearValorDimension(_nuevoValor);
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "crear el valor de dimensión"))
+        {
+            Dialogos.Exito("Valor creado.");
+            await _modalValor.OcultarAsync();
+            _valores = (await Respuestas.DatoAsync(await Contabilidad.ListarValoresDimension(_dimensionParaValor.Id), "consultar los valores de la dimensión"))?.ToList() ?? new();
+        }
+    }
+}
