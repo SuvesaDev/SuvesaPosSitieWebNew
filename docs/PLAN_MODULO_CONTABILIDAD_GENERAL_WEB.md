@@ -64,6 +64,18 @@ Correspondencia exacta con las fases A0–A6 del plan API (qué debe estar
 *entregado*, no solo iniciado, antes de dar cada fase Web por lista) en
 `docs/PLAN_MODULO_CONTABILIDAD_CORRESPONDENCIA_FASES.md`.
 
+## W1 — Decisiones cerradas (esta sesión)
+
+Cierra el entregable de W1 ("Navegación, feature flag, permisos, DTOs y
+proxy"), verificado contra el código real de la Web antes de decidir:
+
+| Tema | Decisión | Nota |
+|---|---|---|
+| Ubicación en el menú | **Módulo raíz nuevo**, mismo nivel que Inicio/Caja/Compras en `MenuSeePos.cs` | El alcance de pantallas ya definido (Configuración, Operación, Consulta, Cierre, Reportes) es tan amplio como el de cualquier módulo raíz existente — anidarlo dentro de otro lo escondería y mezclaría permisos de dominios distintos. |
+| Resolución del flag por emisor | **Se consulta al API por emisor activo y se cachea en el estado de sesión Blazor**, no en un claim de Identity fijo al login | El patrón existente (`ContextoSesion.HabilitaImportaciones`, claim resuelto una vez al iniciar sesión) sirve para un flag global del usuario, pero `Contabilidad:Habilitada` varía por emisor y el emisor activo puede cambiar dentro de la misma sesión (Facturación ya lo permite). Se llama al endpoint de activación (dependencia de A1) en el mismo momento en que Facturación ya recarga serie/certificado/cuentas al cambiar de emisor — sin forzar cierre de sesión cada vez que un emisor activa Contabilidad. |
+| Visibilidad cuando el emisor activo no tiene Contabilidad habilitada | **Oculto completamente** del menú, no visible-deshabilitado | Un usuario sin Contabilidad activa en el emisor actual no ve el módulo. Un usuario con permiso de configuración que necesite activarlo llega a esa pantalla por otra vía (configuración de emisor), no desde un ítem de menú deshabilitado. |
+| Confirmación de clave propia (reautenticación de A1) | **Componente modal reutilizable único** para todo Contabilidad | Mismo espíritu que `AppBoton`/`AppCargable` (indicadores de carga compartidos, ver memoria de sesión). Un solo punto de mantenimiento para el flujo de contraseña de Identity reingresada, en vez de reimplementarlo por pantalla con riesgo de que una copia quede desactualizada o diverja en seguridad. |
+
 ## Criterios de aceptación web
 
 - Ninguna pantalla contable se muestra o llama al API si el feature flag está apagado.
