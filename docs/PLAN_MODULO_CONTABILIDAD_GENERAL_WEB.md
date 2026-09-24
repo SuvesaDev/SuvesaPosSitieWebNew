@@ -76,6 +76,20 @@ proxy"), verificado contra el código real de la Web antes de decidir:
 | Visibilidad cuando el emisor activo no tiene Contabilidad habilitada | **Oculto completamente** del menú, no visible-deshabilitado | Un usuario sin Contabilidad activa en el emisor actual no ve el módulo. Un usuario con permiso de configuración que necesite activarlo llega a esa pantalla por otra vía (configuración de emisor), no desde un ítem de menú deshabilitado. |
 | Confirmación de clave propia (reautenticación de A1) | **Componente modal reutilizable único** para todo Contabilidad | Mismo espíritu que `AppBoton`/`AppCargable` (indicadores de carga compartidos, ver memoria de sesión). Un solo punto de mantenimiento para el flujo de contraseña de Identity reingresada, en vez de reimplementarlo por pantalla con riesgo de que una copia quede desactualizada o diverja en seguridad. |
 
+## W2 — Decisiones cerradas (esta sesión)
+
+Cierra el entregable de W2 ("Cuentas, dimensiones y plantillas
+versionadas"), verificado contra el código real de la Web antes de decidir
+(hoy no existe ningún componente de árbol jerárquico ni editor de fórmulas
+equivalente en el sitio):
+
+| Tema | Decisión | Nota |
+|---|---|---|
+| Árbol jerárquico del catálogo de cuentas | **Componente de árbol nuevo y reutilizable** (expandir/colapsar por nivel, indentado por código), no una rejilla plana | El catálogo puede tener varios cientos de cuentas en 4-5 niveles (ver códigos propuestos en A0, hasta `1.1.7.1`). Una rejilla plana dificulta ver la relación padre/hijo que la validación de importación ya exige ("las cuentas de movimiento deben ser hojas del árbol"). Es también el patrón natural para la vista previa jerárquica del asistente de importación ya decidido en A0. |
+| Edición de una cuenta con pólizas contabilizadas | **Bloquea código, naturaleza y tipo; permite descripción, dimensiones y vigencia** | Código/naturaleza/tipo son la identidad contable de la cuenta — cambiarlos con pólizas ya publicadas rompería la garantía de inmutabilidad del motor. Descripción, si es cuenta de control, moneda permitida y dimensiones sí pueden ajustarse con nueva vigencia, sin afectar el histórico. El formulario deshabilita esos campos explícitamente y explica por qué. |
+| Editor de fórmulas de línea de plantilla | **Campo de texto con validación en tiempo real** contra el DSL (A2), no un constructor visual con dropdowns | El DSL es intencionalmente limitado (operadores básicos, campos del payload, paréntesis, sin loops ni funciones). El API ya valida/parsea a un AST en el guardado — la Web solo muestra ese error inline, sin duplicar el parser en el cliente. Un constructor visual reimplementaría el DSL en la UI sin necesidad, dado lo acotado del lenguaje. |
+| Centro de costo predeterminado en artículo/familia | **Campo nuevo en las fichas ya existentes** (Artículo, `Familias.razor`), no una pantalla separada de mapeo masivo | Consistente con dónde vive hoy la configuración de un artículo/familia — es un atributo más, no una entidad que necesite pantalla propia. Un mapeo masivo queda como mejora futura si la edición uno-por-uno resulta lenta en la práctica. |
+
 ## Criterios de aceptación web
 
 - Ninguna pantalla contable se muestra o llama al API si el feature flag está apagado.
