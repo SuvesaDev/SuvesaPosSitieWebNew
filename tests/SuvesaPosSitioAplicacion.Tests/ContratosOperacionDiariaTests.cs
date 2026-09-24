@@ -405,6 +405,7 @@ public class ContratosOperacionDiariaTests
         public bool EsAgente => false;
         public bool EsServicioAlCliente => false;
         public bool PermitirExistenciaNegativa => false;
+        public bool HabilitaImportaciones => false;
         public int IdSucursal => 3;
         public string? NombreSucursal => "Central";
         public bool TieneSucursal => true;

@@ -14,7 +14,7 @@ public interface IOrdenesCompraFlujo
     Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Crear(CrearOrdenCompraWebDTO cmd);
 
     Task<ResponseGeneric<IReadOnlyList<OrdenCompraFlujoWebDTO>>> Listar(
-        int? idProveedor = null, int? estado = null, bool incluirAnuladas = false,
+        int? idProveedor = null, int? estado = null, int? tipoOrdenCompra = null, bool incluirAnuladas = false,
         DateTime? desde = null, DateTime? hasta = null, long? consecutivo = null, int limite = 200);
 
     Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Obtener(long orden);

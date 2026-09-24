@@ -33,6 +33,7 @@
                         <option value="5">Baja por proveedor</option>
                     </select>
                 </div>
+                <div class="col-6 col-md-2"><label class="form-label small">Tipo</label><select class="form-select form-select-sm" @bind="_tipoOrdenCompra"><option value="0">Todos</option><option value="1">Nacional</option><option value="2">Internacional</option></select></div>
                 <div class="col-6 col-md-2"><label class="form-label small">Desde</label><input type="date" class="form-control form-control-sm" @bind="_desde" /></div>
                 <div class="col-6 col-md-2"><label class="form-label small">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_hasta" /></div>
                 <div class="col-auto">
@@ -57,7 +58,7 @@
                     <thead>
                         <tr>
                             <th>N.º</th><th>Fecha</th><th>Proveedor</th>
-                            <th class="text-end">Total</th><th class="text-center">Estado</th>
+                            <th>Tipo</th><th class="text-end">Total</th><th class="text-center">Estado</th>
                             <th>Entrega / factura</th><th></th>
                         </tr>
                     </thead>
@@ -68,6 +69,7 @@
                                 <td><code>@(o.Consecutivo ?? o.Orden)</code></td>
                                 <td class="small">@o.Fecha.ToString("dd/MM/yy")</td>
                                 <td>@o.NombreProveedor</td>
+                                <td class="small"><span class="badge @(o.TipoOrdenCompra == 1 ? "text-bg-primary" : o.TipoOrdenCompra == 2 ? "text-bg-dark" : "text-bg-secondary")">@(o.TipoOrdenCompra == 1 ? "Nacional" : o.TipoOrdenCompra == 2 ? "Internacional" : "Legado")</span></td>
                                 <td class="text-end seepos-importe">
                                     @Formato.Importe(o.Total) @o.MonedaNombre
                                     @if (o.CodMoneda != 1) { <div class="small text-muted">≈ @Formato.Importe(o.TotalColones) CRC</div> }
@@ -97,7 +99,8 @@
         @if (_sel is not null)
         {
             <p class="mb-1"><strong>@_sel.NombreProveedor</strong> · @_sel.EstadoSeguimientoNombre</p>
-            <p class="text-secondary small">@Formato.Importe(_sel.Total) @_sel.MonedaNombre · @_sel.Lineas.Count artículo(s)</p>
+            <p class="text-secondary small">@Formato.Importe(_sel.Total) @_sel.MonedaNombre · @_sel.TipoOrdenCompraNombre · @_sel.Lineas.Count artículo(s)</p>
+            <div class="table-responsive"><table class="table table-sm small"><thead><tr><th>Artículo</th><th class="text-end">Cant.</th><th class="text-end">Precio</th><th class="text-end">IVA</th><th class="text-end">Total</th></tr></thead><tbody>@foreach (var l in _sel.Lineas) { <tr><td>@l.Descripcion</td><td class="text-end">@Formato.Cantidad(l.Cantidad)</td><td class="text-end">@Formato.Importe(l.CostoUnitario)</td><td class="text-end">@(_sel.TipoOrdenCompra == 2 ? "—" : Formato.Importe(l.Impuesto))</td><td class="text-end">@Formato.Importe(l.TotalLinea)</td></tr> }</tbody></table></div>
 
             @if (_sel.EstadoSeguimiento == 1)
             {
@@ -144,6 +147,7 @@
 
     private long _consecutivo;
     private int _estado;
+    private int _tipoOrdenCompra;
     private DateTime? _desde = DateTime.Today.AddMonths(-1);
     private DateTime? _hasta = DateTime.Today;
     private bool _incluirAnuladas;
@@ -166,6 +170,7 @@
         {
             var r = await Api.Listar(
                 estado: _estado > 0 ? _estado : null,
+                tipoOrdenCompra: _tipoOrdenCompra > 0 ? _tipoOrdenCompra : null,
                 incluirAnuladas: _incluirAnuladas,
                 desde: _desde, hasta: _hasta?.AddDays(1).AddSeconds(-1),
                 consecutivo: _consecutivo > 0 ? _consecutivo : null,

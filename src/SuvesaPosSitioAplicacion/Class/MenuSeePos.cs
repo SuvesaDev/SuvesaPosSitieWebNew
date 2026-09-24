@@ -219,6 +219,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Importaciones",
+                    Codigo = "COMPRAS.IMPORTACIONES",
+                    Ruta = "/buys/importations",
+                },
+                new ItemMenu
+                {
                     Titulo = "Devoluciones compra",
                     Codigo = "COMPRAS.DEVOLUCIONES_COMPRA",
                     Ruta = "/buys/purchasereturns",
