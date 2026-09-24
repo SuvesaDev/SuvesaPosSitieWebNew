@@ -102,6 +102,17 @@ reproceso"):
 | Formulario de póliza manual | **Asiento libre genérico** (líneas Débito/Crédito, cuenta y dimensión por línea), no plantillas preconfiguradas de ajustes comunes | Una póliza manual es la válvula de escape para lo que el motor automático no cubre — limitarla a plantillas predefinidas restringiría justo el caso para el que existe. Valida cuadre Débito=Crédito, período abierto y exige la reautenticación si toca una cuenta de control (ya decidido en A4). Plantillas de ajustes frecuentes pueden agregarse después como mejora de UX sobre este mismo formulario. |
 | Bandeja de errores de contabilización | **Distinción visual explícita** entre error de configuración y error técnico transitorio (clasificación de A2) | Un error técnico normalmente se resuelve solo (barrido automático, A2); uno de configuración exige acción y además bloquea el pre-cierre (A5). La distinción visual (badge/color, filtro separado) es lo que hace útil la bandeja como lista de pendientes reales, sin obligar a abrir cada fila para saber si hay que actuar. |
 
+## W4 — Decisiones cerradas (esta sesión)
+
+Cierra el entregable de W4 ("Diario, mayor, auxiliares y conciliación"):
+
+| Tema | Decisión | Nota |
+|---|---|---|
+| Rango de consulta en diario y mayor | **Rango obligatorio, máximo un período** a la vez | Los períodos contables ya son mensuales (A1) y son la unidad natural de consulta — un contador revisa "el diario de marzo", no todo el histórico sin límite. Evita consultas sin rango que degraden el API pese al volumen ya reducido por póliza agrupada por documento (A3). Consultar varios períodos a la vez es un caso de reporte/exportación, no de pantalla interactiva. |
+| Drill-down al documento origen | **Navega a la pantalla operativa real** (Facturación, Compra.razor, etc.), no un panel/modal de solo lectura dentro de Contabilidad | El documento origen ya tiene su propia pantalla madura — duplicar un resumen de solo lectura en Contabilidad reimplementaría una vista existente. Coherente con el principio ya escrito: "el documento origen no se altera desde Contabilidad". |
+| Bitácora inmutable (`accounting_audit_log`) | **Pantalla de consulta centralizada propia**, no repartida como pestaña de historial por entidad | Una bitácora de auditoría existe para consultas transversales ("¿qué cambió este usuario esta semana?"), no solo por entidad. Repartirla fragmentaría la auditoría y dificultaría una revisión de cumplimiento que necesita ver todo el historial junto, filtrable por usuario/fecha/entidad. |
+| Auxiliares CxC/CxP/inventario | **Una pantalla por auxiliar** (tres pantallas separadas en el menú de Consulta), no una pantalla única con selector de tipo | CxC, CxP e inventario tienen columnas, filtros y drill-down completamente distintos (cliente/documento vs proveedor/documento vs bodega/artículo/lote). Ya hay precedente de pantalla dedicada por auxiliar en el sistema (`EstadoCuenta` de CxC, construido en el rework de Tiquete). |
+
 ## Criterios de aceptación web
 
 - Ninguna pantalla contable se muestra o llama al API si el feature flag está apagado.
