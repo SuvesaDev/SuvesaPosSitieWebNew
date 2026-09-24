@@ -38,6 +38,17 @@ La habilitación no será global. La empresa habilita la disponibilidad del mód
 
 Revertir, reabrir períodos y modificar plantillas vigentes requieren autorización reforzada: usuario, fecha, razón y confirmación de clave propia.
 
+> Resuelto en revisión cruzada con el plan API: esta confirmación usa un
+> **mecanismo nuevo y separado**, no el `ClaveInterna` que ya usan Agente/SAC
+> en Ventas. Contabilidad tiene su propio rol de "contador autorizando un
+> cierre", distinto del cajero validado en caja — reabrir un período o
+> revertir una póliza publicada es una operación de mayor impacto que no debe
+> compartir el PIN corto de una venta. El mecanismo exacto (contraseña de
+> Identity reingresada, segundo factor, u otro) lo define A0/A1 del plan API;
+> la Web solo debe estar lista para pedir esa confirmación por el canal que
+> el API exponga, sin asumir que es el mismo modal de `ClaveInterna` ya
+> existente en Facturación.
+
 ## Fases web
 
 | Fase | Semanas | Entregables | Dependencia API |
@@ -48,6 +59,10 @@ Revertir, reabrir períodos y modificar plantillas vigentes requieren autorizaci
 | W4 Consulta | 2 | Diario, mayor, auxiliares y conciliación | Consultas paginadas y drill-down |
 | W5 Cierre y estados | 2–3 | Cierre, balanza, estados y exportaciones | Motor de cierre y reportes |
 | W6 UAT | 1–2 | Casos de contador, accesibilidad y regresión | Ambiente con saldos de prueba |
+
+Correspondencia exacta con las fases A0–A6 del plan API (qué debe estar
+*entregado*, no solo iniciado, antes de dar cada fase Web por lista) en
+`docs/PLAN_MODULO_CONTABILIDAD_CORRESPONDENCIA_FASES.md`.
 
 ## Criterios de aceptación web
 
