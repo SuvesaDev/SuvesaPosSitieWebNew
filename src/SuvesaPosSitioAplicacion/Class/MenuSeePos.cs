@@ -850,6 +850,18 @@ public static partial class MenuSeePos
                     Codigo = "CONTABILIDAD.PLANTILLAS",
                     Ruta = "/accounting/templates",
                 },
+                new ItemMenu
+                {
+                    Titulo = "Bandeja",
+                    Codigo = "CONTABILIDAD.BANDEJA",
+                    Ruta = "/accounting/inbox",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Reproceso",
+                    Codigo = "CONTABILIDAD.REPROCESO",
+                    Ruta = "/accounting/reprocessing",
+                },
             }
         }
     }

@@ -32,4 +32,15 @@ public interface IContabilidad
     Task<ResponseGeneric<VersionPlantillaDTO>> CrearVersion(long idPlantilla, CrearVersionPlantillaDTO comando);
     Task<ResponseGeneric<VersionPlantillaDTO>> ActivarVersion(long idVersion);
     Task<ResponseGeneric<ResultadoSimulacionDTO>> Simular(long idVersion, string payloadJson);
+
+    // ---- W3: bandeja, pólizas manuales, reverso y reproceso ----
+    Task<ResponseGeneric<ICollection<EventoContableDTO>>> ListarEventos(long? idLibroContable, string? estado, string? tipoEvento, string? origenModulo, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina);
+    Task<ResponseGeneric<bool>> ReintentarEvento(long idEvento);
+    Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina);
+    Task<ResponseGeneric<AsientoContableDTO>> CrearAsientoManual(CrearAsientoManualDTO comando);
+    Task<ResponseGeneric<AsientoContableDTO>> ReversarAsiento(long idAsiento, string? contrasena);
+
+    Task<ResponseGeneric<EjecucionRepolinizacionDTO>> SimularRepolinizacion(FiltroRepolinizacionDTO filtro);
+    Task<ResponseGeneric<EjecucionRepolinizacionDTO>> ObtenerRepolinizacion(long idEjecucion);
+    Task<ResponseGeneric<EjecucionRepolinizacionDTO>> AprobarRepolinizacion(long idEjecucion, string contrasena);
 }

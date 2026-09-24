@@ -1,0 +1,471 @@
+@page "/accounting/inbox"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IContextoSesion Sesion
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* W3: una sola bandeja con dos pestañas — Eventos (accounting_events, incluye errores) y
+   Pólizas (accounting_entries) — mismo espíritu que la bandeja fiscal V44
+   (Views/Documentos/Bandeja.razor), pero sin MudDataGrid (no está disponible en este
+   sitio): tabla HTML + "Anterior/Siguiente" basado en si la página vino llena. *@
+
+<AppPantalla Pantalla="Bandeja" Codigo="CONTABILIDAD.BANDEJA" Icono="bi-journal-text" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        @if (_idLibroContable > 0 && _tab == 1 && Sesion.Puede("CONTABILIDAD.BANDEJA", AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="NuevaPolizaManual"><i class="bi bi-plus-lg me-1"></i>Nueva póliza manual</button>
+        }
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="bd-empresa">Empresa</label>
+                        <select id="bd-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="bd-emisor">Emisor</label>
+                        <select id="bd-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_idLibroContable == 0)
+        {
+            <p class="text-secondary mb-0">Seleccione empresa y emisor para ver la bandeja.</p>
+        }
+        else
+        {
+            <ul class="nav nav-tabs mb-3">
+                <li class="nav-item"><button class="nav-link @(_tab == 0 ? "active" : "")" @onclick="() => CambiarTab(0)">Eventos</button></li>
+                <li class="nav-item"><button class="nav-link @(_tab == 1 ? "active" : "")" @onclick="() => CambiarTab(1)">Pólizas</button></li>
+            </ul>
+
+            @if (_tab == 0)
+            {
+                <div class="row g-2 mb-3">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small" for="fe-estado">Estado</label>
+                        <select id="fe-estado" class="form-select form-select-sm" @bind="_filtroEstado">
+                            <option value="">Todos</option>
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Contabilizado">Contabilizado</option>
+                            <option value="ErrorConfiguracion">Error de configuración</option>
+                            <option value="ErrorTecnico">Error técnico</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small" for="fe-modulo">Módulo origen</label>
+                        <input id="fe-modulo" class="form-control form-control-sm" @bind="_filtroModulo" placeholder="Ventas" />
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small" for="fe-desde">Desde</label>
+                        <input id="fe-desde" type="date" class="form-control form-control-sm" @bind="_filtroDesde" />
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small" for="fe-hasta">Hasta</label>
+                        <input id="fe-hasta" type="date" class="form-control form-control-sm" @bind="_filtroHasta" />
+                    </div>
+                    <div class="col-12 col-md-2 d-flex align-items-end">
+                        <button class="btn btn-sm btn-outline-primary w-100" @onclick="BuscarEventos">Filtrar</button>
+                    </div>
+                </div>
+
+                @if (_cargando)
+                {
+                    <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+                }
+                else
+                {
+                    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Fecha</th><th>Tipo</th><th>Origen</th><th>Estado</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var evento in _eventos)
+                            {
+                                <tr>
+                                    <td>@evento.FechaContable.ToString("yyyy-MM-dd")</td>
+                                    <td>@evento.TipoEvento</td>
+                                    <td class="small text-secondary">@evento.OrigenModulo #@evento.OrigenId</td>
+                                    <td>
+                                        <span class="badge @ClaseEstadoEvento(evento.Estado)">@TextoEstadoEvento(evento.Estado)</span>
+                                        @if (!string.IsNullOrWhiteSpace(evento.UltimoError))
+                                        {
+                                            <div class="small text-danger" title="@evento.UltimoError">@Truncar(evento.UltimoError, 60)</div>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        @if (evento.Estado == "ErrorConfiguracion" && Sesion.Puede("CONTABILIDAD.BANDEJA", AccionPantalla.Editar))
+                                        {
+                                            <button class="btn btn-sm btn-link p-0" @onclick="() => Reintentar(evento)">Reintentar</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                            @if (_eventos.Count == 0) { <tr><td colspan="5" class="text-secondary">Sin eventos para el filtro indicado.</td></tr> }
+                        </tbody>
+                    </table></div>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <span class="small text-secondary">Página @_paginaEventos</span>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" disabled="@(_paginaEventos <= 1)" @onclick="() => CambiarPaginaEventos(-1)">Anterior</button>
+                            <button class="btn btn-outline-secondary" disabled="@(_eventos.Count < TamanoPagina)" @onclick="() => CambiarPaginaEventos(1)">Siguiente</button>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                @if (_cargando)
+                {
+                    <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+                }
+                else
+                {
+                    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Fecha</th><th>Líneas</th><th class="text-end">Total</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var asiento in _asientos)
+                            {
+                                <tr class="@(asiento.Id == _asientoDetalle?.Id ? "table-active" : "")">
+                                    <td>@asiento.FechaContable.ToString("yyyy-MM-dd")</td>
+                                    <td class="small text-secondary">@(asiento.Lineas?.Count ?? 0) línea(s)</td>
+                                    <td class="text-end">@TotalDebito(asiento).ToString("N2")</td>
+                                    <td class="text-end text-nowrap">
+                                        <button class="btn btn-sm btn-link p-0" @onclick="() => VerDetalle(asiento)">Detalle</button>
+                                        @if (Sesion.Puede("CONTABILIDAD.BANDEJA", AccionPantalla.Editar))
+                                        {
+                                            <button class="btn btn-sm btn-link text-danger p-0 ms-2" @onclick="() => Reversar(asiento)">Reversar</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                            @if (_asientos.Count == 0) { <tr><td colspan="4" class="text-secondary">Sin pólizas todavía.</td></tr> }
+                        </tbody>
+                    </table></div>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <span class="small text-secondary">Página @_paginaAsientos</span>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" disabled="@(_paginaAsientos <= 1)" @onclick="() => CambiarPaginaAsientos(-1)">Anterior</button>
+                            <button class="btn btn-outline-secondary" disabled="@(_asientos.Count < TamanoPagina)" @onclick="() => CambiarPaginaAsientos(1)">Siguiente</button>
+                        </div>
+                    </div>
+                }
+            }
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modalDetalle" Titulo="Detalle de la póliza" Tamano="ModalSize.Large" MostrarCancelar="true" TextoCancelar="Cerrar">
+    @if (_asientoDetalle is not null)
+    {
+        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Orden</th><th>Movimiento</th><th>Cuenta</th><th class="text-end">Monto</th><th>Descripción</th></tr></thead>
+            <tbody>
+                @foreach (var linea in (_asientoDetalle.Lineas ?? new List<LineaAsientoContableDTO>()).OrderBy(l => l.Orden))
+                {
+                    <tr>
+                        <td>@linea.Orden</td>
+                        <td>@linea.TipoMovimiento</td>
+                        <td class="font-monospace">@NombreCuenta(linea.IdCuentaContable)</td>
+                        <td class="text-end">@linea.MontoFuncional.ToString("N2")</td>
+                        <td>@linea.Descripcion</td>
+                    </tr>
+                }
+            </tbody>
+        </table></div>
+    }
+</AppModal>
+
+<AppModal @ref="_modalManual" Titulo="Nueva póliza manual" Tamano="ModalSize.ExtraLarge" AlGuardar="GuardarPolizaManual" Guardando="_guardando">
+    <div class="row g-2 mb-3">
+        <div class="col-6">
+            <label class="form-label" for="pm-fecha">Fecha contable</label>
+            <input id="pm-fecha" type="date" class="form-control" @bind="_fechaManual" />
+        </div>
+        <div class="col-6">
+            <label class="form-label" for="pm-cliente">Cliente (opcional)</label>
+            <input id="pm-cliente" type="number" class="form-control" @bind="_idClienteManual" />
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">Líneas</h6>
+        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AgregarLineaManual"><i class="bi bi-plus-lg me-1"></i>Agregar línea</button>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead><tr><th>Orden</th><th>Movimiento</th><th>Cuenta</th><th class="text-end">Monto</th><th>Descripción</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var linea in _lineasManual)
+                {
+                    <tr>
+                        <td style="width:5rem"><input type="number" class="form-control form-control-sm" @bind="linea.Orden" /></td>
+                        <td style="width:9rem">
+                            <select class="form-select form-select-sm" @bind="linea.TipoMovimiento">
+                                <option value="Debito">Débito</option>
+                                <option value="Credito">Crédito</option>
+                            </select>
+                        </td>
+                        <td style="min-width:12rem">
+                            <select class="form-select form-select-sm" @bind="linea.IdCuentaContable">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var c in _cuentasMovimiento)
+                                {
+                                    <option value="@c.Id">@c.Codigo — @c.Descripcion</option>
+                                }
+                            </select>
+                        </td>
+                        <td style="width:9rem"><input type="number" step="0.01" class="form-control form-control-sm" @bind="linea.Monto" /></td>
+                        <td style="min-width:10rem"><input class="form-control form-control-sm" @bind="linea.Descripcion" /></td>
+                        <td><button type="button" class="btn btn-sm btn-link text-danger p-0" @onclick="() => _lineasManual.Remove(linea)"><i class="bi bi-trash"></i></button></td>
+                    </tr>
+                }
+                @if (_lineasManual.Count == 0) { <tr><td colspan="6" class="text-secondary">Agregue al menos una línea Débito y una Crédito.</td></tr> }
+            </tbody>
+        </table>
+    </div>
+</AppModal>
+
+<AppConfirmarClaveContabilidad @ref="_confirmarClave" />
+
+@code {
+    private const int TamanoPagina = 25;
+
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+    private bool _cargando;
+    private bool _guardando;
+    private int _tab;
+
+    private Dictionary<long, CuentaContableDTO> _cuentas = new();
+    private List<CuentaContableDTO> _cuentasMovimiento = new();
+
+    private List<EventoContableDTO> _eventos = new();
+    private int _paginaEventos = 1;
+    private string _filtroEstado = "";
+    private string _filtroModulo = "";
+    private DateOnly? _filtroDesde;
+    private DateOnly? _filtroHasta;
+
+    private List<AsientoContableDTO> _asientos = new();
+    private int _paginaAsientos = 1;
+
+    private AppModal _modalDetalle = default!;
+    private AsientoContableDTO? _asientoDetalle;
+
+    private AppModal _modalManual = default!;
+    private DateOnly _fechaManual = DateOnly.FromDateTime(DateTime.Today);
+    private long? _idClienteManual;
+    private List<LineaAsientoManualDTO> _lineasManual = new();
+
+    private AppConfirmarClaveContabilidad _confirmarClave = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _eventos = new();
+        _asientos = new();
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+        if (_idLibroContable == 0) return;
+
+        var cuentas = (await Respuestas.DatoAsync(await Contabilidad.ListarCuentas(_idLibroContable), "consultar las cuentas"))?.ToList() ?? new();
+        _cuentas = cuentas.ToDictionary(c => c.Id);
+        _cuentasMovimiento = cuentas.Where(c => c.PermiteMovimiento == true).ToList();
+
+        await CambiarTab(0);
+    }
+
+    private async Task CambiarTab(int tab)
+    {
+        _tab = tab;
+        if (tab == 0) await BuscarEventos();
+        else await CargarAsientos();
+    }
+
+    private async Task BuscarEventos()
+    {
+        _paginaEventos = 1;
+        await CargarEventos();
+    }
+
+    private async Task CargarEventos()
+    {
+        _cargando = true;
+        _eventos = (await Respuestas.DatoAsync(
+            await Contabilidad.ListarEventos(_idLibroContable, string.IsNullOrWhiteSpace(_filtroEstado) ? null : _filtroEstado,
+                null, string.IsNullOrWhiteSpace(_filtroModulo) ? null : _filtroModulo, _filtroDesde, _filtroHasta, _paginaEventos, TamanoPagina),
+            "consultar la bandeja de eventos"))?.ToList() ?? new();
+        _cargando = false;
+    }
+
+    private async Task CambiarPaginaEventos(int delta)
+    {
+        _paginaEventos = Math.Max(1, _paginaEventos + delta);
+        await CargarEventos();
+    }
+
+    private async Task CargarAsientos()
+    {
+        _cargando = true;
+        _asientos = (await Respuestas.DatoAsync(await Contabilidad.ListarAsientos(_idLibroContable, _paginaAsientos, TamanoPagina), "consultar la bandeja de pólizas"))?.ToList() ?? new();
+        _cargando = false;
+    }
+
+    private async Task CambiarPaginaAsientos(int delta)
+    {
+        _paginaAsientos = Math.Max(1, _paginaAsientos + delta);
+        await CargarAsientos();
+    }
+
+    private async Task Reintentar(EventoContableDTO evento)
+    {
+        var respuesta = await Contabilidad.ReintentarEvento(evento.Id);
+        if (await Respuestas.CorrectaAsync(respuesta, "reintentar el evento"))
+        {
+            Dialogos.Exito("Evento reencolado.");
+            await CargarEventos();
+        }
+    }
+
+    private async Task VerDetalle(AsientoContableDTO asiento)
+    {
+        _asientoDetalle = asiento;
+        await _modalDetalle.MostrarAsync();
+    }
+
+    private async Task Reversar(AsientoContableDTO asiento)
+    {
+        var tocaControl = (asiento.Lineas ?? new List<LineaAsientoContableDTO>())
+            .Any(l => _cuentas.TryGetValue(l.IdCuentaContable, out var c) && c.EsControl == true);
+
+        string? contrasena = null;
+        if (tocaControl)
+        {
+            contrasena = await _confirmarClave.MostrarAsync();
+            if (contrasena is null) return;
+        }
+        else if (!await Dialogos.ConfirmarPeligroAsync("¿Reversar esta póliza? Se creará un asiento espejo — la original no se borra.", "Reversar póliza"))
+        {
+            return;
+        }
+
+        var respuesta = await Contabilidad.ReversarAsiento(asiento.Id, contrasena);
+        if (await Respuestas.CorrectaAsync(respuesta, "reversar la póliza"))
+        {
+            Dialogos.Exito("Póliza reversada.");
+            await CargarAsientos();
+        }
+    }
+
+    private async Task NuevaPolizaManual()
+    {
+        _fechaManual = DateOnly.FromDateTime(DateTime.Today);
+        _idClienteManual = null;
+        _lineasManual = new()
+        {
+            new LineaAsientoManualDTO { Orden = 1, TipoMovimiento = "Debito" },
+            new LineaAsientoManualDTO { Orden = 2, TipoMovimiento = "Credito" },
+        };
+        await _modalManual.MostrarAsync();
+    }
+
+    private void AgregarLineaManual()
+        => _lineasManual.Add(new LineaAsientoManualDTO { Orden = _lineasManual.Count + 1, TipoMovimiento = "Debito" });
+
+    private async Task GuardarPolizaManual()
+    {
+        if (_lineasManual.Count == 0 || _lineasManual.Any(l => l.IdCuentaContable == 0 || l.Monto <= 0))
+        {
+            await Dialogos.ErrorAsync("Cada línea necesita cuenta y un monto mayor a cero.");
+            return;
+        }
+
+        var tocaControl = _lineasManual.Any(l => _cuentas.TryGetValue(l.IdCuentaContable, out var c) && c.EsControl == true);
+        string? contrasena = null;
+        if (tocaControl)
+        {
+            contrasena = await _confirmarClave.MostrarAsync();
+            if (contrasena is null) return;
+        }
+
+        var comando = new CrearAsientoManualDTO
+        {
+            IdLibroContable = _idLibroContable,
+            FechaContable = new DateTimeOffset(_fechaManual.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
+            FechaFiscal = new DateTimeOffset(_fechaManual.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
+            IdCliente = _idClienteManual,
+            Contrasena = contrasena,
+            Lineas = _lineasManual,
+        };
+
+        _guardando = true;
+        var respuesta = await Contabilidad.CrearAsientoManual(comando);
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "crear la póliza manual"))
+        {
+            Dialogos.Exito("Póliza creada.");
+            await _modalManual.OcultarAsync();
+            await CargarAsientos();
+        }
+    }
+
+    private string NombreCuenta(long idCuenta)
+        => _cuentas.TryGetValue(idCuenta, out var c) ? $"{c.Codigo} — {c.Descripcion}" : idCuenta.ToString();
+
+    private static decimal TotalDebito(AsientoContableDTO asiento)
+        => (decimal)(asiento.Lineas ?? new List<LineaAsientoContableDTO>()).Where(l => l.TipoMovimiento == "Debito").Sum(l => l.MontoFuncional);
+
+    private static string ClaseEstadoEvento(string? estado) => estado switch
+    {
+        "Contabilizado" => "text-bg-success",
+        "ErrorConfiguracion" => "text-bg-danger",
+        "ErrorTecnico" => "text-bg-warning",
+        "Pendiente" => "text-bg-secondary",
+        _ => "text-bg-light",
+    };
+
+    private static string TextoEstadoEvento(string? estado) => estado switch
+    {
+        "ErrorConfiguracion" => "Error — requiere acción",
+        "ErrorTecnico" => "Error técnico (reintento automático)",
+        _ => estado ?? "",
+    };
+
+    private static string Truncar(string texto, int largo) => texto.Length <= largo ? texto : texto[..largo] + "…";
+}

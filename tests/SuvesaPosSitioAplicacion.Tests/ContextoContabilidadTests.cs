@@ -44,6 +44,15 @@ public class ContextoContabilidadTests
         public Task<ResponseGeneric<VersionPlantillaDTO>> CrearVersion(long idPlantilla, CrearVersionPlantillaDTO comando) => throw new NotImplementedException();
         public Task<ResponseGeneric<VersionPlantillaDTO>> ActivarVersion(long idVersion) => throw new NotImplementedException();
         public Task<ResponseGeneric<ResultadoSimulacionDTO>> Simular(long idVersion, string payloadJson) => throw new NotImplementedException();
+
+        public Task<ResponseGeneric<ICollection<EventoContableDTO>>> ListarEventos(long? idLibroContable, string? estado, string? tipoEvento, string? origenModulo, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina) => throw new NotImplementedException();
+        public Task<ResponseGeneric<bool>> ReintentarEvento(long idEvento) => throw new NotImplementedException();
+        public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina) => throw new NotImplementedException();
+        public Task<ResponseGeneric<AsientoContableDTO>> CrearAsientoManual(CrearAsientoManualDTO comando) => throw new NotImplementedException();
+        public Task<ResponseGeneric<AsientoContableDTO>> ReversarAsiento(long idAsiento, string? contrasena) => throw new NotImplementedException();
+        public Task<ResponseGeneric<EjecucionRepolinizacionDTO>> SimularRepolinizacion(FiltroRepolinizacionDTO filtro) => throw new NotImplementedException();
+        public Task<ResponseGeneric<EjecucionRepolinizacionDTO>> ObtenerRepolinizacion(long idEjecucion) => throw new NotImplementedException();
+        public Task<ResponseGeneric<EjecucionRepolinizacionDTO>> AprobarRepolinizacion(long idEjecucion, string contrasena) => throw new NotImplementedException();
     }
 
     [Fact]

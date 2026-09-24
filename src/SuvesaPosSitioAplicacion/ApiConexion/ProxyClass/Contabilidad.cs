@@ -161,4 +161,64 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             var r = await _api.SimularAsync(idVersion, new SimularPlantillaDTO { PayloadJson = payloadJson });
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "simular la versión de la plantilla");
+
+    // ---- W3: bandeja, pólizas manuales, reverso y reproceso ----
+
+    public Task<ResponseGeneric<ICollection<EventoContableDTO>>> ListarEventos(long? idLibroContable, string? estado, string? tipoEvento, string? origenModulo, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.EventosAsync(idLibroContable, estado, tipoEvento, origenModulo, AFecha(desde), AFecha(hasta), pagina, tamanoPagina);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar la bandeja de eventos");
+
+    public Task<ResponseGeneric<bool>> ReintentarEvento(long idEvento)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.Reintentar2Async(idEvento);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "reintentar el evento contable");
+
+    public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.AsientosAsync(idLibroContable, pagina, tamanoPagina);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar la bandeja de pólizas");
+
+    public Task<ResponseGeneric<AsientoContableDTO>> CrearAsientoManual(CrearAsientoManualDTO comando)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.AsientosManualesAsync(comando);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "crear la póliza manual");
+
+    public Task<ResponseGeneric<AsientoContableDTO>> ReversarAsiento(long idAsiento, string? contrasena)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ReversarAsync(idAsiento, new ReversarAsientoDTO { Contrasena = contrasena });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "reversar la póliza");
+
+    public Task<ResponseGeneric<EjecucionRepolinizacionDTO>> SimularRepolinizacion(FiltroRepolinizacionDTO filtro)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.Simular2Async(filtro);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "simular el reproceso");
+
+    public Task<ResponseGeneric<EjecucionRepolinizacionDTO>> ObtenerRepolinizacion(long idEjecucion)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.RepolinizacionAsync(idEjecucion);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar la ejecución de reproceso");
+
+    public Task<ResponseGeneric<EjecucionRepolinizacionDTO>> AprobarRepolinizacion(long idEjecucion, string contrasena)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.AprobarAsync(idEjecucion, new AprobarRepolinizacionDTO { Contrasena = contrasena });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "aprobar el reproceso");
+
+    private static DateTimeOffset? AFecha(DateOnly? fecha) => fecha is null ? null : new DateTimeOffset(fecha.Value.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
 }

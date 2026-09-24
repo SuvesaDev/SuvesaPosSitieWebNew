@@ -10,9 +10,15 @@
    Uso:
      <AppConfirmarClaveContabilidad @ref="_confirmarClave" />
 
-     if (await _confirmarClave.MostrarAsync())
+     var clave = await _confirmarClave.MostrarAsync();
+     if (clave is not null)
      {
-         // el usuario confirmó su contraseña — proceder con la acción sensible.
+         // El API no "recuerda" esta confirmación (sin sesión de reautenticación,
+         // decisión ya cerrada de A1/W1) — cada acción sensible exige la contraseña
+         // inline en su propio request. Por eso este componente devuelve la contraseña
+         // YA verificada aquí, para que el llamador la reenvíe tal cual en el comando
+         // de la acción real (ReversarAsientoDTO.Contrasena, AprobarRepolinizacionDTO.
+         // Contrasena, etc.) — nunca null si el usuario canceló o falló la verificación.
      }
 *@
 
@@ -40,16 +46,17 @@
     private string _clave = "";
     private bool _validando;
     private string? _error;
-    private TaskCompletionSource<bool>? _pendiente;
+    private TaskCompletionSource<string?>? _pendiente;
 
-    /// <summary>Muestra el modal y espera la confirmación. Devuelve true solo si el
-    /// usuario confirmó la contraseña correcta; false si canceló o cerró el modal.</summary>
-    public async Task<bool> MostrarAsync()
+    /// <summary>Muestra el modal y espera la confirmación. Devuelve la contraseña YA
+    /// verificada contra Identity si el usuario la confirmó correctamente; null si
+    /// canceló, cerró el modal, o la contraseña fue incorrecta.</summary>
+    public async Task<string?> MostrarAsync()
     {
         _clave = "";
         _error = null;
         _validando = false;
-        _pendiente = new TaskCompletionSource<bool>();
+        _pendiente = new TaskCompletionSource<string?>();
         await _modal.MostrarAsync();
         return await _pendiente.Task;
     }
@@ -65,7 +72,7 @@
 
         if (respuesta.Responses == true)
         {
-            _pendiente?.TrySetResult(true);
+            _pendiente?.TrySetResult(_clave);
             await _modal.OcultarAsync();
         }
         else
@@ -81,7 +88,7 @@
 
     private Task AlCerrarModal()
     {
-        _pendiente?.TrySetResult(false);
+        _pendiente?.TrySetResult(null);
         return Task.CompletedTask;
     }
 }

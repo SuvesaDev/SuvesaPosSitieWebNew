@@ -116,8 +116,8 @@ public class FiltroMenuTests
         // huérfana que ya existía sin nodo de menú) + 1 (Ventas entre horas) + 1
         // (Importaciones) — ver PLAN_MODULO_REPORTES_ERP_WEB.md. + 3 (módulo
         // Contabilidad: raíz + Configuración emisor + Catálogo cuentas, W1) + 2
-        // (Dimensiones, Plantillas, W2).
-        Assert.Equal(119, Contar(MenuSeePos.Items));
+        // (Dimensiones, Plantillas, W2) + 2 (Bandeja, Reproceso, W3).
+        Assert.Equal(121, Contar(MenuSeePos.Items));
     }
 
     private sealed class ContabilidadFalsa : IContextoContabilidad

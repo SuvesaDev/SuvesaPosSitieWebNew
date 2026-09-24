@@ -1,0 +1,223 @@
+@page "/accounting/reprocessing"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IContextoSesion Sesion
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* W3: reproceso controlado (repolinización) — simula re-contabilizar un lote de eventos
+   ya publicados contra la plantilla actualmente activa, y tras aprobación reversa los
+   que difieren y publica los nuevos. La aprobación SIEMPRE pide la reautenticación de
+   Contabilidad, sin excepción (decisión W3 ya cerrada) — a diferencia de reversar/póliza
+   manual, que solo la piden si tocan cuenta de control. *@
+
+<AppPantalla Pantalla="Reproceso" Codigo="CONTABILIDAD.REPROCESO" Icono="bi-journal-text" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="rp-empresa">Empresa</label>
+                        <select id="rp-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="rp-emisor">Emisor</label>
+                        <select id="rp-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_idLibroContable == 0)
+        {
+            <p class="text-secondary mb-0">Seleccione empresa y emisor para simular un reproceso.</p>
+        }
+        else
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6 class="mb-3">Filtro del lote</h6>
+                    <div class="row g-2">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small" for="rp-modulo">Módulo origen (opcional)</label>
+                            <input id="rp-modulo" class="form-control form-control-sm" @bind="_origenModulo" placeholder="Ventas" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small" for="rp-tipo">Tipo de evento (opcional)</label>
+                            <input id="rp-tipo" class="form-control form-control-sm" @bind="_tipoEvento" placeholder="VentaEmitida" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small" for="rp-desde">Desde</label>
+                            <input id="rp-desde" type="date" class="form-control form-control-sm" @bind="_desde" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small" for="rp-hasta">Hasta</label>
+                            <input id="rp-hasta" type="date" class="form-control form-control-sm" @bind="_hasta" />
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm mt-3" disabled="@_simulando" @onclick="Simular">
+                        @if (_simulando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                        }
+                        Simular
+                    </button>
+                </div>
+            </div>
+
+            @if (_resultado is not null)
+            {
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <span class="badge @(_resultado.Estado == "Aprobada" ? "text-bg-success" : "text-bg-secondary")">@_resultado.Estado</span>
+                                <span class="ms-2">@_resultado.TotalEventos evento(s) simulado(s) — @_resultado.TotalDiferencias con diferencia</span>
+                            </div>
+                            @if (_resultado.Estado == "Simulada" && _resultado.TotalDiferencias > 0 && Sesion.Puede("CONTABILIDAD.REPROCESO", AccionPantalla.Activar))
+                            {
+                                <button class="btn btn-sm btn-danger" disabled="@_aprobando" @onclick="Aprobar">
+                                    @if (_aprobando)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                                    }
+                                    Aprobar reproceso
+                                </button>
+                            }
+                        </div>
+
+                        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Evento</th><th>Origen</th><th>¿Difiere?</th><th>Antes</th><th>Después</th></tr></thead>
+                            <tbody>
+                                @foreach (var detalle in _resultado.Detalles)
+                                {
+                                    <tr class="@(detalle.TieneDiferencia ? "table-warning" : "")">
+                                        <td>@detalle.TipoEvento</td>
+                                        <td class="small text-secondary">@detalle.OrigenModulo #@detalle.OrigenId</td>
+                                        <td>
+                                            @if (detalle.TieneDiferencia)
+                                            {
+                                                <span class="badge text-bg-warning">Difiere</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge text-bg-light text-secondary">Igual</span>
+                                            }
+                                        </td>
+                                        <td class="small">@Resumen(detalle.LineasOriginales)</td>
+                                        <td class="small">@Resumen(detalle.LineasNuevas)</td>
+                                    </tr>
+                                }
+                                @if (_resultado.Detalles.Count == 0) { <tr><td colspan="5" class="text-secondary">Sin eventos para el filtro indicado.</td></tr> }
+                            </tbody>
+                        </table></div>
+                    </div>
+                </div>
+            }
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppConfirmarClaveContabilidad @ref="_confirmarClave" />
+
+@code {
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+
+    private string _origenModulo = "";
+    private string _tipoEvento = "";
+    private DateOnly? _desde;
+    private DateOnly? _hasta;
+
+    private bool _simulando;
+    private bool _aprobando;
+    private EjecucionRepolinizacionDTO? _resultado;
+
+    private AppConfirmarClaveContabilidad _confirmarClave = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _resultado = null;
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+    }
+
+    private async Task Simular()
+    {
+        _simulando = true;
+        _resultado = null;
+        var respuesta = await Contabilidad.SimularRepolinizacion(new FiltroRepolinizacionDTO
+        {
+            IdLibroContable = _idLibroContable,
+            OrigenModulo = string.IsNullOrWhiteSpace(_origenModulo) ? null : _origenModulo,
+            TipoEvento = string.IsNullOrWhiteSpace(_tipoEvento) ? null : _tipoEvento,
+            Desde = AFecha(_desde),
+            Hasta = AFecha(_hasta),
+        });
+        _simulando = false;
+
+        _resultado = await Respuestas.DatoAsync(respuesta, "simular el reproceso");
+    }
+
+    private async Task Aprobar()
+    {
+        if (_resultado is null) return;
+
+        // Siempre exige la reautenticación, sin condicionar a cuentas de control
+        // (decisión W3 ya cerrada) — a diferencia del resto del módulo.
+        var clave = await _confirmarClave.MostrarAsync();
+        if (clave is null)
+            return;
+        if (!await Dialogos.ConfirmarPeligroAsync(
+                $"Se van a reversar {_resultado.TotalDiferencias} póliza(s) y publicar las nuevas versiones. Esta acción no se puede deshacer sola — requiere otro reproceso o reverso manual. ¿Continuar?",
+                "Aprobar reproceso"))
+            return;
+
+        _aprobando = true;
+        var respuesta = await Contabilidad.AprobarRepolinizacion(_resultado.Id, contrasena: clave);
+        _aprobando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "aprobar el reproceso"))
+        {
+            Dialogos.Exito("Reproceso aplicado.");
+            _resultado = await Respuestas.DatoAsync(await Contabilidad.ObtenerRepolinizacion(_resultado.Id), "consultar el reproceso");
+        }
+    }
+
+    private static string Resumen(ICollection<LineaSimuladaDTO>? lineas)
+        => lineas is null || lineas.Count == 0 ? "—" : string.Join(" / ", lineas.Select(l => $"{l.TipoMovimiento} {l.Monto:N2}"));
+
+    private static DateTimeOffset? AFecha(DateOnly? fecha) => fecha is null ? null : new DateTimeOffset(fecha.Value.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+}

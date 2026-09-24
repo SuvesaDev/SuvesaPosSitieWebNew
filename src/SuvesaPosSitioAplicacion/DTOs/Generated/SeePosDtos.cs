@@ -13121,35 +13121,6 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
 
-    public partial class EventoContableDTO
-    {
-
-        [System.Text.Json.Serialization.JsonPropertyName("id")]
-        public long Id { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("tipoEvento")]
-        public string? TipoEvento { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("estado")]
-        public string? Estado { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("fechaContable")]
-        [System.Text.Json.Serialization.JsonConverter(typeof(DateFormatConverter))]
-        public System.DateTimeOffset FechaContable { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("intentosAutomaticos")]
-        public int IntentosAutomaticos { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("ultimoError")]
-        public string? UltimoError { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("fechaCreacionUtc")]
-        public System.DateTime FechaCreacionUtc { get; set; } = default!;
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
-
     public partial class EventoContableDTOIReadOnlyListResponseGeneric
     {
 
@@ -13927,6 +13898,178 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("descripcion")]
         public string? Descripcion { get; set; } = default!;
+
+    }
+
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class AprobarRepolinizacionDTO
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("contrasena")]
+        public string? Contrasena { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class DetalleRepolinizacionDTO
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public long Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idEventoContable")]
+        public long IdEventoContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoEvento")]
+        public string? TipoEvento { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("origenModulo")]
+        public string? OrigenModulo { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("origenId")]
+        public string? OrigenId { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idAsientoOriginal")]
+        public long IdAsientoOriginal { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tieneDiferencia")]
+        public bool TieneDiferencia { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("lineasOriginales")]
+        public System.Collections.Generic.ICollection<LineaSimuladaDTO>? LineasOriginales { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("lineasNuevas")]
+        public System.Collections.Generic.ICollection<LineaSimuladaDTO>? LineasNuevas { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idAsientoReverso")]
+        public long? IdAsientoReverso { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idAsientoNuevo")]
+        public long? IdAsientoNuevo { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class EjecucionRepolinizacionDTO
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public long Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idLibroContable")]
+        public long IdLibroContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("usuarioEjecucion")]
+        public string? UsuarioEjecucion { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("fechaSimulacionUtc")]
+        public System.DateTime FechaSimulacionUtc { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("estado")]
+        public string? Estado { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("hashEntrada")]
+        public string? HashEntrada { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("fechaAprobacionUtc")]
+        public System.DateTime? FechaAprobacionUtc { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("usuarioAprobacion")]
+        public string? UsuarioAprobacion { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("totalEventos")]
+        public int TotalEventos { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("totalDiferencias")]
+        public int TotalDiferencias { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("detalles")]
+        public System.Collections.Generic.ICollection<DetalleRepolinizacionDTO>? Detalles { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class EjecucionRepolinizacionDTOResponseGeneric
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public ResponseStatus Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("currentException")]
+        public string? CurrentException { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("validationErrors")]
+        public System.Collections.Generic.ICollection<string>? ValidationErrors { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("responses")]
+        public EjecucionRepolinizacionDTO Responses { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class FiltroRepolinizacionDTO
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("idLibroContable")]
+        public long IdLibroContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("origenModulo")]
+        public string? OrigenModulo { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoEvento")]
+        public string? TipoEvento { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("desde")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(DateFormatConverter))]
+        public System.DateTimeOffset? Desde { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("hasta")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(DateFormatConverter))]
+        public System.DateTimeOffset? Hasta { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+
+    public partial class EventoContableDTO
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public long Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idLibroContable")]
+        public long IdLibroContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoEvento")]
+        public string? TipoEvento { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("estado")]
+        public string? Estado { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("origenModulo")]
+        public string? OrigenModulo { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("origenId")]
+        public string? OrigenId { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("fechaContable")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(DateFormatConverter))]
+        public System.DateTimeOffset FechaContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("intentosAutomaticos")]
+        public int IntentosAutomaticos { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("ultimoError")]
+        public string? UltimoError { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("fechaCreacionUtc")]
+        public System.DateTime FechaCreacionUtc { get; set; } = default!;
 
     }
 
