@@ -113,6 +113,17 @@ Cierra el entregable de W4 ("Diario, mayor, auxiliares y conciliación"):
 | Bitácora inmutable (`accounting_audit_log`) | **Pantalla de consulta centralizada propia**, no repartida como pestaña de historial por entidad | Una bitácora de auditoría existe para consultas transversales ("¿qué cambió este usuario esta semana?"), no solo por entidad. Repartirla fragmentaría la auditoría y dificultaría una revisión de cumplimiento que necesita ver todo el historial junto, filtrable por usuario/fecha/entidad. |
 | Auxiliares CxC/CxP/inventario | **Una pantalla por auxiliar** (tres pantallas separadas en el menú de Consulta), no una pantalla única con selector de tipo | CxC, CxP e inventario tienen columnas, filtros y drill-down completamente distintos (cliente/documento vs proveedor/documento vs bodega/artículo/lote). Ya hay precedente de pantalla dedicada por auxiliar en el sistema (`EstadoCuenta` de CxC, construido en el rework de Tiquete). |
 
+## W5 — Decisiones cerradas (esta sesión)
+
+Cierra el entregable de W5 ("Cierre, balanza, estados y exportaciones"):
+
+| Tema | Decisión | Nota |
+|---|---|---|
+| Prevalidación de pre-cierre | **Checklist visual** con estado pasa/no-pasa por bloqueador, deshabilita "Cerrar" hasta que todos pasen | El cierre es de alto impacto (estados financieros oficiales, reautenticación exigida) — el contador necesita ver de antemano qué falta (diferencias sin resolver de A4, errores de configuración de A2/A5) para ir a resolverlo, no descubrirlo por ensayo y error. Mismo espíritu que la guarda de doble cierre ya construida en Fase 3 de caja. |
+| Cierre anual | **Pantalla/flujo separado** en el menú de Cierre, distinto del cierre mensual de rutina | Deja explícito que el cierre anual (resultados a utilidades acumuladas) es una operación de mayores consecuencias que el cierre mensual rutinario, con su propio flujo dedicado en vez de un paso oculto dentro del wizard mensual. |
+| Reapertura excepcional en cascada | **Un solo flujo**: muestra la lista completa de períodos que se reabrirán antes de pedir una confirmación única | La cascada ya es obligatoria por decisión de A5 — ejecutarla período por período no agrega control real (el resultado final es el mismo) y sí agrega riesgo de que el usuario abandone a la mitad dejando el sistema en un estado inconsistente. El control real está en mostrar el alcance completo antes de la única reautenticación. |
+| Evidencia de autorización del cierre/reapertura | **Registro de auditoría con motivo en texto, más adjunto de archivo opcional** (ej. acta firmada externamente, correo de aprobación) | Más allá del registro automático en `accounting_audit_log` (usuario, fecha, reautenticación de A1, motivo) ya exigido por el plan, la pantalla también permite adjuntar evidencia externa cuando Tico Foodster maneje una aprobación formal fuera del sistema. Requiere almacenamiento y validación de tipo/tamaño de archivo — alcance nuevo para W5, no cubierto aún por ninguna infraestructura existente de adjuntos en Contabilidad. |
+
 ## Criterios de aceptación web
 
 - Ninguna pantalla contable se muestra o llama al API si el feature flag está apagado.
