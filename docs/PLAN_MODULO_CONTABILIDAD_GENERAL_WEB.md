@@ -90,6 +90,18 @@ equivalente en el sitio):
 | Editor de fórmulas de línea de plantilla | **Campo de texto con validación en tiempo real** contra el DSL (A2), no un constructor visual con dropdowns | El DSL es intencionalmente limitado (operadores básicos, campos del payload, paréntesis, sin loops ni funciones). El API ya valida/parsea a un AST en el guardado — la Web solo muestra ese error inline, sin duplicar el parser en el cliente. Un constructor visual reimplementaría el DSL en la UI sin necesidad, dado lo acotado del lenguaje. |
 | Centro de costo predeterminado en artículo/familia | **Campo nuevo en las fichas ya existentes** (Artículo, `Familias.razor`), no una pantalla separada de mapeo masivo | Consistente con dónde vive hoy la configuración de un artículo/familia — es un atributo más, no una entidad que necesite pantalla propia. Un mapeo masivo queda como mejora futura si la edición uno-por-uno resulta lenta en la práctica. |
 
+## W3 — Decisiones cerradas (esta sesión)
+
+Cierra el entregable de W3 ("Bandeja, detalle, manuales, errores y
+reproceso"):
+
+| Tema | Decisión | Nota |
+|---|---|---|
+| Bandeja de Operación | **Una sola bandeja con dos pestañas**: Eventos (`accounting_events`, incluye errores) / Pólizas (`accounting_entries`) | Mismo espíritu que la bandeja fiscal V44 ya existente (`Views/Documentos/Bandeja.razor`), pero con dos pestañas porque aquí hay dos entidades relacionadas: un evento puede fallar antes de generar póliza, y una póliza ya generada se consulta aparte. Una sola pantalla mantiene visible el flujo evento→póliza sin saltar de menú, y comparte filtros comunes (período, emisor, módulo origen). |
+| Reproceso controlado (repolinización) | **Exige siempre la reautenticación de Contabilidad** (modal de A1/W1), sin importar si el lote toca un período cerrado | El reproceso genera reversos y pólizas nuevas relacionadas con la corrida — impacto real sobre el mayor incluso en un período abierto (afecta balanza y estados en vivo, A5). Una sola regla sin excepciones evita que la pantalla tenga que determinar primero si algún evento del lote cae en un período cerrado antes de decidir si pide confirmación. |
+| Formulario de póliza manual | **Asiento libre genérico** (líneas Débito/Crédito, cuenta y dimensión por línea), no plantillas preconfiguradas de ajustes comunes | Una póliza manual es la válvula de escape para lo que el motor automático no cubre — limitarla a plantillas predefinidas restringiría justo el caso para el que existe. Valida cuadre Débito=Crédito, período abierto y exige la reautenticación si toca una cuenta de control (ya decidido en A4). Plantillas de ajustes frecuentes pueden agregarse después como mejora de UX sobre este mismo formulario. |
+| Bandeja de errores de contabilización | **Distinción visual explícita** entre error de configuración y error técnico transitorio (clasificación de A2) | Un error técnico normalmente se resuelve solo (barrido automático, A2); uno de configuración exige acción y además bloquea el pre-cierre (A5). La distinción visual (badge/color, filtro separado) es lo que hace útil la bandeja como lista de pendientes reales, sin obligar a abrir cada fila para saber si hay que actuar. |
+
 ## Criterios de aceptación web
 
 - Ninguna pantalla contable se muestra o llama al API si el feature flag está apagado.
