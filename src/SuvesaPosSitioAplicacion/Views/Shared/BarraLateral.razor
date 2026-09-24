@@ -4,6 +4,7 @@
 @using SuvesaPosSitioAplicacion.Views.Reportes
 @implements IDisposable
 @inject IContextoSesion Sesion
+@inject IContextoContabilidad Contabilidad
 @inject IEstadoEspacioTrabajo Espacio
 @inject NavigationManager Navegacion
 @inject IJSRuntime JS
@@ -59,7 +60,7 @@
     else
     {
     <ul class="seepos-lista-menu nav flex-column flex-grow-1 px-2 pb-2 mb-0">
-        @foreach (var raiz in FiltroMenu.Visibles(MenuSeePos.Items, Sesion))
+        @foreach (var raiz in FiltroMenu.Visibles(MenuSeePos.Items, Sesion, Contabilidad))
         {
             <li @key="raiz.Titulo" id="@IdRaiz(raiz)" class="nav-item" title="@(Compacto ? raiz.Titulo : null)">
                 @if (raiz.EsGrupo)
@@ -125,7 +126,7 @@
     private string _busqueda = "";
 
     private IEnumerable<ResultadoMenu> ResultadosBusqueda
-        => BuscarOpciones(FiltroMenu.Visibles(MenuSeePos.Items, Sesion), Array.Empty<string>())
+        => BuscarOpciones(FiltroMenu.Visibles(MenuSeePos.Items, Sesion, Contabilidad), Array.Empty<string>())
             .Where(r => r.Item.Titulo.Contains(_busqueda.Trim(), StringComparison.OrdinalIgnoreCase)
                      || r.Ruta.Contains(_busqueda.Trim(), StringComparison.OrdinalIgnoreCase));
 
@@ -137,7 +138,7 @@
             if (!item.EsGrupo && item.Ruta is not null)
                 yield return new ResultadoMenu(item, string.Join(" → ", ruta[..^1]));
 
-            foreach (var resultado in BuscarOpciones(FiltroMenu.Visibles(item.Hijos, Sesion), ruta))
+            foreach (var resultado in BuscarOpciones(FiltroMenu.Visibles(item.Hijos, Sesion, Contabilidad), ruta))
                 yield return resultado;
         }
     }
@@ -152,7 +153,7 @@
     private IEnumerable<ItemMenu> HijosVisibles(ItemMenu raiz)
     {
         if (!string.Equals(raiz.Codigo, "MODULO_REPORTES", StringComparison.OrdinalIgnoreCase))
-            return FiltroMenu.Visibles(raiz.Hijos, Sesion);
+            return FiltroMenu.Visibles(raiz.Hijos, Sesion, Contabilidad);
 
         var grupos = CatalogoReportes.Grupos
             .Select(grupo => new ItemMenu

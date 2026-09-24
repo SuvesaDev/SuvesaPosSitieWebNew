@@ -21,6 +21,7 @@
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject IContextoContabilidad Contabilidad
 @inject IRelojEquipo RelojEquipo
 @inject NavigationManager Navegacion
 @inject IClienteBonificacion ClienteBonificacion
@@ -1227,7 +1228,7 @@
 
         _empresas = (await Respuestas.DatoAsync(await Api.Empresas(), "consultar las empresas de facturación"))?.ToList() ?? new();
         if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
-        AlCambiarEmpresa();
+        await AlCambiarEmpresa();
 
         // La descarga grande empieza mientras el cajero elige cliente y tipo de
         // factura, por lo que normalmente el catálogo ya está disponible al abrirlo.
@@ -1237,13 +1238,19 @@
 
     // Al cambiar de empresa se refrescan sus actividades económicas (vienen en el
     // emisor) y se preselecciona la principal.
-    private void AlCambiarEmpresa()
+    private async Task AlCambiarEmpresa()
     {
         var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
         _actividadesEmpresa = empresa?.Actividades?.ToList() ?? new();
         _codActividad = _actividadesEmpresa.FirstOrDefault(a => a.Principal == true)?.Codigo
                         ?? _actividadesEmpresa.FirstOrDefault()?.Codigo
                         ?? string.Empty;
+
+        // Contabilidad W1: mismo punto donde ya se recargan datos dependientes del
+        // emisor — aquí se resuelve (y cachea) si el módulo está habilitado, para que
+        // el menú lo refleje sin depender de un claim fijo de Identity.
+        if (_idEmpresa > 0 && _idEmisor > 0)
+            await Contabilidad.ResolverAsync(_idEmpresa, _idEmisor);
     }
 
     private async Task BuscarClientes()

@@ -1,0 +1,162 @@
+@page "/accounting/issuer-setup"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IContextoSesion Sesion
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* Contabilidad W1 — activación por empresa/emisor (A1 del API, ya construido). No es
+   la pantalla completa de "configuración contable por emisor" (mapeos de cuentas,
+   políticas de IVA, etc. — eso llega en fases posteriores); aquí solo se resuelve
+   el feature flag: activar/desactivar el módulo. *@
+
+<AppPantalla Pantalla="Configuración emisor" Codigo="CONTABILIDAD.CONFIGURACION_EMISOR" Icono="bi-journal-text">
+    <ChildContent>
+        <div class="card">
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="ce-empresa">Empresa</label>
+                        <select id="ce-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="ce-emisor">Emisor</label>
+                        <select id="ce-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                @if (_cargando)
+                {
+                    <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+                }
+                else if (_idEmpresa == 0)
+                {
+                    <p class="text-secondary mb-0">Seleccione una empresa para ver su estado de activación.</p>
+                }
+                else if (_estado is not null)
+                {
+                    <div class="d-flex flex-wrap gap-4 align-items-center mb-3">
+                        <div>
+                            <div class="small text-secondary">Empresa</div>
+                            <span class="badge @(_estado.EmpresaHabilitada ? "text-bg-success" : "text-bg-secondary")">
+                                @(_estado.EmpresaHabilitada ? "Habilitada" : "No habilitada")
+                            </span>
+                        </div>
+                        @if (_idEmisor > 0)
+                        {
+                            <div>
+                                <div class="small text-secondary">Emisor</div>
+                                <span class="badge @(_estado.EmisorHabilitado ? "text-bg-success" : "text-bg-secondary")">
+                                    @(_estado.EmisorHabilitado ? "Habilitado" : "No habilitado")
+                                </span>
+                            </div>
+                            <div>
+                                <div class="small text-secondary">Contabilidad efectiva</div>
+                                <span class="badge @(_estado.Efectivo ? "text-bg-success" : "text-bg-warning")">
+                                    @(_estado.Efectivo ? "Activa" : "Inactiva")
+                                </span>
+                            </div>
+                        }
+                    </div>
+
+                    @if (Sesion.Puede("CONTABILIDAD.CONFIGURACION_EMISOR", AccionPantalla.Activar))
+                    {
+                        <div class="d-flex flex-wrap gap-2">
+                            @if (_estado.EmpresaHabilitada)
+                            {
+                                <button class="btn btn-sm btn-outline-danger" disabled="@_guardando" @onclick="DesactivarEmpresa">Desactivar empresa</button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-primary" disabled="@_guardando" @onclick="ActivarEmpresa">Activar empresa</button>
+                            }
+
+                            @if (_idEmisor > 0)
+                            {
+                                @if (_estado.EmisorHabilitado)
+                                {
+                                    <button class="btn btn-sm btn-outline-danger" disabled="@_guardando" @onclick="DesactivarEmisor">Desactivar emisor</button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-primary" disabled="@_guardando" @onclick="ActivarEmisor">Activar emisor</button>
+                                }
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    [Inject] private Security.IContextoContabilidad ContextoContabilidad { get; set; } = default!;
+
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private EstadoActivacionContabilidadDTO? _estado;
+    private bool _cargando;
+    private bool _guardando;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _estado = null;
+        if (_idEmpresa == 0) return;
+
+        _cargando = true;
+        _estado = await Respuestas.DatoAsync(
+            await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor == 0 ? null : _idEmisor),
+            "consultar el estado de activación de Contabilidad");
+        _cargando = false;
+
+        if (_idEmisor > 0)
+            await ContextoContabilidad.ResolverAsync(_idEmpresa, _idEmisor);
+    }
+
+    private Task ActivarEmpresa() => Ejecutar(() => Contabilidad.ActivarEmpresa(_idEmpresa), "activar Contabilidad para la empresa");
+    private Task DesactivarEmpresa() => Ejecutar(() => Contabilidad.DesactivarEmpresa(_idEmpresa), "desactivar Contabilidad para la empresa");
+    private Task ActivarEmisor() => Ejecutar(() => Contabilidad.ActivarEmisor(new ActivarEmisorDTO { IdEmisor = _idEmisor, MonedaFuncional = "CRC" }), "activar Contabilidad para el emisor");
+    private Task DesactivarEmisor() => Ejecutar(() => Contabilidad.DesactivarEmisor(_idEmisor), "desactivar Contabilidad para el emisor");
+
+    private async Task Ejecutar<T>(Func<Task<ResponseGeneric<T>>> accion, string queSeIntentaba)
+    {
+        _guardando = true;
+        var respuesta = await accion();
+        _guardando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, queSeIntentaba))
+        {
+            Dialogos.Exito("Listo.");
+            await AlCambiarSeleccion();
+        }
+    }
+}

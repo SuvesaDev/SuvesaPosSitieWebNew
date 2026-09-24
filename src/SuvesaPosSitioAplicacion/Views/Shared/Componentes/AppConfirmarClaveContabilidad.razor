@@ -1,0 +1,87 @@
+@using Havit.Blazor.Components.Web.Bootstrap
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+
+@* Reautenticación única de Contabilidad (W1) — componente modal reutilizable para toda
+   acción sensible del módulo (reverso, cierre, resolución de diferencia, reapertura...).
+   Es un mecanismo NUEVO y SEPARADO del PIN corto de ClaveInterna que ya usa Agente/SAC
+   en Ventas (decisión ya cerrada del plan Web): pide de nuevo la contraseña de Identity
+   contra POST api/contabilidad/confirmar-clave (ya existente desde A1).
+
+   Uso:
+     <AppConfirmarClaveContabilidad @ref="_confirmarClave" />
+
+     if (await _confirmarClave.MostrarAsync())
+     {
+         // el usuario confirmó su contraseña — proceder con la acción sensible.
+     }
+*@
+
+<AppModal @ref="_modal" Titulo="Confirmar contraseña" Subtitulo="Esta acción de Contabilidad requiere reautenticación"
+          Tamano="ModalSize.Regular" AlGuardar="Confirmar" Guardando="_validando"
+          PuedeGuardar="!string.IsNullOrWhiteSpace(_clave)"
+          TextoGuardar="Confirmar" TextoGuardando="Verificando..." IconoGuardar="bi-shield-lock"
+          AlCerrar="AlCerrarModal">
+    <div class="mb-2">
+        <label class="form-label" for="app-confirmar-clave-contabilidad">Contraseña</label>
+        <input id="app-confirmar-clave-contabilidad" type="password"
+               class="form-control @(_error is not null ? "is-invalid" : "")"
+               @bind="_clave" @bind:event="oninput" @onkeydown="AlPresionarTecla" autocomplete="current-password" />
+        @if (_error is not null)
+        {
+            <div class="invalid-feedback d-block">@_error</div>
+        }
+    </div>
+</AppModal>
+
+@code {
+    [Inject] private IContabilidad Contabilidad { get; set; } = default!;
+
+    private AppModal _modal = default!;
+    private string _clave = "";
+    private bool _validando;
+    private string? _error;
+    private TaskCompletionSource<bool>? _pendiente;
+
+    /// <summary>Muestra el modal y espera la confirmación. Devuelve true solo si el
+    /// usuario confirmó la contraseña correcta; false si canceló o cerró el modal.</summary>
+    public async Task<bool> MostrarAsync()
+    {
+        _clave = "";
+        _error = null;
+        _validando = false;
+        _pendiente = new TaskCompletionSource<bool>();
+        await _modal.MostrarAsync();
+        return await _pendiente.Task;
+    }
+
+    private async Task Confirmar()
+    {
+        if (string.IsNullOrWhiteSpace(_clave)) return;
+
+        _validando = true;
+        _error = null;
+        var respuesta = await Contabilidad.ConfirmarClave(_clave);
+        _validando = false;
+
+        if (respuesta.Responses == true)
+        {
+            _pendiente?.TrySetResult(true);
+            await _modal.OcultarAsync();
+        }
+        else
+        {
+            _error = "Contraseña incorrecta.";
+        }
+    }
+
+    private async Task AlPresionarTecla(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Confirmar();
+    }
+
+    private Task AlCerrarModal()
+    {
+        _pendiente?.TrySetResult(false);
+        return Task.CompletedTask;
+    }
+}

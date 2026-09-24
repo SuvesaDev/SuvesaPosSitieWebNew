@@ -817,6 +817,28 @@ public static partial class MenuSeePos
                     Ruta = "/moduloReportes/auditoria",
                 },
             }
+        },
+        new ItemMenu
+        {
+            Titulo = "Contabilidad",
+            Codigo = "CONTABILIDAD",
+            Ruta = "/accounting/issuer-setup",
+            Icono = "bi-journal-text",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Configuración emisor",
+                    Codigo = "CONTABILIDAD.CONFIGURACION_EMISOR",
+                    Ruta = "/accounting/issuer-setup",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Catálogo cuentas",
+                    Codigo = "CONTABILIDAD.CATALOGO_CUENTAS",
+                    Ruta = "/accounting/chart-of-accounts",
+                },
+            }
         }
     }
     .OrderBy(i => string.Equals(i.Codigo, "PARAMETROS", StringComparison.Ordinal) ? 1 : 0)

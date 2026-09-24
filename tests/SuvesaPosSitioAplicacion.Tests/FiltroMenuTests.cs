@@ -109,12 +109,43 @@ public class FiltroMenuTests
     public void ElMenuRealSeCargoCompleto()
     {
         static int Contar(IEnumerable<ItemMenu> ns) => ns.Sum(n => 1 + Contar(n.Hijos));
-        Assert.Equal(10, MenuSeePos.Items.Count);
+        Assert.Equal(11, MenuSeePos.Items.Count);
         // 84 originales + 19 (arbol de permisos MODULO_REPORTES.*) + 2 (Gastos,
         // Cumplimiento CABYS) + 4 (Apartados y préstamos, KPI por ruta, Empaquetado y
         // maquila, Mermas) + 1 (Panel ejecutivo) + 1 (Tablero de Consignación, pantalla
         // huérfana que ya existía sin nodo de menú) + 1 (Ventas entre horas) + 1
-        // (Importaciones) — ver PLAN_MODULO_REPORTES_ERP_WEB.md.
-        Assert.Equal(114, Contar(MenuSeePos.Items));
+        // (Importaciones) — ver PLAN_MODULO_REPORTES_ERP_WEB.md. + 3 (módulo
+        // Contabilidad: raíz + Configuración emisor + Catálogo cuentas, W1).
+        Assert.Equal(117, Contar(MenuSeePos.Items));
+    }
+
+    private sealed class ContabilidadFalsa : IContextoContabilidad
+    {
+        public ContabilidadFalsa(bool habilitada) => HabilitadaEmisorActual = habilitada;
+        public bool HabilitadaEmisorActual { get; }
+        public Task ResolverAsync(long idEmpresa, int idEmisor, CancellationToken ct = default) => Task.CompletedTask;
+    }
+
+    [Fact]
+    public void Contabilidad_OcultaSiNoEstaHabilitadaParaElEmisorActual()
+    {
+        var raiz = MenuSeePos.Items.Single(i => i.Codigo == "CONTABILIDAD");
+        var sesion = new SesionFalsa(false, "CONTABILIDAD.CONFIGURACION_EMISOR", "CONTABILIDAD.CATALOGO_CUENTAS");
+
+        Assert.False(FiltroMenu.EsVisible(raiz, sesion, new ContabilidadFalsa(habilitada: false)));
+        Assert.False(FiltroMenu.EsVisible(raiz, sesion));
+    }
+
+    [Fact]
+    public void Contabilidad_OcultaInclusoParaSuperAdministradorSiNoEstaHabilitada()
+        => Assert.False(FiltroMenu.EsVisible(MenuSeePos.Items.Single(i => i.Codigo == "CONTABILIDAD"), new SesionFalsa(superAdmin: true), new ContabilidadFalsa(habilitada: false)));
+
+    [Fact]
+    public void Contabilidad_VisibleCuandoEstaHabilitadaYElRolTienePermiso()
+    {
+        var raiz = MenuSeePos.Items.Single(i => i.Codigo == "CONTABILIDAD");
+        var sesion = new SesionFalsa(false, "CONTABILIDAD.CONFIGURACION_EMISOR");
+
+        Assert.True(FiltroMenu.EsVisible(raiz, sesion, new ContabilidadFalsa(habilitada: true)));
     }
 }

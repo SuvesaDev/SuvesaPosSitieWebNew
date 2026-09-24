@@ -15,9 +15,17 @@ public static class FiltroMenu
     /// Una hoja se ve si el rol tiene la accion VER sobre su codigo.
     /// Un grupo se ve si algun descendiente se ve, para no dejar menus vacios.
     /// </summary>
-    public static bool EsVisible(ItemMenu item, IContextoSesion sesion)
+    /// <param name="contabilidad">
+    /// Estado de activacion de Contabilidad para el emisor activo (W1). Opcional para no
+    /// obligar a los ~11 call sites existentes (incluidos tests no relacionados) a pasarlo
+    /// — si se omite, el nodo CONTABILIDAD queda oculto por defecto, mismo criterio "oculto
+    /// completamente" ya decidido cuando el flag no esta resuelto todavia.
+    /// </param>
+    public static bool EsVisible(ItemMenu item, IContextoSesion sesion, IContextoContabilidad? contabilidad = null)
     {
         if (string.Equals(item.Codigo, "COMPRAS.IMPORTACIONES", StringComparison.OrdinalIgnoreCase) && !sesion.HabilitaImportaciones)
+            return false;
+        if (string.Equals(item.Codigo, "CONTABILIDAD", StringComparison.OrdinalIgnoreCase) && contabilidad?.HabilitadaEmisorActual != true)
             return false;
         if (sesion.EsSuperAdministrador)
         {
@@ -26,12 +34,12 @@ public static class FiltroMenu
 
         if (item.EsGrupo)
         {
-            return item.Hijos.Any(h => EsVisible(h, sesion));
+            return item.Hijos.Any(h => EsVisible(h, sesion, contabilidad));
         }
 
         return !string.IsNullOrWhiteSpace(item.Codigo) && sesion.PuedeVer(item.Codigo);
     }
 
-    public static IEnumerable<ItemMenu> Visibles(IEnumerable<ItemMenu> items, IContextoSesion sesion)
-        => items.Where(i => EsVisible(i, sesion));
+    public static IEnumerable<ItemMenu> Visibles(IEnumerable<ItemMenu> items, IContextoSesion sesion, IContextoContabilidad? contabilidad = null)
+        => items.Where(i => EsVisible(i, sesion, contabilidad));
 }
