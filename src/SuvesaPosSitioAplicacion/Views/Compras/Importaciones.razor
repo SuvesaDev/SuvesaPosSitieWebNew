@@ -12,6 +12,7 @@
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IProveedoresConsulta ProveedoresApi
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IInventarioConsulta InventarioApi
 @inject IServicioDialogos Dialogos
+@inject SuvesaPosSitioAplicacion.Security.IContextoSesion Sesion
 @inject NavigationManager Navegacion
 
 <AppPantalla Pantalla="Importaciones" Icono="bi-box-seam" Subtitulo="Expedientes de compra extranjera, nacionalización y evidencia documental" Nivel="NivelPantalla.Escritorio">
@@ -237,7 +238,7 @@
                         <td style="min-width:7rem"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="candidata.PrecioAAplicado" /></td>
                         <td class="text-nowrap">
                             <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="() => AsociarArticuloPdf(indice)">@((candidata.Articulo is null) ? "Asociar" : "Cambiar")</button>
-                            @if (candidata.Articulo?.Lote == true) { <button type="button" class="btn btn-sm btn-outline-secondary" title="Lote" @onclick="() => AbrirLotesPdf(indice)"><i class="bi bi-box-seam" aria-hidden="true"></i></button> }
+                            @if (Sesion.EsCostaPets || candidata.Articulo?.Lote == true) { <button type="button" class="btn btn-sm btn-outline-secondary" title="Lote" @onclick="() => AbrirLotesPdf(indice)"><i class="bi bi-box-seam" aria-hidden="true"></i></button> }
                         </td>
                     </tr>
                     @if (ManejaLotePdf(candidata))
@@ -530,7 +531,7 @@
         if (l.LotesExtra.Count == 0) l.CantidadLotePrincipal = l.Cantidad;
     }
 
-    private bool ManejaLotePdf(LineaCandidataPdf l) => l.Articulo?.Lote == true;
+    private bool ManejaLotePdf(LineaCandidataPdf l) => l.Articulo is not null && (Sesion.EsCostaPets || l.Articulo.Lote);
     private static decimal SumaLotesPdf(LineaCandidataPdf l) => l.CantidadLotePrincipal + l.LotesExtra.Sum(e => e.Cantidad);
 
     /// <summary>La línea maneja lotes y falta información: número de lote, cantidad
