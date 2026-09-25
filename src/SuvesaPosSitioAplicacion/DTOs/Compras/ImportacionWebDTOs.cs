@@ -7,7 +7,6 @@ public sealed class CrearImportacionWebDTO
     public string? Embarque { get; set; }
     public int IdProveedorExtranjero { get; set; }
     public int IdBodega { get; set; }
-    public int? IdEmpresa { get; set; }
     public int? IdEmisor { get; set; }
     public int? IdSerieMensajeReceptor { get; set; }
     public int CodMoneda { get; set; } = 2;

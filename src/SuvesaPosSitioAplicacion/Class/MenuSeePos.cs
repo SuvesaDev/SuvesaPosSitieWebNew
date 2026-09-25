@@ -753,6 +753,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Importaciones",
+                    Codigo = "MODULO_REPORTES.IMPORTACIONES",
+                    Ruta = "/moduloReportes/importaciones",
+                },
+                new ItemMenu
+                {
                     // Catálogo N°3 ("Reportes de Gastos"). Complementario de "Compras":
                     // misma tabla, filtrado por Compras.Gasto = true.
                     Titulo = "Gastos",

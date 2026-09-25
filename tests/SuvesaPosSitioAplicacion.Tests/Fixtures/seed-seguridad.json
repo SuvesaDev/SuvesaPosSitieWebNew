@@ -963,11 +963,27 @@
           ]
         },
         {
+          "codigo": "MODULO_REPORTES.IMPORTACIONES",
+          "nombre": "Importaciones",
+          "ruta": "/moduloReportes/importaciones",
+          "padre": null,
+          "orden": 18,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "MODULO_REPORTES.GASTOS",
           "nombre": "Gastos",
           "ruta": "/moduloReportes/gastos",
           "padre": null,
-          "orden": 18,
+          "orden": 19,
           "acciones": [
             "VER",
             "CREAR",
@@ -983,7 +999,7 @@
           "nombre": "Inventario",
           "ruta": "/moduloReportes/inventario",
           "padre": null,
-          "orden": 19,
+          "orden": 20,
           "acciones": [
             "VER",
             "CREAR",
@@ -999,7 +1015,7 @@
           "nombre": "Inventario ABC",
           "ruta": "/moduloReportes/inventario-abc",
           "padre": null,
-          "orden": 20,
+          "orden": 21,
           "acciones": [
             "VER",
             "CREAR",
@@ -1015,7 +1031,7 @@
           "nombre": "Rotación de inventario",
           "ruta": "/moduloReportes/rotacion-inventario",
           "padre": null,
-          "orden": 21,
+          "orden": 22,
           "acciones": [
             "VER",
             "CREAR",
@@ -1031,7 +1047,7 @@
           "nombre": "Bonificaciones",
           "ruta": "/moduloReportes/bonificaciones",
           "padre": null,
-          "orden": 22,
+          "orden": 23,
           "acciones": [
             "VER",
             "CREAR",
@@ -1047,7 +1063,7 @@
           "nombre": "Lotes y vencimientos",
           "ruta": "/moduloReportes/lotes",
           "padre": null,
-          "orden": 23,
+          "orden": 24,
           "acciones": [
             "VER",
             "CREAR",
@@ -1063,7 +1079,7 @@
           "nombre": "Trazabilidad",
           "ruta": "/moduloReportes/trazabilidad",
           "padre": null,
-          "orden": 24,
+          "orden": 25,
           "acciones": [
             "VER",
             "CREAR",
@@ -1079,7 +1095,7 @@
           "nombre": "Empaquetado y maquila",
           "ruta": "/moduloReportes/empaquetado",
           "padre": null,
-          "orden": 25,
+          "orden": 26,
           "acciones": [
             "VER",
             "CREAR",
@@ -1095,7 +1111,7 @@
           "nombre": "Mermas",
           "ruta": "/moduloReportes/mermas",
           "padre": null,
-          "orden": 26,
+          "orden": 27,
           "acciones": [
             "VER",
             "CREAR",
@@ -1111,7 +1127,7 @@
           "nombre": "Auditoría",
           "ruta": "/moduloReportes/auditoria",
           "padre": null,
-          "orden": 27,
+          "orden": 28,
           "acciones": [
             "VER",
             "CREAR",
