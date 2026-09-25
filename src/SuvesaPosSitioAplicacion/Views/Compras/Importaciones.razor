@@ -487,9 +487,15 @@
         finally { _buscandoArticuloPdf = false; }
     }
 
-    private void ElegirArticuloPdf(InventarioDTO articulo)
+    private async Task ElegirArticuloPdf(InventarioDTO articulo)
     {
         if (_indicePdfAsignacion is not int indice) return;
+        // El buscador embebido devuelve una proyección ligera (mismo caso ya documentado en
+        // Compra.razor.ElegirArticuloXml): la propiedad Lote llega completa recién en la
+        // consulta individual — sin esto, el ícono de lote nunca se mostraba aunque el
+        // artículo sí manejara lotes.
+        var detalle = await Respuestas.DatoAsync(await InventarioApi.Uno(articulo.Codigo));
+        if (detalle is not null) articulo = detalle;
         var candidata = _pdfCandidatas[indice];
         candidata.Articulo = articulo;
         candidata.Lote = string.Empty;
