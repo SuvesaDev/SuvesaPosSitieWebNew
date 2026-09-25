@@ -1,3 +1,4 @@
+using System.IO;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.Helpers;
 
@@ -49,10 +50,26 @@ public interface IContabilidad
     Task<ResponseGeneric<ICollection<AuditoriaContableDTO>>> ListarAuditoria(long? idLibroContable, string? entidad, string? usuario, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina);
     Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ObtenerLibroDiario(long idLibroContable, DateOnly desde, DateOnly hasta);
     Task<ResponseGeneric<LibroMayorDTO>> ObtenerLibroMayor(long idCuentaContable, DateOnly desde, DateOnly hasta);
+    Task<ResponseGeneric<BalanzaComprobacionDTO>> ObtenerBalanza(long idLibroContable, DateOnly fechaCorte);
+    Task<ResponseGeneric<EstadoResultadosDTO>> ObtenerEstadoResultados(long idLibroContable, DateOnly desde, DateOnly hasta);
+    Task<ResponseGeneric<BalanceGeneralDTO>> ObtenerBalanceGeneral(long idLibroContable, DateOnly fechaCorte);
+    Task<ResponseGeneric<EstadoFlujoEfectivoDTO>> ObtenerEstadoFlujoEfectivo(long idLibroContable, DateOnly desde, DateOnly hasta);
 
     Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarCxC(int idEmisor);
     Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarCxP(int idEmisor);
     Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarInventario(long idLibroContable);
     Task<ResponseGeneric<EjecucionConciliacionDTO>> ObtenerConciliacion(long idEjecucion);
     Task<ResponseGeneric<bool>> ResolverDiferencia(long idDiferencia, string motivo, string? contrasena);
+
+    // ---- W5: cierre mensual (A5, nunca conectado a Web hasta ahora) ----
+    Task<ResponseGeneric<ChecklistPreCierreDTO>> EjecutarPreCierre(long idPeriodo);
+    Task<ResponseGeneric<PeriodoContableDTO>> CerrarPeriodo(long idPeriodo);
+    Task<ResponseGeneric<PeriodoContableDTO>> BloquearPeriodo(long idPeriodo);
+    Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ReabrirPeriodo(long idPeriodo, string motivo, string contrasena);
+
+    // ---- W5: cierre anual y evidencia de adjunto ----
+    Task<ResponseGeneric<CierreAnualDTO>> EjecutarCierreAnual(long idLibroContable, int ejercicio, string contrasena);
+    Task<ResponseGeneric<CierreAnualDTO>> ObtenerCierreAnual(long idLibroContable, int ejercicio);
+    Task<ResponseGeneric<EvidenciaCierreDTO>> CargarEvidenciaCierre(long idLibroContable, string tipoOperacion, long idReferencia, Stream archivo, string nombreArchivo, string contentType);
+    Task<ResponseGeneric<ICollection<EvidenciaCierreDTO>>> ListarEvidenciasCierre(string tipoOperacion, long idReferencia);
 }

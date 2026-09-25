@@ -898,6 +898,42 @@ public static partial class MenuSeePos
                     Codigo = "CONTABILIDAD.BITACORA",
                     Ruta = "/accounting/audit-log",
                 },
+                new ItemMenu
+                {
+                    Titulo = "Cierre",
+                    Codigo = "CONTABILIDAD.CIERRE",
+                    Ruta = "/accounting/close",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Cierre anual",
+                    Codigo = "CONTABILIDAD.CIERRE_ANUAL",
+                    Ruta = "/accounting/annual-close",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Balanza",
+                    Codigo = "CONTABILIDAD.BALANZA",
+                    Ruta = "/accounting/trial-balance",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Estado de resultados",
+                    Codigo = "CONTABILIDAD.ESTADO_DE_RESULTADOS",
+                    Ruta = "/accounting/income-statement",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Balance general",
+                    Codigo = "CONTABILIDAD.BALANCE_GENERAL",
+                    Ruta = "/accounting/balance-sheet",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Flujo de efectivo",
+                    Codigo = "CONTABILIDAD.FLUJO_DE_EFECTIVO",
+                    Ruta = "/accounting/cash-flow",
+                },
             }
         }
     }

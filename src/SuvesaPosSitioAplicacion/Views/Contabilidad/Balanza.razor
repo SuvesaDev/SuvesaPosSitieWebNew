@@ -1,0 +1,126 @@
+@page "/accounting/trial-balance"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IManejadorRespuestas Respuestas
+@inject IJSRuntime JS
+
+@* W5: balanza de comprobación a una fecha de corte, con exportación CSV (mismo patrón
+   que Estado de Cuenta de CxC). *@
+
+<AppPantalla Pantalla="Balanza" Codigo="CONTABILIDAD.BALANZA" Icono="bi-journal-text" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="bz-empresa">Empresa</label>
+                        <select id="bz-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="bz-emisor">Emisor</label>
+                        <select id="bz-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label" for="bz-corte">Fecha de corte</label>
+                        <input id="bz-corte" type="date" class="form-control" @bind="_fechaCorte" />
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <button class="btn btn-outline-primary w-100" disabled="@(_idLibroContable == 0)" @onclick="Consultar">Consultar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_balanza is not null)
+        {
+            <div class="d-flex justify-content-end mb-2">
+                <button class="btn btn-sm btn-outline-secondary" @onclick="DescargarCsv"><i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>Descargar CSV</button>
+            </div>
+            <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Débito</th><th class="text-end">Crédito</th><th class="text-end">Saldo</th></tr></thead>
+                <tbody>
+                    @foreach (var linea in _balanza.Lineas ?? new List<LineaBalanzaDTO>())
+                    {
+                        <tr>
+                            <td>@linea.Codigo</td>
+                            <td>@linea.Descripcion</td>
+                            <td class="text-end">@linea.Debito.ToString("N2")</td>
+                            <td class="text-end">@linea.Credito.ToString("N2")</td>
+                            <td class="text-end">@linea.Saldo.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="fw-semibold">
+                        <td colspan="2">Total</td>
+                        <td class="text-end">@_balanza.TotalDebito.ToString("N2")</td>
+                        <td class="text-end">@_balanza.TotalCredito.ToString("N2")</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table></div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+    private DateOnly _fechaCorte = DateOnly.FromDateTime(DateTime.Today);
+
+    private BalanzaComprobacionDTO? _balanza;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _balanza = null;
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+    }
+
+    private async Task Consultar()
+    {
+        _balanza = await Respuestas.DatoAsync(await Contabilidad.ObtenerBalanza(_idLibroContable, _fechaCorte), "consultar la balanza de comprobación");
+    }
+
+    private async Task DescargarCsv()
+    {
+        if (_balanza is null) return;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Codigo;Descripcion;Debito;Credito;Saldo");
+        foreach (var l in _balanza.Lineas ?? new List<LineaBalanzaDTO>())
+            sb.AppendLine(string.Join(';', l.Codigo, l.Descripcion, l.Debito.ToString(System.Globalization.CultureInfo.InvariantCulture), l.Credito.ToString(System.Globalization.CultureInfo.InvariantCulture), l.Saldo.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        await JS.InvokeVoidAsync("seepos.descargarTexto", $"balanza-{_fechaCorte:yyyyMMdd}.csv", sb.ToString(), "text/csv;charset=utf-8");
+    }
+}

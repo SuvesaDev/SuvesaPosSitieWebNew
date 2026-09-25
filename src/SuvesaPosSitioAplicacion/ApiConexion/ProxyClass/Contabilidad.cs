@@ -1,3 +1,4 @@
+using System.IO;
 using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
@@ -250,6 +251,34 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar el libro mayor");
 
+    public Task<ResponseGeneric<BalanzaComprobacionDTO>> ObtenerBalanza(long idLibroContable, DateOnly fechaCorte)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.BalanzaAsync(idLibroContable, AFecha(fechaCorte));
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar la balanza de comprobación");
+
+    public Task<ResponseGeneric<EstadoResultadosDTO>> ObtenerEstadoResultados(long idLibroContable, DateOnly desde, DateOnly hasta)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.EstadoResultadosAsync(idLibroContable, AFecha(desde), AFecha(hasta));
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar el estado de resultados");
+
+    public Task<ResponseGeneric<BalanceGeneralDTO>> ObtenerBalanceGeneral(long idLibroContable, DateOnly fechaCorte)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.BalanceGeneralAsync(idLibroContable, AFecha(fechaCorte));
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar el balance general");
+
+    public Task<ResponseGeneric<EstadoFlujoEfectivoDTO>> ObtenerEstadoFlujoEfectivo(long idLibroContable, DateOnly desde, DateOnly hasta)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.FlujoEfectivoAsync(idLibroContable, AFecha(desde), AFecha(hasta));
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar el estado de flujo de efectivo");
+
     public Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarCxC(int idEmisor)
         => Ejecutar(async () =>
         {
@@ -284,6 +313,66 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             var r = await _api.ResolverAsync(idDiferencia, new ResolverDiferenciaDTO { Motivo = motivo, Contrasena = contrasena ?? string.Empty });
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "resolver la diferencia de conciliación");
+
+    // ---- W5: cierre mensual (A5, nunca conectado a Web hasta ahora) ----
+
+    public Task<ResponseGeneric<ChecklistPreCierreDTO>> EjecutarPreCierre(long idPeriodo)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.PreCierreAsync(idPeriodo);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "ejecutar el pre-cierre");
+
+    public Task<ResponseGeneric<PeriodoContableDTO>> CerrarPeriodo(long idPeriodo)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.Cerrar2Async(idPeriodo);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "cerrar el período");
+
+    public Task<ResponseGeneric<PeriodoContableDTO>> BloquearPeriodo(long idPeriodo)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.BloquearAsync(idPeriodo);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "bloquear el período");
+
+    public Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ReabrirPeriodo(long idPeriodo, string motivo, string contrasena)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ReabrirAsync(idPeriodo, new ReabrirPeriodoDTO { Motivo = motivo, Contrasena = contrasena });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "reabrir el período");
+
+    // ---- W5: cierre anual y evidencia de adjunto ----
+
+    public Task<ResponseGeneric<CierreAnualDTO>> EjecutarCierreAnual(long idLibroContable, int ejercicio, string contrasena)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.CierreAnualPOSTAsync(new EjecutarCierreAnualDTO { IdLibroContable = idLibroContable, Ejercicio = ejercicio, Contrasena = contrasena });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "ejecutar el cierre anual");
+
+    public Task<ResponseGeneric<CierreAnualDTO>> ObtenerCierreAnual(long idLibroContable, int ejercicio)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.CierreAnualGETAsync(idLibroContable, ejercicio);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar el cierre anual");
+
+    public Task<ResponseGeneric<EvidenciaCierreDTO>> CargarEvidenciaCierre(long idLibroContable, string tipoOperacion, long idReferencia, Stream archivo, string nombreArchivo, string contentType)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.EvidenciasCierrePOSTAsync(idLibroContable, tipoOperacion, idReferencia, new FileParameter(archivo, nombreArchivo, contentType));
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "cargar la evidencia de cierre");
+
+    public Task<ResponseGeneric<ICollection<EvidenciaCierreDTO>>> ListarEvidenciasCierre(string tipoOperacion, long idReferencia)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.EvidenciasCierreGETAsync(tipoOperacion, idReferencia);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar la evidencia de cierre");
 
     private static DateTimeOffset? AFecha(DateOnly? fecha) => fecha is null ? null : new DateTimeOffset(fecha.Value.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
 }

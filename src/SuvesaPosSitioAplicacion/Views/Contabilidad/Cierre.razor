@@ -1,0 +1,319 @@
+@page "/accounting/close"
+@using Microsoft.AspNetCore.Components.Forms
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* W5: cierre mensual de rutina — checklist de pre-cierre (visual pasa/no-pasa),
+   cerrar, bloquear (terminal) y reabrir en cascada (un solo flujo: la pantalla muestra
+   la lista completa de períodos que se reabrirán antes de la única confirmación,
+   decisión ya cerrada). Evidencia de adjunto opcional en cierre/reapertura. El cierre
+   anual es un flujo aparte (CierreAnual.razor). *@
+
+<AppPantalla Pantalla="Cierre" Codigo="CONTABILIDAD.CIERRE" Icono="bi-journal-text" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="cr-empresa">Empresa</label>
+                        <select id="cr-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="cr-emisor">Emisor</label>
+                        <select id="cr-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="cr-periodo">Período</label>
+                        <select id="cr-periodo" class="form-select" @bind="_idPeriodo" @bind:after="AlCambiarPeriodo" disabled="@(_periodos.Count == 0)">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var periodo in _periodos)
+                            {
+                                <option value="@periodo.Id">@periodo.Mes.ToString("00")/@periodo.Ejercicio (@periodo.Estado)</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_periodoActual is not null)
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div><strong>@_periodoActual.Mes.ToString("00")/@_periodoActual.Ejercicio</strong> — estado <span class="badge text-bg-secondary">@_periodoActual.Estado</span></div>
+                        <div class="d-flex gap-2">
+                            @if (_periodoActual.Estado == "Abierto")
+                            {
+                                <button class="btn btn-sm btn-outline-primary" disabled="@_procesando" @onclick="EjecutarPreCierre">Ejecutar pre-cierre</button>
+                            }
+                            @if (_periodoActual.Estado == "Cerrado")
+                            {
+                                <button class="btn btn-sm btn-outline-danger" disabled="@_procesando" @onclick="Bloquear">Bloquear (terminal)</button>
+                                <button class="btn btn-sm btn-outline-secondary" disabled="@_procesando" @onclick="PrepararReapertura">Reabrir</button>
+                            }
+                        </div>
+                    </div>
+
+                    @if (_checklist is not null)
+                    {
+                        <div class="alert @(_checklist.PuedeCerrar == true ? "alert-success" : "alert-warning") mb-3">
+                            <div class="fw-semibold mb-1">
+                                @if (_checklist.PuedeCerrar == true)
+                                {
+                                    <span><i class="bi bi-check-circle me-1"></i>Listo para cerrar.</span>
+                                }
+                                else
+                                {
+                                    <span><i class="bi bi-exclamation-triangle me-1"></i>No se puede cerrar todavía.</span>
+                                }
+                            </div>
+                            <div class="small">Eventos bloqueantes: @_checklist.EventosBloqueantes — Diferencias sin resolver: @_checklist.DiferenciasBloqueantes</div>
+                            @if ((_checklist.Detalles?.Count ?? 0) > 0)
+                            {
+                                <ul class="small mb-0 mt-2">
+                                    @foreach (var detalle in _checklist.Detalles!)
+                                    {
+                                        <li>@detalle</li>
+                                    }
+                                </ul>
+                            }
+                            @if (_checklist.PuedeCerrar == true)
+                            {
+                                <button class="btn btn-sm btn-success mt-2" disabled="@_procesando" @onclick="Cerrar">Cerrar período</button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header"><strong>Evidencia de autorización</strong> <span class="small text-secondary">acta firmada, correo de aprobación (opcional)</span></div>
+                <div class="card-body">
+                    <div class="row g-2 align-items-end mb-3">
+                        <div class="col-12 col-md-8">
+                            <InputFile class="form-control form-control-sm" OnChange="SeleccionarArchivo" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <button class="btn btn-sm btn-outline-primary w-100" disabled="@(_archivo is null || _subiendo)" @onclick="SubirEvidencia">
+                                @if (_subiendo)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                                }
+                                Adjuntar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Archivo</th><th>Usuario</th><th>Fecha</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var evidencia in _evidencias)
+                            {
+                                <tr>
+                                    <td>@evidencia.NombreArchivo</td>
+                                    <td>@evidencia.UsuarioCarga</td>
+                                    <td>@evidencia.FechaCargaUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td><a class="btn btn-sm btn-link p-0" href="@($"/reportes/evidencia-cierre/{evidencia.Id}")" target="_blank">Descargar</a></td>
+                                </tr>
+                            }
+                            @if (_evidencias.Count == 0) { <tr><td colspan="4" class="text-secondary">Sin evidencia adjunta.</td></tr> }
+                        </tbody>
+                    </table></div>
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modalReapertura" Titulo="Reabrir período (cascada)" AlGuardar="ConfirmarReapertura" Guardando="_procesando"
+          PuedeGuardar="!string.IsNullOrWhiteSpace(_motivoReapertura)">
+    <p>Se reabrirán, en este orden, todos los períodos siguientes:</p>
+    <ul>
+        @foreach (var periodo in _cascadaReapertura)
+        {
+            <li>@periodo.Mes.ToString("00")/@periodo.Ejercicio</li>
+        }
+    </ul>
+    <div class="mb-2">
+        <label class="form-label" for="cr-motivo">Motivo</label>
+        <textarea id="cr-motivo" class="form-control" rows="3" @bind="_motivoReapertura"></textarea>
+    </div>
+</AppModal>
+
+<AppConfirmarClaveContabilidad @ref="_confirmarClave" />
+
+@code {
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+
+    private List<PeriodoContableDTO> _periodos = new();
+    private long _idPeriodo;
+    private PeriodoContableDTO? _periodoActual;
+    private ChecklistPreCierreDTO? _checklist;
+    private bool _procesando;
+
+    private List<EvidenciaCierreDTO> _evidencias = new();
+    private IBrowserFile? _archivo;
+    private bool _subiendo;
+
+    private AppModal _modalReapertura = default!;
+    private AppConfirmarClaveContabilidad _confirmarClave = default!;
+    private List<PeriodoContableDTO> _cascadaReapertura = new();
+    private string _motivoReapertura = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _periodos = new();
+        _idPeriodo = 0;
+        _periodoActual = null;
+        _checklist = null;
+        _evidencias = new();
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+        if (_idLibroContable == 0) return;
+
+        _periodos = (await Respuestas.DatoAsync(await Contabilidad.ListarPeriodos(_idLibroContable), "consultar los períodos"))?.ToList() ?? new();
+    }
+
+    private async Task AlCambiarPeriodo()
+    {
+        _checklist = null;
+        _periodoActual = _periodos.FirstOrDefault(p => p.Id == _idPeriodo);
+        _evidencias = new();
+        if (_periodoActual is null) return;
+
+        _evidencias = (await Respuestas.DatoAsync(await Contabilidad.ListarEvidenciasCierre("Cierre", _periodoActual.Id), "consultar la evidencia"))?.ToList() ?? new();
+    }
+
+    private async Task RecargarPeriodos()
+    {
+        _periodos = (await Respuestas.DatoAsync(await Contabilidad.ListarPeriodos(_idLibroContable), "consultar los períodos"))?.ToList() ?? new();
+        _periodoActual = _periodos.FirstOrDefault(p => p.Id == _idPeriodo);
+    }
+
+    private async Task EjecutarPreCierre()
+    {
+        if (_periodoActual is null) return;
+        _procesando = true;
+        _checklist = await Respuestas.DatoAsync(await Contabilidad.EjecutarPreCierre(_periodoActual.Id), "ejecutar el pre-cierre");
+        _procesando = false;
+    }
+
+    private async Task Cerrar()
+    {
+        if (_periodoActual is null) return;
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Cerrar el período {_periodoActual.Mes:00}/{_periodoActual.Ejercicio}? Los asientos ya no se podrán registrar en él salvo repolinización.", "Cerrar período"))
+            return;
+
+        _procesando = true;
+        var respuesta = await Contabilidad.CerrarPeriodo(_periodoActual.Id);
+        _procesando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "cerrar el período"))
+        {
+            Dialogos.Exito("Período cerrado.");
+            _checklist = null;
+            await RecargarPeriodos();
+        }
+    }
+
+    private async Task Bloquear()
+    {
+        if (_periodoActual is null) return;
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Bloquear el período {_periodoActual.Mes:00}/{_periodoActual.Ejercicio}? Es terminal — no existe desbloqueo.", "Bloquear período"))
+            return;
+
+        _procesando = true;
+        var respuesta = await Contabilidad.BloquearPeriodo(_periodoActual.Id);
+        _procesando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "bloquear el período"))
+        {
+            Dialogos.Exito("Período bloqueado.");
+            await RecargarPeriodos();
+        }
+    }
+
+    private async Task PrepararReapertura()
+    {
+        if (_periodoActual is null) return;
+        _cascadaReapertura = _periodos
+            .Where(p => p.Estado == "Cerrado" && (p.Ejercicio, p.Mes).CompareTo((_periodoActual.Ejercicio, _periodoActual.Mes)) >= 0)
+            .OrderBy(p => p.Ejercicio).ThenBy(p => p.Mes)
+            .ToList();
+        _motivoReapertura = "";
+        await _modalReapertura.MostrarAsync();
+    }
+
+    private async Task ConfirmarReapertura()
+    {
+        if (_periodoActual is null || string.IsNullOrWhiteSpace(_motivoReapertura)) return;
+
+        var clave = await _confirmarClave.MostrarAsync();
+        if (clave is null) return;
+
+        _procesando = true;
+        var respuesta = await Contabilidad.ReabrirPeriodo(_periodoActual.Id, _motivoReapertura, clave);
+        _procesando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "reabrir el período"))
+        {
+            Dialogos.Exito("Período(s) reabierto(s).");
+            await _modalReapertura.OcultarAsync();
+            _checklist = null;
+            await RecargarPeriodos();
+        }
+    }
+
+    private void SeleccionarArchivo(InputFileChangeEventArgs e) => _archivo = e.File;
+
+    private async Task SubirEvidencia()
+    {
+        if (_periodoActual is null || _archivo is null) return;
+        _subiendo = true;
+        await using var flujo = _archivo.OpenReadStream(10 * 1024 * 1024);
+        var tipoOperacion = _periodoActual.Estado == "Cerrado" ? "Cierre" : "Reapertura";
+        var respuesta = await Contabilidad.CargarEvidenciaCierre(_idLibroContable, tipoOperacion, _periodoActual.Id, flujo, _archivo.Name, _archivo.ContentType);
+        _subiendo = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "cargar la evidencia"))
+        {
+            _archivo = null;
+            _evidencias = (await Respuestas.DatoAsync(await Contabilidad.ListarEvidenciasCierre("Cierre", _periodoActual.Id), "consultar la evidencia"))?.ToList() ?? new();
+        }
+    }
+}

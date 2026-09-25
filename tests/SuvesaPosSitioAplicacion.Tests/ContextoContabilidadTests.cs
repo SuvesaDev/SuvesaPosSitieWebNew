@@ -1,3 +1,4 @@
+using System.IO;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.Helpers;
@@ -58,11 +59,25 @@ public class ContextoContabilidadTests
         public Task<ResponseGeneric<ICollection<AuditoriaContableDTO>>> ListarAuditoria(long? idLibroContable, string? entidad, string? usuario, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina) => throw new NotImplementedException();
         public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ObtenerLibroDiario(long idLibroContable, DateOnly desde, DateOnly hasta) => throw new NotImplementedException();
         public Task<ResponseGeneric<LibroMayorDTO>> ObtenerLibroMayor(long idCuentaContable, DateOnly desde, DateOnly hasta) => throw new NotImplementedException();
+        public Task<ResponseGeneric<BalanzaComprobacionDTO>> ObtenerBalanza(long idLibroContable, DateOnly fechaCorte) => throw new NotImplementedException();
+        public Task<ResponseGeneric<EstadoResultadosDTO>> ObtenerEstadoResultados(long idLibroContable, DateOnly desde, DateOnly hasta) => throw new NotImplementedException();
+        public Task<ResponseGeneric<BalanceGeneralDTO>> ObtenerBalanceGeneral(long idLibroContable, DateOnly fechaCorte) => throw new NotImplementedException();
+        public Task<ResponseGeneric<EstadoFlujoEfectivoDTO>> ObtenerEstadoFlujoEfectivo(long idLibroContable, DateOnly desde, DateOnly hasta) => throw new NotImplementedException();
         public Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarCxC(int idEmisor) => throw new NotImplementedException();
         public Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarCxP(int idEmisor) => throw new NotImplementedException();
         public Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarInventario(long idLibroContable) => throw new NotImplementedException();
         public Task<ResponseGeneric<EjecucionConciliacionDTO>> ObtenerConciliacion(long idEjecucion) => throw new NotImplementedException();
         public Task<ResponseGeneric<bool>> ResolverDiferencia(long idDiferencia, string motivo, string? contrasena) => throw new NotImplementedException();
+
+        public Task<ResponseGeneric<ChecklistPreCierreDTO>> EjecutarPreCierre(long idPeriodo) => throw new NotImplementedException();
+        public Task<ResponseGeneric<PeriodoContableDTO>> CerrarPeriodo(long idPeriodo) => throw new NotImplementedException();
+        public Task<ResponseGeneric<PeriodoContableDTO>> BloquearPeriodo(long idPeriodo) => throw new NotImplementedException();
+        public Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ReabrirPeriodo(long idPeriodo, string motivo, string contrasena) => throw new NotImplementedException();
+
+        public Task<ResponseGeneric<CierreAnualDTO>> EjecutarCierreAnual(long idLibroContable, int ejercicio, string contrasena) => throw new NotImplementedException();
+        public Task<ResponseGeneric<CierreAnualDTO>> ObtenerCierreAnual(long idLibroContable, int ejercicio) => throw new NotImplementedException();
+        public Task<ResponseGeneric<EvidenciaCierreDTO>> CargarEvidenciaCierre(long idLibroContable, string tipoOperacion, long idReferencia, Stream archivo, string nombreArchivo, string contentType) => throw new NotImplementedException();
+        public Task<ResponseGeneric<ICollection<EvidenciaCierreDTO>>> ListarEvidenciasCierre(string tipoOperacion, long idReferencia) => throw new NotImplementedException();
     }
 
     [Fact]

@@ -117,8 +117,10 @@ public class FiltroMenuTests
         // (Importaciones) — ver PLAN_MODULO_REPORTES_ERP_WEB.md. + 3 (módulo
         // Contabilidad: raíz + Configuración emisor + Catálogo cuentas, W1) + 2
         // (Dimensiones, Plantillas, W2) + 2 (Bandeja, Reproceso, W3) + 6 (Diario, Mayor,
-        // Auxiliar CxC, Auxiliar CxP, Auxiliar Inventario, Bitácora, W4).
-        Assert.Equal(127, Contar(MenuSeePos.Items));
+        // Auxiliar CxC, Auxiliar CxP, Auxiliar Inventario, Bitácora, W4) + 6 (Cierre,
+        // Cierre anual, Balanza, Estado de resultados, Balance general, Flujo de
+        // efectivo, W5).
+        Assert.Equal(133, Contar(MenuSeePos.Items));
     }
 
     private sealed class ContabilidadFalsa : IContextoContabilidad

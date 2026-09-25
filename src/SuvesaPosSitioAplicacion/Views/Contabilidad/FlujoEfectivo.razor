@@ -1,0 +1,131 @@
+@page "/accounting/cash-flow"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IManejadorRespuestas Respuestas
+@inject IJSRuntime JS
+
+@* W5: estado de flujo de efectivo (operación/inversión/financiamiento) para un rango de
+   fechas, con exportación CSV. *@
+
+<AppPantalla Pantalla="Flujo de efectivo" Codigo="CONTABILIDAD.FLUJO_EFECTIVO" Icono="bi-journal-text" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="fe-empresa">Empresa</label>
+                        <select id="fe-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="fe-emisor">Emisor</label>
+                        <select id="fe-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-1">
+                        <label class="form-label small" for="fe-desde">Desde</label>
+                        <input id="fe-desde" type="date" class="form-control form-control-sm" @bind="_desde" />
+                    </div>
+                    <div class="col-6 col-md-1">
+                        <label class="form-label small" for="fe-hasta">Hasta</label>
+                        <input id="fe-hasta" type="date" class="form-control form-control-sm" @bind="_hasta" />
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <button class="btn btn-outline-primary w-100" disabled="@(_idLibroContable == 0)" @onclick="Consultar">Consultar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_flujo is not null)
+        {
+            <div class="d-flex justify-content-end mb-2">
+                <button class="btn btn-sm btn-outline-secondary" @onclick="DescargarCsv"><i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>Descargar CSV</button>
+            </div>
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        @foreach (var (titulo, valor) in new (string, double)[] {
+                            ("Saldo inicial", _flujo.SaldoInicial),
+                            ("Flujo de operación", _flujo.FlujoOperacion),
+                            ("Flujo de inversión", _flujo.FlujoInversion),
+                            ("Flujo de financiamiento", _flujo.FlujoFinanciamiento),
+                            ("Saldo final", _flujo.SaldoFinal) })
+                        {
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <div class="card h-100"><div class="card-body py-2">
+                                    <div class="text-secondary small">@titulo</div>
+                                    <div class="fs-6">@valor.ToString("N2")</div>
+                                </div></div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+    private DateOnly _desde = new(DateTime.Today.Year, 1, 1);
+    private DateOnly _hasta = DateOnly.FromDateTime(DateTime.Today);
+
+    private EstadoFlujoEfectivoDTO? _flujo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _flujo = null;
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+    }
+
+    private async Task Consultar()
+    {
+        _flujo = await Respuestas.DatoAsync(await Contabilidad.ObtenerEstadoFlujoEfectivo(_idLibroContable, _desde, _hasta), "consultar el estado de flujo de efectivo");
+    }
+
+    private async Task DescargarCsv()
+    {
+        if (_flujo is null) return;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Concepto;Monto");
+        sb.AppendLine($"Saldo inicial;{_flujo.SaldoInicial.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"Flujo de operacion;{_flujo.FlujoOperacion.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"Flujo de inversion;{_flujo.FlujoInversion.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"Flujo de financiamiento;{_flujo.FlujoFinanciamiento.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+        sb.AppendLine($"Saldo final;{_flujo.SaldoFinal.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+        await JS.InvokeVoidAsync("seepos.descargarTexto", $"flujo-efectivo-{_desde:yyyyMMdd}-{_hasta:yyyyMMdd}.csv", sb.ToString(), "text/csv;charset=utf-8");
+    }
+}

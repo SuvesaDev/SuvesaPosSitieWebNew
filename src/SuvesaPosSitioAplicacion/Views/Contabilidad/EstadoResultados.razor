@@ -1,0 +1,136 @@
+@page "/accounting/income-statement"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IManejadorRespuestas Respuestas
+@inject IJSRuntime JS
+
+@* W5: estado de resultados (ingresos, gastos, utilidad neta) para un rango de fechas,
+   con exportación CSV. *@
+
+<AppPantalla Pantalla="Estado de resultados" Codigo="CONTABILIDAD.ESTADO_RESULTADOS" Icono="bi-journal-text" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="er-empresa">Empresa</label>
+                        <select id="er-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="er-emisor">Emisor</label>
+                        <select id="er-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-1">
+                        <label class="form-label small" for="er-desde">Desde</label>
+                        <input id="er-desde" type="date" class="form-control form-control-sm" @bind="_desde" />
+                    </div>
+                    <div class="col-6 col-md-1">
+                        <label class="form-label small" for="er-hasta">Hasta</label>
+                        <input id="er-hasta" type="date" class="form-control form-control-sm" @bind="_hasta" />
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <button class="btn btn-outline-primary w-100" disabled="@(_idLibroContable == 0)" @onclick="Consultar">Consultar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_estado is not null)
+        {
+            <div class="d-flex justify-content-end mb-2">
+                <button class="btn btn-sm btn-outline-secondary" @onclick="DescargarCsv"><i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>Descargar CSV</button>
+            </div>
+            <div class="card mb-3"><div class="card-header"><strong>Ingresos</strong></div>
+                <div class="table-responsive"><table class="table table-sm mb-0">
+                    <tbody>
+                        @foreach (var linea in _estado.Ingresos ?? new List<LineaEstadoDTO>())
+                        {
+                            <tr><td>@linea.Codigo — @linea.Descripcion</td><td class="text-end">@linea.Monto.ToString("N2")</td></tr>
+                        }
+                    </tbody>
+                    <tfoot><tr class="fw-semibold"><td>Total ingresos</td><td class="text-end">@_estado.TotalIngresos.ToString("N2")</td></tr></tfoot>
+                </table></div>
+            </div>
+            <div class="card mb-3"><div class="card-header"><strong>Gastos</strong></div>
+                <div class="table-responsive"><table class="table table-sm mb-0">
+                    <tbody>
+                        @foreach (var linea in _estado.Gastos ?? new List<LineaEstadoDTO>())
+                        {
+                            <tr><td>@linea.Codigo — @linea.Descripcion</td><td class="text-end">@linea.Monto.ToString("N2")</td></tr>
+                        }
+                    </tbody>
+                    <tfoot><tr class="fw-semibold"><td>Total gastos</td><td class="text-end">@_estado.TotalGastos.ToString("N2")</td></tr></tfoot>
+                </table></div>
+            </div>
+            <div class="card"><div class="card-body d-flex justify-content-between">
+                <strong>Utilidad neta</strong><strong>@_estado.UtilidadNeta.ToString("N2")</strong>
+            </div></div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+    private DateOnly _desde = new(DateTime.Today.Year, 1, 1);
+    private DateOnly _hasta = DateOnly.FromDateTime(DateTime.Today);
+
+    private EstadoResultadosDTO? _estado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _estado = null;
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+    }
+
+    private async Task Consultar()
+    {
+        _estado = await Respuestas.DatoAsync(await Contabilidad.ObtenerEstadoResultados(_idLibroContable, _desde, _hasta), "consultar el estado de resultados");
+    }
+
+    private async Task DescargarCsv()
+    {
+        if (_estado is null) return;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Seccion;Codigo;Descripcion;Monto");
+        foreach (var l in _estado.Ingresos ?? new List<LineaEstadoDTO>())
+            sb.AppendLine(string.Join(';', "Ingreso", l.Codigo, l.Descripcion, l.Monto.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        foreach (var l in _estado.Gastos ?? new List<LineaEstadoDTO>())
+            sb.AppendLine(string.Join(';', "Gasto", l.Codigo, l.Descripcion, l.Monto.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        sb.AppendLine($"Total;;Utilidad neta;{_estado.UtilidadNeta.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+        await JS.InvokeVoidAsync("seepos.descargarTexto", $"estado-resultados-{_desde:yyyyMMdd}-{_hasta:yyyyMMdd}.csv", sb.ToString(), "text/csv;charset=utf-8");
+    }
+}

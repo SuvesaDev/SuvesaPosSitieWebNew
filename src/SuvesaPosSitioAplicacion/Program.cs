@@ -559,6 +559,36 @@ app.MapGet("/reportes/estado-cuenta", async (
     return Results.File(bytes, "application/pdf", $"estado-cuenta-{idCliente}.pdf");
 });
 
+// W5 — descarga de evidencia de cierre/reapertura/cierre anual. Mismo patrón BFF que
+// /catalogo/imagen: el endpoint de descarga del API (GET .../archivo) no tiene un
+// contrato OpenAPI tipado (devuelve el archivo crudo), así que el cliente NSwag lo
+// genera como Task sin cuerpo — se pide con un HttpClient a mano y se reenvía.
+app.MapGet("/reportes/evidencia-cierre/{idEvidencia:long}", async (
+    long idEvidencia,
+    IHttpClientFactory factory,
+    IContextoSesion sesion) =>
+{
+    await sesion.CargarAsync();
+    ContextoLlamada.Token = sesion.Token;
+    try
+    {
+        var http = factory.CreateClient("SeePosApi");
+        var resp = await http.GetAsync($"api/contabilidad/evidencias-cierre/{idEvidencia}/archivo");
+        if (!resp.IsSuccessStatusCode) return Results.NotFound();
+        var bytes = await resp.Content.ReadAsByteArrayAsync();
+        if (bytes.Length == 0) return Results.NotFound();
+        var mime = resp.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
+        var nombre = resp.Content.Headers.ContentDisposition?.FileNameStar
+            ?? resp.Content.Headers.ContentDisposition?.FileName
+            ?? $"evidencia-{idEvidencia}";
+        return Results.File(bytes, mime, nombre.Trim('"'));
+    }
+    finally
+    {
+        ContextoLlamada.Token = null;
+    }
+});
+
 app.MapGet("/healthz", () => Results.Ok(new { estado = "ok", ola = 0 })).AllowAnonymous();
 
 // Diagnostico de sesion, solo en desarrollo.

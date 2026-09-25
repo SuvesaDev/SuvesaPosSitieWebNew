@@ -1,0 +1,241 @@
+@page "/accounting/annual-close"
+@using Microsoft.AspNetCore.Components.Forms
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* W5: cierre anual — flujo separado del cierre mensual de rutina (decisión ya cerrada):
+   traslada el resultado neto del ejercicio a Utilidades Acumuladas. Exige que los 12
+   meses del ejercicio no estén Abiertos y siempre pide reautenticación (alto impacto,
+   estados financieros oficiales). *@
+
+<AppPantalla Pantalla="Cierre anual" Codigo="CONTABILIDAD.CIERRE_ANUAL" Icono="bi-journal-text" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="ca-empresa">Empresa</label>
+                        <select id="ca-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="ca-emisor">Emisor</label>
+                        <select id="ca-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label" for="ca-ejercicio">Ejercicio</label>
+                        <input id="ca-ejercicio" type="number" class="form-control" @bind="_ejercicio" />
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <button class="btn btn-outline-primary w-100" disabled="@(_idLibroContable == 0)" @onclick="Consultar">Consultar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_consultado)
+        {
+            @if (_cierreExistente is not null)
+            {
+                <div class="alert alert-success">
+                    El ejercicio @_ejercicio ya fue cerrado el @_cierreExistente.FechaEjecucionUtc.ToString("yyyy-MM-dd") por @_cierreExistente.UsuarioEjecucion —
+                    resultado trasladado: @_cierreExistente.MontoResultado.ToString("N2").
+                </div>
+            }
+            else
+            {
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6>Períodos del ejercicio @_ejercicio</h6>
+                        <div class="table-responsive"><table class="table table-sm mb-3">
+                            <thead><tr><th>Mes</th><th>Estado</th></tr></thead>
+                            <tbody>
+                                @foreach (var periodo in _periodosEjercicio.OrderBy(p => p.Mes))
+                                {
+                                    <tr><td>@periodo.Mes.ToString("00")</td><td><span class="badge @(periodo.Estado == "Abierto" ? "text-bg-warning" : "text-bg-secondary")">@periodo.Estado</span></td></tr>
+                                }
+                            </tbody>
+                        </table></div>
+
+                        @if (_periodosEjercicio.Count < 12)
+                        {
+                            <p class="text-secondary">Faltan períodos por crear para este ejercicio (@_periodosEjercicio.Count de 12).</p>
+                        }
+                        else if (_periodosEjercicio.Any(p => p.Estado == "Abierto"))
+                        {
+                            <p class="text-warning">Hay meses abiertos — cierre todos los meses antes del cierre anual.</p>
+                        }
+                        else
+                        {
+                            <div class="d-flex align-items-center gap-3">
+                                <div>Utilidad neta del ejercicio: <strong>@_utilidadNeta.ToString("N2")</strong></div>
+                                <button class="btn btn-sm btn-success" disabled="@_procesando" @onclick="EjecutarCierre">
+                                    @if (_procesando)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                                    }
+                                    Ejecutar cierre anual
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (_cierreExistente is not null)
+            {
+                <div class="card">
+                    <div class="card-header"><strong>Evidencia de autorización</strong></div>
+                    <div class="card-body">
+                        <div class="row g-2 align-items-end mb-3">
+                            <div class="col-12 col-md-8">
+                                <InputFile class="form-control form-control-sm" OnChange="SeleccionarArchivo" />
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <button class="btn btn-sm btn-outline-primary w-100" disabled="@(_archivo is null || _subiendo)" @onclick="SubirEvidencia">
+                                    @if (_subiendo)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                                    }
+                                    Adjuntar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Archivo</th><th>Usuario</th><th>Fecha</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach (var evidencia in _evidencias)
+                                {
+                                    <tr>
+                                        <td>@evidencia.NombreArchivo</td>
+                                        <td>@evidencia.UsuarioCarga</td>
+                                        <td>@evidencia.FechaCargaUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                                        <td><a class="btn btn-sm btn-link p-0" href="@($"/reportes/evidencia-cierre/{evidencia.Id}")" target="_blank">Descargar</a></td>
+                                    </tr>
+                                }
+                                @if (_evidencias.Count == 0) { <tr><td colspan="4" class="text-secondary">Sin evidencia adjunta.</td></tr> }
+                            </tbody>
+                        </table></div>
+                    </div>
+                </div>
+            }
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppConfirmarClaveContabilidad @ref="_confirmarClave" />
+
+@code {
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+    private int _ejercicio = DateTime.Today.Year;
+
+    private bool _consultado;
+    private List<PeriodoContableDTO> _periodosEjercicio = new();
+    private decimal _utilidadNeta;
+    private CierreAnualDTO? _cierreExistente;
+    private bool _procesando;
+
+    private List<EvidenciaCierreDTO> _evidencias = new();
+    private IBrowserFile? _archivo;
+    private bool _subiendo;
+    private AppConfirmarClaveContabilidad _confirmarClave = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _consultado = false;
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+    }
+
+    private async Task Consultar()
+    {
+        if (_idLibroContable == 0) return;
+
+        var respuestaCierre = await Contabilidad.ObtenerCierreAnual(_idLibroContable, _ejercicio);
+        _cierreExistente = respuestaCierre.EsCorrecta ? respuestaCierre.Responses : null;
+
+        var periodos = (await Respuestas.DatoAsync(await Contabilidad.ListarPeriodos(_idLibroContable), "consultar los períodos"))?.ToList() ?? new();
+        _periodosEjercicio = periodos.Where(p => p.Ejercicio == _ejercicio).ToList();
+
+        _utilidadNeta = 0;
+        var resultados = await Contabilidad.ObtenerEstadoResultados(_idLibroContable, new DateOnly(_ejercicio, 1, 1), new DateOnly(_ejercicio, 12, 31));
+        if (resultados.EsCorrecta && resultados.Responses is not null)
+            _utilidadNeta = (decimal)resultados.Responses.UtilidadNeta;
+
+        _evidencias = _cierreExistente is not null
+            ? (await Respuestas.DatoAsync(await Contabilidad.ListarEvidenciasCierre("CierreAnual", _cierreExistente.Id), "consultar la evidencia"))?.ToList() ?? new()
+            : new();
+
+        _consultado = true;
+    }
+
+    private async Task EjecutarCierre()
+    {
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Ejecutar el cierre anual {_ejercicio}? Traslada el resultado neto a Utilidades Acumuladas y no se puede deshacer.", "Cierre anual"))
+            return;
+
+        var clave = await _confirmarClave.MostrarAsync();
+        if (clave is null) return;
+
+        _procesando = true;
+        var respuesta = await Contabilidad.EjecutarCierreAnual(_idLibroContable, _ejercicio, clave);
+        _procesando = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "ejecutar el cierre anual"))
+        {
+            Dialogos.Exito("Cierre anual ejecutado.");
+            await Consultar();
+        }
+    }
+
+    private void SeleccionarArchivo(InputFileChangeEventArgs e) => _archivo = e.File;
+
+    private async Task SubirEvidencia()
+    {
+        if (_cierreExistente is null || _archivo is null) return;
+        _subiendo = true;
+        await using var flujo = _archivo.OpenReadStream(10 * 1024 * 1024);
+        var respuesta = await Contabilidad.CargarEvidenciaCierre(_idLibroContable, "CierreAnual", _cierreExistente.Id, flujo, _archivo.Name, _archivo.ContentType);
+        _subiendo = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "cargar la evidencia"))
+        {
+            _archivo = null;
+            _evidencias = (await Respuestas.DatoAsync(await Contabilidad.ListarEvidenciasCierre("CierreAnual", _cierreExistente.Id), "consultar la evidencia"))?.ToList() ?? new();
+        }
+    }
+}

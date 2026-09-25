@@ -1,0 +1,142 @@
+@page "/accounting/balance-sheet"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IManejadorRespuestas Respuestas
+@inject IJSRuntime JS
+
+@* W5: balance general (activos, pasivos, patrimonio) a una fecha de corte, con
+   exportación CSV. *@
+
+<AppPantalla Pantalla="Balance general" Codigo="CONTABILIDAD.BALANCE_GENERAL" Icono="bi-journal-text" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="bg-empresa">Empresa</label>
+                        <select id="bg-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="bg-emisor">Emisor</label>
+                        <select id="bg-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label" for="bg-corte">Fecha de corte</label>
+                        <input id="bg-corte" type="date" class="form-control" @bind="_fechaCorte" />
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <button class="btn btn-outline-primary w-100" disabled="@(_idLibroContable == 0)" @onclick="Consultar">Consultar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_balance is not null)
+        {
+            <div class="d-flex justify-content-end mb-2">
+                <button class="btn btn-sm btn-outline-secondary" @onclick="DescargarCsv"><i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>Descargar CSV</button>
+            </div>
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <div class="card h-100"><div class="card-header"><strong>Activos</strong></div>
+                        <ul class="list-group list-group-flush">
+                            @foreach (var linea in _balance.Activos ?? new List<LineaEstadoDTO>())
+                            {
+                                <li class="list-group-item d-flex justify-content-between small"><span>@linea.Codigo — @linea.Descripcion</span><span>@linea.Monto.ToString("N2")</span></li>
+                            }
+                            <li class="list-group-item d-flex justify-content-between fw-semibold"><span>Total activos</span><span>@_balance.TotalActivos.ToString("N2")</span></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="card h-100"><div class="card-header"><strong>Pasivos</strong></div>
+                        <ul class="list-group list-group-flush">
+                            @foreach (var linea in _balance.Pasivos ?? new List<LineaEstadoDTO>())
+                            {
+                                <li class="list-group-item d-flex justify-content-between small"><span>@linea.Codigo — @linea.Descripcion</span><span>@linea.Monto.ToString("N2")</span></li>
+                            }
+                            <li class="list-group-item d-flex justify-content-between fw-semibold"><span>Total pasivos</span><span>@_balance.TotalPasivos.ToString("N2")</span></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="card h-100"><div class="card-header"><strong>Patrimonio</strong></div>
+                        <ul class="list-group list-group-flush">
+                            @foreach (var linea in _balance.Patrimonio ?? new List<LineaEstadoDTO>())
+                            {
+                                <li class="list-group-item d-flex justify-content-between small"><span>@linea.Codigo — @linea.Descripcion</span><span>@linea.Monto.ToString("N2")</span></li>
+                            }
+                            <li class="list-group-item d-flex justify-content-between fw-semibold"><span>Total patrimonio</span><span>@_balance.TotalPatrimonio.ToString("N2")</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+    private DateOnly _fechaCorte = DateOnly.FromDateTime(DateTime.Today);
+
+    private BalanceGeneralDTO? _balance;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _balance = null;
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+    }
+
+    private async Task Consultar()
+    {
+        _balance = await Respuestas.DatoAsync(await Contabilidad.ObtenerBalanceGeneral(_idLibroContable, _fechaCorte), "consultar el balance general");
+    }
+
+    private async Task DescargarCsv()
+    {
+        if (_balance is null) return;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Seccion;Codigo;Descripcion;Monto");
+        foreach (var l in _balance.Activos ?? new List<LineaEstadoDTO>())
+            sb.AppendLine(string.Join(';', "Activo", l.Codigo, l.Descripcion, l.Monto.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        foreach (var l in _balance.Pasivos ?? new List<LineaEstadoDTO>())
+            sb.AppendLine(string.Join(';', "Pasivo", l.Codigo, l.Descripcion, l.Monto.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        foreach (var l in _balance.Patrimonio ?? new List<LineaEstadoDTO>())
+            sb.AppendLine(string.Join(';', "Patrimonio", l.Codigo, l.Descripcion, l.Monto.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        await JS.InvokeVoidAsync("seepos.descargarTexto", $"balance-general-{_fechaCorte:yyyyMMdd}.csv", sb.ToString(), "text/csv;charset=utf-8");
+    }
+}

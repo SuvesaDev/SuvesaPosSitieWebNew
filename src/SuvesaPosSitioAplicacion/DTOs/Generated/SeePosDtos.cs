@@ -14151,6 +14151,135 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
     }
 
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class EjecutarCierreAnualDTO
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("idLibroContable")]
+        public long IdLibroContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("ejercicio")]
+        public int Ejercicio { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("contrasena")]
+        public string? Contrasena { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class CierreAnualDTO
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public long Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idLibroContable")]
+        public long IdLibroContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("ejercicio")]
+        public int Ejercicio { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("montoResultado")]
+        public double MontoResultado { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idAsientoCierre")]
+        public long? IdAsientoCierre { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("fechaEjecucionUtc")]
+        public System.DateTime FechaEjecucionUtc { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("usuarioEjecucion")]
+        public string? UsuarioEjecucion { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class CierreAnualDTOResponseGeneric
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public ResponseStatus Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("currentException")]
+        public string? CurrentException { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("validationErrors")]
+        public System.Collections.Generic.ICollection<string>? ValidationErrors { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("responses")]
+        public CierreAnualDTO Responses { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class EvidenciaCierreDTO
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public long Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idLibroContable")]
+        public long IdLibroContable { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoOperacion")]
+        public string? TipoOperacion { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idReferencia")]
+        public long IdReferencia { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("nombreArchivo")]
+        public string? NombreArchivo { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("contentType")]
+        public string? ContentType { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tamanoBytes")]
+        public long TamanoBytes { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("fechaCargaUtc")]
+        public System.DateTime FechaCargaUtc { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("usuarioCarga")]
+        public string? UsuarioCarga { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class EvidenciaCierreDTOResponseGeneric
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public ResponseStatus Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("currentException")]
+        public string? CurrentException { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("validationErrors")]
+        public System.Collections.Generic.ICollection<string>? ValidationErrors { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("responses")]
+        public EvidenciaCierreDTO Responses { get; set; } = default!;
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class EvidenciaCierreDTOIReadOnlyListResponseGeneric
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public ResponseStatus Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("currentException")]
+        public string? CurrentException { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("validationErrors")]
+        public System.Collections.Generic.ICollection<string>? ValidationErrors { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("responses")]
+        public System.Collections.Generic.ICollection<EvidenciaCierreDTO>? Responses { get; set; } = default!;
+
+    }
+
 }
 
 #pragma warning restore  108
