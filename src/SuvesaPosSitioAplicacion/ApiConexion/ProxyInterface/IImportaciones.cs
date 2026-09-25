@@ -6,6 +6,9 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 public interface IImportaciones
 {
     Task<ResponseGeneric<IReadOnlyList<ImportacionResumenWebDTO>>> Listar();
+    Task<ResponseGeneric<ImportacionResumenWebDTO>> Obtener(long idImportacion);
+    Task<ResponseGeneric<ResultadoBandejaImportacionesWebDTO>> Bandeja(FiltroBandejaImportacionesWebDTO filtro);
+    Task<ResponseGeneric<ResultadoExtraccionFacturaPdfWebDTO>> ExtraerPdf(ExtraerLineasFacturaPdfWebDTO cmd);
     Task<ResponseGeneric<ReporteImportacionWebDTO>> Reporte(FiltroReporteImportacionWebDTO filtro);
     Task<ResponseGeneric<ImportacionResumenWebDTO>> Crear(CrearImportacionWebDTO cmd);
     Task<ResponseGeneric<ImportacionResumenWebDTO>> AgregarCosto(long idImportacion, ImportacionCostoWebDTO cmd);

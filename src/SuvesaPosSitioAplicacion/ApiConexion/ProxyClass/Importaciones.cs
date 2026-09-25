@@ -17,6 +17,29 @@ public sealed class Importaciones : ProxyBase, IImportaciones
         => Ejecutar(async () => await LecturaEnvelope.Leer<IReadOnlyList<ImportacionResumenWebDTO>>(
             await _api.GetAsync("api/importaciones")), "consultar las importaciones");
 
+    public Task<ResponseGeneric<ImportacionResumenWebDTO>> Obtener(long idImportacion)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<ImportacionResumenWebDTO>(
+            await _api.GetAsync($"api/importaciones/{idImportacion}")), "consultar la importación");
+
+    public Task<ResponseGeneric<ResultadoBandejaImportacionesWebDTO>> Bandeja(FiltroBandejaImportacionesWebDTO filtro)
+        => Ejecutar(async () =>
+        {
+            var q = new List<string>();
+            if (!string.IsNullOrWhiteSpace(filtro.FacturaExtranjera)) q.Add($"facturaExtranjera={Uri.EscapeDataString(filtro.FacturaExtranjera)}");
+            if (!string.IsNullOrWhiteSpace(filtro.Dua)) q.Add($"dua={Uri.EscapeDataString(filtro.Dua)}");
+            if (filtro.IdProveedorExtranjero.HasValue) q.Add($"idProveedorExtranjero={filtro.IdProveedorExtranjero.Value}");
+            if (filtro.Estado.HasValue) q.Add($"estado={filtro.Estado.Value}");
+            if (filtro.Desde.HasValue) q.Add($"desde={filtro.Desde.Value:yyyy-MM-dd}");
+            if (filtro.Hasta.HasValue) q.Add($"hasta={filtro.Hasta.Value:yyyy-MM-dd}");
+            q.Add($"pagina={filtro.Pagina}");
+            q.Add($"tamanoPagina={filtro.TamanoPagina}");
+            return await LecturaEnvelope.Leer<ResultadoBandejaImportacionesWebDTO>(await _api.GetAsync("api/importaciones/bandeja?" + string.Join("&", q)));
+        }, "consultar la bandeja de importaciones");
+
+    public Task<ResponseGeneric<ResultadoExtraccionFacturaPdfWebDTO>> ExtraerPdf(ExtraerLineasFacturaPdfWebDTO cmd)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<ResultadoExtraccionFacturaPdfWebDTO>(
+            await _api.PostAsJsonAsync("api/importaciones/extraer-pdf", cmd, LecturaEnvelope.Json)), "extraer las líneas del PDF");
+
     public Task<ResponseGeneric<ReporteImportacionWebDTO>> Reporte(FiltroReporteImportacionWebDTO filtro)
         => Ejecutar(async () =>
         {

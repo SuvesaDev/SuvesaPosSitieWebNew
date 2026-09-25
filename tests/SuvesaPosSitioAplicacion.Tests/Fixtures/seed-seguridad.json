@@ -373,7 +373,7 @@
         {
           "codigo": "COMPRAS.IMPORTACIONES",
           "nombre": "Importaciones",
-          "ruta": "/buys/importations",
+          "ruta": "/buys/importationsbox",
           "padre": null,
           "orden": 9,
           "acciones": [

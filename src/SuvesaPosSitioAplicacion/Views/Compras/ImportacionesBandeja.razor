@@ -1,0 +1,118 @@
+@page "/buys/importationsbox"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Compras
+@using SuvesaPosSitioAplicacion.Services
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IImportaciones Api
+@inject IManejadorRespuestas Respuestas
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IProveedoresConsulta ProveedoresApi
+@inject NavigationManager Navegacion
+
+<AppPantalla Pantalla="Importaciones" Icono="bi-box-seam" Subtitulo="Buscar y abrir expedientes de importación" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-primary" @onclick="Nueva"><i class="bi bi-plus-lg me-1"></i>Nueva importación</button>
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-2"><label class="form-label">Factura extranjera</label><input class="form-control form-control-sm" @bind="_filtro.FacturaExtranjera" /></div>
+                    <div class="col-md-2"><label class="form-label">DUA</label><input class="form-control form-control-sm" @bind="_filtro.Dua" /></div>
+                    <div class="col-md-3"><label class="form-label">Proveedor extranjero</label><select class="form-select form-select-sm" @bind="_filtro.IdProveedorExtranjero"><option value="">Todos</option>@foreach (var p in _proveedores) { <option value="@p.CodigoProv">@p.Nombre</option> }</select></div>
+                    <div class="col-md-2"><label class="form-label">Estado</label><select class="form-select form-select-sm" @bind="_filtro.Estado"><option value="">Todos</option><option value="1">Borrador</option><option value="2">En tránsito</option><option value="3">Pendiente costos</option><option value="4">Pendiente fiscal</option><option value="5">Lista para nacionalizar</option><option value="6">Cerrada</option><option value="7">Ajustada</option><option value="8">Anulada</option></select></div>
+                    <div class="col-md-2"><label class="form-label">Desde</label><input type="date" class="form-control form-control-sm" @bind="_filtro.Desde" /></div>
+                    <div class="col-md-2"><label class="form-label">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_filtro.Hasta" /></div>
+                    <div class="col-md-1"><button type="button" class="btn btn-sm btn-primary w-100" @onclick="Buscar">Buscar</button></div>
+                </div>
+            </div>
+        </div>
+
+        @if (_buscando)
+        {
+            <div class="d-flex justify-content-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Buscando</span></div></div>
+        }
+        else if (_resultado is null || _resultado.Registros.Count == 0)
+        {
+            <p class="text-secondary">No hay importaciones que coincidan con el filtro.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead><tr><th>#</th><th>Factura extranjera</th><th>DUA</th><th>Estado</th><th class="text-end">Unidades</th><th class="text-end">Costo nacionalizado</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var item in _resultado.Registros)
+                        {
+                            <tr>
+                                <td>@item.IdImportacion</td>
+                                <td>@item.FacturaExtranjera</td>
+                                <td>@(item.Dua ?? "pendiente")</td>
+                                <td>@NombreEstado(item.Estado)</td>
+                                <td class="text-end">@item.Unidades</td>
+                                <td class="text-end">₡@item.CostoNacionalizadoCrc:N2</td>
+                                <td><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => Abrir(item.IdImportacion)">Abrir</button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <span class="small text-secondary">@_resultado.TotalRegistros expediente(s) · página @_resultado.Pagina de @Paginas</span>
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary me-1" disabled="@(_filtro.Pagina <= 1)" @onclick="() => CambiarPagina(_filtro.Pagina - 1)">Anterior</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled="@(_filtro.Pagina >= Paginas)" @onclick="() => CambiarPagina(_filtro.Pagina + 1)">Siguiente</button>
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private FiltroBandejaImportacionesWebDTO _filtro = new();
+    private ResultadoBandejaImportacionesWebDTO? _resultado;
+    private List<SuvesaPosSitioAplicacion.DTOs.Generated.ProveedorDTO> _proveedores = new();
+    private bool _buscando;
+
+    private int Paginas => _resultado is null || _resultado.TotalRegistros == 0 ? 1 : (int)Math.Ceiling(_resultado.TotalRegistros / (double)_resultado.TamanoPagina);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _proveedores = ((await Respuestas.DatoAsync(await ProveedoresApi.Obtener())) ?? []).ToList();
+        await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        _filtro.Pagina = 1;
+        await Consultar();
+    }
+
+    private async Task CambiarPagina(int pagina)
+    {
+        _filtro.Pagina = pagina;
+        await Consultar();
+    }
+
+    private async Task Consultar()
+    {
+        _buscando = true;
+        StateHasChanged();
+        try { _resultado = await Respuestas.DatoAsync(await Api.Bandeja(_filtro), "consultar la bandeja de importaciones"); }
+        finally { _buscando = false; }
+    }
+
+    private void Abrir(long idImportacion) => Navegacion.NavigateTo($"/buys/importations/{idImportacion}");
+    private void Nueva() => Navegacion.NavigateTo("/buys/importations");
+
+    private static string NombreEstado(int estado) => estado switch
+    {
+        1 => "Borrador",
+        2 => "En tránsito",
+        3 => "Pendiente costos",
+        4 => "Pendiente fiscal",
+        5 => "Lista para nacionalizar",
+        6 => "Cerrada",
+        7 => "Ajustada",
+        8 => "Anulada",
+        _ => "—",
+    };
+}

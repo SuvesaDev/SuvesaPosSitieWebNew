@@ -221,7 +221,7 @@ public static partial class MenuSeePos
                 {
                     Titulo = "Importaciones",
                     Codigo = "COMPRAS.IMPORTACIONES",
-                    Ruta = "/buys/importations",
+                    Ruta = "/buys/importationsbox",
                 },
                 new ItemMenu
                 {

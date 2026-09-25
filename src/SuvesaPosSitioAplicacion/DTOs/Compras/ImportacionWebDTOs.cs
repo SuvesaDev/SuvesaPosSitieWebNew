@@ -114,6 +114,51 @@ public sealed class ReporteImportacionFilaWebDTO
     public decimal MargenEsperado { get; set; }
 }
 
+public sealed class FiltroBandejaImportacionesWebDTO
+{
+    public string? FacturaExtranjera { get; set; }
+    public string? Dua { get; set; }
+    public int? IdProveedorExtranjero { get; set; }
+    public int? Estado { get; set; }
+    public DateTime? Desde { get; set; }
+    public DateTime? Hasta { get; set; }
+    public int Pagina { get; set; } = 1;
+    public int TamanoPagina { get; set; } = 25;
+}
+
+public sealed class ResultadoBandejaImportacionesWebDTO
+{
+    public int Pagina { get; set; }
+    public int TamanoPagina { get; set; }
+    public int TotalRegistros { get; set; }
+    public List<ImportacionResumenWebDTO> Registros { get; set; } = new();
+}
+
+public sealed class ExtraerLineasFacturaPdfWebDTO
+{
+    public string NombreArchivo { get; set; } = "";
+    public byte[] Contenido { get; set; } = Array.Empty<byte>();
+}
+
+public sealed class LineaCandidataFacturaPdfWebDTO
+{
+    public int NumeroLinea { get; set; }
+    public string? CodigoProveedor { get; set; }
+    public string DescripcionProveedor { get; set; } = "";
+    public decimal? Cantidad { get; set; }
+    public decimal? PrecioUnitario { get; set; }
+    public decimal? Total { get; set; }
+    public bool RequiereRevision { get; set; }
+    public string TextoOriginal { get; set; } = "";
+}
+
+public sealed class ResultadoExtraccionFacturaPdfWebDTO
+{
+    public bool TextoExtraido { get; set; }
+    public int PaginasProcesadas { get; set; }
+    public List<LineaCandidataFacturaPdfWebDTO> Lineas { get; set; } = new();
+}
+
 public sealed class ImportacionResumenWebDTO
 {
     public long IdImportacion { get; set; }
