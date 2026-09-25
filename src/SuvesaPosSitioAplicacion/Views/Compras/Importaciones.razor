@@ -10,6 +10,7 @@
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IEmisoresFiscales EmisoresApi
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.ISeriesFacturacionFiscales SeriesApi
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IProveedoresConsulta ProveedoresApi
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IInventarioConsulta InventarioApi
 @inject IServicioDialogos Dialogos
 @inject NavigationManager Navegacion
 
@@ -159,41 +160,103 @@
 
 <HxModal @ref="_modalImportarPdf" Title="Importar artículos desde PDF" Size="ModalSize.ExtraLarge">
     <BodyTemplate>
-        <div class="mb-3">
-            <label class="form-label">PDF de la factura extranjera</label>
-            <InputFile class="form-control" accept=".pdf,application/pdf" OnChange="ImportarPdf" />
-            <div class="form-text">Extracción automática best-effort: revise y corrija cada línea antes de asociarla — no siempre acierta cantidad, precio o descripción.</div>
+        <div class="border rounded p-3 mb-3 bg-body-tertiary">
+            <label class="form-label" for="archivo-factura-pdf">PDF de la factura extranjera</label>
+            <InputFile id="archivo-factura-pdf" class="form-control" accept=".pdf,application/pdf" OnChange="ImportarPdf" />
+            <div class="form-text">Extracción automática best-effort: revise y corrija cantidad, costo, código interno y lote de cada línea antes de aplicar — no siempre acierta.</div>
+            @if (!string.IsNullOrWhiteSpace(_nombreArchivoPdf)) { <div class="small mt-2"><i class="bi bi-file-earmark-check me-1 text-success" aria-hidden="true"></i>@_nombreArchivoPdf</div> }
         </div>
         @if (_extrayendoPdf)
         {
-            <div class="d-flex justify-content-center py-4"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Leyendo...</span></div></div>
+            <div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Leyendo PDF...</span></div></div>
         }
         else if (_pdfCandidatas.Count > 0)
         {
             @if (!_pdfTextoExtraido)
             {
-                <div class="alert alert-warning">No se pudo leer texto de este PDF (probablemente es una imagen escaneada). Puede adjuntarlo igual como evidencia y capturar las líneas manualmente.</div>
+                <div class="alert alert-warning">No se pudo leer texto de este PDF (probablemente es una imagen escaneada). Puede cerrar y adjuntarlo igual como evidencia, capturando las líneas manualmente.</div>
             }
-            <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>#</th><th>Descripción</th><th class="text-end">Cantidad</th><th class="text-end">Precio</th><th class="text-end">Total</th><th></th><th></th></tr></thead><tbody>
-                @foreach (var candidata in _pdfCandidatas)
+            @if (_editorPdf == EditorPdf.Busqueda)
+            {
+                <div class="border rounded p-3 mb-3 bg-body-tertiary">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2"><strong>Asociar artículo interno</strong><button type="button" class="btn btn-sm btn-link text-danger" @onclick="CancelarEditorPdf">Cancelar asociación</button></div>
+                    <p class="small text-secondary mb-2">Busque y elija el artículo que corresponde a la línea del PDF. El importador permanece abierto.</p>
+                    <div class="input-group mb-3"><input type="search" class="form-control" placeholder="Código o descripción del artículo" @bind="_textoBusquedaPdf" @onkeydown="BuscarArticuloPdfConEnter" /><button type="button" class="btn btn-outline-primary" disabled="@_buscandoArticuloPdf" @onclick="BuscarArticulosPdf">@(_buscandoArticuloPdf ? "Buscando..." : "Buscar")</button></div>
+                    @if (_buscandoArticuloPdf) { <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div> }
+                    else if (_resultadosBusquedaPdf.Count > 0) { <div class="table-responsive seepos-importador-resultados"><table class="table table-sm table-hover mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Existencia</th><th class="text-end">Precio</th></tr></thead><tbody>@foreach (var articulo in _resultadosBusquedaPdf) { <tr role="button" @onclick="() => ElegirArticuloPdf(articulo)"><td><code>@articulo.Cod_Articulo</code></td><td>@articulo.Descripcion</td><td class="text-end">@Formato.Cantidad(articulo.Existencia)</td><td class="text-end">@Formato.Importe(articulo.Precio_A)</td></tr> }</tbody></table></div> }
+                    else if (!string.IsNullOrWhiteSpace(_textoBusquedaPdf)) { <p class="small text-secondary mb-0">No hay artículos para la búsqueda indicada.</p> }
+                </div>
+            }
+            @if (_editorPdf == EditorPdf.Lotes && LineaPdfSeleccionada is not null)
+            {
+                <div class="border rounded p-3 mb-3 bg-body-tertiary">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <strong>Lotes: @LineaPdfSeleccionada.Articulo?.Descripcion</strong>
+                        <button type="button" class="btn btn-sm btn-primary" @onclick="CancelarEditorPdf">Aceptar lote</button>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-5"><label class="form-label">Número de lote</label><input class="form-control" @bind="LineaPdfSeleccionada.Lote" /></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Vencimiento</label><input type="date" class="form-control" @bind="LineaPdfSeleccionada.Vencimiento" /></div>
+                        <div class="col-12 col-md-3"><label class="form-label">Cantidad</label><input type="number" min="0" step="0.001" class="form-control text-end" @bind="LineaPdfSeleccionada.CantidadLotePrincipal" /></div>
+                    </div>
+                    <div class="mt-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="form-text mb-0">¿La factura trae varios lotes de este artículo? Agréguelos aquí. La suma de todos los lotes debe dar @LineaPdfSeleccionada.Cantidad.</span>
+                            <button type="button" class="btn btn-sm btn-link" @onclick="() => LineaPdfSeleccionada!.LotesExtra.Add(new LoteExtraPdf())">+ Otro lote</button>
+                        </div>
+                        @foreach (var le in LineaPdfSeleccionada.LotesExtra)
+                        {
+                            <div class="row g-2 align-items-end mt-1">
+                                <div class="col-5"><input class="form-control form-control-sm" placeholder="Número" @bind="le.Numero" /></div>
+                                <div class="col-4"><input type="date" class="form-control form-control-sm" @bind="le.Vence" /></div>
+                                <div class="col-2"><input type="number" min="0.001" step="0.001" class="form-control form-control-sm text-end" placeholder="Cant." @bind="le.Cantidad" /></div>
+                                <div class="col-1"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => LineaPdfSeleccionada!.LotesExtra.Remove(le)"><i class="bi bi-trash" aria-hidden="true"></i></button></div>
+                            </div>
+                        }
+                        @{ var sumaLotes = SumaLotesPdf(LineaPdfSeleccionada); }
+                        <div class="small mt-2 @(Math.Abs(sumaLotes - LineaPdfSeleccionada.Cantidad) > 0.001m ? "text-danger" : "text-success")">
+                            Repartido: @sumaLotes de @LineaPdfSeleccionada.Cantidad
+                        </div>
+                    </div>
+                </div>
+            }
+            <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>#</th><th>Código prov.</th><th>Descripción prov.</th><th>Código interno</th><th>Descripción interna</th><th class="text-end">Cantidad</th><th class="text-end">Costo unit.</th><th class="text-end">Tributo DUA</th><th class="text-end">Precio A</th><th>Opciones</th></tr></thead><tbody>
+                @for (var i = 0; i < _pdfCandidatas.Count; i++)
                 {
+                    var candidata = _pdfCandidatas[i];
+                    var indice = i;
                     <tr class="@(candidata.RequiereRevision ? "table-warning" : null)">
                         <td>@candidata.NumeroLinea</td>
-                        <td>@candidata.DescripcionProveedor <span class="text-secondary small">· @candidata.TextoOriginal</span></td>
-                        <td class="text-end">@candidata.Cantidad</td>
-                        <td class="text-end">@candidata.PrecioUnitario</td>
-                        <td class="text-end">@candidata.Total</td>
-                        <td>@if (candidata.RequiereRevision) { <span class="badge text-bg-warning">Revisar</span> }</td>
-                        <td><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => AsociarCandidataPdf(candidata)">Asociar</button></td>
+                        <td><code>@candidata.CodigoProveedor</code></td>
+                        <td>@candidata.DescripcionProveedor</td>
+                        <td>@if (candidata.Articulo is null) { <span class="text-warning">Sin asociar</span> } else { <code>@candidata.Articulo.Cod_Articulo</code> }</td>
+                        <td>@(candidata.Articulo?.Descripcion ?? "—")</td>
+                        <td style="min-width:7rem"><input type="number" min="0.001" step="0.001" class="form-control form-control-sm text-end" @bind="candidata.Cantidad" @bind:after="() => RecalcularLineaPdf(candidata)" /></td>
+                        <td style="min-width:7rem"><input type="number" min="0" step="0.000001" class="form-control form-control-sm text-end" @bind="candidata.CostoUnitario" /></td>
+                        <td style="min-width:7rem"><input type="number" min="0" step="0.000001" class="form-control form-control-sm text-end" @bind="candidata.TributoDuaUnitario" /></td>
+                        <td style="min-width:7rem"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="candidata.PrecioAAplicado" /></td>
+                        <td class="text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="() => AsociarArticuloPdf(indice)">@((candidata.Articulo is null) ? "Asociar" : "Cambiar")</button>
+                            @if (candidata.Articulo?.Lote == true) { <button type="button" class="btn btn-sm btn-outline-secondary" title="Lote" @onclick="() => AbrirLotesPdf(indice)"><i class="bi bi-box-seam" aria-hidden="true"></i></button> }
+                        </td>
                     </tr>
+                    @if (ManejaLotePdf(candidata))
+                    {
+                        <tr><td colspan="10" class="small @(LoteIncompletoPdf(candidata) ? "text-warning" : "text-secondary")"><i class="bi @(LoteIncompletoPdf(candidata) ? "bi-exclamation-triangle" : "bi-box-seam") me-1" aria-hidden="true"></i>@(LoteIncompletoPdf(candidata) ? "Indique lote y vencimiento para esta línea importada." : ResumenLotesPdf(candidata))</td></tr>
+                    }
                 }
             </tbody></table></div>
+            @if (_pdfCandidatas.Any(l => l.Articulo is null)) { <p class="form-text mb-0">Asocie cada línea a un artículo interno antes de aplicar el PDF.</p> }
         }
         else if (_pdfIntentado)
         {
-            <div class="alert alert-warning mb-0">No se encontraron líneas de artículo en este PDF (probablemente es una imagen escaneada). Puede adjuntarlo igual como evidencia y capturar las líneas manualmente.</div>
+            <div class="alert alert-warning mb-0">No se encontraron líneas de artículo en este PDF (probablemente es una imagen escaneada). Puede cerrar y adjuntarlo igual como evidencia, capturando las líneas manualmente.</div>
         }
     </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-outline-secondary" @onclick="CerrarImportadorPdf">Cerrar</button>
+        <button type="button" class="btn btn-primary" disabled="@(_pdfCandidatas.Count == 0 || _pdfCandidatas.Any(l => l.Articulo is null) || _pdfCandidatas.Any(LoteIncompletoPdf))" @onclick="AplicarImportacionPdf"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Aplicar a la importación</button>
+    </FooterTemplate>
 </HxModal>
 
 @code {
@@ -229,11 +292,38 @@
     private readonly List<LoteEdicion> _lotes = new();
     private int? _indiceEdicionLinea;
 
-    // Importación desde PDF — candidatas crudas del extractor heurístico; cada una se
-    // "consume" al asociarla (pasa al editor de arriba), nunca se agrega directo.
+    // Importación desde PDF — mismo patrón que "Importar factura electrónica" (XML) de
+    // Compra.razor: búsqueda de artículo embebida en el propio modal (no un modal
+    // encima de otro), edición inline de cantidad/costo/tributo/precio por fila, e
+    // ícono de lote que abre un sub-editor cuando el artículo asociado los maneja.
+    private enum EditorPdf { Ninguno, Busqueda, Lotes }
+    private sealed class LineaCandidataPdf
+    {
+        public int NumeroLinea { get; init; }
+        public string? CodigoProveedor { get; init; }
+        public string DescripcionProveedor { get; set; } = string.Empty;
+        public decimal Cantidad { get; set; }
+        public decimal CostoUnitario { get; set; }
+        public decimal TributoDuaUnitario { get; set; }
+        public decimal? PrecioAAplicado { get; set; }
+        public bool RequiereRevision { get; init; }
+        public InventarioDTO? Articulo { get; set; }
+        public string Lote { get; set; } = string.Empty;
+        public DateTime Vencimiento { get; set; } = DateTime.Today;
+        public decimal CantidadLotePrincipal { get; set; }
+        public List<LoteExtraPdf> LotesExtra { get; } = new();
+    }
+    private sealed class LoteExtraPdf { public string Numero = string.Empty; public DateTime Vence = DateTime.Today; public decimal Cantidad; }
+
     private HxModal _modalImportarPdf = default!;
-    private bool _extrayendoPdf, _pdfIntentado, _pdfTextoExtraido;
-    private List<LineaCandidataFacturaPdfWebDTO> _pdfCandidatas = new();
+    private bool _extrayendoPdf, _pdfIntentado, _pdfTextoExtraido, _buscandoArticuloPdf;
+    private string _nombreArchivoPdf = string.Empty, _textoBusquedaPdf = string.Empty;
+    private List<LineaCandidataPdf> _pdfCandidatas = new();
+    private List<InventarioDTO> _resultadosBusquedaPdf = new();
+    private EditorPdf _editorPdf;
+    private int? _indicePdfAsignacion, _indicePdfOpciones;
+
+    private LineaCandidataPdf? LineaPdfSeleccionada => _indicePdfOpciones is int indice && indice >= 0 && indice < _pdfCandidatas.Count ? _pdfCandidatas[indice] : null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -267,28 +357,12 @@
         _articuloActual = articulo;
         _indiceEdicionLinea = null;
         _lotes.Clear();
-        if (_pdfCandidatasPendiente is { } candidata)
-        {
-            // Viene de "Asociar" en el importador de PDF: precarga lo extraído, pero el
-            // usuario igual confirma con "Agregar" — nunca se inserta directo a la tabla.
-            _codigoProveedor = candidata.CodigoProveedor ?? string.Empty;
-            _descripcionProveedor = string.IsNullOrWhiteSpace(candidata.DescripcionProveedor) ? (articulo.Descripcion ?? string.Empty) : candidata.DescripcionProveedor;
-            _cantidad = candidata.Cantidad is > 0 ? candidata.Cantidad.Value : 1m;
-            _costoUnitario = candidata.PrecioUnitario ?? 0m;
-            _tributoDuaUnitario = 0m;
-            _precioAAplicado = null;
-            _pdfCandidatas.Remove(candidata);
-            _pdfCandidatasPendiente = null;
-        }
-        else
-        {
-            _codigoProveedor = string.Empty;
-            _descripcionProveedor = articulo.Descripcion ?? string.Empty;
-            _cantidad = 1m;
-            _costoUnitario = 0m;
-            _tributoDuaUnitario = 0m;
-            _precioAAplicado = null;
-        }
+        _codigoProveedor = string.Empty;
+        _descripcionProveedor = articulo.Descripcion ?? string.Empty;
+        _cantidad = 1m;
+        _costoUnitario = 0m;
+        _tributoDuaUnitario = 0m;
+        _precioAAplicado = null;
         _articulosPorCodigo[articulo.Codigo] = articulo.Descripcion ?? articulo.Cod_Articulo ?? articulo.Codigo.ToString();
     }
 
@@ -350,14 +424,20 @@
     {
         _pdfCandidatas.Clear();
         _pdfIntentado = false;
+        _nombreArchivoPdf = string.Empty;
+        CancelarEditorPdf();
         await _modalImportarPdf.ShowAsync();
     }
 
+    private Task CerrarImportadorPdf() => _modalImportarPdf.HideAsync();
+
     private async Task ImportarPdf(InputFileChangeEventArgs e)
     {
+        _nombreArchivoPdf = e.File.Name;
         _extrayendoPdf = true;
         _pdfCandidatas.Clear();
         _pdfIntentado = false;
+        CancelarEditorPdf();
         StateHasChanged();
         try
         {
@@ -369,20 +449,135 @@
             if (resultado is not null)
             {
                 _pdfTextoExtraido = resultado.TextoExtraido;
-                _pdfCandidatas = resultado.Lineas;
+                _pdfCandidatas = resultado.Lineas.Select(l => new LineaCandidataPdf
+                {
+                    NumeroLinea = l.NumeroLinea,
+                    CodigoProveedor = l.CodigoProveedor,
+                    DescripcionProveedor = l.DescripcionProveedor,
+                    Cantidad = l.Cantidad is > 0 ? l.Cantidad.Value : 1m,
+                    CostoUnitario = l.PrecioUnitario ?? 0m,
+                    RequiereRevision = l.RequiereRevision,
+                }).ToList();
+                foreach (var candidata in _pdfCandidatas) candidata.CantidadLotePrincipal = candidata.Cantidad;
             }
         }
         finally { _extrayendoPdf = false; }
     }
 
-    private async Task AsociarCandidataPdf(LineaCandidataFacturaPdfWebDTO candidata)
+    private async Task AsociarArticuloPdf(int indice)
     {
-        await _modalImportarPdf.HideAsync();
-        _pdfCandidatasPendiente = candidata;
-        await _buscadorArticulo.AbrirAsync(candidata.DescripcionProveedor);
+        _indicePdfAsignacion = indice;
+        _indicePdfOpciones = null;
+        _editorPdf = EditorPdf.Busqueda;
+        var candidata = _pdfCandidatas[indice];
+        _textoBusquedaPdf = !string.IsNullOrWhiteSpace(candidata.CodigoProveedor) ? candidata.CodigoProveedor : candidata.DescripcionProveedor;
+        _resultadosBusquedaPdf.Clear();
+        await BuscarArticulosPdf();
     }
 
-    private LineaCandidataFacturaPdfWebDTO? _pdfCandidatasPendiente;
+    private async Task BuscarArticuloPdfConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await BuscarArticulosPdf(); }
+
+    private async Task BuscarArticulosPdf()
+    {
+        var texto = _textoBusquedaPdf.Trim();
+        _resultadosBusquedaPdf.Clear();
+        if (texto.Length < 2) return;
+        _buscandoArticuloPdf = true;
+        try { _resultadosBusquedaPdf = ((await Respuestas.DatoAsync(await InventarioApi.Buscar(texto))) ?? []).ToList(); }
+        finally { _buscandoArticuloPdf = false; }
+    }
+
+    private void ElegirArticuloPdf(InventarioDTO articulo)
+    {
+        if (_indicePdfAsignacion is not int indice) return;
+        var candidata = _pdfCandidatas[indice];
+        candidata.Articulo = articulo;
+        candidata.Lote = string.Empty;
+        candidata.Vencimiento = DateTime.Today;
+        candidata.CantidadLotePrincipal = candidata.Cantidad;
+        candidata.LotesExtra.Clear();
+        _articulosPorCodigo[articulo.Codigo] = articulo.Descripcion ?? articulo.Cod_Articulo ?? articulo.Codigo.ToString();
+        CancelarEditorPdf();
+    }
+
+    private void CancelarEditorPdf()
+    {
+        _editorPdf = EditorPdf.Ninguno;
+        _indicePdfAsignacion = null;
+        _indicePdfOpciones = null;
+        _textoBusquedaPdf = string.Empty;
+        _resultadosBusquedaPdf.Clear();
+    }
+
+    private Task AbrirLotesPdf(int indice)
+    {
+        _indicePdfOpciones = indice;
+        var candidata = _pdfCandidatas[indice];
+        if (candidata.LotesExtra.Count == 0) candidata.CantidadLotePrincipal = candidata.Cantidad;
+        _editorPdf = EditorPdf.Lotes;
+        return Task.CompletedTask;
+    }
+
+    private static void RecalcularLineaPdf(LineaCandidataPdf l)
+    {
+        l.Cantidad = Math.Max(0.001m, l.Cantidad);
+        if (l.LotesExtra.Count == 0) l.CantidadLotePrincipal = l.Cantidad;
+    }
+
+    private bool ManejaLotePdf(LineaCandidataPdf l) => l.Articulo?.Lote == true;
+    private static decimal SumaLotesPdf(LineaCandidataPdf l) => l.CantidadLotePrincipal + l.LotesExtra.Sum(e => e.Cantidad);
+
+    /// <summary>La línea maneja lotes y falta información: número de lote, cantidad
+    /// principal ≤ 0, algún lote extra incompleto, o la suma de todos los lotes no
+    /// cuadra con la cantidad de la línea.</summary>
+    private bool LoteIncompletoPdf(LineaCandidataPdf l)
+    {
+        if (!ManejaLotePdf(l)) return false;
+        if (string.IsNullOrWhiteSpace(l.Lote)) return true;
+        if (l.LotesExtra.Count == 0) return l.CantidadLotePrincipal <= 0;
+        if (l.CantidadLotePrincipal <= 0) return true;
+        if (l.LotesExtra.Any(e => string.IsNullOrWhiteSpace(e.Numero) || e.Cantidad <= 0)) return true;
+        return Math.Abs(SumaLotesPdf(l) - l.Cantidad) > 0.001m;
+    }
+
+    private string ResumenLotesPdf(LineaCandidataPdf l)
+    {
+        if (l.LotesExtra.Count == 0) return $"Lote {l.Lote} · vence {l.Vencimiento:dd/MM/yyyy}";
+        var partes = new List<string> { $"{l.Lote} ({l.CantidadLotePrincipal})" };
+        partes.AddRange(l.LotesExtra.Select(e => $"{e.Numero} ({e.Cantidad})"));
+        return "Lotes: " + string.Join(" · ", partes);
+    }
+
+    private async Task AplicarImportacionPdf()
+    {
+        if (_pdfCandidatas.Count == 0 || _pdfCandidatas.Any(l => l.Articulo is null)) return;
+        var sinLote = _pdfCandidatas.Where(LoteIncompletoPdf).ToList();
+        if (sinLote.Count > 0) { await Dialogos.ErrorAsync($"Revise los lotes de {sinLote.Count} artículo(s): falta el número o los lotes no suman la cantidad de la línea.", "Importar PDF"); return; }
+        if (_pdfCandidatas.Any(l => l.Cantidad <= 0)) { await Dialogos.ErrorAsync("Cada línea debe tener una cantidad mayor a cero.", "Importar PDF"); return; }
+
+        foreach (var candidata in _pdfCandidatas)
+        {
+            var articulo = candidata.Articulo!;
+            var lotes = ManejaLotePdf(candidata)
+                ? new List<ImportacionLoteWebDTO> { new() { Numero = candidata.Lote.Trim(), FechaVencimiento = DateOnly.FromDateTime(candidata.Vencimiento), Cantidad = candidata.CantidadLotePrincipal } }
+                    .Concat(candidata.LotesExtra.Select(le => new ImportacionLoteWebDTO { Numero = le.Numero.Trim(), FechaVencimiento = DateOnly.FromDateTime(le.Vence), Cantidad = le.Cantidad })).ToList()
+                : new();
+            _nueva.Lineas.Add(new ImportacionLineaWebDTO
+            {
+                IdArticulo = articulo.Codigo,
+                CodigoProveedor = candidata.CodigoProveedor ?? string.Empty,
+                DescripcionProveedor = string.IsNullOrWhiteSpace(candidata.DescripcionProveedor) ? (articulo.Descripcion ?? string.Empty) : candidata.DescripcionProveedor,
+                Cantidad = candidata.Cantidad,
+                CostoProveedorMonedaUnitario = candidata.CostoUnitario,
+                TributoDuaUnitario = candidata.TributoDuaUnitario,
+                PrecioAAplicado = candidata.PrecioAAplicado,
+                Lotes = lotes,
+            });
+            _articulosPorCodigo[articulo.Codigo] = articulo.Descripcion ?? articulo.Cod_Articulo ?? articulo.Codigo.ToString();
+        }
+        _pdfCandidatas.Clear();
+        await _modalImportarPdf.HideAsync();
+    }
 
     private async Task Crear()
     {
