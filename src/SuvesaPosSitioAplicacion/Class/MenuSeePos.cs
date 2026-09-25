@@ -862,6 +862,42 @@ public static partial class MenuSeePos
                     Codigo = "CONTABILIDAD.REPROCESO",
                     Ruta = "/accounting/reprocessing",
                 },
+                new ItemMenu
+                {
+                    Titulo = "Diario",
+                    Codigo = "CONTABILIDAD.DIARIO",
+                    Ruta = "/accounting/journal",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Mayor",
+                    Codigo = "CONTABILIDAD.MAYOR",
+                    Ruta = "/accounting/ledger",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Auxiliar CxC",
+                    Codigo = "CONTABILIDAD.AUXILIAR_CXC",
+                    Ruta = "/accounting/subledger-ar",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Auxiliar CxP",
+                    Codigo = "CONTABILIDAD.AUXILIAR_CXP",
+                    Ruta = "/accounting/subledger-ap",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Auxiliar Inventario",
+                    Codigo = "CONTABILIDAD.AUXILIAR_INVENTARIO",
+                    Ruta = "/accounting/subledger-inventory",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Bitácora",
+                    Codigo = "CONTABILIDAD.BITACORA",
+                    Ruta = "/accounting/audit-log",
+                },
             }
         }
     }

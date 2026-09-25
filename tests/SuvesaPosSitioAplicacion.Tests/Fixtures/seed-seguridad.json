@@ -657,6 +657,102 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "CONTABILIDAD.DIARIO",
+          "nombre": "Diario",
+          "ruta": "/accounting/journal",
+          "padre": null,
+          "orden": 7,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CONTABILIDAD.MAYOR",
+          "nombre": "Mayor",
+          "ruta": "/accounting/ledger",
+          "padre": null,
+          "orden": 8,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CONTABILIDAD.AUXILIAR_CXC",
+          "nombre": "Auxiliar CxC",
+          "ruta": "/accounting/subledger-ar",
+          "padre": null,
+          "orden": 9,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CONTABILIDAD.AUXILIAR_CXP",
+          "nombre": "Auxiliar CxP",
+          "ruta": "/accounting/subledger-ap",
+          "padre": null,
+          "orden": 10,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CONTABILIDAD.AUXILIAR_INVENTARIO",
+          "nombre": "Auxiliar Inventario",
+          "ruta": "/accounting/subledger-inventory",
+          "padre": null,
+          "orden": 11,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CONTABILIDAD.BITACORA",
+          "nombre": "Bitácora",
+          "ruta": "/accounting/audit-log",
+          "padre": null,
+          "orden": 12,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
         }
       ]
     },

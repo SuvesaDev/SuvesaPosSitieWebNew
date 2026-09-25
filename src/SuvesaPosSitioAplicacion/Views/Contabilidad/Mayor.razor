@@ -1,0 +1,157 @@
+@page "/accounting/ledger"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IManejadorRespuestas Respuestas
+
+@* W4: mayor — una cuenta a la vez, rango obligatorio de máximo un período (mismo criterio
+   que Diario). El saldo inicial/final del libro mayor ya lo calcula el API
+   (AccountingReportingService, A5); esta pantalla solo lo muestra. *@
+
+<AppPantalla Pantalla="Mayor" Codigo="CONTABILIDAD.MAYOR" Icono="bi-journal-text" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="my-empresa">Empresa</label>
+                        <select id="my-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="my-emisor">Emisor</label>
+                        <select id="my-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="my-cuenta">Cuenta</label>
+                        <select id="my-cuenta" class="form-select" @bind="_idCuenta" @bind:after="Buscar" disabled="@(_cuentas.Count == 0)">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var cuenta in _cuentas)
+                            {
+                                <option value="@cuenta.Id">@cuenta.Codigo — @cuenta.Descripcion</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="my-periodo">Período</label>
+                        <select id="my-periodo" class="form-select" @bind="_idPeriodo" @bind:after="Buscar" disabled="@(_periodos.Count == 0)">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var periodo in _periodos)
+                            {
+                                <option value="@periodo.Id">@periodo.Mes.ToString("00")/@periodo.Ejercicio (@periodo.Estado)</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_cargando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+        }
+        else if (_mayor is not null)
+        {
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <div><strong>@_mayor.Codigo</strong> — @_mayor.Descripcion</div>
+                        <div class="text-end">
+                            <div class="small text-secondary">Saldo inicial: @_mayor.SaldoInicial.ToString("N2")</div>
+                            <div><strong>Saldo final: @_mayor.SaldoFinal.ToString("N2")</strong></div>
+                        </div>
+                    </div>
+                    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Fecha</th><th>Movimiento</th><th class="text-end">Monto</th><th class="text-end">Saldo acumulado</th><th>Descripción</th></tr></thead>
+                        <tbody>
+                            @foreach (var linea in _mayor.Lineas ?? new List<LineaMayorDTO>())
+                            {
+                                <tr>
+                                    <td>@linea.FechaContable.ToString("yyyy-MM-dd")</td>
+                                    <td>@linea.TipoMovimiento</td>
+                                    <td class="text-end">@linea.Monto.ToString("N2")</td>
+                                    <td class="text-end">@linea.SaldoAcumulado.ToString("N2")</td>
+                                    <td>@linea.Descripcion</td>
+                                </tr>
+                            }
+                            @if ((_mayor.Lineas?.Count ?? 0) == 0) { <tr><td colspan="5" class="text-secondary">Sin movimientos en este período.</td></tr> }
+                        </tbody>
+                    </table></div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <p class="text-secondary mb-0">Seleccione empresa, emisor, cuenta y período para ver el mayor.</p>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+    private List<CuentaContableDTO> _cuentas = new();
+    private long _idCuenta;
+    private List<PeriodoContableDTO> _periodos = new();
+    private long _idPeriodo;
+    private bool _cargando;
+
+    private LibroMayorDTO? _mayor;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _cuentas = new();
+        _idCuenta = 0;
+        _periodos = new();
+        _idPeriodo = 0;
+        _mayor = null;
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+        if (_idLibroContable == 0) return;
+
+        _cuentas = (await Respuestas.DatoAsync(await Contabilidad.ListarCuentas(_idLibroContable), "consultar las cuentas"))?.Where(c => c.PermiteMovimiento == true).ToList() ?? new();
+        _periodos = (await Respuestas.DatoAsync(await Contabilidad.ListarPeriodos(_idLibroContable), "consultar los períodos"))?.ToList() ?? new();
+    }
+
+    private async Task Buscar()
+    {
+        _mayor = null;
+        if (_idCuenta == 0 || _idPeriodo == 0) return;
+        var periodo = _periodos.FirstOrDefault(p => p.Id == _idPeriodo);
+        if (periodo is null) return;
+
+        _cargando = true;
+        _mayor = await Respuestas.DatoAsync(await Contabilidad.ObtenerLibroMayor(_idCuenta, DateOnly.FromDateTime(periodo.FechaInicio.Date), DateOnly.FromDateTime(periodo.FechaFin.Date)), "consultar el libro mayor");
+        _cargando = false;
+    }
+}

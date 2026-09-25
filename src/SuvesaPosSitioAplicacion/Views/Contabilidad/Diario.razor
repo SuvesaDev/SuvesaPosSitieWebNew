@@ -1,0 +1,139 @@
+@page "/accounting/journal"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IManejadorRespuestas Respuestas
+
+@* W4: diario — rango obligatorio, máximo un período a la vez (decisión ya cerrada). El
+   selector de período usa los períodos ya creados del libro (ListarPeriodos), no un
+   rango de fechas libre, para no permitir consultas sin límite. *@
+
+<AppPantalla Pantalla="Diario" Codigo="CONTABILIDAD.DIARIO" Icono="bi-journal-text" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="dj-empresa">Empresa</label>
+                        <select id="dj-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="dj-emisor">Emisor</label>
+                        <select id="dj-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="dj-periodo">Período</label>
+                        <select id="dj-periodo" class="form-select" @bind="_idPeriodo" @bind:after="Buscar" disabled="@(_periodos.Count == 0)">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var periodo in _periodos)
+                            {
+                                <option value="@periodo.Id">@periodo.Mes.ToString("00")/@periodo.Ejercicio (@periodo.Estado)</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_cargando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+        }
+        else if (_idPeriodo > 0)
+        {
+            <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Fecha</th><th>Origen</th><th>Líneas</th><th class="text-end">Débito</th><th class="text-end">Crédito</th></tr></thead>
+                <tbody>
+                    @foreach (var asiento in _asientos)
+                    {
+                        <tr>
+                            <td>@asiento.FechaContable.ToString("yyyy-MM-dd")</td>
+                            <td class="small text-secondary">@asiento.OrigenModulo #@asiento.OrigenId</td>
+                            <td class="small">
+                                @foreach (var linea in (asiento.Lineas ?? new List<LineaAsientoContableDTO>()).OrderBy(l => l.Orden))
+                                {
+                                    <div>@linea.TipoMovimiento — @linea.IdCuentaContable — @linea.MontoFuncional.ToString("N2") — @linea.Descripcion</div>
+                                }
+                            </td>
+                            <td class="text-end">@TotalDebito(asiento).ToString("N2")</td>
+                            <td class="text-end">@TotalCredito(asiento).ToString("N2")</td>
+                        </tr>
+                    }
+                    @if (_asientos.Count == 0) { <tr><td colspan="5" class="text-secondary">Sin movimientos en este período.</td></tr> }
+                </tbody>
+            </table></div>
+        }
+        else
+        {
+            <p class="text-secondary mb-0">Seleccione empresa, emisor y período para ver el diario.</p>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+    private List<PeriodoContableDTO> _periodos = new();
+    private long _idPeriodo;
+    private bool _cargando;
+
+    private List<AsientoContableDTO> _asientos = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _periodos = new();
+        _idPeriodo = 0;
+        _asientos = new();
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+        if (_idLibroContable == 0) return;
+
+        _periodos = (await Respuestas.DatoAsync(await Contabilidad.ListarPeriodos(_idLibroContable), "consultar los períodos"))?.ToList() ?? new();
+    }
+
+    private async Task Buscar()
+    {
+        _asientos = new();
+        if (_idPeriodo == 0) return;
+        var periodo = _periodos.FirstOrDefault(p => p.Id == _idPeriodo);
+        if (periodo is null) return;
+
+        _cargando = true;
+        _asientos = (await Respuestas.DatoAsync(await Contabilidad.ObtenerLibroDiario(_idLibroContable, DateOnly.FromDateTime(periodo.FechaInicio.Date), DateOnly.FromDateTime(periodo.FechaFin.Date)), "consultar el libro diario"))?.ToList() ?? new();
+        _cargando = false;
+    }
+
+    private static decimal TotalDebito(AsientoContableDTO asiento) => (decimal)(asiento.Lineas ?? new List<LineaAsientoContableDTO>()).Where(l => l.TipoMovimiento == "Debito").Sum(l => l.MontoFuncional);
+    private static decimal TotalCredito(AsientoContableDTO asiento) => (decimal)(asiento.Lineas ?? new List<LineaAsientoContableDTO>()).Where(l => l.TipoMovimiento == "Credito").Sum(l => l.MontoFuncional);
+}

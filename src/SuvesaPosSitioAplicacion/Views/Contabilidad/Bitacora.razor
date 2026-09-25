@@ -1,0 +1,153 @@
+@page "/accounting/audit-log"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IManejadorRespuestas Respuestas
+
+@* W4: bitácora de auditoría — pantalla de consulta centralizada (accounting_audit_log),
+   no repartida como pestaña de historial por entidad (decisión ya cerrada): permite
+   revisar "qué cambió este usuario esta semana" de una sola vez. *@
+
+<AppPantalla Pantalla="Bitácora" Codigo="CONTABILIDAD.BITACORA" Icono="bi-journal-text" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="bt-empresa">Empresa</label>
+                        <select id="bt-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="bt-emisor">Emisor</label>
+                        <select id="bt-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small" for="bt-entidad">Entidad</label>
+                        <input id="bt-entidad" class="form-control form-control-sm" @bind="_entidad" placeholder="CuentaContable" />
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label small" for="bt-usuario">Usuario</label>
+                        <input id="bt-usuario" class="form-control form-control-sm" @bind="_usuario" />
+                    </div>
+                    <div class="col-6 col-md-1">
+                        <label class="form-label small" for="bt-desde">Desde</label>
+                        <input id="bt-desde" type="date" class="form-control form-control-sm" @bind="_desde" />
+                    </div>
+                    <div class="col-6 col-md-1">
+                        <label class="form-label small" for="bt-hasta">Hasta</label>
+                        <input id="bt-hasta" type="date" class="form-control form-control-sm" @bind="_hasta" />
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-primary mt-3" disabled="@(_idLibroContable == 0)" @onclick="Buscar">Filtrar</button>
+            </div>
+        </div>
+
+        @if (_cargando)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+        }
+        else
+        {
+            <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Fecha</th><th>Usuario</th><th>Entidad</th><th>Acción</th><th>Motivo</th></tr></thead>
+                <tbody>
+                    @foreach (var registro in _registros)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@registro.Fecha.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@registro.Usuario</td>
+                            <td class="small text-secondary">@registro.Entidad #@registro.IdEntidad</td>
+                            <td>@registro.Accion</td>
+                            <td class="small">@registro.Motivo</td>
+                        </tr>
+                    }
+                    @if (_registros.Count == 0) { <tr><td colspan="5" class="text-secondary">Sin registros para el filtro indicado.</td></tr> }
+                </tbody>
+            </table></div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <span class="small text-secondary">Página @_pagina</span>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" disabled="@(_pagina <= 1)" @onclick="() => CambiarPagina(-1)">Anterior</button>
+                    <button class="btn btn-outline-secondary" disabled="@(_registros.Count < TamanoPagina)" @onclick="() => CambiarPagina(1)">Siguiente</button>
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const int TamanoPagina = 25;
+
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+
+    private string _entidad = "";
+    private string _usuario = "";
+    private DateOnly? _desde;
+    private DateOnly? _hasta;
+    private int _pagina = 1;
+    private bool _cargando;
+
+    private List<AuditoriaContableDTO> _registros = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _registros = new();
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+        if (_idLibroContable > 0) await Buscar();
+    }
+
+    private async Task Buscar()
+    {
+        _pagina = 1;
+        await CargarPagina();
+    }
+
+    private async Task CambiarPagina(int delta)
+    {
+        _pagina = Math.Max(1, _pagina + delta);
+        await CargarPagina();
+    }
+
+    private async Task CargarPagina()
+    {
+        _cargando = true;
+        _registros = (await Respuestas.DatoAsync(
+            await Contabilidad.ListarAuditoria(_idLibroContable, string.IsNullOrWhiteSpace(_entidad) ? null : _entidad,
+                string.IsNullOrWhiteSpace(_usuario) ? null : _usuario, _desde, _hasta, _pagina, TamanoPagina),
+            "consultar la bitácora de auditoría"))?.ToList() ?? new();
+        _cargando = false;
+    }
+}

@@ -47,12 +47,22 @@ public class ContextoContabilidadTests
 
         public Task<ResponseGeneric<ICollection<EventoContableDTO>>> ListarEventos(long? idLibroContable, string? estado, string? tipoEvento, string? origenModulo, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina) => throw new NotImplementedException();
         public Task<ResponseGeneric<bool>> ReintentarEvento(long idEvento) => throw new NotImplementedException();
-        public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina) => throw new NotImplementedException();
+        public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina, long? idCliente = null, long? idProveedor = null, string? origenModulo = null) => throw new NotImplementedException();
         public Task<ResponseGeneric<AsientoContableDTO>> CrearAsientoManual(CrearAsientoManualDTO comando) => throw new NotImplementedException();
         public Task<ResponseGeneric<AsientoContableDTO>> ReversarAsiento(long idAsiento, string? contrasena) => throw new NotImplementedException();
         public Task<ResponseGeneric<EjecucionRepolinizacionDTO>> SimularRepolinizacion(FiltroRepolinizacionDTO filtro) => throw new NotImplementedException();
         public Task<ResponseGeneric<EjecucionRepolinizacionDTO>> ObtenerRepolinizacion(long idEjecucion) => throw new NotImplementedException();
         public Task<ResponseGeneric<EjecucionRepolinizacionDTO>> AprobarRepolinizacion(long idEjecucion, string contrasena) => throw new NotImplementedException();
+
+        public Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ListarPeriodos(long idLibroContable) => throw new NotImplementedException();
+        public Task<ResponseGeneric<ICollection<AuditoriaContableDTO>>> ListarAuditoria(long? idLibroContable, string? entidad, string? usuario, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina) => throw new NotImplementedException();
+        public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ObtenerLibroDiario(long idLibroContable, DateOnly desde, DateOnly hasta) => throw new NotImplementedException();
+        public Task<ResponseGeneric<LibroMayorDTO>> ObtenerLibroMayor(long idCuentaContable, DateOnly desde, DateOnly hasta) => throw new NotImplementedException();
+        public Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarCxC(int idEmisor) => throw new NotImplementedException();
+        public Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarCxP(int idEmisor) => throw new NotImplementedException();
+        public Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarInventario(long idLibroContable) => throw new NotImplementedException();
+        public Task<ResponseGeneric<EjecucionConciliacionDTO>> ObtenerConciliacion(long idEjecucion) => throw new NotImplementedException();
+        public Task<ResponseGeneric<bool>> ResolverDiferencia(long idDiferencia, string motivo, string? contrasena) => throw new NotImplementedException();
     }
 
     [Fact]

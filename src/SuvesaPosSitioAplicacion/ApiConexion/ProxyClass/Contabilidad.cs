@@ -178,10 +178,10 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "reintentar el evento contable");
 
-    public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina)
+    public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina, long? idCliente = null, long? idProveedor = null, string? origenModulo = null)
         => Ejecutar(async () =>
         {
-            var r = await _api.AsientosAsync(idLibroContable, pagina, tamanoPagina);
+            var r = await _api.AsientosAsync(idLibroContable, pagina, tamanoPagina, idCliente, idProveedor, origenModulo);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar la bandeja de pólizas");
 
@@ -219,6 +219,71 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             var r = await _api.AprobarAsync(idEjecucion, new AprobarRepolinizacionDTO { Contrasena = contrasena });
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "aprobar el reproceso");
+
+    // ---- W4: diario, mayor, auxiliares y conciliación ----
+
+    public Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ListarPeriodos(long idLibroContable)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.PeriodosGETAsync(idLibroContable);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar los períodos contables");
+
+    public Task<ResponseGeneric<ICollection<AuditoriaContableDTO>>> ListarAuditoria(long? idLibroContable, string? entidad, string? usuario, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.AuditoriaAsync(idLibroContable, entidad, usuario, AFecha(desde), AFecha(hasta), pagina, tamanoPagina);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar la bitácora de auditoría");
+
+    public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ObtenerLibroDiario(long idLibroContable, DateOnly desde, DateOnly hasta)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.DiarioAsync(idLibroContable, AFecha(desde), AFecha(hasta));
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar el libro diario");
+
+    public Task<ResponseGeneric<LibroMayorDTO>> ObtenerLibroMayor(long idCuentaContable, DateOnly desde, DateOnly hasta)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.MayorAsync(idCuentaContable, AFecha(desde), AFecha(hasta));
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar el libro mayor");
+
+    public Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarCxC(int idEmisor)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.CxcPOSTAsync(idEmisor);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "conciliar el auxiliar de cuentas por cobrar");
+
+    public Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarCxP(int idEmisor)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.CxpAsync(idEmisor);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "conciliar el auxiliar de cuentas por pagar");
+
+    public Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarInventario(long idLibroContable)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.InventarioPOSTAsync(idLibroContable);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "conciliar el auxiliar de inventario");
+
+    public Task<ResponseGeneric<EjecucionConciliacionDTO>> ObtenerConciliacion(long idEjecucion)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.CxcGETAsync(idEjecucion);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar la ejecución de conciliación");
+
+    public Task<ResponseGeneric<bool>> ResolverDiferencia(long idDiferencia, string motivo, string? contrasena)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ResolverAsync(idDiferencia, new ResolverDiferenciaDTO { Motivo = motivo, Contrasena = contrasena ?? string.Empty });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "resolver la diferencia de conciliación");
 
     private static DateTimeOffset? AFecha(DateOnly? fecha) => fecha is null ? null : new DateTimeOffset(fecha.Value.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
 }

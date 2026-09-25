@@ -1,0 +1,200 @@
+@page "/accounting/subledger-inventory"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* W4: auxiliar de Inventario — a la granularidad real que integra A3: por documento de
+   Toma Física (accounting_events con OrigenModulo = "Inventario"), no por
+   bodega/artículo/lote (el motor no trackea esa granularidad hoy — decisión de sesión).
+   Conciliación compara el costeo legado del documento contra la póliza generada. *@
+
+<AppPantalla Pantalla="Auxiliar Inventario" Codigo="CONTABILIDAD.AUXILIAR_INVENTARIO" Icono="bi-journal-text" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-5">
+                        <label class="form-label" for="axi-empresa">Empresa</label>
+                        <select id="axi-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var empresa in _empresas)
+                            {
+                                <option value="@empresa.Id">@empresa.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-5">
+                        <label class="form-label" for="axi-emisor">Emisor</label>
+                        <select id="axi-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var emisor in _emisores)
+                            {
+                                <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <button class="btn btn-outline-primary w-100" disabled="@(_idLibroContable == 0)" @onclick="Buscar">Buscar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_idLibroContable > 0)
+        {
+            <button class="btn btn-sm btn-secondary mb-3" disabled="@_conciliando" @onclick="Conciliar">
+                @if (_conciliando)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                }
+                Conciliar auxiliar
+            </button>
+
+            @if (_conciliacion is not null)
+            {
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <p class="mb-2">@_conciliacion.TotalDiferencias diferencia(s) encontrada(s) (tolerancia ₡0.01).</p>
+                        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Bodega</th><th>Documento</th><th class="text-end">Legado</th><th class="text-end">Motor</th><th class="text-end">Diferencia</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach (var d in _conciliacion.Diferencias ?? new List<DiferenciaConciliacionDTO>())
+                                {
+                                    <tr>
+                                        <td>@d.IdBodega</td>
+                                        <td class="small text-secondary">Toma física #@d.OrigenId</td>
+                                        <td class="text-end">@d.SaldoLegado.ToString("N2")</td>
+                                        <td class="text-end">@d.SaldoMotor.ToString("N2")</td>
+                                        <td class="text-end">@d.Diferencia.ToString("N2")</td>
+                                        <td>
+                                            @if (d.Resuelta == true)
+                                            {
+                                                <span class="badge text-bg-success">Resuelta</span>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-sm btn-link p-0" @onclick="() => Resolver(d)">Resolver</button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                                @if ((_conciliacion.Diferencias?.Count ?? 0) == 0) { <tr><td colspan="6" class="text-secondary">Sin diferencias.</td></tr> }
+                            </tbody>
+                        </table></div>
+                    </div>
+                </div>
+            }
+
+            <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Fecha</th><th>Documento</th><th class="text-end">Débito</th><th class="text-end">Crédito</th></tr></thead>
+                <tbody>
+                    @foreach (var asiento in _asientos)
+                    {
+                        <tr>
+                            <td>@asiento.FechaContable.ToString("yyyy-MM-dd")</td>
+                            <td class="small text-secondary">Toma física #@asiento.OrigenId</td>
+                            <td class="text-end">@TotalDebito(asiento).ToString("N2")</td>
+                            <td class="text-end">@TotalCredito(asiento).ToString("N2")</td>
+                        </tr>
+                    }
+                    @if (_asientos.Count == 0) { <tr><td colspan="4" class="text-secondary">Sin ajustes de inventario contabilizados.</td></tr> }
+                </tbody>
+            </table></div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modalResolver" Titulo="Resolver diferencia" AlGuardar="ConfirmarResolucion" Guardando="_resolviendo"
+          PuedeGuardar="!string.IsNullOrWhiteSpace(_motivoResolver)">
+    <div class="mb-2">
+        <label class="form-label" for="axi-motivo">Motivo</label>
+        <textarea id="axi-motivo" class="form-control" rows="3" @bind="_motivoResolver" placeholder="Por qué se acepta esta diferencia sin corregirla"></textarea>
+    </div>
+</AppModal>
+
+<AppConfirmarClaveContabilidad @ref="_confirmarClave" />
+
+@code {
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+    private long _idLibroContable;
+
+    private List<AsientoContableDTO> _asientos = new();
+    private bool _conciliando;
+    private EjecucionConciliacionDTO? _conciliacion;
+
+    private AppModal _modalResolver = default!;
+    private AppConfirmarClaveContabilidad _confirmarClave = default!;
+    private string _motivoResolver = "";
+    private long _idDiferenciaResolver;
+    private bool _resolviendo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await AlCambiarSeleccion();
+    }
+
+    private async Task AlCambiarSeleccion()
+    {
+        _idLibroContable = 0;
+        _asientos = new();
+        _conciliacion = null;
+        if (_idEmpresa == 0 || _idEmisor == 0) return;
+
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        _idLibroContable = estado?.IdLibroContable ?? 0;
+    }
+
+    private async Task Buscar()
+    {
+        _asientos = (await Respuestas.DatoAsync(await Contabilidad.ListarAsientos(_idLibroContable, 1, 100, origenModulo: "Inventario"), "consultar el auxiliar de inventario"))?.ToList() ?? new();
+    }
+
+    private async Task Conciliar()
+    {
+        _conciliando = true;
+        _conciliacion = await Respuestas.DatoAsync(await Contabilidad.ConciliarInventario(_idLibroContable), "conciliar el auxiliar de inventario");
+        _conciliando = false;
+    }
+
+    private async Task Resolver(DiferenciaConciliacionDTO diferencia)
+    {
+        _idDiferenciaResolver = diferencia.Id;
+        _motivoResolver = "";
+        await _modalResolver.MostrarAsync();
+    }
+
+    private async Task ConfirmarResolucion()
+    {
+        if (string.IsNullOrWhiteSpace(_motivoResolver)) return;
+
+        var clave = await _confirmarClave.MostrarAsync();
+        if (clave is null) return;
+
+        _resolviendo = true;
+        var respuesta = await Contabilidad.ResolverDiferencia(_idDiferenciaResolver, _motivoResolver, clave);
+        _resolviendo = false;
+
+        if (await Respuestas.CorrectaAsync(respuesta, "resolver la diferencia"))
+        {
+            Dialogos.Exito("Diferencia resuelta.");
+            await _modalResolver.OcultarAsync();
+            await Conciliar();
+        }
+    }
+
+    private static decimal TotalDebito(AsientoContableDTO asiento) => (decimal)(asiento.Lineas ?? new List<LineaAsientoContableDTO>()).Where(l => l.TipoMovimiento == "Debito").Sum(l => l.MontoFuncional);
+    private static decimal TotalCredito(AsientoContableDTO asiento) => (decimal)(asiento.Lineas ?? new List<LineaAsientoContableDTO>()).Where(l => l.TipoMovimiento == "Credito").Sum(l => l.MontoFuncional);
+}
