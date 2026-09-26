@@ -10,6 +10,7 @@
 @inject IServicioDialogos Dialogos
 @inject IRelojEquipo RelojEquipo
 @inject IContextoSesion Sesion
+@inject IBancos BancosApi
 
 @*  OLA 1 — replica del ARQUETIPO 02, con filtro por rango de fechas.
     Mismo patron que Documentos Emitidos: se filtra en el API, no en memoria.
@@ -55,10 +56,10 @@
                 @if (_instrumentos.Count == 0) { <p class="text-secondary small mb-0">No hay instrumentos de confirmación para los criterios seleccionados.</p> }
                 else
                 {
-                    <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Tipo</th><th>Referencia</th><th>Responsable</th><th>Alerta</th><th>Vence</th><th class="text-end">Monto</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead><tbody>
+                    <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Tipo</th><th>Referencia</th><th>Número</th><th>Banco</th><th>Responsable</th><th>Alerta</th><th>Vence</th><th class="text-end">Monto</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead><tbody>
                     @foreach (var i in _instrumentos)
                     {
-                        <tr><td>@TipoTexto(i)</td><td><code>@i.Referencia</code></td><td>@i.Responsable</td><td>@i.FechaAlertaUtc.ToLocalTime().ToString("dd/MM/yyyy")</td><td>@i.FechaLimiteUtc.ToLocalTime().ToString("dd/MM/yyyy")</td><td class="text-end">@Formato.Importe(i.Monto)</td><td><span class="badge @ClaseEstado(i.Estado)">@TextoEstado(i.Estado)</span></td><td class="text-end">
+                        <tr><td>@TipoTexto(i)</td><td><code>@i.Referencia</code></td><td>@(i.NumeroCheque ?? "-")</td><td>@BancoTexto(i.IdBanco)</td><td>@i.Responsable</td><td>@i.FechaAlertaUtc.ToLocalTime().ToString("dd/MM/yyyy")</td><td>@i.FechaLimiteUtc.ToLocalTime().ToString("dd/MM/yyyy")</td><td class="text-end">@Formato.Importe(i.Monto)</td><td><span class="badge @ClaseEstado(i.Estado)">@TextoEstado(i.Estado)</span></td><td class="text-end">
                         @if (Sesion.Puede(Codigo, AccionPantalla.Editar) && i.Estado == "PendienteConfirmacion")
                         {
                             <button class="btn btn-sm btn-success me-1" @onclick="() => ConfirmarInstrumento(i)">Confirmar</button>
@@ -189,13 +190,17 @@
     private decimal _total;
     private bool _buscando;
     private bool _hayBusqueda;
+    private List<EntidadesBancariasDTO> _bancos = new();
     protected override async Task OnInitializedAsync()
     {
         var hoy = await RelojEquipo.HoyAsync();
         _desde = hoy.AddDays(-7);
         _hasta = hoy;
+        _bancos = ((await BancosApi.Obtener()).Responses ?? Array.Empty<EntidadesBancariasDTO>()).OrderBy(b => b.Banco).ToList();
         await CargarInstrumentos();
     }
+
+    private string BancoTexto(int? idBanco) => idBanco is null ? "-" : _bancos.FirstOrDefault(b => b.Id == idBanco)?.Banco ?? "-";
 
     private static DateTime Fecha(ChangeEventArgs e, DateTime actual)
         => DateTime.TryParse(e.Value?.ToString(), out var v) ? v : actual;

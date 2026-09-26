@@ -7,6 +7,8 @@ public sealed class InstrumentoConfirmacionWebDTO
     public string Estado { get; set; } = "PendienteConfirmacion";
     public decimal Monto { get; set; }
     public string Referencia { get; set; } = "";
+    public string? NumeroCheque { get; set; }
+    public int? IdBanco { get; set; }
     public long? NumApertura { get; set; }
     public string Responsable { get; set; } = "";
     public DateTime FechaCaptura { get; set; }
