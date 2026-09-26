@@ -298,6 +298,7 @@ public partial class CuentasPorCobrar
                 IdApertura = NumApertura,
                 IdSucursal = Sesion.IdSucursal,
                 CedulaCajero = UsuarioCajero?.Nombre,
+                IdRutaComercial = p.IdRutaComercial,
                 Pagos = pagos,
             };
             var res = await Respuestas.DatoAsync(await Comandos.FacturarPreventaContado(comando), "cobrar y facturar la preventa");

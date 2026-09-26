@@ -389,6 +389,7 @@
                 IdApertura = _numApertura,
                 IdSucursal = Sesion.IdSucursal,
                 CedulaCajero = _usuario?.Nombre,
+                IdRutaComercial = _preventa.IdRutaComercial,
                 Pagos = _formasPago
                     .Where(f => f.Codigo is not null && MontoDe(f.Codigo!) > 0)
                     .Select(f => new SuvesaPosSitioAplicacion.DTOs.Fiscal.PagoPreventaContadoDTO

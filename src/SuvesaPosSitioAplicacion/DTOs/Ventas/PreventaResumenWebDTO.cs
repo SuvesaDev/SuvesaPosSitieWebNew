@@ -25,6 +25,10 @@ public sealed class PreventaResumenWebDTO
     public int Ficha { get; set; }
     public bool EsConsignacion { get; set; }
 
+    /// <summary>Ruta comercial resuelta al crear la preventa. Se reenvía en
+    /// FacturarPreventaContadoComandoDTO.IdRutaComercial al cobrar.</summary>
+    public int? IdRutaComercial { get; set; }
+
     /// <summary>Slug de impresión / tipo de comprobante según el CodigoFe de la serie.</summary>
     public string? SlugImpresion => CodigoFe switch
     {
