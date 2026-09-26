@@ -80,7 +80,14 @@ public partial class CuentasPorCobrar
 
         var formas = _formasPago
             .Where(f => f.Codigo is not null && _montos.TryGetValue(f.Codigo, out var m) && m > 0)
-            .Select(f => new CobroCreditoFormaPagoWebDTO { CodigoFormaPago = f.Codigo!, MontoRecibido = _montos[f.Codigo!] })
+            .Select(f => new CobroCreditoFormaPagoWebDTO
+            {
+                CodigoFormaPago = f.Codigo!,
+                MontoRecibido = _montos[f.Codigo!],
+                Referencia = _referencias.TryGetValue(f.Codigo!, out var rf) ? rf : null,
+                NumeroCheque = _numerosCheque.TryGetValue(f.Codigo!, out var nc) ? nc : null,
+                IdBanco = _idsBanco.TryGetValue(f.Codigo!, out var ib) ? ib : null,
+            })
             .ToList();
         if (formas.Count == 0) { await Dialogos.ErrorAsync("Indique el monto de al menos una forma de pago."); return; }
 
@@ -183,6 +190,8 @@ public partial class CuentasPorCobrar
         _formasPago = (await Respuestas.DatoAsync(await Api.FormasPago(_codCliente), "consultar las formas de pago"))?.ToList() ?? new();
         _montos.Clear();
         _referencias.Clear();
+        _numerosCheque.Clear();
+        _idsBanco.Clear();
         foreach (var f in _formasPago) if (f.Codigo is not null) _montos[f.Codigo] = 0;
 
         _buscando = false;
@@ -332,6 +341,8 @@ public partial class CuentasPorCobrar
         _formasPago = new();
         _montos.Clear();
         _referencias.Clear();
+        _numerosCheque.Clear();
+        _idsBanco.Clear();
         _resultados.Clear();
         _aCobrar = _entregado = _cambio = 0;
         _claveLote = null;

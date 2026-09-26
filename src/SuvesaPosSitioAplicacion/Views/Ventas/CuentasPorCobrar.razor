@@ -125,19 +125,15 @@
                                 }
                                 else
                                 {
-                                    <table class="table table-sm align-middle mb-3">
-                                        <thead><tr><th>Forma</th><th class="text-end">Monto</th></tr></thead>
-                                        <tbody>
-                                            @foreach (var fp in _formasPago)
-                                            {
-                                                <tr><td>@fp.Descripcion</td><td style="min-width:8rem"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="_montos[fp.Codigo!]" @bind:after="RecalcularCredito" /></td></tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                    <dl class="row mb-0">
-                                        <dt class="col-6 fw-normal text-secondary">A cobrar</dt><dd class="col-6 text-end">@Formato.Importe(_aCobrarCredito)</dd>
-                                        <dt class="col-6 fw-normal text-secondary">Entregado</dt><dd class="col-6 text-end">@Formato.Importe(_entregadoCredito)</dd>
-                                    </dl>
+                                    <PanelPagoVenta Titulo="Pago del abono"
+                                                    Total="_aCobrarCredito"
+                                                    Formas="_formasPago"
+                                                    NumApertura="NumApertura"
+                                                    @bind-Montos="_montos"
+                                                    @bind-Referencias="_referencias"
+                                                    @bind-NumerosCheque="_numerosCheque"
+                                                    @bind-IdsBanco="_idsBanco"
+                                                    RepartoChanged="_ => RecalcularCredito()" />
                                     <button class="btn btn-primary w-100 mt-3" disabled="@(_procesando || _entregadoCredito <= 0)" @onclick="CobrarCredito">
                                         <i class="bi bi-cash-coin me-2"></i>@(_procesando ? "Procesando..." : "Cobrar")
                                     </button>
