@@ -48,6 +48,19 @@
                                 </select>
                             </td>
                         }
+                        else if (f.Deposito)
+                        {
+                            <td style="min-width:8rem">
+                                <input type="text" class="form-control form-control-sm" placeholder="Referencia"
+                                       value="@RefDe(cod)" @onchange="e => SetRef(cod, e.Value?.ToString())" />
+                            </td>
+                            <td style="min-width:9rem">
+                                <select class="form-select form-select-sm" value="@BancoTexto(cod)" @onchange="e => SetBanco(cod, e.Value?.ToString())">
+                                    <option value="">Banco...</option>
+                                    @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
+                                </select>
+                            </td>
+                        }
                         else if (noEfectivo)
                         {
                             <td style="min-width:8rem" colspan="2">
@@ -183,6 +196,8 @@
                 f.Codigo!, MontoDe(f.Codigo!),
                 EsEfectivo: EsEfectivo(f),
                 RequiereReferencia: f.Tarjeta || f.Deposito || f.Cheque,
-                Referencia: f.Cheque ? NumeroChequeDe(f.Codigo!) : RefDe(f.Codigo!))));
+                Referencia: f.Cheque ? NumeroChequeDe(f.Codigo!) : RefDe(f.Codigo!),
+                RequiereBanco: f.Cheque || f.Deposito,
+                IdBanco: BancoDe(f.Codigo!))));
     }
 }

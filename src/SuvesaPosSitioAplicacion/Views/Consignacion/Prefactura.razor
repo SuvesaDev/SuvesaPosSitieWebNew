@@ -19,6 +19,7 @@
 @inject IConfiguracionPlazosFiscales PlazosApi
 @inject IRutasComerciales RutasApi
 @inject IManejadorRespuestas Respuestas
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IBancos BancosApi
 
 <AppPantalla Pantalla="Facturación de Consignaciones" Codigo="CONSIGNACION.FACTURACION_DE_CONSIGNACIONES" Icono="bi-receipt"
              Subtitulo="Prefactura editable → aprobar → facturar (contado o crédito)" Nivel="NivelPantalla.Tableta">
@@ -136,10 +137,35 @@
             else
             {
               <div><label class="form-label d-block">Forma de pago</label><select class="form-select" style="width:13rem" @bind="_formaPago"><option value="">Seleccione...</option>@foreach (var forma in _formasPago) { <option value="@forma.Codigo">@forma.Descripcion</option> }</select></div>
-              <div><label class="form-label d-block">Referencia</label><input class="form-control" style="width:12rem" @bind="_referenciaPago" placeholder="Opcional" /></div>
+              @if (FormaPagoSeleccionada?.Cheque == true)
+              {
+                <div><label class="form-label d-block">N° cheque</label><input class="form-control" style="width:10rem" @bind="_numeroChequePago" /></div>
+                <div>
+                  <label class="form-label d-block">Banco</label>
+                  <select class="form-select" style="width:11rem" @bind="_idBancoPago">
+                    <option value="">Seleccione...</option>
+                    @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
+                  </select>
+                </div>
+              }
+              else if (FormaPagoSeleccionada?.Deposito == true)
+              {
+                <div><label class="form-label d-block">Referencia</label><input class="form-control" style="width:12rem" @bind="_referenciaPago" /></div>
+                <div>
+                  <label class="form-label d-block">Banco</label>
+                  <select class="form-select" style="width:11rem" @bind="_idBancoPago">
+                    <option value="">Seleccione...</option>
+                    @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
+                  </select>
+                </div>
+              }
+              else if (FormaPagoSeleccionada?.Tarjeta == true)
+              {
+                <div><label class="form-label d-block">Referencia</label><input class="form-control" style="width:12rem" @bind="_referenciaPago" /></div>
+              }
               <div><label class="form-label d-block">Monto a cobrar</label><input class="form-control" style="width:10rem" value="@($"{_pref.Total:N2}")" readonly /></div>
             }
-            <button class="btn btn-success" @onclick="Facturar" disabled="@(_procesando || !_desbloqueo.Desbloqueado || (_condicion == 2 && (_idPlazo is null or <= 0)) || (_condicion == 1 && string.IsNullOrWhiteSpace(_formaPago)))">@(_procesando ? "Facturando..." : "Facturar")</button>
+            <button class="btn btn-success" @onclick="Facturar" disabled="@(_procesando || !_desbloqueo.Desbloqueado || (_condicion == 2 && (_idPlazo is null or <= 0)) || (_condicion == 1 && (string.IsNullOrWhiteSpace(_formaPago) || (FormaPagoSeleccionada?.Cheque == true && (string.IsNullOrWhiteSpace(_numeroChequePago) || _idBancoPago is null)) || (FormaPagoSeleccionada?.Deposito == true && (string.IsNullOrWhiteSpace(_referenciaPago) || _idBancoPago is null)))))">@(_procesando ? "Facturando..." : "Facturar")</button>
           }
           <button class="btn btn-outline-danger ms-auto" @onclick="Anular" disabled="@_procesando">Anular</button>
         </div>
@@ -175,7 +201,11 @@
  private int? _idPlazo;
  private string _formaPago = "01";
  private string? _referenciaPago;
+ private string? _numeroChequePago;
+ private int? _idBancoPago;
  private List<FormasPagoDTO> _formasPago = new();
+ private List<EntidadesBancariasDTO> _bancos = new();
+ private FormasPagoDTO? FormaPagoSeleccionada => _formasPago.FirstOrDefault(f => f.Codigo == _formaPago);
  private List<ConfiguracionPlazoFiscalDTO> _plazos = new();
  private string _error = "";
  private bool _procesando;
@@ -304,6 +334,7 @@
      _formasPago = r.EsCorrecta ? (r.Responses?.ToList() ?? new()) : new();
      if (_formasPago.Count == 1) _formaPago = _formasPago[0].Codigo ?? "";
      else if (!_formasPago.Any(f => f.Codigo == _formaPago)) _formaPago = "";
+     _bancos = (await Respuestas.DatoAsync(await BancosApi.Obtener()))?.OrderBy(b => b.Banco).ToList() ?? new();
  }
 
  private async Task Aprobar()
@@ -343,7 +374,7 @@
          Usuario = _desbloqueo.UsuarioValidado?.IdUsuario ?? Sesion.Usuario,
          IdRutaComercial = _idRutaComercial > 0 ? _idRutaComercial : null,
          Pagos = _condicion == 1
-             ? new() { new PagoPrefacturaConsignacion { FormaPago = _formaPago.Trim(), Referencia = _referenciaPago?.Trim(), Monto = (decimal)_pref.Total } }
+             ? new() { new PagoPrefacturaConsignacion { FormaPago = _formaPago.Trim(), Referencia = _referenciaPago?.Trim(), NumeroCheque = _numeroChequePago?.Trim(), IdBanco = _idBancoPago, Monto = (decimal)_pref.Total } }
              : new()
      });
      _procesando = false;

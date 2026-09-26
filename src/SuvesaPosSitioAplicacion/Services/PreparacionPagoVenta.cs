@@ -17,7 +17,9 @@ public static class PreparacionPagoVenta
         decimal Recibido,
         bool EsEfectivo,
         bool RequiereReferencia,
-        string? Referencia);
+        string? Referencia,
+        bool RequiereBanco = false,
+        int? IdBanco = null);
 
     /// <summary>Reparto ya calculado, con los importes por forma y los avisos.</summary>
     public readonly record struct Reparto(
@@ -78,6 +80,8 @@ public static class PreparacionPagoVenta
             errores.Add("Indique al menos una forma de pago.");
         foreach (var l in activas.Where(l => l.RequiereReferencia && string.IsNullOrWhiteSpace(l.Referencia)))
             errores.Add($"La forma de pago {l.Codigo} requiere número de referencia.");
+        foreach (var l in activas.Where(l => l.RequiereBanco && l.IdBanco is null))
+            errores.Add($"La forma de pago {l.Codigo} requiere seleccionar el banco.");
         if (recibidoNoEfectivo - total > 0.005m)
             errores.Add("El monto en tarjeta/transferencia supera el total; no se puede dar vuelto de un medio que no es efectivo.");
 

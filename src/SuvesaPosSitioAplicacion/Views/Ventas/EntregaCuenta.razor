@@ -9,6 +9,7 @@
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
 @inject IRelojEquipo RelojEquipo
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IBancos BancosApi
 
 @*  Ola 5 — adelanto de dinero de un cliente contra futuras facturas ("Entrega a
     Cuenta"). Igual que Facturación, exige que el usuario tenga una caja abierta
@@ -60,12 +61,38 @@
                     <select class="form-select" @bind="_formaPago"><option value="">Seleccione...</option>@foreach (var f in _formasPago) { <option value="@f.Codigo">@f.Descripcion</option> }</select>
                 </div>
                 <div class="col-12 col-md-3"><label class="form-label">Monto</label><input type="number" min="0" step="0.01" class="form-control" @bind="_monto" /></div>
+                @if (FormaPagoSeleccionada?.Cheque == true)
+                {
+                    <div class="col-12 col-md-3"><label class="form-label">N° cheque</label><input class="form-control" @bind="_numeroCheque" /></div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label">Banco</label>
+                        <select class="form-select" @bind="_idBanco">
+                            <option value="">Seleccione...</option>
+                            @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
+                        </select>
+                    </div>
+                }
+                else if (FormaPagoSeleccionada?.Deposito == true)
+                {
+                    <div class="col-12 col-md-3"><label class="form-label">Referencia</label><input class="form-control" @bind="_referencia" /></div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label">Banco</label>
+                        <select class="form-select" @bind="_idBanco">
+                            <option value="">Seleccione...</option>
+                            @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
+                        </select>
+                    </div>
+                }
+                else if (FormaPagoSeleccionada?.Tarjeta == true)
+                {
+                    <div class="col-12 col-md-3"><label class="form-label">Referencia</label><input class="form-control" @bind="_referencia" /></div>
+                }
                 <div class="col-12 col-md-3"><label class="form-label">Responsable</label><input class="form-control" disabled value="@_usuario?.Nombre" /></div>
                 <div class="col-12 col-md-3"><label class="form-label">Fecha</label><input type="date" class="form-control" disabled value="@_fecha.ToString("yyyy-MM-dd")" /></div>
             </div>
         </div>
 
-        <button class="btn btn-primary mt-3" disabled="@(_guardando || string.IsNullOrWhiteSpace(_cedula) || _monto <= 0)" @onclick="Guardar">
+        <button class="btn btn-primary mt-3" disabled="@(_guardando || string.IsNullOrWhiteSpace(_cedula) || _monto <= 0 || (FormaPagoSeleccionada?.Cheque == true && (string.IsNullOrWhiteSpace(_numeroCheque) || _idBanco is null)) || (FormaPagoSeleccionada?.Deposito == true && (string.IsNullOrWhiteSpace(_referencia) || _idBanco is null)))" @onclick="Guardar">
             @(_guardando ? "Guardando..." : "Registrar entrega a cuenta")
         </button>
         </fieldset>
@@ -106,14 +133,20 @@
 
     private List<Moneda> _monedas = new();
     private List<FormasPagoDTO> _formasPago = new();
+    private List<EntidadesBancariasDTO> _bancos = new();
 
     private string _cedula = string.Empty;
     private string _nombreCliente = string.Empty;
     private int _moneda;
     private string _formaPago = string.Empty;
     private decimal _monto;
+    private string? _referencia;
+    private string? _numeroCheque;
+    private int? _idBanco;
     private DateTime _fecha = DateTime.Today;
     private bool _guardando;
+
+    private FormasPagoDTO? FormaPagoSeleccionada => _formasPago.FirstOrDefault(f => f.Codigo == _formaPago);
 
     private string _filtroCedula = string.Empty;
     private string _filtroNombre = string.Empty;
@@ -156,6 +189,7 @@
         _formasPago = (await Respuestas.DatoAsync(await Api.FormasPago(), "consultar las formas de pago"))?.ToList() ?? new();
         _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))?.Where(m => m.Estado).ToList() ?? new();
         if (_moneda == 0) _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0;
+        _bancos = (await Respuestas.DatoAsync(await BancosApi.Obtener()))?.OrderBy(b => b.Banco).ToList() ?? new();
     }
 
     private async Task BuscarClienteConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await BuscarCliente(); }
@@ -207,7 +241,10 @@
             MontoEntregaCuenta = (float)_monto,
             MontoDisponibleCuenta = (float)_monto,
             Cedula = _cedula,
-            Sucursal = Sesion.IdSucursal
+            Sucursal = Sesion.IdSucursal,
+            NumeroDocumento = _referencia,
+            NumeroCheque = _numeroCheque,
+            IdBanco = _idBanco
         };
 
         var r = await Api.Crear(dto);
@@ -226,6 +263,9 @@
         _moneda = 0;
         _formaPago = string.Empty;
         _monto = 0;
+        _referencia = null;
+        _numeroCheque = null;
+        _idBanco = null;
         _fecha = await RelojEquipo.HoyAsync();
     }
 
