@@ -84,6 +84,7 @@ public static class TiposImpresionUi
         15 => "Devolución interna",
         16 => "Nota de débito",
         17 => "Factura de compra",
+        18 => "Devolución de compra",
         _ => $"Tipo {tipo}",
     };
 
@@ -106,6 +107,7 @@ public static class TiposImpresionUi
         15 => "devolucion-interna",
         16 => "nota-debito",
         17 => "compra",
+        18 => "devolucion-compra",
         _ => "",
     };
 
@@ -119,7 +121,7 @@ public static class TiposImpresionUi
     public static VertienteImpresionUi Vertiente(int tipo) => tipo switch
     {
         1 or 2 or 3 or 16 => VertienteImpresionUi.Facturacion,
-        6 or 8 or 9 or 17 => VertienteImpresionUi.Otro,
+        6 or 8 or 9 or 17 or 18 => VertienteImpresionUi.Otro,
         _ => VertienteImpresionUi.Operativo,
     };
 
@@ -131,7 +133,7 @@ public static class TiposImpresionUi
     };
 
     public static IReadOnlyList<(int Valor, string Nombre)> Todos { get; } =
-        Enumerable.Range(1, 17).Select(v => (v, Nombre(v))).ToList();
+        Enumerable.Range(1, 18).Select(v => (v, Nombre(v))).ToList();
 
     /// <summary>Todos los tipos agrupados por vertiente, en el orden en que deben
     /// aparecer en el selector: Facturación, Operativo, Otros.</summary>
