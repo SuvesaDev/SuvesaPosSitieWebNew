@@ -23,6 +23,10 @@ public sealed class OrdenesCompraFlujo : ProxyBase, IOrdenesCompraFlujo
         => Ejecutar(async () => await LecturaEnvelope.Leer<OrdenCompraFlujoWebDTO>(
             await _api.PostAsJsonAsync("api/ordenes-compra", cmd, LecturaEnvelope.Json)), "crear la orden de compra");
 
+    public Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Editar(long orden, CrearOrdenCompraWebDTO cmd)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<OrdenCompraFlujoWebDTO>(
+            await _api.PutAsJsonAsync($"api/ordenes-compra/{orden}", cmd, LecturaEnvelope.Json)), "corregir la orden de compra");
+
     public Task<ResponseGeneric<IReadOnlyList<OrdenCompraFlujoWebDTO>>> Listar(
         int? idProveedor = null, int? estado = null, int? tipoOrdenCompra = null, bool incluirAnuladas = false,
         DateTime? desde = null, DateTime? hasta = null, long? consecutivo = null, int limite = 200)

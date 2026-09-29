@@ -162,14 +162,16 @@
      _artSel = null;
      if (t.Length < 2) { _arts = new(); return; }
      var r = await Inventario.Buscar(t);
-     _arts = r.EsCorrecta ? (r.Responses ?? new List<InventarioDTO>()).Take(20).ToList() : new();
+     _arts = r.EsCorrecta ? (r.Responses ?? new List<InventarioDTO>()).Where(a => a.Servicio != true).Take(20).ToList() : new();
  }
 
  private async Task ElegirArt(InventarioDTO a)
  {
+     if (a.Servicio == true)
+     { _ = Dialogos.ErrorAsync("Un servicio no se traslada."); return; }
      _artSel = a; _texArt = $"{a.Cod_Articulo} — {a.Descripcion}"; _arts = new(); _loteSel = 0; _lotes = new();
      var r = await Api.ExistenciaConsolidadaAsync(a.Codigo);
-     if (Ok(r)) _lotes = (r.Responses?.Lotes ?? new()).Where(l => !l.Vencido && !l.Bloqueado).ToList();
+     if (Ok(r)) _lotes = (r.Responses?.Lotes ?? new()).Where(l => !l.Vencido && !l.Bloqueado && (_origen <= 0 || l.PorBodega.Any(b => b.IdBodega == _origen && b.Existencia > 0))).ToList();
  }
 
  private void AgregarLinea()

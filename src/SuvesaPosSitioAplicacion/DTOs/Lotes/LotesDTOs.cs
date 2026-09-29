@@ -205,6 +205,7 @@ public sealed class TomaFisicaReporte
     [JsonPropertyName("unidadesGanadas")] public double UnidadesGanadas { get; set; }
     [JsonPropertyName("unidadesPerdidas")] public double UnidadesPerdidas { get; set; }
     [JsonPropertyName("costoPerdidas")] public double CostoPerdidas { get; set; }
+    [JsonPropertyName("costoGanancias")] public double CostoGanancias { get; set; }
     [JsonPropertyName("observaciones")] public string? Observaciones { get; set; }
     [JsonPropertyName("lineas")] public List<TomaFisicaReporteLinea> Lineas { get; set; } = new();
 }

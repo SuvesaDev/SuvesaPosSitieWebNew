@@ -98,13 +98,21 @@
     <BodyTemplate>
         @if (_sel is not null)
         {
-            <p class="mb-1"><strong>@_sel.NombreProveedor</strong> · @_sel.EstadoSeguimientoNombre</p>
+            <p class="mb-1"><strong>@_sel.NombreProveedor</strong> · @EstadoTexto(_sel.EstadoSeguimiento)</p>
+            @if (_sel.CorreoEnviadoUtc is not null)
+            {
+                <p class="text-secondary small mb-1">Correo enviado @_sel.CorreoEnviadoUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") a @_sel.CorreoDestino</p>
+            }
             <p class="text-secondary small">@Formato.Importe(_sel.Total) @_sel.MonedaNombre · @_sel.TipoOrdenCompraNombre · @_sel.Lineas.Count artículo(s)</p>
             <div class="table-responsive"><table class="table table-sm small"><thead><tr><th>Artículo</th><th class="text-end">Cant.</th><th class="text-end">Precio</th><th class="text-end">IVA</th><th class="text-end">Total</th></tr></thead><tbody>@foreach (var l in _sel.Lineas) { <tr><td>@l.Descripcion</td><td class="text-end">@Formato.Cantidad(l.Cantidad)</td><td class="text-end">@Formato.Importe(l.CostoUnitario)</td><td class="text-end">@(_sel.TipoOrdenCompra == 2 ? "—" : Formato.Importe(l.Impuesto))</td><td class="text-end">@Formato.Importe(l.TotalLinea)</td></tr> }</tbody></table></div>
 
-            @if (_sel.EstadoSeguimiento == 1)
+            @if (_sel.EstadoSeguimiento is 1 or 6)
             {
                 <div class="d-grid gap-2">
+                    @if (_sel.EstadoSeguimiento == 1)
+                    {
+                        <a class="btn btn-outline-primary" href="@($"/buys/purchaseorder/{_sel.Orden}")">Corregir líneas</a>
+                    }
                     <button class="btn btn-success" disabled="@_procesando" @onclick="Entregar">Marcar como entregada</button>
                     <button class="btn btn-outline-danger" disabled="@_procesando" @onclick="() => Cerrar(false)">Cancelar pedido</button>
                     <button class="btn btn-outline-warning" disabled="@_procesando" @onclick="() => Cerrar(true)">Dar de baja por el proveedor</button>
@@ -124,7 +132,7 @@
                 <div class="alert alert-light border mb-0">La orden está @_sel.EstadoSeguimientoNombre; no admite más acciones.</div>
             }
 
-            @if (!string.IsNullOrWhiteSpace(_motivo) || _sel.EstadoSeguimiento == 1)
+            @if (!string.IsNullOrWhiteSpace(_motivo) || _sel.EstadoSeguimiento is 1 or 6)
             {
                 <div class="mt-3">
                     <label class="form-label small">Motivo (para cancelar / baja)</label>
@@ -246,11 +254,11 @@
 
     private static string EstadoTexto(int e) => e switch
     {
-        2 => "Entregado", 3 => "Facturado", 4 => "Cancelado", 5 => "Baja proveedor", _ => "Pendiente",
+        2 => "Entregado", 3 => "Facturado", 4 => "Cancelado", 5 => "Baja proveedor", 6 => "Enviada", _ => "Pendiente",
     };
 
     private static string Badge(int e) => e switch
     {
-        2 => "text-bg-info", 3 => "text-bg-success", 4 => "text-bg-secondary", 5 => "text-bg-warning", _ => "text-bg-light",
+        2 => "text-bg-info", 3 => "text-bg-success", 4 => "text-bg-secondary", 5 => "text-bg-warning", 6 => "text-bg-primary", _ => "text-bg-light",
     };
 }

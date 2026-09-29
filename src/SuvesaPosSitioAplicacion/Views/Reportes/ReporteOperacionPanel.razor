@@ -244,7 +244,11 @@
                     </div>
                 }
             </div>
-            @if (_reporte.Limitado)
+            @if (_reporte.Limitado && _reporte.IndicadoresDelPeriodoCompleto)
+            {
+                <div class="alert alert-warning py-2 small"><strong>La tabla muestra hasta 2.000 filas.</strong> Los indicadores de arriba son del periodo completo. El Excel de esta consulta sigue el mismo tope de la tabla.</div>
+            }
+            else if (_reporte.Limitado)
             {
                 <div class="alert alert-warning py-2 small"><strong>Resultado limitado a 2.000 filas.</strong> Los indicadores, la exportación y el detalle reflejan ese alcance. Acote los filtros para obtener una lectura completa; las gráficas se ocultan para no presentar una muestra como si fuera el total.</div>
             }

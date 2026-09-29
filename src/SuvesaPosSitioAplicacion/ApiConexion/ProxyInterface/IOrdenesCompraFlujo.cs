@@ -12,6 +12,7 @@ public interface IOrdenesCompraFlujo
     Task<ResponseGeneric<long>> SiguienteConsecutivo(int idEmisor, int idSucursal);
 
     Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Crear(CrearOrdenCompraWebDTO cmd);
+    Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Editar(long orden, CrearOrdenCompraWebDTO cmd);
 
     Task<ResponseGeneric<IReadOnlyList<OrdenCompraFlujoWebDTO>>> Listar(
         int? idProveedor = null, int? estado = null, int? tipoOrdenCompra = null, bool incluirAnuladas = false,
