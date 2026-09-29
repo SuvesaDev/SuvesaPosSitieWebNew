@@ -64,7 +64,13 @@
                         <div class="row g-3">
                             <div class="col-12 col-md-5">
                                 <label class="form-label">Buscar cliente</label>
-                                <div class="input-group"><input class="form-control" placeholder="Cédula o nombre" value="@_textoCliente" @oninput="AlEscribirCliente" @onkeydown="BuscarClienteConEnter" /><button type="button" class="btn btn-outline-primary" @onclick="BuscarClientes">Buscar</button></div>
+                                <div class="seepos-factura-cliente">
+                                    <div class="input-group"><input class="form-control" placeholder="Cédula o nombre" value="@_textoCliente" @oninput="AlEscribirCliente" @onkeydown="BuscarClienteConEnter" /><button type="button" class="btn btn-outline-primary" @onclick="BuscarClientes">Buscar</button></div>
+                                    @if (_clientesEncontrados.Count > 0)
+                                    {
+                                        <div class="list-group seepos-factura-cliente-lista">@foreach (var cliente in _clientesEncontrados) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirCliente(cliente)"><strong>@cliente.Nombre</strong><span class="text-secondary ms-2">@cliente.Cedula</span></button> }</div>
+                                    }
+                                </div>
                             </div>
                             <div class="col-12 col-md-3">
                                 <label class="form-label">Condición de venta</label>
@@ -93,58 +99,7 @@
                                     <div class="form-text text-danger">@_perfilAviso</div>
                                 }
                             </div>
-                            <div class="col-12 col-md-3">
-                                <label class="form-label">Moneda</label>
-                                <select class="form-select" @bind="_moneda" @bind:after="AlCambiarMoneda">
-                                    <option value="0">Seleccione...</option>
-                                    @foreach (var moneda in _monedas) { <option value="@moneda.CodMoneda">@moneda.MonedaNombre</option> }
-                                </select>
-                                @if (_moneda == 2)
-                                {
-                                    <div class="form-text">@(_tipoCambio is { } tc ? $"Tipo de cambio: ₡{tc:N2}" : "Consultando tipo de cambio...")</div>
-                                }
-                            </div>
-                            @if (!EsConsignacion)
-                            {
-                                <div class="col-12 col-md-3"><label class="form-label">Bodega</label>
-                                    <select class="form-select" @bind="_bodega" disabled="@(_lineas.Count > 0)" title="@(_lineas.Count > 0 ? "Ya hay artículos agregados: quite todas las líneas para cambiar la bodega." : null)">
-                                        <option value="0">Seleccione...</option>
-                                        @foreach (var b in _bodegas) { <option value="@b.IdBodega">@b.NombreBodega</option> }
-                                    </select></div>
-                            }
-                            <div class="col-12 col-md-6"><label class="form-label">Empresa</label><select class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarEmpresa"><option value="0">Seleccione...</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
-                                <div class="col-12 col-md-6">
-                                    <label class="form-label">Actividad económica</label>
-                                    <select class="form-select" @bind="_codActividad" disabled="@(_actividadesEmpresa.Count == 0)">
-                                        <option value="">@(_actividadesEmpresa.Count == 0 ? "La empresa no tiene actividades registradas" : "Seleccione...")</option>
-                                        @foreach (var act in _actividadesEmpresa) { <option value="@act.Codigo">@act.Codigo — @act.Descripcion@(act.Principal == true ? " (principal)" : "")</option> }
-                                    </select>
-                                </div>
-                                @if (UsuarioValidadoTieneRutas)
-                                {
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label" for="factura-ruta">Ruta comercial *</label>
-                                        <select id="factura-ruta" class="form-select" @bind="_idRutaComercial" @bind:after="AlCambiarRuta">
-                                            <option value="0">@(_rutasComerciales.Count == 0 ? "No hay rutas configuradas" : "Seleccione...")</option>
-                                            @foreach (var ruta in _rutasComerciales) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }
-                                        </select>
-                                        <div class="form-text">@(_rutaEsSeleccionManual ? "Obligatoria: seleccione la ruta de venta (Funcionario SAC)." : "Rutas asignadas al usuario validado con la clave interna.")</div>
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label" for="factura-agente-ruta">Agente asignado</label>
-                                        <select id="factura-agente-ruta" class="form-select" @bind="_idUsuarioAgente" disabled>
-                                            <option value="">Seleccione...</option>
-                                            @foreach (var agente in _agentesRuta) { <option value="@agente.IdUsuario">@agente.Nombre@(agente.EsPredeterminado ? " (predeterminado)" : "")</option> }
-                                        </select>
-                                        <div class="form-text">Agente titular de la ruta (no se selecciona manualmente).</div>
-                                        @if (_idRutaComercial > 0 && _agentesRuta.Count == 0) { <div class="form-text text-danger">La ruta no tiene agentes activos configurados.</div> }
-                                    </div>
-                                }
                         </div>
-                        @if (_clientesEncontrados.Count > 0)
-                        {
-                            <div class="list-group mt-2" style="max-height: 12rem; overflow-y:auto;">@foreach (var cliente in _clientesEncontrados) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirCliente(cliente)"><strong>@cliente.Nombre</strong><span class="text-secondary ms-2">@cliente.Cedula</span></button> }</div>
-                        }
                         @if (_cliente is not null)
                         {
                             <div class="alert alert-light border mt-3 mb-0"><div class="d-flex justify-content-between"><strong>@_cliente.Nombre</strong><div><button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="AbrirCorreos"><i class="bi bi-envelope me-1" aria-hidden="true"></i>Correos del comprobante</button><button type="button" class="btn btn-sm btn-link" @onclick="QuitarCliente">Cambiar</button></div></div><div class="small text-secondary">@_cliente.Cedula · @_cliente.Telefono_01 · @_cliente.E_Mail</div>@if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { <div class="small text-danger mt-1">Cliente con restricción de morosidad.</div> } @if (_cliente.OrdenCompra) { <div class="small text-warning mt-1">El cliente requiere orden de compra.</div> } @if (_correoComprobanteConsultado && !_tieneCorreoComprobante) { <div class="small text-warning mt-1">Este cliente no tiene correo de comprobante. Si se emite, el documento no se le podrá enviar.</div> }
@@ -204,6 +159,55 @@
                                 }
                             </div>
                         }
+                        <div class="row g-3 mt-0">
+                            <div class="col-12 col-md-3">
+                                <label class="form-label">Moneda</label>
+                                <select class="form-select" @bind="_moneda" @bind:after="AlCambiarMoneda">
+                                    <option value="0">Seleccione...</option>
+                                    @foreach (var moneda in _monedas) { <option value="@moneda.CodMoneda">@moneda.MonedaNombre</option> }
+                                </select>
+                                @if (_moneda == 2)
+                                {
+                                    <div class="form-text">@(_tipoCambio is { } tc ? $"Tipo de cambio: ₡{tc:N2}" : "Consultando tipo de cambio...")</div>
+                                }
+                            </div>
+                            @if (!EsConsignacion)
+                            {
+                                <div class="col-12 col-md-3"><label class="form-label">Bodega</label>
+                                    <select class="form-select" @bind="_bodega" disabled="@(_lineas.Count > 0)" title="@(_lineas.Count > 0 ? "Ya hay artículos agregados: quite todas las líneas para cambiar la bodega." : null)">
+                                        <option value="0">Seleccione...</option>
+                                        @foreach (var b in _bodegas) { <option value="@b.IdBodega">@b.NombreBodega</option> }
+                                    </select></div>
+                            }
+                            <div class="col-12 col-md-6"><label class="form-label">Empresa</label><select class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarEmpresa"><option value="0">Seleccione...</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label">Actividad económica</label>
+                                    <select class="form-select" @bind="_codActividad" disabled="@(_actividadesEmpresa.Count == 0)">
+                                        <option value="">@(_actividadesEmpresa.Count == 0 ? "La empresa no tiene actividades registradas" : "Seleccione...")</option>
+                                        @foreach (var act in _actividadesEmpresa) { <option value="@act.Codigo">@act.Codigo — @act.Descripcion@(act.Principal == true ? " (principal)" : "")</option> }
+                                    </select>
+                                </div>
+                                @if (UsuarioValidadoTieneRutas)
+                                {
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label" for="factura-ruta">Ruta comercial *</label>
+                                        <select id="factura-ruta" class="form-select" @bind="_idRutaComercial" @bind:after="AlCambiarRuta">
+                                            <option value="0">@(_rutasComerciales.Count == 0 ? "No hay rutas configuradas" : "Seleccione...")</option>
+                                            @foreach (var ruta in _rutasComerciales) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }
+                                        </select>
+                                        <div class="form-text">@(_rutaEsSeleccionManual ? "Obligatoria: seleccione la ruta de venta (Funcionario SAC)." : "Rutas asignadas al usuario validado con la clave interna.")</div>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label" for="factura-agente-ruta">Agente asignado</label>
+                                        <select id="factura-agente-ruta" class="form-select" @bind="_idUsuarioAgente" disabled>
+                                            <option value="">Seleccione...</option>
+                                            @foreach (var agente in _agentesRuta) { <option value="@agente.IdUsuario">@agente.Nombre@(agente.EsPredeterminado ? " (predeterminado)" : "")</option> }
+                                        </select>
+                                        <div class="form-text">Agente titular de la ruta (no se selecciona manualmente).</div>
+                                        @if (_idRutaComercial > 0 && _agentesRuta.Count == 0) { <div class="form-text text-danger">La ruta no tiene agentes activos configurados.</div> }
+                                    </div>
+                                }
+                        </div>
                         <div class="row g-3 mt-0"><div class="col-12 col-md-6"><label class="form-label">Orden de compra</label><input class="form-control" @bind="_ordenCompra" /></div><div class="col-12 col-md-6"><label class="form-label">Observaciones</label><input class="form-control" @bind="_observaciones" /></div></div>
                     </div>
                 </div>

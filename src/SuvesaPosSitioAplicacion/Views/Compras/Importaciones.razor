@@ -191,7 +191,7 @@
         <div class="border rounded p-3 mb-3 bg-body-tertiary">
             <label class="form-label" for="archivo-factura-pdf">PDF de la factura extranjera</label>
             <InputFile id="archivo-factura-pdf" class="form-control" accept=".pdf,application/pdf" OnChange="ImportarPdf" />
-            <div class="form-text">Extracción automática best-effort: revise y corrija cantidad, costo, código interno y lote de cada línea antes de aplicar — no siempre acierta.</div>
+            <div class="form-text">Extracción automática: revise cada línea, corrija cantidad y costo, y quite las que no correspondan antes de aplicar.</div>
             @if (!string.IsNullOrWhiteSpace(_nombreArchivoPdf)) { <div class="small mt-2"><i class="bi bi-file-earmark-check me-1 text-success" aria-hidden="true"></i>@_nombreArchivoPdf</div> }
         </div>
         @if (_extrayendoPdf)
@@ -265,7 +265,8 @@
                         <td style="min-width:7rem"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="candidata.PrecioAAplicado" /></td>
                         <td class="text-nowrap">
                             <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="() => AsociarArticuloPdf(indice)">@((candidata.Articulo is null) ? "Asociar" : "Cambiar")</button>
-                            @if (Sesion.EsCostaPets || candidata.Articulo?.Lote == true) { <button type="button" class="btn btn-sm btn-outline-secondary" title="Lote" @onclick="() => AbrirLotesPdf(indice)"><i class="bi bi-box-seam" aria-hidden="true"></i></button> }
+                            @if (Sesion.EsCostaPets || candidata.Articulo?.Lote == true) { <button type="button" class="btn btn-sm btn-outline-secondary me-1" title="Lote" @onclick="() => AbrirLotesPdf(indice)"><i class="bi bi-box-seam" aria-hidden="true"></i></button> }
+                            <button type="button" class="btn btn-sm btn-outline-danger" title="Quitar esta línea" aria-label="Quitar esta línea" @onclick="() => QuitarLineaPdf(indice)"><i class="bi bi-trash" aria-hidden="true"></i></button>
                         </td>
                     </tr>
                     @if (ManejaLotePdf(candidata))
@@ -536,6 +537,23 @@
         candidata.LotesExtra.Clear();
         _articulosPorCodigo[articulo.Codigo] = articulo.Descripcion ?? articulo.Cod_Articulo ?? articulo.Codigo.ToString();
         CancelarEditorPdf();
+    }
+
+    private async Task QuitarLineaPdf(int indice)
+    {
+        if (indice < 0 || indice >= _pdfCandidatas.Count) return;
+        var linea = _pdfCandidatas[indice];
+        var nombre = string.IsNullOrWhiteSpace(linea.DescripcionProveedor) ? $"la línea {linea.NumeroLinea}" : linea.DescripcionProveedor.Trim();
+        if (!await Dialogos.ConfirmarAsync($"Se quitará «{nombre}» de la lista. No se cargará al aplicar el PDF.")) return;
+
+        _pdfCandidatas.RemoveAt(indice);
+        if (_indicePdfAsignacion == indice || _indicePdfOpciones == indice)
+            CancelarEditorPdf();
+        else
+        {
+            if (_indicePdfAsignacion is int asignacion && asignacion > indice) _indicePdfAsignacion = asignacion - 1;
+            if (_indicePdfOpciones is int opciones && opciones > indice) _indicePdfOpciones = opciones - 1;
+        }
     }
 
     private void CancelarEditorPdf()
