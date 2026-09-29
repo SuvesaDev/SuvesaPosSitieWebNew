@@ -36,7 +36,7 @@
             <div class="row g-3">
                 <div class="col-12 col-xl-8">
                     <div class="card h-100 seepos-compras-cabecera">
-                        <div class="card-header d-flex justify-content-between align-items-center"><strong>@(_idCompra > 0 ? $"Compra #{_idCompra}" : "Datos de la compra")</strong>@if (_idCompra > 0) { <span class="badge text-bg-warning">Edición</span> }</div>
+                        <div class="card-header d-flex justify-content-between align-items-center"><strong>@(_idCompra > 0 ? $"Compra #{_idCompra}" : "Datos de la compra")</strong>@if (_idCompra > 0) { <span class="d-flex align-items-center gap-2">@if (Sesion.Puede(Titulo, AccionPantalla.Imprimir)) { <BotonImprimir Tipo="compra" Id="_idCompra" Texto="PDF" Clase="btn-sm btn-outline-secondary" /> }<span class="badge text-bg-warning">Edición</span></span> }</div>
                         <div class="card-body">
                             <div class="row g-3">
                                 <div class="col-12 col-md-6">
