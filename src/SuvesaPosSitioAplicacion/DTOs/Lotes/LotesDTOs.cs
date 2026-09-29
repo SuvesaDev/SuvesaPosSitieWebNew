@@ -173,12 +173,14 @@ public sealed class TomaFisicaGuardarLinea
     [JsonPropertyName("idArticulo")] public long IdArticulo { get; set; }
     [JsonPropertyName("idStockLote")] public long? IdStockLote { get; set; }
     [JsonPropertyName("contado")] public double Contado { get; set; }
+    [JsonPropertyName("existenciaVista")] public double? ExistenciaVista { get; set; }
 }
 
 public sealed class TomaFisicaGuardar
 {
     [JsonPropertyName("bodega")] public int Bodega { get; set; }
     [JsonPropertyName("fecha")] public System.DateTime? Fecha { get; set; }
+    [JsonPropertyName("cargadaEn")] public System.DateTime? CargadaEn { get; set; }
     [JsonPropertyName("observaciones")] public string? Observaciones { get; set; }
     [JsonPropertyName("lineas")] public List<TomaFisicaGuardarLinea> Lineas { get; set; } = new();
 }

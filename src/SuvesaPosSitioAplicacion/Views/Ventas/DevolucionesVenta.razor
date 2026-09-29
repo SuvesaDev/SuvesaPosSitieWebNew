@@ -186,7 +186,7 @@
             <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-primary" @onclick="BuscarDevolucionesAnteriores">Buscar</button></div>
         </div>
         @if (_devolucionesEncontradas.Count == 0) { <p class="text-secondary text-center py-3 mb-0">Sin resultados todavía.</p> }
-        else { <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Número</th><th>Fecha</th><th class="text-end">Monto</th><th></th></tr></thead><tbody>@foreach (var d in _devolucionesEncontradas) { <tr><td>@d.Devolucion</td><td>@d.Fecha</td><td class="text-end">@Formato.Importe(d.Monto)</td><td class="text-end">@if (d.Devolucion is > 0 && Sesion.Puede(Titulo, AccionPantalla.Imprimir)) { <BotonImprimir Tipo="nota-credito" Id="d.Devolucion.Value" Texto="PDF" Clase="btn-sm btn-outline-secondary" /> }</td></tr> }</tbody></table></div> }
+        else { <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Número</th><th>Fecha</th><th class="text-end">Monto</th><th></th></tr></thead><tbody>@foreach (var d in _devolucionesEncontradas) { <tr><td>@d.Devolucion</td><td>@d.Fecha</td><td class="text-end">@Formato.Importe(d.Monto)</td><td class="text-end">@if (d.Devolucion is > 0 && Sesion.Puede(Titulo, AccionPantalla.Imprimir)) { <BotonImprimir Tipo="nota-credito" Id="d.Devolucion.Value" Texto="PDF" Clase="btn-sm btn-outline-secondary" /> }@if (d.Devolucion is > 0 && Sesion.Puede(Titulo, AccionPantalla.Borrar)) { <button type="button" class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AnularDevolucion(d.Devolucion.Value)">Anular</button> }</td></tr> }</tbody></table></div> }
     </BodyTemplate>
 </HxModal>
 
@@ -576,6 +576,18 @@
             FechaHasta = string.Empty
         };
         _devolucionesEncontradas = (await Respuestas.DatoAsync(await Api.Buscar(filtro), "buscar devoluciones"))?.ToList() ?? new();
+    }
+
+    private async Task AnularDevolucion(long id)
+    {
+        if (!await Dialogos.ConfirmarAsync(
+            "Se revierte el inventario y el dinero de esta devolución. Si la nota de crédito ya fue aceptada por Hacienda, se envía una nota de débito que la respalda.",
+            "Anular devolución"))
+            return;
+        var anulada = await Respuestas.DatoAsync(await Api.Anular(id), "anular la devolución");
+        if (anulada is null) return;
+        Dialogos.Exito("Devolución anulada.");
+        await BuscarDevolucionesAnteriores();
     }
 
     private async Task Registrar()

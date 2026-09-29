@@ -11,4 +11,6 @@ public interface IDevolucionesCompra
     Task<ResponseGeneric<DevolucionCompraDTO>> ObtenerUna(long id);
 
     Task<ResponseGeneric<DevolucionCompraDTO>> Crear(DevolucionCompraDTO devolucion);
+
+    Task<ResponseGeneric<DevolucionCompraDTO>> Anular(long id);
 }

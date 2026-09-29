@@ -170,12 +170,16 @@
         if (_bodegas.Count == 1) _bodega = _bodegas[0].IdBodega;
     }
 
+    private DateTime? _cargadaEn;
     private bool HayCambios => _articulos.Any(a => a.Contado is { } c && Math.Abs(c - a.ExistenciaSistema) > 0.0001);
 
     private static double Dif(TomaFisicaArticulo a) => (a.Contado ?? a.ExistenciaSistema) - a.ExistenciaSistema;
 
     private void SetContado(TomaFisicaArticulo a, string? valor)
-        => a.Contado = double.TryParse(valor, out var v) ? v : null;
+    {
+        if (!double.TryParse(valor, out var v)) { a.Contado = null; return; }
+        a.Contado = v < 0 ? null : v;
+    }
 
     private async Task Cargar()
     {
@@ -189,6 +193,7 @@
             return;
         }
         _articulos = r.Responses ?? new();
+        _cargadaEn = DateTime.Now;
     }
 
     private async Task Guardar()
@@ -202,8 +207,9 @@
         var req = new TomaFisicaGuardar
         {
             Bodega = _bodega,
+            CargadaEn = _cargadaEn,
             Lineas = _articulos.Where(a => a.Contado is not null)
-                .Select(a => new TomaFisicaGuardarLinea { IdArticulo = a.IdArticulo, IdStockLote = a.IdStockLote, Contado = a.Contado!.Value })
+                .Select(a => new TomaFisicaGuardarLinea { IdArticulo = a.IdArticulo, IdStockLote = a.IdStockLote, Contado = a.Contado!.Value, ExistenciaVista = a.ExistenciaSistema })
                 .ToList()
         };
         var r = await Api.TomaGuardarAsync(req);
