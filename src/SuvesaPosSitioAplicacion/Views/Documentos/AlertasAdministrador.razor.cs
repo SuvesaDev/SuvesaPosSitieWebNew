@@ -52,19 +52,41 @@ public partial class AlertasAdministrador
         }
     }
 
-    private static string Color(string tipo) => tipo switch
+    private static string Color(AlertaAdministradorDTO alerta) => alerta.Tipo switch
     {
         "ComprobanteRechazado" => "danger",
+        "EnvioCorreoFallido" when EsSinDestinatario(alerta) => "warning",
         "EnvioCorreoFallido" => "warning",
         "ConfiguracionCorreoInvalida" => "secondary",
+        "MensajeReceptorPendiente" => "warning",
+        "LotePorVencer" or "RegistroSanitarioPorVencer" => "warning",
+        "ExistenciaBajoMinimo" => "danger",
         _ => "secondary",
     };
 
-    private static string Humano(string tipo) => tipo switch
+    private static string Humano(AlertaAdministradorDTO alerta)
     {
-        "ComprobanteRechazado" => "Comprobante rechazado",
-        "EnvioCorreoFallido" => "Envío fallido",
-        "ConfiguracionCorreoInvalida" => "Configuración inválida",
-        _ => tipo,
-    };
+        if (EsSinDestinatario(alerta)) return "Sin destinatario";
+        return alerta.Tipo switch
+        {
+            "ComprobanteRechazado" => "Comprobante rechazado",
+            "EnvioCorreoFallido" => "Envío fallido",
+            "ConfiguracionCorreoInvalida" => "SMTP del emisor",
+            "MensajeReceptorPendiente" => "Factura sin aceptar",
+            "LotePorVencer" => "Lote por vencer",
+            "RegistroSanitarioPorVencer" => "Registro sanitario",
+            "ExistenciaBajoMinimo" => "Existencia bajo el mínimo",
+            "InstrumentoPendienteConfirmacion" => "Instrumento pendiente",
+            "InstrumentoEnRecuperacion" => "Instrumento en recuperación",
+            _ => alerta.Tipo,
+        };
+    }
+
+    private static bool EsSinDestinatario(AlertaAdministradorDTO alerta)
+        => alerta.Tipo == "EnvioCorreoFallido"
+           && (alerta.Titulo ?? string.Empty).Contains("sin correo", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>La clave fiscal es numérica. Las claves internas (emisor, instrumento) no abren la bandeja.</summary>
+    private static bool ClaveDeDocumento(string? clave)
+        => !string.IsNullOrWhiteSpace(clave) && clave.Length >= 40 && clave.All(char.IsDigit);
 }

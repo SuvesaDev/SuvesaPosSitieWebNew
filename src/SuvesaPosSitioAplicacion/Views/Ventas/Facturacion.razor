@@ -147,7 +147,7 @@
                         }
                         @if (_cliente is not null)
                         {
-                            <div class="alert alert-light border mt-3 mb-0"><div class="d-flex justify-content-between"><strong>@_cliente.Nombre</strong><div><button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="AbrirCorreos"><i class="bi bi-envelope me-1" aria-hidden="true"></i>Correos del comprobante</button><button type="button" class="btn btn-sm btn-link" @onclick="QuitarCliente">Cambiar</button></div></div><div class="small text-secondary">@_cliente.Cedula · @_cliente.Telefono_01 · @_cliente.E_Mail</div>@if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { <div class="small text-danger mt-1">Cliente con restricción de morosidad.</div> } @if (_cliente.OrdenCompra) { <div class="small text-warning mt-1">El cliente requiere orden de compra.</div> }
+                            <div class="alert alert-light border mt-3 mb-0"><div class="d-flex justify-content-between"><strong>@_cliente.Nombre</strong><div><button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="AbrirCorreos"><i class="bi bi-envelope me-1" aria-hidden="true"></i>Correos del comprobante</button><button type="button" class="btn btn-sm btn-link" @onclick="QuitarCliente">Cambiar</button></div></div><div class="small text-secondary">@_cliente.Cedula · @_cliente.Telefono_01 · @_cliente.E_Mail</div>@if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { <div class="small text-danger mt-1">Cliente con restricción de morosidad.</div> } @if (_cliente.OrdenCompra) { <div class="small text-warning mt-1">El cliente requiere orden de compra.</div> } @if (_correoComprobanteConsultado && !_tieneCorreoComprobante) { <div class="small text-warning mt-1">Este cliente no tiene correo de comprobante. Si se emite, el documento no se le podrá enviar.</div> }
                                 <div class="mt-2 pt-2 border-top">
                                     <label class="form-label small mb-1">Actividad económica del cliente</label>
                                     @if (_buscandoActsCliente)
@@ -720,6 +720,8 @@
     private string _correoNuevo = string.Empty;
     private int? _correoEditandoIndice;
     private bool _guardandoCorreos, _cargandoCorreos;
+    private bool _correoComprobanteConsultado;
+    private bool _tieneCorreoComprobante;
     private static readonly System.Text.RegularExpressions.Regex PatronCorreo =
         new(@"^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$");
     private List<FiltranClienteDTO> _clientesEncontrados = new();
@@ -990,6 +992,7 @@
             _cliente = await BuscarClienteConsignacion(_conteoPref.IdCliente, _conteoPref.NombreCliente);
             if (_cliente is null) { await Dialogos.ErrorAsync("No se encontró el cliente del conteo."); return; }
             await CargarActividadesCliente(_cliente);
+            await CargarListaCorreosComprobanteAsync();
 
             _lineas.Clear();
             _colaLotesConteo.Clear();
@@ -1300,6 +1303,7 @@
         await CargarCobroContadoAsync();
 
         _bonificacionesCliente = new List<ClienteBonificacionConfiguracionDTO>();
+        await CargarListaCorreosComprobanteAsync();
         if (cliente.TieneBonificacion)
         {
             _cargandoBonificacionCliente = true;
@@ -1310,7 +1314,7 @@
         }
     }
 
-    private void QuitarCliente() { _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); _actividadesCliente = new(); _codActividadCliente = string.Empty; _actividadesClienteHaciendaSugeridas = new(); }
+    private void QuitarCliente() { _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); _actividadesCliente = new(); _codActividadCliente = string.Empty; _actividadesClienteHaciendaSugeridas = new(); _correoComprobanteConsultado = false; _tieneCorreoComprobante = false; _correos.Clear(); }
 
     // Al elegir cliente se consultan sus actividades económicas en Hacienda (por
     // cédula) para escoger bajo cuál se factura; se preselecciona la que el
@@ -1380,22 +1384,32 @@
     private async Task AbrirCorreos()
     {
         if (_cliente is null) return;
-        _correos.Clear();
         _correoNuevo = string.Empty;
         _correoEditandoIndice = null;
         _cargandoCorreos = true;
         await _modalCorreos.ShowAsync();
-        // El sistema actual solo carga la lista cuando el API no devuelve un
-        // "mensaje" junto con los correos; si viene un mensaje, se deja la lista
-        // vacia sin mostrar error (igual que hace la ventana actual).
-        var respuesta = await Clientes.ObtenerCorreosComprobante(_cliente.Identificacion);
-        if (respuesta.EsCorrecta && respuesta.Responses?.Mensaje is null)
-        {
-            _correos.AddRange((respuesta.Responses?.Correos ?? Array.Empty<Correos>())
-                .Select(c => c.Correo)
-                .Where(c => !string.IsNullOrWhiteSpace(c))!);
-        }
+        await CargarListaCorreosComprobanteAsync();
         _cargandoCorreos = false;
+    }
+
+    /// <summary>
+    /// Misma regla que el modal: si el API acompaña la lista con un mensaje,
+    /// no se toma como «sin correo». Si la consulta sale bien y no hay
+    /// direcciones, facturar avisa antes de emitir.
+    /// </summary>
+    private async Task CargarListaCorreosComprobanteAsync()
+    {
+        _correos.Clear();
+        _correoComprobanteConsultado = false;
+        _tieneCorreoComprobante = false;
+        if (_cliente is null) return;
+        var respuesta = await Clientes.ObtenerCorreosComprobante(_cliente.Identificacion);
+        if (!respuesta.EsCorrecta || respuesta.Responses?.Mensaje is not null) return;
+        _correos.AddRange((respuesta.Responses?.Correos ?? Array.Empty<Correos>())
+            .Select(c => c.Correo)
+            .Where(c => !string.IsNullOrWhiteSpace(c))!);
+        _tieneCorreoComprobante = _correos.Count > 0;
+        _correoComprobanteConsultado = true;
     }
 
     private async Task AgregarCorreoConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") { AgregarOEditarCorreo(); await Task.CompletedTask; } }
@@ -1439,6 +1453,8 @@
         _guardandoCorreos = false;
         if (await Respuestas.CorrectaAsync(r, "guardar los correos del comprobante"))
         {
+            _tieneCorreoComprobante = _correos.Count > 0;
+            _correoComprobanteConsultado = true;
             Dialogos.Exito("Correos del comprobante actualizados.");
             await _modalCorreos.HideAsync();
         }
@@ -1958,8 +1974,12 @@
             (_, _, PoliticaRutaFacturacion.Ruta.ConfirmarCredito) => "Se confirmará la factura a crédito con su plazo y saldo. ¿Continuar?",
             _ => "Se cobrará el 100% y se confirmará el tiquete, afectando el inventario. ¿Continuar?",
         };
+        if (_correoComprobanteConsultado && !_tieneCorreoComprobante && !EsConsignacion)
+            confirmacion = "Este cliente no tiene correo de comprobante: el documento se registrará y no se le enviará. " + confirmacion;
         // El tiquete confirma con el botón «Emitir» del modal de cobro; el resto sí pregunta.
-        if (!MostrarCobroContado && !await Dialogos.ConfirmarAsync(confirmacion)) return;
+        // Si falta el correo, el tiquete también pregunta: si no, se emitiría sin aviso.
+        if ((!MostrarCobroContado || (_correoComprobanteConsultado && !_tieneCorreoComprobante && !EsConsignacion))
+            && !await Dialogos.ConfirmarAsync(confirmacion)) return;
         _guardando = true;
         var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
         var perfil = _perfiles.FirstOrDefault(x => x.IdSerie == _idPerfil);
@@ -2056,5 +2076,5 @@
         if (r.FueReintento) lineas.Add("(Se recuperó el resultado de un envío anterior; no se cobró ni emitió dos veces.)");
         _avisoResultado = string.Join(" ", lineas);
     }
-    private async Task Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _esCredito = false; _creditoAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _tipoCambio = null; _idRutaComercial = 0; _idUsuarioAgente = string.Empty; _agentesRuta.Clear(); _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; _formasPagoContado = new(); _montosContado.Clear(); _referenciasContado.Clear(); _numerosChequeContado.Clear(); _idsBancoContado.Clear(); _numAperturaContado = null; _avisoCajaContado = null; _claveIdempotencia = null; _ruta = new(PoliticaRutaFacturacion.Ruta.ConfiguracionInvalida, null); await CargarRutasComerciales(); await CargarPerfiles(); RecalcularTodo(); }
+    private async Task Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _esCredito = false; _creditoAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _tipoCambio = null; _idRutaComercial = 0; _idUsuarioAgente = string.Empty; _agentesRuta.Clear(); _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; _formasPagoContado = new(); _montosContado.Clear(); _referenciasContado.Clear(); _numerosChequeContado.Clear(); _idsBancoContado.Clear(); _numAperturaContado = null; _avisoCajaContado = null; _claveIdempotencia = null; _correoComprobanteConsultado = false; _tieneCorreoComprobante = false; _correos.Clear(); _ruta = new(PoliticaRutaFacturacion.Ruta.ConfiguracionInvalida, null); await CargarRutasComerciales(); await CargarPerfiles(); RecalcularTodo(); }
 }
