@@ -175,6 +175,8 @@
  private void AgregarLinea()
  {
      if (_artSel is null || _cant <= 0) return;
+     if ((_artSel.Lote || _artSel.LoteUnico || _lotes.Count > 0) && _loteSel <= 0)
+     { _ = Dialogos.ErrorAsync("Este artículo maneja lotes. Elija el lote que está en la bodega de origen."); return; }
      if (_lineas.Any(x => x.IdArticulo == _artSel.Codigo && x.IdStockLote == (_loteSel > 0 ? _loteSel : null)))
      { _ = Dialogos.ErrorAsync("Ese artículo/lote ya está en la lista."); return; }
      _lineas.Add(new TrasladoBodegaLinea

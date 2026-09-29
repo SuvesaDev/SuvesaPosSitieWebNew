@@ -343,7 +343,7 @@
     private decimal _cantidad = 1m, _regalias, _base, _flete, _otros, _descuento, _impuesto;
     private decimal? _existenciaActualEnBodega;
     private bool _consultandoExistencia;
-    private bool _guardando, _esCostaPetsCompra, _compraDesdeXml;
+    private bool _guardando, _esCostaPetsCompra, _compraDesdeXml, _enviadoDgt;
     private bool _compraDesbloqueada => _bloqueo?.Desbloqueado == true;
     private bool _leyendoXml, _proveedorXmlNoExiste;
     private bool _buscandoArticuloXml;
@@ -587,6 +587,7 @@
         var errorEncabezado = ValidarEncabezado();
         if (errorEncabezado is not null) { await Dialogos.ErrorAsync(errorEncabezado); return; }
         if (_lineas.Count == 0) { await Dialogos.ErrorAsync("Agregue al menos un artículo antes de guardar."); return; }
+        if (_enviadoDgt && _idCompra > 0) { await Dialogos.ErrorAsync("Esta compra ya fue aceptada en Hacienda. No se pueden cambiar cantidades, impuesto ni total."); return; }
         if (_tipoCompra == 2 && _idCompra == 0 && string.IsNullOrWhiteSpace(_formaPagoCompra)) { await Dialogos.ErrorAsync("Indique la forma de pago de la compra de contado."); return; }
         var accion = _idCompra > 0 ? "actualizar" : "registrar";
         if (!await Dialogos.ConfirmarAsync($"Se va a {accion} la compra y afectar el inventario. ¿Desea continuar?")) return;
@@ -1042,7 +1043,7 @@
     {
         var compra = await Respuestas.DatoAsync(await Api.Obtener(id), "abrir la compra");
         if (compra is null) return;
-        _idCompra = compra.IdCompra; _numeroFactura = compra.Factura ?? string.Empty; _proveedor = _proveedores.FirstOrDefault(p => p.CodigoProv == compra.CodigoProv) ?? new ProveedorDTO { CodigoProv = compra.CodigoProv, Nombre = compra.NombreProveedor }; _textoProveedor = _proveedor.Cedula ?? compra.NombreProveedor ?? string.Empty; _tipoCompra = compra.TipoCompra; _moneda = compra.CodMonedaCompra; _empresa = int.TryParse(compra.IdEmpresa, out var empresa) ? empresa : 0; _fecha = Fecha(compra.Fecha); _vence = Fecha(compra.Vence); _diasCredito = Math.Max(0, (_vence - _fecha).Days); _bodega = 0; _lineas.Clear();
+        _idCompra = compra.IdCompra; _enviadoDgt = compra.EnviadoDgt; _numeroFactura = compra.Factura ?? string.Empty; _proveedor = _proveedores.FirstOrDefault(p => p.CodigoProv == compra.CodigoProv) ?? new ProveedorDTO { CodigoProv = compra.CodigoProv, Nombre = compra.NombreProveedor }; _textoProveedor = _proveedor.Cedula ?? compra.NombreProveedor ?? string.Empty; _tipoCompra = compra.TipoCompra; _moneda = compra.CodMonedaCompra; _empresa = int.TryParse(compra.IdEmpresa, out var empresa) ? empresa : 0; _fecha = Fecha(compra.Fecha); _vence = Fecha(compra.Vence); _diasCredito = Math.Max(0, (_vence - _fecha).Days); _bodega = 0; _lineas.Clear();
         foreach (var d in compra.Detalle ?? Array.Empty<FacturaCompraDetalleDTO>())
         {
             var articulo = new InventarioDTO { Codigo = d.Codigo, Cod_Articulo = d.CodArticulo, Descripcion = d.Descripcion, Codcabys = d.CodCabys, Precio_A = (float)d.PrecioA, Precio_B = (float)d.PrecioB, Precio_C = (float)d.PrecioC, Precio_D = (float)d.PrecioD, MonedaVenta = d.CodMonedaVenta, Lote = !string.IsNullOrWhiteSpace(d.Lote) };
@@ -1054,6 +1055,6 @@
     private static DateTime Fecha(string? valor) => DateTime.TryParse(valor, out var fecha) ? fecha.Date : DateTime.Today;
     private async Task NuevaCompra()
     {
-        _idCompra = 0; _proveedor = null; _textoProveedor = _numeroFactura = string.Empty; _proveedoresEncontrados.Clear(); _fecha = _vence = await RelojEquipo.HoyAsync(); _tipoCompra = 2; _diasCredito = _bodega = 0; _empresa = EsCostaPetsCompra ? 1 : 0; _lineas.Clear(); _compraDesdeXml = false; LimpiarEditor(); RecalcularTotales();
+        _idCompra = 0; _enviadoDgt = false; _proveedor = null; _textoProveedor = _numeroFactura = string.Empty; _proveedoresEncontrados.Clear(); _fecha = _vence = await RelojEquipo.HoyAsync(); _tipoCompra = 2; _diasCredito = _bodega = 0; _empresa = EsCostaPetsCompra ? 1 : 0; _lineas.Clear(); _compraDesdeXml = false; LimpiarEditor(); RecalcularTotales();
     }
 }

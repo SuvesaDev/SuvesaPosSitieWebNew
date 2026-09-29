@@ -61,7 +61,8 @@
                                 <div class="col-md-4"><label class="form-label">Descripción proveedor</label><input class="form-control" @bind="_descripcionProveedor" /></div>
                                 <div class="col-md-2"><label class="form-label">Unidades</label><input type="number" min="0.001" step="0.001" class="form-control" @bind="_cantidad" /></div>
                                 <div class="col-md-3"><label class="form-label">Costo unitario moneda</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_costoUnitario" /></div>
-                                <div class="col-md-4"><label class="form-label">Tributo DUA unitario (opcional)</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_tributoDuaUnitario" /><small class="text-secondary">Si ya tiene la Declaración de Importación con el impuesto por SKU. Si no, se completa después con "Actualizar tributo".</small></div>
+                                <div class="col-md-3"><label class="form-label">Ley 6946 unitaria</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_tributoDuaUnitario" /><small class="text-secondary">Entra al costo. Exacta por artículo en el DELIMP.</small></div>
+                                <div class="col-md-3"><label class="form-label">IVA aduanal unitario</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_ivaAduanalUnitario" /><small class="text-secondary">Crédito fiscal. No entra al costo.</small></div>
                                 <div class="col-md-4"><label class="form-label">Precio A a aplicar (opcional, IVA incluido)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_precioAAplicado" /><small class="text-secondary">Si se deja vacío, el cierre actualiza solo el costo.</small></div>
                             </div>
                             @if (_articuloActual.Lote)
@@ -91,7 +92,7 @@
                     @if (_nueva.Lineas.Count == 0) { <p class="text-secondary mb-0">Agregue los artículos de la factura extranjera.</p> }
                     else
                     {
-                        <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Artículo</th><th>Código proveedor</th><th>Descripción</th><th class="text-end">Unidades</th><th class="text-end">Costo unitario</th><th class="text-end">Tributo DUA</th><th></th></tr></thead><tbody>
+                        <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Artículo</th><th>Código proveedor</th><th>Descripción</th><th class="text-end">Unidades</th><th class="text-end">Costo unitario</th><th class="text-end">Ley 6946</th><th></th></tr></thead><tbody>
                             @for (var i = 0; i < _nueva.Lineas.Count; i++)
                             {
                                 var indice = i;
@@ -116,25 +117,44 @@
                 }
                 else
                 {
-                    <dl class="row mb-0"><dt class="col-7 text-secondary fw-normal">Mercancía</dt><dd class="col-5 text-end">₡@_actual.CostoMercanciaCrc:N2</dd><dt class="col-7 text-secondary fw-normal">Costos logísticos (prorrateados por valor)</dt><dd class="col-5 text-end">₡@_actual.CostosImportacionCrc:N2</dd><dt class="col-7 text-secondary fw-normal">Tributo DUA (por línea, sin prorratear)</dt><dd class="col-5 text-end">₡@_actual.TributosDuaCrc:N2</dd><dt class="col-7">Costo nacionalizado</dt><dd class="col-5 text-end fw-bold">₡@_actual.CostoNacionalizadoCrc:N2</dd></dl>
-                    <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Artículo</th><th class="text-end">Unidades</th><th class="text-end">Costo proveedor</th><th class="text-end">Log./unidad</th><th class="text-end">Tributo DUA/unidad</th><th class="text-end">Nacionalizado/unidad</th><th></th></tr></thead><tbody>@foreach (var item in _actual.Lineas) { <tr><td>@(item.DescripcionArticulo ?? item.IdArticulo.ToString()) <span class="text-secondary small">· @item.DescripcionProveedor</span></td><td class="text-end">@item.Cantidad</td><td class="text-end">₡@item.CostoProveedorCrcUnitario:N6</td><td class="text-end">₡@item.CostoImportacionUnitario:N6</td><td class="text-end">₡@item.TributoDuaUnitario:N6</td><td class="text-end fw-semibold">₡@item.CostoNacionalizadoUnitario:N6</td><td>@if (_actual.Estado != 6) { <button class="btn btn-sm btn-link" title="Actualizar tributo DUA de esta línea" @onclick="() => PrepararTributoDua(item)"><i class="bi bi-pencil"></i></button> }</td></tr> }</tbody></table></div>
+                    <dl class="row mb-0"><dt class="col-7 text-secondary fw-normal">Mercancía</dt><dd class="col-5 text-end">₡@_actual.CostoMercanciaCrc:N2</dd><dt class="col-7 text-secondary fw-normal">Costos logísticos (prorrateados por valor)</dt><dd class="col-5 text-end">₡@_actual.CostosImportacionCrc:N2</dd><dt class="col-7 text-secondary fw-normal">Ley 6946 (entra al costo)</dt><dd class="col-5 text-end">₡@_actual.TributosDuaCrc:N2</dd><dt class="col-7 text-secondary fw-normal">IVA aduanal (crédito, fuera del costo)</dt><dd class="col-5 text-end">₡@_actual.IvaAduanalCrc:N2</dd><dt class="col-7 text-secondary fw-normal">IVA de facturas locales aceptadas</dt><dd class="col-5 text-end">₡@_actual.IvaLocalAceptadoCrc:N2</dd><dt class="col-7 text-secondary fw-normal">IVA acreditable (D-104)</dt><dd class="col-5 text-end">₡@_actual.IvaAcreditableCrc:N2</dd><dt class="col-7 text-secondary fw-normal">PROCOMER / timbres (entran al costo)</dt><dd class="col-5 text-end">₡@(_actual.ProcomerCrc + _actual.TimbresCrc):N2</dd><dt class="col-7">Costo nacionalizado</dt><dd class="col-5 text-end fw-bold">₡@_actual.CostoNacionalizadoCrc:N2</dd></dl>
+                    <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Artículo</th><th class="text-end">Unidades</th><th class="text-end">Costo proveedor</th><th class="text-end">Log./unidad</th><th class="text-end">Ley 6946/u</th><th class="text-end">IVA aduana/u</th><th class="text-end">Nacionalizado/unidad</th><th></th></tr></thead><tbody>@foreach (var item in _actual.Lineas) { <tr><td>@(item.DescripcionArticulo ?? item.IdArticulo.ToString()) <span class="text-secondary small">· @item.DescripcionProveedor</span></td><td class="text-end">@item.Cantidad</td><td class="text-end">₡@item.CostoProveedorCrcUnitario:N6</td><td class="text-end">₡@item.CostoImportacionUnitario:N6</td><td class="text-end">₡@item.TributoDuaUnitario:N6</td><td class="text-end">₡@item.IvaAduanalUnitario:N6</td><td class="text-end fw-semibold">₡@item.CostoNacionalizadoUnitario:N6</td><td>@if (_actual.Estado != 6) { <button class="btn btn-sm btn-link" title="Actualizar tributo DUA de esta línea" @onclick="() => PrepararTributoDua(item)"><i class="bi bi-pencil"></i></button> }</td></tr> }</tbody></table></div>
                     @if (_lineaTributoDua is not null)
                     {
                         <div class="row g-2 align-items-end mb-3 border rounded p-2">
-                            <div class="col-md-6"><label class="form-label">Tributo DUA unitario de "@(_lineaTributoDua.DescripcionArticulo ?? _lineaTributoDua.DescripcionProveedor)" (de la Declaración de Importación)</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_tributoDua.TributoDuaUnitario" /></div>
+                            <div class="col-md-4"><label class="form-label">Ley 6946 unitaria de "@(_lineaTributoDua.DescripcionArticulo ?? _lineaTributoDua.DescripcionProveedor)"</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_tributoDua.TributoDuaUnitario" /><small class="text-secondary">Entra al costo.</small></div>
+                            <div class="col-md-4"><label class="form-label">IVA aduanal unitario</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_tributoDua.IvaAduanalUnitario" /><small class="text-secondary">No entra al costo.</small></div>
                             <div class="col-md-3"><button class="btn btn-outline-primary" @onclick="GuardarTributoDua">Guardar</button> <button class="btn btn-outline-secondary" @onclick="() => _lineaTributoDua = null">Cancelar</button></div>
                         </div>
                     }
                     <hr />
                     <h6>Costos logísticos capitalizables (globales del envío)</h6>
                     <div class="row g-2 align-items-end">
-                        <div class="col-md-3"><label class="form-label">Categoría</label><select class="form-select" @bind="_costo.Categoria"><option value="2">Flete</option><option value="3">Seguro</option><option value="5">Agencia aduanal</option><option value="6">Documentación</option><option value="7">Almacenaje</option><option value="8">Manejo</option><option value="9">Transporte local</option><option value="10">Otro</option></select></div>
+                        <div class="col-md-3"><label class="form-label">Categoría</label><select class="form-select" @bind="_costo.Categoria"><option value="2">Flete</option><option value="3">Seguro</option><option value="5">Agencia aduanal</option><option value="6">Documentación</option><option value="7">Almacenaje</option><option value="8">Manejo</option><option value="9">Transporte local</option><option value="10">Otro</option><option value="11">PROCOMER</option><option value="12">Timbres</option></select></div>
                         <div class="col-md-4"><label class="form-label">Descripción</label><input class="form-control" @bind="_costo.Descripcion" /></div>
-                        <div class="col-md-3"><label class="form-label">Monto capitalizable (CRC)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_costo.MontoCapitalizable" /></div>
+                        <div class="col-md-2"><label class="form-label">Moneda</label><select class="form-select" @bind="_costo.CodMoneda"><option value="1">CRC</option><option value="2">USD</option></select></div>
+                        @if (_costo.CodMoneda == 1)
+                        {
+                            <div class="col-md-3"><label class="form-label">Monto capitalizable (CRC)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_costo.MontoCapitalizable" /></div>
+                        }
+                        else
+                        {
+                            <div class="col-md-2"><label class="form-label">Monto en USD</label><input type="number" min="0" step="0.01" class="form-control" @bind="_costo.MontoOrigen" /></div>
+                            <div class="col-md-2"><label class="form-label">Tipo de cambio de esta factura</label><input type="number" min="0.000001" step="0.000001" class="form-control" @bind="_costo.TipoCambio" /></div>
+                        }
                         <div class="col-md-2"><label class="form-label">IVA acreditable</label><input type="number" min="0" step="0.01" class="form-control" @bind="_costo.IvaAcreditable" /></div>
-                        <div class="col-12"><button class="btn btn-outline-primary" @onclick="AgregarCosto">Agregar costo</button><small class="text-secondary ms-2">Se reparte entre los artículos según su participación en el valor de la mercancía, no en partes iguales. El tributo DUA no va aquí: se captura por línea arriba.</small></div>
+                        <div class="col-md-3"><div class="form-check mt-4"><input class="form-check-input" type="checkbox" id="costo-estimado" @bind="_costo.EsEstimado" /><label class="form-check-label" for="costo-estimado">Proforma estimada</label></div></div>
+                        @if (_costo.EsEstimado)
+                        {
+                            <div class="col-md-3"><label class="form-label">Movimiento del recinto</label><input class="form-control" @bind="_costo.MovimientoRecinto" placeholder="317736" /></div>
+                        }
+                        <div class="col-12"><button class="btn btn-outline-primary" @onclick="AgregarCosto">Agregar costo</button><small class="text-secondary ms-2">Se reparte por valor de mercancía. Un flete en dólares usa el tipo de cambio de esa factura, no el del DUA. La proforma del recinto queda estimada hasta que llegue la factura del mismo movimiento. La Ley 6946 y el IVA de aduana van por línea.</small></div>
+                        @if (_actual.Costos.Count > 0)
+                        {
+                            <div class="col-12"><ul class="list-unstyled small mb-0">@foreach (var c in _actual.Costos) { <li>@c.Descripcion · ₡@c.MontoCapitalizable:N2 @if (c.EsEstimado) { <span class="badge text-bg-warning">Estimado, mov. @c.MovimientoRecinto</span> }</li> }</ul></div>
+                        }
                     </div>
-                    <div class="mt-3 border-top pt-3"><label class="form-label">Fecha de recepción física</label><div class="input-group"><input type="date" class="form-control" @bind="_cierre.FechaRecepcion" /><button class="btn btn-success" disabled="@(_guardando || _actual.Estado == 6)" @onclick="Cerrar">@(_actual.Estado == 6 ? "Importación cerrada" : "Cerrar y registrar inventario")</button></div><small class="text-secondary">El cierre es definitivo: registra existencias, actualiza el costo global del artículo y deja una cuenta por pagar por el proveedor extranjero y por cada factura local con XML fiscal. No genera movimiento de caja.</small></div>
+                    <div class="mt-3 border-top pt-3"><label class="form-label">Fecha de recepción física</label><div class="input-group"><input type="date" class="form-control" @bind="_cierre.FechaRecepcion" /><button class="btn btn-success" disabled="@(_guardando || _actual.Estado == 6)" @onclick="Cerrar">@(_actual.Estado == 6 ? "Importación cerrada" : "Cerrar y registrar inventario")</button></div><small class="text-secondary">El cierre es definitivo: registra existencias y deja el costo del artículo como promedio ponderado. Una factura local solo se cierra si su Mensaje Receptor ya está aceptado. No genera movimiento de caja.</small></div>
                     @if (_actual.ComprasGeneradas.Count > 0)
                     {
                         <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Proveedor</th><th>Factura</th><th class="text-end">Total</th></tr></thead><tbody>@foreach (var c in _actual.ComprasGeneradas) { <tr><td>@c.Proveedor</td><td>@c.Factura</td><td class="text-end">@(c.CodMoneda == 2 ? "$" : "₡")@c.TotalFactura:N2</td></tr> }</tbody></table></div>
@@ -152,6 +172,10 @@
                         <div class="col-md-2"><button class="btn btn-outline-primary w-100" disabled="@(_archivo is null || (_tipoDocumento == 4 && _idProveedorLocalDocumento is null))" @onclick="Adjuntar">Adjuntar</button></div>
                     </div>
                     @if (_tipoDocumento == 4) { <small class="text-secondary">El proveedor local (almacén fiscal, agencia aduanal, etc.) es obligatorio: de aquí sale la cuenta por pagar al cerrar.</small> }
+                    @if (_actual.Documentos.Any(d => d.Tipo == 4))
+                    {
+                        <div class="col-md-4 mt-2"><label class="form-label">Mensaje Receptor</label><select class="form-select" @bind="_mensajeReceptor"><option value="1">Aceptado</option><option value="2">Aceptado parcialmente</option><option value="3">Rechazado</option></select></div>
+                    }
                     @if (_actual.Documentos.Count > 0) { <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Documento</th><th>Proveedor local</th><th>Clave fiscal</th><th>Estado Hacienda</th><th>Detalle</th><th></th></tr></thead><tbody>@foreach (var doc in _actual.Documentos) { <tr><td>@doc.NombreArchivo</td><td>@doc.NombreProveedorLocal</td><td><small>@doc.ClaveFiscal</small></td><td>@if (doc.EstadoFiscal == "Rechazado") { <span class="badge text-bg-warning">Rechazado</span> } else { @doc.EstadoFiscal }</td><td class="small text-secondary">@doc.DetalleFiscal</td><td>@if (doc.Tipo == 4) { <button class="btn btn-sm btn-outline-primary" @onclick="() => EnviarMensajeReceptor(doc.IdImportacionDocumento)">Enviar / reintentar</button> }</td></tr> }</tbody></table></div> }
                 }
             </div>
@@ -221,7 +245,7 @@
                     </div>
                 </div>
             }
-            <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>#</th><th>Código prov.</th><th>Descripción prov.</th><th>Código interno</th><th>Descripción interna</th><th class="text-end">Cantidad</th><th class="text-end">Costo unit.</th><th class="text-end">Tributo DUA</th><th class="text-end">Precio A</th><th>Opciones</th></tr></thead><tbody>
+            <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>#</th><th>Código prov.</th><th>Descripción prov.</th><th>Código interno</th><th>Descripción interna</th><th class="text-end">Cantidad</th><th class="text-end">Costo unit.</th><th class="text-end">Ley 6946</th><th class="text-end">Precio A</th><th>Opciones</th></tr></thead><tbody>
                 @for (var i = 0; i < _pdfCandidatas.Count; i++)
                 {
                     var candidata = _pdfCandidatas[i];
@@ -262,7 +286,8 @@
 
 @code {
     private CrearImportacionWebDTO _nueva = new() { TipoCambioDua = 1 };
-    private ImportacionCostoWebDTO _costo = new() { Categoria = 2 };
+    private ImportacionCostoWebDTO _costo = new() { Categoria = 2, CodMoneda = 1 };
+    private int _mensajeReceptor = 1;
     private CerrarImportacionWebDTO _cierre = new();
     private ImportacionResumenWebDTO? _actual;
     private IBrowserFile? _archivo;
@@ -286,7 +311,7 @@
     // inserta nada en _nueva.Lineas sin pasar por "Agregar"/"Actualizar" aquí.
     private AppBuscadorArticulo _buscadorArticulo = default!;
     private InventarioDTO? _articuloActual;
-    private decimal _cantidad = 1m, _costoUnitario, _tributoDuaUnitario;
+    private decimal _cantidad = 1m, _costoUnitario, _tributoDuaUnitario, _ivaAduanalUnitario;
     private decimal? _precioAAplicado;
     private string _codigoProveedor = string.Empty, _descripcionProveedor = string.Empty;
     private sealed class LoteEdicion { public string Numero = string.Empty; public DateTime? Vence; public decimal Cantidad; }
@@ -363,6 +388,7 @@
         _cantidad = 1m;
         _costoUnitario = 0m;
         _tributoDuaUnitario = 0m;
+        _ivaAduanalUnitario = 0m;
         _precioAAplicado = null;
         _articulosPorCodigo[articulo.Codigo] = articulo.Descripcion ?? articulo.Cod_Articulo ?? articulo.Codigo.ToString();
     }
@@ -377,6 +403,7 @@
         _cantidad = linea.Cantidad;
         _costoUnitario = linea.CostoProveedorMonedaUnitario;
         _tributoDuaUnitario = linea.TributoDuaUnitario;
+        _ivaAduanalUnitario = linea.IvaAduanalUnitario;
         _precioAAplicado = linea.PrecioAAplicado;
         _lotes.Clear();
         foreach (var lote in linea.Lotes)
@@ -410,6 +437,7 @@
             Cantidad = _cantidad,
             CostoProveedorMonedaUnitario = _costoUnitario,
             TributoDuaUnitario = _tributoDuaUnitario,
+            IvaAduanalUnitario = _ivaAduanalUnitario,
             PrecioAAplicado = _precioAAplicado,
             Lotes = _articuloActual.Lote
                 ? _lotes.Select(l => new ImportacionLoteWebDTO { Numero = l.Numero.Trim(), FechaVencimiento = l.Vence.HasValue ? DateOnly.FromDateTime(l.Vence.Value) : null, Cantidad = l.Cantidad }).ToList()
@@ -605,14 +633,14 @@
     {
         if (_actual is null) return;
         var dato = await Respuestas.DatoAsync(await Api.AgregarCosto(_actual.IdImportacion, _costo), "agregar el costo");
-        if (dato is not null) { _actual = dato; _costo = new() { Categoria = 2 }; }
+        if (dato is not null) { _actual = dato; _costo = new() { Categoria = 2, CodMoneda = 1 }; }
     }
 
     private ImportacionLineaResultadoWebDTO? _lineaTributoDua;
     private void PrepararTributoDua(ImportacionLineaResultadoWebDTO item)
     {
         _lineaTributoDua = item;
-        _tributoDua = new() { IdImportacionLinea = item.IdImportacionLinea, TributoDuaUnitario = item.TributoDuaUnitario };
+        _tributoDua = new() { IdImportacionLinea = item.IdImportacionLinea, TributoDuaUnitario = item.TributoDuaUnitario, IvaAduanalUnitario = item.IvaAduanalUnitario };
     }
     private async Task GuardarTributoDua()
     {
@@ -645,7 +673,7 @@
     private async Task EnviarMensajeReceptor(long idDocumento)
     {
         if (_actual is null) return;
-        var dato = await Respuestas.DatoAsync(await Api.EnviarMensajeReceptor(_actual.IdImportacion, idDocumento), "enviar el Mensaje Receptor");
+        var dato = await Respuestas.DatoAsync(await Api.EnviarMensajeReceptor(_actual.IdImportacion, idDocumento, _mensajeReceptor), "enviar el Mensaje Receptor");
         if (dato is not null) _actual = dato;
     }
     private void Nueva()
