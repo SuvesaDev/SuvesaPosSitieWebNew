@@ -80,7 +80,9 @@
   @if (_hecho is not null)
   {
     <div class="card mb-3"><div class="card-header text-bg-success">Traslado #@_hecho.Id · @_hecho.NombreBodegaOrigen → @_hecho.NombreBodegaDestino · costo @_hecho.CostoTotal.ToString("N2")</div>
-      <div class="card-body"><table class="table table-sm mb-0">
+      <div class="card-body">
+        <div class="mb-2"><BotonImprimir Tipo="traslado-bodega" Id="_hecho.Id" Texto="Imprimir traslado" Clase="btn-outline-primary" /></div>
+        <table class="table table-sm mb-0">
         <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Cantidad</th></tr></thead>
         <tbody>@foreach (var l in _hecho.Lineas){<tr><td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@l.NumeroLote</td><td class="text-end">@l.Cantidad.ToString("N3")</td></tr>}</tbody>
       </table></div></div>
@@ -101,6 +103,7 @@
             <td class="text-end">@t.CantidadLineas</td>
             <td>@t.EstadoDescripcion</td>
             <td class="text-end">
+              <BotonImprimir Tipo="traslado-bodega" Id="t.Id" Texto="PDF" Clase="btn-sm btn-link p-0" />
               <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(t.Id)">Ver</button>
               @if (t.Estado != 2) { <button class="btn btn-sm btn-link text-danger p-0 ms-2" @onclick="() => AbrirAnular(t.Id)">Anular</button> }
             </td>

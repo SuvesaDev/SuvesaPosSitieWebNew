@@ -36,6 +36,20 @@
         <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nueva devolución</button>
     </Acciones>
     <ChildContent>
+        @if (_ultimaNotaInterna > 0 && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
+        {
+            <div class="alert alert-success d-flex flex-wrap align-items-center gap-2 py-2">
+                <span>Devolución interna #@_ultimaNotaInterna registrada.</span>
+                <BotonImprimir Tipo="devolucion-interna" Id="_ultimaNotaInterna" Texto="Imprimir" Clase="btn-sm btn-outline-success" />
+            </div>
+        }
+        @if (_ultimaNota > 0 && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
+        {
+            <div class="alert alert-success d-flex flex-wrap align-items-center gap-2 py-2">
+                <span>Nota de crédito #@_ultimaNota registrada.</span>
+                <BotonImprimir Tipo="nota-credito" Id="_ultimaNota" Texto="Imprimir nota" Clase="btn-sm btn-outline-success" />
+            </div>
+        }
         <AppDesbloqueoClave @ref="_bloqueo" Titulo="las devoluciones" AlCambiar="AlDesbloquear" />
         <fieldset disabled="@(!_desbloqueada)" class="border-0 p-0 m-0">
         <div class="row g-3">
@@ -172,12 +186,13 @@
             <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-primary" @onclick="BuscarDevolucionesAnteriores">Buscar</button></div>
         </div>
         @if (_devolucionesEncontradas.Count == 0) { <p class="text-secondary text-center py-3 mb-0">Sin resultados todavía.</p> }
-        else { <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Número</th><th>Fecha</th><th class="text-end">Monto</th></tr></thead><tbody>@foreach (var d in _devolucionesEncontradas) { <tr><td>@d.Devolucion</td><td>@d.Fecha</td><td class="text-end">@Formato.Importe(d.Monto)</td></tr> }</tbody></table></div> }
+        else { <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Número</th><th>Fecha</th><th class="text-end">Monto</th><th></th></tr></thead><tbody>@foreach (var d in _devolucionesEncontradas) { <tr><td>@d.Devolucion</td><td>@d.Fecha</td><td class="text-end">@Formato.Importe(d.Monto)</td><td class="text-end">@if (d.Devolucion is > 0 && Sesion.Puede(Titulo, AccionPantalla.Imprimir)) { <BotonImprimir Tipo="nota-credito" Id="d.Devolucion.Value" Texto="PDF" Clase="btn-sm btn-outline-secondary" /> }</td></tr> }</tbody></table></div> }
     </BodyTemplate>
 </HxModal>
 
 @code {
     private const string Titulo = "Devoluciones";
+    private long _ultimaNota, _ultimaNotaInterna;
 
     private sealed class LineaDevolucion
     {
@@ -601,6 +616,7 @@
             var resultadoInterno = await Respuestas.DatoAsync(interna, "registrar la devolución interna");
             if (resultadoInterno is not null)
             {
+                _ultimaNotaInterna = resultadoInterno.IdDevolucionInterna;
                 Dialogos.Exito($"Nota de crédito interna #{resultadoInterno.IdDevolucionInterna} registrada.");
                 Limpiar();
             }
@@ -658,8 +674,10 @@
 
         var r = await Api.Crear(dto);
         _guardando = false;
-        if (await Respuestas.CorrectaAsync(r, "registrar la devolución"))
+        var creada = await Respuestas.DatoAsync(r, "registrar la devolución");
+        if (creada is not null)
         {
+            _ultimaNota = creada.Devolucion ?? 0;
             Dialogos.Exito("Devolución registrada correctamente.");
             Limpiar();
         }
