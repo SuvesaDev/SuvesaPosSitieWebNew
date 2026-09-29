@@ -141,14 +141,11 @@
                     <button class="btn btn-outline-warning" disabled="@_procesando" @onclick="() => Cerrar(true)">Dar de baja por el proveedor</button>
                 </div>
             }
-            else if (_sel.EstadoSeguimiento == 2)
+            else if (_sel.EstadoSeguimiento == 2 && _sel.IdFacturaCompra is not > 0)
             {
-                <div class="row g-2 align-items-end">
-                    <div class="col"><label class="form-label small">Id interno de la compra</label><input type="number" min="0" class="form-control form-control-sm" @bind="_idFactura" /></div>
-                    <div class="col-auto"><button class="btn btn-primary" disabled="@(_procesando || _idFactura <= 0)" @onclick="Vincular">Marcar facturada</button></div>
-                </div>
-                <p class="form-text">El número es el id interno de la compra, no el de la factura del proveedor. Tiene que existir y ser del mismo proveedor.</p>
-                <button class="btn btn-outline-danger btn-sm mt-2" disabled="@_procesando" @onclick="() => Cerrar(false)">Cancelar pedido</button>
+                <a class="btn btn-primary" href="@($"/buys/buy/desde-orden/{_sel.Orden}")">Crear compra con lo recibido</a>
+                <p class="form-text mb-2">Abre el registro de compra con el proveedor, las cantidades recibidas y el precio. El lote, si el artículo lo maneja, se indica ahí. El inventario entra una sola vez, al guardar esa compra.</p>
+                <button class="btn btn-outline-danger btn-sm" disabled="@_procesando" @onclick="() => Cerrar(false)">Cancelar pedido</button>
             }
             else
             {

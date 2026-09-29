@@ -1,4 +1,5 @@
 @page "/buys/buy"
+@page "/buys/buy/desde-orden/{OrdenOrigen:long}"
 @using System.Globalization
 @using System.Xml.Linq
 @using SuvesaPosSitioAplicacion.Class
@@ -17,6 +18,7 @@
 @inject IJSRuntime JS
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IFormasPagoFiscales FormasPagoApi
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.ICajaOperaciones CajaApi
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IOrdenesCompraFlujo Ordenes
 
 @* Registro de compras: port nativo de BuysPage/BuysArticulosHeader del POS
    anterior. El encabezado se valida antes de abrir el buscador y cada detalle
@@ -410,6 +412,67 @@
         }
 
         await InvokeAsync(StateHasChanged);
+        if (OrdenOrigen > 0)
+            await CargarDesdeOrden();
+    }
+
+    [Parameter] public long OrdenOrigen { get; set; }
+    private long _ordenCargada;
+
+    private async Task CargarDesdeOrden()
+    {
+        if (OrdenOrigen <= 0 || _ordenCargada == OrdenOrigen) return;
+        var orden = await Respuestas.DatoAsync(await Ordenes.Obtener(OrdenOrigen), "abrir la orden de compra");
+        if (orden is null) return;
+        if (orden.EstadoSeguimiento != 2)
+        {
+            await Dialogos.ErrorAsync("La orden tiene que estar entregada para generar la compra.");
+            return;
+        }
+        if (orden.IdFacturaCompra is > 0)
+        {
+            await Dialogos.ErrorAsync("Esta orden ya tiene una compra vinculada.");
+            return;
+        }
+
+        _ordenCargada = OrdenOrigen;
+        _idCompra = 0;
+        _lineas.Clear();
+        _proveedor = _proveedores.FirstOrDefault(p => p.CodigoProv == orden.IdProveedor)
+            ?? new ProveedorDTO { CodigoProv = orden.IdProveedor, Nombre = orden.NombreProveedor };
+        _textoProveedor = _proveedor.Nombre ?? orden.NombreProveedor ?? string.Empty;
+        _tipoCompra = orden.Credito ? 1 : 2;
+        _diasCredito = orden.Credito ? orden.Plazo : 0;
+        _moneda = orden.CodMoneda;
+        _numeroFactura = $"OC-{orden.Consecutivo ?? orden.Orden}";
+        _bodega = _bodegas.FirstOrDefault(b => b.IdSucursal == Sesion.IdSucursal)?.IdBodega
+            ?? _bodegas.FirstOrDefault()?.IdBodega ?? 0;
+        ActualizarVencimiento();
+
+        var pideLote = false;
+        foreach (var linea in orden.Lineas)
+        {
+            var cantidad = linea.CantidadRecibida > 0 ? linea.CantidadRecibida : linea.Cantidad;
+            if (cantidad <= 0) continue;
+            var articulo = await Respuestas.DatoAsync(await Inventario.Uno(linea.CodArticulo), "consultar el artículo de la orden");
+            if (articulo is null) continue;
+            if (articulo.Lote) pideLote = true;
+            var nueva = new LineaCompra
+            {
+                Articulo = articulo,
+                Cantidad = (decimal)cantidad,
+                Base = (decimal)linea.CostoUnitario,
+                Descuento = (decimal)linea.PorcDescuento,
+                Impuesto = orden.TipoOrdenCompra == 2 ? 0 : (decimal)linea.PorcImpuesto
+            };
+            nueva.Recalcular();
+            _lineas.Add(nueva);
+        }
+        RecalcularTotales();
+        var aviso = "La compra quedó cargada con lo recibido de la orden. El inventario entra al registrarla.";
+        if (pideLote)
+            aviso += " Indique el lote de los artículos que lo manejan antes de guardar.";
+        await Dialogos.InformarAsync(aviso, "Compra desde la orden");
     }
 
     private async Task CargarCatalogos()
@@ -600,6 +663,8 @@
                 var precios = PreciosActualizadosXml();
                 if (precios.Count > 0) await Respuestas.CorrectaAsync(await Api.ActualizarPrecios(precios), "actualizar los precios importados");
             }
+            if (_ordenCargada > 0 && idCompraGuardada > 0)
+                await Respuestas.CorrectaAsync(await Ordenes.VincularFactura(_ordenCargada, idCompraGuardada), "vincular la orden con la compra");
             Dialogos.Exito(_idCompra > 0 ? "Compra actualizada correctamente." : "Compra registrada correctamente.");
 
             // Solo tiene sentido preguntar por el Mensaje Receptor si la compra vino de

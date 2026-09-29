@@ -25,6 +25,9 @@ public class ImportacionLineaWebDTO
     public decimal CostoProveedorMonedaUnitario { get; set; }
     public decimal TributoDuaUnitario { get; set; }
     public decimal IvaAduanalUnitario { get; set; }
+    public string? CertificadoOrigen { get; set; }
+    public string? RegistroSanitario { get; set; }
+    public DateOnly? VencimientoRegistroSanitario { get; set; }
     public decimal? PrecioAAplicado { get; set; }
     public List<ImportacionLoteWebDTO> Lotes { get; set; } = new();
 }
@@ -34,6 +37,9 @@ public sealed class ActualizarTributoDuaImportacionWebDTO
     public long IdImportacionLinea { get; set; }
     public decimal TributoDuaUnitario { get; set; }
     public decimal IvaAduanalUnitario { get; set; }
+    public string? CertificadoOrigen { get; set; }
+    public string? RegistroSanitario { get; set; }
+    public DateOnly? VencimientoRegistroSanitario { get; set; }
 }
 
 public sealed class ImportacionLoteWebDTO

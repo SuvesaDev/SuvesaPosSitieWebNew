@@ -124,6 +124,9 @@
                         <div class="row g-2 align-items-end mb-3 border rounded p-2">
                             <div class="col-md-4"><label class="form-label">Ley 6946 unitaria de "@(_lineaTributoDua.DescripcionArticulo ?? _lineaTributoDua.DescripcionProveedor)"</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_tributoDua.TributoDuaUnitario" /><small class="text-secondary">Entra al costo.</small></div>
                             <div class="col-md-4"><label class="form-label">IVA aduanal unitario</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_tributoDua.IvaAduanalUnitario" /><small class="text-secondary">No entra al costo.</small></div>
+                            <div class="col-md-4"><label class="form-label">Certificado de origen</label><input class="form-control" @bind="_tributoDua.CertificadoOrigen" /></div>
+                            <div class="col-md-4"><label class="form-label">Registro sanitario</label><input class="form-control" @bind="_tributoDua.RegistroSanitario" /></div>
+                            <div class="col-md-4"><label class="form-label">Vence el registro</label><input type="date" class="form-control" @bind="_tributoDua.VencimientoRegistroSanitario" /></div>
                             <div class="col-md-3"><button class="btn btn-outline-primary" @onclick="GuardarTributoDua">Guardar</button> <button class="btn btn-outline-secondary" @onclick="() => _lineaTributoDua = null">Cancelar</button></div>
                         </div>
                     }
@@ -640,7 +643,15 @@
     private void PrepararTributoDua(ImportacionLineaResultadoWebDTO item)
     {
         _lineaTributoDua = item;
-        _tributoDua = new() { IdImportacionLinea = item.IdImportacionLinea, TributoDuaUnitario = item.TributoDuaUnitario, IvaAduanalUnitario = item.IvaAduanalUnitario };
+        _tributoDua = new()
+        {
+            IdImportacionLinea = item.IdImportacionLinea,
+            TributoDuaUnitario = item.TributoDuaUnitario,
+            IvaAduanalUnitario = item.IvaAduanalUnitario,
+            CertificadoOrigen = item.CertificadoOrigen,
+            RegistroSanitario = item.RegistroSanitario,
+            VencimientoRegistroSanitario = item.VencimientoRegistroSanitario,
+        };
     }
     private async Task GuardarTributoDua()
     {
