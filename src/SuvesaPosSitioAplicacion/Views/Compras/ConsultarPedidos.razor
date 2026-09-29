@@ -104,7 +104,28 @@
                 <p class="text-secondary small mb-1">Correo enviado @_sel.CorreoEnviadoUtc.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") a @_sel.CorreoDestino</p>
             }
             <p class="text-secondary small">@Formato.Importe(_sel.Total) @_sel.MonedaNombre · @_sel.TipoOrdenCompraNombre · @_sel.Lineas.Count artículo(s)</p>
-            <div class="table-responsive"><table class="table table-sm small"><thead><tr><th>Artículo</th><th class="text-end">Cant.</th><th class="text-end">Precio</th><th class="text-end">IVA</th><th class="text-end">Total</th></tr></thead><tbody>@foreach (var l in _sel.Lineas) { <tr><td>@l.Descripcion</td><td class="text-end">@Formato.Cantidad(l.Cantidad)</td><td class="text-end">@Formato.Importe(l.CostoUnitario)</td><td class="text-end">@(_sel.TipoOrdenCompra == 2 ? "—" : Formato.Importe(l.Impuesto))</td><td class="text-end">@Formato.Importe(l.TotalLinea)</td></tr> }</tbody></table></div>
+            <div class="table-responsive"><table class="table table-sm small"><thead><tr><th>Artículo</th><th class="text-end">Pedida</th><th class="text-end">Recibida</th><th class="text-end">Pendiente</th><th class="text-end">Precio</th><th class="text-end">Total</th></tr></thead>
+            <tbody>
+            @foreach (var l in _sel.Lineas)
+            {
+                var recibida = RecibidaDe(l);
+                <tr>
+                    <td>@l.Descripcion</td>
+                    <td class="text-end">@Formato.Cantidad(l.Cantidad)</td>
+                    <td class="text-end" style="min-width:6rem">
+                        @if (_sel.EstadoSeguimiento is 1 or 6)
+                        {
+                            <input type="number" min="0" max="@l.Cantidad" step="0.01" class="form-control form-control-sm text-end"
+                                   value="@recibida" @onchange="e => FijarRecibida(l.Id, e.Value?.ToString())" />
+                        }
+                        else { @Formato.Cantidad(l.CantidadRecibida) }
+                    </td>
+                    <td class="text-end">@Formato.Cantidad(Math.Max(0, l.Cantidad - recibida))</td>
+                    <td class="text-end">@Formato.Importe(l.CostoUnitario)</td>
+                    <td class="text-end">@Formato.Importe(l.TotalLinea)</td>
+                </tr>
+            }
+            </tbody></table></div>
 
             @if (_sel.EstadoSeguimiento is 1 or 6)
             {
@@ -113,7 +134,9 @@
                     {
                         <a class="btn btn-outline-primary" href="@($"/buys/purchaseorder/{_sel.Orden}")">Corregir líneas</a>
                     }
-                    <button class="btn btn-success" disabled="@_procesando" @onclick="Entregar">Marcar como entregada</button>
+                    <button class="btn btn-success" disabled="@_procesando" @onclick="() => Recibir(false)">Guardar recepción</button>
+                    <button class="btn btn-outline-success" disabled="@_procesando" @onclick="RecibirTodo">Recibir todo lo pedido</button>
+                    <button class="btn btn-outline-secondary" disabled="@_procesando" @onclick="() => Recibir(true)">Cerrar la diferencia y marcar entregada</button>
                     <button class="btn btn-outline-danger" disabled="@_procesando" @onclick="() => Cerrar(false)">Cancelar pedido</button>
                     <button class="btn btn-outline-warning" disabled="@_procesando" @onclick="() => Cerrar(true)">Dar de baja por el proveedor</button>
                 </div>
@@ -162,6 +185,7 @@
     private bool _cargando, _procesando;
     private long _idFactura;
     private string _motivo = "";
+    private Dictionary<long, double> _recibido = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -191,7 +215,43 @@
     private async Task Abrir(OrdenCompraFlujoWebDTO o)
     {
         _sel = o; _idFactura = o.IdFacturaCompra ?? 0; _motivo = "";
+        _recibido = o.Lineas.ToDictionary(l => l.Id, l => l.CantidadRecibida);
         await _modal.ShowAsync();
+    }
+
+    private double RecibidaDe(LineaOrdenCompraDetalleWebDTO l)
+        => _recibido.TryGetValue(l.Id, out var v) ? v : l.CantidadRecibida;
+
+    private void FijarRecibida(long id, string? texto)
+    {
+        if (double.TryParse(texto, out var n) && n >= 0)
+            _recibido[id] = n;
+    }
+
+    private async Task Recibir(bool cerrarDiferencia)
+    {
+        if (_sel is null) return;
+        if (cerrarDiferencia && !await Dialogos.ConfirmarAsync("La cantidad que falte no se va a recibir. La orden queda entregada."))
+            return;
+        _procesando = true;
+        try
+        {
+            var lineas = _sel.Lineas.Select(l => new RecepcionLineaOrdenWebDTO { Id = l.Id, CantidadRecibida = RecibidaDe(l) }).ToList();
+            var r = await Respuestas.DatoAsync(await Api.Recibir(_sel.Orden, lineas, cerrarDiferencia), "registrar la recepción");
+            if (r is not null)
+            {
+                Dialogos.Exito(r.EstadoSeguimiento == 2 ? "Orden marcada como entregada." : "Recepción guardada. Queda cantidad pendiente.");
+                await Refrescar(r);
+            }
+        }
+        finally { _procesando = false; }
+    }
+
+    private async Task RecibirTodo()
+    {
+        if (_sel is null) return;
+        foreach (var l in _sel.Lineas) _recibido[l.Id] = l.Cantidad;
+        await Recibir(false);
     }
 
     private async Task Entregar()
@@ -238,6 +298,7 @@
         var i = _ordenes.FindIndex(x => x.Orden == actualizada.Orden);
         if (i >= 0) _ordenes[i] = actualizada;
         _sel = actualizada;
+        _recibido = actualizada.Lineas.ToDictionary(l => l.Id, l => l.CantidadRecibida);
         await _modal.HideAsync();
     }
 

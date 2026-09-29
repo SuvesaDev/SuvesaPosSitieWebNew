@@ -92,11 +92,18 @@
             </div>
         </div>
 
-        @if (_ultimoDoc > 0)
+        @if (_ultimoDoc > 0 || _ultimoRecibo > 0)
         {
             <div class="alert alert-success d-flex flex-wrap align-items-center gap-2">
                 <span>@_ultimoAviso</span>
-                <VisorPdf Tipo="@_ultimoSlug" Id="_ultimoDoc" Texto="Ver comprobante (PDF)" Titulo="Comprobante de venta" Clase="btn-sm btn-outline-success" />
+                @if (_ultimoDoc > 0)
+                {
+                    <VisorPdf Tipo="@_ultimoSlug" Id="_ultimoDoc" Texto="Ver comprobante (PDF)" Titulo="Comprobante de venta" Clase="btn-sm btn-outline-success" />
+                }
+                @if (_ultimoRecibo > 0)
+                {
+                    <VisorPdf Tipo="recibo-cobro" Id="_ultimoRecibo" Texto="Ver recibo (PDF)" Titulo="Recibo de cobro" Clase="btn-sm btn-outline-primary" />
+                }
                 <button class="btn btn-sm btn-link" @onclick="Limpiar">Ocultar</button>
             </div>
         }
@@ -116,6 +123,28 @@
                                 <dt class="col-5 fw-normal text-secondary">Moneda</dt><dd class="col-7">@_preventa.Moneda</dd>
                                 <dt class="col-5">Total</dt><dd class="col-7 fw-semibold">@Formato.Importe(_preventa.Total)</dd>
                             </dl>
+                            @if (_preventa.Detalle is { Count: > 0 })
+                            {
+                                <table class="table table-sm align-middle mt-3 mb-2">
+                                    <thead><tr><th>Artículo</th><th class="text-end">Cantidad</th><th></th></tr></thead>
+                                    <tbody>
+                                        @foreach (var linea in _preventa.Detalle)
+                                        {
+                                            <tr>
+                                                <td>@linea.Descripcion</td>
+                                                <td style="width:7rem">
+                                                    <input type="number" min="0.01" step="0.01" class="form-control form-control-sm text-end"
+                                                           value="@linea.Cantidad" @onchange="e => CambiarCantidad(linea, e.Value?.ToString())" />
+                                                </td>
+                                                <td class="text-end">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Quitar" @onclick="() => QuitarLinea(linea)"><i class="bi bi-trash"></i></button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                                <button class="btn btn-sm btn-primary" disabled="@_guardandoLineas" @onclick="GuardarLineas">@(_guardandoLineas ? "Guardando..." : "Guardar líneas")</button>
+                            }
                         </div>
                     </div>
                 </div>
@@ -219,6 +248,7 @@
     private string? _claveIdempotencia;
     // W7: comprobante recuperable tras el último cobro de contado (no re-cobra al abrirlo).
     private long _ultimoDoc;
+    private long _ultimoRecibo;
     private string _ultimoSlug = "factura-electronica";
     private string? _ultimoAviso;
 
@@ -309,6 +339,64 @@
         var preventa = await Respuestas.DatoAsync(await Api.BuscarPorCliente(codigo), "buscar la preventa del cliente");
         _buscandoPorCedula = false;
         await CargarPreventa(preventa);
+    }
+
+    private bool _guardandoLineas;
+
+    private void CambiarCantidad(FacturaDetallesDTO linea, string? texto)
+    {
+        if (_preventa is null || !float.TryParse(texto, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cantidad) && !float.TryParse(texto, out cantidad))
+            return;
+        if (cantidad <= 0 || linea.Cantidad <= 0) return;
+        var factor = cantidad / linea.Cantidad;
+        linea.Cantidad = cantidad;
+        linea.MontoDescuento *= factor;
+        linea.MontoImpuesto *= factor;
+        linea.SubtotalGravado *= factor;
+        linea.SubTotalExcento *= factor;
+        linea.SubTotal *= factor;
+        if (linea.Lotes is { Count: > 0 })
+        {
+            foreach (var lote in linea.Lotes)
+                lote.Cantidad *= factor;
+        }
+        RecalcularTotalesPreventa();
+        Recalcular();
+    }
+
+    private void QuitarLinea(FacturaDetallesDTO linea)
+    {
+        _preventa?.Detalle?.Remove(linea);
+        RecalcularTotalesPreventa();
+        Recalcular();
+    }
+
+    private void RecalcularTotalesPreventa()
+    {
+        if (_preventa?.Detalle is null) return;
+        _preventa.SubTotalGravada = _preventa.Detalle.Sum(l => l.SubtotalGravado);
+        _preventa.SubTotalExento = _preventa.Detalle.Sum(l => l.SubTotalExcento);
+        _preventa.SubTotal = _preventa.Detalle.Sum(l => l.SubTotal);
+        _preventa.Descuento = _preventa.Detalle.Sum(l => l.MontoDescuento);
+        _preventa.ImpVenta = _preventa.Detalle.Sum(l => l.MontoImpuesto);
+        _preventa.Total = _preventa.SubTotalGravada + _preventa.SubTotalExento - _preventa.Descuento + _preventa.ImpVenta;
+    }
+
+    private async Task GuardarLineas()
+    {
+        if (_preventa is null) return;
+        _guardandoLineas = true;
+        var guardada = await Respuestas.DatoAsync(await Api.EditarPreventa(_preventa), "guardar las líneas de la preventa");
+        _guardandoLineas = false;
+        if (guardada is null) return;
+        _preventa.Total = guardada.Total;
+        _preventa.SubTotal = guardada.SubTotal;
+        _preventa.ImpVenta = guardada.ImpVenta;
+        _preventa.Descuento = guardada.Descuento;
+        if (guardada.Detalle is not null)
+            _preventa.Detalle = guardada.Detalle.ToList();
+        Recalcular();
+        Dialogos.Exito("Preventa actualizada. El cobro usa el total nuevo.");
     }
 
     private async Task CargarPreventa(PreventaDTO? preventa)
@@ -454,6 +542,16 @@
         }
 
         _guardando = false;
+        var recibo = r.Responses?.FirstOrDefault(c => c.Id is > 0)?.Id ?? 0;
+        if (recibo > 0)
+        {
+            _ultimoRecibo = recibo;
+            _ultimoDoc = 0;
+            _ultimoAviso = "Cobro realizado correctamente.";
+            Dialogos.Exito(_ultimoAviso);
+            LimpiarTrabajo();
+            return;
+        }
         Dialogos.Exito("Cobro realizado correctamente.");
         Limpiar();
     }
@@ -477,6 +575,7 @@
     {
         LimpiarTrabajo();
         _ultimoDoc = 0;
+        _ultimoRecibo = 0;
         _ultimoAviso = null;
     }
 }

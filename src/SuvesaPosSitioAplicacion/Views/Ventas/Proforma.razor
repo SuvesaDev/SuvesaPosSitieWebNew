@@ -71,6 +71,10 @@
                                           HeaderCssClass="text-end" ItemCssClass="text-end">
                                 <ItemTemplate Context="c">
                                     <button class="btn btn-sm btn-outline-primary" title="Abrir proforma" aria-label="Abrir proforma" @onclick="() => Abrir(c)"><i class="bi bi-eye"></i></button>
+                                    @if (c.Cotizacion1 > 0 && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
+                                    {
+                                        <BotonImprimir Tipo="presupuesto" Id="c.Cotizacion1" SoloIcono="true" Clase="btn-sm btn-outline-secondary" Titulo="Imprimir proforma" />
+                                    }
                                 </ItemTemplate>
                             </HxGridColumn>
                         </Columnas>
@@ -83,7 +87,13 @@
             <div class="card mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>@(_documento.Cotizacion1 > 0 ? $"Proforma {_documento.Cotizacion1}" : "Proforma nueva")</span>
-                    <button class="btn btn-sm btn-outline-secondary" @onclick="Cerrar">Volver</button>
+                    <span class="d-flex gap-2">
+                        @if (_documento.Cotizacion1 > 0 && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
+                        {
+                            <BotonImprimir Tipo="presupuesto" Id="_documento.Cotizacion1" Texto="Imprimir" />
+                        }
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="Cerrar">Volver</button>
+                    </span>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">

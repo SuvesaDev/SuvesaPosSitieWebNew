@@ -80,7 +80,7 @@
                             <PropertyColumn Property="d => d.Impuesto" Title="Impuesto" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Impuesto)</CellTemplate></PropertyColumn>
                             <PropertyColumn Property="d => d.Total" Title="Total" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Total)</CellTemplate></PropertyColumn>
                             <TemplateColumn Title="Estado"><CellTemplate>@if (context.Item is DocumentoFiscalBandeja f && !string.IsNullOrWhiteSpace(f.EstadoHacienda)) { <span class="badge @ClaseEstado(f.EstadoHacienda)">@f.EstadoHacienda</span> } else { @context.Item.EstadoDescripcion }</CellTemplate></TemplateColumn>
-                            <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate Context="context"><div class="d-flex gap-1"><button class="btn btn-sm btn-success" title="Ver detalle" @onclick="() => VerDetalle(context.Item)"><i class="bi bi-eye"></i></button>@if (_tab == 1) { <button class="btn btn-sm btn-outline-danger" title="Devolución" @onclick="() => Devolucion(context.Item)"><i class="bi bi-arrow-return-left"></i></button> }@if (EsFiscal && context.Item is DocumentoFiscalBandeja fa && !string.IsNullOrWhiteSpace(fa.ClaveFacturaElectronica)) { <button class="btn btn-sm btn-outline-primary" title="Opciones fiscales" @onclick="() => AccionFiscal(fa.ClaveFacturaElectronica!)"><i class="bi bi-file-earmark-text"></i></button> }@if (EsFiscal && Sesion.Puede(Titulo, AccionPantalla.Imprimir)) { <BotonImprimir Tipo="@(_tab == 1 ? "factura-electronica" : "nota-credito")" Id="context.Item.Id" Clase="btn-sm btn-outline-secondary" SoloIcono="true" Titulo="Descargar PDF (A4)" /> }</div></CellTemplate></TemplateColumn>
+                            <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate Context="context"><div class="d-flex gap-1"><button class="btn btn-sm btn-success" title="Ver detalle" @onclick="() => VerDetalle(context.Item)"><i class="bi bi-eye"></i></button>@if (_tab == 1) { <button class="btn btn-sm btn-outline-danger" title="Devolución" @onclick="() => Devolucion(context.Item)"><i class="bi bi-arrow-return-left"></i></button> }@if (EsFiscal && context.Item is DocumentoFiscalBandeja fa && !string.IsNullOrWhiteSpace(fa.ClaveFacturaElectronica)) { <button class="btn btn-sm btn-outline-primary" title="Opciones fiscales" @onclick="() => AccionFiscal(fa.ClaveFacturaElectronica!)"><i class="bi bi-file-earmark-text"></i></button> }@if (EsFiscal && Sesion.Puede(Titulo, AccionPantalla.Imprimir)) { <BotonImprimir Tipo="@SlugDocumento(context.Item)" Id="context.Item.Id" Clase="btn-sm btn-outline-secondary" SoloIcono="true" Titulo="Descargar PDF (A4)" /> }</div></CellTemplate></TemplateColumn>
                         </Columns>
                     </MudDataGrid>
                     </MudIsla>
@@ -140,7 +140,7 @@
                                             @if (EsFiscal && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
                                             {
                                                 <span class="ms-2">
-                                                    <BotonImprimir Tipo="@(_tab == 1 ? "factura-electronica" : "nota-credito")"
+                                                    <BotonImprimir Tipo="@SlugDocumento(d)"
                                                                    Id="d.Id" Clase="btn-sm btn-link p-0" SoloIcono="true"
                                                                    Titulo="Descargar PDF (A4)" />
                                                 </span>
@@ -228,6 +228,15 @@
 </HxModal>
 
 @code {
+    private string SlugDocumento(DocumentoBandeja d)
+    {
+        if (_tab != 1) return "nota-credito";
+        var tipo = d.TipoDescripcion ?? "";
+        return tipo.Contains("tiquete", StringComparison.OrdinalIgnoreCase)
+            ? "tiquete-electronico"
+            : "factura-electronica";
+    }
+
     private RenderFragment RenderEncabezado(DocumentoFiscalBandeja e) => RenderEncabezadoBase(e, e);
     private RenderFragment RenderEncabezado(DocumentoBandeja e) => RenderEncabezadoBase(e, null);
 

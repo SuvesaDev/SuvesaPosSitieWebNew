@@ -147,7 +147,9 @@
  protected override async Task OnInitializedAsync()
  {
      var r = await Api.BodegasOperativasAsync(Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null);
-     _bodegas = r.Status == ResponseStatus._0 ? (r.Responses ?? new()) : new();
+     _bodegas = r.Status == ResponseStatus._0
+         ? (r.Responses ?? new()).Where(b => b.IdSucursal == Sesion.IdSucursal).ToList()
+         : new();
      await CargarRecientes();
  }
 

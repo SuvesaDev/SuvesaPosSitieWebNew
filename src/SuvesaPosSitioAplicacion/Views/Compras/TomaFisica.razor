@@ -12,7 +12,7 @@
 @* Toma física / revisión de inventario (MEJORA_LOTES_WEB.md §3.5). Vive en Compras;
    pensada para PC, tablet y portátil (NivelPantalla.Tableta + tabla con scroll). *@
 
-<AppPantalla Pantalla="@Titulo" Codigo="COMPRAS.TOMA_FISICA" Icono="bi-clipboard-check"
+<AppPantalla Pantalla="@Titulo" Codigo="COMPRAS.TOMA.TOMA_FISICA" Icono="bi-clipboard-check"
              Subtitulo="Contar existencias y ajustar el inventario" Nivel="NivelPantalla.Tableta">
     <Acciones>
         <button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(_guardando || !HayCambios)">
@@ -41,7 +41,7 @@
                     </div>
                 </div>
                 <div class="d-flex justify-content-between mt-1">
-    <p class="form-text mb-0">Se cuenta <strong>una bodega</strong> a la vez. Los artículos <strong>Servicio</strong> no entran. Solo se ajustan las líneas donde escribió un conteo; un campo vacío no pone la existencia en cero.</p>
+                <p class="form-text mb-0">Se cuenta <strong>una bodega</strong> a la vez. Los artículos <strong>Servicio</strong> no entran. Solo se ajustan las líneas donde escribió un conteo; un campo vacío no pone la existencia en cero. Si no escribió todas las filas de la bodega, la toma queda <strong>parcial</strong>.</p>
                     @if (_articulos.Count > 0)
                     {
                         <span class="small text-secondary text-nowrap">@_articulos.Count renglones · @_articulos.Count(a => Dif(a) != 0) con diferencia</span>
@@ -106,7 +106,10 @@
         @if (_reporte is not null)
         {
             <p class="mb-2"><strong>Consecutivo N.º @_reporte.Id.ToString("D8")</strong>
-               <span class="text-secondary small ms-2">(= id de la toma)</span></p>
+               <span class="text-secondary small ms-2">(= id de la toma)</span>
+               @if (_reporte.EsParcial) { <span class="badge text-bg-warning ms-2">Parcial</span> }
+               @if (_reporte.Anulada) { <span class="badge text-bg-secondary ms-2">Anulada</span> }
+            </p>
             <div class="row g-3 mb-3">
                 <div class="col-6 col-md-3"><div class="text-secondary small">Artículos ajustados</div><div class="h5 mb-0">@_reporte.ArticulosAjustados</div></div>
                 <div class="col-6 col-md-3"><div class="text-secondary small">Unidades ganadas</div><div class="h5 mb-0 text-success">@_reporte.UnidadesGanadas.ToString("N2")</div></div>
@@ -134,6 +137,10 @@
         }
     </BodyTemplate>
     <FooterTemplate>
+        @if (_reporte is not null && !_reporte.Anulada && Sesion.Puede(Titulo, AccionPantalla.Borrar))
+        {
+            <button class="btn btn-outline-danger" @onclick="Anular" disabled="@_anulando">@(_anulando ? "Anulando..." : "Anular toma")</button>
+        }
         @if (_reporte is not null && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
         {
             <BotonImprimir Tipo="toma-fisica" Id="_reporte.Id" Texto="Imprimir toma física" Clase="btn-outline-primary" />
@@ -146,7 +153,7 @@
     private const string Titulo = "Toma física";
 
     private string _texto = string.Empty;
-    private bool _cargando, _guardando;
+    private bool _cargando, _guardando, _anulando;
     private List<TomaFisicaArticulo> _articulos = new();
     private HxModal _modalReporte = default!;
     private TomaFisicaReporte? _reporte;
@@ -157,7 +164,9 @@
     protected override async Task OnInitializedAsync()
     {
         var r = await Api.BodegasOperativasAsync(Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null);
-        _bodegas = r.Status == ResponseStatus._0 ? (r.Responses ?? new()) : new();
+        _bodegas = r.Status == ResponseStatus._0
+            ? (r.Responses ?? new()).Where(b => b.IdSucursal == Sesion.IdSucursal).ToList()
+            : new();
         if (_bodegas.Count == 1) _bodega = _bodegas[0].IdBodega;
     }
 
@@ -184,7 +193,9 @@
 
     private async Task Guardar()
     {
-        if (!await Dialogos.ConfirmarAsync("Se ajustarán las existencias de los artículos con diferencia y se generará el reporte.", "Guardar toma física"))
+        if (!await Dialogos.ConfirmarAsync(
+            "Se ajustan solo las líneas con conteo. Si no contó todas las filas de la bodega, la toma queda parcial.",
+            "Guardar toma física"))
             return;
 
         _guardando = true;
@@ -206,6 +217,24 @@
         _reporte = r.Responses;
         Dialogos.Exito("Toma física guardada.");
         await _modalReporte.ShowAsync();
-        await Cargar();   // refrescar existencias del sistema
+        await Cargar();
+    }
+
+    private async Task Anular()
+    {
+        if (_reporte is null || _reporte.Anulada) return;
+        if (!await Dialogos.ConfirmarAsync("Se devuelve el inventario al saldo de antes de esta toma. Los movimientos posteriores se conservan.", "Anular toma física"))
+            return;
+        _anulando = true;
+        var r = await Api.TomaAnularAsync(_reporte.Id, "Anulada desde la pantalla");
+        _anulando = false;
+        if (r.Status != ResponseStatus._0 || r.Responses is null)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo anular la toma.");
+            return;
+        }
+        _reporte = r.Responses;
+        Dialogos.Exito("Toma anulada.");
+        await Cargar();
     }
 }

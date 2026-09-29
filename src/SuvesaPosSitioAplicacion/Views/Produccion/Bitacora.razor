@@ -27,7 +27,7 @@
       <div class="col-md-3 d-grid"><button class="btn btn-primary" @onclick="CargarBitacora"><i class="bi bi-search me-1"></i>Filtrar</button></div>
     </div>
     <div class="seepos-produccion-tabla table-responsive"><table class="table table-sm align-middle mb-0">
-      <thead><tr><th>Fecha</th><th>Producto terminado</th><th>Lote</th><th class="text-end">Cantidad</th><th class="text-end">Costo</th><th>Estado</th><th></th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Producto terminado</th><th>Lote</th><th class="text-end">Cantidad</th><th class="text-end">Costo insumos</th><th class="text-end">Costo artículo</th><th>Estado</th><th></th></tr></thead>
       <tbody>
         @foreach (var p in _bitacora)
         {
@@ -37,11 +37,12 @@
             <td>@p.NumeroLoteProducido</td>
             <td class="text-end">@p.CantidadProducida</td>
             <td class="text-end">@p.CostoTotalInsumos.ToString("N2")</td>
+            <td class="text-end">@p.CostoUnitarioTerminado.ToString("N2")</td>
             <td>@if (p.Anulada) { <span class="badge text-bg-secondary">Anulada</span><small class="d-block text-secondary mt-1">@p.MotivoAnulacion</small> } else { <span class="badge text-bg-success">Activa</span> }</td>
             <td class="text-end">@if (!p.Anulada) { <button class="btn btn-sm btn-outline-danger" title="Anular producción" @onclick="() => PrepararAnulacion(p)"><i class="bi bi-x-circle me-1"></i>Anular</button> }</td>
           </tr>
         }
-        @if (!_bitacora.Any()) { <tr><td colspan="7" class="text-secondary">Sin producciones para los filtros indicados.</td></tr> }
+        @if (!_bitacora.Any()) { <tr><td colspan="8" class="text-secondary">Sin producciones para los filtros indicados.</td></tr> }
       </tbody>
     </table></div>
   </div></div>

@@ -47,6 +47,12 @@ public sealed class OrdenesCompraFlujo : ProxyBase, IOrdenesCompraFlujo
         => Ejecutar(async () => await LecturaEnvelope.Leer<OrdenCompraFlujoWebDTO>(
             await _api.GetAsync($"api/ordenes-compra/{orden}")), "consultar la orden de compra");
 
+    public Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Recibir(long orden, IReadOnlyList<RecepcionLineaOrdenWebDTO> lineas, bool cerrarDiferencia)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<OrdenCompraFlujoWebDTO>(
+            await _api.PostAsJsonAsync($"api/ordenes-compra/{orden}/recibir",
+                new { CerrarDiferencia = cerrarDiferencia, Lineas = lineas }, LecturaEnvelope.Json)),
+            "registrar la recepción de la orden");
+
     public Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Entregar(long orden, DateTime? fecha)
         => Ejecutar(async () => await LecturaEnvelope.Leer<OrdenCompraFlujoWebDTO>(
             await _api.PostAsync($"api/ordenes-compra/{orden}/entregar" + (fecha is { } f ? $"?fecha={f:yyyy-MM-dd}" : ""), null)),

@@ -20,6 +20,7 @@ public interface IOrdenesCompraFlujo
 
     Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Obtener(long orden);
 
+    Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Recibir(long orden, IReadOnlyList<RecepcionLineaOrdenWebDTO> lineas, bool cerrarDiferencia);
     Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Entregar(long orden, DateTime? fecha);
     Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Cancelar(long orden, string? motivo);
     Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> BajaProveedor(long orden, string? motivo);
