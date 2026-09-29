@@ -45,6 +45,7 @@
                                 <thead>
                                     <tr>
                                         <th>Fecha</th>
+                                        <th>En espera</th>
                                         <th>Factura</th>
                                         <th>Proveedor</th>
                                         <th class="text-end">Total</th>
@@ -58,6 +59,7 @@
                                     {
                                         <tr>
                                             <td>@c.Fecha.ToString("dd/MM/yyyy")</td>
+                                            <td>@Espera(c.Fecha)</td>
                                             <td><code class="small">@c.Factura</code></td>
                                             <td>@c.NombreProveedor</td>
                                             <td class="text-end seepos-importe">@Formato.Importe((double)c.TotalFactura)</td>
@@ -239,6 +241,14 @@
         _registros = r?.Registros ?? new();
         _total = r?.TotalRegistros ?? 0;
         _cargando = false;
+    }
+
+    private static string Espera(DateTime fecha)
+    {
+        if (fecha == default) return "—";
+        var dias = (DateTime.Today - fecha.Date).Days;
+        if (dias <= 0) return "hoy";
+        return dias == 1 ? "1 día" : $"{dias} días";
     }
 
     private async Task GenerarMensajeReceptor(CompraPendienteMensajeReceptorDTO compra)
