@@ -97,7 +97,7 @@
                                     <th class="text-end">Subtotal</th>
                                     <th class="text-end">Impuesto</th>
                                     <th class="text-end">Total</th>
-                                    @if (_tab == 3) { <th>Estado</th> }
+                                    @if (_tab == 4) { <th>Estado</th> }
                                     @if (EsFiscal)
                                     {
                                         <th>Nº electrónico</th>
@@ -119,7 +119,7 @@
                                         <td class="text-end seepos-importe">@Formato.Importe(d.Subtotal)</td>
                                         <td class="text-end seepos-importe">@Formato.Importe(d.Impuesto)</td>
                                         <td class="text-end seepos-importe">@Formato.Importe(d.Total)</td>
-                                        @if (_tab == 3) { <td>@d.EstadoDescripcion</td> }
+                                        @if (_tab == 4) { <td>@d.EstadoDescripcion</td> }
                                         @if (EsFiscal && d is DocumentoFiscalBandeja f)
                                         {
                                             <td>@f.NumeroFacturaElectronica</td>
@@ -230,6 +230,7 @@
 @code {
     private string SlugDocumento(DocumentoBandeja d)
     {
+        if (_tab == 3) return "nota-debito";
         if (_tab != 1) return "nota-credito";
         var tipo = d.TipoDescripcion ?? "";
         return tipo.Contains("tiquete", StringComparison.OrdinalIgnoreCase)
