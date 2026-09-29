@@ -521,8 +521,11 @@ app.MapGet("/reportes/estado-cuenta", async (
     [Microsoft.AspNetCore.Mvc.FromQuery] long idCliente,
     [Microsoft.AspNetCore.Mvc.FromQuery] DateTime? corte,
     SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IComandosFacturacion api,
-    IGeneradorPdf pdf) =>
+    IGeneradorPdf pdf,
+    HttpContext http) =>
 {
+    var generadoPor = http.User?.FindFirst(ClaimsSeePos.NombreUsuario)?.Value
+        ?? http.User?.Identity?.Name;
     if (idCliente <= 0) return Results.BadRequest("Indique el cliente.");
     var r = await api.EstadoCuenta(idCliente, corte);
     if (!r.EsCorrecta || r.Responses is null)
@@ -551,7 +554,8 @@ app.MapGet("/reportes/estado-cuenta", async (
             NotasCredito: (decimal)d.NotasCreditoAplicadas,
             Pagado: (decimal)d.PagosAplicados,
             Saldo: (decimal)d.SaldoActual,
-            EstadoMh: d.EstadoMh)).ToList()));
+            EstadoMh: d.EstadoMh)).ToList(),
+        GeneradoPor: generadoPor));
 
     return Results.File(bytes, "application/pdf", $"estado-cuenta-{idCliente}.pdf");
 });

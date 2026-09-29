@@ -53,7 +53,8 @@ public sealed record EstadoCuentaPdf(
     decimal Vencido61a90,
     decimal Vencido91oMas,
     IReadOnlyList<LineaEstadoCuentaPdf> Detalle,
-    string Moneda = "CRC");
+    string Moneda = "CRC",
+    string? GeneradoPor = null);
 
 /// <summary>Una factura con saldo pendiente dentro de un estado de cuenta.</summary>
 public sealed record LineaEstadoCuentaPdf(

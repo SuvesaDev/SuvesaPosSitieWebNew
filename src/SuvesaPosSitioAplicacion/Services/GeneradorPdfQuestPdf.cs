@@ -117,8 +117,9 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                 });
                 pagina.Footer().PaddingTop(8).Row(row =>
                 {
-                    row.RelativeItem().Text($"Estado de cuenta generado el {DateTime.Now:dd/MM/yyyy HH:mm}")
-                        .FontSize(7).FontColor(Colors.Grey.Medium);
+                    var pie = $"Estado de cuenta generado el {DateTime.Now:dd/MM/yyyy HH:mm}"
+                        + (string.IsNullOrWhiteSpace(reporte.GeneradoPor) ? "" : $" por {reporte.GeneradoPor}");
+                    row.RelativeItem().Text(pie).FontSize(7).FontColor(Colors.Grey.Medium);
                     row.RelativeItem().AlignRight().Text(t =>
                     {
                         t.Span("Página ").FontSize(7).FontColor(Colors.Grey.Medium);
