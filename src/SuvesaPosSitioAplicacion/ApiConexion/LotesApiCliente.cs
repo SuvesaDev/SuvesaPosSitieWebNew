@@ -22,6 +22,7 @@ public interface ILotesApiCliente
     Task<LoteEnvelope<List<TomaFisicaArticulo>>> TomaArticulosAsync(TomaFisicaFiltro filtro);
     Task<LoteEnvelope<TomaFisicaReporte>> TomaGuardarAsync(TomaFisicaGuardar req);
     Task<LoteEnvelope<TomaFisicaReporte>> TomaReporteAsync(long id);
+    Task<LoteEnvelope<TomaFisicaReporte>> TomaAnularAsync(long id, string? motivo);
 
     // Bodegas por centro (§3.1). idSucursal null = todas (el API igual excluye consignación).
     Task<LoteEnvelope<List<BodegaOperativa>>> BodegasOperativasAsync(int? idSucursal);
@@ -116,6 +117,10 @@ public sealed class LotesApiCliente : ILotesApiCliente
 
     public Task<LoteEnvelope<TomaFisicaReporte>> TomaReporteAsync(long id)
         => EnviarAsync<TomaFisicaReporte>(HttpMethod.Get, $"TomaFisica/Reporte?id={id}");
+
+    public Task<LoteEnvelope<TomaFisicaReporte>> TomaAnularAsync(long id, string? motivo)
+        => EnviarAsync<TomaFisicaReporte>(HttpMethod.Post,
+            "TomaFisica/Anular?id=" + id + (string.IsNullOrWhiteSpace(motivo) ? "" : "&motivo=" + Uri.EscapeDataString(motivo)));
 
     public Task<LoteEnvelope<List<BodegaOperativa>>> BodegasOperativasAsync(int? idSucursal)
         => EnviarAsync<List<BodegaOperativa>>(HttpMethod.Post,
