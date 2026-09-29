@@ -191,7 +191,7 @@
         <div class="border rounded p-3 mb-3 bg-body-tertiary">
             <label class="form-label" for="archivo-factura-pdf">PDF de la factura extranjera</label>
             <InputFile id="archivo-factura-pdf" class="form-control" accept=".pdf,application/pdf" OnChange="ImportarPdf" />
-            <div class="form-text">Extracción automática: revise cada línea, corrija cantidad y costo, y quite las que no correspondan antes de aplicar.</div>
+            <div class="form-text">Extracción automática: corrija cantidad y costo, quite lo que no corresponda y agregue a mano las líneas que el PDF no haya leído.</div>
             @if (!string.IsNullOrWhiteSpace(_nombreArchivoPdf)) { <div class="small mt-2"><i class="bi bi-file-earmark-check me-1 text-success" aria-hidden="true"></i>@_nombreArchivoPdf</div> }
         </div>
         @if (_extrayendoPdf)
@@ -255,8 +255,8 @@
                     var indice = i;
                     <tr class="@(candidata.RequiereRevision ? "table-warning" : null)">
                         <td>@candidata.NumeroLinea</td>
-                        <td><code>@candidata.CodigoProveedor</code></td>
-                        <td>@candidata.DescripcionProveedor</td>
+                        <td>@if (candidata.Manual) { <input class="form-control form-control-sm" placeholder="Código" @bind="candidata.CodigoProveedor" /> } else { <code>@candidata.CodigoProveedor</code> }</td>
+                        <td>@if (candidata.Manual) { <input class="form-control form-control-sm" placeholder="Descripción del proveedor" @bind="candidata.DescripcionProveedor" /> } else { @candidata.DescripcionProveedor }</td>
                         <td>@if (candidata.Articulo is null) { <span class="text-warning">Sin asociar</span> } else { <code>@candidata.Articulo.Cod_Articulo</code> }</td>
                         <td>@(candidata.Articulo?.Descripcion ?? "—")</td>
                         <td style="min-width:7rem"><input type="number" min="0.001" step="0.001" class="form-control form-control-sm text-end" @bind="candidata.Cantidad" @bind:after="() => RecalcularLineaPdf(candidata)" /></td>
@@ -275,11 +275,13 @@
                     }
                 }
             </tbody></table></div>
-            @if (_pdfCandidatas.Any(l => l.Articulo is null)) { <p class="form-text mb-0">Asocie cada línea a un artículo interno antes de aplicar el PDF.</p> }
+            @if (_pdfCandidatas.Any(l => l.Articulo is null)) { <p class="form-text mb-2">Asocie cada línea a un artículo interno antes de aplicar el PDF.</p> }
+            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AgregarLineaPdf"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar línea</button>
         }
         else if (_pdfIntentado)
         {
-            <div class="alert alert-warning mb-0">No se encontraron líneas de artículo en este PDF (probablemente es una imagen escaneada). Puede cerrar y adjuntarlo igual como evidencia, capturando las líneas manualmente.</div>
+            <div class="alert alert-warning">No se encontraron líneas de artículo en este PDF. Puede agregarlas aquí, o cerrar y adjuntar el archivo solo como evidencia.</div>
+            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AgregarLineaPdf"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar línea</button>
         }
     </BodyTemplate>
     <FooterTemplate>
@@ -330,8 +332,9 @@
     private sealed class LineaCandidataPdf
     {
         public int NumeroLinea { get; init; }
-        public string? CodigoProveedor { get; init; }
+        public string? CodigoProveedor { get; set; }
         public string DescripcionProveedor { get; set; } = string.Empty;
+        public bool Manual { get; init; }
         public decimal Cantidad { get; set; }
         public decimal CostoUnitario { get; set; }
         public decimal TributoDuaUnitario { get; set; }
@@ -537,6 +540,21 @@
         candidata.LotesExtra.Clear();
         _articulosPorCodigo[articulo.Codigo] = articulo.Descripcion ?? articulo.Cod_Articulo ?? articulo.Codigo.ToString();
         CancelarEditorPdf();
+    }
+
+    private void AgregarLineaPdf()
+    {
+        var numero = _pdfCandidatas.Count == 0 ? 1 : _pdfCandidatas.Max(l => l.NumeroLinea) + 1;
+        _pdfCandidatas.Add(new LineaCandidataPdf
+        {
+            NumeroLinea = numero,
+            CodigoProveedor = string.Empty,
+            DescripcionProveedor = string.Empty,
+            Cantidad = 1,
+            CantidadLotePrincipal = 1,
+            RequiereRevision = true,
+            Manual = true,
+        });
     }
 
     private async Task QuitarLineaPdf(int indice)
