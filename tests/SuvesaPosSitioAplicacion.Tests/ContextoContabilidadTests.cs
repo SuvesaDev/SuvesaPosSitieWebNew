@@ -18,15 +18,17 @@ public class ContextoContabilidadTests
         public int LlamadasEstadoActivacion { get; private set; }
         public bool Efectivo { get; set; }
 
-        public Task<ResponseGeneric<EstadoActivacionContabilidadDTO>> EstadoActivacion(long idEmpresa, int? idEmisor)
+        public Task<ResponseGeneric<EstadoActivacionContabilidadDTO>> EstadoActivacion(long idEmpresa, int? idEmisor, int? idSucursal = null)
         {
             LlamadasEstadoActivacion++;
             return Task.FromResult(new ResponseGeneric<EstadoActivacionContabilidadDTO>(
-                new EstadoActivacionContabilidadDTO { IdEmpresa = idEmpresa, IdEmisor = idEmisor, Efectivo = Efectivo }));
+                new EstadoActivacionContabilidadDTO { IdEmpresa = idEmpresa, IdEmisor = idEmisor, IdSucursal = idSucursal, Efectivo = Efectivo }));
         }
 
         public Task<ResponseGeneric<bool>> ActivarEmpresa(long idEmpresa) => Task.FromResult(new ResponseGeneric<bool>(true));
         public Task<ResponseGeneric<bool>> DesactivarEmpresa(long idEmpresa) => Task.FromResult(new ResponseGeneric<bool>(true));
+        public Task<ResponseGeneric<bool>> ActivarSucursal(int idSucursal) => Task.FromResult(new ResponseGeneric<bool>(true));
+        public Task<ResponseGeneric<bool>> DesactivarSucursal(int idSucursal) => Task.FromResult(new ResponseGeneric<bool>(true));
         public Task<ResponseGeneric<long>> ActivarEmisor(ActivarEmisorDTO comando) => Task.FromResult(new ResponseGeneric<long>(1L));
         public Task<ResponseGeneric<bool>> DesactivarEmisor(int idEmisor) => Task.FromResult(new ResponseGeneric<bool>(true));
         public Task<ResponseGeneric<bool>> ConfirmarClave(string contrasena) => Task.FromResult(new ResponseGeneric<bool>(true));
@@ -86,7 +88,7 @@ public class ContextoContabilidadTests
         var proxy = new ContabilidadFalsa { Efectivo = true };
         var contexto = new ContextoContabilidad(proxy);
 
-        await contexto.ResolverAsync(1, 100);
+        await contexto.ResolverAsync(1, 100, 10);
 
         Assert.True(contexto.HabilitadaEmisorActual);
     }
@@ -97,9 +99,9 @@ public class ContextoContabilidadTests
         var proxy = new ContabilidadFalsa { Efectivo = true };
         var contexto = new ContextoContabilidad(proxy);
 
-        await contexto.ResolverAsync(1, 100);
-        await contexto.ResolverAsync(1, 100);
-        await contexto.ResolverAsync(1, 100);
+        await contexto.ResolverAsync(1, 100, 10);
+        await contexto.ResolverAsync(1, 100, 10);
+        await contexto.ResolverAsync(1, 100, 10);
 
         Assert.Equal(1, proxy.LlamadasEstadoActivacion);
     }
@@ -110,8 +112,8 @@ public class ContextoContabilidadTests
         var proxy = new ContabilidadFalsa { Efectivo = true };
         var contexto = new ContextoContabilidad(proxy);
 
-        await contexto.ResolverAsync(1, 100);
-        await contexto.ResolverAsync(1, 200);
+        await contexto.ResolverAsync(1, 100, 10);
+        await contexto.ResolverAsync(1, 200, 10);
 
         Assert.Equal(2, proxy.LlamadasEstadoActivacion);
     }

@@ -5,22 +5,20 @@
 @using SuvesaPosSitioAplicacion.Services
 @inject IFacturacion FacturacionApi
 @inject IEmisoresFiscales EmisoresApi
+@inject ISucursales SucursalesApi
 @inject IContabilidad Contabilidad
 @inject IContextoSesion Sesion
 @inject IServicioDialogos Dialogos
 @inject IManejadorRespuestas Respuestas
 
-@* Contabilidad W1 — activación por empresa/emisor (A1 del API, ya construido). No es
-   la pantalla completa de "configuración contable por emisor" (mapeos de cuentas,
-   políticas de IVA, etc. — eso llega en fases posteriores); aquí solo se resuelve
-   el feature flag: activar/desactivar el módulo. *@
+@* El interruptor de Contabilidad es la sucursal. El emisor solo aporta el libro. *@
 
 <AppPantalla Pantalla="Configuración emisor" Codigo="CONTABILIDAD.CONFIGURACION_EMISOR" Icono="bi-journal-text">
     <ChildContent>
         <div class="card">
             <div class="card-body">
                 <div class="row g-3 mb-3">
-                    <div class="col-12 col-md-6">
+                    <div class="col-12 col-md-4">
                         <label class="form-label" for="ce-empresa">Empresa</label>
                         <select id="ce-empresa" class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarSeleccion">
                             <option value="0">Seleccione...</option>
@@ -30,7 +28,17 @@
                             }
                         </select>
                     </div>
-                    <div class="col-12 col-md-6">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="ce-sucursal">Sucursal</label>
+                        <select id="ce-sucursal" class="form-select" @bind="_idSucursal" @bind:after="AlCambiarSeleccion">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var sucursal in _sucursales)
+                            {
+                                <option value="@sucursal.Id">@(sucursal.NombreComercial ?? sucursal.NombreFiscal)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4">
                         <label class="form-label" for="ce-emisor">Emisor</label>
                         <select id="ce-emisor" class="form-select" @bind="_idEmisor" @bind:after="AlCambiarSeleccion">
                             <option value="0">Seleccione...</option>
@@ -46,25 +54,31 @@
                 {
                     <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
                 }
-                else if (_idEmpresa == 0)
+                else if (_idSucursal == 0)
                 {
-                    <p class="text-secondary mb-0">Seleccione una empresa para ver su estado de activación.</p>
+                    <p class="text-secondary mb-0">Seleccione la sucursal. Ahí se enciende o se apaga la contabilidad.</p>
                 }
                 else if (_estado is not null)
                 {
                     <div class="d-flex flex-wrap gap-4 align-items-center mb-3">
                         <div>
-                            <div class="small text-secondary">Empresa</div>
-                            <span class="badge @(_estado.EmpresaHabilitada ? "text-bg-success" : "text-bg-secondary")">
-                                @(_estado.EmpresaHabilitada ? "Habilitada" : "No habilitada")
+                            <div class="small text-secondary">Sucursal</div>
+                            <span class="badge @(_estado.SucursalHabilitada ? "text-bg-success" : "text-bg-secondary")">
+                                @(_estado.SucursalHabilitada ? "Encendida" : "Apagada")
                             </span>
                         </div>
                         @if (_idEmisor > 0)
                         {
                             <div>
-                                <div class="small text-secondary">Emisor</div>
+                                <div class="small text-secondary">Libro del emisor</div>
                                 <span class="badge @(_estado.EmisorHabilitado ? "text-bg-success" : "text-bg-secondary")">
-                                    @(_estado.EmisorHabilitado ? "Habilitado" : "No habilitado")
+                                    @(_estado.EmisorHabilitado ? "Creado" : "Sin libro")
+                                </span>
+                            </div>
+                            <div>
+                                <div class="small text-secondary">Relación emisor–sucursal</div>
+                                <span class="badge @(_estado.RelacionVigente ? "text-bg-success" : "text-bg-secondary")">
+                                    @(_estado.RelacionVigente ? "Vigente" : "No vigente")
                                 </span>
                             </div>
                             <div>
@@ -79,25 +93,18 @@
                     @if (Sesion.Puede("CONTABILIDAD.CONFIGURACION_EMISOR", AccionPantalla.Activar))
                     {
                         <div class="d-flex flex-wrap gap-2">
-                            @if (_estado.EmpresaHabilitada)
+                            @if (_estado.SucursalHabilitada)
                             {
-                                <button class="btn btn-sm btn-outline-danger" disabled="@_guardando" @onclick="DesactivarEmpresa">Desactivar empresa</button>
+                                <button class="btn btn-sm btn-outline-danger" disabled="@_guardando" @onclick="DesactivarSucursal">Apagar sucursal</button>
                             }
                             else
                             {
-                                <button class="btn btn-sm btn-primary" disabled="@_guardando" @onclick="ActivarEmpresa">Activar empresa</button>
+                                <button class="btn btn-sm btn-primary" disabled="@_guardando" @onclick="ActivarSucursal">Encender sucursal</button>
                             }
 
-                            @if (_idEmisor > 0)
+                            @if (_idEmisor > 0 && !_estado.EmisorHabilitado)
                             {
-                                @if (_estado.EmisorHabilitado)
-                                {
-                                    <button class="btn btn-sm btn-outline-danger" disabled="@_guardando" @onclick="DesactivarEmisor">Desactivar emisor</button>
-                                }
-                                else
-                                {
-                                    <button class="btn btn-sm btn-primary" disabled="@_guardando" @onclick="ActivarEmisor">Activar emisor</button>
-                                }
+                                <button class="btn btn-sm btn-outline-primary" disabled="@_guardando" @onclick="ActivarEmisor">Crear libro del emisor</button>
                             }
                         </div>
                     }
@@ -112,8 +119,10 @@
 
     private List<EmpresaDTO> _empresas = new();
     private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private List<DTOs.Fiscal.SucursalFiscalDTO> _sucursales = new();
     private int _idEmpresa;
     private int _idEmisor;
+    private int _idSucursal;
     private EstadoActivacionContabilidadDTO? _estado;
     private bool _cargando;
     private bool _guardando;
@@ -122,30 +131,32 @@
     {
         _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
         _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        _sucursales = (await Respuestas.DatoAsync(await SucursalesApi.Obtener(), "consultar las sucursales"))?.ToList() ?? new();
         if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
         if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        if (Sesion.IdSucursal > 0) _idSucursal = Sesion.IdSucursal;
+        else if (_sucursales.Count == 1) _idSucursal = _sucursales[0].Id;
         await AlCambiarSeleccion();
     }
 
     private async Task AlCambiarSeleccion()
     {
         _estado = null;
-        if (_idEmpresa == 0) return;
+        if (_idSucursal == 0) return;
 
         _cargando = true;
         _estado = await Respuestas.DatoAsync(
-            await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor == 0 ? null : _idEmisor),
+            await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor == 0 ? null : _idEmisor, _idSucursal),
             "consultar el estado de activación de Contabilidad");
         _cargando = false;
 
         if (_idEmisor > 0)
-            await ContextoContabilidad.ResolverAsync(_idEmpresa, _idEmisor);
+            await ContextoContabilidad.ResolverAsync(_idEmpresa, _idEmisor, _idSucursal);
     }
 
-    private Task ActivarEmpresa() => Ejecutar(() => Contabilidad.ActivarEmpresa(_idEmpresa), "activar Contabilidad para la empresa");
-    private Task DesactivarEmpresa() => Ejecutar(() => Contabilidad.DesactivarEmpresa(_idEmpresa), "desactivar Contabilidad para la empresa");
-    private Task ActivarEmisor() => Ejecutar(() => Contabilidad.ActivarEmisor(new ActivarEmisorDTO { IdEmisor = _idEmisor, MonedaFuncional = "CRC" }), "activar Contabilidad para el emisor");
-    private Task DesactivarEmisor() => Ejecutar(() => Contabilidad.DesactivarEmisor(_idEmisor), "desactivar Contabilidad para el emisor");
+    private Task ActivarSucursal() => Ejecutar(() => Contabilidad.ActivarSucursal(_idSucursal), "encender Contabilidad en la sucursal");
+    private Task DesactivarSucursal() => Ejecutar(() => Contabilidad.DesactivarSucursal(_idSucursal), "apagar Contabilidad en la sucursal");
+    private Task ActivarEmisor() => Ejecutar(() => Contabilidad.ActivarEmisor(new ActivarEmisorDTO { IdEmisor = _idEmisor, MonedaFuncional = "CRC" }), "crear el libro del emisor");
 
     private async Task Ejecutar<T>(Func<Task<ResponseGeneric<T>>> accion, string queSeIntentaba)
     {

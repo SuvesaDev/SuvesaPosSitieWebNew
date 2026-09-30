@@ -9,9 +9,11 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 /// se agrega proxy por proxy en fases posteriores, no todo de una vez.</summary>
 public interface IContabilidad
 {
-    Task<ResponseGeneric<EstadoActivacionContabilidadDTO>> EstadoActivacion(long idEmpresa, int? idEmisor);
+    Task<ResponseGeneric<EstadoActivacionContabilidadDTO>> EstadoActivacion(long idEmpresa, int? idEmisor, int? idSucursal = null);
     Task<ResponseGeneric<bool>> ActivarEmpresa(long idEmpresa);
     Task<ResponseGeneric<bool>> DesactivarEmpresa(long idEmpresa);
+    Task<ResponseGeneric<bool>> ActivarSucursal(int idSucursal);
+    Task<ResponseGeneric<bool>> DesactivarSucursal(int idSucursal);
     Task<ResponseGeneric<long>> ActivarEmisor(ActivarEmisorDTO comando);
     Task<ResponseGeneric<bool>> DesactivarEmisor(int idEmisor);
     Task<ResponseGeneric<bool>> ConfirmarClave(string contrasena);

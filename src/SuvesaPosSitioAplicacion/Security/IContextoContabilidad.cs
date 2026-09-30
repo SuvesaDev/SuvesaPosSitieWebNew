@@ -20,5 +20,5 @@ public interface IContextoContabilidad
 
     /// <summary>Consulta el API (o el cache interno, si ya se resolvio este mismo
     /// emisor) y actualiza <see cref="HabilitadaEmisorActual"/>.</summary>
-    Task ResolverAsync(long idEmpresa, int idEmisor, CancellationToken ct = default);
+    Task ResolverAsync(long idEmpresa, int idEmisor, int idSucursal, CancellationToken ct = default);
 }

@@ -6,23 +6,23 @@ namespace SuvesaPosSitioAplicacion.Security;
 public sealed class ContextoContabilidad : IContextoContabilidad
 {
     private readonly IContabilidad _contabilidad;
-    private readonly Dictionary<int, bool> _cachePorEmisor = new();
+    private readonly Dictionary<(int Emisor, int Sucursal), bool> _cache = new();
 
     public ContextoContabilidad(IContabilidad contabilidad) => _contabilidad = contabilidad;
 
     public bool HabilitadaEmisorActual { get; private set; }
 
-    public async Task ResolverAsync(long idEmpresa, int idEmisor, CancellationToken ct = default)
+    public async Task ResolverAsync(long idEmpresa, int idEmisor, int idSucursal, CancellationToken ct = default)
     {
-        if (_cachePorEmisor.TryGetValue(idEmisor, out var cacheada))
+        if (_cache.TryGetValue((idEmisor, idSucursal), out var cacheada))
         {
             HabilitadaEmisorActual = cacheada;
             return;
         }
 
-        var respuesta = await _contabilidad.EstadoActivacion(idEmpresa, idEmisor);
+        var respuesta = await _contabilidad.EstadoActivacion(idEmpresa, idEmisor, idSucursal);
         var habilitada = respuesta.Responses?.Efectivo == true;
-        _cachePorEmisor[idEmisor] = habilitada;
+        _cache[(idEmisor, idSucursal)] = habilitada;
         HabilitadaEmisorActual = habilitada;
     }
 }

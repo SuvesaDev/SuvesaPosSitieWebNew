@@ -1265,7 +1265,7 @@
         // emisor — aquí se resuelve (y cachea) si el módulo está habilitado, para que
         // el menú lo refleje sin depender de un claim fijo de Identity.
         if (_idEmpresa > 0 && _idEmisor > 0)
-            await Contabilidad.ResolverAsync(_idEmpresa, _idEmisor);
+            await Contabilidad.ResolverAsync(_idEmpresa, _idEmisor, Sesion.IdSucursal);
     }
 
     private async Task BuscarClientes()

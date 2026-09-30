@@ -21,10 +21,10 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
         _api = api;
     }
 
-    public Task<ResponseGeneric<EstadoActivacionContabilidadDTO>> EstadoActivacion(long idEmpresa, int? idEmisor)
+    public Task<ResponseGeneric<EstadoActivacionContabilidadDTO>> EstadoActivacion(long idEmpresa, int? idEmisor, int? idSucursal = null)
         => Ejecutar(async () =>
         {
-            var r = await _api.EstadoActivacionAsync(idEmpresa, idEmisor);
+            var r = await _api.EstadoActivacionAsync(idEmpresa, idEmisor, idSucursal);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar el estado de activación de Contabilidad");
 
@@ -41,6 +41,20 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             var r = await _api.DesactivarAsync(idEmpresa);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "desactivar Contabilidad para la empresa");
+
+    public Task<ResponseGeneric<bool>> ActivarSucursal(int idSucursal)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ActivarSucursalAsync(idSucursal);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "activar Contabilidad para la sucursal");
+
+    public Task<ResponseGeneric<bool>> DesactivarSucursal(int idSucursal)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.DesactivarSucursalAsync(idSucursal);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "desactivar Contabilidad para la sucursal");
 
     public Task<ResponseGeneric<long>> ActivarEmisor(ActivarEmisorDTO comando)
         => Ejecutar(async () =>
