@@ -63,6 +63,7 @@
             @if (Sesion.Puede("CONTABILIDAD.CATALOGO_CUENTAS", AccionPantalla.Crear))
             {
                 <button class="btn btn-sm btn-outline-primary" disabled="@_guardando" @onclick="CargarCatalogoInicial">Cargar catálogo Tico Foodster</button>
+                <p class="form-text mb-0">También deja plantillas en borrador. No contabilizan hasta activarlas en Plantillas.</p>
             }
         }
         else
@@ -331,7 +332,9 @@
         _guardando = false;
         if (await Respuestas.CorrectaAsync(respuesta, "cargar el catálogo inicial"))
         {
-            Dialogos.Exito($"Se cargaron {respuesta.Responses} cuentas. Puede corregirlas mientras no tengan pólizas.");
+            await Dialogos.InformarAsync(
+                $"Se cargaron {respuesta.Responses} cuentas. Puede corregirlas mientras no tengan pólizas. También quedaron plantillas en borrador: el diario no las usa hasta que las active en Plantillas. Venta, nota de crédito y compra ya separan base, descuento e IVA. Revise la cuenta de caja o banco antes de activar el cobro y el pago.",
+                "Catálogo cargado");
             await CargarCuentas();
         }
     }

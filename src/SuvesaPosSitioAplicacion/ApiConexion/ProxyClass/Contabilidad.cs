@@ -1,6 +1,7 @@
 using System.IO;
 using SuvesaPosSitioAplicacion.ApiConexion.Generated;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
+using SuvesaPosSitioAplicacion.DTOs.Contabilidad;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.Helpers;
 using SuvesaPosSitioAplicacion.Security;
@@ -62,6 +63,20 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             var r = await _api.CargarCatalogoInicialAsync(idLibroContable);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "cargar el catálogo inicial");
+
+    public Task<ResponseGeneric<CuentasUsoContableDTO>> ObtenerCuentasUso(int idEmisor)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.CuentasUsoAsync(idEmisor);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar las cuentas de uso");
+
+    public Task<ResponseGeneric<CuentasUsoContableDTO>> GuardarCuentasUso(int idEmisor, CuentasUsoContableDTO comando)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.GuardarCuentasUsoAsync(idEmisor, comando);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "guardar las cuentas de uso");
 
     public Task<ResponseGeneric<long>> ActivarEmisor(ActivarEmisorDTO comando)
         => Ejecutar(async () =>

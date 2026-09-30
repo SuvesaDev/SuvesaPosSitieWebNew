@@ -397,7 +397,7 @@
 
     private async Task ActivarVersion(VersionPlantillaDTO version)
     {
-        if (!await Dialogos.ConfirmarAsync($"¿Activar la versión {version.Version}? Reemplazará la versión activa actual.", "Activar versión"))
+        if (!await Dialogos.ConfirmarAsync($"¿Activar la versión {version.Version}? A partir de ese momento los eventos de este tipo se contabilizan con estas cuentas. Reemplaza la versión activa, si la hay.", "Activar versión"))
             return;
 
         var respuesta = await Contabilidad.ActivarVersion(version.Id);

@@ -1,6 +1,7 @@
 @page "/accounting/issuer-setup"
 @using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
 @using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Contabilidad
 @using SuvesaPosSitioAplicacion.DTOs.Generated
 @using SuvesaPosSitioAplicacion.Services
 @inject IFacturacion FacturacionApi
@@ -109,6 +110,60 @@
                         </div>
                     }
                 }
+
+                @if (TieneLibro)
+                {
+                    <div class="mt-4">
+                        <h2 class="h6">Cuentas de uso</h2>
+                        <p class="form-text">El catálogo inicial sugiere un código. Aquí se elige la cuenta de este libro. Se puede cambiar cuando haga falta otra.</p>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="uso-retencion">Retención a proveedores</label>
+                                <select id="uso-retencion" class="form-select" value="@(_cuentasUso.IdCuentaRetencion ?? 0)" @onchange="AsignarRetencion">
+                                    <option value="0">Sin asignar</option>
+                                    @foreach (var cuenta in _cuentasMovimiento)
+                                    {
+                                        <option value="@cuenta.Id">@cuenta.Codigo — @cuenta.Descripcion</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="uso-dolares">Banco en dólares</label>
+                                <select id="uso-dolares" class="form-select" value="@(_cuentasUso.IdCuentaBancoDolares ?? 0)" @onchange="AsignarBancoDolares">
+                                    <option value="0">Sin asignar</option>
+                                    @foreach (var cuenta in _cuentasMovimiento)
+                                    {
+                                        <option value="@cuenta.Id">@cuenta.Codigo — @cuenta.Descripcion</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="uso-transito">Depósitos y cheques en tránsito</label>
+                                <select id="uso-transito" class="form-select" value="@(_cuentasUso.IdCuentaTransito ?? 0)" @onchange="AsignarTransito">
+                                    <option value="0">Sin asignar</option>
+                                    @foreach (var cuenta in _cuentasMovimiento)
+                                    {
+                                        <option value="@cuenta.Id">@cuenta.Codigo — @cuenta.Descripcion</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="uso-comisiones">Comisiones por pagar</label>
+                                <select id="uso-comisiones" class="form-select" value="@(_cuentasUso.IdCuentaComisionesPorPagar ?? 0)" @onchange="AsignarComisiones">
+                                    <option value="0">Sin asignar</option>
+                                    @foreach (var cuenta in _cuentasMovimiento)
+                                    {
+                                        <option value="@cuenta.Id">@cuenta.Codigo — @cuenta.Descripcion</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        @if (Sesion.Puede("CONTABILIDAD.CONFIGURACION_EMISOR", AccionPantalla.Editar))
+                        {
+                            <button class="btn btn-sm btn-primary mt-3" disabled="@_guardando" @onclick="GuardarCuentasUso">Guardar cuentas de uso</button>
+                        }
+                    </div>
+                }
             </div>
         </div>
     </ChildContent>
@@ -124,8 +179,11 @@
     private int _idEmisor;
     private int _idSucursal;
     private EstadoActivacionContabilidadDTO? _estado;
+    private CuentasUsoContableDTO _cuentasUso = new();
+    private List<CuentaContableDTO> _cuentasMovimiento = new();
     private bool _cargando;
     private bool _guardando;
+    private bool TieneLibro => _idEmisor > 0 && _estado?.IdLibroContable is > 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -151,7 +209,36 @@
         _cargando = false;
 
         if (_idEmisor > 0)
+        {
             await ContextoContabilidad.ResolverAsync(_idEmpresa, _idEmisor, _idSucursal);
+            if (_estado?.IdLibroContable is > 0)
+            {
+                _cuentasUso = await Respuestas.DatoAsync(await Contabilidad.ObtenerCuentasUso(_idEmisor), "consultar las cuentas de uso") ?? new CuentasUsoContableDTO { IdEmisor = _idEmisor };
+                var cuentas = await Respuestas.DatoAsync(await Contabilidad.ListarCuentas(_estado.IdLibroContable.Value), "consultar el catálogo");
+                _cuentasMovimiento = cuentas?.Where(c => c.PermiteMovimiento == true).OrderBy(c => c.Codigo).ToList() ?? new();
+            }
+        }
+    }
+
+    private static long? CuentaElegida(ChangeEventArgs evento)
+        => long.TryParse(evento.Value?.ToString(), out var idCuenta) && idCuenta > 0 ? idCuenta : null;
+
+    private void AsignarRetencion(ChangeEventArgs evento) => _cuentasUso.IdCuentaRetencion = CuentaElegida(evento);
+    private void AsignarBancoDolares(ChangeEventArgs evento) => _cuentasUso.IdCuentaBancoDolares = CuentaElegida(evento);
+    private void AsignarTransito(ChangeEventArgs evento) => _cuentasUso.IdCuentaTransito = CuentaElegida(evento);
+    private void AsignarComisiones(ChangeEventArgs evento) => _cuentasUso.IdCuentaComisionesPorPagar = CuentaElegida(evento);
+
+    private async Task GuardarCuentasUso()
+    {
+        _cuentasUso.IdEmisor = _idEmisor;
+        _guardando = true;
+        var respuesta = await Contabilidad.GuardarCuentasUso(_idEmisor, _cuentasUso);
+        _guardando = false;
+        if (await Respuestas.CorrectaAsync(respuesta, "guardar las cuentas de uso"))
+        {
+            _cuentasUso = respuesta.Responses ?? _cuentasUso;
+            Dialogos.Exito("Cuentas de uso guardadas.");
+        }
     }
 
     private Task ActivarSucursal() => Ejecutar(() => Contabilidad.ActivarSucursal(_idSucursal), "encender Contabilidad en la sucursal");

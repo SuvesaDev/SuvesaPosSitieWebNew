@@ -1,5 +1,6 @@
 using System.IO;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
+using SuvesaPosSitioAplicacion.DTOs.Contabilidad;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.Helpers;
 using SuvesaPosSitioAplicacion.Security;
@@ -31,6 +32,8 @@ public class ContextoContabilidadTests
         public Task<ResponseGeneric<bool>> ActivarSucursal(int idSucursal) => Task.FromResult(new ResponseGeneric<bool>(true));
         public Task<ResponseGeneric<bool>> DesactivarSucursal(int idSucursal) => Task.FromResult(new ResponseGeneric<bool>(true));
         public Task<ResponseGeneric<long>> CargarCatalogoInicial(long idLibroContable) => Task.FromResult(new ResponseGeneric<long>(0L));
+        public Task<ResponseGeneric<CuentasUsoContableDTO>> ObtenerCuentasUso(int idEmisor) => throw new NotImplementedException();
+        public Task<ResponseGeneric<CuentasUsoContableDTO>> GuardarCuentasUso(int idEmisor, CuentasUsoContableDTO comando) => throw new NotImplementedException();
         public Task<ResponseGeneric<long>> ActivarEmisor(ActivarEmisorDTO comando) => Task.FromResult(new ResponseGeneric<long>(1L));
         public Task<ResponseGeneric<bool>> DesactivarEmisor(int idEmisor) => Task.FromResult(new ResponseGeneric<bool>(true));
         public Task<ResponseGeneric<bool>> ConfirmarClave(string contrasena) => Task.FromResult(new ResponseGeneric<bool>(true));

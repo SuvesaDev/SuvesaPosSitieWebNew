@@ -179,6 +179,8 @@
 
                 <dt class="col-5 fw-normal text-secondary">Plazo</dt>
                 <dd class="col-7 seepos-importe">@(_elegido.Plazo ?? 0) dias</dd>
+                <dt class="col-5 fw-normal text-secondary">Retención</dt>
+                <dd class="col-7 seepos-importe">@(_elegido.PorcentajeRetencion is > 0 ? _elegido.PorcentajeRetencion.Value.ToString("0.####") + " %" : "No aplica")</dd>
 
                 <dt class="col-5 fw-normal text-secondary">Cuenta contable</dt>
                 <dd class="col-7">@(_elegido.DescripcionCuentaContable ?? "—")</dd>
@@ -252,6 +254,11 @@
                     <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Fax" @bind-Valor="_edicion.Fax1" /></div>
                     <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo" @bind-Valor="_edicion.Email" /></div>
                     <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Cuenta contable" @bind-Valor="_edicion.DescripcionCuentaContable" /></div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="proveedor-retencion">Retención (%)</label>
+                        <input id="proveedor-retencion" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.PorcentajeRetencion" />
+                        <div class="form-text">Vacío o cero: a este proveedor no se le retiene.</div>
+                    </div>
                     <div class="col-12"><AppCampoTexto Etiqueta="Dirección" @bind-Valor="_edicion.Direccion" /></div>
                     <div class="col-12"><AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" /></div>
                     <div class="col-12 d-flex gap-3">
@@ -517,6 +524,7 @@
         Direccion = p.Direccion,
         MontoCredito = p.MontoCredito,
         Plazo = p.Plazo,
+        PorcentajeRetencion = p.PorcentajeRetencion,
         CostoTotal = p.CostoTotal,
         ImpIncluido = p.ImpIncluido,
         PedidosMes = p.PedidosMes,

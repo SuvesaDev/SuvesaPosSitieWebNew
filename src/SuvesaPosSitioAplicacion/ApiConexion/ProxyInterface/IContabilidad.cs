@@ -1,4 +1,5 @@
 using System.IO;
+using SuvesaPosSitioAplicacion.DTOs.Contabilidad;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
 using SuvesaPosSitioAplicacion.Helpers;
 
@@ -15,6 +16,8 @@ public interface IContabilidad
     Task<ResponseGeneric<bool>> ActivarSucursal(int idSucursal);
     Task<ResponseGeneric<bool>> DesactivarSucursal(int idSucursal);
     Task<ResponseGeneric<long>> CargarCatalogoInicial(long idLibroContable);
+    Task<ResponseGeneric<CuentasUsoContableDTO>> ObtenerCuentasUso(int idEmisor);
+    Task<ResponseGeneric<CuentasUsoContableDTO>> GuardarCuentasUso(int idEmisor, CuentasUsoContableDTO comando);
     Task<ResponseGeneric<long>> ActivarEmisor(ActivarEmisorDTO comando);
     Task<ResponseGeneric<bool>> DesactivarEmisor(int idEmisor);
     Task<ResponseGeneric<bool>> ConfirmarClave(string contrasena);
