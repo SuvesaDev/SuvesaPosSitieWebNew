@@ -40,7 +40,7 @@ public interface IContabilidad
     // ---- W3: bandeja, pólizas manuales, reverso y reproceso ----
     Task<ResponseGeneric<ICollection<EventoContableDTO>>> ListarEventos(long? idLibroContable, string? estado, string? tipoEvento, string? origenModulo, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina);
     Task<ResponseGeneric<bool>> ReintentarEvento(long idEvento);
-    Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina, long? idCliente = null, long? idProveedor = null, string? origenModulo = null);
+    Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina, long? idCliente = null, long? idProveedor = null, string? origenModulo = null, int? idSucursal = null);
     Task<ResponseGeneric<AsientoContableDTO>> CrearAsientoManual(CrearAsientoManualDTO comando);
     Task<ResponseGeneric<AsientoContableDTO>> ReversarAsiento(long idAsiento, string? contrasena);
 
@@ -52,7 +52,7 @@ public interface IContabilidad
     Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ListarPeriodos(long idLibroContable);
     Task<ResponseGeneric<ICollection<AuditoriaContableDTO>>> ListarAuditoria(long? idLibroContable, string? entidad, string? usuario, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina);
     Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ObtenerLibroDiario(long idLibroContable, DateOnly desde, DateOnly hasta, int? idSucursal = null);
-    Task<ResponseGeneric<LibroMayorDTO>> ObtenerLibroMayor(long idCuentaContable, DateOnly desde, DateOnly hasta);
+    Task<ResponseGeneric<LibroMayorDTO>> ObtenerLibroMayor(long idCuentaContable, DateOnly desde, DateOnly hasta, int? idSucursal = null);
     Task<ResponseGeneric<BalanzaComprobacionDTO>> ObtenerBalanza(long idLibroContable, DateOnly fechaCorte);
     Task<ResponseGeneric<EstadoResultadosDTO>> ObtenerEstadoResultados(long idLibroContable, DateOnly desde, DateOnly hasta);
     Task<ResponseGeneric<BalanceGeneralDTO>> ObtenerBalanceGeneral(long idLibroContable, DateOnly fechaCorte);

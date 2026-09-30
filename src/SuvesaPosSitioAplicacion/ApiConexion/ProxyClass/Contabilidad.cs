@@ -200,10 +200,10 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "reintentar el evento contable");
 
-    public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina, long? idCliente = null, long? idProveedor = null, string? origenModulo = null)
+    public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina, long? idCliente = null, long? idProveedor = null, string? origenModulo = null, int? idSucursal = null)
         => Ejecutar(async () =>
         {
-            var r = await _api.AsientosAsync(idLibroContable, pagina, tamanoPagina, idCliente, idProveedor, origenModulo);
+            var r = await _api.AsientosAsync(idLibroContable, pagina, tamanoPagina, idCliente, idProveedor, origenModulo, idSucursal);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar la bandeja de pólizas");
 
@@ -265,10 +265,10 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar el libro diario");
 
-    public Task<ResponseGeneric<LibroMayorDTO>> ObtenerLibroMayor(long idCuentaContable, DateOnly desde, DateOnly hasta)
+    public Task<ResponseGeneric<LibroMayorDTO>> ObtenerLibroMayor(long idCuentaContable, DateOnly desde, DateOnly hasta, int? idSucursal = null)
         => Ejecutar(async () =>
         {
-            var r = await _api.MayorAsync(idCuentaContable, AFecha(desde), AFecha(hasta));
+            var r = await _api.MayorAsync(idCuentaContable, AFecha(desde), AFecha(hasta), idSucursal);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar el libro mayor");
 

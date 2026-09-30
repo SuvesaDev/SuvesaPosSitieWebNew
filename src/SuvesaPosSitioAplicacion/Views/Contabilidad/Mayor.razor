@@ -6,6 +6,7 @@
 @inject IFacturacion FacturacionApi
 @inject IEmisoresFiscales EmisoresApi
 @inject IContabilidad Contabilidad
+@inject ISucursales SucursalesApi
 @inject IContextoSesion Sesion
 @inject IManejadorRespuestas Respuestas
 
@@ -49,6 +50,16 @@
                         </select>
                     </div>
                     <div class="col-12 col-md-3">
+                        <label class="form-label" for="my-sucursal">Sucursal</label>
+                        <select id="my-sucursal" class="form-select" @bind="_idSucursalFiltro" @bind:after="Buscar">
+                            <option value="0">Todas</option>
+                            @foreach (var sucursal in _sucursales)
+                            {
+                                <option value="@sucursal.Id">@(sucursal.NombreComercial ?? sucursal.Alias ?? sucursal.Id.ToString())</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
                         <label class="form-label" for="my-periodo">Período</label>
                         <select id="my-periodo" class="form-select" @bind="_idPeriodo" @bind:after="Buscar" disabled="@(_periodos.Count == 0)">
                             <option value="0">Seleccione...</option>
@@ -87,7 +98,7 @@
                                     <td>@linea.TipoMovimiento</td>
                                     <td class="text-end">@linea.Monto.ToString("N2")</td>
                                     <td class="text-end">@linea.SaldoAcumulado.ToString("N2")</td>
-                                    <td>@linea.Descripcion</td>
+                                    <td>@linea.Descripcion@(linea.IdSucursal is int idSucursal ? $" · sucursal {idSucursal}" : "")</td>
                                 </tr>
                             }
                             @if ((_mayor.Lineas?.Count ?? 0) == 0) { <tr><td colspan="5" class="text-secondary">Sin movimientos en este período.</td></tr> }
@@ -116,11 +127,14 @@
     private bool _cargando;
 
     private LibroMayorDTO? _mayor;
+    private List<DTOs.Fiscal.SucursalFiscalDTO> _sucursales = new();
+    private int _idSucursalFiltro;
 
     protected override async Task OnInitializedAsync()
     {
         _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
         _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        _sucursales = (await Respuestas.DatoAsync(await SucursalesApi.Obtener(), "consultar las sucursales"))?.ToList() ?? new();
         if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
         if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
         await AlCambiarSeleccion();
@@ -152,7 +166,8 @@
         if (periodo is null) return;
 
         _cargando = true;
-        _mayor = await Respuestas.DatoAsync(await Contabilidad.ObtenerLibroMayor(_idCuenta, DateOnly.FromDateTime(periodo.FechaInicio.Date), DateOnly.FromDateTime(periodo.FechaFin.Date)), "consultar el libro mayor");
+        var idSucursal = _idSucursalFiltro > 0 ? _idSucursalFiltro : (int?)null;
+        _mayor = await Respuestas.DatoAsync(await Contabilidad.ObtenerLibroMayor(_idCuenta, DateOnly.FromDateTime(periodo.FechaInicio.Date), DateOnly.FromDateTime(periodo.FechaFin.Date), idSucursal), "consultar el libro mayor");
         _cargando = false;
     }
 }

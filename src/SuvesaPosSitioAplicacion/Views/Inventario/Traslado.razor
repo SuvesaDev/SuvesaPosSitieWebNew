@@ -12,12 +12,11 @@
 @inject IServicioDialogos Dialogos
 @inject SuvesaPosSitioAplicacion.Security.IContextoSesion Sesion
 
-@*  Traslado de existencias entre bodegas del MISMO centro
-    (BODEGAS_POR_CENTRO_Y_TRASLADOS_WEB.md §3.4). Origen y destino sólo listan
-    bodegas del centro de la sesión; no hay traslado inter-centro. *@
+@* Origen: bodegas del centro abierto. Destino: cualquier centro del mismo emisor.
+   El API rechaza el traslado si los centros no comparten emisor. *@
 
 <AppPantalla Pantalla="Traslado entre bodegas" Codigo="COMPRAS.TRASLADO_ENTRE_BODEGAS" Icono="bi-arrow-left-right"
-             Subtitulo="Pasar existencias de una bodega a otra del mismo centro" Nivel="NivelPantalla.Tableta">
+             Subtitulo="Pasar existencias a otra bodega del mismo emisor" Nivel="NivelPantalla.Tableta">
  <ChildContent>
   @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
 
@@ -26,16 +25,16 @@
       <div class="col-md-4"><label class="form-label">Bodega de origen <span class="text-danger">*</span></label>
         <select class="form-select" @bind="_origen">
           <option value="0">Seleccione...</option>
-          @foreach (var b in _bodegas) { <option value="@b.IdBodega">@b.NombreBodega</option> }
+          @foreach (var b in _origenes) { <option value="@b.IdBodega">@Rotulo(b)</option> }
         </select></div>
       <div class="col-md-4"><label class="form-label">Bodega de destino <span class="text-danger">*</span></label>
         <select class="form-select" @bind="_destino">
           <option value="0">Seleccione...</option>
-          @foreach (var b in _bodegas.Where(b => b.IdBodega != _origen)) { <option value="@b.IdBodega">@b.NombreBodega</option> }
+          @foreach (var b in _destinos.Where(b => b.IdBodega != _origen)) { <option value="@b.IdBodega">@Rotulo(b)</option> }
         </select></div>
       <div class="col-md-4"><label class="form-label">Documento / referencia</label><input class="form-control" @bind="_documento" /></div>
     </div>
-    <p class="form-text mb-0">Sólo bodegas del centro actual. El traslado entre centros distintos no está permitido.</p>
+    <p class="form-text mb-0">El origen es del centro actual. El destino puede ser otra bodega de este centro o de otro centro del mismo emisor. Entre emisores distintos el traslado no se registra y no genera cuentas por cobrar ni por pagar.</p>
   </div></div>
 
   @if (_origen > 0 && _destino > 0)
@@ -134,7 +133,8 @@
 </HxModal>
 
 @code {
- private List<BodegaOperativa> _bodegas = new();
+ private List<BodegaOperativa> _origenes = new();
+ private List<BodegaOperativa> _destinos = new();
  private int _origen, _destino;
  private string _documento = "", _motivo = "", _texArt = "", _error = "";
  private List<InventarioDTO> _arts = new();
@@ -153,11 +153,18 @@
  protected override async Task OnInitializedAsync()
  {
      var r = await Api.BodegasOperativasAsync(Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null);
-     _bodegas = r.Status == ResponseStatus._0
+     _origenes = r.Status == ResponseStatus._0
          ? (r.Responses ?? new()).Where(b => b.IdSucursal == Sesion.IdSucursal).ToList()
          : new();
+     var todas = await Api.BodegasOperativasAsync(null);
+     _destinos = todas.Status == ResponseStatus._0
+         ? (todas.Responses ?? new()).Where(b => b.IdSucursal is > 0).ToList()
+         : _origenes;
      await CargarRecientes();
  }
+
+ private static string Rotulo(BodegaOperativa bodega)
+     => string.IsNullOrWhiteSpace(bodega.NombreSucursal) ? bodega.NombreBodega : $"{bodega.NombreBodega} — {bodega.NombreSucursal}";
 
  private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
 

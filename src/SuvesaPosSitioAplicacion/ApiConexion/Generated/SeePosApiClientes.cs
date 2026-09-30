@@ -34747,7 +34747,7 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<AsientoContableDTOIReadOnlyListResponseGeneric> AsientosAsync(long? idLibroContable = null, int? pagina = null, int? tamanoPagina = null, long? idCliente = null, long? idProveedor = null, string? origenModulo = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+        System.Threading.Tasks.Task<AsientoContableDTOIReadOnlyListResponseGeneric> AsientosAsync(long? idLibroContable = null, int? pagina = null, int? tamanoPagina = null, long? idCliente = null, long? idProveedor = null, string? origenModulo = null, int? idSucursal = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
@@ -34847,7 +34847,7 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<LibroMayorDTOResponseGeneric> MayorAsync(long? idCuentaContable = null, System.DateTimeOffset? desde = null, System.DateTimeOffset? hasta = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+        System.Threading.Tasks.Task<LibroMayorDTOResponseGeneric> MayorAsync(long? idCuentaContable = null, System.DateTimeOffset? desde = null, System.DateTimeOffset? hasta = null, int? idSucursal = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
@@ -37135,7 +37135,7 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<AsientoContableDTOIReadOnlyListResponseGeneric> AsientosAsync(long? idLibroContable = null, int? pagina = null, int? tamanoPagina = null, long? idCliente = null, long? idProveedor = null, string? origenModulo = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<AsientoContableDTOIReadOnlyListResponseGeneric> AsientosAsync(long? idLibroContable = null, int? pagina = null, int? tamanoPagina = null, long? idCliente = null, long? idProveedor = null, string? origenModulo = null, int? idSucursal = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -37174,6 +37174,10 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
                     if (origenModulo != null)
                     {
                         urlBuilder_.Append(System.Uri.EscapeDataString("origenModulo")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(origenModulo, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (idSucursal != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("idSucursal")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(idSucursal, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
                     }
                     urlBuilder_.Length--;
 
@@ -38772,7 +38776,7 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<LibroMayorDTOResponseGeneric> MayorAsync(long? idCuentaContable = null, System.DateTimeOffset? desde = null, System.DateTimeOffset? hasta = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<LibroMayorDTOResponseGeneric> MayorAsync(long? idCuentaContable = null, System.DateTimeOffset? desde = null, System.DateTimeOffset? hasta = null, int? idSucursal = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -38799,6 +38803,10 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
                     if (hasta != null)
                     {
                         urlBuilder_.Append(System.Uri.EscapeDataString("hasta")).Append('=').Append(System.Uri.EscapeDataString(hasta.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (idSucursal != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("idSucursal")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(idSucursal, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
                     }
                     urlBuilder_.Length--;
 

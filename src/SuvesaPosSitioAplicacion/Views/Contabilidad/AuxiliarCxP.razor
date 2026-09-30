@@ -6,6 +6,7 @@
 @inject IFacturacion FacturacionApi
 @inject IEmisoresFiscales EmisoresApi
 @inject IContabilidad Contabilidad
+@inject ISucursales SucursalesApi
 @inject IContextoSesion Sesion
 @inject IServicioDialogos Dialogos
 @inject IManejadorRespuestas Respuestas
@@ -36,6 +37,16 @@
                             @foreach (var emisor in _emisores)
                             {
                                 <option value="@emisor.Id">@emisor.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label" for="axp-sucursal">Sucursal</label>
+                        <select id="axp-sucursal" class="form-select" @bind="_idSucursalFiltro">
+                            <option value="0">Todas</option>
+                            @foreach (var sucursal in _sucursales)
+                            {
+                                <option value="@sucursal.Id">@(sucursal.NombreComercial ?? sucursal.Alias ?? sucursal.Id.ToString())</option>
                             }
                         </select>
                     </div>
@@ -130,6 +141,8 @@
     private int _idEmisor;
     private long _idLibroContable;
     private long? _idProveedor;
+    private List<DTOs.Fiscal.SucursalFiscalDTO> _sucursales = new();
+    private int _idSucursalFiltro;
 
     private List<AsientoContableDTO> _asientos = new();
     private bool _conciliando;
@@ -145,6 +158,7 @@
     {
         _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
         _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        _sucursales = (await Respuestas.DatoAsync(await SucursalesApi.Obtener(), "consultar las sucursales"))?.ToList() ?? new();
         if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
         if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
         await AlCambiarSeleccion();
@@ -163,7 +177,7 @@
 
     private async Task Buscar()
     {
-        _asientos = (await Respuestas.DatoAsync(await Contabilidad.ListarAsientos(_idLibroContable, 1, 100, idProveedor: _idProveedor), "consultar el auxiliar CxP"))?.ToList() ?? new();
+        _asientos = (await Respuestas.DatoAsync(await Contabilidad.ListarAsientos(_idLibroContable, 1, 100, idProveedor: _idProveedor, idSucursal: _idSucursalFiltro > 0 ? _idSucursalFiltro : null), "consultar el auxiliar CxP"))?.ToList() ?? new();
     }
 
     private async Task Conciliar()
