@@ -114,13 +114,14 @@ public class FiltroMenuTests
         // Cumplimiento CABYS) + 4 (Apartados y préstamos, KPI por ruta, Empaquetado y
         // maquila, Mermas) + 1 (Panel ejecutivo) + 1 (Tablero de Consignación, pantalla
         // huérfana que ya existía sin nodo de menú) + 1 (Ventas entre horas) + 1
-        // (Importaciones) — ver PLAN_MODULO_REPORTES_ERP_WEB.md. + 3 (módulo
+        // (Importaciones) + 1 (Reportes → Importaciones, KPI trasladado fuera de
+        // Compras → Importaciones) — ver PLAN_MODULO_REPORTES_ERP_WEB.md. + 3 (módulo
         // Contabilidad: raíz + Configuración emisor + Catálogo cuentas, W1) + 2
         // (Dimensiones, Plantillas, W2) + 2 (Bandeja, Reproceso, W3) + 6 (Diario, Mayor,
         // Auxiliar CxC, Auxiliar CxP, Auxiliar Inventario, Bitácora, W4) + 6 (Cierre,
         // Cierre anual, Balanza, Estado de resultados, Balance general, Flujo de
         // efectivo, W5).
-        Assert.Equal(133, Contar(MenuSeePos.Items));
+        Assert.Equal(134, Contar(MenuSeePos.Items));
     }
 
     private sealed class ContabilidadFalsa : IContextoContabilidad

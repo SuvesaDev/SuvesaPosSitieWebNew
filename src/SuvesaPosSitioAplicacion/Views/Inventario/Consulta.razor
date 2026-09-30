@@ -797,8 +797,9 @@
                                         <td>@b.NombreBodega</td>
                                         <td class="text-end">@b.Existencia.ToString("N2")</td>
                                         <td class="text-end"><div class="input-group input-group-sm">
-                                            <input type="number" step="0.001" min="0" class="form-control text-end" @bind="_ajusteExistencia" />
-                                            <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(b.IdBodega, null)">Aplicar</button>
+                                            <input type="number" step="0.001" min="0" class="form-control text-end"
+                                                   value="@AjusteTexto(b.IdBodega, null)" @onchange="e => SetAjuste(b.IdBodega, null, e.Value?.ToString())" />
+                                            <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(b.IdBodega, null, AjusteDe(b.IdBodega, null))">Aplicar</button>
                                         </div></td>
                                     </tr>
                                 }
@@ -824,8 +825,9 @@
                                             <td>@pb.NombreBodega</td>
                                             <td class="text-end">@pb.Existencia.ToString("N2")</td>
                                             <td class="text-end"><div class="input-group input-group-sm">
-                                                <input type="number" step="0.001" min="0" class="form-control text-end" @bind="_ajusteExistencia" />
-                                                <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(pb.IdBodega, l.Id)">Aplicar</button>
+                                                <input type="number" step="0.001" min="0" class="form-control text-end"
+                                                       value="@AjusteTexto(pb.IdBodega, l.Id)" @onchange="e => SetAjuste(pb.IdBodega, l.Id, e.Value?.ToString())" />
+                                                <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(pb.IdBodega, l.Id, AjusteDe(pb.IdBodega, l.Id))">Aplicar</button>
                                             </div></td>
                                         </tr>
                                     }
@@ -842,9 +844,10 @@
                                             </td>
                                             <td class="text-end">0,00</td>
                                             <td class="text-end"><div class="input-group input-group-sm">
-                                                <input type="number" step="0.001" min="0" class="form-control text-end" @bind="_ajusteExistencia" />
+                                                <input type="number" step="0.001" min="0" class="form-control text-end"
+                                                       value="@AjusteNuevaBodegaTexto(l.Id)" @onchange="e => SetAjusteNuevaBodega(l.Id, e.Value?.ToString())" />
                                                 <button type="button" class="btn btn-outline-primary"
-                                                        @onclick="() => AjustarExistencia(BodegaSeleccionadaLote(l.Id, bodegasNuevasLote), l.Id)">
+                                                        @onclick="() => AjustarExistencia(BodegaSeleccionadaLote(l.Id, bodegasNuevasLote), l.Id, AjusteNuevaBodegaDe(l.Id))">
                                                     Aplicar
                                                 </button>
                                             </div></td>
@@ -1408,7 +1411,11 @@
     private ExistenciaConsolidada? _existenciaConsol;
     private MovimientoInventarioPagina? _movimientos;
     private bool _cargandoExistencias, _cargandoMovimientos;
-    private double _ajusteExistencia;
+    // Un valor por fila (bodega + lote), no un solo campo compartido: antes todas las
+    // filas de "Ajustar a" mostraban el mismo número porque @bind apuntaba a un único
+    // _ajusteExistencia, y "Aplicar" en cualquier fila mandaba ese mismo valor compartido.
+    private readonly Dictionary<(int Bodega, long? IdLote), double> _ajustesExistencia = new();
+    private readonly Dictionary<long, double> _ajustesNuevaBodegaLote = new();
     private int _movPagina = 1;
     private DateTime? _movDesde, _movHasta;
     private int _movBodega;
@@ -1447,6 +1454,22 @@
         if (int.TryParse(e.Value?.ToString(), out var b)) _bodegaNuevaPorLote[idLote] = b;
     }
 
+    private double AjusteDe(int bodega, long? idLote) => _ajustesExistencia.TryGetValue((bodega, idLote), out var v) ? v : 0;
+    private string AjusteTexto(int bodega, long? idLote) => AjusteDe(bodega, idLote).ToString(System.Globalization.CultureInfo.InvariantCulture);
+    private void SetAjuste(int bodega, long? idLote, string? texto)
+    {
+        if (double.TryParse(texto, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v))
+            _ajustesExistencia[(bodega, idLote)] = v;
+    }
+
+    private double AjusteNuevaBodegaDe(long idLote) => _ajustesNuevaBodegaLote.TryGetValue(idLote, out var v) ? v : 0;
+    private string AjusteNuevaBodegaTexto(long idLote) => AjusteNuevaBodegaDe(idLote).ToString(System.Globalization.CultureInfo.InvariantCulture);
+    private void SetAjusteNuevaBodega(long idLote, string? texto)
+    {
+        if (double.TryParse(texto, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v))
+            _ajustesNuevaBodegaLote[idLote] = v;
+    }
+
     private async Task MostrarMovimientos()
     {
         _pestanaInventario = "movimientos";
@@ -1460,6 +1483,8 @@
         _cargandoExistencias = true;
         var r = await Lotes2.ExistenciaConsolidadaAsync(_edicion.Codigo);
         _cargandoExistencias = false;
+        _ajustesExistencia.Clear();
+        _ajustesNuevaBodegaLote.Clear();
         _existenciaConsol = r.Status == DTOs.Generated.ResponseStatus._0 ? r.Responses : null;
         if (_existenciaConsol is null && !string.IsNullOrWhiteSpace(r.CurrentException))
             await Dialogos.ErrorAsync(r.CurrentException);
@@ -1485,7 +1510,7 @@
             await Dialogos.ErrorAsync(r.CurrentException);
     }
 
-    private async Task AjustarExistencia(int bodega, long? idStockLote)
+    private async Task AjustarExistencia(int bodega, long? idStockLote, double cantidad)
     {
         if (_edicion is null) return;
         if (bodega <= 0)
@@ -1498,14 +1523,14 @@
                             ?? _bodegasMov.FirstOrDefault(b => b.IdBodega == bodega)?.NombreBodega
                             ?? $"bodega {bodega}";
         if (!await Dialogos.ConfirmarAsync(
-                $"Se fijará la existencia en {nombreBodega} en {_ajusteExistencia:N2} y quedará registrado el movimiento.", "Ajustar existencia"))
+                $"Se fijará la existencia en {nombreBodega} en {cantidad:N2} y quedará registrado el movimiento.", "Ajustar existencia"))
             return;
         var r = await Lotes2.ActualizarExistenciaAsync(new ActualizarExistencia
         {
             IdArticulo = _edicion.Codigo,
             Bodega = bodega,
             IdStockLote = idStockLote,
-            Cantidad = _ajusteExistencia,
+            Cantidad = cantidad,
             Observaciones = "Ajuste manual desde inventario"
         });
         if (r.Status != DTOs.Generated.ResponseStatus._0)

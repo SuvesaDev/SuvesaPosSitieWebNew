@@ -24,6 +24,8 @@ public interface ICobros
 
     Task<ResponseGeneric<PreventaDTO>> BuscarPorCliente(long codCliente);
 
+    Task<ResponseGeneric<FacturaDTO>> EditarPreventa(PreventaDTO preventa);
+
     Task<ResponseGeneric<ICollection<CobroDocumentosDTO>>> Cobrar(ICollection<CobroDocumentosDTO> cobros);
 
     /// <summary>Solo aplica cuando el documento no es de crédito: convierte la preventa en factura.</summary>

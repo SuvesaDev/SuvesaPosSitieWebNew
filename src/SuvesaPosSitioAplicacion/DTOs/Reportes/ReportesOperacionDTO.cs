@@ -34,6 +34,7 @@ public sealed class ReporteOperacionWebDTO
     public int Pagina { get; set; }
     public int TamanoPagina { get; set; }
     public bool Limitado { get; set; }
+    public bool IndicadoresDelPeriodoCompleto { get; set; }
 }
 
 public sealed class IndicadorReporteOperacionWebDTO { public string Etiqueta { get; set; } = string.Empty; public decimal Valor { get; set; } public string? Formato { get; set; } }

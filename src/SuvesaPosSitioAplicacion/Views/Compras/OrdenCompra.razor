@@ -1,4 +1,5 @@
 @page "/buys/purchaseorder"
+@page "/buys/purchaseorder/{Orden:long}"
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.DTOs.Compras
 @using SuvesaPosSitioAplicacion.Services
@@ -96,7 +97,7 @@
                 </div>
                 @if (_moneda != 1)
                 {
-                    <div class="col-6 col-md-3"><label class="form-label">Tipo de cambio</label><input type="number" min="0" step="0.0001" class="form-control" @bind="_tipoCambio" /></div>
+                    <div class="col-6 col-md-3"><label class="form-label">Tipo de cambio *</label><input type="number" min="0.0001" step="0.0001" class="form-control" @bind="_tipoCambio" /><small class="text-secondary">El de esta orden. No se asume 1.</small></div>
                 }
                 <div class="col-6 col-md-3 d-flex align-items-end gap-3">
                     <div class="form-check"><input class="form-check-input" type="radio" name="fp" id="fpC" checked="@(!_credito)" @onclick="() => _credito = false" /><label class="form-check-label" for="fpC">Contado</label></div>
@@ -164,7 +165,7 @@
 
         <div class="d-flex gap-2 mt-3">
             <button class="btn btn-primary" disabled="@(_guardando || _proveedor is null || _lineas.Count == 0)" @onclick="Guardar">
-                @(_guardando ? "Guardando..." : "Registrar orden")
+                @(_guardando ? "Guardando..." : _ordenEdicion > 0 ? "Guardar cambios" : "Registrar orden")
             </button>
         </div>
     </ChildContent>
@@ -214,6 +215,9 @@
     private decimal _subtotal, _descuento, _impuesto, _total;
     private bool _guardando, _enviando;
     private OrdenCompraFlujoWebDTO? _creada;
+    private long _ordenEdicion;
+
+    [Parameter] public long Orden { get; set; }
 
     private string MonedaTexto => _moneda == 2 ? "USD" : _monedas.FirstOrDefault(m => m.CodMoneda == _moneda)?.MonedaNombre ?? "CRC";
 
@@ -223,6 +227,41 @@
         _proveedores = (await Respuestas.DatoAsync(await Proveedores.Obtener(), "consultar los proveedores"))
                        ?.Where(p => p.Inhabilitado != true).OrderBy(p => p.Nombre).ToList() ?? new();
         _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))?.Where(m => m.Estado).ToList() ?? new();
+        if (Orden > 0) await CargarParaEditar(Orden);
+    }
+
+    private async Task CargarParaEditar(long orden)
+    {
+        var o = await Respuestas.DatoAsync(await Api.Obtener(orden), "abrir la orden");
+        if (o is null) return;
+        if (o.EstadoSeguimiento != 1)
+        {
+            await Dialogos.ErrorAsync("Solo se corrige una orden pendiente que todavía no se envió.");
+            return;
+        }
+        _ordenEdicion = o.Orden;
+        _proveedor = _proveedores.FirstOrDefault(p => p.CodigoProv == o.IdProveedor);
+        _textoProveedor = _proveedor?.Nombre ?? o.NombreProveedor;
+        _fecha = o.Fecha;
+        _moneda = o.CodMoneda <= 0 ? 1 : o.CodMoneda;
+        _tipoCambio = o.TipoCambio;
+        _tipoOrdenCompra = o.TipoOrdenCompra is > 0 ? o.TipoOrdenCompra.Value : 1;
+        _credito = o.Credito;
+        _diasCredito = o.Plazo;
+        _observaciones = o.Observaciones ?? "";
+        _entregar = "";
+        _lineas.Clear();
+        foreach (var l in o.Lineas)
+            _lineas.Add(new Linea
+            {
+                Codigo = l.CodArticulo,
+                Descripcion = l.Descripcion,
+                Cantidad = (decimal)l.Cantidad,
+                CostoUnitario = (decimal)l.CostoUnitario,
+                PorcDescuento = (decimal)l.PorcDescuento,
+                PorcImpuestoCatalogo = (decimal)l.PorcImpuesto,
+            });
+        Recalcular();
     }
 
     private void AlCambiarMoneda()
@@ -286,6 +325,11 @@
     private async Task Guardar()
     {
         if (_proveedor is null || _lineas.Count == 0 || _guardando) return;
+        if (_moneda != 1 && _tipoCambio <= 0)
+        {
+            await Dialogos.ErrorAsync("Indique el tipo de cambio de esta orden.");
+            return;
+        }
         if (!await Dialogos.ConfirmarAsync("¿Registrar esta orden de compra?")) return;
 
         _guardando = true;
@@ -298,7 +342,7 @@
                 Fecha = _fecha,
                 CodMoneda = _moneda,
                 TipoOrdenCompra = _tipoOrdenCompra,
-                TipoCambio = _moneda == 1 ? 1 : (_tipoCambio > 0 ? _tipoCambio : 1),
+                TipoCambio = _moneda == 1 ? 1 : _tipoCambio,
                 Credito = _credito,
                 Plazo = _credito ? _diasCredito : 0,
                 Observaciones = _observaciones,
@@ -314,7 +358,9 @@
                 }).ToList(),
             };
 
-            _creada = await Respuestas.DatoAsync(await Api.Crear(cmd), "crear la orden de compra");
+            _creada = _ordenEdicion > 0
+                ? await Respuestas.DatoAsync(await Api.Editar(_ordenEdicion, cmd), "corregir la orden de compra")
+                : await Respuestas.DatoAsync(await Api.Crear(cmd), "crear la orden de compra");
             if (_creada is not null)
             {
                 Dialogos.Exito($"Orden de compra N.º {_creada.Consecutivo ?? _creada.Orden} registrada.");

@@ -72,7 +72,7 @@
             }
             @if (MostrarFiltro(FiltroReporteVisible.Sucursal))
             {
-                <div class="col-12 col-md-3"><label class="form-label small">Sucursal</label><select class="form-select" @bind="_idSucursal"><option value="">Todas las sucursales</option>@foreach (var sucursal in _sucursales) { <option value="@sucursal.Id">@sucursal.NombreComercial</option> }</select></div>
+                <div class="col-12 col-md-3"><label class="form-label small">Sucursal</label><select class="form-select" @bind="_idSucursal">@if (Sesion.EsSuperAdministrador) { <option value="">Todas las sucursales</option> }@foreach (var sucursal in _sucursales) { <option value="@sucursal.Id">@sucursal.NombreComercial</option> }</select></div>
             }
             @if (MostrarFiltro(FiltroReporteVisible.Cliente))
             {
@@ -244,7 +244,11 @@
                     </div>
                 }
             </div>
-            @if (_reporte.Limitado)
+            @if (_reporte.Limitado && _reporte.IndicadoresDelPeriodoCompleto)
+            {
+                <div class="alert alert-warning py-2 small"><strong>La tabla muestra hasta 2.000 filas.</strong> Los indicadores de arriba son del periodo completo. El Excel de esta consulta sigue el mismo tope de la tabla.</div>
+            }
+            else if (_reporte.Limitado)
             {
                 <div class="alert alert-warning py-2 small"><strong>Resultado limitado a 2.000 filas.</strong> Los indicadores, la exportación y el detalle reflejan ese alcance. Acote los filtros para obtener una lectura completa; las gráficas se ocultan para no presentar una muestra como si fuera el total.</div>
             }
@@ -543,7 +547,14 @@
         _estado.CatalogosCargados = true;
     }
 
-    private async Task CargarSucursalesAsync() { var r = await Seguridad.ObtenerSucursales(); _estado.Sucursales = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.NombreComercial).ToList() : []; }
+    private async Task CargarSucursalesAsync()
+    {
+        var r = await Seguridad.ObtenerSucursales();
+        var lista = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.NombreComercial).ToList() : [];
+        if (!Sesion.EsSuperAdministrador && Sesion.IdSucursal > 0)
+            lista = lista.Where(s => s.Id == Sesion.IdSucursal).ToList();
+        _estado.Sucursales = lista;
+    }
     private async Task CargarEmpresasAsync() { var r = await Facturacion.Empresas(); _estado.Empresas = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Nombre).ToList() : []; }
     private async Task CargarClientesAsync() { var r = await Clientes.Listar(); _estado.Clientes = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Nombre).ToList() : []; }
     private async Task CargarProveedoresAsync() { var r = await Proveedores.Obtener(); _estado.Proveedores = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Nombre).ToList() : []; }
@@ -570,7 +581,7 @@
         Desde = _desde,
         Hasta = _hasta,
         FechaReferencia = referencia,
-        IdSucursal = _idSucursal,
+        IdSucursal = Sesion.EsSuperAdministrador ? _idSucursal : (Sesion.IdSucursal > 0 ? Sesion.IdSucursal : _idSucursal),
         IdEmpresa = _idEmpresa,
         IdCliente = _idCliente,
         IdProveedor = _idProveedor,

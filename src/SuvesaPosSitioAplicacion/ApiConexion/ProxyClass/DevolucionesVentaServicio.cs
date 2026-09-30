@@ -80,6 +80,11 @@ public sealed class DevolucionesVentaServicio : ProxyBase, IDevolucionesVenta
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "registrar la devolución");
 
+    public Task<ResponseGeneric<DevolucionVentaDTO>> Anular(long id)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<DevolucionVentaDTO>(
+            await _api.PostAsync($"DevolucionVentas/Anular?id={id}", null)),
+            "anular la devolución");
+
     public Task<ResponseGeneric<ICollection<PersonalDTO>>> Personal()
         => Ejecutar(async () =>
         {

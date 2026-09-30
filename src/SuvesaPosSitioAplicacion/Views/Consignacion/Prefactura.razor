@@ -9,6 +9,7 @@
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Security
 @using SuvesaPosSitioAplicacion.DTOs.Fiscal
+@using SuvesaPosSitioAplicacion.DTOs.Rutas
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IConsignacionInvApiCliente Api
 @inject IServicioDialogos Dialogos
@@ -16,12 +17,15 @@
 @inject IContextoSesion Sesion
 @inject ICobros CobrosApi
 @inject IConfiguracionPlazosFiscales PlazosApi
+@inject IRutasComerciales RutasApi
+@inject IManejadorRespuestas Respuestas
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IBancos BancosApi
 
 <AppPantalla Pantalla="Facturación de Consignaciones" Codigo="CONSIGNACION.FACTURACION_DE_CONSIGNACIONES" Icono="bi-receipt"
              Subtitulo="Prefactura editable → aprobar → facturar (contado o crédito)" Nivel="NivelPantalla.Tableta">
  <ChildContent>
   @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
-  <AppDesbloqueoClave @ref="_desbloqueo" Titulo="La liquidación de consignaciones" RequiereCajaAbierta="true" />
+  <AppDesbloqueoClave @ref="_desbloqueo" Titulo="La liquidación de consignaciones" RequiereCajaAbierta="true" AlCambiar="AlDesbloquear" />
 
   <div class="card mb-3"><div class="card-body">
     <div class="row g-2 align-items-end">
@@ -99,6 +103,26 @@
           }
           @if (_pref.Estado == 2)
           {
+            @if (UsuarioValidadoTieneRutas)
+            {
+              <div style="width:16rem">
+                <label class="form-label" for="prefactura-ruta">Ruta comercial *</label>
+                <select id="prefactura-ruta" class="form-select" @bind="_idRutaComercial" @bind:after="AlCambiarRuta">
+                  <option value="0">@(_rutasComerciales.Count == 0 ? "No hay rutas configuradas" : "Seleccione...")</option>
+                  @foreach (var ruta in _rutasComerciales) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }
+                </select>
+                <div class="form-text">@(_rutaEsSeleccionManual ? "Obligatoria: seleccione la ruta de venta (Funcionario SAC)." : "Rutas asignadas al usuario validado con la clave interna.")</div>
+              </div>
+              <div style="width:16rem">
+                <label class="form-label" for="prefactura-agente-ruta">Agente asignado</label>
+                <select id="prefactura-agente-ruta" class="form-select" @bind="_idUsuarioAgente" disabled>
+                  <option value="">Seleccione...</option>
+                  @foreach (var agente in _agentesRuta) { <option value="@agente.IdUsuario">@agente.Nombre@(agente.EsPredeterminado ? " (predeterminado)" : "")</option> }
+                </select>
+                <div class="form-text">Agente titular de la ruta (no se selecciona manualmente).</div>
+                @if (_idRutaComercial > 0 && _agentesRuta.Count == 0) { <div class="form-text text-danger">La ruta no tiene agentes activos configurados.</div> }
+              </div>
+            }
             <div>
               <label class="form-label d-block">Condición</label>
               <div class="btn-group">
@@ -113,10 +137,35 @@
             else
             {
               <div><label class="form-label d-block">Forma de pago</label><select class="form-select" style="width:13rem" @bind="_formaPago"><option value="">Seleccione...</option>@foreach (var forma in _formasPago) { <option value="@forma.Codigo">@forma.Descripcion</option> }</select></div>
-              <div><label class="form-label d-block">Referencia</label><input class="form-control" style="width:12rem" @bind="_referenciaPago" placeholder="Opcional" /></div>
+              @if (FormaPagoSeleccionada?.Cheque == true)
+              {
+                <div><label class="form-label d-block">N° cheque</label><input class="form-control" style="width:10rem" @bind="_numeroChequePago" /></div>
+                <div>
+                  <label class="form-label d-block">Banco</label>
+                  <select class="form-select" style="width:11rem" @bind="_idBancoPago">
+                    <option value="">Seleccione...</option>
+                    @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
+                  </select>
+                </div>
+              }
+              else if (FormaPagoSeleccionada?.Deposito == true)
+              {
+                <div><label class="form-label d-block">Referencia</label><input class="form-control" style="width:12rem" @bind="_referenciaPago" /></div>
+                <div>
+                  <label class="form-label d-block">Banco</label>
+                  <select class="form-select" style="width:11rem" @bind="_idBancoPago">
+                    <option value="">Seleccione...</option>
+                    @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
+                  </select>
+                </div>
+              }
+              else if (FormaPagoSeleccionada?.Tarjeta == true)
+              {
+                <div><label class="form-label d-block">Referencia</label><input class="form-control" style="width:12rem" @bind="_referenciaPago" /></div>
+              }
               <div><label class="form-label d-block">Monto a cobrar</label><input class="form-control" style="width:10rem" value="@($"{_pref.Total:N2}")" readonly /></div>
             }
-            <button class="btn btn-success" @onclick="Facturar" disabled="@(_procesando || !_desbloqueo.Desbloqueado || (_condicion == 2 && (_idPlazo is null or <= 0)) || (_condicion == 1 && string.IsNullOrWhiteSpace(_formaPago)))">@(_procesando ? "Facturando..." : "Facturar")</button>
+            <button class="btn btn-success" @onclick="Facturar" disabled="@(_procesando || !_desbloqueo.Desbloqueado || (_condicion == 2 && (_idPlazo is null or <= 0)) || (_condicion == 1 && (string.IsNullOrWhiteSpace(_formaPago) || (FormaPagoSeleccionada?.Cheque == true && (string.IsNullOrWhiteSpace(_numeroChequePago) || _idBancoPago is null)) || (FormaPagoSeleccionada?.Deposito == true && (string.IsNullOrWhiteSpace(_referenciaPago) || _idBancoPago is null)))))">@(_procesando ? "Facturando..." : "Facturar")</button>
           }
           <button class="btn btn-outline-danger ms-auto" @onclick="Anular" disabled="@_procesando">Anular</button>
         </div>
@@ -152,10 +201,24 @@
  private int? _idPlazo;
  private string _formaPago = "01";
  private string? _referenciaPago;
+ private string? _numeroChequePago;
+ private int? _idBancoPago;
  private List<FormasPagoDTO> _formasPago = new();
+ private List<EntidadesBancariasDTO> _bancos = new();
+ private FormasPagoDTO? FormaPagoSeleccionada => _formasPago.FirstOrDefault(f => f.Codigo == _formaPago);
  private List<ConfiguracionPlazoFiscalDTO> _plazos = new();
  private string _error = "";
  private bool _procesando;
+
+ // Ruta comercial / agente — mismo criterio que Views/Ventas/Facturacion.razor: si
+ // liquida un Agente, la comisión es solo para él; si liquida un Funcionario SAC, es
+ // para SAC y para el agente titular de la ruta seleccionada.
+ private List<RutaComercialDTO> _rutasComerciales = new();
+ private List<RutaAgenteDTO> _agentesRuta = new();
+ private int _idRutaComercial;
+ private string _idUsuarioAgente = "";
+ private bool _rutaEsSeleccionManual;
+ private bool UsuarioValidadoTieneRutas => _desbloqueo.UsuarioValidado is not null && _rutasComerciales.Count > 0;
 
  private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
 
@@ -207,6 +270,63 @@
      _ => "text-bg-light"
  };
 
+ private async Task AlDesbloquear(bool _)
+ {
+     await CargarRutasComerciales();
+ }
+
+ /// <summary>Calcado de Views/Ventas/Facturacion.razor (CargarRutasComerciales): resuelve
+ /// si el usuario validado es Agente (ruta propia, autoresuelta) o Funcionario SAC (todas
+ /// las rutas activas de la sucursal, selección obligatoria) vía
+ /// GET rutas/capacidad-comercial — sin ese endpoint, antes, un SAC nunca veía ruta y por
+ /// lo tanto nunca generaba comisión.</summary>
+ private async Task CargarRutasComerciales()
+ {
+     _rutasComerciales = ((await Respuestas.DatoAsync(await RutasApi.Listar(Sesion.IdSucursal), "consultar las rutas")) ?? Array.Empty<RutaComercialDTO>())
+         .Where(r => r.Activo).ToList();
+     _rutaEsSeleccionManual = false;
+     var usuarioValidado = _desbloqueo.UsuarioValidado?.IdUsuario;
+     if (string.IsNullOrWhiteSpace(usuarioValidado))
+     {
+         _rutasComerciales.Clear();
+         _idRutaComercial = 0;
+         return;
+     }
+
+     var capacidad = await Respuestas.DatoAsync(await RutasApi.CapacidadComercial(usuarioValidado), "consultar la capacidad comercial del usuario validado");
+
+     if (capacidad?.EsAgente == true)
+     {
+         _rutasComerciales = _rutasComerciales
+             .Where(r => r.Agentes.Any(a => a.IdUsuario == usuarioValidado))
+             .ToList();
+         _idRutaComercial = _rutasComerciales.FirstOrDefault(r => r.Agentes
+             .Any(a => a.IdUsuario == usuarioValidado && a.EsRutaPredeterminada))?.IdRuta ?? 0;
+         if (_idRutaComercial > 0) await AlCambiarRuta();
+         return;
+     }
+
+     if (capacidad?.EsServicioAlCliente == true)
+     {
+         _rutaEsSeleccionManual = true;
+         _idRutaComercial = 0;
+         return;
+     }
+
+     _rutasComerciales.Clear();
+     _idRutaComercial = 0;
+ }
+
+ private async Task AlCambiarRuta()
+ {
+     _idUsuarioAgente = "";
+     _agentesRuta.Clear();
+     if (_idRutaComercial <= 0) return;
+
+     _agentesRuta = ((await Respuestas.DatoAsync(await RutasApi.Agentes(_idRutaComercial), "consultar los agentes de la ruta")) ?? Array.Empty<RutaAgenteDTO>()).ToList();
+     _idUsuarioAgente = _agentesRuta.FirstOrDefault(a => a.EsPredeterminado)?.IdUsuario ?? "";
+ }
+
  private async Task CargarFormasPago()
  {
      if (_pref is null) return;
@@ -214,6 +334,7 @@
      _formasPago = r.EsCorrecta ? (r.Responses?.ToList() ?? new()) : new();
      if (_formasPago.Count == 1) _formaPago = _formasPago[0].Codigo ?? "";
      else if (!_formasPago.Any(f => f.Codigo == _formaPago)) _formaPago = "";
+     _bancos = (await Respuestas.DatoAsync(await BancosApi.Obtener()))?.OrderBy(b => b.Banco).ToList() ?? new();
  }
 
  private async Task Aprobar()
@@ -234,6 +355,11 @@
          await Dialogos.ErrorAsync("Valide la clave interna de un cajero con una apertura de caja activa.");
          return;
      }
+     if (_rutaEsSeleccionManual && _idRutaComercial <= 0)
+     {
+         await Dialogos.ErrorAsync("Seleccione la ruta de venta (Funcionario SAC).");
+         return;
+     }
      if (!await Dialogos.ConfirmarAsync(
          $"Se facturará la prefactura #{_pref.Id} ({(_condicion == 1 ? "contado" : "crédito")}) y se descontará la bodega de consignación.",
          "Facturar consignación", "Facturar")) return;
@@ -246,8 +372,9 @@
          NumApertura = _desbloqueo.NumApertura,
          IdSucursal = Sesion.IdSucursal,
          Usuario = _desbloqueo.UsuarioValidado?.IdUsuario ?? Sesion.Usuario,
+         IdRutaComercial = _idRutaComercial > 0 ? _idRutaComercial : null,
          Pagos = _condicion == 1
-             ? new() { new PagoPrefacturaConsignacion { FormaPago = _formaPago.Trim(), Referencia = _referenciaPago?.Trim(), Monto = (decimal)_pref.Total } }
+             ? new() { new PagoPrefacturaConsignacion { FormaPago = _formaPago.Trim(), Referencia = _referenciaPago?.Trim(), NumeroCheque = _numeroChequePago?.Trim(), IdBanco = _idBancoPago, Monto = (decimal)_pref.Total } }
              : new()
      });
      _procesando = false;

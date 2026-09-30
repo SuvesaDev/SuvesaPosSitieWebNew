@@ -26,6 +26,9 @@
 
 <AppPantalla Pantalla="@Titulo" Codigo="@Codigo" Icono="bi-person-badge-fill" Subtitulo="Alta de usuarios y asignación de perfil y rol" Nivel="NivelPantalla.Escritorio">
     <Acciones>
+        <a class="btn btn-sm btn-outline-secondary" href="/parameters/sessions">
+            <i class="bi bi-display me-1" aria-hidden="true"></i>Sesiones
+        </a>
         @if (Sesion.Puede(Codigo, AccionPantalla.Crear))
         {
             <button class="btn btn-sm btn-primary" @onclick="Agregar">
@@ -61,7 +64,11 @@
                                 {
                                     <button class="btn btn-sm btn-outline-primary me-1" title="Editar usuario" aria-label="Editar usuario" @onclick="() => Editar(u)"><i class="bi bi-pencil"></i></button>
                                     <button class="btn btn-sm btn-outline-secondary me-1" title="Perfil y rol" aria-label="Perfil y rol" @onclick="() => AbrirCambioPerfil(u)"><i class="bi bi-person-gear"></i></button>
-                                    <button class="btn btn-sm btn-outline-secondary" title="Credenciales" aria-label="Credenciales" @onclick="() => AbrirCredenciales(u)"><i class="bi bi-key"></i></button>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Credenciales" aria-label="Credenciales" @onclick="() => AbrirCredenciales(u)"><i class="bi bi-key"></i></button>
+                                    @if (u.Bloqueado)
+                                    {
+                                        <button class="btn btn-sm btn-outline-warning" title="Desbloquear inicio de sesión" aria-label="Desbloquear inicio de sesión" @onclick="() => DesbloquearDesdeLista(u)"><i class="bi bi-unlock" aria-hidden="true"></i></button>
+                                    }
                                 }
                             </ItemTemplate>
                         </HxGridColumn>
@@ -244,12 +251,15 @@
             <div class="col-12"><label class="form-label">Nueva clave interna</label><input type="text" class="form-control" @bind="_credClaveInternaNueva" /></div>
             <div class="col-12"><button class="btn btn-outline-primary btn-sm" disabled="@_guardandoCredencial" @onclick="ActualizarClaveInterna">Actualizar clave interna</button></div>
 
-            <div class="col-12">
-                <hr class="my-1" />
-                <strong class="small text-secondary">Inicio de sesión</strong>
-                <div class="form-text">Tras 5 intentos fallidos, el login queda bloqueado 5 minutos aunque la contraseña ya se escriba bien.</div>
-            </div>
-            <div class="col-12"><button class="btn btn-outline-warning btn-sm" disabled="@_guardandoCredencial" @onclick="DesbloquearUsuario"><i class="bi bi-unlock me-1" aria-hidden="true"></i>Desbloquear inicio de sesión</button></div>
+            @if (_credencialBloqueada)
+            {
+                <div class="col-12">
+                    <hr class="my-1" />
+                    <strong class="small text-secondary">Inicio de sesión bloqueado</strong>
+                    <div class="form-text">El ingreso quedó bloqueado por intentos fallidos. Puede levantarlo antes de que venzan los 5 minutos.</div>
+                </div>
+                <div class="col-12"><button class="btn btn-outline-warning btn-sm" disabled="@_guardandoCredencial" @onclick="DesbloquearUsuario"><i class="bi bi-unlock me-1" aria-hidden="true"></i>Desbloquear inicio de sesión</button></div>
+            }
         </div>
     </BodyTemplate>
     <FooterTemplate>
@@ -270,6 +280,7 @@
     private HxModal _modalCredenciales = default!;
 
     private string _credencialUsuarioLogin = string.Empty;
+    private bool _credencialBloqueada;
     private string _credencialUsuarioNombre = string.Empty;
     private string _credContrasenaNueva = string.Empty;
     private string _credClaveInternaNueva = string.Empty;
@@ -413,6 +424,7 @@
     {
         _credencialUsuarioLogin = resumen.IdUsuario ?? string.Empty;
         _credencialUsuarioNombre = resumen.Nombre ?? string.Empty;
+        _credencialBloqueada = resumen.Bloqueado;
         _credContrasenaNueva = string.Empty;
         _credClaveInternaNueva = string.Empty;
         await _modalCredenciales.ShowAsync();
@@ -452,16 +464,26 @@
         if (ok) { _credClaveInternaNueva = string.Empty; Dialogos.Exito("Clave interna actualizada."); }
     }
 
-    private async Task DesbloquearUsuario()
+    private Task DesbloquearUsuario() => DesbloquearInicio(login: _credencialUsuarioLogin);
+
+    private Task DesbloquearDesdeLista(BuscarUsuarioDTO resumen)
+        => DesbloquearInicio(resumen.IdUsuario ?? string.Empty);
+
+    private async Task DesbloquearInicio(string login)
     {
-        if (_guardandoCredencial) return;
-        if (!await Dialogos.ConfirmarAsync($"Se levantará el bloqueo temporal de inicio de sesión de {_credencialUsuarioLogin}.")) return;
+        if (_guardandoCredencial || string.IsNullOrWhiteSpace(login)) return;
+        if (!await Dialogos.ConfirmarAsync($"Se levantará el bloqueo temporal de inicio de sesión de {login}.")) return;
 
         _guardandoCredencial = true;
         var ok = await Respuestas.CorrectaAsync(
-            await Api.DesbloquearUsuario(_credencialUsuarioLogin), "desbloquear el usuario");
+            await Api.DesbloquearUsuario(login), "desbloquear el usuario");
         _guardandoCredencial = false;
-        if (ok) Dialogos.Exito("Inicio de sesión desbloqueado.");
+        if (ok)
+        {
+            _credencialBloqueada = false;
+            Dialogos.Exito("Inicio de sesión desbloqueado.");
+            if (_rejilla is not null) await _rejilla.RefrescarAsync();
+        }
     }
 
     private async Task GuardarCambioPerfil()

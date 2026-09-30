@@ -1,0 +1,61 @@
+@page "/moduloReportes/importaciones"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Compras
+@using SuvesaPosSitioAplicacion.Services
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IImportaciones Api
+@inject IManejadorRespuestas Respuestas
+@inject IContextoSesion Sesion
+@inject IJSRuntime JS
+
+<AppPantalla Pantalla="Importaciones" Codigo="MODULO_REPORTES.IMPORTACIONES" Icono="bi-bar-chart-fill" Subtitulo="KPI de nacionalización, logística y documentos pendientes" Nivel="NivelPantalla.Escritorio">
+    <ChildContent>
+        <div class="card">
+            <div class="card-header"><strong>Reporte y KPI</strong></div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-4"><label class="form-label">DUA</label><input class="form-control form-control-sm" @bind="_filtroReporte.Dua" /></div>
+                    <div class="col-md-2"><label class="form-label">Proveedor (ID)</label><input type="number" class="form-control form-control-sm" @bind="_filtroReporte.IdProveedor" /></div>
+                    <div class="col-md-3"><label class="form-label">Desde</label><input type="date" class="form-control form-control-sm" @bind="_filtroReporte.Desde" /></div>
+                    <div class="col-md-3"><label class="form-label">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_filtroReporte.Hasta" /></div>
+                    <div class="col-12">
+                        <button class="btn btn-sm btn-outline-primary" @onclick="ConsultarReporte">Consultar KPI</button>
+                        @if (Sesion.Puede("MODULO_REPORTES.IMPORTACIONES", AccionPantalla.Exportar)) { <button class="btn btn-sm btn-outline-success ms-2" disabled="@(_reporte is null)" @onclick="ExportarCsv"><i class="bi bi-filetype-csv me-1"></i>Excel (CSV)</button> }
+                    </div>
+                </div>
+                @if (_reporte is not null)
+                {
+                    <dl class="row small mt-3 mb-0">
+                        <dt class="col-7 fw-normal text-secondary">Costo nacionalizado</dt><dd class="col-5 text-end">₡@_reporte.CostoNacionalizado:N2</dd>
+                        <dt class="col-7 fw-normal text-secondary">Logística</dt><dd class="col-5 text-end">@_reporte.PorcentajeLogistico:N2%</dd>
+                        <dt class="col-7 fw-normal text-secondary">Días nacionalización</dt><dd class="col-5 text-end">@_reporte.DiasPromedioNacionalizacion:N1</dd>
+                        <dt class="col-7 fw-normal text-secondary">Docs. pendientes</dt><dd class="col-5 text-end">@_reporte.DocumentosPendientes</dd>
+                        <dt class="col-7 fw-normal text-secondary">Margen esperado</dt><dd class="col-5 text-end">@_reporte.MargenEsperado:N2%</dd>
+                    </dl>
+                    <div class="table-responsive mt-3">
+                        <table class="table table-sm small">
+                            <thead><tr><th>DUA</th><th class="text-end">Costo</th><th class="text-end">Docs.</th></tr></thead>
+                            <tbody>@foreach (var fila in _reporte.Filas) { <tr><td>@(fila.Dua ?? fila.FacturaExtranjera)</td><td class="text-end">₡@fila.CostoNacionalizado:N2</td><td class="text-end">@fila.DocumentosPendientes</td></tr> }</tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private FiltroReporteImportacionWebDTO _filtroReporte = new();
+    private ReporteImportacionWebDTO? _reporte;
+
+    private async Task ConsultarReporte()
+        => _reporte = await Respuestas.DatoAsync(await Api.Reporte(_filtroReporte), "consultar los KPI de importación");
+
+    private async Task ExportarCsv()
+    {
+        if (_reporte is null) return;
+        static string Q(string? texto) => "\"" + (texto ?? string.Empty).Replace("\"", "\"\"") + "\"";
+        var csv = "Importación,Factura extranjera,DUA,Costo nacionalizado,Porcentaje logístico,Días nacionalización,Documentos pendientes,Margen esperado\n"
+            + string.Join("\n", _reporte.Filas.Select(x => $"{x.IdImportacion},{Q(x.FacturaExtranjera)},{Q(x.Dua)},{x.CostoNacionalizado},{x.PorcentajeLogistico},{x.DiasNacionalizacion},{x.DocumentosPendientes},{x.MargenEsperado}"));
+        await JS.InvokeVoidAsync("seepos.descargarTexto", $"importaciones-{DateTime.Today:yyyyMMdd}.csv", csv, "text/csv;charset=utf-8");
+    }
+}

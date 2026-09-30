@@ -47,6 +47,7 @@
 
             <EditForm Model="Entrada" FormName="ingresar" OnValidSubmit="Validar">
                 <DataAnnotationsValidator />
+                <input type="hidden" id="seepos-fecha-equipo" name="Entrada.FechaEquipo" value="@Entrada.FechaEquipo" />
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold" for="usuario">Usuario</label>
@@ -92,6 +93,9 @@
 
     private async Task Validar()
     {
+        if (DateTime.TryParse(Entrada.FechaEquipo, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var marca))
+            MarcaEquipo.Actual = DateTime.SpecifyKind(marca, DateTimeKind.Unspecified);
+
         var r = await Autenticacion.IngresarAsync(HttpContext, Entrada.Usuario, Entrada.Password);
 
         if (!r.EsCorrecta)

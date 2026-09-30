@@ -221,7 +221,7 @@ public static partial class MenuSeePos
                 {
                     Titulo = "Importaciones",
                     Codigo = "COMPRAS.IMPORTACIONES",
-                    Ruta = "/buys/importations",
+                    Ruta = "/buys/importationsbox",
                 },
                 new ItemMenu
                 {
@@ -750,6 +750,12 @@ public static partial class MenuSeePos
                     Titulo = "Compras",
                     Codigo = "MODULO_REPORTES.COMPRAS",
                     Ruta = "/moduloReportes/compras",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Importaciones",
+                    Codigo = "MODULO_REPORTES.IMPORTACIONES",
+                    Ruta = "/moduloReportes/importaciones",
                 },
                 new ItemMenu
                 {

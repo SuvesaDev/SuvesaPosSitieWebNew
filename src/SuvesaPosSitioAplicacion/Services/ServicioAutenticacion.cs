@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -23,6 +24,9 @@ public sealed class ServicioAutenticacion : IServicioAutenticacion
 
     public async Task<Response> IngresarAsync(HttpContext contexto, string usuario, string password)
     {
+        OrigenEquipo.DireccionIp = IpDe(contexto);
+        OrigenEquipo.Agente = AgenteDe(contexto);
+
         var r = await _seguridad.Login(usuario, password);
 
         if (!r.EsCorrecta || r.Responses is null)
@@ -38,6 +42,7 @@ public sealed class ServicioAutenticacion : IServicioAutenticacion
         }
 
         var claims = ConstruirClaims(auth);
+        AsegurarDatosDeSesion(claims, contexto, ingresoNuevo: true);
 
         await FirmarAsync(contexto, claims, auth.Expiracion);
 
@@ -61,6 +66,7 @@ public sealed class ServicioAutenticacion : IServicioAutenticacion
 
         claims.Add(new Claim(ClaimsSeePos.IdSucursal, sucursal.Id.ToString()));
         claims.Add(new Claim(ClaimsSeePos.NombreSucursal, sucursal.Alias ?? sucursal.NombreComercial ?? string.Empty));
+        AsegurarDatosDeSesion(claims, contexto, ingresoNuevo: false);
 
         var expiracion = DateTime.TryParse(
             actual.FindFirst(ClaimsSeePos.Expiracion)?.Value,
@@ -183,5 +189,42 @@ public sealed class ServicioAutenticacion : IServicioAutenticacion
         }
 
         return claims;
+    }
+
+    private static void AsegurarDatosDeSesion(IList<Claim> claims, HttpContext contexto, bool ingresoNuevo)
+    {
+        if (claims.All(c => c.Type != ClaimsSeePos.SesionId))
+            claims.Add(new Claim(ClaimsSeePos.SesionId, Guid.NewGuid().ToString("N")));
+        if (!ingresoNuevo)
+            return;
+
+        Reemplazar(claims, ClaimsSeePos.DireccionIp, IpDe(contexto));
+        Reemplazar(claims, ClaimsSeePos.AgenteSesion, AgenteDe(contexto));
+        var inicio = MarcaEquipo.Actual ?? DateTime.Now;
+        Reemplazar(claims, ClaimsSeePos.InicioSesion, inicio.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture));
+    }
+
+    private static void Reemplazar(IList<Claim> claims, string tipo, string? valor)
+    {
+        var previos = claims.Where(c => c.Type == tipo).ToList();
+        foreach (var previo in previos)
+            claims.Remove(previo);
+        if (!string.IsNullOrWhiteSpace(valor))
+            claims.Add(new Claim(tipo, valor));
+    }
+
+    private static string IpDe(HttpContext contexto)
+    {
+        var reenviada = contexto.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        var ip = string.IsNullOrWhiteSpace(reenviada)
+            ? contexto.Connection.RemoteIpAddress?.ToString()
+            : reenviada.Split(',')[0].Trim();
+        return ip == "::1" ? "127.0.0.1" : ip ?? "";
+    }
+
+    private static string AgenteDe(HttpContext contexto)
+    {
+        var agente = contexto.Request.Headers.UserAgent.ToString();
+        return agente.Length > 400 ? agente[..400] : agente;
     }
 }

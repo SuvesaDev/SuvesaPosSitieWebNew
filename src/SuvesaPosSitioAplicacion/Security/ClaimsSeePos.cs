@@ -34,4 +34,10 @@ public static class ClaimsSeePos
 
     /// <summary>Un claim por funcion. Valor: "moduloCodigo|funcionCodigo|VER,CREAR,...".</summary>
     public const string Permiso = "seepos:permiso";
+
+    /// <summary>Identificador de esta sesión del sitio, para listarla y poder cerrarla.</summary>
+    public const string SesionId = "seepos:sesionId";
+    public const string DireccionIp = "seepos:direccionIp";
+    public const string AgenteSesion = "seepos:agenteSesion";
+    public const string InicioSesion = "seepos:inicioSesion";
 }

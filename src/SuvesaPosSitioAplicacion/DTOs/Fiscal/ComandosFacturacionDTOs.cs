@@ -72,6 +72,9 @@ public sealed class FacturarPreventaContadoComandoDTO
     public long? IdApertura { get; set; }
     public int? IdSucursal { get; set; }
     public string? CedulaCajero { get; set; }
+    /// <summary>Ruta comercial a acreditar cuando quien cobra/factura es un Funcionario de
+    /// Servicio al Cliente. Ignorado si quien factura es un Agente.</summary>
+    public int? IdRutaComercial { get; set; }
     public List<PagoPreventaContadoDTO> Pagos { get; set; } = new();
 }
 

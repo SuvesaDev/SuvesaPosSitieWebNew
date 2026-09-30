@@ -1,0 +1,91 @@
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Auditoria
+@using SuvesaPosSitioAplicacion.Services
+@inject IAuditoria Auditoria
+@inject IManejadorRespuestas Respuestas
+
+<div class="card mb-3">
+    <div class="card-header"><strong>Historial</strong></div>
+    <div class="card-body">
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Entidad</label>
+                <input class="form-control" @bind="_entidad" placeholder="Venta, Compra, Cliente" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Identificador</label>
+                <input class="form-control" @bind="_id" placeholder="Id del registro" />
+            </div>
+            <div class="col-md-4">
+                <button type="button" class="btn btn-primary" @onclick="Cargar">Ver historial</button>
+            </div>
+        </div>
+        @if (_filas.Count == 0)
+        {
+            <p class="text-secondary mb-0">No hay movimientos para esa entidad, o todavía no se consultó.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr><th>Fecha</th><th>Acción</th><th>Usuario</th><th>IP</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var fila in _filas)
+                        {
+                            <tr>
+                                <td>@fila.FechaUtc.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@fila.Accion</td>
+                                <td>@(fila.Usuario ?? "Sistema")</td>
+                                <td>@(fila.DireccionIp ?? "—")</td>
+                                <td class="text-end">
+                                    @if (!string.IsNullOrWhiteSpace(fila.CamposCambiados) || !string.IsNullOrWhiteSpace(fila.ValoresAnteriores) || !string.IsNullOrWhiteSpace(fila.ValoresNuevos))
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => _detalle = fila">Ver diferencia</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        @if (_detalle is not null)
+        {
+            <div class="border rounded p-3 mt-3 bg-body-tertiary">
+                <div class="d-flex justify-content-between"><strong>@_detalle.Entidad · @_detalle.Accion</strong><button type="button" class="btn btn-sm btn-link" @onclick="() => _detalle = null">Cerrar</button></div>
+                @if (!string.IsNullOrWhiteSpace(_detalle.CamposCambiados))
+                {
+                    <p class="small mb-1">Campos modificados</p>
+                    <pre class="small mb-2">@_detalle.CamposCambiados</pre>
+                }
+                @if (!string.IsNullOrWhiteSpace(_detalle.ValoresAnteriores))
+                {
+                    <p class="small mb-1">Antes</p>
+                    <pre class="small mb-2">@_detalle.ValoresAnteriores</pre>
+                }
+                @if (!string.IsNullOrWhiteSpace(_detalle.ValoresNuevos))
+                {
+                    <p class="small mb-1">Después</p>
+                    <pre class="small mb-0">@_detalle.ValoresNuevos</pre>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string _entidad = "Venta";
+    private string _id = string.Empty;
+    private List<FilaAuditoriaWebDTO> _filas = new();
+    private FilaAuditoriaWebDTO? _detalle;
+
+    private async Task Cargar()
+    {
+        if (string.IsNullOrWhiteSpace(_entidad) || string.IsNullOrWhiteSpace(_id)) return;
+        _detalle = null;
+        _filas = (await Respuestas.DatoAsync(await Auditoria.LineaAsync(_entidad.Trim(), _id.Trim()), "consultar el historial"))?.ToList()
+            ?? new List<FilaAuditoriaWebDTO>();
+    }
+}

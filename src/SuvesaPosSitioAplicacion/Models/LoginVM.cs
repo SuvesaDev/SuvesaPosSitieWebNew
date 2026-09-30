@@ -11,6 +11,9 @@ public sealed class LoginVM
     [Required(ErrorMessage = "Indique la contrasena.")]
     public string Password { get; set; } = string.Empty;
 
+    /// <summary>Hora local del navegador al enviar el formulario. La llena un script antes del POST.</summary>
+    public string? FechaEquipo { get; set; }
+
     /// <summary>Se elige despues de autenticar, entre las sucursales que devuelve el API.</summary>
     public int IdSucursal { get; set; }
 }

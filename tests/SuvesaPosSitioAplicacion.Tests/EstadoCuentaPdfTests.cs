@@ -44,4 +44,35 @@ public sealed class EstadoCuentaPdfTests
         Assert.True(pdf.Length > 800);
         Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
     }
+
+    /// <summary>
+    /// El estado de cuenta resume varias facturas, no es "de" una sola — no tiene un
+    /// creador único por línea. Lo que se pide es dejar constancia de quién generó ESTE
+    /// PDF (quien lo exportó), en el pie de página, igual que las demás plantillas dejan
+    /// constancia de quién creó el documento.
+    /// </summary>
+    [Fact]
+    public void EstadoCuenta_ConGeneradoPor_GeneraPdfValido()
+    {
+        var reporte = new EstadoCuentaPdf(
+            NombreCliente: "Almacén La Canasta",
+            IdentificacionCliente: "3101123456",
+            FechaCorte: new DateTime(2026, 9, 5),
+            LimiteAprobado: 100000m,
+            SaldoAbierto: 0m,
+            CreditoAFavor: 0m,
+            Disponible: 100000m,
+            PorVencer: 0m,
+            Vencido1a30: 0m,
+            Vencido31a60: 0m,
+            Vencido61a90: 0m,
+            Vencido91oMas: 0m,
+            Detalle: [],
+            GeneradoPor: "Maria Jose Fonseca");
+
+        var pdf = new GeneradorPdfQuestPdf().EstadoCuenta(reporte);
+
+        Assert.True(pdf.Length > 800);
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
+    }
 }
