@@ -16,7 +16,8 @@ public class AlmacenTicketsTests
 {
     private static AlmacenTickets Crear() =>
         new(new MemoryDistributedCache(
-            Options.Create(new MemoryDistributedCacheOptions())));
+            Options.Create(new MemoryDistributedCacheOptions())),
+            new RegistroSesiones());
 
     private static AuthenticationTicket Ticket(DateTimeOffset? expira)
     {
@@ -86,5 +87,37 @@ public class AlmacenTicketsTests
         await almacen.RemoveAsync(llave);
 
         Assert.Null(await almacen.RetrieveAsync(llave));
+    }
+
+    [Fact]
+    public async Task CerrarSesion_InvalidaElTicketYLaQuitaDeLaLista()
+    {
+        var almacen = Crear();
+        var llave = await almacen.StoreAsync(TicketConSesion("ana", "sesion-ana"));
+
+        Assert.Single(await almacen.SesionesVigentesAsync());
+
+        Assert.True(await almacen.CerrarSesionAsync("sesion-ana"));
+
+        Assert.Null(await almacen.RetrieveAsync(llave));
+        Assert.Empty(await almacen.SesionesVigentesAsync());
+    }
+
+    private static AuthenticationTicket TicketConSesion(string usuario, string id)
+    {
+        var identidad = new ClaimsIdentity(
+            new[]
+            {
+                new Claim(ClaimTypes.Name, usuario),
+                new Claim(ClaimsSeePos.SesionId, id),
+                new Claim(ClaimsSeePos.NombreUsuario, usuario),
+                new Claim(ClaimsSeePos.InicioSesion, "2026-09-29T18:00:00"),
+            },
+            CookieAuthenticationDefaults.AuthenticationScheme);
+
+        return new AuthenticationTicket(
+            new ClaimsPrincipal(identidad),
+            new AuthenticationProperties { ExpiresUtc = DateTimeOffset.UtcNow.AddHours(1) },
+            CookieAuthenticationDefaults.AuthenticationScheme);
     }
 }

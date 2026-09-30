@@ -740,6 +740,30 @@ body,
 
 .seepos-facturacion .card-body { padding: 1.05rem; }
 
+.seepos-audit-accion {
+    min-width: 5.5rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+}
+.seepos-diff-antes,
+.seepos-diff-despues {
+    display: inline-block;
+    max-width: 18rem;
+    padding: .15rem .45rem;
+    border-radius: .35rem;
+    font-weight: 600;
+    word-break: break-word;
+}
+.seepos-diff-antes {
+    background: #f8d7da;
+    color: #842029;
+    text-decoration: line-through;
+}
+.seepos-diff-despues {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
 .seepos-factura-cliente { position: relative; }
 
 .seepos-factura-cliente-lista {

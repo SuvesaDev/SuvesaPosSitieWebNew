@@ -26,6 +26,9 @@
 
 <AppPantalla Pantalla="@Titulo" Codigo="@Codigo" Icono="bi-person-badge-fill" Subtitulo="Alta de usuarios y asignación de perfil y rol" Nivel="NivelPantalla.Escritorio">
     <Acciones>
+        <a class="btn btn-sm btn-outline-secondary" href="/parameters/sessions">
+            <i class="bi bi-display me-1" aria-hidden="true"></i>Sesiones
+        </a>
         @if (Sesion.Puede(Codigo, AccionPantalla.Crear))
         {
             <button class="btn btn-sm btn-primary" @onclick="Agregar">

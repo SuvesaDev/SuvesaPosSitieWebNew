@@ -51,6 +51,23 @@ export function obtenerFechaHoraEquipo() {
     return new Date().toISOString();
 }
 
+// Hora local de pared del equipo, sin pasarla a UTC.
+export function descargarTexto(nombre, texto) {
+    const blob = new Blob([texto], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = nombre;
+    enlace.click();
+    URL.revokeObjectURL(url);
+}
+
+export function obtenerMarcaEquipo() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
 // La clave interna nunca debe terminar en el buscador del menú si el navegador
 // restaura o mueve el foco durante un cambio de renderizado.
 export function limpiarBusquedaMenu() {

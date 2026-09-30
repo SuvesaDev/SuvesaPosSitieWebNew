@@ -11,6 +11,7 @@ public sealed class RelojEquipo(IJSRuntime js) : IRelojEquipo, IAsyncDisposable
         try
         {
             _modulo ??= await js.InvokeAsync<IJSObjectReference>("import", cancellationToken, "./js/tema.js");
+            await PublicarDesdeModuloAsync(cancellationToken);
             var iso = await _modulo.InvokeAsync<string>("obtenerFechaHoraEquipo", cancellationToken);
             return DateTime.SpecifyKind(DateTime.Parse(iso, null, System.Globalization.DateTimeStyles.RoundtripKind).ToLocalTime(), DateTimeKind.Unspecified);
         }
@@ -25,6 +26,28 @@ public sealed class RelojEquipo(IJSRuntime js) : IRelojEquipo, IAsyncDisposable
 
     public async Task<DateTime> HoyAsync(CancellationToken cancellationToken = default)
         => (await AhoraAsync(cancellationToken)).Date;
+
+    public async Task PublicarMarcaAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _modulo ??= await js.InvokeAsync<IJSObjectReference>("import", cancellationToken, "./js/tema.js");
+            await PublicarDesdeModuloAsync(cancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private async Task PublicarDesdeModuloAsync(CancellationToken cancellationToken)
+    {
+        var iso = await _modulo!.InvokeAsync<string>("obtenerMarcaEquipo", cancellationToken);
+        if (DateTime.TryParse(iso, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var marca))
+            MarcaEquipo.Actual = DateTime.SpecifyKind(marca, DateTimeKind.Unspecified);
+    }
 
     public async ValueTask DisposeAsync()
     {
