@@ -16,16 +16,16 @@ public static class FiltroMenu
     /// Un grupo se ve si algun descendiente se ve, para no dejar menus vacios.
     /// </summary>
     /// <param name="contabilidad">
-    /// Estado de activacion de Contabilidad para el emisor activo (W1). Opcional para no
-    /// obligar a los ~11 call sites existentes (incluidos tests no relacionados) a pasarlo
-    /// — si se omite, el nodo CONTABILIDAD queda oculto por defecto, mismo criterio "oculto
-    /// completamente" ya decidido cuando el flag no esta resuelto todavia.
+    /// Estado de la sucursal abierta. Si se omite, el módulo sigue oculto. Si ya se
+    /// resolvió y la sucursal está apagada, solo se muestra Configuración emisor.
     /// </param>
     public static bool EsVisible(ItemMenu item, IContextoSesion sesion, IContextoContabilidad? contabilidad = null)
     {
         if (string.Equals(item.Codigo, "COMPRAS.IMPORTACIONES", StringComparison.OrdinalIgnoreCase) && !sesion.HabilitaImportaciones)
             return false;
-        if (string.Equals(item.Codigo, "CONTABILIDAD", StringComparison.OrdinalIgnoreCase) && contabilidad?.HabilitadaEmisorActual != true)
+        // Sin resolver, el módulo sigue oculto. Ya resuelto y apagado, solo queda
+        // Configuración emisor: ahí se enciende la sucursal. El resto aparece después.
+        if (ContabilidadOculta(item, contabilidad))
             return false;
         if (sesion.EsSuperAdministrador)
         {
@@ -42,4 +42,16 @@ public static class FiltroMenu
 
     public static IEnumerable<ItemMenu> Visibles(IEnumerable<ItemMenu> items, IContextoSesion sesion, IContextoContabilidad? contabilidad = null)
         => items.Where(i => EsVisible(i, sesion, contabilidad));
+
+    private static bool ContabilidadOculta(ItemMenu item, IContextoContabilidad? contabilidad)
+    {
+        if (item.Codigo is null || !item.Codigo.StartsWith("CONTABILIDAD", StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (contabilidad is null)
+            return string.Equals(item.Codigo, "CONTABILIDAD", StringComparison.OrdinalIgnoreCase);
+        if (contabilidad.HabilitadaEmisorActual)
+            return false;
+        return !string.Equals(item.Codigo, "CONTABILIDAD", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(item.Codigo, "CONTABILIDAD.CONFIGURACION_EMISOR", StringComparison.OrdinalIgnoreCase);
+    }
 }

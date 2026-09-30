@@ -241,11 +241,11 @@
         }
     }
 
-    private Task ActivarSucursal() => Ejecutar(() => Contabilidad.ActivarSucursal(_idSucursal), "encender Contabilidad en la sucursal");
-    private Task DesactivarSucursal() => Ejecutar(() => Contabilidad.DesactivarSucursal(_idSucursal), "apagar Contabilidad en la sucursal");
-    private Task ActivarEmisor() => Ejecutar(() => Contabilidad.ActivarEmisor(new ActivarEmisorDTO { IdEmisor = _idEmisor, MonedaFuncional = "CRC" }), "crear el libro del emisor");
+    private Task ActivarSucursal() => Ejecutar(() => Contabilidad.ActivarSucursal(_idSucursal), "encender Contabilidad en la sucursal", true);
+    private Task DesactivarSucursal() => Ejecutar(() => Contabilidad.DesactivarSucursal(_idSucursal), "apagar Contabilidad en la sucursal", false);
+    private Task ActivarEmisor() => Ejecutar(() => Contabilidad.ActivarEmisor(new ActivarEmisorDTO { IdEmisor = _idEmisor, IdSucursal = _idSucursal, MonedaFuncional = "CRC" }), "crear el libro del emisor", null);
 
-    private async Task Ejecutar<T>(Func<Task<ResponseGeneric<T>>> accion, string queSeIntentaba)
+    private async Task Ejecutar<T>(Func<Task<ResponseGeneric<T>>> accion, string queSeIntentaba, bool? sucursalEncendida)
     {
         _guardando = true;
         var respuesta = await accion();
@@ -253,6 +253,8 @@
 
         if (await Respuestas.CorrectaAsync(respuesta, queSeIntentaba))
         {
+            if (sucursalEncendida is bool encendida)
+                ContextoContabilidad.NotificarSucursal(_idSucursal, encendida);
             Dialogos.Exito("Listo.");
             await AlCambiarSeleccion();
         }

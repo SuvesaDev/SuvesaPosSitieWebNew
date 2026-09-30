@@ -189,11 +189,18 @@
     protected override async Task OnInitializedAsync()
     {
         Navegacion.LocationChanged += AlCambiarUbicacion;
+        Contabilidad.Cambio += AlCambiarContabilidad;
         if (Sesion.TieneSucursal)
             await Contabilidad.ResolverSucursalAsync(Sesion.IdSucursal);
     }
 
-    public void Dispose() => Navegacion.LocationChanged -= AlCambiarUbicacion;
+    public void Dispose()
+    {
+        Navegacion.LocationChanged -= AlCambiarUbicacion;
+        Contabilidad.Cambio -= AlCambiarContabilidad;
+    }
+
+    private void AlCambiarContabilidad() => InvokeAsync(StateHasChanged);
 
     private bool Abierto(string titulo) => _raizAbierta == titulo;
 

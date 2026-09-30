@@ -24,4 +24,9 @@ public interface IContextoContabilidad
 
     /// <summary>El menú sigue la sucursal del centro abierto: encendida se muestra, apagada se oculta.</summary>
     Task ResolverSucursalAsync(int idSucursal, CancellationToken ct = default);
+
+    /// <summary>La sucursal se encendió o se apagó en esta sesión. Actualiza el menú.</summary>
+    void NotificarSucursal(int idSucursal, bool habilitada);
+
+    event Action? Cambio;
 }

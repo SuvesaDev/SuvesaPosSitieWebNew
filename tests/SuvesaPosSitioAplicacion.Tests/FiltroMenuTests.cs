@@ -130,21 +130,33 @@ public class FiltroMenuTests
         public bool HabilitadaEmisorActual { get; }
         public Task ResolverAsync(long idEmpresa, int idEmisor, int idSucursal, CancellationToken ct = default) => Task.CompletedTask;
         public Task ResolverSucursalAsync(int idSucursal, CancellationToken ct = default) => Task.CompletedTask;
+        public void NotificarSucursal(int idSucursal, bool habilitada) { }
+        public event Action? Cambio { add { } remove { } }
     }
 
     [Fact]
-    public void Contabilidad_OcultaSiNoEstaHabilitadaParaElEmisorActual()
+    public void Contabilidad_ApagadaDejaSoloLaConfiguracion()
     {
         var raiz = MenuSeePos.Items.Single(i => i.Codigo == "CONTABILIDAD");
         var sesion = new SesionFalsa(false, "CONTABILIDAD.CONFIGURACION_EMISOR", "CONTABILIDAD.CATALOGO_CUENTAS");
+        var apagada = new ContabilidadFalsa(habilitada: false);
 
-        Assert.False(FiltroMenu.EsVisible(raiz, sesion, new ContabilidadFalsa(habilitada: false)));
+        Assert.True(FiltroMenu.EsVisible(raiz, sesion, apagada));
+        Assert.True(FiltroMenu.EsVisible(raiz.Hijos.Single(h => h.Codigo == "CONTABILIDAD.CONFIGURACION_EMISOR"), sesion, apagada));
+        Assert.False(FiltroMenu.EsVisible(raiz.Hijos.Single(h => h.Codigo == "CONTABILIDAD.CATALOGO_CUENTAS"), sesion, apagada));
         Assert.False(FiltroMenu.EsVisible(raiz, sesion));
     }
 
     [Fact]
-    public void Contabilidad_OcultaInclusoParaSuperAdministradorSiNoEstaHabilitada()
-        => Assert.False(FiltroMenu.EsVisible(MenuSeePos.Items.Single(i => i.Codigo == "CONTABILIDAD"), new SesionFalsa(superAdmin: true), new ContabilidadFalsa(habilitada: false)));
+    public void Contabilidad_ApagadaElSuperAdministradorSoloVeLaConfiguracion()
+    {
+        var raiz = MenuSeePos.Items.Single(i => i.Codigo == "CONTABILIDAD");
+        var sesion = new SesionFalsa(superAdmin: true);
+        var apagada = new ContabilidadFalsa(habilitada: false);
+
+        Assert.True(FiltroMenu.EsVisible(raiz, sesion, apagada));
+        Assert.False(FiltroMenu.EsVisible(raiz.Hijos.Single(h => h.Codigo == "CONTABILIDAD.CATALOGO_CUENTAS"), sesion, apagada));
+    }
 
     [Fact]
     public void Contabilidad_VisibleCuandoEstaHabilitadaYElRolTienePermiso()

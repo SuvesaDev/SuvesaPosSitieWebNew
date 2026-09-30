@@ -45,4 +45,15 @@ public sealed class ContextoContabilidad : IContextoContabilidad
         _cache[(0, idSucursal)] = habilitada;
         HabilitadaEmisorActual = habilitada;
     }
+
+    public void NotificarSucursal(int idSucursal, bool habilitada)
+    {
+        foreach (var clave in _cache.Keys.Where(k => k.Sucursal == idSucursal).ToList())
+            _cache[clave] = habilitada;
+        _cache[(0, idSucursal)] = habilitada;
+        HabilitadaEmisorActual = habilitada;
+        Cambio?.Invoke();
+    }
+
+    public event Action? Cambio;
 }
