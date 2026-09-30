@@ -53,6 +53,7 @@ public interface IContabilidad
 
     // ---- W4: diario, mayor, auxiliares y conciliación ----
     Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ListarPeriodos(long idLibroContable);
+    Task<ResponseGeneric<PeriodoContableDTO>> CrearPeriodo(CrearPeriodoContableDTO comando);
     Task<ResponseGeneric<ICollection<AuditoriaContableDTO>>> ListarAuditoria(long? idLibroContable, string? entidad, string? usuario, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina);
     Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ObtenerLibroDiario(long idLibroContable, DateOnly desde, DateOnly hasta, int? idSucursal = null);
     Task<ResponseGeneric<LibroMayorDTO>> ObtenerLibroMayor(long idCuentaContable, DateOnly desde, DateOnly hasta, int? idSucursal = null);

@@ -63,6 +63,7 @@ public class ContextoContabilidadTests
         public Task<ResponseGeneric<EjecucionRepolinizacionDTO>> AprobarRepolinizacion(long idEjecucion, string contrasena) => throw new NotImplementedException();
 
         public Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ListarPeriodos(long idLibroContable) => throw new NotImplementedException();
+        public Task<ResponseGeneric<PeriodoContableDTO>> CrearPeriodo(CrearPeriodoContableDTO comando) => throw new NotImplementedException();
         public Task<ResponseGeneric<ICollection<AuditoriaContableDTO>>> ListarAuditoria(long? idLibroContable, string? entidad, string? usuario, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina) => throw new NotImplementedException();
         public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ObtenerLibroDiario(long idLibroContable, DateOnly desde, DateOnly hasta, int? idSucursal = null) => throw new NotImplementedException();
         public Task<ResponseGeneric<LibroMayorDTO>> ObtenerLibroMayor(long idCuentaContable, DateOnly desde, DateOnly hasta, int? idSucursal = null) => throw new NotImplementedException();

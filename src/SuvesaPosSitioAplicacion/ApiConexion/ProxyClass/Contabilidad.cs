@@ -266,6 +266,13 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar los períodos contables");
 
+    public Task<ResponseGeneric<PeriodoContableDTO>> CrearPeriodo(CrearPeriodoContableDTO comando)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.PeriodosPOSTAsync(comando);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "abrir el período contable");
+
     public Task<ResponseGeneric<ICollection<AuditoriaContableDTO>>> ListarAuditoria(long? idLibroContable, string? entidad, string? usuario, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina)
         => Ejecutar(async () =>
         {

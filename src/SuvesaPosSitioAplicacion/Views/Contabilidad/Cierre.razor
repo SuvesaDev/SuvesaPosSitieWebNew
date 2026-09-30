@@ -53,6 +53,33 @@
                         </select>
                     </div>
                 </div>
+                @if (_idLibroContable > 0)
+                {
+                    <div class="row g-3 mt-1 align-items-end">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="cr-ejercicio">Ejercicio</label>
+                            <input id="cr-ejercicio" type="number" class="form-control" min="2000" max="2100" @bind="_ejercicio" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="cr-mes">Mes</label>
+                            <select id="cr-mes" class="form-select" @bind="_mes">
+                                @for (var mes = 1; mes <= 12; mes++)
+                                {
+                                    <option value="@mes">@NombreMes(mes)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <button class="btn btn-primary" disabled="@_procesando" @onclick="AbrirPeriodo">Abrir período</button>
+                        </div>
+                        @if (_periodos.Count == 0)
+                        {
+                            <div class="col-12">
+                                <p class="text-secondary mb-0">No hay períodos. Abra el mes en el que va a contabilizar. Nace abierto y los asientos solo entran ahí.</p>
+                            </div>
+                        }
+                    </div>
+                }
             </div>
         </div>
 
@@ -183,6 +210,8 @@
     private AppConfirmarClaveContabilidad _confirmarClave = default!;
     private List<PeriodoContableDTO> _cascadaReapertura = new();
     private string _motivoReapertura = "";
+    private int _ejercicio = DateTime.Today.Year;
+    private int _mes = DateTime.Today.Month;
 
     protected override async Task OnInitializedAsync()
     {
@@ -209,6 +238,42 @@
 
         _periodos = (await Respuestas.DatoAsync(await Contabilidad.ListarPeriodos(_idLibroContable), "consultar los períodos"))?.ToList() ?? new();
     }
+
+    private async Task AbrirPeriodo()
+    {
+        if (_idLibroContable == 0 || _ejercicio < 2000 || _mes is < 1 or > 12) return;
+        _procesando = true;
+        var respuesta = await Contabilidad.CrearPeriodo(new CrearPeriodoContableDTO
+        {
+            IdLibroContable = _idLibroContable,
+            Ejercicio = _ejercicio,
+            Mes = _mes,
+        });
+        _procesando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "abrir el período")) return;
+
+        Dialogos.Exito($"Período {_mes:00}/{_ejercicio} abierto.");
+        await RecargarPeriodos();
+        if (respuesta.Responses is not null)
+            _idPeriodo = respuesta.Responses.Id;
+        await AlCambiarPeriodo();
+    }
+
+    private static string NombreMes(int mes) => mes switch
+    {
+        1 => "Enero",
+        2 => "Febrero",
+        3 => "Marzo",
+        4 => "Abril",
+        5 => "Mayo",
+        6 => "Junio",
+        7 => "Julio",
+        8 => "Agosto",
+        9 => "Septiembre",
+        10 => "Octubre",
+        11 => "Noviembre",
+        _ => "Diciembre",
+    };
 
     private async Task AlCambiarPeriodo()
     {
