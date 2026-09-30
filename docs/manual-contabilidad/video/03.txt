@@ -1,0 +1,1 @@
+Paso uno. Abra el menú Contabilidad y entre a Configuración emisor. Mientras la sucursal está apagada, el menú solo muestra esta pantalla. Elija la empresa, la sucursal y el emisor. Pulse Encender sucursal. El estado pasa a Encendida, y entonces aparecen el catálogo, las plantillas, el cierre y la bandeja.

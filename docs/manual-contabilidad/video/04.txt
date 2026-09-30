@@ -1,0 +1,1 @@
+Paso dos, en la misma pantalla. Pulse Crear libro del emisor. Si esa sucursal todavía no estaba ligada al emisor, este botón la deja vigente y crea el libro en colones. Espere a ver los cuatro estados: sucursal encendida, libro creado, relación vigente, y contabilidad efectiva activa. Para dejar de contabilizar, se usa Apagar sucursal. Lo ya hecho se conserva.

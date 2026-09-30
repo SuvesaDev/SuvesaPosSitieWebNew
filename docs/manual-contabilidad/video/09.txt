@@ -1,0 +1,1 @@
+Ahora las ventas. Una preventa no se contabiliza: solo reserva inventario. El asiento nace cuando se factura de verdad. El tiquete interno se contabiliza al emitirlo. La factura electrónica espera a que Hacienda la deje aceptada, o aceptada parcial. El cobro es otro asiento. Si es un depósito o un cheque pendiente, la póliza espera a la confirmación.

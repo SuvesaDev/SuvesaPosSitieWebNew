@@ -1,0 +1,1 @@
+Para que un documento deje asiento hacen falta tres cosas, juntas. Primera: la sucursal de ese documento está encendida. Segunda: el emisor ya tiene el libro creado. Tercera: la relación entre ese emisor y esa sucursal está vigente. En pantalla eso se lee como contabilidad efectiva activa. Si falta una de las tres, el documento se guarda y no hay póliza.

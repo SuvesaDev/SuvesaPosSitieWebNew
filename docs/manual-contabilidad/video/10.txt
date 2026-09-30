@@ -1,0 +1,1 @@
+En las compras, la sucursal que cuenta es la de la bodega de las líneas, y tiene que estar encendida y ligada al emisor. Si la compra no trae clave fiscal, el asiento nace al registrarla. Si trae clave, espera a que el mensaje receptor quede aceptado o aceptado parcial. El pago al proveedor es otro asiento, y usa el porcentaje que escribió en la ficha.

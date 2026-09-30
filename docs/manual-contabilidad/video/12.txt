@@ -1,0 +1,1 @@
+En el día a día, facture, compre y pague como siempre. El módulo arma el libro detrás, por emisor y por sucursal, y no frena la operación cuando el asiento tiene que esperar. El orden para arrancar es corto: encender la sucursal, crear el libro, cargar el catálogo, abrir el mes y activar las plantillas. Con eso el módulo ya está ayudando. Gracias.
