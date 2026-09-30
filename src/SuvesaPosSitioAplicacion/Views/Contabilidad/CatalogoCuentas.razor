@@ -10,16 +10,15 @@
 @inject IServicioDialogos Dialogos
 @inject IManejadorRespuestas Respuestas
 
-@* W2: árbol jerárquico del catálogo de cuentas (AppArbol, componente nuevo y
-   reutilizable — decisión ya cerrada). Editar una cuenta con pólizas ya publicadas
-   no permite tocar Código/Naturaleza/Tipo: el propio EditarCuentaContableDTO del API
-   no los acepta, así que el formulario de edición simplemente no los muestra. *@
+@* Catálogo configurable: alta, edición de nombre y marcas, y —mientras la cuenta
+   no tenga pólizas— código, tipo, naturaleza y lugar en el árbol. Una cuenta con
+   pólizas conserva esa identidad; se inactiva en vez de borrarse. *@
 
 <AppPantalla Pantalla="Catálogo cuentas" Codigo="CONTABILIDAD.CATALOGO_CUENTAS" Icono="bi-journal-text">
     <Acciones>
         @if (_idLibroContable > 0 && Sesion.Puede("CONTABILIDAD.CATALOGO_CUENTAS", AccionPantalla.Crear))
         {
-            <button class="btn btn-sm btn-primary" @onclick="NuevaCuenta"><i class="bi bi-plus-lg me-1"></i>Nueva cuenta</button>
+            <button class="btn btn-sm btn-primary" @onclick="() => NuevaCuenta()"><i class="bi bi-plus-lg me-1"></i>Nueva cuenta</button>
         }
     </Acciones>
     <ChildContent>
@@ -75,6 +74,10 @@
                                 @if (cuenta.EsControl == true) { <span class="badge text-bg-warning">Control</span> }
                                 @if (cuenta.EsEfectivo == true) { <span class="badge text-bg-info">Efectivo</span> }
                                 @if (cuenta.Activo != true) { <span class="badge text-bg-secondary">Inactiva</span> }
+                                @if (cuenta.PermiteMovimiento != true && Sesion.Puede("CONTABILIDAD.CATALOGO_CUENTAS", AccionPantalla.Crear))
+                                {
+                                    <button class="btn btn-sm btn-link p-0" @onclick="() => NuevaCuenta(cuenta.Id)">Agregar</button>
+                                }
                                 @if (Sesion.Puede("CONTABILIDAD.CATALOGO_CUENTAS", AccionPantalla.Editar))
                                 {
                                     <button class="btn btn-sm btn-link p-0" @onclick="() => EditarCuenta(cuenta)">Editar</button>
@@ -153,19 +156,56 @@
         <div class="row g-2">
             <div class="col-12">
                 <p class="text-secondary small mb-2">
-                    <strong>@_edicionOriginal?.Codigo</strong> — código, naturaleza y tipo no se editan aquí:
-                    son la identidad contable de la cuenta.
+                    <strong>@_edicionOriginal?.Codigo</strong> — @(_edicionOriginal?.Descripcion).
+                    Si esta cuenta ya tiene pólizas, el código, el tipo, la naturaleza y el padre no cambian.
+                    Puede agregar otra cuenta, o inactivar esta, sin borrar el historial.
                 </p>
+            </div>
+            <div class="col-6">
+                <label class="form-label" for="ec-codigo">Código</label>
+                <input id="ec-codigo" class="form-control" @bind="_edicion.Codigo" />
+            </div>
+            <div class="col-6">
+                <label class="form-label" for="ec-tipo">Tipo</label>
+                <select id="ec-tipo" class="form-select" @bind="_edicion.Tipo">
+                    <option value="Activo">Activo</option>
+                    <option value="Pasivo">Pasivo</option>
+                    <option value="Patrimonio">Patrimonio</option>
+                    <option value="Ingreso">Ingreso</option>
+                    <option value="Gasto">Gasto</option>
+                    <option value="Costo">Costo</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="ec-padre">Cuenta padre</label>
+                <select id="ec-padre" class="form-select" @bind="_padreEdicion">
+                    <option value="">— Ninguna (raíz) —</option>
+                    @foreach (var c in _cuentas.Where(c => c.PermiteMovimiento != true && c.Id != _idCuentaEditando))
+                    {
+                        <option value="@c.Id">@c.Codigo — @c.Descripcion</option>
+                    }
+                </select>
             </div>
             <div class="col-12">
                 <label class="form-label" for="ec-desc">Descripción</label>
                 <input id="ec-desc" class="form-control" @bind="_edicion.Descripcion" />
             </div>
             <div class="col-6">
+                <label class="form-label" for="ec-nat">Naturaleza</label>
+                <select id="ec-nat" class="form-select" @bind="_edicion.Naturaleza">
+                    <option value="Deudora">Deudora</option>
+                    <option value="Acreedora">Acreedora</option>
+                </select>
+            </div>
+            <div class="col-6">
                 <label class="form-label" for="ec-mon">Moneda (opcional)</label>
                 <input id="ec-mon" class="form-control" maxlength="3" @bind="_edicion.Moneda" />
             </div>
             <div class="col-12 d-flex flex-wrap gap-3 mt-2">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="ec-mov" @bind="_permiteMovimientoEdicion" />
+                    <label class="form-check-label" for="ec-mov">Permite movimiento (cuenta hoja)</label>
+                </div>
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="ec-control" @bind="_edicion.EsControl" />
                     <label class="form-check-label" for="ec-control">Cuenta de control</label>
@@ -204,6 +244,8 @@
     private EditarCuentaContableDTO? _edicion;
     private CuentaContableDTO? _edicionOriginal;
     private long _idCuentaEditando;
+    private string _padreEdicion = "";
+    private bool _permiteMovimientoEdicion;
 
     protected override async Task OnInitializedAsync()
     {
@@ -244,9 +286,15 @@
     private IEnumerable<CuentaContableDTO> ObtenerHijos(CuentaContableDTO cuenta)
         => _porPadre.TryGetValue(cuenta.Id, out var hijos) ? hijos : Enumerable.Empty<CuentaContableDTO>();
 
-    private async Task NuevaCuenta()
+    private async Task NuevaCuenta(long? idPadre = null)
     {
-        _nueva = new CrearCuentaContableDTO { IdLibroContable = _idLibroContable, Tipo = "Activo", Naturaleza = "Deudora" };
+        _nueva = new CrearCuentaContableDTO
+        {
+            IdLibroContable = _idLibroContable,
+            Tipo = "Activo",
+            Naturaleza = "Deudora",
+            IdCuentaPadre = idPadre,
+        };
         _permiteMovimiento = true;
         await _modalNueva.MostrarAsync();
     }
@@ -279,24 +327,35 @@
         _edicion = new EditarCuentaContableDTO
         {
             Descripcion = cuenta.Descripcion ?? string.Empty,
+            Codigo = cuenta.Codigo,
+            Tipo = cuenta.Tipo,
+            Naturaleza = cuenta.Naturaleza,
             EsControl = cuenta.EsControl == true,
             MapeoFinanciero = cuenta.MapeoFinanciero,
             Moneda = cuenta.Moneda,
             EsEfectivo = cuenta.EsEfectivo == true,
             ClasificacionFlujo = cuenta.ClasificacionFlujo,
             Activo = cuenta.Activo != false,
+            ActualizarPadre = true,
+            IdCuentaPadre = cuenta.IdCuentaPadre,
         };
+        _permiteMovimientoEdicion = cuenta.PermiteMovimiento == true;
+        _padreEdicion = cuenta.IdCuentaPadre?.ToString() ?? "";
         await _modalEditar.MostrarAsync();
     }
 
     private async Task GuardarEdicion()
     {
         if (_edicion is null) return;
-        if (string.IsNullOrWhiteSpace(_edicion.Descripcion))
+        if (string.IsNullOrWhiteSpace(_edicion.Descripcion) || string.IsNullOrWhiteSpace(_edicion.Codigo))
         {
-            await Dialogos.ErrorAsync("La descripción es obligatoria.");
+            await Dialogos.ErrorAsync("Código y descripción son obligatorios.");
             return;
         }
+
+        _edicion.PermiteMovimiento = _permiteMovimientoEdicion;
+        _edicion.ActualizarPadre = true;
+        _edicion.IdCuentaPadre = long.TryParse(_padreEdicion, out var idPadre) ? idPadre : null;
 
         _guardando = true;
         var respuesta = await Contabilidad.EditarCuenta(_idCuentaEditando, _edicion);
