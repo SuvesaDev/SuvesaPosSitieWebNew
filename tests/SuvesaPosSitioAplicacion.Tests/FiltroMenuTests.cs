@@ -129,6 +129,7 @@ public class FiltroMenuTests
         public ContabilidadFalsa(bool habilitada) => HabilitadaEmisorActual = habilitada;
         public bool HabilitadaEmisorActual { get; }
         public Task ResolverAsync(long idEmpresa, int idEmisor, int idSucursal, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ResolverSucursalAsync(int idSucursal, CancellationToken ct = default) => Task.CompletedTask;
     }
 
     [Fact]

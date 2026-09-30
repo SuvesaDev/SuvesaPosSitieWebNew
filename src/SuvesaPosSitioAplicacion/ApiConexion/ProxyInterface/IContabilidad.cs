@@ -14,6 +14,7 @@ public interface IContabilidad
     Task<ResponseGeneric<bool>> DesactivarEmpresa(long idEmpresa);
     Task<ResponseGeneric<bool>> ActivarSucursal(int idSucursal);
     Task<ResponseGeneric<bool>> DesactivarSucursal(int idSucursal);
+    Task<ResponseGeneric<long>> CargarCatalogoInicial(long idLibroContable);
     Task<ResponseGeneric<long>> ActivarEmisor(ActivarEmisorDTO comando);
     Task<ResponseGeneric<bool>> DesactivarEmisor(int idEmisor);
     Task<ResponseGeneric<bool>> ConfirmarClave(string contrasena);
@@ -50,7 +51,7 @@ public interface IContabilidad
     // ---- W4: diario, mayor, auxiliares y conciliación ----
     Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ListarPeriodos(long idLibroContable);
     Task<ResponseGeneric<ICollection<AuditoriaContableDTO>>> ListarAuditoria(long? idLibroContable, string? entidad, string? usuario, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina);
-    Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ObtenerLibroDiario(long idLibroContable, DateOnly desde, DateOnly hasta);
+    Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ObtenerLibroDiario(long idLibroContable, DateOnly desde, DateOnly hasta, int? idSucursal = null);
     Task<ResponseGeneric<LibroMayorDTO>> ObtenerLibroMayor(long idCuentaContable, DateOnly desde, DateOnly hasta);
     Task<ResponseGeneric<BalanzaComprobacionDTO>> ObtenerBalanza(long idLibroContable, DateOnly fechaCorte);
     Task<ResponseGeneric<EstadoResultadosDTO>> ObtenerEstadoResultados(long idLibroContable, DateOnly desde, DateOnly hasta);

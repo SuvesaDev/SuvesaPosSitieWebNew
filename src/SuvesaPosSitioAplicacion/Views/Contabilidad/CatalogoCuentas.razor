@@ -59,7 +59,11 @@
         }
         else if (_cuentas.Count == 0)
         {
-            <p class="text-secondary mb-0">Este libro todavía no tiene cuentas. Use "Nueva cuenta" para empezar.</p>
+            <p class="text-secondary">Este libro todavía no tiene cuentas.</p>
+            @if (Sesion.Puede("CONTABILIDAD.CATALOGO_CUENTAS", AccionPantalla.Crear))
+            {
+                <button class="btn btn-sm btn-outline-primary" disabled="@_guardando" @onclick="CargarCatalogoInicial">Cargar catálogo Tico Foodster</button>
+            }
         }
         else
         {
@@ -264,7 +268,7 @@
         if (_idEmpresa == 0 || _idEmisor == 0) return;
 
         _cargando = true;
-        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor, Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null), "consultar el estado de activación");
         _idLibroContable = estado?.IdLibroContable ?? 0;
         if (_idLibroContable > 0)
             await CargarCuentas();
@@ -316,6 +320,18 @@
         {
             Dialogos.Exito("Cuenta creada.");
             await _modalNueva.OcultarAsync();
+            await CargarCuentas();
+        }
+    }
+
+    private async Task CargarCatalogoInicial()
+    {
+        _guardando = true;
+        var respuesta = await Contabilidad.CargarCatalogoInicial(_idLibroContable);
+        _guardando = false;
+        if (await Respuestas.CorrectaAsync(respuesta, "cargar el catálogo inicial"))
+        {
+            Dialogos.Exito($"Se cargaron {respuesta.Responses} cuentas. Puede corregirlas mientras no tengan pólizas.");
             await CargarCuentas();
         }
     }

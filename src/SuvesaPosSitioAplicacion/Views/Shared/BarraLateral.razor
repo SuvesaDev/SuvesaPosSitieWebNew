@@ -186,7 +186,12 @@
 
     private string RutaActual => Navegacion.ToBaseRelativePath(Navegacion.Uri).Trim('/');
 
-    protected override void OnInitialized() => Navegacion.LocationChanged += AlCambiarUbicacion;
+    protected override async Task OnInitializedAsync()
+    {
+        Navegacion.LocationChanged += AlCambiarUbicacion;
+        if (Sesion.TieneSucursal)
+            await Contabilidad.ResolverSucursalAsync(Sesion.IdSucursal);
+    }
 
     public void Dispose() => Navegacion.LocationChanged -= AlCambiarUbicacion;
 

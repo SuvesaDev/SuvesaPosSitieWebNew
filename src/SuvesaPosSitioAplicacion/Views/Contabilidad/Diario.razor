@@ -6,6 +6,8 @@
 @inject IFacturacion FacturacionApi
 @inject IEmisoresFiscales EmisoresApi
 @inject IContabilidad Contabilidad
+@inject ISucursales SucursalesApi
+@inject IContextoSesion Sesion
 @inject IManejadorRespuestas Respuestas
 
 @* W4: diario — rango obligatorio, máximo un período a la vez (decisión ya cerrada). El
@@ -37,7 +39,17 @@
                             }
                         </select>
                     </div>
-                    <div class="col-12 col-md-4">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="dj-sucursal">Sucursal</label>
+                        <select id="dj-sucursal" class="form-select" @bind="_idSucursalFiltro" @bind:after="Buscar">
+                            <option value="0">Todas</option>
+                            @foreach (var sucursal in _sucursales)
+                            {
+                                <option value="@sucursal.Id">@(sucursal.NombreComercial ?? sucursal.Alias ?? sucursal.Id.ToString())</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-3">
                         <label class="form-label" for="dj-periodo">Período</label>
                         <select id="dj-periodo" class="form-select" @bind="_idPeriodo" @bind:after="Buscar" disabled="@(_periodos.Count == 0)">
                             <option value="0">Seleccione...</option>
@@ -68,7 +80,7 @@
                             <td class="small">
                                 @foreach (var linea in (asiento.Lineas ?? new List<LineaAsientoContableDTO>()).OrderBy(l => l.Orden))
                                 {
-                                    <div>@linea.TipoMovimiento — @linea.IdCuentaContable — @linea.MontoFuncional.ToString("N2") — @linea.Descripcion</div>
+                                    <div>@linea.TipoMovimiento — @linea.IdCuentaContable — @linea.MontoFuncional.ToString("N2")@(linea.IdSucursal is int idSucursal ? $" — sucursal {idSucursal}" : "") — @linea.Descripcion</div>
                                 }
                             </td>
                             <td class="text-end">@TotalDebito(asiento).ToString("N2")</td>
@@ -97,11 +109,14 @@
     private bool _cargando;
 
     private List<AsientoContableDTO> _asientos = new();
+    private List<DTOs.Fiscal.SucursalFiscalDTO> _sucursales = new();
+    private int _idSucursalFiltro;
 
     protected override async Task OnInitializedAsync()
     {
         _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
         _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        _sucursales = (await Respuestas.DatoAsync(await SucursalesApi.Obtener(), "consultar las sucursales"))?.ToList() ?? new();
         if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
         if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
         await AlCambiarSeleccion();
@@ -115,7 +130,7 @@
         _asientos = new();
         if (_idEmpresa == 0 || _idEmisor == 0) return;
 
-        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor, Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null), "consultar el estado de activación");
         _idLibroContable = estado?.IdLibroContable ?? 0;
         if (_idLibroContable == 0) return;
 
@@ -130,7 +145,8 @@
         if (periodo is null) return;
 
         _cargando = true;
-        _asientos = (await Respuestas.DatoAsync(await Contabilidad.ObtenerLibroDiario(_idLibroContable, DateOnly.FromDateTime(periodo.FechaInicio.Date), DateOnly.FromDateTime(periodo.FechaFin.Date)), "consultar el libro diario"))?.ToList() ?? new();
+        var idSucursal = _idSucursalFiltro > 0 ? _idSucursalFiltro : (int?)null;
+        _asientos = (await Respuestas.DatoAsync(await Contabilidad.ObtenerLibroDiario(_idLibroContable, DateOnly.FromDateTime(periodo.FechaInicio.Date), DateOnly.FromDateTime(periodo.FechaFin.Date), idSucursal), "consultar el libro diario"))?.ToList() ?? new();
         _cargando = false;
     }
 

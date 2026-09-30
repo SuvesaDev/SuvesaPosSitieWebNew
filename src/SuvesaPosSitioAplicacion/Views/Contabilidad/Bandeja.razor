@@ -6,6 +6,7 @@
 @inject IFacturacion FacturacionApi
 @inject IEmisoresFiscales EmisoresApi
 @inject IContabilidad Contabilidad
+@inject ISucursales SucursalesApi
 @inject IContextoSesion Sesion
 @inject IServicioDialogos Dialogos
 @inject IManejadorRespuestas Respuestas
@@ -199,6 +200,16 @@
 <AppModal @ref="_modalManual" Titulo="Nueva póliza manual" Tamano="ModalSize.ExtraLarge" AlGuardar="GuardarPolizaManual" Guardando="_guardando">
     <div class="row g-2 mb-3">
         <div class="col-6">
+            <label class="form-label" for="pm-sucursal">Sucursal</label>
+            <select id="pm-sucursal" class="form-select" @bind="_idSucursalManual">
+                <option value="0">Seleccione...</option>
+                @foreach (var sucursal in _sucursales)
+                {
+                    <option value="@sucursal.Id">@(sucursal.NombreComercial ?? sucursal.Alias ?? sucursal.Id.ToString())</option>
+                }
+            </select>
+        </div>
+        <div class="col-6">
             <label class="form-label" for="pm-fecha">Fecha contable</label>
             <input id="pm-fecha" type="date" class="form-control" @bind="_fechaManual" />
         </div>
@@ -277,7 +288,9 @@
     private AsientoContableDTO? _asientoDetalle;
 
     private AppModal _modalManual = default!;
+    private List<DTOs.Fiscal.SucursalFiscalDTO> _sucursales = new();
     private DateOnly _fechaManual = DateOnly.FromDateTime(DateTime.Today);
+    private int _idSucursalManual;
     private long? _idClienteManual;
     private List<LineaAsientoManualDTO> _lineasManual = new();
 
@@ -287,6 +300,7 @@
     {
         _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
         _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        _sucursales = (await Respuestas.DatoAsync(await SucursalesApi.Obtener(), "consultar las sucursales"))?.ToList() ?? new();
         if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
         if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
         await AlCambiarSeleccion();
@@ -299,7 +313,7 @@
         _asientos = new();
         if (_idEmpresa == 0 || _idEmisor == 0) return;
 
-        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor), "consultar el estado de activación");
+        var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor, Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null), "consultar el estado de activación");
         _idLibroContable = estado?.IdLibroContable ?? 0;
         if (_idLibroContable == 0) return;
 
@@ -395,6 +409,7 @@
     private async Task NuevaPolizaManual()
     {
         _fechaManual = DateOnly.FromDateTime(DateTime.Today);
+        _idSucursalManual = Sesion.IdSucursal;
         _idClienteManual = null;
         _lineasManual = new()
         {
@@ -409,6 +424,11 @@
 
     private async Task GuardarPolizaManual()
     {
+        if (_idSucursalManual <= 0)
+        {
+            await Dialogos.ErrorAsync("Elija la sucursal activa de la póliza.");
+            return;
+        }
         if (_lineasManual.Count == 0 || _lineasManual.Any(l => l.IdCuentaContable == 0 || l.Monto <= 0))
         {
             await Dialogos.ErrorAsync("Cada línea necesita cuenta y un monto mayor a cero.");
@@ -426,6 +446,9 @@
         var comando = new CrearAsientoManualDTO
         {
             IdLibroContable = _idLibroContable,
+            IdEmisor = _idEmisor,
+            IdSucursal = _idSucursalManual,
+            IdEmpresa = _idEmpresa > 0 ? _idEmpresa : null,
             FechaContable = new DateTimeOffset(_fechaManual.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
             FechaFiscal = new DateTimeOffset(_fechaManual.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
             IdCliente = _idClienteManual,

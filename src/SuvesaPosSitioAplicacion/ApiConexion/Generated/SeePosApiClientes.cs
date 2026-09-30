@@ -34612,6 +34612,8 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
 
         System.Threading.Tasks.Task<BooleanResponseGeneric> DesactivarSucursalAsync(int idSucursal, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
 
+        System.Threading.Tasks.Task<Int64ResponseGeneric> CargarCatalogoInicialAsync(long idLibro, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
@@ -34840,7 +34842,7 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        System.Threading.Tasks.Task<AsientoContableDTOIReadOnlyListResponseGeneric> DiarioAsync(long? idLibroContable = null, System.DateTimeOffset? desde = null, System.DateTimeOffset? hasta = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
+        System.Threading.Tasks.Task<AsientoContableDTOIReadOnlyListResponseGeneric> DiarioAsync(long? idLibroContable = null, System.DateTimeOffset? desde = null, System.DateTimeOffset? hasta = null, int? idSucursal = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken));
 
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
@@ -35103,6 +35105,47 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
 
         public virtual Task<BooleanResponseGeneric> DesactivarSucursalAsync(int idSucursal, System.Threading.CancellationToken cancellationToken = default)
             => PostSucursalContabilidadAsync(idSucursal, "desactivar", cancellationToken);
+
+        public virtual async Task<Int64ResponseGeneric> CargarCatalogoInicialAsync(long idLibro, System.Threading.CancellationToken cancellationToken = default)
+        {
+            var client_ = _httpClient;
+            using var request_ = new System.Net.Http.HttpRequestMessage();
+            request_.Content = new System.Net.Http.StringContent(string.Empty, System.Text.Encoding.UTF8, "application/json");
+            request_.Method = new System.Net.Http.HttpMethod("POST");
+            request_.Headers.Accept.Add(System.Net.Http.Headers.MediaTypeWithQualityHeaderValue.Parse("application/json"));
+            var urlBuilder_ = new System.Text.StringBuilder();
+            urlBuilder_.Append("api/contabilidad/libros/");
+            urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(idLibro, System.Globalization.CultureInfo.InvariantCulture)));
+            urlBuilder_.Append("/catalogo-inicial");
+            PrepareRequest(client_, request_, urlBuilder_);
+            request_.RequestUri = new System.Uri(urlBuilder_.ToString(), System.UriKind.RelativeOrAbsolute);
+            PrepareRequest(client_, request_, request_.RequestUri.ToString());
+            var response_ = await client_.SendAsync(request_, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var headers_ = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IEnumerable<string>>();
+                foreach (var item_ in response_.Headers)
+                    headers_[item_.Key] = item_.Value;
+                if (response_.Content?.Headers != null)
+                {
+                    foreach (var item_ in response_.Content.Headers)
+                        headers_[item_.Key] = item_.Value;
+                }
+                ProcessResponse(client_, response_);
+                var status_ = (int)response_.StatusCode;
+                if (status_ == 200)
+                {
+                    var objectResponse_ = await ReadObjectResponseAsync<Int64ResponseGeneric>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                    return objectResponse_.Object ?? throw new ApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                }
+                var responseData_ = response_.Content == null ? null : await ReadAsStringAsync(response_.Content, cancellationToken).ConfigureAwait(false);
+                throw new ApiException("The HTTP status code of the response was not expected (" + status_ + ").", status_, responseData_, headers_, null);
+            }
+            finally
+            {
+                response_.Dispose();
+            }
+        }
 
         private async Task<BooleanResponseGeneric> PostSucursalContabilidadAsync(int idSucursal, string accion, System.Threading.CancellationToken cancellationToken)
         {
@@ -38640,7 +38683,7 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
         /// <param name="cancellationToken">A cancellation token that can be used by other objects or threads to receive notice of cancellation.</param>
         /// <returns>OK</returns>
         /// <exception cref="ApiException">A server side error occurred.</exception>
-        public virtual async System.Threading.Tasks.Task<AsientoContableDTOIReadOnlyListResponseGeneric> DiarioAsync(long? idLibroContable = null, System.DateTimeOffset? desde = null, System.DateTimeOffset? hasta = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+        public virtual async System.Threading.Tasks.Task<AsientoContableDTOIReadOnlyListResponseGeneric> DiarioAsync(long? idLibroContable = null, System.DateTimeOffset? desde = null, System.DateTimeOffset? hasta = null, int? idSucursal = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
         {
             var client_ = _httpClient;
             var disposeClient_ = false;
@@ -38667,6 +38710,10 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated
                     if (hasta != null)
                     {
                         urlBuilder_.Append(System.Uri.EscapeDataString("hasta")).Append('=').Append(System.Uri.EscapeDataString(hasta.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture))).Append('&');
+                    }
+                    if (idSucursal != null)
+                    {
+                        urlBuilder_.Append(System.Uri.EscapeDataString("idSucursal")).Append('=').Append(System.Uri.EscapeDataString(ConvertToString(idSucursal, System.Globalization.CultureInfo.InvariantCulture))).Append('&');
                     }
                     urlBuilder_.Length--;
 

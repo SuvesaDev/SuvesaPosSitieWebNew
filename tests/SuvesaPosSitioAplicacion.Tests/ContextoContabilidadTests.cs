@@ -17,18 +17,20 @@ public class ContextoContabilidadTests
     {
         public int LlamadasEstadoActivacion { get; private set; }
         public bool Efectivo { get; set; }
+        public bool SucursalHabilitada { get; set; }
 
         public Task<ResponseGeneric<EstadoActivacionContabilidadDTO>> EstadoActivacion(long idEmpresa, int? idEmisor, int? idSucursal = null)
         {
             LlamadasEstadoActivacion++;
             return Task.FromResult(new ResponseGeneric<EstadoActivacionContabilidadDTO>(
-                new EstadoActivacionContabilidadDTO { IdEmpresa = idEmpresa, IdEmisor = idEmisor, IdSucursal = idSucursal, Efectivo = Efectivo }));
+                new EstadoActivacionContabilidadDTO { IdEmpresa = idEmpresa, IdEmisor = idEmisor, IdSucursal = idSucursal, Efectivo = Efectivo, SucursalHabilitada = SucursalHabilitada }));
         }
 
         public Task<ResponseGeneric<bool>> ActivarEmpresa(long idEmpresa) => Task.FromResult(new ResponseGeneric<bool>(true));
         public Task<ResponseGeneric<bool>> DesactivarEmpresa(long idEmpresa) => Task.FromResult(new ResponseGeneric<bool>(true));
         public Task<ResponseGeneric<bool>> ActivarSucursal(int idSucursal) => Task.FromResult(new ResponseGeneric<bool>(true));
         public Task<ResponseGeneric<bool>> DesactivarSucursal(int idSucursal) => Task.FromResult(new ResponseGeneric<bool>(true));
+        public Task<ResponseGeneric<long>> CargarCatalogoInicial(long idLibroContable) => Task.FromResult(new ResponseGeneric<long>(0L));
         public Task<ResponseGeneric<long>> ActivarEmisor(ActivarEmisorDTO comando) => Task.FromResult(new ResponseGeneric<long>(1L));
         public Task<ResponseGeneric<bool>> DesactivarEmisor(int idEmisor) => Task.FromResult(new ResponseGeneric<bool>(true));
         public Task<ResponseGeneric<bool>> ConfirmarClave(string contrasena) => Task.FromResult(new ResponseGeneric<bool>(true));
@@ -59,7 +61,7 @@ public class ContextoContabilidadTests
 
         public Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ListarPeriodos(long idLibroContable) => throw new NotImplementedException();
         public Task<ResponseGeneric<ICollection<AuditoriaContableDTO>>> ListarAuditoria(long? idLibroContable, string? entidad, string? usuario, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina) => throw new NotImplementedException();
-        public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ObtenerLibroDiario(long idLibroContable, DateOnly desde, DateOnly hasta) => throw new NotImplementedException();
+        public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ObtenerLibroDiario(long idLibroContable, DateOnly desde, DateOnly hasta, int? idSucursal = null) => throw new NotImplementedException();
         public Task<ResponseGeneric<LibroMayorDTO>> ObtenerLibroMayor(long idCuentaContable, DateOnly desde, DateOnly hasta) => throw new NotImplementedException();
         public Task<ResponseGeneric<BalanzaComprobacionDTO>> ObtenerBalanza(long idLibroContable, DateOnly fechaCorte) => throw new NotImplementedException();
         public Task<ResponseGeneric<EstadoResultadosDTO>> ObtenerEstadoResultados(long idLibroContable, DateOnly desde, DateOnly hasta) => throw new NotImplementedException();
@@ -116,6 +118,18 @@ public class ContextoContabilidadTests
         await contexto.ResolverAsync(1, 200, 10);
 
         Assert.Equal(2, proxy.LlamadasEstadoActivacion);
+    }
+
+    [Fact]
+    public async Task ResolverSucursalAsync_MuestraElModuloSiLaSucursalEstaEncendida()
+    {
+        var proxy = new ContabilidadFalsa { SucursalHabilitada = true };
+        var contexto = new ContextoContabilidad(proxy);
+
+        await contexto.ResolverSucursalAsync(10);
+
+        Assert.True(contexto.HabilitadaEmisorActual);
+        Assert.Equal(1, proxy.LlamadasEstadoActivacion);
     }
 
     [Fact]

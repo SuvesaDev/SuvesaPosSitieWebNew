@@ -21,4 +21,7 @@ public interface IContextoContabilidad
     /// <summary>Consulta el API (o el cache interno, si ya se resolvio este mismo
     /// emisor) y actualiza <see cref="HabilitadaEmisorActual"/>.</summary>
     Task ResolverAsync(long idEmpresa, int idEmisor, int idSucursal, CancellationToken ct = default);
+
+    /// <summary>El menú sigue la sucursal del centro abierto: encendida se muestra, apagada se oculta.</summary>
+    Task ResolverSucursalAsync(int idSucursal, CancellationToken ct = default);
 }

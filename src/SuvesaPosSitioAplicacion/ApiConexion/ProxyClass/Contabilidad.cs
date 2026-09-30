@@ -56,6 +56,13 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "desactivar Contabilidad para la sucursal");
 
+    public Task<ResponseGeneric<long>> CargarCatalogoInicial(long idLibroContable)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.CargarCatalogoInicialAsync(idLibroContable);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "cargar el catálogo inicial");
+
     public Task<ResponseGeneric<long>> ActivarEmisor(ActivarEmisorDTO comando)
         => Ejecutar(async () =>
         {
@@ -251,10 +258,10 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar la bitácora de auditoría");
 
-    public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ObtenerLibroDiario(long idLibroContable, DateOnly desde, DateOnly hasta)
+    public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ObtenerLibroDiario(long idLibroContable, DateOnly desde, DateOnly hasta, int? idSucursal = null)
         => Ejecutar(async () =>
         {
-            var r = await _api.DiarioAsync(idLibroContable, AFecha(desde), AFecha(hasta));
+            var r = await _api.DiarioAsync(idLibroContable, AFecha(desde), AFecha(hasta), idSucursal);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar el libro diario");
 
