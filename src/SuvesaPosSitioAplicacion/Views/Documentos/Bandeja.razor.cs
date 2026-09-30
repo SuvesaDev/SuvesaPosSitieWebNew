@@ -8,7 +8,7 @@ namespace SuvesaPosSitioAplicacion.Views.Documentos;
 public partial class Bandeja
 {
     private const string Titulo = "Bandeja de documentos";
-    private static readonly string[] _pestanas = { "Preventas", "Facturas", "Notas de Crédito", "Consignaciones" };
+    private static readonly string[] _pestanas = { "Preventas", "Facturas", "Notas de Crédito", "Notas de Débito", "Consignaciones" };
 
     private int _tab;
     private DateTime _desde = DateTime.Today.AddDays(-7);
@@ -34,7 +34,7 @@ public partial class Bandeja
     private string? _claveFiscal;
     private string? _contenidoFiscal;
 
-    private bool EsFiscal => _tab is 1 or 2;
+    private bool EsFiscal => _tab is 1 or 2 or 3;
 
     private IReadOnlyList<DocumentoBandeja> Filas => EsFiscal ? _fiscales : _comunes;
 
@@ -126,6 +126,14 @@ public partial class Bandeja
                 }
             case 3:
                 {
+                    var r = await Respuestas.DatoAsync(await Api.NotasDebito(f), "consultar las notas de débito");
+                    _fiscales = r?.Registros ?? new();
+                    _comunes = new();
+                    _total = r?.TotalRegistros ?? 0;
+                    break;
+                }
+            case 4:
+                {
                     var r = await Respuestas.DatoAsync(await Api.Consignaciones(f), "consultar las consignaciones");
                     _comunes = r?.Registros ?? new();
                     _fiscales = new();
@@ -150,6 +158,11 @@ public partial class Bandeja
         else if (_tab == 2)
         {
             _detNC = await Respuestas.DatoAsync(await Api.DetalleNotaCredito(d.Id), "consultar el detalle de la nota de crédito");
+        }
+        else if (_tab == 3)
+        {
+            // El detalle de la nota de débito reutiliza la forma del de la nota de crédito.
+            _detNC = await Respuestas.DatoAsync(await Api.DetalleNotaDebito(d.Id), "consultar el detalle de la nota de débito");
         }
         else
         {

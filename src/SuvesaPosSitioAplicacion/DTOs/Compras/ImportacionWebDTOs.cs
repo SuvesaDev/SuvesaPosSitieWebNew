@@ -24,6 +24,10 @@ public class ImportacionLineaWebDTO
     public decimal Cantidad { get; set; }
     public decimal CostoProveedorMonedaUnitario { get; set; }
     public decimal TributoDuaUnitario { get; set; }
+    public decimal IvaAduanalUnitario { get; set; }
+    public string? CertificadoOrigen { get; set; }
+    public string? RegistroSanitario { get; set; }
+    public DateOnly? VencimientoRegistroSanitario { get; set; }
     public decimal? PrecioAAplicado { get; set; }
     public List<ImportacionLoteWebDTO> Lotes { get; set; } = new();
 }
@@ -32,6 +36,10 @@ public sealed class ActualizarTributoDuaImportacionWebDTO
 {
     public long IdImportacionLinea { get; set; }
     public decimal TributoDuaUnitario { get; set; }
+    public decimal IvaAduanalUnitario { get; set; }
+    public string? CertificadoOrigen { get; set; }
+    public string? RegistroSanitario { get; set; }
+    public DateOnly? VencimientoRegistroSanitario { get; set; }
 }
 
 public sealed class ImportacionLoteWebDTO
@@ -47,6 +55,11 @@ public sealed class ImportacionCostoWebDTO
     public string Descripcion { get; set; } = "";
     public decimal MontoCapitalizable { get; set; }
     public decimal IvaAcreditable { get; set; }
+    public int CodMoneda { get; set; } = 1;
+    public decimal MontoOrigen { get; set; }
+    public decimal TipoCambio { get; set; }
+    public bool EsEstimado { get; set; }
+    public string? MovimientoRecinto { get; set; }
 }
 
 public sealed class ImportacionDocumentoCargaWebDTO
@@ -99,6 +112,10 @@ public sealed class ReporteImportacionWebDTO
     public decimal DiasPromedioNacionalizacion { get; set; }
     public int DocumentosPendientes { get; set; }
     public decimal MargenEsperado { get; set; }
+    public decimal IvaAcreditableCrc { get; set; }
+    public decimal Ley6946Crc { get; set; }
+    public decimal ProcomerCrc { get; set; }
+    public decimal TimbresCrc { get; set; }
     public List<ReporteImportacionFilaWebDTO> Filas { get; set; } = new();
 }
 
@@ -112,6 +129,10 @@ public sealed class ReporteImportacionFilaWebDTO
     public decimal DiasNacionalizacion { get; set; }
     public int DocumentosPendientes { get; set; }
     public decimal MargenEsperado { get; set; }
+    public decimal IvaAcreditableCrc { get; set; }
+    public decimal Ley6946Crc { get; set; }
+    public decimal ProcomerCrc { get; set; }
+    public decimal TimbresCrc { get; set; }
 }
 
 public sealed class FiltroBandejaImportacionesWebDTO
@@ -170,6 +191,11 @@ public sealed class ImportacionResumenWebDTO
     public decimal CostoMercanciaCrc { get; set; }
     public decimal CostosImportacionCrc { get; set; }
     public decimal TributosDuaCrc { get; set; }
+    public decimal IvaAduanalCrc { get; set; }
+    public decimal IvaLocalAceptadoCrc { get; set; }
+    public decimal IvaAcreditableCrc { get; set; }
+    public decimal ProcomerCrc { get; set; }
+    public decimal TimbresCrc { get; set; }
     public decimal CostoNacionalizadoCrc { get; set; }
     public List<ImportacionCostoWebDTO> Costos { get; set; } = new();
     public List<ImportacionDocumentoResumenWebDTO> Documentos { get; set; } = new();

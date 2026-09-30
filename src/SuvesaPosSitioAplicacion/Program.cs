@@ -38,6 +38,7 @@ builder.Services.AddMudServices();
 // Respalda el almacen de tickets. En una sola instancia basta con memoria;
 // para varias, cambiar por Redis o SQL sin tocar AlmacenTickets.
 builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSingleton<RegistroSesiones>();
 builder.Services.AddSingleton<AlmacenTickets>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -134,6 +135,7 @@ builder.Services.AddHttpClient<IConsignacionInvApiCliente, ConsignacionInvApiCli
 // ReportesOperacion recibe IHttpClientFactory y toma el cliente nombrado SeePosApi
 // ya configurado arriba. No es un cliente HTTP tipado (que exige HttpClient directo).
 builder.Services.AddScoped<IReportesOperacion, ReportesOperacion>();
+builder.Services.AddScoped<IAuditoria, Auditoria>();
 ClienteApi<ICentrosApiCliente, CentrosApiCliente>();
 ClienteApi<IBancosApiCliente, BancosApiCliente>();
 ClienteApi<IInventarioApiCliente, InventarioApiCliente>();
@@ -254,7 +256,12 @@ builder.Services.AddScoped<IEstadoOcupado, EstadoOcupado>();
 builder.Services.AddSingleton<AccesorServiciosCircuito>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Components.Server.Circuits.CircuitHandler, CircuitoServiciosHandler>();
 builder.Services.AddTransient<OcupadoHandler>();
-builder.Services.ConfigureHttpClientDefaults(b => b.AddHttpMessageHandler<OcupadoHandler>());
+builder.Services.AddTransient<FechaEquipoHandler>();
+builder.Services.ConfigureHttpClientDefaults(b =>
+{
+    b.AddHttpMessageHandler<FechaEquipoHandler>();
+    b.AddHttpMessageHandler<OcupadoHandler>();
+});
 
 // Motor de plantillas de impresión (MOTOR_PLANTILLAS_IMPRESION_WEB.md).
 builder.Services.AddScoped<IPlantillasImpresion, PlantillasImpresion>();

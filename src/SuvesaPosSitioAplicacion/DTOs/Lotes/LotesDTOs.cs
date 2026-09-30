@@ -173,12 +173,14 @@ public sealed class TomaFisicaGuardarLinea
     [JsonPropertyName("idArticulo")] public long IdArticulo { get; set; }
     [JsonPropertyName("idStockLote")] public long? IdStockLote { get; set; }
     [JsonPropertyName("contado")] public double Contado { get; set; }
+    [JsonPropertyName("existenciaVista")] public double? ExistenciaVista { get; set; }
 }
 
 public sealed class TomaFisicaGuardar
 {
     [JsonPropertyName("bodega")] public int Bodega { get; set; }
     [JsonPropertyName("fecha")] public System.DateTime? Fecha { get; set; }
+    [JsonPropertyName("cargadaEn")] public System.DateTime? CargadaEn { get; set; }
     [JsonPropertyName("observaciones")] public string? Observaciones { get; set; }
     [JsonPropertyName("lineas")] public List<TomaFisicaGuardarLinea> Lineas { get; set; } = new();
 }
@@ -205,7 +207,10 @@ public sealed class TomaFisicaReporte
     [JsonPropertyName("unidadesGanadas")] public double UnidadesGanadas { get; set; }
     [JsonPropertyName("unidadesPerdidas")] public double UnidadesPerdidas { get; set; }
     [JsonPropertyName("costoPerdidas")] public double CostoPerdidas { get; set; }
+    [JsonPropertyName("costoGanancias")] public double CostoGanancias { get; set; }
     [JsonPropertyName("observaciones")] public string? Observaciones { get; set; }
+    [JsonPropertyName("esParcial")] public bool EsParcial { get; set; }
+    [JsonPropertyName("anulada")] public bool Anulada { get; set; }
     [JsonPropertyName("lineas")] public List<TomaFisicaReporteLinea> Lineas { get; set; } = new();
 }
 

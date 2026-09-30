@@ -16,9 +16,14 @@ public interface IBandejaDocumentos
 
     Task<ResponseGeneric<BandejaDocumentosResultado<DocumentoFiscalBandeja>>> NotasCredito(BandejaDocumentosFiltro filtro);
 
+    /// <summary>Notas de débito que respaldan la anulación de una nota de crédito.</summary>
+    Task<ResponseGeneric<BandejaDocumentosResultado<DocumentoFiscalBandeja>>> NotasDebito(BandejaDocumentosFiltro filtro);
+
     Task<ResponseGeneric<BandejaDocumentosResultado<DocumentoBandeja>>> Consignaciones(BandejaDocumentosFiltro filtro);
 
     Task<ResponseGeneric<FacturaBandejaDetalle>> DetalleFactura(long id);
 
     Task<ResponseGeneric<NotaCreditoBandejaDetalle>> DetalleNotaCredito(long id);
+
+    Task<ResponseGeneric<NotaCreditoBandejaDetalle>> DetalleNotaDebito(long id);
 }

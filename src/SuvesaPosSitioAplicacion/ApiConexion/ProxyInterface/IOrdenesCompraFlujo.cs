@@ -12,6 +12,7 @@ public interface IOrdenesCompraFlujo
     Task<ResponseGeneric<long>> SiguienteConsecutivo(int idEmisor, int idSucursal);
 
     Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Crear(CrearOrdenCompraWebDTO cmd);
+    Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Editar(long orden, CrearOrdenCompraWebDTO cmd);
 
     Task<ResponseGeneric<IReadOnlyList<OrdenCompraFlujoWebDTO>>> Listar(
         int? idProveedor = null, int? estado = null, int? tipoOrdenCompra = null, bool incluirAnuladas = false,
@@ -19,6 +20,7 @@ public interface IOrdenesCompraFlujo
 
     Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Obtener(long orden);
 
+    Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Recibir(long orden, IReadOnlyList<RecepcionLineaOrdenWebDTO> lineas, bool cerrarDiferencia);
     Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Entregar(long orden, DateTime? fecha);
     Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Cancelar(long orden, string? motivo);
     Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> BajaProveedor(long orden, string? motivo);

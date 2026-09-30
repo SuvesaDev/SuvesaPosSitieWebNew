@@ -60,6 +60,14 @@ public sealed class ManejadorRespuestas : IManejadorRespuestas
             return;
         }
 
+        if (EsPermisoDenegado(detalle))
+        {
+            await _dialogos.ErrorAsync(
+                "No tiene permiso para esta acción. El menú solo muestra lo que su rol permite.",
+                "Acceso denegado");
+            return;
+        }
+
         if (respuesta.ErroresValidacion.Count > 0)
         {
             await _dialogos.ErrorAsync(
@@ -81,4 +89,9 @@ public sealed class ManejadorRespuestas : IManejadorRespuestas
     private static bool EsSesionCaducada(string detalle)
         => detalle.Contains("(401)", StringComparison.Ordinal)
         || detalle.Contains("Unauthorized", StringComparison.OrdinalIgnoreCase);
+
+    private static bool EsPermisoDenegado(string detalle)
+        => detalle.Contains("(403)", StringComparison.Ordinal)
+        || detalle.Contains("Forbidden", StringComparison.OrdinalIgnoreCase)
+        || detalle.Contains("falta el permiso", StringComparison.OrdinalIgnoreCase);
 }

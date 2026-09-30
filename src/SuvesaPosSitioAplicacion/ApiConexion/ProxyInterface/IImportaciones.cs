@@ -15,6 +15,6 @@ public interface IImportaciones
     Task<ResponseGeneric<ImportacionResumenWebDTO>> ActualizarTributoDua(long idImportacion, ActualizarTributoDuaImportacionWebDTO cmd);
     Task<ResponseGeneric<ImportacionResumenWebDTO>> AgregarDocumento(long idImportacion, ImportacionDocumentoCargaWebDTO cmd);
     Task<ResponseGeneric<ImportacionResumenWebDTO>> ActualizarEstadoFiscal(long idImportacion, long idDocumento, ActualizarEstadoFiscalImportacionWebDTO cmd);
-    Task<ResponseGeneric<ImportacionResumenWebDTO>> EnviarMensajeReceptor(long idImportacion, long idDocumento);
+    Task<ResponseGeneric<ImportacionResumenWebDTO>> EnviarMensajeReceptor(long idImportacion, long idDocumento, int mensaje = 1);
     Task<ResponseGeneric<ImportacionResumenWebDTO>> Cerrar(long idImportacion, CerrarImportacionWebDTO cmd);
 }

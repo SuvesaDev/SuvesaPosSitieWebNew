@@ -71,9 +71,9 @@ public sealed class Importaciones : ProxyBase, IImportaciones
         => Ejecutar(async () => await LecturaEnvelope.Leer<ImportacionResumenWebDTO>(
             await _api.PutAsJsonAsync($"api/importaciones/{idImportacion}/documentos/{idDocumento}/fiscal", cmd, LecturaEnvelope.Json)), "actualizar el estado fiscal");
 
-    public Task<ResponseGeneric<ImportacionResumenWebDTO>> EnviarMensajeReceptor(long idImportacion, long idDocumento)
+    public Task<ResponseGeneric<ImportacionResumenWebDTO>> EnviarMensajeReceptor(long idImportacion, long idDocumento, int mensaje = 1)
         => Ejecutar(async () => await LecturaEnvelope.Leer<ImportacionResumenWebDTO>(
-            await _api.PostAsync($"api/importaciones/{idImportacion}/documentos/{idDocumento}/mensaje-receptor", null)), "enviar el Mensaje Receptor");
+            await _api.PostAsync($"api/importaciones/{idImportacion}/documentos/{idDocumento}/mensaje-receptor?mensaje={mensaje}", null)), "enviar el Mensaje Receptor");
 
     public Task<ResponseGeneric<ImportacionResumenWebDTO>> Cerrar(long idImportacion, CerrarImportacionWebDTO cmd)
         => Ejecutar(async () => await LecturaEnvelope.Leer<ImportacionResumenWebDTO>(
