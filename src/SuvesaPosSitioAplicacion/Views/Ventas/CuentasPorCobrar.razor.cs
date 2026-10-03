@@ -27,10 +27,11 @@ public partial class CuentasPorCobrar
     private List<Moneda> _monedas = new();
 
     // --- Cliente / preventas ---
-    private string _cedula = string.Empty;
+    private string _textoCliente = string.Empty;
     private bool _buscando;
     private long _codCliente;
     private string? _cliente;
+    private List<FiltranClienteDTO> _clientesEncontrados = new();
     private List<PreventaResumenWebDTO> _preventas = new();
     private readonly HashSet<long> _seleccion = new();
 
@@ -154,8 +155,14 @@ public partial class CuentasPorCobrar
 
     private async Task Buscar()
     {
-        if (string.IsNullOrWhiteSpace(_cedula)) { await Dialogos.ErrorAsync("Indique la cédula del cliente."); return; }
+        if (string.IsNullOrWhiteSpace(_textoCliente))
+        {
+            await Dialogos.ErrorAsync("Indique la cédula, el nombre o el nombre fantasía del cliente.");
+            return;
+        }
+
         _buscando = true;
+        _clientesEncontrados = new();
         _preventas = new();
         _seleccion.Clear();
         _resultados.Clear();
@@ -163,28 +170,73 @@ public partial class CuentasPorCobrar
         _credito = null;
         _facturasCredito = new();
         _selCredito.Clear();
+        _codCliente = 0;
 
-        var codigo = await Respuestas.DatoAsync(await Api.CodigoClientePorCedula(_cedula.Trim()), "buscar el código del cliente");
-        if (codigo == 0)
+        var texto = _textoCliente.Trim();
+        if (EsCedula(texto))
         {
-            _buscando = false;
-            await Dialogos.ErrorAsync($"No existe ningún cliente con la cédula {_cedula}.");
+            var codigo = await Respuestas.DatoAsync(await Api.CodigoClientePorCedula(texto), "buscar el código del cliente");
+            if (codigo == 0)
+            {
+                _buscando = false;
+                await Dialogos.ErrorAsync($"No existe ningún cliente con la cédula {texto}.");
+                return;
+            }
+            await CargarCliente(codigo, null);
             return;
         }
+
+        if (texto.Length < 2)
+        {
+            _buscando = false;
+            await Dialogos.ErrorAsync("Escriba al menos 2 letras del nombre o nombre fantasía.");
+            return;
+        }
+
+        var clientes = await Respuestas.DatoAsync(await ClientesApi.Buscar(texto), "buscar clientes");
+        var encontrados = (clientes ?? Array.Empty<FiltranClienteDTO>())
+            .Where(c => !c.Anulado && !c.Fallecido)
+            .Take(25)
+            .ToList();
+        if (encontrados.Count == 0)
+        {
+            _buscando = false;
+            await Dialogos.ErrorAsync($"Ningún cliente coincide con «{texto}».");
+            return;
+        }
+        if (encontrados.Count == 1)
+        {
+            await CargarCliente(encontrados[0].Identificacion, NombreVisible(encontrados[0]));
+            return;
+        }
+
+        _clientesEncontrados = encontrados;
+        _buscando = false;
+    }
+
+    private async Task ElegirCliente(FiltranClienteDTO cliente)
+    {
+        _clientesEncontrados = new();
+        _buscando = true;
+        await CargarCliente(cliente.Identificacion, NombreVisible(cliente));
+    }
+
+    private async Task CargarCliente(long codigo, string? nombre)
+    {
         _codCliente = codigo;
 
         if (_modo == "preventas")
         {
             var lista = await Respuestas.DatoAsync(await Preventas.PreventasPendientes(_codCliente), "consultar las preventas pendientes");
             _preventas = (lista ?? new List<PreventaResumenWebDTO>()).ToList();
-            _cliente = _preventas.FirstOrDefault()?.Cliente ?? $"Cliente {_codCliente}";
+            _cliente = nombre ?? _preventas.FirstOrDefault()?.Cliente ?? $"Cliente {_codCliente}";
         }
         else
         {
             _credito = await Respuestas.DatoAsync(await Credito.Credito(_codCliente), "consultar el crédito del cliente");
             var facturas = await Respuestas.DatoAsync(await Credito.Facturas(_codCliente), "consultar las facturas de crédito");
             _facturasCredito = (facturas ?? new List<FacturaCreditoWebDTO>()).ToList();
-            _cliente = _credito?.Nombre ?? $"Cliente {_codCliente}";
+            _cliente = nombre ?? _credito?.Nombre ?? $"Cliente {_codCliente}";
         }
 
         _formasPago = (await Respuestas.DatoAsync(await Api.FormasPago(_codCliente), "consultar las formas de pago"))?.ToList() ?? new();
@@ -198,6 +250,12 @@ public partial class CuentasPorCobrar
         Recalcular();
         RecalcularCredito();
     }
+
+    private static bool EsCedula(string texto)
+        => texto.All(c => char.IsDigit(c) || c is '-' or ' ');
+
+    private static string NombreVisible(FiltranClienteDTO c)
+        => string.IsNullOrWhiteSpace(c.NombreFantasia) ? (c.Nombre ?? "") : $"{c.Nombre} ({c.NombreFantasia})";
 
     // ------------------------------------------------------------------ Selección
 
@@ -334,9 +392,10 @@ public partial class CuentasPorCobrar
 
     private void Limpiar()
     {
-        _cedula = string.Empty;
+        _textoCliente = string.Empty;
         _codCliente = 0;
         _cliente = null;
+        _clientesEncontrados = new();
         _preventas = new();
         _seleccion.Clear();
         _formasPago = new();
