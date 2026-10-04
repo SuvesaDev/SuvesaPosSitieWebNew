@@ -88,6 +88,7 @@ builder.Services.AddSingleton<ISondaLegado, SondaLegado>();
 // solo por debajo de cierto umbral de facturacion. VERIFICAR antes de produccion.
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 builder.Services.AddSingleton<IGeneradorPdf, GeneradorPdfQuestPdf>();
+builder.Services.AddScoped<MembreteReporte>();
 builder.Services.AddSingleton<IGeneradorReporteOperacion, GeneradorReporteOperacion>();
 
 builder.Services.AddScoped<IAlmacenEspacioTrabajo, AlmacenEspacioTrabajoNavegador>();
@@ -480,7 +481,8 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
 
 app.MapGet("/reportes/cuentas-por-pagar", async (
     ICuentasPorPagar api,
-    IGeneradorPdf pdf) =>
+    IGeneradorPdf pdf,
+    MembreteReporte membrete) =>
 {
     var r = await api.ObtenerDeudas();
 
@@ -510,6 +512,8 @@ app.MapGet("/reportes/cuentas-por-pagar", async (
         }
     }
 
+    var empresa = await membrete.ResolverAsync();
+
     var bytes = pdf.Tabla(new ReporteTabular(
         Titulo: "Cuentas por pagar",
         Subtitulo: "Facturas pendientes por proveedor",
@@ -517,7 +521,8 @@ app.MapGet("/reportes/cuentas-por-pagar", async (
         Filas: filas,
         Totales: new[] { "", "", "", "Total", Formato.Importe(total) })
     {
-        ColumnasNumericas = new HashSet<int> { 3, 4 }
+        ColumnasNumericas = new HashSet<int> { 3, 4 },
+        Empresa = empresa
     });
 
     return Results.File(bytes, "application/pdf", "cuentas-por-pagar.pdf");

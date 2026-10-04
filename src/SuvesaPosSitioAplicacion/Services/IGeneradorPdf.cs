@@ -36,7 +36,23 @@ public sealed record ReporteTabular(
 {
     /// <summary>Columnas que se alinean a la derecha, por llevar importes.</summary>
     public IReadOnlySet<int> ColumnasNumericas { get; init; } = new HashSet<int>();
+
+    /// <summary>
+    /// Membrete de la empresa (logo, emisor, sucursal). Si falta, el PDF solo
+    /// lleva el título del reporte — comportamiento histórico.
+    /// </summary>
+    public EncabezadoEmpresaPdf? Empresa { get; init; }
 }
+
+/// <summary>Identidad del emisor/sucursal que encabeza un reporte tabular.</summary>
+public sealed record EncabezadoEmpresaPdf(
+    string NombreEmisor,
+    string? Identificacion = null,
+    string? NombreSucursal = null,
+    string? Telefono = null,
+    string? Correo = null,
+    string? Direccion = null,
+    byte[]? Logo = null);
 
 /// <summary>Datos ya consolidados para el estado de cuenta que recibe el cliente.</summary>
 public sealed record EstadoCuentaPdf(
