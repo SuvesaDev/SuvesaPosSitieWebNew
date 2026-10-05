@@ -1325,6 +1325,11 @@
         if (_edicion.Id_Impuesto <= 0
             && await AvisoValidacion("Seleccione el impuesto del artículo.")) return;
 
+        // SubFamilia=0 choca con FK_SubFamilias_Inventario. Obligamos a elegir una
+        // familia real (o el API ya manda null si llega 0, pero mejor avisar aquí).
+        if (_edicion.SubFamilia <= 0
+            && await AvisoValidacion("Seleccione la familia del artículo.")) return;
+
         if (!await Dialogos.ConfirmarAsync(_esNuevo ? "Se registrará el nuevo artículo." : "Se actualizarán los datos del artículo."))
         {
             await _modal.ShowAsync();

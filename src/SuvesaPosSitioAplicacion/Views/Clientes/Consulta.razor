@@ -37,7 +37,7 @@
         </button>
         @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
         {
-            <button class="btn btn-sm btn-primary" @onclick="Agregar">
+            <button type="button" class="btn btn-sm btn-primary" @onclick="Agregar">
                 <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
             </button>
         }
@@ -422,7 +422,7 @@
                         <div class="col-12">
                             <label class="form-label mb-1">Actividades económicas</label>
                             <p class="form-text mt-0 mb-2">Un cliente puede tener varias actividades registradas en Hacienda. La marcada como <strong>Principal</strong> es la que se usa en la factura electrónica.</p>
-                            @if (_edicion.Actividades.Count > 0)
+                            @if ((_edicion.Actividades?.Count ?? 0) > 0)
                             {
                                 <div class="table-responsive mb-2"><table class="table table-sm align-middle mb-0">
                                     <thead><tr><th>Código</th><th>Descripción</th><th class="text-center">Principal</th><th></th></tr></thead>
@@ -858,7 +858,9 @@
             // El DTO generado no trae valor por defecto (queda null); sin esto el API
             // recibe datosSucursal:null y "request.DatosSucursal.Count" revienta con
             // NullReferenceException al crear un cliente sin varias sucursales.
-            DatosSucursal = new List<ClienteDatosSucursalDTO>()
+            DatosSucursal = new List<ClienteDatosSucursalDTO>(),
+            // Misma precaución: el markup hace `_edicion.Actividades.Count` al abrir.
+            Actividades = new List<ActividadEconomicaClienteDTO>()
         };
         _datosSucursalEdicion = new ClienteDatosSucursalDTO();
         _datosSucursalOriginal = null;
@@ -871,9 +873,23 @@
         _distritos = new List<DistritoDTO>();
         _actividadesClienteHacienda = new List<ActividadesEmpresaDTO>();
         _actCodigoCliente = _actDescripcionCliente = string.Empty;
-        await CargarProvincias();
-        await CargarTiposIdentificacion();
+
+        // Abrir el modal primero: si se espera a provincias/tipos y el API tarda o
+        // falla, el clic a Agregar parece no hacer nada (sin spinner ni feedback).
         await _modal.ShowAsync();
+
+        try
+        {
+            await CargarProvincias();
+            await CargarTiposIdentificacion();
+        }
+        catch
+        {
+            // El modal ya está abierto; no dejar el circuito en silencio.
+            await Dialogos.ErrorAsync(
+                "No se pudieron cargar provincia o tipo de identificación. Puede completar el resto y reintentar al guardar.",
+                "Catálogos incompletos");
+        }
     }
 
     private async Task Editar(FiltranClienteDTO cliente)
@@ -1107,14 +1123,21 @@
     /// (mismo endpoint que ya usa la búsqueda de proveedores) para autocompletar.</summary>
     private async Task ConsultarHacienda()
     {
-        if (_edicion is null || string.IsNullOrWhiteSpace(_edicion.Cedula))
+        if (_edicion is null)
         {
-            Dialogos.Advertencia("Indique la cédula antes de consultar Hacienda.");
             return;
         }
 
+        var cedula = new string((_edicion.Cedula ?? string.Empty).Where(char.IsDigit).ToArray());
+        if (cedula.Length < 9)
+        {
+            Dialogos.Advertencia("Indique una cédula válida (al menos 9 dígitos) antes de consultar Hacienda.");
+            return;
+        }
+
+        _edicion.Cedula = cedula;
         _consultandoHacienda = true;
-        var r = await Respuestas.DatoAsync(await Api.BuscarHacienda(_edicion.Cedula), "consultar el cliente en Hacienda");
+        var r = await Respuestas.DatoAsync(await Api.BuscarHacienda(cedula), "consultar el cliente en Hacienda");
         _consultandoHacienda = false;
 
         if (r is null)

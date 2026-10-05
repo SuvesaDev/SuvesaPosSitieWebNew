@@ -422,13 +422,14 @@
             return;
         }
 
-        var cedula = _edicion.Cedula?.Trim() ?? string.Empty;
+        var cedula = new string((_edicion.Cedula ?? string.Empty).Where(char.IsDigit).ToArray());
         if (cedula.Length < 9)
         {
             await Dialogos.ErrorAsync("Ingrese una cédula válida de al menos 9 dígitos para consultar Hacienda.");
             return;
         }
 
+        _edicion.Cedula = cedula;
         _consultandoHacienda = true;
         var resultado = await Respuestas.DatoAsync(await Api.BuscarHacienda(cedula), "consultar el proveedor en Hacienda");
         _consultandoHacienda = false;
