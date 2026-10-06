@@ -342,8 +342,7 @@
     <BodyTemplate>
         @if (_edicion is not null)
         {
-            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formCliente" class="seepos-cliente-editor">
-                <DataAnnotationsValidator />
+            <EditForm Model="_edicion" OnSubmit="GuardarDesdeFormulario" id="formCliente" class="seepos-cliente-editor">
                 <nav class="mb-3 seepos-editor-tabs" aria-label="Secciones del cliente">
                     <div class="nav nav-pills flex-wrap gap-2">
                         <button type="button" class="btn btn-sm @ClaseGenerales" @onclick="AbrirGenerales">Datos generales</button>
@@ -387,9 +386,9 @@
                         </div>
 
                         <div class="col-12 seepos-form-seccion">Contacto</div>
-                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono01" /></div>
+                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono01" Requerido="true" /></div>
                         <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono alterno" @bind-Valor="_edicion.Telefono02" /></div>
-                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Correo cuentas por cobrar" @bind-Valor="_edicion.EMail" /></div>
+                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Correo cuentas por cobrar" @bind-Valor="_edicion.EMail" Requerido="true" /></div>
 
                         <div class="col-12 seepos-form-seccion">Ubicación</div>
                         <div class="col-12 col-md-4">
@@ -413,11 +412,11 @@
                                 @foreach (var distrito in _distritos) { <option value="@distrito.Id">@distrito.Nombre</option> }
                             </select>
                         </div>
-                        <div class="col-12"><AppCampoTexto Etiqueta="Dirección" @bind-Valor="_edicion.Direccion" /></div>
+                        <div class="col-12"><AppCampoTexto Etiqueta="Dirección" @bind-Valor="_edicion.Direccion" Requerido="true" /></div>
                         <div class="col-12"><AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" /></div>
 
                         <div class="col-12 seepos-form-seccion">Facturación electrónica</div>
-                        <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo de facturación electrónica" @bind-Valor="_edicion.CorreoComprobante" /></div>
+                        <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo de facturación electrónica" @bind-Valor="_edicion.CorreoComprobante" Requerido="true" /></div>
 
                         <div class="col-12">
                             <label class="form-label mb-1">Actividades económicas</label>
@@ -1338,6 +1337,8 @@
     private static int IdSeleccionado(ChangeEventArgs evento)
         => int.TryParse(evento.Value?.ToString(), out var id) ? id : 0;
 
+    private Task GuardarDesdeFormulario(EditContext _) => Guardar();
+
     private async Task Guardar()
     {
         if (_edicion is null || _guardando)
@@ -1345,12 +1346,19 @@
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(_edicion.Cedula)
-            || string.IsNullOrWhiteSpace(_edicion.Nombre)
-            || string.IsNullOrWhiteSpace(_edicion.EMail)
-            || string.IsNullOrWhiteSpace(_edicion.Direccion))
+        var faltantes = new List<string>();
+        if (string.IsNullOrWhiteSpace(_edicion.Cedula)) faltantes.Add("Cédula");
+        if (string.IsNullOrWhiteSpace(_edicion.Nombre)) faltantes.Add("Nombre");
+        if (string.IsNullOrWhiteSpace(_edicion.Telefono01)) faltantes.Add("Teléfono");
+        if (string.IsNullOrWhiteSpace(_edicion.EMail)) faltantes.Add("Correo cuentas por cobrar");
+        if (string.IsNullOrWhiteSpace(_edicion.Direccion)) faltantes.Add("Dirección");
+        if (string.IsNullOrWhiteSpace(_edicion.CorreoComprobante)) faltantes.Add("Correo de facturación electrónica");
+        if (faltantes.Count > 0)
         {
-            await Dialogos.ErrorAsync("Cédula, nombre, correo y dirección son obligatorios.");
+            _pestanaEdicion = "generales";
+            await Dialogos.ErrorAsync(
+                ValidacionFormulario.MensajeCamposFaltantes(faltantes),
+                "Datos incompletos");
             return;
         }
 

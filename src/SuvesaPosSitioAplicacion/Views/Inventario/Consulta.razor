@@ -334,8 +334,7 @@
     <BodyTemplate>
         @if (_edicion is not null)
         {
-            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formArticulo" class="seepos-articulo-editor">
-                <DataAnnotationsValidator />
+            <EditForm Model="_edicion" OnSubmit="GuardarDesdeFormulario" id="formArticulo" class="seepos-articulo-editor">
                 <nav class="nav nav-pills gap-2 mb-4 seepos-editor-tabs" aria-label="Secciones del artículo">
                     <button type="button" class="btn btn-sm @ClasePestanaGenerales" @onclick="MostrarGenerales">Datos generales</button>
                     <button type="button" class="btn btn-sm @ClasePestanaPrecios" @onclick="MostrarPrecios">Precios</button>
@@ -397,7 +396,7 @@
                     </div>
                     <div class="col-12 col-md-4"><label class="form-label" for="articulo-cantidad-presentacion">Cantidad</label><input id="articulo-cantidad-presentacion" type="number" min="0" step="0.001" class="form-control" @bind="_edicion.PresentaCant" /></div>
                     <div class="col-12 col-md-4">
-                        <label class="form-label" for="articulo-familia">Familia</label>
+                        <label class="form-label" for="articulo-familia">Familia *</label>
                         <select id="articulo-familia" class="form-select" @bind="_edicion.SubFamilia">
                             <option value="0">Seleccione...</option>
                             @foreach (var familia in _familias)
@@ -517,7 +516,7 @@
                             <div class="col-12 col-md-4"><label class="form-label">Otros cargos</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.OtrosCargos" /></div>
                         }
                         <div class="col-12 col-md-4">
-                            <label class="form-label">Impuesto</label>
+                            <label class="form-label">Impuesto *</label>
                             <select class="form-select" @bind="_edicion.Id_Impuesto" @bind:after="AlCambiarImpuesto">
                                 <option value="0">Seleccione...</option>
                                 @foreach (var i in _impuestos)
@@ -1307,6 +1306,8 @@
         return true;
     }
 
+    private Task GuardarDesdeFormulario(EditContext _) => Guardar();
+
     private async Task Guardar()
     {
         if (_edicion is null || _guardando)
@@ -1314,21 +1315,23 @@
             return;
         }
 
-        if ((string.IsNullOrWhiteSpace(_edicion.Cod_Articulo) || string.IsNullOrWhiteSpace(_edicion.Descripcion))
-            && await AvisoValidacion("Código y descripción son obligatorios.")) return;
+        var faltantes = new List<string>();
+        if (string.IsNullOrWhiteSpace(_edicion.Cod_Articulo)) faltantes.Add("Código");
+        if (string.IsNullOrWhiteSpace(_edicion.Descripcion)) faltantes.Add("Descripción");
+        if (_edicion.Id_Impuesto <= 0) faltantes.Add("Impuesto");
+        if (_edicion.SubFamilia <= 0) faltantes.Add("Familia");
+        if (faltantes.Count > 0)
+        {
+            _pestanaInventario = faltantes.Count == 1 && faltantes[0] == "Impuesto"
+                ? "precios"
+                : "generales";
+            if (await AvisoValidacion(ValidacionFormulario.MensajeCamposFaltantes(faltantes))) return;
+        }
 
         _edicion.Cod_Articulo = _edicion.Cod_Articulo!.Trim();
 
         if (_esNuevo && _todos.Any(a => string.Equals(a.Cod_Articulo?.Trim(), _edicion.Cod_Articulo, StringComparison.OrdinalIgnoreCase))
             && await AvisoValidacion($"Ya existe un artículo con el código «{_edicion.Cod_Articulo}». El código debe ser único.")) return;
-
-        if (_edicion.Id_Impuesto <= 0
-            && await AvisoValidacion("Seleccione el impuesto del artículo.")) return;
-
-        // SubFamilia=0 choca con FK_SubFamilias_Inventario. Obligamos a elegir una
-        // familia real (o el API ya manda null si llega 0, pero mejor avisar aquí).
-        if (_edicion.SubFamilia <= 0
-            && await AvisoValidacion("Seleccione la familia del artículo.")) return;
 
         if (!await Dialogos.ConfirmarAsync(_esNuevo ? "Se registrará el nuevo artículo." : "Se actualizarán los datos del artículo."))
         {
