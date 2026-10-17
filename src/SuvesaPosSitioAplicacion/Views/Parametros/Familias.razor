@@ -223,8 +223,9 @@
             CodigoFamilia = _familiaSeleccionada.Codigo,
             Estado = true,
             FechaCreacion = await RelojEquipo.AhoraAsync(),
-            // La columna no admite NULL; sin esto el INSERT falla.
-            IdUsuarioCreacion = Sesion.Usuario
+            // IdUsuarioCreacion y Observaciones no admiten NULL en SubFamilias.
+            IdUsuarioCreacion = Sesion.Usuario,
+            Observaciones = string.Empty
         };
         await _modalSubFamilia.ShowAsync();
     }
@@ -239,6 +240,7 @@
     {
         if (_subFamiliaEdicion is null || _guardando) return;
         if (string.IsNullOrWhiteSpace(_subFamiliaEdicion.SubCodigo) || string.IsNullOrWhiteSpace(_subFamiliaEdicion.Descripcion)) { await Dialogos.ErrorAsync("Indique el código y la descripción de la sub-familia."); return; }
+        _subFamiliaEdicion.Observaciones ??= string.Empty;
         var nueva = _subFamiliaEdicion.Codigo == 0;
         if (nueva && string.IsNullOrWhiteSpace(_subFamiliaEdicion.IdUsuarioCreacion))
         {
