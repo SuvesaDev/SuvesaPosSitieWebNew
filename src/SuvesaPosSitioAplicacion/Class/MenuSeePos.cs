@@ -197,7 +197,13 @@ public static partial class MenuSeePos
                     {
                         new ItemMenu
                         {
-                            // La pantalla (TomaFisica.razor) se gatea con COMPRAS.TOMA_FISICA;
+                            Titulo = "Pretoma",
+                            Codigo = "COMPRAS.TOMA.PRETOMA",
+                            Ruta = "/buys/physical-precount",
+                        },
+                        new ItemMenu
+                        {
+                            // La pantalla (TomaFisica.razor) se gatea con COMPRAS.TOMA.TOMA_FISICA;
                             // el item vive bajo el grupo "Toma" para que se lea Toma > Toma Física.
                             Titulo = "Toma Física",
                             Codigo = "COMPRAS.TOMA.TOMA_FISICA",

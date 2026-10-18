@@ -323,11 +323,27 @@
           ]
         },
         {
+          "codigo": "COMPRAS.TOMA.PRETOMA",
+          "nombre": "Pretoma",
+          "ruta": "/buys/physical-precount",
+          "padre": "COMPRAS.TOMA",
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "COMPRAS.TOMA.TOMA_FISICA",
           "nombre": "Toma Física",
           "ruta": "/buys/physical-count",
           "padre": "COMPRAS.TOMA",
-          "orden": 1,
+          "orden": 2,
           "acciones": [
             "VER",
             "CREAR",
