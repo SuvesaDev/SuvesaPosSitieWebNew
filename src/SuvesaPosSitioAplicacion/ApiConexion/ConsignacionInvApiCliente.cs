@@ -70,13 +70,23 @@ public sealed class ConsignacionInvApiCliente : IConsignacionInvApiCliente
                 return new() { Status = ResponseStatus._1, CurrentException = $"El API respondió {(int)resp.StatusCode} sin cuerpo." };
             try
             {
-                return JsonSerializer.Deserialize<LoteEnvelope<T>>(texto, Json)
+                var envelope = JsonSerializer.Deserialize<LoteEnvelope<T>>(texto, Json)
                        ?? new() { Status = ResponseStatus._1, CurrentException = "Respuesta vacía." };
+                if (!resp.IsSuccessStatusCode && envelope.Status == ResponseStatus._0)
+                {
+                    envelope.Status = ResponseStatus._1;
+                    envelope.CurrentException ??= $"El API respondió {(int)resp.StatusCode}.";
+                }
+                return envelope;
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                return new() { Status = ResponseStatus._1, CurrentException = $"Respuesta no reconocida del API ({(int)resp.StatusCode})." };
+                return new() { Status = ResponseStatus._1, CurrentException = $"Respuesta no reconocida del API ({(int)resp.StatusCode}): {ex.Message}" };
             }
+        }
+        catch (Exception ex)
+        {
+            return new() { Status = ResponseStatus._1, CurrentException = ex.Message };
         }
         finally
         {

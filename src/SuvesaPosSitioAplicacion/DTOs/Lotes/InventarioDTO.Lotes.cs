@@ -18,4 +18,7 @@ public partial class InventarioDTO
     /// <summary>Sólo lectura: fijado el lote único, tipo/lote único no se editan.</summary>
     [JsonPropertyName("loteUnicoFijado")]
     public bool LoteUnicoFijado { get; set; }
+
+    [JsonPropertyName("esPresentacionEmpaquetada")]
+    public bool EsPresentacionEmpaquetada { get; set; }
 }

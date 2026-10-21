@@ -1202,7 +1202,9 @@
 
         if (articulo.Bonificado && await IniciarBonificacion(articulo, cantidad)) return;
 
-        if (articulo.Lote)
+        var consolCat = await Lotes2.ExistenciaConsolidadaAsync(articulo.Codigo);
+        var manejaLoteCat = articulo.Lote || (consolCat.Status == DTOs.Generated.ResponseStatus._0 && consolCat.Responses?.ManejaLote == true);
+        if (manejaLoteCat)
         {
             _articuloPendiente = articulo;
             _cantidadArticuloPendiente = cantidad;
@@ -1227,7 +1229,8 @@
         var yaEnDetalle = _lineas.Where(l => l.Articulo.Codigo == articulo.Codigo && l.Lotes is null && !l.EsBonificacion).Sum(l => l.Cantidad);
         var existenciaBodega = consol.PorBodega.FirstOrDefault(x => x.IdBodega == _bodega)?.Existencia ?? 0;
         if ((decimal)existenciaBodega - yaEnDetalle - cantidad >= 0) return true;
-        await Dialogos.ErrorAsync($"No hay existencia suficiente de {articulo.Descripcion} en la bodega seleccionada (disponible {existenciaBodega:N2}).");
+        var unidad = articulo.DescargaOtro && articulo.CantidadDescarga > 1 ? "cajas" : "unidades";
+        await Dialogos.ErrorAsync($"No hay existencia suficiente de {articulo.Descripcion} en la bodega seleccionada (disponible {existenciaBodega:N0} {unidad}).");
         return false;
     }
 
@@ -1476,7 +1479,9 @@
 
         _articuloPendiente = completo;
         _cantidadArticuloPendiente = cantidad;
-        if (completo.Lote)
+        var consolPrep = await Lotes2.ExistenciaConsolidadaAsync(completo.Codigo);
+        var manejaLotePrep = completo.Lote || (consolPrep.Status == DTOs.Generated.ResponseStatus._0 && consolPrep.Responses?.ManejaLote == true);
+        if (manejaLotePrep)
         {
             _repartoConsumo.Clear();
             _lotesPendientes = await LotesDisponiblesEnBodega(completo.Codigo);
@@ -1508,11 +1513,12 @@
             return new();
         }
 
+        var idLote = r.Responses.IdArticuloUnidad ?? idArticulo;
         return r.Responses.Lotes
             .Select(l => new StockLoteDTO
             {
                 Id = l.Id,
-                IdArticulo = idArticulo,
+                IdArticulo = idLote,
                 Lote = l.Numero,
                 Vencimiento = l.Vencimiento is { } v ? new DateTimeOffset(v) : null,
                 Activo = !l.Vencido,
@@ -1718,9 +1724,9 @@
     private async Task<ItemMezcla> CrearItemMezclaAsync(InventarioDTO articulo, int cantidad)
     {
         var lotesUsables = new List<StockLoteDTO>();
-        if (articulo.Lote)
+        var lotes = await LotesDisponiblesEnBodega(articulo.Codigo);
+        if (articulo.Lote || lotes.Count > 0)
         {
-            var lotes = await LotesDisponiblesEnBodega(articulo.Codigo);
             lotesUsables = lotes.Where(l => l.Activo != false && l.Cantidad > 0
                 && (l.Vencimiento is null || l.Vencimiento.Value.Date >= _hoyEquipo)).ToList();
         }
@@ -1731,7 +1737,7 @@
             PrecioUnit = PrecioCliente(articulo),
             PorcentajeImpuesto = Formato.AImporte(articulo.IVenta),
             Cantidad = cantidad,
-            ManejaLotes = articulo.Lote,
+            ManejaLotes = articulo.Lote || lotesUsables.Count > 0,
             LotesDisponibles = lotesUsables,
             IdLoteSeleccionado = lotesUsables.Count == 1 ? lotesUsables[0].Id : 0
         };

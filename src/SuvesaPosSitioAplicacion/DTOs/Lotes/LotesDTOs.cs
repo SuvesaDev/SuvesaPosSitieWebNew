@@ -79,6 +79,10 @@ public sealed class ExistenciaConsolidada
     [JsonPropertyName("manejaLote")] public bool ManejaLote { get; set; }
     [JsonPropertyName("loteUnico")] public bool LoteUnico { get; set; }
     [JsonPropertyName("loteUnicoFijado")] public bool LoteUnicoFijado { get; set; }
+    [JsonPropertyName("esPresentacionEmpaquetada")] public bool EsPresentacionEmpaquetada { get; set; }
+    [JsonPropertyName("idArticuloUnidad")] public long? IdArticuloUnidad { get; set; }
+    [JsonPropertyName("codArticuloUnidad")] public string? CodArticuloUnidad { get; set; }
+    [JsonPropertyName("factorEmpaque")] public double FactorEmpaque { get; set; }
     [JsonPropertyName("existenciaTotal")] public double ExistenciaTotal { get; set; }
     [JsonPropertyName("porBodega")] public List<ExistenciaPorBodega> PorBodega { get; set; } = new();
     [JsonPropertyName("lotes")] public List<LoteExistencia> Lotes { get; set; } = new();
