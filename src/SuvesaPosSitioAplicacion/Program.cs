@@ -395,7 +395,12 @@ app.MapGet("/documentos/{tipo}/{id:long}/pdf", async (
 {
     var r = await api.Pdf(tipo, id, formato, copia);
     if (!r.EsCorrecta || r.Responses is not { Length: > 0 } bytes)
-        return Results.Problem(r.Excepcion ?? "No se pudo generar el documento.");
+    {
+        var detalle = r.Excepcion ?? "No se pudo generar el documento.";
+        // El navegador abre esta ruta en una pestaña: un ProblemDetails JSON no se
+        // entiende. Se deja el motivo en texto plano.
+        return Results.Text(detalle, "text/plain; charset=utf-8", statusCode: 400);
+    }
 
     var nombre = $"{tipo}-{id}.pdf";
     // Sin nombre de descarga el navegador puede abrir el PDF en línea; la acción
