@@ -19,6 +19,9 @@ public sealed class AlistamientoResumen
     public long CodCliente { get; set; }
     public bool EsCredito { get; set; }
     public bool EsPreventa { get; set; }
+    public bool EsElectronica { get; set; }
+    public bool HaciendaAceptada { get; set; }
+    public string? AvisoDespacho { get; set; }
     public string? UsuarioAlistamiento { get; set; }
     public int Lineas { get; set; }
     public int LineasCompletas { get; set; }
@@ -40,6 +43,9 @@ public sealed class AlistamientoOrden
     public string? NombreCliente { get; set; }
     public bool EsCredito { get; set; }
     public bool EsPreventa { get; set; }
+    public bool EsElectronica { get; set; }
+    public bool HaciendaAceptada { get; set; }
+    public string? AvisoDespacho { get; set; }
     public string? UsuarioAlistamiento { get; set; }
     public string? Observaciones { get; set; }
     public string? MotivoFaltante { get; set; }

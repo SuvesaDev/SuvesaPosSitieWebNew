@@ -11,12 +11,16 @@
   <BodyTemplate>
     @if (_no)
     {
-      <p class="mb-2">Se corrige el documento: nota de crédito si ya se facturó, o se suelta la preventa. El inventario no se vuelve a descontar.</p>
+      <p class="mb-2">Se corrige el documento: nota de crédito si ya se facturó, o se suelta la preventa. El inventario no se vuelve a descontar por el picking.</p>
       <label class="form-label">¿Qué pasó con el producto?</label>
       <select class="form-select mb-2" @bind="_destino">
         <option value="reingreso">Volvió a bodega (reingreso)</option>
         <option value="merma">Merma o pérdida en tránsito</option>
       </select>
+      @if (_destino == "merma")
+      {
+        <p class="form-text">La merma da de baja el inventario perdido. Si Contabilidad está activa, queda un ajuste en bandeja hasta que el contador active la plantilla.</p>
+      }
       <label class="form-label">Motivo</label>
       <textarea class="form-control" rows="2" @bind="_obs" placeholder="Opcional"></textarea>
     }

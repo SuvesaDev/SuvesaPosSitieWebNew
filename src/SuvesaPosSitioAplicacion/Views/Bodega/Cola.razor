@@ -13,7 +13,7 @@
 @inject IJSRuntime JS
 
 <AppPantalla Pantalla="Cola de alistamiento" Codigo="BODEGA.COLA_DE_ALISTAMIENTO" Icono="bi-list-check"
-             Subtitulo="Al emitir la venta o la preventa entra sola. El tiquete de mostrador no entra." Nivel="NivelPantalla.Tableta">
+             Subtitulo="Entra la venta o preventa que requiere despacho. El tiquete de mostrador no entra salvo que lo fuerce. Empacar y salir a ruta esperan que Hacienda acepte la factura electrónica." Nivel="NivelPantalla.Tableta">
  <Acciones>
   <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar">Actualizar</button>
  </Acciones>
@@ -57,7 +57,9 @@
         <tr>
           <td>@o.Fecha.ToString("HH:mm")</td>
           <td>@(o.Prioridad >= 2 ? "Alta" : "—")</td>
-          <td><code>@o.NumeroDocumento</code> @(o.EsPreventa ? "preventa" : o.EsCredito ? "crédito" : "contado")</td>
+          <td><code>@o.NumeroDocumento</code> @(o.EsPreventa ? "preventa" : o.EsCredito ? "crédito" : "contado")
+            @if (o.EsElectronica && !o.HaciendaAceptada && !o.EsPreventa) { <span class="badge text-bg-warning ms-1">Espera Hacienda</span> }
+          </td>
           <td>@o.NombreCliente</td>
           <td><span class="badge @Badge(o.Estado)">@o.EstadoDescripcion</span></td>
           <td class="text-end">@o.LineasCompletas / @o.Lineas · @o.CantidadAlistada.ToString("N2") / @o.CantidadFacturada.ToString("N2")</td>
@@ -65,7 +67,12 @@
             @if (o.Estado is 1 or 2)
             {
               <button class="btn btn-sm btn-primary" @onclick="() => Empacar(o.Id)">Empacar</button>
-              <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => Anular(o.Id)">Anular</button>
+              <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => Anular(o.Id, o.Estado)">Anular</button>
+            }
+            else if (o.Estado == 3)
+            {
+              <button class="btn btn-sm btn-outline-secondary" @onclick="() => Empacar(o.Id)">Ver</button>
+              <button class="btn btn-sm btn-outline-danger ms-1" @onclick="() => Anular(o.Id, o.Estado)">Anular</button>
             }
             else
             {
@@ -152,15 +159,19 @@
      Nav.NavigateTo($"/bodega/empaque/{r.Responses!.Id}");
  }
 
- private async Task Anular(long id)
+ private async Task Anular(long id, int estado)
  {
-     if (!await Dialogos.ConfirmarPeligroAsync("¿Anular esta orden de alistamiento? La factura no se toca.")) return;
+     if (!await Dialogos.ConfirmarPeligroAsync(TextoAnular(estado))) return;
      var r = await Api.AnularAsync(id, "Anulada en cola de bodega");
      if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo anular."); return; }
      await Cargar();
  }
 
  private void Empacar(long id) => Nav.NavigateTo($"/bodega/empaque/{id}");
+
+ private static string TextoAnular(int estado) => estado == 3
+     ? "¿Anular esta orden empacada? Se emite nota de crédito (o se suelta la preventa) y el producto reingresa, igual que no entregado."
+     : "¿Anular esta orden de alistamiento? La factura no se toca.";
 
  private static string Badge(int e) => e switch
  {
