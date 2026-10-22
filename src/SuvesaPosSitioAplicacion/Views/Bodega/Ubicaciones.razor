@@ -1,0 +1,109 @@
+@page "/bodega/ubicaciones"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Bodega
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.DTOs.Lotes
+@using SuvesaPosSitioAplicacion.Services
+@inject IAlistamientoApiCliente Api
+@inject ILotesApiCliente Lotes
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Ubicaciones" Codigo="BODEGA.UBICACIONES" Icono="bi-geo"
+             Subtitulo="Pasillo, rack, estante y bin por bodega. Se sugieren al empacar." Nivel="NivelPantalla.Tableta">
+ <Acciones>
+  <button class="btn btn-sm btn-primary" @onclick="Nuevo">Agregar</button>
+ </Acciones>
+ <ChildContent>
+  @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+
+  <div class="card mb-3"><div class="card-body row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label">Bodega</label>
+      <select class="form-select" @bind="_idBodegaFiltro">
+        <option value="0">Todas</option>
+        @foreach (var b in _bodegas) { <option value="@b.IdBodega">@b.NombreBodega</option> }
+      </select></div>
+    <div class="col-md-2 d-grid"><button class="btn btn-outline-primary" @onclick="Cargar">Filtrar</button></div>
+  </div></div>
+
+  @if (_edita)
+  {
+    <div class="card mb-3"><div class="card-header">@( _fila.Id == 0 ? "Nueva ubicación" : "Editar " + _fila.Codigo )</div>
+      <div class="card-body row g-2">
+        <div class="col-md-3"><label class="form-label">Bodega</label>
+          <select class="form-select" @bind="_fila.IdBodega">
+            <option value="0">Seleccione</option>
+            @foreach (var b in _bodegas) { <option value="@b.IdBodega">@b.NombreBodega</option> }
+          </select></div>
+        <div class="col-md-2"><label class="form-label">Pasillo</label><input class="form-control" @bind="_fila.Pasillo" /></div>
+        <div class="col-md-2"><label class="form-label">Rack</label><input class="form-control" @bind="_fila.Rack" /></div>
+        <div class="col-md-2"><label class="form-label">Estante</label><input class="form-control" @bind="_fila.Estante" /></div>
+        <div class="col-md-2"><label class="form-label">Bin</label><input class="form-control" @bind="_fila.Bin" /></div>
+        <div class="col-md-3"><label class="form-label">Artículo (código)</label>
+          <input class="form-control" @bind="_fila.CodArticulo" placeholder="Opcional: se sugiere al empacar" /></div>
+        <div class="col-12 d-flex gap-2">
+          <button class="btn btn-primary" @onclick="Guardar">Guardar</button>
+          <button class="btn btn-outline-secondary" @onclick="() => _edita = false">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="card"><div class="table-responsive"><table class="table table-sm mb-0">
+    <thead><tr><th>Código</th><th>Bodega</th><th>Pasillo</th><th>Rack</th><th>Estante</th><th>Bin</th><th>Artículo</th><th></th></tr></thead>
+    <tbody>
+      @foreach (var u in _lista)
+      {
+        <tr>
+          <td><code>@u.Codigo</code></td>
+          <td>@u.NombreBodega</td>
+          <td>@u.Pasillo</td>
+          <td>@u.Rack</td>
+          <td>@u.Estante</td>
+          <td>@u.Bin</td>
+          <td><code>@(u.CodArticulo ?? "—")</code></td>
+          <td class="text-end"><button class="btn btn-sm btn-link" @onclick="() => Editar(u)">Editar</button></td>
+        </tr>
+      }
+      @if (_lista.Count == 0) { <tr><td colspan="8" class="text-secondary">Sin ubicaciones. Asocie un artículo al bin para sugerirlo en empaque.</td></tr> }
+    </tbody>
+  </table></div></div>
+ </ChildContent>
+</AppPantalla>
+
+@code {
+ private string _error = "";
+ private int _idBodegaFiltro;
+ private bool _edita;
+ private UbicacionBin _fila = new();
+ private List<UbicacionBin> _lista = new();
+ private List<BodegaOperativa> _bodegas = new();
+
+ protected override async Task OnInitializedAsync()
+ {
+     var b = await Lotes.BodegasOperativasAsync(null);
+     _bodegas = b.Responses ?? new();
+     await Cargar();
+ }
+
+ private async Task Cargar()
+ {
+     _error = "";
+     var r = await Api.UbicacionesAsync(_idBodegaFiltro == 0 ? null : _idBodegaFiltro);
+     if (r.Status != ResponseStatus._0) { _error = r.CurrentException ?? ""; return; }
+     _lista = r.Responses ?? new();
+ }
+
+ private void Nuevo() { _fila = new UbicacionBin { Activa = true }; _edita = true; }
+ private void Editar(UbicacionBin u) { _fila = new UbicacionBin { Id = u.Id, IdBodega = u.IdBodega, Pasillo = u.Pasillo, Rack = u.Rack, Estante = u.Estante, Bin = u.Bin, IdArticulo = u.IdArticulo, CodArticulo = u.CodArticulo, Activa = u.Activa }; _edita = true; }
+
+ private async Task Guardar()
+ {
+     var r = await Api.GuardarUbicacionAsync(_fila);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se guardó."); return; }
+     _edita = false;
+     await Cargar();
+ }
+}

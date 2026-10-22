@@ -230,8 +230,7 @@
     <BodyTemplate>
         @if (_edicion is not null)
         {
-            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formProveedor" class="seepos-proveedor-editor">
-                <DataAnnotationsValidator />
+            <EditForm Model="_edicion" OnSubmit="GuardarDesdeFormulario" id="formProveedor" class="seepos-proveedor-editor">
                 <div class="row g-3">
                     <div class="col-12"><div class="seepos-proveedor-seccion">Datos del proveedor</div></div>
                     <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre" @bind-Valor="_edicion.Nombre" Requerido="true" /></div>
@@ -429,13 +428,14 @@
             return;
         }
 
-        var cedula = _edicion.Cedula?.Trim() ?? string.Empty;
+        var cedula = new string((_edicion.Cedula ?? string.Empty).Where(char.IsDigit).ToArray());
         if (cedula.Length < 9)
         {
             await Dialogos.ErrorAsync("Ingrese una cédula válida de al menos 9 dígitos para consultar Hacienda.");
             return;
         }
 
+        _edicion.Cedula = cedula;
         _consultandoHacienda = true;
         var resultado = await Respuestas.DatoAsync(await Api.BuscarHacienda(cedula), "consultar el proveedor en Hacienda");
         _consultandoHacienda = false;
@@ -448,6 +448,8 @@
         }
     }
 
+    private Task GuardarDesdeFormulario(EditContext _) => Guardar();
+
     private async Task Guardar()
     {
         if (_edicion is null || _guardando)
@@ -455,9 +457,14 @@
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(_edicion.Nombre) || string.IsNullOrWhiteSpace(_edicion.Cedula))
+        var faltantes = new List<string>();
+        if (string.IsNullOrWhiteSpace(_edicion.Nombre)) faltantes.Add("Nombre");
+        if (string.IsNullOrWhiteSpace(_edicion.Cedula)) faltantes.Add("Cédula");
+        if (faltantes.Count > 0)
         {
-            await Dialogos.ErrorAsync("Nombre y cédula son obligatorios.");
+            await Dialogos.ErrorAsync(
+                ValidacionFormulario.MensajeCamposFaltantes(faltantes),
+                "Datos incompletos");
             return;
         }
 

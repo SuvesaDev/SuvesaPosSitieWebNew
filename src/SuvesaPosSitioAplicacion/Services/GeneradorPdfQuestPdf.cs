@@ -23,18 +23,7 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                 pagina.Margin(1.5f, Unit.Centimetre);
                 pagina.DefaultTextStyle(t => t.FontSize(9));
 
-                pagina.Header().Column(c =>
-                {
-                    c.Item().Text(reporte.Titulo).FontSize(14).SemiBold();
-
-                    if (!string.IsNullOrWhiteSpace(reporte.Subtitulo))
-                    {
-                        c.Item().Text(reporte.Subtitulo).FontSize(9).FontColor(Colors.Grey.Darken1);
-                    }
-
-                    c.Item().PaddingTop(4).Text($"Generado el {DateTime.Now:dd/MM/yyyy HH:mm}")
-                        .FontSize(8).FontColor(Colors.Grey.Medium);
-                });
+                pagina.Header().Element(c => EncabezadoTabla(c, reporte));
 
                 pagina.Content().PaddingVertical(10).Table(tabla =>
                 {
@@ -95,6 +84,65 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                 });
             });
         }).GeneratePdf();
+    }
+
+    private static void EncabezadoTabla(IContainer container, ReporteTabular reporte)
+    {
+        container.Column(col =>
+        {
+            if (reporte.Empresa is { } empresa)
+            {
+                col.Item().Row(row =>
+                {
+                    row.RelativeItem(1.2f).Element(c => IdentidadEmpresa(c, empresa));
+                    row.ConstantItem(10);
+                    row.RelativeItem(0.8f).BorderLeft(1.25f).BorderColor(Azul).PaddingLeft(8).Column(doc =>
+                    {
+                        doc.Item().Text(reporte.Titulo).FontSize(13).SemiBold().FontColor(Azul);
+                        if (!string.IsNullOrWhiteSpace(reporte.Subtitulo))
+                            doc.Item().PaddingTop(2).Text(reporte.Subtitulo)
+                                .FontSize(8).FontColor(Colors.Grey.Darken1);
+                        doc.Item().PaddingTop(4).Text($"Generado el {DateTime.Now:dd/MM/yyyy HH:mm}")
+                            .FontSize(7).FontColor(Colors.Grey.Medium);
+                    });
+                });
+                col.Item().PaddingTop(6).LineHorizontal(1).LineColor(Azul);
+                return;
+            }
+
+            col.Item().Text(reporte.Titulo).FontSize(14).SemiBold();
+            if (!string.IsNullOrWhiteSpace(reporte.Subtitulo))
+                col.Item().Text(reporte.Subtitulo).FontSize(9).FontColor(Colors.Grey.Darken1);
+            col.Item().PaddingTop(4).Text($"Generado el {DateTime.Now:dd/MM/yyyy HH:mm}")
+                .FontSize(8).FontColor(Colors.Grey.Medium);
+        });
+    }
+
+    private static void IdentidadEmpresa(IContainer container, EncabezadoEmpresaPdf empresa)
+    {
+        container.Row(row =>
+        {
+            if (empresa.Logo is { Length: > 0 })
+            {
+                row.ConstantItem(42).Height(18, Unit.Millimetre).Image(empresa.Logo).FitArea();
+                row.ConstantItem(6);
+            }
+
+            row.RelativeItem().Column(info =>
+            {
+                info.Item().Text(empresa.NombreEmisor).SemiBold().FontSize(12).FontColor(Azul);
+                if (!string.IsNullOrWhiteSpace(empresa.Identificacion))
+                    info.Item().Text($"Identificación: {empresa.Identificacion}").FontSize(8);
+                if (!string.IsNullOrWhiteSpace(empresa.NombreSucursal))
+                    info.Item().Text($"Sucursal: {empresa.NombreSucursal}").FontSize(8);
+                if (!string.IsNullOrWhiteSpace(empresa.Direccion))
+                    info.Item().Text(empresa.Direccion!).FontSize(7.5f).FontColor(Colors.Grey.Darken1);
+                var contacto = string.Join("  ·  ", new[] { empresa.Telefono, empresa.Correo }
+                    .Where(s => !string.IsNullOrWhiteSpace(s)));
+                if (contacto.Length > 0)
+                    info.Item().Text(contacto).FontSize(7.5f).FontColor(Colors.Grey.Darken1);
+            });
+        });
     }
 
     /// <inheritdoc />

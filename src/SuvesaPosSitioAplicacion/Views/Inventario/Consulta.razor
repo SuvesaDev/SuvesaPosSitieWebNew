@@ -18,6 +18,7 @@
 @inject ICatalogosInventario Catalogos
 @inject ICatalogoBonificacion CatalogoBonificacion
 @inject IImpuestosFiscales ImpuestosApi
+@inject IMonedasFiscales MonedasApi
 @inject IArticuloBonificacion ArticuloBonificacion
 @inject IRelojEquipo RelojEquipo
 
@@ -129,7 +130,7 @@
                         <div class="card-body py-2 px-3">
                             <div class="d-flex justify-content-between align-items-start gap-2">
                                 <span class="fw-semibold small">@a.Descripcion</span>
-                                <span class="seepos-importe small">@Formato.Importe(a.Precio_A)</span>
+                                <span class="seepos-importe small">@Formato.Importe(PrecioVenta.EnColones(a, a.Precio_A))</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
                                 <code class="small text-secondary">@a.Cod_Articulo</code>
@@ -164,7 +165,7 @@
                             </PropertyColumn>
                             <PropertyColumn Property="a => a.Precio_A" Title="Precio"
                                             CellClass="justify-end" HeaderClass="justify-end">
-                                <CellTemplate>@Formato.Importe(context.Item.Precio_A)</CellTemplate>
+                                <CellTemplate>@Formato.Importe(PrecioVenta.EnColones(context.Item, context.Item.Precio_A))</CellTemplate>
                             </PropertyColumn>
                             <TemplateColumn Title="Acciones" Sortable="false" Filterable="false">
                                 <CellTemplate>
@@ -219,21 +220,21 @@
             <h3 class="seepos-detalle-seccion">Precios de venta</h3>
             <dl class="row small mb-0">
                 <dt class="col-5 fw-normal text-secondary">Precio A</dt>
-                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_A)</dd>
+                <dd class="col-7 seepos-importe">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_A))</dd>
 
                 <dt class="col-5 fw-normal text-secondary">Precio B</dt>
-                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_B)</dd>
+                <dd class="col-7 seepos-importe">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_B))</dd>
 
                 <dt class="col-5 fw-normal text-secondary">Precio C</dt>
-                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_C)</dd>
+                <dd class="col-7 seepos-importe">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_C))</dd>
 
                 <dt class="col-5 fw-normal text-secondary">Precio D</dt>
-                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_D)</dd>
+                <dd class="col-7 seepos-importe">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_D))</dd>
 
                 @if (_elegido.Promo_Activa)
                 {
                     <dt class="col-5 fw-normal text-secondary">Promocion</dt>
-                    <dd class="col-7 seepos-importe text-success">@Formato.Importe(_elegido.Precio_Promo)</dd>
+                    <dd class="col-7 seepos-importe text-success">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_Promo))</dd>
                 }
             </dl>
 
@@ -334,8 +335,7 @@
     <BodyTemplate>
         @if (_edicion is not null)
         {
-            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formArticulo" class="seepos-articulo-editor">
-                <DataAnnotationsValidator />
+            <EditForm Model="_edicion" OnSubmit="GuardarDesdeFormulario" id="formArticulo" class="seepos-articulo-editor">
                 <nav class="nav nav-pills gap-2 mb-4 seepos-editor-tabs" aria-label="Secciones del artículo">
                     <button type="button" class="btn btn-sm @ClasePestanaGenerales" @onclick="MostrarGenerales">Datos generales</button>
                     <button type="button" class="btn btn-sm @ClasePestanaPrecios" @onclick="MostrarPrecios">Precios</button>
@@ -362,10 +362,7 @@
                     {
                         <button type="button" class="btn btn-sm @ClasePestanaBonificacion" @onclick="MostrarBonificacion">Bonificación</button>
                     }
-                    @if (!Sesion.EsCostaPets)
-                    {
-                        <button type="button" class="btn btn-sm @ClasePestanaOtros" @onclick="MostrarOtros">Otros datos</button>
-                    }
+                    <button type="button" class="btn btn-sm @ClasePestanaOtros" @onclick="MostrarOtros">Otros datos</button>
                 </nav>
 
                 @if (_pestanaInventario == "generales")
@@ -397,7 +394,7 @@
                     </div>
                     <div class="col-12 col-md-4"><label class="form-label" for="articulo-cantidad-presentacion">Cantidad</label><input id="articulo-cantidad-presentacion" type="number" min="0" step="0.001" class="form-control" @bind="_edicion.PresentaCant" /></div>
                     <div class="col-12 col-md-4">
-                        <label class="form-label" for="articulo-familia">Familia</label>
+                        <label class="form-label" for="articulo-familia">Familia *</label>
                         <select id="articulo-familia" class="form-select" @bind="_edicion.SubFamilia">
                             <option value="0">Seleccione...</option>
                             @foreach (var familia in _familias)
@@ -517,7 +514,7 @@
                             <div class="col-12 col-md-4"><label class="form-label">Otros cargos</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.OtrosCargos" /></div>
                         }
                         <div class="col-12 col-md-4">
-                            <label class="form-label">Impuesto</label>
+                            <label class="form-label">Impuesto *</label>
                             <select class="form-select" @bind="_edicion.Id_Impuesto" @bind:after="AlCambiarImpuesto">
                                 <option value="0">Seleccione...</option>
                                 @foreach (var i in _impuestos)
@@ -535,11 +532,34 @@
                         <div class="col-12 seepos-form-seccion">Último costo</div>
                         <div class="col-12 col-md-4">
                             <label class="form-label" for="articulo-moneda-costo">Moneda del costo</label>
-                            <select id="articulo-moneda-costo" class="form-select" @bind="_edicion.MonedaCosto">
+                            <select id="articulo-moneda-costo" class="form-select" @bind="_edicion.MonedaCosto" @bind:after="AlCambiarMonedaCosto">
                                 <option value="1">Colones</option>
                                 <option value="2">Dólares</option>
                             </select>
                         </div>
+                        @if (_edicion.MonedaCosto > 1)
+                        {
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input id="articulo-convierte-colones" class="form-check-input" type="checkbox"
+                                           @bind="_edicion.ConviertePrecioColones" @bind:after="AlCambiarConvierteColones" />
+                                    <label class="form-check-label" for="articulo-convierte-colones">Convertir a colones para la venta</label>
+                                </div>
+                                <p class="form-text mb-0">El tipo de cambio se congela en este artículo. No cambia en cada factura. Actualícelo aquí cuando quiera recotizar.</p>
+                            </div>
+                        }
+                        @if (MuestraPrecioFinalColones)
+                        {
+                            <div class="col-12 col-md-4">
+                                <label class="form-label">Tipo de cambio (Valor venta)</label>
+                                <div class="input-group">
+                                    <input type="text" readonly class="form-control" value="@_edicion.TipoCambioVenta.ToString("N4")" />
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="TomarTipoCambio">Actualizar</button>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-4"><label class="form-label">Precio final colones</label><input type="text" readonly class="form-control" value="@PrecioFinalColonesTexto" /></div>
+                            <div class="col-12 col-md-4"><label class="form-label">Precio final colones con impuesto</label><input type="text" readonly class="form-control" value="@PrecioFinalColonesConImpuestoTexto" /></div>
+                        }
                         <div class="col-12 col-md-4">
                             <label class="form-label">Costo (base + fletes + otros)</label>
                             <input type="text" readonly class="form-control" value="@Formato.Importe(CostoCalculado)" />
@@ -749,7 +769,8 @@
                 else if (_pestanaInventario == "otros")
                 {
                     <div class="row g-3">
-                        <div class="col-12"><h3 class="h6 mb-0">Rebaja otro artículo</h3><p class="form-text">Al vender este artículo, rebaja existencia de otro (por ejemplo, un combo que consume un componente).</p></div>
+                        <div class="col-12"><h3 class="h6 mb-0">Presentación empaquetada</h3>
+                            <p class="form-text">Si este código es una caja o paquete, elija el artículo unidad y cuántas unidades trae cada caja. El inventario se controla en la unidad: vender 1 caja descuenta ese factor. El comprobante sigue mostrando este código y su precio. Un factor mayor que 1 activa este comportamiento.</p></div>
                         <div class="col-12 col-md-6">
                             <label class="form-label">Artículo a rebajar</label>
                             <div class="input-group">
@@ -759,7 +780,7 @@
                         </div>
                         <div class="col-12 col-md-6"><label class="form-label">Código de presentación</label><input type="number" min="0" class="form-control" @bind="_edicion.Cod_PresentOtro" /></div>
                         <div class="col-12 col-md-6"><label class="form-label">Cantidad de presentación</label><input type="number" min="0" step="0.001" class="form-control" @bind="_edicion.CantidadPresentOtro" /></div>
-                        <div class="col-12 col-md-6"><label class="form-label">Cantidad a descargar</label><input type="number" min="0" step="0.001" class="form-control" @bind="_edicion.CantidadDescarga" /></div>
+                        <div class="col-12 col-md-6"><label class="form-label">Unidades por caja</label><input type="number" min="0" step="1" class="form-control" @bind="_edicion.CantidadDescarga" @bind:after="AlCambiarFactorEmpaque" /></div>
 
                         <div class="col-12"><hr /><h3 class="h6 mb-0">Información de proveedor</h3></div>
                         <div class="col-12 col-md-4"><label class="form-label">Código QVET</label><input type="number" min="0" class="form-control" @bind="_edicion.IdCodigoInternoQvet" /></div>
@@ -782,7 +803,14 @@
                     else
                     {
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <div><span class="text-secondary small d-block">Existencia total</span><span class="h5 mb-0">@_existenciaConsol.ExistenciaTotal.ToString("N2")</span></div>
+                            <div>
+                                <span class="text-secondary small d-block">Existencia total</span>
+                                <span class="h5 mb-0">@_existenciaConsol.ExistenciaTotal.ToString("N2")</span>
+                                @if (_existenciaConsol.EsPresentacionEmpaquetada)
+                                {
+                                    <div class="form-text mb-0">Cajas disponibles (unidades ÷ @_existenciaConsol.FactorEmpaque.ToString("0.###") de @_existenciaConsol.CodArticuloUnidad). El ajuste se hace en el artículo unidad.</div>
+                                }
+                            </div>
                             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CargarExistencias">Refrescar</button>
                         </div>
 
@@ -796,11 +824,20 @@
                                     <tr>
                                         <td>@b.NombreBodega</td>
                                         <td class="text-end">@b.Existencia.ToString("N2")</td>
-                                        <td class="text-end"><div class="input-group input-group-sm">
-                                            <input type="number" step="0.001" min="0" class="form-control text-end"
-                                                   value="@AjusteTexto(b.IdBodega, null)" @onchange="e => SetAjuste(b.IdBodega, null, e.Value?.ToString())" />
-                                            <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(b.IdBodega, null, AjusteDe(b.IdBodega, null))">Aplicar</button>
-                                        </div></td>
+                                        <td class="text-end">
+                                            @if (_existenciaConsol.EsPresentacionEmpaquetada)
+                                            {
+                                                <span class="text-secondary small">Ajuste en el artículo unidad</span>
+                                            }
+                                            else
+                                            {
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" step="0.001" min="0" class="form-control text-end"
+                                                           value="@AjusteTexto(b.IdBodega, null)" @onchange="e => SetAjuste(b.IdBodega, null, e.Value?.ToString())" />
+                                                    <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(b.IdBodega, null, AjusteDe(b.IdBodega, null))">Aplicar</button>
+                                                </div>
+                                            }
+                                        </td>
                                     </tr>
                                 }
                                 @if (_existenciaConsol.PorBodega.Count == 0)
@@ -824,11 +861,20 @@
                                             <td>@(l.Vencimiento?.ToString("dd/MM/yyyy") ?? "—")</td>
                                             <td>@pb.NombreBodega</td>
                                             <td class="text-end">@pb.Existencia.ToString("N2")</td>
-                                            <td class="text-end"><div class="input-group input-group-sm">
-                                                <input type="number" step="0.001" min="0" class="form-control text-end"
-                                                       value="@AjusteTexto(pb.IdBodega, l.Id)" @onchange="e => SetAjuste(pb.IdBodega, l.Id, e.Value?.ToString())" />
-                                                <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(pb.IdBodega, l.Id, AjusteDe(pb.IdBodega, l.Id))">Aplicar</button>
-                                            </div></td>
+                                            <td class="text-end">
+                                                @if (_existenciaConsol.EsPresentacionEmpaquetada)
+                                                {
+                                                    <span class="text-secondary small">Ajuste en el artículo unidad</span>
+                                                }
+                                                else
+                                                {
+                                                    <div class="input-group input-group-sm">
+                                                        <input type="number" step="0.001" min="0" class="form-control text-end"
+                                                               value="@AjusteTexto(pb.IdBodega, l.Id)" @onchange="e => SetAjuste(pb.IdBodega, l.Id, e.Value?.ToString())" />
+                                                        <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(pb.IdBodega, l.Id, AjusteDe(pb.IdBodega, l.Id))">Aplicar</button>
+                                                    </div>
+                                                }
+                                            </td>
                                         </tr>
                                     }
                                     var bodegasNuevasLote = _bodegasMov.Where(b => !l.PorBodega.Any(pb => pb.IdBodega == b.IdBodega)).ToList();
@@ -1027,6 +1073,7 @@
     private double _cantidadNuevoLote;
     private List<SubFamiliasFilterInventarioDTO> _familias = new();
     private List<ImpuestoFiscalDTO> _impuestos = new();
+    private List<MonedaFiscalDTO> _monedas = new();
     private List<ProveedoresFilterInventarioDTO> _proveedoresInventario = new();
     private List<Presentacione> _presentaciones = new();
     private string _textoCabys = string.Empty;
@@ -1307,6 +1354,8 @@
         return true;
     }
 
+    private Task GuardarDesdeFormulario(EditContext _) => Guardar();
+
     private async Task Guardar()
     {
         if (_edicion is null || _guardando)
@@ -1314,16 +1363,32 @@
             return;
         }
 
-        if ((string.IsNullOrWhiteSpace(_edicion.Cod_Articulo) || string.IsNullOrWhiteSpace(_edicion.Descripcion))
-            && await AvisoValidacion("Código y descripción son obligatorios.")) return;
+        var faltantes = new List<string>();
+        if (string.IsNullOrWhiteSpace(_edicion.Cod_Articulo)) faltantes.Add("Código");
+        if (string.IsNullOrWhiteSpace(_edicion.Descripcion)) faltantes.Add("Descripción");
+        if (_edicion.Id_Impuesto <= 0) faltantes.Add("Impuesto");
+        if (_edicion.SubFamilia <= 0) faltantes.Add("Familia");
+        if (faltantes.Count > 0)
+        {
+            _pestanaInventario = faltantes.Count == 1 && faltantes[0] == "Impuesto"
+                ? "precios"
+                : "generales";
+            if (await AvisoValidacion(ValidacionFormulario.MensajeCamposFaltantes(faltantes))) return;
+        }
 
         _edicion.Cod_Articulo = _edicion.Cod_Articulo!.Trim();
+        if (_edicion.MonedaCosto <= 1)
+        {
+            _edicion.ConviertePrecioColones = false;
+            _edicion.TipoCambioVenta = 1;
+        }
+        else if (_edicion.ConviertePrecioColones && _edicion.TipoCambioVenta <= 0)
+        {
+            await TomarTipoCambio();
+        }
 
         if (_esNuevo && _todos.Any(a => string.Equals(a.Cod_Articulo?.Trim(), _edicion.Cod_Articulo, StringComparison.OrdinalIgnoreCase))
             && await AvisoValidacion($"Ya existe un artículo con el código «{_edicion.Cod_Articulo}». El código debe ser único.")) return;
-
-        if (_edicion.Id_Impuesto <= 0
-            && await AvisoValidacion("Seleccione el impuesto del artículo.")) return;
 
         if (!await Dialogos.ConfirmarAsync(_esNuevo ? "Se registrará el nuevo artículo." : "Se actualizarán los datos del artículo."))
         {
@@ -1513,6 +1578,11 @@
     private async Task AjustarExistencia(int bodega, long? idStockLote, double cantidad)
     {
         if (_edicion is null) return;
+        if (_existenciaConsol?.EsPresentacionEmpaquetada == true)
+        {
+            await Dialogos.ErrorAsync("Esta presentación no tiene existencia propia. Ajuste el artículo unidad.");
+            return;
+        }
         if (bodega <= 0)
         {
             await Dialogos.ErrorAsync("Seleccione la bodega antes de aplicar el ajuste.");
@@ -1553,7 +1623,23 @@
     private void ElegirArticuloDescarga(InventarioDTO articulo)
     {
         _articuloDescargaSeleccionado = articulo;
-        if (_edicion is not null) _edicion.CodigoDescarga = articulo.Cod_Articulo;
+        if (_edicion is not null)
+        {
+            _edicion.CodigoDescarga = articulo.Cod_Articulo;
+            AlCambiarFactorEmpaque();
+        }
+    }
+
+    private void AlCambiarFactorEmpaque()
+    {
+        if (_edicion is null) return;
+        _edicion.DescargaOtro = !string.IsNullOrWhiteSpace(_edicion.CodigoDescarga)
+            && _edicion.CantidadDescarga > 1;
+        if (_edicion.DescargaOtro)
+        {
+            _edicion.Lote = false;
+            _edicion.LoteUnico = false;
+        }
     }
 
 
@@ -1734,6 +1820,59 @@
             ? basePrecio / (1 - utilidad)
             : basePrecio * (1 + utilidad) + (decimal)_edicion.Fletes + (decimal)_edicion.OtrosCargos;
         PrecioTarifaActual = (float)Math.Round(precio, 2);
+        if (MuestraPrecioFinalColones) await TomarTipoCambio();
+    }
+
+    private bool MuestraPrecioFinalColones
+        => _edicion is { MonedaCosto: > 1, ConviertePrecioColones: true };
+
+    private string PrecioFinalColonesTexto => PrecioVenta.EnColones(_edicion, PrecioTarifaActual).ToString("N2");
+
+    private string PrecioFinalColonesConImpuestoTexto
+        => (PrecioVenta.EnColones(_edicion, PrecioTarifaActual) * (1 + (decimal)(_edicion?.IVenta ?? 0) / 100)).ToString("N2");
+
+    private async Task AlCambiarMonedaCosto()
+    {
+        if (_edicion is null) return;
+        if (_edicion.MonedaCosto <= 1)
+        {
+            _edicion.ConviertePrecioColones = false;
+            _edicion.TipoCambioVenta = 1;
+            return;
+        }
+        _edicion.ConviertePrecioColones = true;
+        await TomarTipoCambio();
+    }
+
+    private async Task AlCambiarConvierteColones()
+    {
+        if (_edicion is null) return;
+        if (!_edicion.ConviertePrecioColones)
+        {
+            _edicion.TipoCambioVenta = 1;
+            return;
+        }
+        await TomarTipoCambio();
+    }
+
+    private async Task TomarTipoCambio()
+    {
+        if (_edicion is null || _edicion.MonedaCosto <= 1) return;
+        await AsegurarMonedas();
+        var moneda = _monedas.FirstOrDefault(m => m.CodMoneda == _edicion.MonedaCosto);
+        var tc = moneda?.ValorVenta ?? 0;
+        if (tc <= 0)
+        {
+            await Dialogos.ErrorAsync("Esa moneda no tiene tipo de cambio de venta. Revíselo en Monedas.");
+            return;
+        }
+        _edicion.TipoCambioVenta = tc;
+    }
+
+    private async Task AsegurarMonedas()
+    {
+        if (_monedas.Count > 0) return;
+        _monedas = (await Respuestas.DatoAsync(await MonedasApi.Obtener(), "consultar las monedas"))?.ToList() ?? new();
     }
 
     /// <summary>
@@ -1902,6 +2041,7 @@
         _proveedoresInventario = (await Respuestas.DatoAsync(await Catalogos.Proveedores(), "consultar los proveedores de inventario"))?.ToList() ?? new();
         _presentaciones = (await Respuestas.DatoAsync(await Catalogos.Presentaciones(), "consultar las presentaciones"))?.Where(x => x.Estado).ToList() ?? new();
         _impuestos = (await Respuestas.DatoAsync(await ImpuestosApi.Obtener(), "consultar los impuestos"))?.Where(i => i.Estado != false).ToList() ?? new();
+        _monedas = (await Respuestas.DatoAsync(await MonedasApi.Obtener(), "consultar las monedas"))?.ToList() ?? new();
     }
 
     /// <summary>El % de venta del artículo viaja aparte (IVenta) para no romper las

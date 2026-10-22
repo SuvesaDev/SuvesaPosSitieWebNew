@@ -79,6 +79,10 @@ public sealed class ExistenciaConsolidada
     [JsonPropertyName("manejaLote")] public bool ManejaLote { get; set; }
     [JsonPropertyName("loteUnico")] public bool LoteUnico { get; set; }
     [JsonPropertyName("loteUnicoFijado")] public bool LoteUnicoFijado { get; set; }
+    [JsonPropertyName("esPresentacionEmpaquetada")] public bool EsPresentacionEmpaquetada { get; set; }
+    [JsonPropertyName("idArticuloUnidad")] public long? IdArticuloUnidad { get; set; }
+    [JsonPropertyName("codArticuloUnidad")] public string? CodArticuloUnidad { get; set; }
+    [JsonPropertyName("factorEmpaque")] public double FactorEmpaque { get; set; }
     [JsonPropertyName("existenciaTotal")] public double ExistenciaTotal { get; set; }
     [JsonPropertyName("porBodega")] public List<ExistenciaPorBodega> PorBodega { get; set; } = new();
     [JsonPropertyName("lotes")] public List<LoteExistencia> Lotes { get; set; } = new();
@@ -212,6 +216,138 @@ public sealed class TomaFisicaReporte
     [JsonPropertyName("esParcial")] public bool EsParcial { get; set; }
     [JsonPropertyName("anulada")] public bool Anulada { get; set; }
     [JsonPropertyName("lineas")] public List<TomaFisicaReporteLinea> Lineas { get; set; } = new();
+}
+
+public sealed class PretomaGuardarLinea
+{
+    [JsonPropertyName("idArticulo")] public long IdArticulo { get; set; }
+    [JsonPropertyName("idStockLote")] public long? IdStockLote { get; set; }
+    [JsonPropertyName("numeroLote")] public string? NumeroLote { get; set; }
+    [JsonPropertyName("fechaVencimiento")] public System.DateTime? FechaVencimiento { get; set; }
+    [JsonPropertyName("cantidad")] public double Cantidad { get; set; }
+    [JsonPropertyName("reemplazar")] public bool Reemplazar { get; set; }
+}
+
+public sealed class PretomaGuardar
+{
+    [JsonPropertyName("idPretoma")] public long? IdPretoma { get; set; }
+    [JsonPropertyName("bodega")] public int Bodega { get; set; }
+    [JsonPropertyName("observaciones")] public string? Observaciones { get; set; }
+    [JsonPropertyName("lineas")] public List<PretomaGuardarLinea> Lineas { get; set; } = new();
+}
+
+public sealed class PretomaLinea
+{
+    [JsonPropertyName("idArticulo")] public long IdArticulo { get; set; }
+    [JsonPropertyName("codArticulo")] public string CodArticulo { get; set; } = string.Empty;
+    [JsonPropertyName("descripcion")] public string Descripcion { get; set; } = string.Empty;
+    [JsonPropertyName("idStockLote")] public long? IdStockLote { get; set; }
+    [JsonPropertyName("numeroLote")] public string? NumeroLote { get; set; }
+    [JsonPropertyName("fechaVencimiento")] public System.DateTime? FechaVencimiento { get; set; }
+    [JsonPropertyName("cantidad")] public double Cantidad { get; set; }
+    [JsonPropertyName("manejaLote")] public bool ManejaLote { get; set; }
+    [JsonPropertyName("esLoteUnico")] public bool EsLoteUnico { get; set; }
+    [JsonPropertyName("existenciaSistema")] public double ExistenciaSistema { get; set; }
+}
+
+public sealed class Pretoma
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("bodega")] public int Bodega { get; set; }
+    [JsonPropertyName("fecha")] public System.DateTime Fecha { get; set; }
+    [JsonPropertyName("usuario")] public string? Usuario { get; set; }
+    [JsonPropertyName("observaciones")] public string? Observaciones { get; set; }
+    [JsonPropertyName("estado")] public int Estado { get; set; }
+    [JsonPropertyName("lineas")] public List<PretomaLinea> Lineas { get; set; } = new();
+}
+
+public sealed class PretomaResumen
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("bodega")] public int Bodega { get; set; }
+    [JsonPropertyName("fecha")] public System.DateTime Fecha { get; set; }
+    [JsonPropertyName("usuario")] public string? Usuario { get; set; }
+    [JsonPropertyName("observaciones")] public string? Observaciones { get; set; }
+    [JsonPropertyName("estado")] public int Estado { get; set; }
+    [JsonPropertyName("lineas")] public int Lineas { get; set; }
+    [JsonPropertyName("unidades")] public double Unidades { get; set; }
+}
+
+public sealed class PretomaCrear
+{
+    [JsonPropertyName("bodega")] public int Bodega { get; set; }
+    [JsonPropertyName("observaciones")] public string? Observaciones { get; set; }
+}
+
+public sealed class PretomaArticulo
+{
+    [JsonPropertyName("idArticulo")] public long IdArticulo { get; set; }
+    [JsonPropertyName("codArticulo")] public string CodArticulo { get; set; } = string.Empty;
+    [JsonPropertyName("descripcion")] public string Descripcion { get; set; } = string.Empty;
+    [JsonPropertyName("manejaLote")] public bool ManejaLote { get; set; }
+    [JsonPropertyName("esLoteUnico")] public bool EsLoteUnico { get; set; }
+}
+
+public sealed class PretomaBusqueda
+{
+    [JsonPropertyName("hayMas")] public bool HayMas { get; set; }
+    [JsonPropertyName("articulos")] public List<PretomaArticulo> Articulos { get; set; } = new();
+}
+
+public sealed class PretomaLoteExistente
+{
+    [JsonPropertyName("idStockLote")] public long? IdStockLote { get; set; }
+    [JsonPropertyName("numeroLote")] public string? NumeroLote { get; set; }
+    [JsonPropertyName("vencimiento")] public System.DateTime? Vencimiento { get; set; }
+    [JsonPropertyName("existenciaSistema")] public double ExistenciaSistema { get; set; }
+}
+
+public sealed class PretomaArticuloDetalle
+{
+    [JsonPropertyName("idArticulo")] public long IdArticulo { get; set; }
+    [JsonPropertyName("codArticulo")] public string CodArticulo { get; set; } = string.Empty;
+    [JsonPropertyName("descripcion")] public string Descripcion { get; set; } = string.Empty;
+    [JsonPropertyName("manejaLote")] public bool ManejaLote { get; set; }
+    [JsonPropertyName("esLoteUnico")] public bool EsLoteUnico { get; set; }
+    [JsonPropertyName("existenciaSistema")] public double ExistenciaSistema { get; set; }
+    [JsonPropertyName("lotes")] public List<PretomaLoteExistente> Lotes { get; set; } = new();
+}
+
+public sealed class PretomaQuitarLinea
+{
+    [JsonPropertyName("idPretoma")] public long IdPretoma { get; set; }
+    [JsonPropertyName("idArticulo")] public long IdArticulo { get; set; }
+    [JsonPropertyName("idStockLote")] public long? IdStockLote { get; set; }
+    [JsonPropertyName("numeroLote")] public string? NumeroLote { get; set; }
+    [JsonPropertyName("fechaVencimiento")] public System.DateTime? FechaVencimiento { get; set; }
+}
+
+public sealed class PretomaConsolidadoLinea
+{
+    [JsonPropertyName("idArticulo")] public long IdArticulo { get; set; }
+    [JsonPropertyName("codArticulo")] public string CodArticulo { get; set; } = string.Empty;
+    [JsonPropertyName("descripcion")] public string Descripcion { get; set; } = string.Empty;
+    [JsonPropertyName("idStockLote")] public long? IdStockLote { get; set; }
+    [JsonPropertyName("numeroLote")] public string? NumeroLote { get; set; }
+    [JsonPropertyName("vencimiento")] public System.DateTime? Vencimiento { get; set; }
+    [JsonPropertyName("manejaLote")] public bool ManejaLote { get; set; }
+    [JsonPropertyName("existenciaSistema")] public double ExistenciaSistema { get; set; }
+    [JsonPropertyName("contado")] public double Contado { get; set; }
+    [JsonPropertyName("pretomas")] public int Pretomas { get; set; }
+}
+
+public sealed class PretomaConsolidado
+{
+    [JsonPropertyName("bodega")] public int Bodega { get; set; }
+    [JsonPropertyName("pretomas")] public int Pretomas { get; set; }
+    [JsonPropertyName("lineas")] public List<PretomaConsolidadoLinea> Lineas { get; set; } = new();
+}
+
+public sealed class PretomaAprobar
+{
+    [JsonPropertyName("bodega")] public int Bodega { get; set; }
+    [JsonPropertyName("observaciones")] public string? Observaciones { get; set; }
+    [JsonPropertyName("actualizacionTotal")] public bool ActualizacionTotal { get; set; }
 }
 
 // ---- Bodegas operativas por centro (BODEGAS_POR_CENTRO_Y_TRASLADOS_API.md §3.1) ----

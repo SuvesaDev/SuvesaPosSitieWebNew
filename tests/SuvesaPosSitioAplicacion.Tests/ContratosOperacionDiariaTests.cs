@@ -64,6 +64,23 @@ public class ContratosOperacionDiariaTests
     }
 
     [Fact]
+    public async Task Consignacion_ConsultaBoletasYConteosPendientes()
+    {
+        var handler = new RegistroHttpHandler(_ => """{"status":0,"responses":[]}""");
+        var api = new ConsignacionInvApiCliente(Http(handler), new SesionPrueba("operador-carnes"));
+
+        await api.BoletasAsync(new BoletasConsignacionFiltro { IdCliente = 401 });
+        await api.ConteosAsync(new ConteosConsignacionFiltro { IdCliente = 401 });
+        await api.AnularConteoAsync(new AnularConteoConsignacion { IdConteo = 18, Motivo = "Conteo duplicado" });
+
+        Assert.Collection(handler.Solicitudes,
+            r => Assert.Equal(("POST", "/ConsignacionInventario/Boletas"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/Conteos"), r.VerboYRuta),
+            r => Assert.Equal(("POST", "/ConsignacionInventario/AnularConteo"), r.VerboYRuta));
+        Assert.Contains("conteo duplicado", handler.Solicitudes[2].Cuerpo, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Consignacion_ExigeEmisorYDocumentaDiferenciaAntesDeLiquidar()
     {
         var handler = new RegistroHttpHandler(_ => """{"status":0,"responses":{}}""");

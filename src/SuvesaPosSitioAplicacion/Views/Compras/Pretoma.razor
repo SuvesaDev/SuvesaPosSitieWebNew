@@ -1,0 +1,805 @@
+@page "/buys/physical-precount"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.DTOs.Lotes
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ILotesApiCliente Api
+@inject IServicioDialogos Dialogos
+
+@* Pretoma: el conteo se guarda y se suma. No mueve existencias. *@
+
+<AppPantalla Pantalla="@Titulo" Codigo="COMPRAS.TOMA.PRETOMA" Icono="bi-clipboard-plus"
+             Subtitulo="Contar y acumular, sin ajustar el inventario" Nivel="NivelPantalla.Tableta">
+    <Acciones>
+        @if (_enConteo)
+        {
+            <button class="btn btn-sm btn-outline-secondary" @onclick="VolverBandeja" disabled="@_guardando">Bandeja</button>
+            @if (_idPretoma > 0 && !_soloLectura)
+            {
+                <button class="btn btn-sm btn-outline-danger" @onclick="Anular" disabled="@_guardando">Anular pretoma</button>
+            }
+            <button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(_guardando || _soloLectura || !HayCambios)">
+                @(_guardando ? "Guardando..." : "Guardar conteo")
+            </button>
+        }
+        else
+        {
+            <button class="btn btn-sm btn-outline-primary" @onclick="Nueva" disabled="@(_guardando || _bodega <= 0)">Nueva pretoma</button>
+        }
+    </Acciones>
+    <ChildContent>
+        @if (!_enConteo)
+        {
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="pt-bodega">Bodega <span class="text-danger">*</span></label>
+                        <select id="pt-bodega" class="form-select" @bind="_bodega" @bind:after="AlCambiarBodega">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var b in _bodegas) { <option value="@b.IdBodega">@b.NombreBodega</option> }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-8">
+                        <label class="form-label" for="pt-buscar">Buscar pretoma</label>
+                        <input id="pt-buscar" class="form-control" @bind="_buscarPretoma" @bind:event="onchange" @bind:after="ListarPretomas"
+                               placeholder="Número, usuario, nota, artículo o lote" />
+                    </div>
+                </div>
+                <p class="form-text mb-0 mt-2">Elija una pretoma para contarla, o cree una nueva. El inventario no cambia aquí.</p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="seepos-form-seccion mb-2">Pretomas de la bodega</div>
+                @if (_pretomas.Count == 0)
+                {
+                    <p class="text-secondary small mb-0">No hay pretomas en esta bodega. Use «Nueva pretoma».</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>N.º</th><th>Fecha</th><th>Usuario</th><th>Nota</th><th>Estado</th>
+                                    <th class="text-end">Líneas</th><th class="text-end">Unidades</th><th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var p in _pretomas)
+                                {
+                                    <tr class="@(_idPretoma == p.Id ? "table-active" : null)">
+                                        <td>@p.Id</td>
+                                        <td>@p.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td>@p.Usuario</td>
+                                        <td>@p.Observaciones</td>
+                                        <td>@EstadoPretoma(p.Estado)</td>
+                                        <td class="text-end">@p.Lineas</td>
+                                        <td class="text-end">@p.Unidades.ToString("N2")</td>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => Abrir(p.Id)">
+                                                @(p.Estado == 0 ? "Editar" : "Ver")
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+        }
+        else
+        {
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-3">
+                        <div class="form-label">Pretoma</div>
+                        <div class="fw-semibold">N.º @_idPretoma@(_soloLectura ? " · solo consulta" : "")</div>
+                        <div class="text-secondary small">@NombreBodega()</div>
+                    </div>
+                    <div class="col-12 col-md-9">
+                        <label class="form-label" for="pt-nota">Nota</label>
+                        <input id="pt-nota" class="form-control" maxlength="250" @bind="_observaciones" @bind:event="onchange" disabled="@_soloLectura"
+                               placeholder="Para distinguirla en la bandeja" />
+                    </div>
+                </div>
+                <p class="form-text mb-0 mt-2">
+                    Agregue solo los artículos de esta pretoma. «Este conteo» se suma al acumulado.
+                    Cantidad 0 es un conteo de cero. Quitar saca la línea. El inventario cambia al aprobar la toma.
+                </p>
+            </div>
+        </div>
+
+        @if (_idPretoma > 0 && !_soloLectura)
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="seepos-form-seccion mb-2">Agregar artículo</div>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-12 col-md-8">
+                            <label class="form-label" for="pt-art">Código o descripción</label>
+                            <input id="pt-art" class="form-control" @bind="_busquedaArticulo" @bind:event="oninput" @onkeydown="BuscarConEnter"
+                                   placeholder="Escriba y busque. No carga el catálogo entero." autocomplete="off" />
+                        </div>
+                        <div class="col-12 col-md-4 d-grid">
+                            <button class="btn btn-outline-primary" type="button" @onclick="BuscarArticulos" disabled="@_buscandoArticulo">
+                                @(_buscandoArticulo ? "Buscando..." : "Buscar")
+                            </button>
+                        </div>
+                    </div>
+                    @if (_sugerencias.Count > 0 || _busco)
+                    {
+                        <div class="list-group mt-2">
+                            @if (_sugerencias.Count == 0)
+                            {
+                                <div class="list-group-item text-secondary small">Ningún artículo coincide.</div>
+                            }
+                            else
+                            {
+                                @foreach (var s in _sugerencias)
+                                {
+                                    <button type="button" class="list-group-item list-group-item-action py-1"
+                                            @onclick="() => ElegirArticulo(s)">
+                                        <code>@s.CodArticulo</code> @s.Descripcion
+                                        @if (s.EsLoteUnico) { <span class="text-secondary small"> · lote único</span> }
+                                        else if (s.ManejaLote) { <span class="text-secondary small"> · con lote</span> }
+                                    </button>
+                                }
+                                @if (_hayMasArticulos)
+                                {
+                                    <div class="list-group-item text-secondary small">Hay más coincidencias. Afine la búsqueda.</div>
+                                }
+                            }
+                        </div>
+                    }
+                    @if (_detalle is not null)
+                    {
+                        <div class="mt-3">
+                            <p class="mb-2"><code>@_detalle.CodArticulo</code> @_detalle.Descripcion</p>
+                            @if (_detalle.Lotes.Count > 0)
+                            {
+                                <div class="table-responsive mb-2">
+                                    <table class="table table-sm align-middle mb-0">
+                                        <thead><tr><th>Lote existente</th><th>Vence</th><th class="text-end">Sistema</th><th></th></tr></thead>
+                                        <tbody>
+                                            @foreach (var l in _detalle.Lotes)
+                                            {
+                                                <tr>
+                                                    <td>@l.NumeroLote</td>
+                                                    <td>@(l.Vencimiento?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                                    <td class="text-end">@l.ExistenciaSistema.ToString("N2")</td>
+                                                    <td class="text-end">
+                                                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => AgregarLoteExistente(l)">Agregar</button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                            @if (_detalle.EsLoteUnico && _detalle.Lotes.Any(l => l.IdStockLote is > 0))
+                            {
+                                <p class="form-text mb-0">Este artículo es de lote único. Use el lote que ya tiene.</p>
+                            }
+                            else if (_detalle.ManejaLote)
+                            {
+                                <div class="seepos-form-seccion mb-2">Lote nuevo</div>
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label" for="pt-lote">N.º de lote</label>
+                                        <input id="pt-lote" class="form-control" maxlength="50" @bind="_loteNumero" @bind:event="onchange" />
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label" for="pt-vence">Vencimiento</label>
+                                        <input id="pt-vence" type="date" class="form-control" @bind="_loteVence" />
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label" for="pt-cant">Cantidad</label>
+                                        <input id="pt-cant" type="number" step="0.001" min="0" class="form-control text-end" @bind="_loteCantidadTexto" @bind:event="onchange" />
+                                    </div>
+                                    <div class="col-6 col-md-3 d-grid">
+                                        <button class="btn btn-outline-secondary" type="button" @onclick="AgregarLoteNuevo">Agregar lote</button>
+                                    </div>
+                                </div>
+                                <p class="form-text mb-0 mt-2">El lote nuevo no entra al inventario hasta aprobar la toma física.</p>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (_idPretoma <= 0)
+        {
+            <div class="alert alert-light border">Cree una pretoma o abra una de la lista para agregar artículos.</div>
+        }
+        else if (_filas.Count == 0)
+        {
+            <div class="alert alert-light border">Esta pretoma no tiene artículos. Busque y agregue los que va a contar.</div>
+        }
+        else
+        {
+            <div class="mb-2">
+                <label class="form-label" for="pt-texto">Filtrar las líneas de esta pretoma</label>
+                <input id="pt-texto" class="form-control" @bind="_texto" @bind:event="oninput" placeholder="Código, descripción o lote" />
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Código</th><th>Descripción</th><th>Lote</th><th>Vence</th>
+                            <th class="text-end">Sistema</th><th class="text-end">Acumulado</th>
+                            <th class="text-end" style="min-width:8rem">Este conteo</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in Visibles)
+                        {
+                            <tr class="@(ReferenceEquals(a, _resaltada) ? "table-info" : a.ASumar is not null ? "table-warning" : null)">
+                                <td><code>@a.CodArticulo</code></td>
+                                <td>@a.Descripcion</td>
+                                <td>@(a.ManejaLote ? a.NumeroLote : "Sin lote") @(a.EsLoteUnico ? "(único)" : "")</td>
+                                <td>@(a.Vencimiento?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                <td class="text-end">@a.ExistenciaSistema.ToString("N2")</td>
+                                <td class="text-end">
+                                    @if (a.TieneAcumulado && !_soloLectura)
+                                    {
+                                        <input type="number" step="0.001" min="0" class="form-control form-control-sm text-end"
+                                               value="@a.Acumulado.ToString()"
+                                               @onchange="e => SetAcumulado(a, e.Value?.ToString())" />
+                                    }
+                                    else
+                                    {
+                                        @(a.TieneAcumulado ? a.Acumulado.ToString("N2") : "—")
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <input type="number" step="0.001" min="0" class="form-control form-control-sm text-end"
+                                           disabled="@_soloLectura"
+                                           value="@(a.ASumar?.ToString() ?? "")"
+                                           @onchange="e => SetConteo(a, e.Value?.ToString())" />
+                                </td>
+                                <td class="text-end">
+                                    @if (!_soloLectura)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => Quitar(a)">
+                                            <i class="bi bi-trash" aria-hidden="true"></i> Quitar
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (!Visibles.Any())
+            {
+                <div class="alert alert-light border">Ninguna línea de esta pretoma coincide con el filtro.</div>
+            }
+        }
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Titulo = "Pretoma";
+
+    private string _texto = string.Empty;
+    private string _busquedaArticulo = string.Empty;
+    private bool _busco;
+    private bool _hayMasArticulos;
+    private bool _buscandoArticulo, _guardando;
+    private string _loteNumero = string.Empty;
+    private DateTime? _loteVence;
+    private string _loteCantidadTexto = string.Empty;
+    private string _buscarPretoma = string.Empty;
+    private string _observaciones = string.Empty;
+    private string _observacionesOriginal = string.Empty;
+    private bool _soloLectura;
+    private bool _enConteo;
+    private long _idPretoma;
+    private int _bodega;
+    private List<BodegaOperativa> _bodegas = new();
+    private List<PretomaResumen> _pretomas = new();
+    private List<Fila> _filas = new();
+    private List<PretomaArticulo> _sugerencias = new();
+    private PretomaArticuloDetalle? _detalle;
+    private Fila? _resaltada;
+
+    private bool HayCambios => !_soloLectura && (
+        _filas.Any(f => !f.TieneAcumulado || f.ASumar is not null || Math.Abs(f.Acumulado - f.AcumuladoOriginal) > 0.0001)
+        || !string.Equals(_observaciones ?? "", _observacionesOriginal ?? "", StringComparison.Ordinal));
+    private IEnumerable<Fila> Visibles
+    {
+        get
+        {
+            var t = _texto.Trim();
+            if (t.Length == 0) return _filas;
+            return _filas.Where(f =>
+                f.CodArticulo.Contains(t, StringComparison.OrdinalIgnoreCase)
+                || f.Descripcion.Contains(t, StringComparison.OrdinalIgnoreCase)
+                || (f.NumeroLote ?? "").Contains(t, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Sesion.CargarAsync();
+        if (!Sesion.PuedeVer("COMPRAS.TOMA.PRETOMA")) return;
+        var r = await Api.BodegasOperativasAsync(SesionBodega());
+        _bodegas = r.Status == ResponseStatus._0
+            ? (r.Responses ?? new()).Where(b => b.IdSucursal == IdSucursal()).ToList()
+            : new();
+        if (_bodegas.Count == 1)
+        {
+            _bodega = _bodegas[0].IdBodega;
+            await ListarPretomas();
+        }
+    }
+
+    [Inject] private SuvesaPosSitioAplicacion.Security.IContextoSesion Sesion { get; set; } = default!;
+    private int? SesionBodega() => Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null;
+    private int IdSucursal() => Sesion.IdSucursal;
+    private string NombreBodega() => _bodegas.FirstOrDefault(b => b.IdBodega == _bodega)?.NombreBodega ?? "";
+
+    private async Task AlCambiarBodega()
+    {
+        _filas = new();
+        _idPretoma = 0;
+        _soloLectura = false;
+        _observaciones = string.Empty;
+        _observacionesOriginal = string.Empty;
+        _texto = string.Empty;
+        LimpiarBusqueda();
+        _pretomas = new();
+        if (_bodega > 0) await ListarPretomas();
+    }
+
+    private static string EstadoPretoma(int estado) => estado switch
+    {
+        0 => "Abierta",
+        1 => "Incluida en toma",
+        2 => "Anulada",
+        _ => estado.ToString()
+    };
+
+    private async Task ListarPretomas()
+    {
+        if (_bodega <= 0) { _pretomas = new(); return; }
+        var r = await Api.PretomaListarAsync(_bodega, string.IsNullOrWhiteSpace(_buscarPretoma) ? null : _buscarPretoma.Trim());
+        if (r.Status != ResponseStatus._0)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudieron listar las pretomas.");
+            return;
+        }
+        _pretomas = r.Responses ?? new();
+    }
+
+    private async Task Nueva()
+    {
+        if (_bodega <= 0) { await Dialogos.ErrorAsync("Seleccione la bodega."); return; }
+        if (HayCambios && !await Dialogos.ConfirmarAsync("Hay cambios sin guardar. ¿Crear otra pretoma y descartarlos?"))
+            return;
+        _guardando = true;
+        var r = await Api.PretomaCrearAsync(new PretomaCrear { Bodega = _bodega });
+        _guardando = false;
+        if (r.Status != ResponseStatus._0 || r.Responses is null)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo crear la pretoma.");
+            return;
+        }
+        await ListarPretomas();
+        await Abrir(r.Responses.Id, confirmar: false);
+    }
+
+    private async Task Abrir(long id, bool confirmar = true)
+    {
+        if (confirmar && id != _idPretoma && HayCambios && !await Dialogos.ConfirmarAsync("Hay cambios sin guardar. ¿Abrir otra pretoma y descartarlos?"))
+            return;
+        var r = await Api.PretomaObtenerAsync(id);
+        if (r.Status != ResponseStatus._0 || r.Responses is null)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo abrir la pretoma.");
+            return;
+        }
+        var p = r.Responses;
+        if (p.Bodega != _bodega) _bodega = p.Bodega;
+        _filas = new();
+        _resaltada = null;
+        LimpiarBusqueda();
+        _idPretoma = p.Id;
+        _soloLectura = p.Estado != 0;
+        _observaciones = p.Observaciones ?? string.Empty;
+        _observacionesOriginal = _observaciones;
+        foreach (var l in p.Lineas) AplicarAcumulado(l);
+        _enConteo = true;
+    }
+
+    private async Task VolverBandeja()
+    {
+        if (HayCambios && !await Dialogos.ConfirmarAsync("Hay cambios sin guardar. ¿Volver a la bandeja y descartarlos?"))
+            return;
+        _enConteo = false;
+        _idPretoma = 0;
+        _soloLectura = false;
+        _observaciones = string.Empty;
+        _observacionesOriginal = string.Empty;
+        _filas = new();
+        _resaltada = null;
+        _texto = string.Empty;
+        LimpiarBusqueda();
+        await ListarPretomas();
+    }
+
+    private static void SetConteo(Fila a, string? valor)
+    {
+        if (string.IsNullOrWhiteSpace(valor)) { a.ASumar = null; return; }
+        if (!double.TryParse(valor, out var v) || v < 0) { a.ASumar = null; return; }
+        a.ASumar = v;
+    }
+
+    private static void SetAcumulado(Fila a, string? valor)
+    {
+        if (!double.TryParse(valor, out var v) || v < 0) return;
+        a.Acumulado = v;
+        a.TieneAcumulado = true;
+    }
+
+    private void AplicarAcumulado(PretomaLinea l)
+    {
+        var fila = _filas.FirstOrDefault(f => MismaClave(f, l));
+        if (fila == null)
+        {
+            var numero = string.IsNullOrWhiteSpace(l.NumeroLote) ? "Sin lote" : l.NumeroLote;
+            fila = new Fila
+            {
+                IdArticulo = l.IdArticulo,
+                CodArticulo = l.CodArticulo,
+                Descripcion = l.Descripcion,
+                IdStockLote = l.IdStockLote,
+                NumeroLote = numero,
+                Vencimiento = l.FechaVencimiento,
+                ManejaLote = l.ManejaLote || l.IdStockLote is > 0 || NormalizarLote(numero).Length > 0,
+                EsLoteUnico = l.EsLoteUnico,
+                EsNuevo = l.IdStockLote is not > 0 && NormalizarLote(numero).Length > 0,
+                ExistenciaSistema = l.ExistenciaSistema
+            };
+            _filas.Add(fila);
+        }
+        fila.Acumulado = l.Cantidad;
+        fila.AcumuladoOriginal = l.Cantidad;
+        fila.TieneAcumulado = true;
+        fila.ASumar = null;
+        fila.ExistenciaSistema = l.ExistenciaSistema;
+    }
+
+    private async Task BuscarConEnter(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await BuscarArticulos();
+    }
+
+    private async Task BuscarArticulos()
+    {
+        if (_idPretoma <= 0 || _soloLectura) return;
+        var t = _busquedaArticulo.Trim();
+        if (t.Length == 0)
+        {
+            await Dialogos.ErrorAsync("Escriba el código o la descripción.");
+            return;
+        }
+        _buscandoArticulo = true;
+        var r = await Api.PretomaBuscarArticulosAsync(_bodega, t);
+        _buscandoArticulo = false;
+        _busco = true;
+        _detalle = null;
+        if (r.Status != ResponseStatus._0 || r.Responses is null)
+        {
+            _sugerencias = new();
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo buscar el artículo.");
+            return;
+        }
+        _hayMasArticulos = r.Responses.HayMas;
+        _sugerencias = r.Responses.Articulos ?? new();
+    }
+
+    private async Task ElegirArticulo(PretomaArticulo art)
+    {
+        _sugerencias = new();
+        _busco = false;
+        _busquedaArticulo = art.CodArticulo + " — " + art.Descripcion;
+        if (!art.ManejaLote)
+        {
+            _detalle = null;
+            var ya = _filas.FirstOrDefault(f => f.IdArticulo == art.IdArticulo && !f.ManejaLote);
+            if (ya != null) { _resaltada = ya; return; }
+            var det = await Api.PretomaDetalleArticuloAsync(_bodega, art.IdArticulo);
+            if (det.Status != ResponseStatus._0 || det.Responses is null)
+            {
+                await Dialogos.ErrorAsync(det.CurrentException ?? "No se pudo consultar el artículo.");
+                return;
+            }
+            _resaltada = new Fila
+            {
+                IdArticulo = art.IdArticulo,
+                CodArticulo = art.CodArticulo,
+                Descripcion = art.Descripcion,
+                NumeroLote = "Sin lote",
+                ManejaLote = false,
+                ExistenciaSistema = det.Responses.ExistenciaSistema
+            };
+            _filas.Add(_resaltada);
+            return;
+        }
+        var r = await Api.PretomaDetalleArticuloAsync(_bodega, art.IdArticulo);
+        if (r.Status != ResponseStatus._0 || r.Responses is null)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudieron consultar los lotes.");
+            return;
+        }
+        _detalle = r.Responses;
+        _loteNumero = string.Empty;
+        _loteVence = null;
+        _loteCantidadTexto = string.Empty;
+    }
+
+    private void AgregarLoteExistente(PretomaLoteExistente lote)
+    {
+        if (_detalle is null) return;
+        var ya = _filas.FirstOrDefault(f => MismaClave(f, lote));
+        if (ya != null) { _resaltada = ya; return; }
+        var numero = string.IsNullOrWhiteSpace(lote.NumeroLote) ? "Sin lote" : lote.NumeroLote;
+        _resaltada = new Fila
+        {
+            IdArticulo = _detalle.IdArticulo,
+            CodArticulo = _detalle.CodArticulo,
+            Descripcion = _detalle.Descripcion,
+            IdStockLote = lote.IdStockLote,
+            NumeroLote = numero,
+            Vencimiento = lote.Vencimiento,
+            ManejaLote = true,
+            EsLoteUnico = _detalle.EsLoteUnico,
+            ExistenciaSistema = lote.ExistenciaSistema
+        };
+        _filas.Add(_resaltada);
+    }
+
+    private async Task AgregarLoteNuevo()
+    {
+        if (_detalle is null || !_detalle.ManejaLote) return;
+        if (_detalle.EsLoteUnico && _detalle.Lotes.Any(l => l.IdStockLote is > 0))
+        {
+            await Dialogos.ErrorAsync("Ese artículo es de lote único. Use el lote que ya tiene.");
+            return;
+        }
+        var numero = _loteNumero.Trim();
+        if (numero.Length == 0)
+        {
+            await Dialogos.ErrorAsync("Escriba el número de lote.");
+            return;
+        }
+        if (numero.Length > 50)
+        {
+            await Dialogos.ErrorAsync("El número de lote no puede pasar de 50 caracteres.");
+            return;
+        }
+        double? cantidad = null;
+        if (!string.IsNullOrWhiteSpace(_loteCantidadTexto))
+        {
+            if (!double.TryParse(_loteCantidadTexto, out var v) || v < 0)
+            {
+                await Dialogos.ErrorAsync("La cantidad no puede ser negativa.");
+                return;
+            }
+            cantidad = v;
+        }
+        DateTime? vence = _loteVence?.Date;
+        var conocido = _detalle.Lotes.FirstOrDefault(l =>
+            NormalizarLote(l.NumeroLote) == NormalizarLote(numero) && l.Vencimiento?.Date == vence);
+        if (conocido != null)
+        {
+            AgregarLoteExistente(conocido);
+            if (cantidad is not null && _resaltada is not null) _resaltada.ASumar = (_resaltada.ASumar ?? 0) + cantidad;
+            _loteNumero = string.Empty;
+            _loteVence = null;
+            _loteCantidadTexto = string.Empty;
+            return;
+        }
+        var ya = _filas.FirstOrDefault(f => f.IdArticulo == _detalle.IdArticulo
+            && f.IdStockLote is not > 0
+            && NormalizarLote(f.NumeroLote) == NormalizarLote(numero)
+            && f.Vencimiento?.Date == vence);
+        if (ya != null)
+        {
+            if (cantidad is not null) ya.ASumar = (ya.ASumar ?? 0) + cantidad;
+            _resaltada = ya;
+        }
+        else
+        {
+            _resaltada = new Fila
+            {
+                IdArticulo = _detalle.IdArticulo,
+                CodArticulo = _detalle.CodArticulo,
+                Descripcion = _detalle.Descripcion,
+                NumeroLote = numero,
+                Vencimiento = vence,
+                ManejaLote = true,
+                EsLoteUnico = _detalle.EsLoteUnico,
+                EsNuevo = true,
+                ASumar = cantidad
+            };
+            _filas.Add(_resaltada);
+        }
+        _loteNumero = string.Empty;
+        _loteVence = null;
+        _loteCantidadTexto = string.Empty;
+    }
+
+    private async Task Quitar(Fila fila)
+    {
+        if (_soloLectura) return;
+        if (!fila.TieneAcumulado)
+        {
+            _filas.Remove(fila);
+            if (ReferenceEquals(_resaltada, fila)) _resaltada = null;
+            return;
+        }
+        if (!await Dialogos.ConfirmarAsync("Se quita de esta pretoma. No cuenta como cero: la existencia no se toca hasta aprobar la toma.", "Quitar línea"))
+            return;
+        _guardando = true;
+        var r = await Api.PretomaQuitarLineaAsync(new PretomaQuitarLinea
+        {
+            IdPretoma = _idPretoma,
+            IdArticulo = fila.IdArticulo,
+            IdStockLote = fila.IdStockLote,
+            NumeroLote = fila.IdStockLote is > 0 ? null : NormalizarLote(fila.NumeroLote) is { Length: > 0 } ? fila.NumeroLote : null,
+            FechaVencimiento = fila.IdStockLote is > 0 ? null : fila.Vencimiento
+        });
+        _guardando = false;
+        if (r.Status != ResponseStatus._0 || r.Responses is null)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo quitar la línea.");
+            return;
+        }
+        _filas = new();
+        foreach (var l in r.Responses.Lineas) AplicarAcumulado(l);
+        _resaltada = null;
+        await ListarPretomas();
+    }
+
+    private void LimpiarBusqueda()
+    {
+        _busquedaArticulo = string.Empty;
+        _sugerencias = new();
+        _busco = false;
+        _hayMasArticulos = false;
+        _detalle = null;
+        _loteNumero = string.Empty;
+        _loteVence = null;
+        _loteCantidadTexto = string.Empty;
+    }
+
+    private bool MismaClave(Fila f, PretomaLoteExistente l)
+    {
+        if (_detalle is null || f.IdArticulo != _detalle.IdArticulo) return false;
+        if (l.IdStockLote is > 0 || f.IdStockLote is > 0)
+            return f.IdStockLote == l.IdStockLote;
+        return NormalizarLote(f.NumeroLote) == NormalizarLote(l.NumeroLote)
+            && f.Vencimiento?.Date == l.Vencimiento?.Date;
+    }
+
+    private static bool MismaClave(Fila f, PretomaLinea l)
+    {
+        if (l.IdStockLote is > 0 || f.IdStockLote is > 0)
+            return f.IdArticulo == l.IdArticulo && f.IdStockLote == l.IdStockLote;
+        var fn = NormalizarLote(f.NumeroLote);
+        var ln = NormalizarLote(l.NumeroLote);
+        return f.IdArticulo == l.IdArticulo
+            && fn == ln
+            && f.Vencimiento?.Date == l.FechaVencimiento?.Date;
+    }
+
+    private static string NormalizarLote(string? numero)
+    {
+        var n = (numero ?? "").Trim().ToUpperInvariant();
+        return n == "SIN LOTE" ? "" : n;
+    }
+
+    private async Task Guardar()
+    {
+        if (_soloLectura) return;
+        if (_idPretoma <= 0) { await Dialogos.ErrorAsync("Cree una pretoma con «Nueva pretoma» o abra una de la lista."); return; }
+        var conteos = _filas.Where(f => f.ASumar is not null || (f.TieneAcumulado && Math.Abs(f.Acumulado - f.AcumuladoOriginal) > 0.0001)).ToList();
+        var notaCambio = !string.Equals(_observaciones ?? "", _observacionesOriginal ?? "", StringComparison.Ordinal);
+        if (conteos.Count == 0 && !notaCambio)
+        {
+            await Dialogos.ErrorAsync(_filas.Any(f => !f.TieneAcumulado)
+                ? "Escriba la cantidad del artículo agregado."
+                : "No hay cambios para guardar.");
+            return;
+        }
+
+        _guardando = true;
+        var r = await Api.PretomaGuardarAsync(new PretomaGuardar
+        {
+            IdPretoma = _idPretoma,
+            Bodega = _bodega,
+            Observaciones = _observaciones,
+            Lineas = conteos.Select(f => new PretomaGuardarLinea
+            {
+                IdArticulo = f.IdArticulo,
+                IdStockLote = f.IdStockLote,
+                NumeroLote = f.IdStockLote is > 0 ? null : NormalizarLote(f.NumeroLote) is { Length: > 0 } ? f.NumeroLote : null,
+                FechaVencimiento = f.IdStockLote is > 0 ? null : f.Vencimiento,
+                Cantidad = (f.TieneAcumulado ? f.Acumulado : 0) + (f.ASumar ?? 0),
+                Reemplazar = true
+            }).ToList()
+        });
+        _guardando = false;
+
+        if (r.Status != ResponseStatus._0 || r.Responses is null)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo guardar la pretoma.");
+            return;
+        }
+
+        _idPretoma = r.Responses.Id;
+        _observaciones = r.Responses.Observaciones ?? string.Empty;
+        _observacionesOriginal = _observaciones;
+        _soloLectura = r.Responses.Estado != 0;
+        _filas = new();
+        _resaltada = null;
+        foreach (var l in r.Responses.Lineas) AplicarAcumulado(l);
+        await ListarPretomas();
+        Dialogos.Exito("Pretoma guardada. El inventario no cambió.");
+    }
+
+    private async Task Anular()
+    {
+        if (_idPretoma <= 0) return;
+        if (!await Dialogos.ConfirmarAsync("Se descarta esta pretoma. El inventario no cambia.", "Anular pretoma"))
+            return;
+        _guardando = true;
+        var r = await Api.PretomaAnularAsync(_idPretoma);
+        _guardando = false;
+        if (r.Status != ResponseStatus._0)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo anular la pretoma.");
+            return;
+        }
+        _idPretoma = 0;
+        _soloLectura = false;
+        _observaciones = string.Empty;
+        _observacionesOriginal = string.Empty;
+        _filas = new();
+        _resaltada = null;
+        LimpiarBusqueda();
+        _enConteo = false;
+        await ListarPretomas();
+        Dialogos.Exito("Pretoma anulada.");
+    }
+
+    private sealed class Fila
+    {
+        public long IdArticulo { get; set; }
+        public string CodArticulo { get; set; } = string.Empty;
+        public string Descripcion { get; set; } = string.Empty;
+        public long? IdStockLote { get; set; }
+        public string? NumeroLote { get; set; }
+        public DateTime? Vencimiento { get; set; }
+        public bool ManejaLote { get; set; }
+        public bool EsLoteUnico { get; set; }
+        public bool EsNuevo { get; set; }
+        public double ExistenciaSistema { get; set; }
+        public double Acumulado { get; set; }
+        public double AcumuladoOriginal { get; set; }
+        public bool TieneAcumulado { get; set; }
+        public double? ASumar { get; set; }
+    }
+}

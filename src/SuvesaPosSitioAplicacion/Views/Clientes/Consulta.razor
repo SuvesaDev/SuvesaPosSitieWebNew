@@ -37,7 +37,7 @@
         </button>
         @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
         {
-            <button class="btn btn-sm btn-primary" @onclick="Agregar">
+            <button type="button" class="btn btn-sm btn-primary" @onclick="Agregar">
                 <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
             </button>
         }
@@ -342,8 +342,7 @@
     <BodyTemplate>
         @if (_edicion is not null)
         {
-            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formCliente" class="seepos-cliente-editor">
-                <DataAnnotationsValidator />
+            <EditForm Model="_edicion" OnSubmit="GuardarDesdeFormulario" id="formCliente" class="seepos-cliente-editor">
                 <nav class="mb-3 seepos-editor-tabs" aria-label="Secciones del cliente">
                     <div class="nav nav-pills flex-wrap gap-2">
                         <button type="button" class="btn btn-sm @ClaseGenerales" @onclick="AbrirGenerales">Datos generales</button>
@@ -387,9 +386,9 @@
                         </div>
 
                         <div class="col-12 seepos-form-seccion">Contacto</div>
-                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono01" /></div>
+                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono01" Requerido="true" /></div>
                         <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono alterno" @bind-Valor="_edicion.Telefono02" /></div>
-                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Correo cuentas por cobrar" @bind-Valor="_edicion.EMail" /></div>
+                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Correo cuentas por cobrar" @bind-Valor="_edicion.EMail" Requerido="true" /></div>
 
                         <div class="col-12 seepos-form-seccion">Ubicación</div>
                         <div class="col-12 col-md-4">
@@ -413,16 +412,16 @@
                                 @foreach (var distrito in _distritos) { <option value="@distrito.Id">@distrito.Nombre</option> }
                             </select>
                         </div>
-                        <div class="col-12"><AppCampoTexto Etiqueta="Dirección" @bind-Valor="_edicion.Direccion" /></div>
+                        <div class="col-12"><AppCampoTexto Etiqueta="Dirección" @bind-Valor="_edicion.Direccion" Requerido="true" /></div>
                         <div class="col-12"><AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" /></div>
 
                         <div class="col-12 seepos-form-seccion">Facturación electrónica</div>
-                        <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo de facturación electrónica" @bind-Valor="_edicion.CorreoComprobante" /></div>
+                        <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo de facturación electrónica" @bind-Valor="_edicion.CorreoComprobante" Requerido="true" /></div>
 
                         <div class="col-12">
                             <label class="form-label mb-1">Actividades económicas</label>
                             <p class="form-text mt-0 mb-2">Un cliente puede tener varias actividades registradas en Hacienda. La marcada como <strong>Principal</strong> es la que se usa en la factura electrónica.</p>
-                            @if (_edicion.Actividades.Count > 0)
+                            @if ((_edicion.Actividades?.Count ?? 0) > 0)
                             {
                                 <div class="table-responsive mb-2"><table class="table table-sm align-middle mb-0">
                                     <thead><tr><th>Código</th><th>Descripción</th><th class="text-center">Principal</th><th></th></tr></thead>
@@ -489,6 +488,7 @@
                                     <div class="form-check"><input id="cliente-actualizado" class="form-check-input" type="checkbox" @bind="_edicion.Actualizado" /><label class="form-check-label" for="cliente-actualizado">Actualizado</label></div>
                                     <div class="form-check"><input id="cliente-fallecido" class="form-check-input" type="checkbox" @bind="_edicion.Fallecido" /><label class="form-check-label" for="cliente-fallecido">Fallecido</label></div>
                                 }
+                                <div class="form-check"><input id="cliente-despacho" class="form-check-input" type="checkbox" @bind="_edicion.RequiereDespacho" /><label class="form-check-label" for="cliente-despacho">Requiere despacho (bodega)</label></div>
                                 @if (Sesion.EsCostaPets)
                                 {
                                     <div class="form-check"><input id="cliente-bonificado" class="form-check-input" type="checkbox" @bind="_edicion.TieneBonificacion" /><label class="form-check-label" for="cliente-bonificado">Bonificado</label></div>
@@ -521,6 +521,7 @@
                         </div>
                         <div class="col-12 col-md-4"><label class="form-label" for="cliente-credito">Límite de crédito</label><input id="cliente-credito" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.MaxCredito" /></div>
                         <div class="col-12 col-md-4"><label class="form-label" for="cliente-descuento">Límite descuento (%)</label><input id="cliente-descuento" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.Descuento" /></div>
+                        <div class="col-12 col-md-4"><label class="form-label" for="cliente-caducidad">Días mínimos de caducidad al despachar</label><input id="cliente-caducidad" type="number" min="0" step="1" class="form-control" @bind="_edicion.DiasMinimosCaducidad" /></div>
                         @if (!Sesion.EsCostaPets)
                         {
                             <div class="col-12 col-md-4"><label class="form-label" for="cliente-descuento-especial">Descuento especial (%)</label><input id="cliente-descuento-especial" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.DescuentoEspecial" /></div>
@@ -858,7 +859,9 @@
             // El DTO generado no trae valor por defecto (queda null); sin esto el API
             // recibe datosSucursal:null y "request.DatosSucursal.Count" revienta con
             // NullReferenceException al crear un cliente sin varias sucursales.
-            DatosSucursal = new List<ClienteDatosSucursalDTO>()
+            DatosSucursal = new List<ClienteDatosSucursalDTO>(),
+            // Misma precaución: el markup hace `_edicion.Actividades.Count` al abrir.
+            Actividades = new List<ActividadEconomicaClienteDTO>()
         };
         _datosSucursalEdicion = new ClienteDatosSucursalDTO();
         _datosSucursalOriginal = null;
@@ -871,9 +874,23 @@
         _distritos = new List<DistritoDTO>();
         _actividadesClienteHacienda = new List<ActividadesEmpresaDTO>();
         _actCodigoCliente = _actDescripcionCliente = string.Empty;
-        await CargarProvincias();
-        await CargarTiposIdentificacion();
+
+        // Abrir el modal primero: si se espera a provincias/tipos y el API tarda o
+        // falla, el clic a Agregar parece no hacer nada (sin spinner ni feedback).
         await _modal.ShowAsync();
+
+        try
+        {
+            await CargarProvincias();
+            await CargarTiposIdentificacion();
+        }
+        catch
+        {
+            // El modal ya está abierto; no dejar el circuito en silencio.
+            await Dialogos.ErrorAsync(
+                "No se pudieron cargar provincia o tipo de identificación. Puede completar el resto y reintentar al guardar.",
+                "Catálogos incompletos");
+        }
     }
 
     private async Task Editar(FiltranClienteDTO cliente)
@@ -1107,14 +1124,21 @@
     /// (mismo endpoint que ya usa la búsqueda de proveedores) para autocompletar.</summary>
     private async Task ConsultarHacienda()
     {
-        if (_edicion is null || string.IsNullOrWhiteSpace(_edicion.Cedula))
+        if (_edicion is null)
         {
-            Dialogos.Advertencia("Indique la cédula antes de consultar Hacienda.");
             return;
         }
 
+        var cedula = new string((_edicion.Cedula ?? string.Empty).Where(char.IsDigit).ToArray());
+        if (cedula.Length < 9)
+        {
+            Dialogos.Advertencia("Indique una cédula válida (al menos 9 dígitos) antes de consultar Hacienda.");
+            return;
+        }
+
+        _edicion.Cedula = cedula;
         _consultandoHacienda = true;
-        var r = await Respuestas.DatoAsync(await Api.BuscarHacienda(_edicion.Cedula), "consultar el cliente en Hacienda");
+        var r = await Respuestas.DatoAsync(await Api.BuscarHacienda(cedula), "consultar el cliente en Hacienda");
         _consultandoHacienda = false;
 
         if (r is null)
@@ -1315,6 +1339,8 @@
     private static int IdSeleccionado(ChangeEventArgs evento)
         => int.TryParse(evento.Value?.ToString(), out var id) ? id : 0;
 
+    private Task GuardarDesdeFormulario(EditContext _) => Guardar();
+
     private async Task Guardar()
     {
         if (_edicion is null || _guardando)
@@ -1322,12 +1348,19 @@
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(_edicion.Cedula)
-            || string.IsNullOrWhiteSpace(_edicion.Nombre)
-            || string.IsNullOrWhiteSpace(_edicion.EMail)
-            || string.IsNullOrWhiteSpace(_edicion.Direccion))
+        var faltantes = new List<string>();
+        if (string.IsNullOrWhiteSpace(_edicion.Cedula)) faltantes.Add("Cédula");
+        if (string.IsNullOrWhiteSpace(_edicion.Nombre)) faltantes.Add("Nombre");
+        if (string.IsNullOrWhiteSpace(_edicion.Telefono01)) faltantes.Add("Teléfono");
+        if (string.IsNullOrWhiteSpace(_edicion.EMail)) faltantes.Add("Correo cuentas por cobrar");
+        if (string.IsNullOrWhiteSpace(_edicion.Direccion)) faltantes.Add("Dirección");
+        if (string.IsNullOrWhiteSpace(_edicion.CorreoComprobante)) faltantes.Add("Correo de facturación electrónica");
+        if (faltantes.Count > 0)
         {
-            await Dialogos.ErrorAsync("Cédula, nombre, correo y dirección son obligatorios.");
+            _pestanaEdicion = "generales";
+            await Dialogos.ErrorAsync(
+                ValidacionFormulario.MensajeCamposFaltantes(faltantes),
+                "Datos incompletos");
             return;
         }
 
@@ -1460,6 +1493,8 @@
         IdUsuarioCreacion = cliente.IdUsuarioCreacion,
         Estado = cliente.Estado,
         TieneBonificacion = cliente.TieneBonificacion,
+        RequiereDespacho = cliente.RequiereDespacho,
+        DiasMinimosCaducidad = cliente.DiasMinimosCaducidad,
         NombreFantasia = cliente.NombreFantasia
     };
 

@@ -18,6 +18,9 @@
 
 <AppPantalla Pantalla="Ajuste de Bodega de Consignación" Codigo="CONSIGNACION.AJUSTE_DE_BODEGA_DE_CONSIGNACION" Icono="bi-box-arrow-in-down"
              Subtitulo="Boletas de ingreso y de salida / retiro (sin facturación)" Nivel="NivelPantalla.Tableta">
+ <Acciones>
+  <a class="btn btn-sm btn-outline-secondary" href="/consignment/tickets"><i class="bi bi-inbox me-1" aria-hidden="true"></i>Bandeja de boletas</a>
+ </Acciones>
  <ChildContent>
   @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
   @if (Liquidacion > 0) { <div class="alert alert-info">Las boletas de esta pantalla quedarán ligadas al estado de consignación del conteo <strong>#@Liquidacion</strong>.</div> }
@@ -42,6 +45,40 @@
         </div>
       </div>
     </div>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <strong>Boletas de consignación</strong>
+      <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CargarBoletas" disabled="@_cargandoBoletas">@(_cargandoBoletas ? "Actualizando..." : "Actualizar")</button>
+    </div>
+    <div class="row g-2 align-items-end mb-2">
+      <div class="col-md-3"><label class="form-label">Tipo</label>
+        <select class="form-select" @bind="_filtroTipoBoleta" @bind:after="CargarBoletas">
+          <option value="0">Todas</option>
+          <option value="1">Ingreso</option>
+          <option value="2">Salida</option>
+        </select></div>
+      <div class="col-md-3 form-check mt-4 ms-2"><input class="form-check-input" type="checkbox" id="incluir-anuladas" @bind="_incluirAnuladas" @bind:after="CargarBoletas" /><label class="form-check-label" for="incluir-anuladas">Incluir anuladas</label></div>
+      <div class="col-md-3"><label class="form-label">Abrir por N.º</label><input type="number" min="1" class="form-control" @bind="_idBoletaBuscar" /></div>
+      <div class="col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="() => AbrirBoleta(_idBoletaBuscar)" disabled="@(_idBoletaBuscar <= 0)">Abrir</button></div>
+    </div>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+      <thead><tr><th>#</th><th>Tipo</th><th>Cliente</th><th>Fecha</th><th>Documento</th><th class="text-end">Costo</th><th></th></tr></thead>
+      <tbody>
+        @foreach (var b in _boletas)
+        {
+          <tr class="@(_boleta?.Id == b.Id ? "table-primary" : null) @(b.Anulada ? "text-secondary" : null)">
+            <td>@b.Id</td><td>@b.TipoDescripcion</td><td>@b.NombreCliente</td>
+            <td>@b.Fecha.ToString("dd/MM/yyyy")</td><td>@(b.Documento ?? "—")</td>
+            <td class="text-end">@b.CostoTotal.ToString("N2")</td>
+            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => AbrirBoleta(b.Id)">Ver</button></td>
+          </tr>
+        }
+        @if (!_cargandoBoletas && !_boletas.Any()) { <tr><td colspan="7" class="text-secondary">No hay boletas@(_idCliente > 0 ? " de este cliente" : "").</td></tr> }
+      </tbody>
+    </table></div>
+    <span class="form-text">Si elige un cliente arriba, la lista se filtra a sus boletas. También puede abrir cualquier boleta por su N.º.</span>
   </div></div>
 
   <details class="card mb-3" open="@_mostrarReposicion">
@@ -164,27 +201,22 @@
         <div class="col-md-2 d-grid"><button class="btn @(_tipo == 2 ? "btn-danger" : "btn-primary")" @onclick="Guardar" disabled="@(!_lineas.Any() || _guardando)">@(_guardando ? "Guardando..." : "Guardar boleta")</button></div>
       </div>
     </div></div>
+  }
 
-    <div class="card mb-3"><div class="card-body row g-2 align-items-end">
-      <div class="col-md-3"><label class="form-label">Anular boleta por N.º</label><input type="number" min="0" class="form-control" @bind="_idBoletaBuscar" /><small class="text-secondary">Digite el número de una boleta ya emitida para consultarla y, si aplica, anularla.</small></div>
-      <div class="col-md-2 d-grid"><button class="btn btn-outline-secondary" @onclick="() => AbrirBoleta(_idBoletaBuscar)" disabled="@(_idBoletaBuscar <= 0)">Abrir</button></div>
+  @if (_boleta is not null)
+  {
+    <div class="card"><div class="card-header d-flex justify-content-between align-items-center @(_boleta.Anulada ? "text-bg-secondary" : "text-bg-success")">
+      <span>Boleta @_boleta.TipoDescripcion #@_boleta.Id @(_boleta.Anulada ? "· ANULADA" : "")</span>
+      <div class="d-flex gap-2">
+        <VisorPdf Tipo="consignacion-boleta" Id="@_boleta.Id" Formato="a4" Texto="Imprimir PDF" Titulo="Boleta de consignación" Clase="btn btn-sm btn-light" />
+        @if (!_boleta.Anulada) { <button class="btn btn-sm btn-light" @onclick="AbrirAnular">Anular</button> }
+      </div>
+    </div><div class="card-body">
+      <p class="mb-2"><strong>@_boleta.NombreCliente</strong> · @_boleta.Fecha.ToString("dd/MM/yyyy HH:mm") · costo @_boleta.CostoTotal.ToString("N2")
+        @if (_boleta.Anulada) { <span class="text-danger d-block small">Anulada: @_boleta.MotivoAnulacion (@_boleta.UsuarioAnulacion, @_boleta.FechaAnulacion?.ToString("dd/MM/yyyy"))</span> }</p>
+      <table class="table table-sm mb-0"><thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Cantidad</th></tr></thead>
+        <tbody>@foreach (var l in _boleta.Lineas){<tr><td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@l.NumeroLote</td><td class="text-end">@l.Cantidad.ToString("N3")</td></tr>}</tbody></table>
     </div></div>
-
-    @if (_boleta is not null)
-    {
-      <div class="card"><div class="card-header d-flex justify-content-between align-items-center @(_boleta.Anulada ? "text-bg-secondary" : "text-bg-success")">
-        <span>Boleta @_boleta.TipoDescripcion #@_boleta.Id @(_boleta.Anulada ? "· ANULADA" : "")</span>
-        <div class="d-flex gap-2">
-          <VisorPdf Tipo="consignacion-boleta" Id="@_boleta.Id" Formato="a4" Texto="Imprimir PDF" Titulo="Boleta de consignación" Clase="btn btn-sm btn-light" />
-          @if (!_boleta.Anulada) { <button class="btn btn-sm btn-light" @onclick="AbrirAnular">Anular</button> }
-        </div>
-      </div><div class="card-body">
-        <p class="mb-2"><strong>@_boleta.NombreCliente</strong> · @_boleta.Fecha.ToString("dd/MM/yyyy HH:mm") · costo @_boleta.CostoTotal.ToString("N2")
-          @if (_boleta.Anulada) { <span class="text-danger d-block small">Anulada: @_boleta.MotivoAnulacion (@_boleta.UsuarioAnulacion, @_boleta.FechaAnulacion?.ToString("dd/MM/yyyy"))</span> }</p>
-        <table class="table table-sm mb-0"><thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Cantidad</th></tr></thead>
-          <tbody>@foreach (var l in _boleta.Lineas){<tr><td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@l.NumeroLote</td><td class="text-end">@l.Cantidad.ToString("N3")</td></tr>}</tbody></table>
-      </div></div>
-    }
   }
  </ChildContent>
 </AppPantalla>
@@ -217,7 +249,10 @@
  private bool _cierreTotal, _guardando;
  private readonly List<BoletaConsignacionLinea> _lineas = new();
  private BoletaConsignacion? _boleta;
+ private List<BoletaConsignacionResumen> _boletas = new();
  private long _idBoletaBuscar;
+ private int _filtroTipoBoleta;
+ private bool _incluirAnuladas, _cargandoBoletas;
  private HxModal _modalAnular = default!;
  private string _motivoAnular = "";
 
@@ -252,6 +287,7 @@
      _bodegasOp = rb.Status == ResponseStatus._0 ? (rb.Responses ?? new()) : new();
      var rc = await Api.AbrirBodegaCentralAsync(new AbrirBodegaCentralConsignacion { IdSucursal = Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null });
      if (Ok(rc)) _central = rc.Responses;
+     await CargarBoletas();
  }
 
  private async Task RepBuscarArt()
@@ -380,7 +416,7 @@
      if (_boleta is null) return;
      if (string.IsNullOrWhiteSpace(_motivoAnular)) { await Dialogos.ErrorAsync("Indique el motivo."); return; }
      var r = await Api.AnularBoletaAsync(new AnularBoletaConsignacion { IdBoleta = _boleta.Id, Motivo = _motivoAnular.Trim() });
-     if (Ok(r)) { await _modalAnular.HideAsync(); _boleta = r.Responses; Dialogos.Exito("Boleta anulada."); }
+     if (Ok(r)) { await _modalAnular.HideAsync(); _boleta = r.Responses; await CargarBoletas(); Dialogos.Exito("Boleta anulada."); }
      else await Fallo(r, "No se pudo anular la boleta.");
  }
 
@@ -407,11 +443,31 @@
      _clientes = r.EsCorrecta ? (r.Responses ?? new List<FiltranClienteDTO>()).Take(20).ToList() : new();
  }
 
- private void ElegirCliente(FiltranClienteDTO c)
+ private async Task ElegirCliente(FiltranClienteDTO c)
  {
      ++_versionBusquedaCliente;
      _idCliente = c.Identificacion; _nombreCliente = $"{c.Cedula} — {c.Nombre}"; _texCliente = _nombreCliente;
      _clientes = new(); _lineas.Clear(); _boleta = null; _reponerSugerido = null; _artSel = null; _texArt = ""; _lotes = new(); _existenciaCentral = null; _loteSel = 0;
+     await CargarBoletas();
+ }
+
+ private async Task CargarBoletas()
+ {
+     _cargandoBoletas = true;
+     var r = await Api.BoletasAsync(new BoletasConsignacionFiltro
+     {
+         IdCliente = _idCliente > 0 ? _idCliente : null,
+         Tipo = _filtroTipoBoleta is 1 or 2 ? _filtroTipoBoleta : null,
+         IncluirAnuladas = _incluirAnuladas
+     });
+     _cargandoBoletas = false;
+     if (!Ok(r))
+     {
+         _boletas = new();
+         await Fallo(r, "No se pudieron cargar las boletas.");
+         return;
+     }
+     _boletas = r.Responses ?? new();
  }
 
  private async Task BuscarArt()
@@ -496,6 +552,7 @@
      }
      _boleta = r.Responses;
      _lineas.Clear(); _documento = ""; _motivo = ""; _cierreTotal = false;
+     await CargarBoletas();
      Dialogos.Exito($"Boleta {_boleta!.TipoDescripcion} #{_boleta.Id} registrada.");
  }
 }

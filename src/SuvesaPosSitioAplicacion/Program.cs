@@ -88,6 +88,7 @@ builder.Services.AddSingleton<ISondaLegado, SondaLegado>();
 // solo por debajo de cierto umbral de facturacion. VERIFICAR antes de produccion.
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 builder.Services.AddSingleton<IGeneradorPdf, GeneradorPdfQuestPdf>();
+builder.Services.AddScoped<MembreteReporte>();
 builder.Services.AddSingleton<IGeneradorReporteOperacion, GeneradorReporteOperacion>();
 
 builder.Services.AddScoped<IAlmacenEspacioTrabajo, AlmacenEspacioTrabajoNavegador>();
@@ -131,6 +132,8 @@ builder.Services.AddHttpClient<ILotesApiCliente, LotesApiCliente>(c => c.BaseAdd
 builder.Services.AddHttpClient<IProduccionApiCliente, ProduccionApiCliente>(c => c.BaseAddress = new Uri(urlApi))
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 builder.Services.AddHttpClient<IConsignacionInvApiCliente, ConsignacionInvApiCliente>(c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+builder.Services.AddHttpClient<IAlistamientoApiCliente, AlistamientoApiCliente>(c => c.BaseAddress = new Uri(urlApi))
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 // ReportesOperacion recibe IHttpClientFactory y toma el cliente nombrado SeePosApi
 // ya configurado arriba. No es un cliente HTTP tipado (que exige HttpClient directo).
@@ -397,7 +400,12 @@ app.MapGet("/documentos/{tipo}/{id:long}/pdf", async (
 {
     var r = await api.Pdf(tipo, id, formato, copia);
     if (!r.EsCorrecta || r.Responses is not { Length: > 0 } bytes)
-        return Results.Problem(r.Excepcion ?? "No se pudo generar el documento.");
+    {
+        var detalle = r.Excepcion ?? "No se pudo generar el documento.";
+        // El navegador abre esta ruta en una pestaña: un ProblemDetails JSON no se
+        // entiende. Se deja el motivo en texto plano.
+        return Results.Text(detalle, "text/plain; charset=utf-8", statusCode: 400);
+    }
 
     var nombre = $"{tipo}-{id}.pdf";
     // Sin nombre de descarga el navegador puede abrir el PDF en línea; la acción
@@ -483,7 +491,8 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
 
 app.MapGet("/reportes/cuentas-por-pagar", async (
     ICuentasPorPagar api,
-    IGeneradorPdf pdf) =>
+    IGeneradorPdf pdf,
+    MembreteReporte membrete) =>
 {
     var r = await api.ObtenerDeudas();
 
@@ -513,6 +522,8 @@ app.MapGet("/reportes/cuentas-por-pagar", async (
         }
     }
 
+    var empresa = await membrete.ResolverAsync();
+
     var bytes = pdf.Tabla(new ReporteTabular(
         Titulo: "Cuentas por pagar",
         Subtitulo: "Facturas pendientes por proveedor",
@@ -520,7 +531,8 @@ app.MapGet("/reportes/cuentas-por-pagar", async (
         Filas: filas,
         Totales: new[] { "", "", "", "Total", Formato.Importe(total) })
     {
-        ColumnasNumericas = new HashSet<int> { 3, 4 }
+        ColumnasNumericas = new HashSet<int> { 3, 4 },
+        Empresa = empresa
     });
 
     return Results.File(bytes, "application/pdf", "cuentas-por-pagar.pdf");

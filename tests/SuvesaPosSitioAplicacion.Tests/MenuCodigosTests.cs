@@ -67,4 +67,17 @@ public class MenuCodigosTests
             "codigos del menu que no estan en seed-seguridad.json (regenera la semilla o corre " +
             "tools/anotar_codigos_menu.py): " + string.Join(", ", faltan));
     }
+
+    [Fact]
+    public void PrefacturaDeConsignacion_ResuelveAlCodigoDeFacturacionDeConsignaciones()
+    {
+        Assert.Equal("CONSIGNACION.FACTURACION_DE_CONSIGNACIONES",
+            MenuSeePos.ResolverCodigo("Prefactura de Consignación"));
+        Assert.Equal("CONSIGNACION.FACTURACION_DE_CONSIGNACIONES",
+            MenuSeePos.ResolverCodigo("Facturación de Consignaciones"));
+        Assert.Equal("CONSIGNACION.FACTURACION_DE_CONSIGNACIONES",
+            MenuSeePos.ResolverCodigo("Facturacion de Consignaciones"));
+        Assert.Equal("CONSIGNACION.BOLETAS_DE_CONSIGNACION",
+            MenuSeePos.ResolverCodigo("Boletas de Consignación"));
+    }
 }

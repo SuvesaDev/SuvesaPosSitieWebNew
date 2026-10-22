@@ -1,0 +1,102 @@
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.DTOs.Bodega
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IAlistamientoApiCliente Api
+@inject IServicioDialogos Dialogos
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<HxModal @ref="_modal" Title="@(_no ? "No entregado" : "Confirmar entrega")">
+  <BodyTemplate>
+    @if (_no)
+    {
+      <p class="mb-2">Se corrige el documento: nota de crédito si ya se facturó, o se suelta la preventa. El inventario no se vuelve a descontar.</p>
+      <label class="form-label">¿Qué pasó con el producto?</label>
+      <select class="form-select mb-2" @bind="_destino">
+        <option value="reingreso">Volvió a bodega (reingreso)</option>
+        <option value="merma">Merma o pérdida en tránsito</option>
+      </select>
+      <label class="form-label">Motivo</label>
+      <textarea class="form-control" rows="2" @bind="_obs" placeholder="Opcional"></textarea>
+    }
+    else
+    {
+      <label class="form-label">Recibido por</label>
+      <input class="form-control mb-3" @bind="_recibido" placeholder="Nombre de quien recibe" />
+      <label class="form-label">Firma (opcional)</label>
+      <canvas @ref="_lienzo" class="border rounded w-100 bg-white" style="height:9rem; touch-action:none; cursor:crosshair;"></canvas>
+      <div class="form-text">Firme con el dedo o el mouse. No tiene valor legal de certificado; es el rastro de quién recibió.</div>
+      <button type="button" class="btn btn-sm btn-outline-secondary mt-1" @onclick="LimpiarFirma">Borrar firma</button>
+    }
+  </BodyTemplate>
+  <FooterTemplate>
+    <button type="button" class="btn btn-outline-secondary" @onclick="Cancelar">Cancelar</button>
+    <button type="button" class="btn @(_no ? "btn-dark" : "btn-success")" @onclick="Confirmar">Confirmar</button>
+  </FooterTemplate>
+</HxModal>
+
+@code {
+    [Parameter] public EventCallback<AlistamientoOrden> AlCerrar { get; set; }
+
+    private HxModal _modal = default!;
+    private ElementReference _lienzo;
+    private IJSObjectReference? _js;
+    private long _idOrden;
+    private bool _no, _conectarFirma;
+    private string _recibido = "", _obs = "", _destino = "reingreso";
+
+    public async Task PedirAsync(long idOrden, bool noEntregado)
+    {
+        _idOrden = idOrden;
+        _no = noEntregado;
+        _recibido = "";
+        _obs = "";
+        _destino = "reingreso";
+        _conectarFirma = !noEntregado;
+        await _modal.ShowAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_conectarFirma) return;
+        _conectarFirma = false;
+        _js ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/bodega.js");
+        await _js.InvokeVoidAsync("conectarFirma", _lienzo);
+    }
+
+    private async Task LimpiarFirma()
+    {
+        if (_js is null) return;
+        await _js.InvokeVoidAsync("limpiarFirma", _lienzo);
+    }
+
+    private Task Cancelar() => _modal.HideAsync();
+
+    private async Task Confirmar()
+    {
+        if (!_no && string.IsNullOrWhiteSpace(_recibido))
+        {
+            await Dialogos.ErrorAsync("Indique quién recibió.");
+            return;
+        }
+        string? firma = null;
+        if (!_no && _js is not null)
+            firma = await _js.InvokeAsync<string?>("pngFirma", _lienzo);
+        var merma = _no && _destino == "merma";
+        var r = await Api.EntregarAsync(_idOrden, _no ? null : _recibido.Trim(), _no, merma,
+            string.IsNullOrWhiteSpace(_obs) ? null : _obs.Trim(), firma);
+        if (r.Status != ResponseStatus._0)
+        {
+            await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo cerrar la entrega.");
+            return;
+        }
+        await _modal.HideAsync();
+        if (r.Responses is not null) await AlCerrar.InvokeAsync(r.Responses);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_js is not null) await _js.DisposeAsync();
+    }
+}

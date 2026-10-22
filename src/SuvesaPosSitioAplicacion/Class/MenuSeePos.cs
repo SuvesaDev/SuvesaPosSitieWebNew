@@ -197,7 +197,13 @@ public static partial class MenuSeePos
                     {
                         new ItemMenu
                         {
-                            // La pantalla (TomaFisica.razor) se gatea con COMPRAS.TOMA_FISICA;
+                            Titulo = "Pretoma",
+                            Codigo = "COMPRAS.TOMA.PRETOMA",
+                            Ruta = "/buys/physical-precount",
+                        },
+                        new ItemMenu
+                        {
+                            // La pantalla (TomaFisica.razor) se gatea con COMPRAS.TOMA.TOMA_FISICA;
                             // el item vive bajo el grupo "Toma" para que se lea Toma > Toma Física.
                             Titulo = "Toma Física",
                             Codigo = "COMPRAS.TOMA.TOMA_FISICA",
@@ -271,6 +277,46 @@ public static partial class MenuSeePos
         },
         new ItemMenu
         {
+            Titulo = "Bodega",
+            Codigo = "BODEGA",
+            Ruta = "/bodega/cola",
+            Icono = "bi-box-seam",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Cola de alistamiento",
+                    Codigo = "BODEGA.COLA_DE_ALISTAMIENTO",
+                    Ruta = "/bodega/cola",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Empaque",
+                    Codigo = "BODEGA.EMPAQUE",
+                    Ruta = "/bodega/empaque",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Despacho",
+                    Codigo = "BODEGA.DESPACHO",
+                    Ruta = "/bodega/despacho",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Ubicaciones",
+                    Codigo = "BODEGA.UBICACIONES",
+                    Ruta = "/bodega/ubicaciones",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Rutas de entrega",
+                    Codigo = "BODEGA.RUTAS_DE_ENTREGA",
+                    Ruta = "/bodega/rutas",
+                }
+            }
+        },
+        new ItemMenu
+        {
             // ANADIDO, no viene de SidebarData.jsx.
             //
             // Las tres rutas existen en el enrutador de React pero el menu actual no
@@ -307,6 +353,12 @@ public static partial class MenuSeePos
                     Titulo = "Ajuste de Bodega de Consignación",
                     Codigo = "CONSIGNACION.AJUSTE_DE_BODEGA_DE_CONSIGNACION",
                     Ruta = "/consignment/adjust",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Boletas de Consignación",
+                    Codigo = "CONSIGNACION.BOLETAS_DE_CONSIGNACION",
+                    Ruta = "/consignment/tickets",
                 },
                 new ItemMenu
                 {

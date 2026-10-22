@@ -69,9 +69,97 @@
   ],
   "modulos": [
     {
+      "codigo": "BODEGA",
+      "nombre": "Bodega",
+      "orden": 1,
+      "icono": "bi-box-seam",
+      "funciones": [
+        {
+          "codigo": "BODEGA.COLA_DE_ALISTAMIENTO",
+          "nombre": "Cola de alistamiento",
+          "ruta": "/bodega/cola",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "BODEGA.EMPAQUE",
+          "nombre": "Empaque",
+          "ruta": "/bodega/empaque",
+          "padre": null,
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "BODEGA.DESPACHO",
+          "nombre": "Despacho",
+          "ruta": "/bodega/despacho",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "BODEGA.UBICACIONES",
+          "nombre": "Ubicaciones",
+          "ruta": "/bodega/ubicaciones",
+          "padre": null,
+          "orden": 4,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "BODEGA.RUTAS_DE_ENTREGA",
+          "nombre": "Rutas de entrega",
+          "ruta": "/bodega/rutas",
+          "padre": null,
+          "orden": 5,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        }
+      ]
+    },
+    {
       "codigo": "CAJA",
       "nombre": "Caja",
-      "orden": 1,
+      "orden": 2,
       "icono": "bi-cash-stack",
       "funciones": [
         {
@@ -207,7 +295,7 @@
     {
       "codigo": "COMPRAS",
       "nombre": "Compras",
-      "orden": 2,
+      "orden": 3,
       "icono": "bi-cart-fill",
       "funciones": [
         {
@@ -323,11 +411,27 @@
           ]
         },
         {
+          "codigo": "COMPRAS.TOMA.PRETOMA",
+          "nombre": "Pretoma",
+          "ruta": "/buys/physical-precount",
+          "padre": "COMPRAS.TOMA",
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "COMPRAS.TOMA.TOMA_FISICA",
           "nombre": "Toma Física",
           "ruta": "/buys/physical-count",
           "padre": "COMPRAS.TOMA",
-          "orden": 1,
+          "orden": 2,
           "acciones": [
             "VER",
             "CREAR",
@@ -439,7 +543,7 @@
     {
       "codigo": "CONSIGNACION",
       "nombre": "Consignación",
-      "orden": 3,
+      "orden": 4,
       "icono": null,
       "funciones": [
         {
@@ -491,11 +595,27 @@
           ]
         },
         {
+          "codigo": "CONSIGNACION.BOLETAS_DE_CONSIGNACION",
+          "nombre": "Boletas de Consignación",
+          "ruta": "/consignment/tickets",
+          "padre": null,
+          "orden": 4,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "CONSIGNACION.INVENTARIO_FISICO_DE_CONSIGNACION",
           "nombre": "Inventario Físico de Consignación",
           "ruta": "/consignment/count",
           "padre": null,
-          "orden": 4,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -511,7 +631,7 @@
           "nombre": "Kardex de Consignación",
           "ruta": "/consignment/ledger",
           "padre": null,
-          "orden": 5,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",
@@ -527,7 +647,7 @@
           "nombre": "Facturacion de Consignaciones",
           "ruta": "/consignment/prebill",
           "padre": null,
-          "orden": 6,
+          "orden": 7,
           "acciones": [
             "VER",
             "CREAR",
@@ -543,7 +663,7 @@
           "nombre": "Estados de Consignación",
           "ruta": "/consignment/settlements",
           "padre": null,
-          "orden": 7,
+          "orden": 8,
           "acciones": [
             "VER",
             "CREAR",

@@ -55,6 +55,16 @@ public class PermisoFuncionTests
         Assert.True(permiso.Permite(AccionPantalla.Modificar));
     }
 
+    [Theory]
+    [InlineData("COMPRAS.TOMA", "COMPRAS.TOMA.PRETOMA", true)]
+    [InlineData("COMPRAS.TOMA", "COMPRAS.TOMA.TOMA_FISICA", true)]
+    [InlineData("COMPRAS.TOMA.PRETOMA", "COMPRAS.TOMA.PRETOMA", true)]
+    [InlineData("COMPRAS.TOMA.PRETOMA", "COMPRAS.TOMA.TOMA_FISICA", false)]
+    [InlineData("COMPRAS.TO", "COMPRAS.TOMA.PRETOMA", false)]
+    [InlineData("COMPRAS", "COMPRAS.TOMA.PRETOMA", true)]
+    public void Cubre_ElGrupoPadreIncluyeLasHojas(string concedido, string pedido, bool esperado)
+        => Assert.Equal(esperado, PermisoFuncion.Cubre(concedido, pedido));
+
     [Fact]
     public void SinAcciones_NoConcedeNada()
     {

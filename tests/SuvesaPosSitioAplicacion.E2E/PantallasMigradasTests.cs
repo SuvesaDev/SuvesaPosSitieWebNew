@@ -79,6 +79,7 @@ public class PantallasMigradasTests
         { "/sales/repayment", "Devoluciones" },
         { "/buys/consignment/following", "Seguimiento de Consignaciones" },
         { "/consignment/dashboard", "Tablero de Consignación" },
+        { "/consignment/tickets", "Boletas de Consignación" },
         { "/initial/cash/deposits/consultdeposits", "Consulta Depósitos" },
         { "/parameters/family", "Familias" },
         { "/parameters/category", "Categorias" },
@@ -89,7 +90,12 @@ public class PantallasMigradasTests
         { "/parameters/settings", "Configuración" },
         { "/buys/orders/checkorders", "Consultar Pedidos" },
         { "/utilities/magitemslist", "Lista articulos MAG" },
-        { "/moduloInventario", "Módulo Inventario" }
+        { "/moduloInventario", "Módulo Inventario" },
+        { "/bodega/cola", "Cola de alistamiento" },
+        { "/bodega/empaque", "Empaque" },
+        { "/bodega/despacho", "Despacho" },
+        { "/bodega/ubicaciones", "Ubicaciones" },
+        { "/bodega/rutas", "Rutas de entrega" }
     };
 
     [HechoConCredencialesTheory]

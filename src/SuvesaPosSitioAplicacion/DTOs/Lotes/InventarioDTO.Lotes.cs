@@ -18,4 +18,15 @@ public partial class InventarioDTO
     /// <summary>Sólo lectura: fijado el lote único, tipo/lote único no se editan.</summary>
     [JsonPropertyName("loteUnicoFijado")]
     public bool LoteUnicoFijado { get; set; }
+
+    [JsonPropertyName("esPresentacionEmpaquetada")]
+    public bool EsPresentacionEmpaquetada { get; set; }
+
+    /// <summary>Si el costo no es colones, A/B/C/D/Promo se venden × TipoCambioVenta.</summary>
+    [JsonPropertyName("conviertePrecioColones")]
+    public bool ConviertePrecioColones { get; set; }
+
+    /// <summary>Copia de Monedas.ValorVenta congelada en el artículo. No fluctúa en la venta.</summary>
+    [JsonPropertyName("tipoCambioVenta")]
+    public double TipoCambioVenta { get; set; } = 1;
 }

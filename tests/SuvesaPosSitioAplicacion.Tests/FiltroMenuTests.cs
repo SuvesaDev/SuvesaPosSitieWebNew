@@ -38,7 +38,9 @@ public class FiltroMenuTests
         public IReadOnlyCollection<PermisoFuncion> Permisos => Array.Empty<PermisoFuncion>();
 
         public bool EstaGobernada(string funcionCodigo) => true;
-        public bool PuedeVer(string funcionCodigo) => EsSuperAdministrador || _codigos.Contains(funcionCodigo);
+        public bool PuedeVer(string funcionCodigo)
+            => EsSuperAdministrador
+               || _codigos.Any(c => PermisoFuncion.Cubre(c, funcionCodigo));
         public bool Puede(string funcionCodigo, AccionPantalla accion) => PuedeVer(funcionCodigo);
         public Task CargarAsync() => Task.CompletedTask;
     }
@@ -99,6 +101,33 @@ public class FiltroMenuTests
     }
 
     [Fact]
+    public void RamaToma_ElPermisoDelGrupoCubrePretomaYTomaFisica()
+    {
+        var sesion = new SesionFalsa(false, "COMPRAS.TOMA");
+        var toma = MenuSeePos.Items
+            .Single(i => i.Codigo == "COMPRAS")
+            .Hijos.Single(h => h.Codigo == "COMPRAS.TOMA");
+
+        var hojas = FiltroMenu.Visibles(toma.Hijos, sesion).Select(h => h.Codigo).ToList();
+
+        Assert.Contains("COMPRAS.TOMA.PRETOMA", hojas);
+        Assert.Contains("COMPRAS.TOMA.TOMA_FISICA", hojas);
+    }
+
+    [Fact]
+    public void RamaToma_SoloTomaFisicaNoEnseñaPretoma()
+    {
+        var sesion = new SesionFalsa(false, "COMPRAS.TOMA.TOMA_FISICA");
+        var toma = MenuSeePos.Items
+            .Single(i => i.Codigo == "COMPRAS")
+            .Hijos.Single(h => h.Codigo == "COMPRAS.TOMA");
+
+        var hojas = FiltroMenu.Visibles(toma.Hijos, sesion).Select(h => h.Codigo).ToList();
+
+        Assert.Equal(new[] { "COMPRAS.TOMA.TOMA_FISICA" }, hojas);
+    }
+
+    [Fact]
     public void ElMenuRealNoTieneTitulosDuplicadosEnLaRaiz()
     {
         var titulos = MenuSeePos.Items.Select(i => i.Titulo).ToList();
@@ -109,7 +138,7 @@ public class FiltroMenuTests
     public void ElMenuRealSeCargoCompleto()
     {
         static int Contar(IEnumerable<ItemMenu> ns) => ns.Sum(n => 1 + Contar(n.Hijos));
-        Assert.Equal(11, MenuSeePos.Items.Count);
+        Assert.Equal(12, MenuSeePos.Items.Count);
         // 84 originales + 19 (arbol de permisos MODULO_REPORTES.*) + 2 (Gastos,
         // Cumplimiento CABYS) + 4 (Apartados y préstamos, KPI por ruta, Empaquetado y
         // maquila, Mermas) + 1 (Panel ejecutivo) + 1 (Tablero de Consignación, pantalla
@@ -120,8 +149,9 @@ public class FiltroMenuTests
         // (Dimensiones, Plantillas, W2) + 2 (Bandeja, Reproceso, W3) + 6 (Diario, Mayor,
         // Auxiliar CxC, Auxiliar CxP, Auxiliar Inventario, Bitácora, W4) + 6 (Cierre,
         // Cierre anual, Balanza, Estado de resultados, Balance general, Flujo de
-        // efectivo, W5).
-        Assert.Equal(134, Contar(MenuSeePos.Items));
+        // efectivo, W5) + 1 (Pretoma) + 1 (Boletas de Consignación) + 6 (módulo Bodega:
+        // raíz + Cola, Empaque, Despacho, Ubicaciones, Rutas).
+        Assert.Equal(142, Contar(MenuSeePos.Items));
     }
 
     private sealed class ContabilidadFalsa : IContextoContabilidad

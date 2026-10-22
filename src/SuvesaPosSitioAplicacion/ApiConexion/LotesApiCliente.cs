@@ -23,6 +23,18 @@ public interface ILotesApiCliente
     Task<LoteEnvelope<TomaFisicaReporte>> TomaGuardarAsync(TomaFisicaGuardar req);
     Task<LoteEnvelope<TomaFisicaReporte>> TomaReporteAsync(long id);
     Task<LoteEnvelope<TomaFisicaReporte>> TomaAnularAsync(long id, string? motivo);
+    Task<LoteEnvelope<PretomaConsolidado>> TomaConsolidarAsync(int bodega);
+    Task<LoteEnvelope<TomaFisicaReporte>> TomaAprobarAsync(PretomaAprobar req);
+
+    Task<LoteEnvelope<Pretoma>> PretomaAbiertaAsync(int bodega);
+    Task<LoteEnvelope<List<PretomaResumen>>> PretomaListarAsync(int bodega, string? texto);
+    Task<LoteEnvelope<Pretoma>> PretomaObtenerAsync(long id);
+    Task<LoteEnvelope<Pretoma>> PretomaCrearAsync(PretomaCrear req);
+    Task<LoteEnvelope<Pretoma>> PretomaGuardarAsync(PretomaGuardar req);
+    Task<LoteEnvelope<Pretoma>> PretomaAnularAsync(long id);
+    Task<LoteEnvelope<PretomaBusqueda>> PretomaBuscarArticulosAsync(int bodega, string texto);
+    Task<LoteEnvelope<PretomaArticuloDetalle>> PretomaDetalleArticuloAsync(int bodega, long idArticulo);
+    Task<LoteEnvelope<Pretoma>> PretomaQuitarLineaAsync(PretomaQuitarLinea req);
 
     // Bodegas por centro (§3.1). idSucursal null = todas (el API igual excluye consignación).
     Task<LoteEnvelope<List<BodegaOperativa>>> BodegasOperativasAsync(int? idSucursal);
@@ -93,7 +105,10 @@ public sealed class LotesApiCliente : ILotesApiCliente
         }
         catch (JsonException)
         {
-            return new LoteEnvelope<T> { Status = ResponseStatus._1, CurrentException = $"Respuesta no reconocida del API ({(int)resp.StatusCode})." };
+            var denegado = (int)resp.StatusCode == 403
+                ? "No tiene permiso para esta operación. Revise VER/CREAR de esa función en Roles (en Toma hay que marcar Pretoma y Toma Física, o el grupo Toma)."
+                : $"Respuesta no reconocida del API ({(int)resp.StatusCode}).";
+            return new LoteEnvelope<T> { Status = ResponseStatus._1, CurrentException = denegado };
         }
     }
 
@@ -121,6 +136,41 @@ public sealed class LotesApiCliente : ILotesApiCliente
     public Task<LoteEnvelope<TomaFisicaReporte>> TomaAnularAsync(long id, string? motivo)
         => EnviarAsync<TomaFisicaReporte>(HttpMethod.Post,
             "TomaFisica/Anular?id=" + id + (string.IsNullOrWhiteSpace(motivo) ? "" : "&motivo=" + Uri.EscapeDataString(motivo)));
+
+    public Task<LoteEnvelope<PretomaConsolidado>> TomaConsolidarAsync(int bodega)
+        => EnviarAsync<PretomaConsolidado>(HttpMethod.Get, $"TomaFisica/Consolidar?bodega={bodega}");
+
+    public Task<LoteEnvelope<TomaFisicaReporte>> TomaAprobarAsync(PretomaAprobar req)
+        => EnviarAsync<TomaFisicaReporte>(HttpMethod.Post, "TomaFisica/Aprobar", req);
+
+    public Task<LoteEnvelope<Pretoma>> PretomaAbiertaAsync(int bodega)
+        => EnviarAsync<Pretoma>(HttpMethod.Get, $"Pretoma/Abierta?bodega={bodega}");
+
+    public Task<LoteEnvelope<List<PretomaResumen>>> PretomaListarAsync(int bodega, string? texto)
+        => EnviarAsync<List<PretomaResumen>>(HttpMethod.Get,
+            "Pretoma/Listar?bodega=" + bodega + (string.IsNullOrWhiteSpace(texto) ? "" : "&texto=" + Uri.EscapeDataString(texto)));
+
+    public Task<LoteEnvelope<Pretoma>> PretomaObtenerAsync(long id)
+        => EnviarAsync<Pretoma>(HttpMethod.Get, $"Pretoma/Obtener?id={id}");
+
+    public Task<LoteEnvelope<Pretoma>> PretomaCrearAsync(PretomaCrear req)
+        => EnviarAsync<Pretoma>(HttpMethod.Post, "Pretoma/Crear", req);
+
+    public Task<LoteEnvelope<Pretoma>> PretomaGuardarAsync(PretomaGuardar req)
+        => EnviarAsync<Pretoma>(HttpMethod.Post, "Pretoma/Guardar", req);
+
+    public Task<LoteEnvelope<Pretoma>> PretomaAnularAsync(long id)
+        => EnviarAsync<Pretoma>(HttpMethod.Post, $"Pretoma/Anular?id={id}");
+
+    public Task<LoteEnvelope<PretomaBusqueda>> PretomaBuscarArticulosAsync(int bodega, string texto)
+        => EnviarAsync<PretomaBusqueda>(HttpMethod.Get,
+            "Pretoma/BuscarArticulos?bodega=" + bodega + "&texto=" + Uri.EscapeDataString(texto ?? ""));
+
+    public Task<LoteEnvelope<PretomaArticuloDetalle>> PretomaDetalleArticuloAsync(int bodega, long idArticulo)
+        => EnviarAsync<PretomaArticuloDetalle>(HttpMethod.Get, $"Pretoma/DetalleArticulo?bodega={bodega}&idArticulo={idArticulo}");
+
+    public Task<LoteEnvelope<Pretoma>> PretomaQuitarLineaAsync(PretomaQuitarLinea req)
+        => EnviarAsync<Pretoma>(HttpMethod.Post, "Pretoma/QuitarLinea", req);
 
     public Task<LoteEnvelope<List<BodegaOperativa>>> BodegasOperativasAsync(int? idSucursal)
         => EnviarAsync<List<BodegaOperativa>>(HttpMethod.Post,
