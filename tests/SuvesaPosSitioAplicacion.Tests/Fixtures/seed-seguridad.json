@@ -69,9 +69,97 @@
   ],
   "modulos": [
     {
+      "codigo": "BODEGA",
+      "nombre": "Bodega",
+      "orden": 1,
+      "icono": "bi-box-seam",
+      "funciones": [
+        {
+          "codigo": "BODEGA.COLA_DE_ALISTAMIENTO",
+          "nombre": "Cola de alistamiento",
+          "ruta": "/bodega/cola",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "BODEGA.EMPAQUE",
+          "nombre": "Empaque",
+          "ruta": "/bodega/empaque",
+          "padre": null,
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "BODEGA.DESPACHO",
+          "nombre": "Despacho",
+          "ruta": "/bodega/despacho",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "BODEGA.UBICACIONES",
+          "nombre": "Ubicaciones",
+          "ruta": "/bodega/ubicaciones",
+          "padre": null,
+          "orden": 4,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "BODEGA.RUTAS_DE_ENTREGA",
+          "nombre": "Rutas de entrega",
+          "ruta": "/bodega/rutas",
+          "padre": null,
+          "orden": 5,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        }
+      ]
+    },
+    {
       "codigo": "CAJA",
       "nombre": "Caja",
-      "orden": 1,
+      "orden": 2,
       "icono": "bi-cash-stack",
       "funciones": [
         {
@@ -207,7 +295,7 @@
     {
       "codigo": "COMPRAS",
       "nombre": "Compras",
-      "orden": 2,
+      "orden": 3,
       "icono": "bi-cart-fill",
       "funciones": [
         {
@@ -455,7 +543,7 @@
     {
       "codigo": "CONSIGNACION",
       "nombre": "Consignación",
-      "orden": 3,
+      "orden": 4,
       "icono": null,
       "funciones": [
         {
@@ -575,7 +663,7 @@
     {
       "codigo": "INICIO",
       "nombre": "Inicio",
-      "orden": 4,
+      "orden": 5,
       "icono": "bi-house-door-fill",
       "funciones": [
         {
@@ -679,7 +767,7 @@
     {
       "codigo": "MODULO_INVENTARIO",
       "nombre": "Módulo Inventario",
-      "orden": 5,
+      "orden": 6,
       "icono": "bi-boxes",
       "funciones": [
         {
@@ -703,7 +791,7 @@
     {
       "codigo": "MODULO_REPORTES",
       "nombre": "Módulo Reportes",
-      "orden": 6,
+      "orden": 7,
       "icono": "bi-bar-chart-fill",
       "funciones": [
         {
@@ -1159,7 +1247,7 @@
     {
       "codigo": "PRESUPUESTOS",
       "nombre": "Presupuestos",
-      "orden": 7,
+      "orden": 8,
       "icono": "bi-file-earmark-text",
       "funciones": [
         {
@@ -1199,7 +1287,7 @@
     {
       "codigo": "PRODUCCION",
       "nombre": "Producción",
-      "orden": 8,
+      "orden": 9,
       "icono": "bi-hammer",
       "funciones": [
         {
@@ -1239,7 +1327,7 @@
     {
       "codigo": "VENTAS",
       "nombre": "Ventas",
-      "orden": 9,
+      "orden": 10,
       "icono": "bi-receipt",
       "funciones": [
         {
@@ -1359,7 +1447,7 @@
     {
       "codigo": "PARAMETROS",
       "nombre": "Parametros",
-      "orden": 10,
+      "orden": 11,
       "icono": "bi-gear-fill",
       "funciones": [
         {

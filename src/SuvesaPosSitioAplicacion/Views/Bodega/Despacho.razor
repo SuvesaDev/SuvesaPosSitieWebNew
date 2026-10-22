@@ -1,0 +1,219 @@
+@page "/bodega/despacho"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Bodega
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IAlistamientoApiCliente Api
+@inject IServicioDialogos Dialogos
+@inject IJSRuntime JS
+
+<AppPantalla Pantalla="Despacho" Codigo="BODEGA.DESPACHO" Icono="bi-truck"
+             Subtitulo="Arme el manifiesto con bultos empacados, escanee al camión y salga a ruta." Nivel="NivelPantalla.Escritorio">
+ <ChildContent>
+  @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card mb-3"><div class="card-header">Bultos empacados sin manifiesto</div>
+        <div class="list-group list-group-flush">
+          @foreach (var b in _bultos)
+          {
+            <label class="list-group-item d-flex gap-2 align-items-center">
+              <input class="form-check-input" type="checkbox" checked="@_elegidos.Contains(b.Id)" @onchange="e => Toggle(b.Id, e)" />
+              <span><code>@b.Codigo</code> @b.NombreCliente · factura @b.NumeroDocumento</span>
+            </label>
+          }
+          @if (_bultos.Count == 0) { <div class="list-group-item text-secondary">No hay bultos listos.</div> }
+        </div>
+        <div class="card-body row g-2 align-items-end">
+          <div class="col-md-4"><label class="form-label">Ruta</label>
+            <select class="form-select" @bind="_idRuta">
+              <option value="0">—</option>
+              @foreach (var r in _rutas) { <option value="@r.Id">@r.Nombre</option> }
+            </select></div>
+          <div class="col-md-4"><label class="form-label">Vehículo</label>
+            <select class="form-select" @bind="_idVehiculo">
+              <option value="0">—</option>
+              @foreach (var v in _vehiculos) { <option value="@v.Id">@v.Placa</option> }
+            </select></div>
+          <div class="col-md-4"><label class="form-label">Chofer</label>
+            <select class="form-select" @bind="_idChofer">
+              <option value="0">—</option>
+              @foreach (var c in _choferes) { <option value="@c.Id">@c.Nombre</option> }
+            </select></div>
+          <div class="col-12 d-grid"><button class="btn btn-primary" @onclick="Crear" disabled="@(_elegidos.Count == 0)">Crear manifiesto</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      @if (_actual is not null)
+      {
+        <div class="card mb-3"><div class="card-header">Manifiesto @_actual.Id · @_actual.EstadoDescripcion</div>
+          <div class="card-body">
+            <p class="mb-2">@_actual.NombreRuta · @_actual.Placa · @_actual.NombreChofer</p>
+            <label class="form-label" for="scan-bulto">Escanear bulto al camión</label>
+            <input id="scan-bulto" @ref="_scanEl" class="form-control mb-2" @bind="_scan" @bind:event="onchange" @bind:after="CargarBulto"
+                   placeholder="BULT-…" autocomplete="off" />
+            <ul class="list-unstyled mb-3">
+              @foreach (var b in _actual.Bultos)
+              {
+                <li><code>@b.Codigo</code> @b.EstadoDescripcion · @b.NombreCliente</li>
+              }
+            </ul>
+            <div class="d-flex gap-2 flex-wrap">
+              <BotonImprimir Tipo="manifiesto-despacho" Id="_actual.Id" Texto="A4" Clase="btn-outline-secondary" />
+              <BotonImprimir Tipo="manifiesto-despacho" Id="_actual.Id" Formato="termico80" Texto="80 mm" Clase="btn-outline-secondary" />
+              @if (_actual.Estado == 1)
+              {
+                <button class="btn btn-success" @onclick="Salir">Salir a ruta</button>
+              }
+            </div>
+            @if (_actual.Estado == 2)
+            {
+              <div class="mt-3">
+                <div class="form-text mb-2">Cierre cada factura al entregar o al volver el producto.</div>
+                @foreach (var b in OrdenesDelManifiesto())
+                {
+                  <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                    <span><code>@b.NumeroDocumento</code> @b.NombreCliente</span>
+                    <button class="btn btn-sm btn-outline-success" @onclick="() => PedirEntrega(b.IdOrden, false)">Entregado</button>
+                    <button class="btn btn-sm btn-outline-dark" @onclick="() => PedirEntrega(b.IdOrden, true)">No entregado</button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <div class="card"><div class="card-header">Manifiestos recientes</div>
+        <div class="list-group list-group-flush">
+          @foreach (var m in _manifiestos)
+          {
+            <button type="button" class="list-group-item list-group-item-action" @onclick="() => Abrir(m.Id)">
+              #@m.Id @m.Fecha.ToString("dd/MM HH:mm") · @m.EstadoDescripcion · @m.Placa
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+ </ChildContent>
+</AppPantalla>
+
+<CerrarEntregaModal @ref="_entrega" AlCerrar="AlCerrarEntrega" />
+
+@code {
+ private string _error = "", _scan = "";
+ private List<BultoDespacho> _bultos = new();
+ private HashSet<long> _elegidos = new();
+ private List<RutaDespacho> _rutas = new();
+ private List<VehiculoDespacho> _vehiculos = new();
+ private List<ChoferDespacho> _choferes = new();
+ private List<ManifiestoDespacho> _manifiestos = new();
+ private ManifiestoDespacho? _actual;
+ private CerrarEntregaModal _entrega = default!;
+ private ElementReference _scanEl;
+ private IJSObjectReference? _js;
+ private int _idRuta, _idVehiculo, _idChofer;
+ private bool _focoScan;
+
+ protected override async Task OnInitializedAsync() => await Cargar();
+
+ protected override async Task OnAfterRenderAsync(bool firstRender)
+ {
+     if (!_focoScan) return;
+     _focoScan = false;
+     try { await _scanEl.FocusAsync(); } catch (Exception) { }
+ }
+
+ private async Task AbrirPdf(long id)
+ {
+     _js ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/bodega.js");
+     await _js.InvokeVoidAsync("abrir", $"/documentos/manifiesto-despacho/{id}/pdf");
+ }
+
+ private async Task Cargar()
+ {
+     _error = "";
+     var b = await Api.BultosEmpacadosAsync();
+     var r = await Api.RutasAsync();
+     var v = await Api.VehiculosAsync();
+     var c = await Api.ChoferesAsync();
+     var m = await Api.ManifiestosAsync();
+     if (b.Status != ResponseStatus._0) { _error = b.CurrentException ?? ""; return; }
+     _bultos = b.Responses ?? new();
+     _rutas = r.Responses ?? new();
+     _vehiculos = v.Responses ?? new();
+     _choferes = c.Responses ?? new();
+     _manifiestos = m.Responses ?? new();
+ }
+
+ private void Toggle(long id, ChangeEventArgs e)
+ {
+     var on = e.Value is bool x && x || string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+     if (on) _elegidos.Add(id); else _elegidos.Remove(id);
+ }
+
+ private async Task Crear()
+ {
+     var r = await Api.CrearManifiestoAsync(_idRuta == 0 ? null : _idRuta, _idVehiculo == 0 ? null : _idVehiculo, _idChofer == 0 ? null : _idChofer, _elegidos.ToList());
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo crear."); return; }
+     _actual = r.Responses;
+     _elegidos.Clear();
+     if (_actual is not null) await AbrirPdf(_actual.Id);
+     _focoScan = _actual?.Estado == 1;
+     await Cargar();
+ }
+
+ private async Task Abrir(long id)
+ {
+     var r = await Api.ManifiestoAsync(id);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se abrió."); return; }
+     _actual = r.Responses;
+     _focoScan = _actual?.Estado == 1;
+ }
+
+ private async Task CargarBulto()
+ {
+     if (_actual is null || string.IsNullOrWhiteSpace(_scan)) return;
+     var codigo = _scan.Trim();
+     _scan = "";
+     var r = await Api.CargarBultoAsync(_actual.Id, codigo);
+     if (r.Status != ResponseStatus._0)
+     {
+         await Dialogos.ErrorAsync(r.CurrentException ?? "Bulto rechazado.");
+         _focoScan = true;
+         return;
+     }
+     _actual = r.Responses;
+     _focoScan = _actual?.Estado == 1;
+ }
+
+ private async Task Salir()
+ {
+     if (_actual is null) return;
+     var r = await Api.SalirRutaAsync(_actual.Id);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se puede salir."); return; }
+     _actual = r.Responses;
+     if (_actual is not null) await AbrirPdf(_actual.Id);
+     await Cargar();
+ }
+
+ private IEnumerable<BultoDespacho> OrdenesDelManifiesto()
+     => (_actual?.Bultos ?? new List<BultoDespacho>())
+         .Where(b => b.Estado == 3)
+         .GroupBy(b => b.IdOrden)
+         .Select(g => g.First());
+
+ private Task PedirEntrega(long idOrden, bool no) => _entrega.PedirAsync(idOrden, no);
+
+ private async Task AlCerrarEntrega(AlistamientoOrden _)
+ {
+     if (_actual is not null) await Abrir(_actual.Id);
+     await Cargar();
+ }
+}

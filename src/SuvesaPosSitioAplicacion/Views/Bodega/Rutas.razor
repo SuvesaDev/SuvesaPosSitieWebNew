@@ -1,0 +1,130 @@
+@page "/bodega/rutas"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Bodega
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IAlistamientoApiCliente Api
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Rutas de entrega" Codigo="BODEGA.RUTAS_DE_ENTREGA" Icono="bi-signpost"
+             Subtitulo="Zona, vehículo y chofer. Distinto de la ruta comercial del vendedor." Nivel="NivelPantalla.Tableta">
+ <ChildContent>
+  @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card"><div class="card-header d-flex justify-content-between"><span>Zonas</span><button class="btn btn-sm btn-outline-primary" @onclick="NuevaRuta">Agregar</button></div>
+        <ul class="list-group list-group-flush">
+          @foreach (var r in _rutas)
+          {
+            <li class="list-group-item d-flex justify-content-between"><span>@r.Nombre</span><button class="btn btn-sm btn-link" @onclick="() => EditarRuta(r)">Editar</button></li>
+          }
+        </ul>
+        @if (_editRuta)
+        {
+          <div class="card-body">
+            <input class="form-control mb-2" @bind="_ruta.Nombre" placeholder="Nombre" />
+            <input class="form-control mb-2" @bind="_ruta.Observaciones" placeholder="Observaciones" />
+            <button class="btn btn-primary btn-sm" @onclick="GuardarRuta">Guardar</button>
+          </div>
+        }
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card"><div class="card-header d-flex justify-content-between"><span>Vehículos</span><button class="btn btn-sm btn-outline-primary" @onclick="NuevoVehiculo">Agregar</button></div>
+        <ul class="list-group list-group-flush">
+          @foreach (var v in _vehiculos)
+          {
+            <li class="list-group-item d-flex justify-content-between"><span>@v.Placa @v.Descripcion</span><button class="btn btn-sm btn-link" @onclick="() => EditarVehiculo(v)">Editar</button></li>
+          }
+        </ul>
+        @if (_editVeh)
+        {
+          <div class="card-body">
+            <input class="form-control mb-2" @bind="_veh.Placa" placeholder="Placa" />
+            <input class="form-control mb-2" @bind="_veh.Descripcion" placeholder="Descripción" />
+            <select class="form-select mb-2" @bind="_veh.IdRutaDespacho">
+              <option value="">Sin zona</option>
+              @foreach (var r in _rutas) { <option value="@r.Id">@r.Nombre</option> }
+            </select>
+            <button class="btn btn-primary btn-sm" @onclick="GuardarVehiculo">Guardar</button>
+          </div>
+        }
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card"><div class="card-header d-flex justify-content-between"><span>Choferes</span><button class="btn btn-sm btn-outline-primary" @onclick="NuevoChofer">Agregar</button></div>
+        <ul class="list-group list-group-flush">
+          @foreach (var c in _choferes)
+          {
+            <li class="list-group-item d-flex justify-content-between"><span>@c.Nombre</span><button class="btn btn-sm btn-link" @onclick="() => EditarChofer(c)">Editar</button></li>
+          }
+        </ul>
+        @if (_editChofer)
+        {
+          <div class="card-body">
+            <input class="form-control mb-2" @bind="_chofer.Nombre" placeholder="Nombre" />
+            <input class="form-control mb-2" @bind="_chofer.Identificacion" placeholder="Cédula" />
+            <input class="form-control mb-2" @bind="_chofer.Telefono" placeholder="Teléfono" />
+            <button class="btn btn-primary btn-sm" @onclick="GuardarChofer">Guardar</button>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+ </ChildContent>
+</AppPantalla>
+
+@code {
+ private string _error = "";
+ private List<RutaDespacho> _rutas = new();
+ private List<VehiculoDespacho> _vehiculos = new();
+ private List<ChoferDespacho> _choferes = new();
+ private RutaDespacho _ruta = new() { Activa = true };
+ private VehiculoDespacho _veh = new() { Activo = true };
+ private ChoferDespacho _chofer = new() { Activo = true };
+ private bool _editRuta, _editVeh, _editChofer;
+
+ protected override async Task OnInitializedAsync() => await Cargar();
+
+ private async Task Cargar()
+ {
+     var r = await Api.RutasAsync();
+     var v = await Api.VehiculosAsync();
+     var c = await Api.ChoferesAsync();
+     if (r.Status != ResponseStatus._0) { _error = r.CurrentException ?? ""; return; }
+     _rutas = r.Responses ?? new();
+     _vehiculos = v.Responses ?? new();
+     _choferes = c.Responses ?? new();
+ }
+
+ private void NuevaRuta() { _ruta = new RutaDespacho { Activa = true }; _editRuta = true; }
+ private void EditarRuta(RutaDespacho r) { _ruta = new RutaDespacho { Id = r.Id, Nombre = r.Nombre, Observaciones = r.Observaciones, Activa = r.Activa }; _editRuta = true; }
+ private async Task GuardarRuta()
+ {
+     var x = await Api.GuardarRutaAsync(_ruta);
+     if (x.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(x.CurrentException ?? ""); return; }
+     _editRuta = false; await Cargar();
+ }
+
+ private void NuevoVehiculo() { _veh = new VehiculoDespacho { Activo = true }; _editVeh = true; }
+ private void EditarVehiculo(VehiculoDespacho v) { _veh = new VehiculoDespacho { Id = v.Id, Placa = v.Placa, Descripcion = v.Descripcion, IdRutaDespacho = v.IdRutaDespacho, Activo = v.Activo }; _editVeh = true; }
+ private async Task GuardarVehiculo()
+ {
+     var x = await Api.GuardarVehiculoAsync(_veh);
+     if (x.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(x.CurrentException ?? ""); return; }
+     _editVeh = false; await Cargar();
+ }
+
+ private void NuevoChofer() { _chofer = new ChoferDespacho { Activo = true }; _editChofer = true; }
+ private void EditarChofer(ChoferDespacho c) { _chofer = new ChoferDespacho { Id = c.Id, Nombre = c.Nombre, Identificacion = c.Identificacion, Telefono = c.Telefono, Activo = c.Activo }; _editChofer = true; }
+ private async Task GuardarChofer()
+ {
+     var x = await Api.GuardarChoferAsync(_chofer);
+     if (x.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(x.CurrentException ?? ""); return; }
+     _editChofer = false; await Cargar();
+ }
+}

@@ -85,6 +85,8 @@ public static class TiposImpresionUi
         16 => "Nota de débito",
         17 => "Factura de compra",
         18 => "Devolución de compra",
+        19 => "Etiqueta de bulto",
+        20 => "Manifiesto de despacho",
         _ => $"Tipo {tipo}",
     };
 
@@ -108,6 +110,8 @@ public static class TiposImpresionUi
         16 => "nota-debito",
         17 => "compra",
         18 => "devolucion-compra",
+        19 => "bulto-despacho",
+        20 => "manifiesto-despacho",
         _ => "",
     };
 

@@ -488,6 +488,7 @@
                                     <div class="form-check"><input id="cliente-actualizado" class="form-check-input" type="checkbox" @bind="_edicion.Actualizado" /><label class="form-check-label" for="cliente-actualizado">Actualizado</label></div>
                                     <div class="form-check"><input id="cliente-fallecido" class="form-check-input" type="checkbox" @bind="_edicion.Fallecido" /><label class="form-check-label" for="cliente-fallecido">Fallecido</label></div>
                                 }
+                                <div class="form-check"><input id="cliente-despacho" class="form-check-input" type="checkbox" @bind="_edicion.RequiereDespacho" /><label class="form-check-label" for="cliente-despacho">Requiere despacho (bodega)</label></div>
                                 @if (Sesion.EsCostaPets)
                                 {
                                     <div class="form-check"><input id="cliente-bonificado" class="form-check-input" type="checkbox" @bind="_edicion.TieneBonificacion" /><label class="form-check-label" for="cliente-bonificado">Bonificado</label></div>
@@ -520,6 +521,7 @@
                         </div>
                         <div class="col-12 col-md-4"><label class="form-label" for="cliente-credito">Límite de crédito</label><input id="cliente-credito" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.MaxCredito" /></div>
                         <div class="col-12 col-md-4"><label class="form-label" for="cliente-descuento">Límite descuento (%)</label><input id="cliente-descuento" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.Descuento" /></div>
+                        <div class="col-12 col-md-4"><label class="form-label" for="cliente-caducidad">Días mínimos de caducidad al despachar</label><input id="cliente-caducidad" type="number" min="0" step="1" class="form-control" @bind="_edicion.DiasMinimosCaducidad" /></div>
                         @if (!Sesion.EsCostaPets)
                         {
                             <div class="col-12 col-md-4"><label class="form-label" for="cliente-descuento-especial">Descuento especial (%)</label><input id="cliente-descuento-especial" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.DescuentoEspecial" /></div>
@@ -1491,6 +1493,8 @@
         IdUsuarioCreacion = cliente.IdUsuarioCreacion,
         Estado = cliente.Estado,
         TieneBonificacion = cliente.TieneBonificacion,
+        RequiereDespacho = cliente.RequiereDespacho,
+        DiasMinimosCaducidad = cliente.DiasMinimosCaducidad,
         NombreFantasia = cliente.NombreFantasia
     };
 

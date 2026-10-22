@@ -133,6 +133,8 @@ builder.Services.AddHttpClient<IProduccionApiCliente, ProduccionApiCliente>(c =>
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 builder.Services.AddHttpClient<IConsignacionInvApiCliente, ConsignacionInvApiCliente>(c => c.BaseAddress = new Uri(urlApi))
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+builder.Services.AddHttpClient<IAlistamientoApiCliente, AlistamientoApiCliente>(c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 // ReportesOperacion recibe IHttpClientFactory y toma el cliente nombrado SeePosApi
 // ya configurado arriba. No es un cliente HTTP tipado (que exige HttpClient directo).
 builder.Services.AddScoped<IReportesOperacion, ReportesOperacion>();
