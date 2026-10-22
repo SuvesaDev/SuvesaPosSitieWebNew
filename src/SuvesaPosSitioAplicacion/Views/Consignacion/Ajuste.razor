@@ -18,6 +18,9 @@
 
 <AppPantalla Pantalla="Ajuste de Bodega de Consignación" Codigo="CONSIGNACION.AJUSTE_DE_BODEGA_DE_CONSIGNACION" Icono="bi-box-arrow-in-down"
              Subtitulo="Boletas de ingreso y de salida / retiro (sin facturación)" Nivel="NivelPantalla.Tableta">
+ <Acciones>
+  <a class="btn btn-sm btn-outline-secondary" href="/consignment/tickets"><i class="bi bi-inbox me-1" aria-hidden="true"></i>Bandeja de boletas</a>
+ </Acciones>
  <ChildContent>
   @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
   @if (Liquidacion > 0) { <div class="alert alert-info">Las boletas de esta pantalla quedarán ligadas al estado de consignación del conteo <strong>#@Liquidacion</strong>.</div> }

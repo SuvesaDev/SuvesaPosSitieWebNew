@@ -1,0 +1,220 @@
+@page "/consignment/tickets"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Consignacion
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject IConsignacionInvApiCliente Api
+@inject IClientesConsulta Clientes
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+<AppPantalla Pantalla="Boletas de Consignación" Codigo="CONSIGNACION.BOLETAS_DE_CONSIGNACION" Icono="bi-inbox"
+             Subtitulo="Consulta de boletas de ingreso y de salida / retiro" Nivel="NivelPantalla.Tableta"
+             OmitirPermiso="true">
+ <Acciones>
+  <a class="btn btn-sm btn-outline-primary" href="/consignment/adjust"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nueva boleta</a>
+ </Acciones>
+ <ChildContent>
+  @if (!_puede)
+  {
+    <div class="alert alert-danger">
+      <p class="h5 alert-heading">Sin permiso</p>
+      <p class="mb-0">Su rol no tiene acceso a <strong>Boletas de Consignación</strong>. Si cree que es un error, consulte con el administrador del sistema.</p>
+    </div>
+  }
+  else
+  {
+  @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+  <div class="card mb-3"><div class="card-body">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4 position-relative">
+        <label class="form-label">Cliente</label>
+        <input class="form-control" @bind="_texCliente" @bind:event="oninput" @bind:after="BuscarCliente" placeholder="Cédula o nombre (opcional)" />
+        @if (_idCliente <= 0 && _clientes.Count > 0)
+        {
+          <div class="list-group position-absolute shadow w-100" style="z-index:5; max-height:14rem; overflow-y:auto;">
+            @foreach (var c in _clientes) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirCliente(c)"><strong>@c.Cedula</strong> @c.Nombre</button> }
+          </div>
+        }
+        @if (_idCliente > 0)
+        {
+          <div class="form-text">Seleccionado: <strong>@_nombreCliente</strong>
+            <button type="button" class="btn btn-link btn-sm p-0 ms-1" @onclick="QuitarCliente">Quitar</button>
+          </div>
+        }
+      </div>
+      <div class="col-md-2"><label class="form-label">Tipo</label>
+        <select class="form-select" @bind="_filtroTipo" @bind:after="Cargar">
+          <option value="0">Todas</option>
+          <option value="1">Ingreso</option>
+          <option value="2">Salida</option>
+        </select>
+      </div>
+      <div class="col-md-2"><label class="form-label">Desde</label><input type="date" class="form-control" @bind="_desde" /></div>
+      <div class="col-md-2"><label class="form-label">Hasta</label><input type="date" class="form-control" @bind="_hasta" /></div>
+      <div class="col-md-2 form-check mt-4 ms-2">
+        <input class="form-check-input" type="checkbox" id="boletas-anuladas" @bind="_incluirAnuladas" @bind:after="Cargar" />
+        <label class="form-check-label" for="boletas-anuladas">Incluir anuladas</label>
+      </div>
+    </div>
+    <div class="row g-2 align-items-end mt-1">
+      <div class="col-md-3"><label class="form-label">Abrir por N.º</label><input type="number" min="1" class="form-control" @bind="_idBuscar" /></div>
+      <div class="col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="AbrirPorNumero" disabled="@(_idBuscar <= 0)">Abrir</button></div>
+      <div class="col-md-2 d-grid"><button type="button" class="btn btn-primary" @onclick="Cargar" disabled="@_cargando">@(_cargando ? "Consultando..." : "Consultar")</button></div>
+    </div>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-body p-0">
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+      <thead><tr><th>#</th><th>Tipo</th><th>Cliente</th><th>Fecha</th><th>Documento</th><th class="text-end">Costo</th><th></th></tr></thead>
+      <tbody>
+        @foreach (var b in _boletas)
+        {
+          <tr class="@(_boleta?.Id == b.Id ? "table-primary" : null) @(b.Anulada ? "text-secondary" : null)">
+            <td>@b.Id</td>
+            <td><span class="badge @(b.Tipo == 2 ? "text-bg-danger" : "text-bg-success")">@b.TipoDescripcion</span></td>
+            <td>@b.NombreCliente</td>
+            <td>@b.Fecha.ToString("dd/MM/yyyy")</td>
+            <td>@(b.Documento ?? "—")</td>
+            <td class="text-end">@b.CostoTotal.ToString("N2")</td>
+            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => Abrir(b.Id)">Ver</button></td>
+          </tr>
+        }
+        @if (_cargando) { <tr><td colspan="7" class="text-secondary">Cargando boletas...</td></tr> }
+        else if (!_boletas.Any()) { <tr><td colspan="7" class="text-secondary">No hay boletas@(_idCliente > 0 ? " de este cliente" : "") con esos filtros.</td></tr> }
+      </tbody>
+    </table></div>
+    <p class="form-text px-3 py-2 mb-0">Se muestran las 200 más recientes. Las boletas nuevas se emiten en <a href="/consignment/adjust">Ajuste de Bodega de Consignación</a>.</p>
+  </div></div>
+
+  @if (_boleta is not null)
+  {
+    <div class="card"><div class="card-header d-flex justify-content-between align-items-center @(_boleta.Anulada ? "text-bg-secondary" : "text-bg-success")">
+      <span>Boleta @_boleta.TipoDescripcion #@_boleta.Id @(_boleta.Anulada ? "· ANULADA" : "")</span>
+      <VisorPdf Tipo="consignacion-boleta" Id="@_boleta.Id" Formato="a4" Texto="Imprimir PDF" Titulo="Boleta de consignación" Clase="btn btn-sm btn-light" />
+    </div><div class="card-body">
+      <p class="mb-2"><strong>@_boleta.NombreCliente</strong> · @_boleta.Fecha.ToString("dd/MM/yyyy HH:mm") · costo @_boleta.CostoTotal.ToString("N2")
+        @if (!string.IsNullOrWhiteSpace(_boleta.Documento)) { <span class="text-secondary"> · doc @_boleta.Documento</span> }
+        @if (!string.IsNullOrWhiteSpace(_boleta.Motivo)) { <span class="text-secondary"> · @_boleta.Motivo</span> }
+        @if (_boleta.Anulada) { <span class="text-danger d-block small">Anulada: @_boleta.MotivoAnulacion (@_boleta.UsuarioAnulacion, @_boleta.FechaAnulacion?.ToString("dd/MM/yyyy"))</span> }
+      </p>
+      <table class="table table-sm mb-0"><thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Cantidad</th><th class="text-end">Costo</th></tr></thead>
+        <tbody>@foreach (var l in _boleta.Lineas){<tr><td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@(l.NumeroLote ?? "—")</td><td class="text-end">@l.Cantidad.ToString("N3")</td><td class="text-end">@l.CostoLinea.ToString("N2")</td></tr>}</tbody></table>
+    </div></div>
+  }
+  }
+ </ChildContent>
+</AppPantalla>
+
+@code {
+ [SupplyParameterFromQuery] public long Id { get; set; }
+
+ private List<FiltranClienteDTO> _clientes = new();
+ private long _idCliente;
+ private string _nombreCliente = "", _texCliente = "", _error = "";
+ private int _filtroTipo;
+ private DateTime? _desde, _hasta;
+ private bool _incluirAnuladas, _cargando;
+ private long _idBuscar;
+ private List<BoletaConsignacionResumen> _boletas = new();
+ private BoletaConsignacion? _boleta;
+ private bool _puede;
+
+ private static bool PuedeConsultarBoletas(IContextoSesion s) =>
+     s.PuedeVer("CONSIGNACION.BOLETAS_DE_CONSIGNACION")
+     || s.PuedeVer("CONSIGNACION.AJUSTE_DE_BODEGA_DE_CONSIGNACION")
+     || s.PuedeVer("CONSIGNACION.FACTURACION_DE_CONSIGNACIONES")
+     || s.PuedeVer("CONSIGNACION.KARDEX_DE_CONSIGNACION");
+
+ protected override async Task OnInitializedAsync()
+ {
+     await Sesion.CargarAsync();
+     _puede = PuedeConsultarBoletas(Sesion);
+     if (_puede) await Cargar();
+ }
+
+ protected override async Task OnParametersSetAsync()
+ {
+     if (_puede && Id > 0 && (_boleta is null || _boleta.Id != Id)) await Abrir(Id);
+ }
+
+ private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
+
+ private async Task Fallo<T>(LoteEnvelope<T> r, string alterno)
+ {
+     _error = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? alterno;
+     await Dialogos.ErrorAsync(_error);
+ }
+
+ private async Task BuscarCliente()
+ {
+     _idCliente = 0;
+     var t = _texCliente?.Trim() ?? "";
+     if (t.Length < 2) { _clientes = new(); return; }
+     var r = await Clientes.Buscar(t);
+     _clientes = r.EsCorrecta ? (r.Responses ?? new List<FiltranClienteDTO>()).Take(20).ToList() : new();
+ }
+
+ private async Task ElegirCliente(FiltranClienteDTO c)
+ {
+     _idCliente = c.Identificacion;
+     _nombreCliente = $"{c.Cedula} — {c.Nombre}";
+     _texCliente = _nombreCliente;
+     _clientes = new();
+     await Cargar();
+ }
+
+ private async Task QuitarCliente()
+ {
+     _idCliente = 0;
+     _nombreCliente = _texCliente = "";
+     _clientes = new();
+     await Cargar();
+ }
+
+ private async Task Cargar()
+ {
+     _error = "";
+     _cargando = true;
+     var r = await Api.BoletasAsync(new BoletasConsignacionFiltro
+     {
+         IdCliente = _idCliente > 0 ? _idCliente : null,
+         Tipo = _filtroTipo is 1 or 2 ? _filtroTipo : null,
+         IncluirAnuladas = _incluirAnuladas,
+         Desde = _desde,
+         Hasta = _hasta
+     });
+     _cargando = false;
+     if (!Ok(r))
+     {
+         _boletas = new();
+         await Fallo(r, "No se pudieron cargar las boletas de consignación.");
+         return;
+     }
+     _boletas = r.Responses ?? new();
+ }
+
+ private async Task AbrirPorNumero()
+ {
+     if (_idBuscar <= 0)
+     {
+         await Dialogos.ErrorAsync("Indique el número de la boleta.");
+         return;
+     }
+     await Abrir(_idBuscar);
+ }
+
+ private async Task Abrir(long id)
+ {
+     if (id <= 0) return;
+     _error = "";
+     var r = await Api.BoletaAsync(id);
+     if (Ok(r)) _boleta = r.Responses;
+     else { _boleta = null; await Fallo(r, "No se pudo abrir la boleta."); }
+ }
+}

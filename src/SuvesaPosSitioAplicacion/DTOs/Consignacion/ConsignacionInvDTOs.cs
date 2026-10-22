@@ -476,5 +476,8 @@ public sealed class PrefacturaConsignacion
     public double ImpVenta { get; set; }
     public double Total { get; set; }
     public string? Observaciones { get; set; }
+    /// <summary>Ruta congelada al generar (SAC/Agente). Si viene, no se reasigna al liquidar.</summary>
+    public int? IdRutaComercial { get; set; }
+    public string? IdUsuarioAgente { get; set; }
     public List<PrefacturaConsignacionLinea> Lineas { get; set; } = new();
 }

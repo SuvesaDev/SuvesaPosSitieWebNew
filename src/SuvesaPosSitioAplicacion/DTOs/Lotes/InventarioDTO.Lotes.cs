@@ -21,4 +21,12 @@ public partial class InventarioDTO
 
     [JsonPropertyName("esPresentacionEmpaquetada")]
     public bool EsPresentacionEmpaquetada { get; set; }
+
+    /// <summary>Si el costo no es colones, A/B/C/D/Promo se venden × TipoCambioVenta.</summary>
+    [JsonPropertyName("conviertePrecioColones")]
+    public bool ConviertePrecioColones { get; set; }
+
+    /// <summary>Copia de Monedas.ValorVenta congelada en el artículo. No fluctúa en la venta.</summary>
+    [JsonPropertyName("tipoCambioVenta")]
+    public double TipoCambioVenta { get; set; } = 1;
 }

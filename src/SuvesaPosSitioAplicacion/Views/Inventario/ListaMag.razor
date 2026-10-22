@@ -51,7 +51,7 @@
                         </PropertyColumn>
                         <PropertyColumn Property="a => a.Precio_A" Title="Precio A"
                                         CellClass="justify-end" HeaderClass="justify-end">
-                            <CellTemplate>@Formato.Importe(context.Item.Precio_A)</CellTemplate>
+                            <CellTemplate>@Formato.Importe(PrecioVenta.EnColones(context.Item, context.Item.Precio_A))</CellTemplate>
                         </PropertyColumn>
                     </Columns>
                     <PagerContent>

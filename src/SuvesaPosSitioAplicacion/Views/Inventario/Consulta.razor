@@ -18,6 +18,7 @@
 @inject ICatalogosInventario Catalogos
 @inject ICatalogoBonificacion CatalogoBonificacion
 @inject IImpuestosFiscales ImpuestosApi
+@inject IMonedasFiscales MonedasApi
 @inject IArticuloBonificacion ArticuloBonificacion
 @inject IRelojEquipo RelojEquipo
 
@@ -129,7 +130,7 @@
                         <div class="card-body py-2 px-3">
                             <div class="d-flex justify-content-between align-items-start gap-2">
                                 <span class="fw-semibold small">@a.Descripcion</span>
-                                <span class="seepos-importe small">@Formato.Importe(a.Precio_A)</span>
+                                <span class="seepos-importe small">@Formato.Importe(PrecioVenta.EnColones(a, a.Precio_A))</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
                                 <code class="small text-secondary">@a.Cod_Articulo</code>
@@ -164,7 +165,7 @@
                             </PropertyColumn>
                             <PropertyColumn Property="a => a.Precio_A" Title="Precio"
                                             CellClass="justify-end" HeaderClass="justify-end">
-                                <CellTemplate>@Formato.Importe(context.Item.Precio_A)</CellTemplate>
+                                <CellTemplate>@Formato.Importe(PrecioVenta.EnColones(context.Item, context.Item.Precio_A))</CellTemplate>
                             </PropertyColumn>
                             <TemplateColumn Title="Acciones" Sortable="false" Filterable="false">
                                 <CellTemplate>
@@ -219,21 +220,21 @@
             <h3 class="seepos-detalle-seccion">Precios de venta</h3>
             <dl class="row small mb-0">
                 <dt class="col-5 fw-normal text-secondary">Precio A</dt>
-                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_A)</dd>
+                <dd class="col-7 seepos-importe">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_A))</dd>
 
                 <dt class="col-5 fw-normal text-secondary">Precio B</dt>
-                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_B)</dd>
+                <dd class="col-7 seepos-importe">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_B))</dd>
 
                 <dt class="col-5 fw-normal text-secondary">Precio C</dt>
-                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_C)</dd>
+                <dd class="col-7 seepos-importe">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_C))</dd>
 
                 <dt class="col-5 fw-normal text-secondary">Precio D</dt>
-                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_D)</dd>
+                <dd class="col-7 seepos-importe">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_D))</dd>
 
                 @if (_elegido.Promo_Activa)
                 {
                     <dt class="col-5 fw-normal text-secondary">Promocion</dt>
-                    <dd class="col-7 seepos-importe text-success">@Formato.Importe(_elegido.Precio_Promo)</dd>
+                    <dd class="col-7 seepos-importe text-success">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_Promo))</dd>
                 }
             </dl>
 
@@ -534,11 +535,34 @@
                         <div class="col-12 seepos-form-seccion">Último costo</div>
                         <div class="col-12 col-md-4">
                             <label class="form-label" for="articulo-moneda-costo">Moneda del costo</label>
-                            <select id="articulo-moneda-costo" class="form-select" @bind="_edicion.MonedaCosto">
+                            <select id="articulo-moneda-costo" class="form-select" @bind="_edicion.MonedaCosto" @bind:after="AlCambiarMonedaCosto">
                                 <option value="1">Colones</option>
                                 <option value="2">Dólares</option>
                             </select>
                         </div>
+                        @if (_edicion.MonedaCosto > 1)
+                        {
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input id="articulo-convierte-colones" class="form-check-input" type="checkbox"
+                                           @bind="_edicion.ConviertePrecioColones" @bind:after="AlCambiarConvierteColones" />
+                                    <label class="form-check-label" for="articulo-convierte-colones">Convertir a colones para la venta</label>
+                                </div>
+                                <p class="form-text mb-0">El tipo de cambio se congela en este artículo. No cambia en cada factura. Actualícelo aquí cuando quiera recotizar.</p>
+                            </div>
+                        }
+                        @if (MuestraPrecioFinalColones)
+                        {
+                            <div class="col-12 col-md-4">
+                                <label class="form-label">Tipo de cambio (Valor venta)</label>
+                                <div class="input-group">
+                                    <input type="text" readonly class="form-control" value="@_edicion.TipoCambioVenta.ToString("N4")" />
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="TomarTipoCambio">Actualizar</button>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-4"><label class="form-label">Precio final colones</label><input type="text" readonly class="form-control" value="@PrecioFinalColonesTexto" /></div>
+                            <div class="col-12 col-md-4"><label class="form-label">Precio final colones con impuesto</label><input type="text" readonly class="form-control" value="@PrecioFinalColonesConImpuestoTexto" /></div>
+                        }
                         <div class="col-12 col-md-4">
                             <label class="form-label">Costo (base + fletes + otros)</label>
                             <input type="text" readonly class="form-control" value="@Formato.Importe(CostoCalculado)" />
@@ -1052,6 +1076,7 @@
     private double _cantidadNuevoLote;
     private List<SubFamiliasFilterInventarioDTO> _familias = new();
     private List<ImpuestoFiscalDTO> _impuestos = new();
+    private List<MonedaFiscalDTO> _monedas = new();
     private List<ProveedoresFilterInventarioDTO> _proveedoresInventario = new();
     private List<Presentacione> _presentaciones = new();
     private string _textoCabys = string.Empty;
@@ -1355,6 +1380,15 @@
         }
 
         _edicion.Cod_Articulo = _edicion.Cod_Articulo!.Trim();
+        if (_edicion.MonedaCosto <= 1)
+        {
+            _edicion.ConviertePrecioColones = false;
+            _edicion.TipoCambioVenta = 1;
+        }
+        else if (_edicion.ConviertePrecioColones && _edicion.TipoCambioVenta <= 0)
+        {
+            await TomarTipoCambio();
+        }
 
         if (_esNuevo && _todos.Any(a => string.Equals(a.Cod_Articulo?.Trim(), _edicion.Cod_Articulo, StringComparison.OrdinalIgnoreCase))
             && await AvisoValidacion($"Ya existe un artículo con el código «{_edicion.Cod_Articulo}». El código debe ser único.")) return;
@@ -1789,6 +1823,59 @@
             ? basePrecio / (1 - utilidad)
             : basePrecio * (1 + utilidad) + (decimal)_edicion.Fletes + (decimal)_edicion.OtrosCargos;
         PrecioTarifaActual = (float)Math.Round(precio, 2);
+        if (MuestraPrecioFinalColones) await TomarTipoCambio();
+    }
+
+    private bool MuestraPrecioFinalColones
+        => _edicion is { MonedaCosto: > 1, ConviertePrecioColones: true };
+
+    private string PrecioFinalColonesTexto => PrecioVenta.EnColones(_edicion, PrecioTarifaActual).ToString("N2");
+
+    private string PrecioFinalColonesConImpuestoTexto
+        => (PrecioVenta.EnColones(_edicion, PrecioTarifaActual) * (1 + (decimal)(_edicion?.IVenta ?? 0) / 100)).ToString("N2");
+
+    private async Task AlCambiarMonedaCosto()
+    {
+        if (_edicion is null) return;
+        if (_edicion.MonedaCosto <= 1)
+        {
+            _edicion.ConviertePrecioColones = false;
+            _edicion.TipoCambioVenta = 1;
+            return;
+        }
+        _edicion.ConviertePrecioColones = true;
+        await TomarTipoCambio();
+    }
+
+    private async Task AlCambiarConvierteColones()
+    {
+        if (_edicion is null) return;
+        if (!_edicion.ConviertePrecioColones)
+        {
+            _edicion.TipoCambioVenta = 1;
+            return;
+        }
+        await TomarTipoCambio();
+    }
+
+    private async Task TomarTipoCambio()
+    {
+        if (_edicion is null || _edicion.MonedaCosto <= 1) return;
+        await AsegurarMonedas();
+        var moneda = _monedas.FirstOrDefault(m => m.CodMoneda == _edicion.MonedaCosto);
+        var tc = moneda?.ValorVenta ?? 0;
+        if (tc <= 0)
+        {
+            await Dialogos.ErrorAsync("Esa moneda no tiene tipo de cambio de venta. Revíselo en Monedas.");
+            return;
+        }
+        _edicion.TipoCambioVenta = tc;
+    }
+
+    private async Task AsegurarMonedas()
+    {
+        if (_monedas.Count > 0) return;
+        _monedas = (await Respuestas.DatoAsync(await MonedasApi.Obtener(), "consultar las monedas"))?.ToList() ?? new();
     }
 
     /// <summary>
@@ -1957,6 +2044,7 @@
         _proveedoresInventario = (await Respuestas.DatoAsync(await Catalogos.Proveedores(), "consultar los proveedores de inventario"))?.ToList() ?? new();
         _presentaciones = (await Respuestas.DatoAsync(await Catalogos.Presentaciones(), "consultar las presentaciones"))?.Where(x => x.Estado).ToList() ?? new();
         _impuestos = (await Respuestas.DatoAsync(await ImpuestosApi.Obtener(), "consultar los impuestos"))?.Where(i => i.Estado != false).ToList() ?? new();
+        _monedas = (await Respuestas.DatoAsync(await MonedasApi.Obtener(), "consultar las monedas"))?.ToList() ?? new();
     }
 
     /// <summary>El % de venta del artículo viaja aparte (IVenta) para no romper las

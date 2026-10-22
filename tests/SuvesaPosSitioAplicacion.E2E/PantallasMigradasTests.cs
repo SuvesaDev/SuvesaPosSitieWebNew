@@ -79,6 +79,7 @@ public class PantallasMigradasTests
         { "/sales/repayment", "Devoluciones" },
         { "/buys/consignment/following", "Seguimiento de Consignaciones" },
         { "/consignment/dashboard", "Tablero de Consignación" },
+        { "/consignment/tickets", "Boletas de Consignación" },
         { "/initial/cash/deposits/consultdeposits", "Consulta Depósitos" },
         { "/parameters/family", "Familias" },
         { "/parameters/category", "Categorias" },

@@ -595,11 +595,27 @@
           ]
         },
         {
+          "codigo": "CONSIGNACION.BOLETAS_DE_CONSIGNACION",
+          "nombre": "Boletas de Consignación",
+          "ruta": "/consignment/tickets",
+          "padre": null,
+          "orden": 4,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "CONSIGNACION.INVENTARIO_FISICO_DE_CONSIGNACION",
           "nombre": "Inventario Físico de Consignación",
           "ruta": "/consignment/count",
           "padre": null,
-          "orden": 4,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -615,7 +631,7 @@
           "nombre": "Kardex de Consignación",
           "ruta": "/consignment/ledger",
           "padre": null,
-          "orden": 5,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",
@@ -631,7 +647,7 @@
           "nombre": "Facturacion de Consignaciones",
           "ruta": "/consignment/prebill",
           "padre": null,
-          "orden": 6,
+          "orden": 7,
           "acciones": [
             "VER",
             "CREAR",
@@ -647,7 +663,7 @@
           "nombre": "Estados de Consignación",
           "ruta": "/consignment/settlements",
           "padre": null,
-          "orden": 7,
+          "orden": 8,
           "acciones": [
             "VER",
             "CREAR",

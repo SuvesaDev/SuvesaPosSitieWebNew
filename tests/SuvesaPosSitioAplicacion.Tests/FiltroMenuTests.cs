@@ -144,7 +144,7 @@ public class FiltroMenuTests
         // maquila, Mermas) + 1 (Panel ejecutivo) + 1 (Tablero de Consignación, pantalla
         // huérfana que ya existía sin nodo de menú) + 1 (Ventas entre horas) + 1
         // (Importaciones) + 1 (Reportes → Importaciones, KPI trasladado fuera de
-        // Compras → Importaciones) + 1 (Pretoma) — ver PLAN_MODULO_REPORTES_ERP_WEB.md.
-        Assert.Equal(122, Contar(MenuSeePos.Items));
+        // Compras → Importaciones) + 1 (Pretoma) + 1 (Boletas de Consignación).
+        Assert.Equal(123, Contar(MenuSeePos.Items));
     }
 }

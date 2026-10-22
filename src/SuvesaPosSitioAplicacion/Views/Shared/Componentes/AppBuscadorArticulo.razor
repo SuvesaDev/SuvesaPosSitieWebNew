@@ -78,7 +78,7 @@
                                 <td><code class="small">@a.Cod_Articulo</code></td>
                                 <td>@a.Descripcion</td>
                                 <td class="seepos-importe">@Formato.Cantidad(a.Existencia)</td>
-                                <td class="seepos-importe">@Formato.Importe(a.Precio_A)</td>
+                                <td class="seepos-importe">@Formato.Importe(PrecioVenta.EnColones(a, a.Precio_A))</td>
                             </tr>
                         }
                     </tbody>

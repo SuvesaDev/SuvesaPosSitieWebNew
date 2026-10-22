@@ -403,7 +403,7 @@
             TipoCambioValorCompra = Formato.AImporte(_documento?.TipoCambio ?? 0),
             CodMonedaVenta = articulo.MonedaVenta,
             Cantidad = 1,
-            PrecioUnitario = Formato.AImporte(articulo.Precio_A),
+            PrecioUnitario = PrecioVenta.EnColones(articulo, articulo.Precio_A),
             Impuesto = Formato.AImporte(articulo.IVenta)
         };
 

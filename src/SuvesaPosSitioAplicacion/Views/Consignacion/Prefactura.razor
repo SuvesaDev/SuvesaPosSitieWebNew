@@ -140,7 +140,15 @@
           }
           @if (_pref.Estado == 2)
           {
-            @if (UsuarioValidadoTieneRutas)
+            @if (TieneAtribucionCongelada)
+            {
+              <div class="small">
+                <span class="text-secondary d-block">Ruta / comisión (fijada al generar)</span>
+                <strong>@(NombreRutaCongelada ?? $"Ruta #{_pref.IdRutaComercial}")</strong>
+                <span class="text-secondary"> · agente @(_pref.IdUsuarioAgente ?? "—")</span>
+              </div>
+            }
+            else if (UsuarioValidadoTieneRutas)
             {
               <div style="width:16rem">
                 <label class="form-label" for="prefactura-ruta">Ruta comercial *</label>
@@ -156,7 +164,7 @@
                   <option value="">Seleccione...</option>
                   @foreach (var agente in _agentesRuta) { <option value="@agente.IdUsuario">@agente.Nombre@(agente.EsPredeterminado ? " (predeterminado)" : "")</option> }
                 </select>
-                <div class="form-text">Agente titular de la ruta (no se selecciona manualmente).</div>
+                <div class="form-text">Agente titular de la ruta (no se selecciona manualmente). Misma regla que Facturación.</div>
                 @if (_idRutaComercial > 0 && _agentesRuta.Count == 0) { <div class="form-text text-danger">La ruta no tiene agentes activos configurados.</div> }
               </div>
             }
@@ -283,6 +291,8 @@
  private string _idUsuarioAgente = "";
  private bool _rutaEsSeleccionManual;
  private bool UsuarioValidadoTieneRutas => _desbloqueo.UsuarioValidado is not null && _rutasComerciales.Count > 0;
+ private bool TieneAtribucionCongelada => _pref?.IdRutaComercial is > 0;
+ private string? NombreRutaCongelada => _rutasComerciales.FirstOrDefault(r => r.IdRuta == _pref?.IdRutaComercial)?.Nombre;
 
  private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
 
@@ -469,7 +479,7 @@
          await Dialogos.ErrorAsync("Valide la clave interna de un cajero con una apertura de caja activa.");
          return;
      }
-     if (_rutaEsSeleccionManual && _idRutaComercial <= 0)
+     if (!TieneAtribucionCongelada && _rutaEsSeleccionManual && _idRutaComercial <= 0)
      {
          await Dialogos.ErrorAsync("Seleccione la ruta de venta (Funcionario SAC).");
          return;

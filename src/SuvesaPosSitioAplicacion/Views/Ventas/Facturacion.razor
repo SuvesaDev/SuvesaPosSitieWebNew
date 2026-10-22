@@ -42,7 +42,7 @@
    Los cálculos se hacen en decimal en CalculoDocumento; el DTO se arma una única vez
    al confirmar, para evitar que encabezado y detalle queden desincronizados. *@
 
-<AppPantalla Pantalla="@Titulo" Icono="bi-receipt" Subtitulo="Emisión de factura electrónica" Nivel="NivelPantalla.Escritorio">
+<AppPantalla Pantalla="@Titulo" Codigo="@CodigoPermiso" Icono="bi-receipt" Subtitulo="@SubtituloPantalla" Nivel="NivelPantalla.Escritorio">
     <Acciones>
         <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nueva factura</button>
     </Acciones>
@@ -552,7 +552,16 @@
 @code {
     [Parameter] public long ConteoId { get; set; }
     private bool EsPrefacturaConsignacion => ConteoId > 0;
-    private string Titulo => EsPrefacturaConsignacion ? "Prefactura de Consignación" : EsConsignacion ? "Registro de Consignaciones" : "Facturación";
+    private string Titulo => EsPrefacturaConsignacion ? "Facturacion de Consignaciones" : "Facturación";
+    /// <summary>
+    /// El rol concede <c>CONSIGNACION.FACTURACION_DE_CONSIGNACIONES</c> ("Facturacion de
+    /// Consignaciones"). Si esta pantalla se abre desde un conteo con el título
+    /// "Prefactura de Consignación" y sin código, AppPantalla niega el acceso.
+    /// </summary>
+    private string? CodigoPermiso => EsPrefacturaConsignacion ? "CONSIGNACION.FACTURACION_DE_CONSIGNACIONES" : null;
+    private string SubtituloPantalla => EsPrefacturaConsignacion
+        ? "Prefactura desde el conteo. Ruta SAC/Agente igual que en facturación."
+        : "Emisión de factura electrónica";
     private bool EsConsignacion => EsPrefacturaConsignacion;
     private ConteoConsignacion? _conteoPref;
     private bool _cargandoPref;
@@ -1932,7 +1941,19 @@
         linea.Recalcular(); _lineas.Add(linea); RecalcularTodo();
     }
     private DateTime _hoyEquipo = DateTime.Today;
-    private decimal PrecioCliente(InventarioDTO articulo) => (_cliente?.Tipoprecio ?? 1) switch { 2 when articulo.Precio_B > 0 => Formato.AImporte(articulo.Precio_B), 3 when articulo.Precio_C > 0 => Formato.AImporte(articulo.Precio_C), 4 when articulo.Precio_D > 0 => Formato.AImporte(articulo.Precio_D), _ => articulo.Promo_Activa && articulo.Promo_Inicio <= _hoyEquipo && articulo.Promo_Finaliza >= _hoyEquipo ? Formato.AImporte(articulo.Precio_Promo) : Formato.AImporte(articulo.Precio_A) };
+    private decimal PrecioCliente(InventarioDTO articulo)
+    {
+        var enMonedaCosto = (_cliente?.Tipoprecio ?? 1) switch
+        {
+            2 when articulo.Precio_B > 0 => Formato.AImporte(articulo.Precio_B),
+            3 when articulo.Precio_C > 0 => Formato.AImporte(articulo.Precio_C),
+            4 when articulo.Precio_D > 0 => Formato.AImporte(articulo.Precio_D),
+            _ => articulo.Promo_Activa && articulo.Promo_Inicio <= _hoyEquipo && articulo.Promo_Finaliza >= _hoyEquipo
+                ? Formato.AImporte(articulo.Precio_Promo)
+                : Formato.AImporte(articulo.Precio_A)
+        };
+        return PrecioVenta.EnColones(articulo, enMonedaCosto);
+    }
     /// <summary>Solo un super administrador puede pasar por encima del descuento
     /// máximo del artículo en una línea puntual — es una excepción deliberada, no un
     /// ajuste de configuración, así que se pide confirmación cada vez.</summary>

@@ -356,6 +356,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Boletas de Consignación",
+                    Codigo = "CONSIGNACION.BOLETAS_DE_CONSIGNACION",
+                    Ruta = "/consignment/tickets",
+                },
+                new ItemMenu
+                {
                     Titulo = "Inventario Físico de Consignación",
                     Codigo = "CONSIGNACION.INVENTARIO_FISICO_DE_CONSIGNACION",
                     Ruta = "/consignment/count",
