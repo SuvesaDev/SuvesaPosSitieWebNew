@@ -23,6 +23,28 @@
  <ChildContent>
   @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
 
+  <div class="card mb-3"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <strong>Conteos pendientes</strong>
+      <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CargarPendientes" disabled="@_cargandoPendientes">@(_cargandoPendientes ? "Actualizando..." : "Actualizar")</button>
+    </div>
+    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+      <thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th class="text-end">Vendido</th><th></th></tr></thead>
+      <tbody>
+        @foreach (var c in _pendientes)
+        {
+          <tr class="@(_conteo?.Id == c.Id ? "table-primary" : null)">
+            <td>@c.Id</td><td>@c.NombreCliente</td><td>@c.Fecha.ToString("dd/MM/yyyy")</td>
+            <td><span class="badge text-bg-secondary">@c.EstadoDescripcion</span></td>
+            <td class="text-end">@c.VendidoTotal.ToString("N3")</td>
+            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => AbrirConteo(c.Id)">Abrir</button></td>
+          </tr>
+        }
+        @if (!_cargandoPendientes && !_pendientes.Any()) { <tr><td colspan="6" class="text-secondary">No hay conteos abiertos. Elija un cliente para registrar uno nuevo.</td></tr> }
+      </tbody>
+    </table></div>
+  </div></div>
+
   <div class="card mb-3"><div class="card-body row g-2 align-items-end">
     <div class="col-md-5 position-relative">
       <label class="form-label">Cliente <span class="text-danger">*</span></label>
@@ -45,7 +67,7 @@
   {
     <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
   }
-  else if (_idCliente > 0)
+  else if (_conteo is null && _idCliente > 0)
   {
     <div class="card mb-3">
       <div class="card-header d-flex justify-content-between align-items-center">
@@ -109,33 +131,59 @@
         @if (_filas.Any() && !TodoContado) { <span class="ms-2 small text-secondary">Digite el físico de todos los artículos (0 vale).</span> }
       </div>
     </div>
+  }
 
-    @if (_conteo is not null)
-    {
-      <div class="card"><div class="card-header text-bg-success d-flex justify-content-between align-items-center">
-        <span>Conteo #@_conteo.Id — @_conteo.EstadoDescripcion</span>
+  @if (_conteo is not null)
+  {
+    <div class="card"><div class="card-header text-bg-success d-flex justify-content-between align-items-center">
+      <span>Conteo #@_conteo.Id — @_conteo.EstadoDescripcion · @_conteo.NombreCliente</span>
+      <div class="d-flex gap-2">
         @if (_conteo.Estado == 1 && _conteo.Lineas.Any(l => l.Vendido > 0))
         {
           <button class="btn btn-sm btn-light" @onclick="IrAPrefactura">Generar prefactura</button>
         }
-      </div><div class="card-body">
-        @if (_conteo.Estado == 5) { <div class="alert alert-warning d-flex justify-content-between align-items-center"><span>Las diferencias deben ser aprobadas antes de generar la prefactura.</span><button class="btn btn-warning" @onclick="AprobarDiferencias">Aprobar diferencias</button></div> }
-        <table class="table table-sm mb-0">
-          <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Consignado</th><th class="text-end">Físico</th><th class="text-end">Vendido</th><th class="text-end">Sobrante</th></tr></thead>
-          <tbody>@foreach (var l in _conteo.Lineas)
-          {
-            <tr class="@(l.Sobrante > 0 ? "table-warning" : "")">
-              <td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@l.NumeroLote</td>
-              <td class="text-end">@l.Consignado.ToString("N3")</td><td class="text-end">@l.Fisico.ToString("N3")</td>
-              <td class="text-end"><strong>@l.Vendido.ToString("N3")</strong></td><td class="text-end">@l.Sobrante.ToString("N3")</td>
-            </tr>
-          }</tbody>
-        </table>
-      </div></div>
-    }
+        @if (_conteo.Estado == 2)
+        {
+          <button class="btn btn-sm btn-light" @onclick="IrAFacturacion">Abrir prefactura</button>
+        }
+        @if (_conteo.Estado is 1 or 5)
+        {
+          <button class="btn btn-sm btn-outline-light" @onclick="PedirAnular">Anular conteo</button>
+        }
+      </div>
+    </div><div class="card-body">
+      @if (_conteo.Estado == 5) { <div class="alert alert-warning d-flex justify-content-between align-items-center"><span>Las diferencias deben ser aprobadas antes de generar la prefactura.</span><button class="btn btn-warning" @onclick="AprobarDiferencias">Aprobar diferencias</button></div> }
+      @if (_conteo.Estado == 1 && !_conteo.Lineas.Any(l => l.Vendido > 0))
+      {
+        <div class="alert alert-info py-2 small">No hay unidades vendidas en este conteo. Genere la prefactura solo si el físico coincidió; si el conteo quedó mal, anúlelo y registre uno nuevo.</div>
+      }
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Consignado</th><th class="text-end">Físico</th><th class="text-end">Vendido</th><th class="text-end">Sobrante</th></tr></thead>
+        <tbody>@foreach (var l in _conteo.Lineas)
+        {
+          <tr class="@(l.Sobrante > 0 ? "table-warning" : "")">
+            <td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@l.NumeroLote</td>
+            <td class="text-end">@l.Consignado.ToString("N3")</td><td class="text-end">@l.Fisico.ToString("N3")</td>
+            <td class="text-end"><strong>@l.Vendido.ToString("N3")</strong></td><td class="text-end">@l.Sobrante.ToString("N3")</td>
+          </tr>
+        }</tbody>
+      </table>
+    </div></div>
   }
  </ChildContent>
 </AppPantalla>
+
+<HxModal @ref="_modalAnular" Title="Anular conteo">
+ <BodyTemplate>
+  <p class="small text-secondary">El cliente quedará libre para registrar un conteo nuevo. Esto no mueve inventario.</p>
+  <label class="form-label">Motivo <span class="text-danger">*</span></label>
+  <textarea class="form-control" @bind="_motivoAnular"></textarea>
+ </BodyTemplate>
+ <FooterTemplate>
+  <button class="btn btn-secondary" @onclick="() => _modalAnular.HideAsync()">Cancelar</button>
+  <button class="btn btn-danger" @onclick="ConfirmarAnular" disabled="@_anulando">Anular</button>
+ </FooterTemplate>
+</HxModal>
 
 @code {
  private sealed class Fila
@@ -166,8 +214,13 @@
  private bool _guardando;
  private readonly List<Fila> _filas = new();
  private ConteoConsignacion? _conteo;
+ private List<ConteoConsignacionResumen> _pendientes = new();
  private List<BuscarUsuarioDTO> _usuarios = new();
  private static readonly string[] TiposDiferencia = ["Faltante", "Sobrante", "Merma", "Vencimiento", "Daño", "Cortesía"];
+ [SupplyParameterFromQuery] public long Id { get; set; }
+ private bool _cargandoPendientes, _anulando;
+ private HxModal _modalAnular = default!;
+ private string _motivoAnular = "";
 
  private bool TodoContado => _filas.Count > 0 && _filas.All(f => f.Fisico.HasValue);
 
@@ -176,6 +229,8 @@
      var r = await Usuarios.Buscar(null);
      if (r.EsCorrecta) _usuarios = (r.Responses ?? new List<BuscarUsuarioDTO>())
          .OrderBy(u => u.Nombre ?? u.IdUsuario).ToList();
+     await CargarPendientes();
+     if (Id > 0) await AbrirConteo(Id);
  }
 
  private static bool Ok<T>(LoteEnvelope<T> r) => r.Status == ResponseStatus._0 && r.Responses is not null;
@@ -196,7 +251,75 @@
      ++_versionBusquedaCliente;
      _idCliente = c.Identificacion; _texCliente = $"{c.Cedula} — {c.Nombre}";
      _clientes = new(); _filas.Clear(); _conteo = null; _error = "";
+     var abierto = _pendientes.FirstOrDefault(p => p.IdCliente == _idCliente)
+                   ?? (await Api.ConteosAsync(new ConteosConsignacionFiltro { IdCliente = _idCliente })).Responses?.FirstOrDefault();
+     if (abierto != null)
+     {
+         await AbrirConteo(abierto.Id);
+         return;
+     }
      await CargarExistencia();
+ }
+
+ private async Task CargarPendientes()
+ {
+     _cargandoPendientes = true;
+     var r = await Api.ConteosAsync(new ConteosConsignacionFiltro());
+     _cargandoPendientes = false;
+     if (!Ok(r))
+     {
+         _pendientes = new();
+         await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudieron cargar los conteos pendientes.");
+         return;
+     }
+     _pendientes = r.Responses ?? new();
+ }
+
+ private async Task AbrirConteo(long id)
+ {
+     if (id <= 0) return;
+     _cargando = true;
+     var r = await Api.ConteoAsync(id);
+     _cargando = false;
+     if (!Ok(r))
+     {
+         await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo abrir el conteo.");
+         return;
+     }
+     _conteo = r.Responses;
+     _idCliente = _conteo!.IdCliente;
+     _texCliente = _conteo.NombreCliente;
+     _agente = _conteo.Agente ?? "";
+     _filas.Clear();
+     _error = "";
+ }
+
+ private void PedirAnular()
+ {
+     _motivoAnular = "";
+     _ = _modalAnular.ShowAsync();
+ }
+
+ private async Task ConfirmarAnular()
+ {
+     if (_conteo is null) return;
+     if (string.IsNullOrWhiteSpace(_motivoAnular)) { await Dialogos.ErrorAsync("Indique el motivo."); return; }
+     _anulando = true;
+     var r = await Api.AnularConteoAsync(new AnularConteoConsignacion { IdConteo = _conteo.Id, Motivo = _motivoAnular.Trim() });
+     _anulando = false;
+     if (!Ok(r)) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo anular el conteo."); return; }
+     await _modalAnular.HideAsync();
+     Dialogos.Exito($"Conteo #{_conteo.Id} anulado.");
+     _conteo = null;
+     await CargarPendientes();
+     if (_idCliente > 0) await CargarExistencia();
+ }
+
+ private void IrAFacturacion()
+ {
+     if (_conteo is null) return;
+     var pref = _pendientes.FirstOrDefault(p => p.Id == _conteo.Id)?.IdPrefactura;
+     Nav.NavigateTo(pref is > 0 ? $"/consignment/prebill?id={pref}" : "/consignment/prebill");
  }
 
  private async Task CargarExistencia()
@@ -298,6 +421,7 @@
      if (!Ok(r)) { _error = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? "No se pudo guardar el conteo."; await Dialogos.ErrorAsync(_error); return; }
      _conteo = r.Responses;
      _error = "";
+     await CargarPendientes();
      Dialogos.Exito($"Conteo #{_conteo!.Id} guardado.");
  }
 
@@ -306,7 +430,7 @@
      if (_conteo is null) return;
      if (!await Dialogos.ConfirmarAsync("Las diferencias quedarán aprobadas y se habilitará la prefactura.", "Aprobar diferencias", "Aprobar")) return;
      var r = await Api.AprobarDiferenciasConteoAsync(new() { IdConteo = _conteo.Id, Aprobar = true });
-     if (Ok(r)) { _conteo = r.Responses; Dialogos.Exito("Diferencias aprobadas."); }
+     if (Ok(r)) { _conteo = r.Responses; await CargarPendientes(); Dialogos.Exito("Diferencias aprobadas."); }
      else await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudieron aprobar las diferencias.");
  }
 }

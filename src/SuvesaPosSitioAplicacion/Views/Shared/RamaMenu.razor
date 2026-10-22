@@ -1,5 +1,7 @@
 @* Rama del menu lateral. Se llama a si misma para los niveles 3 y 4. *@
+@using SuvesaPosSitioAplicacion.Security
 @inject IJSRuntime JS
+@inject IContextoSesion Sesion
 
 <li @ref="_elemento" class="nav-item seepos-menu-rama">
     @if (Item.EsGrupo)
@@ -14,7 +16,7 @@
         @if (Abierto)
         {
             <ul class="seepos-menu-nivel nav flex-column border-start">
-                @foreach (var hijo in Item.Hijos)
+                @foreach (var hijo in FiltroMenu.Visibles(Item.Hijos, Sesion))
                 {
                     <RamaMenu @key="hijo.Titulo" Item="hijo" AlAbrir="AlAbrir" RutaActual="@RutaActual"
                               Abierto="@(_hijoAbierto == hijo.Titulo)" AlAlternar="AlternarHijo" />

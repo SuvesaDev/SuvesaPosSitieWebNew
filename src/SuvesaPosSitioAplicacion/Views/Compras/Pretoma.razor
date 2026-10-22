@@ -331,6 +331,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await Sesion.CargarAsync();
+        if (!Sesion.PuedeVer("COMPRAS.TOMA.PRETOMA")) return;
         var r = await Api.BodegasOperativasAsync(SesionBodega());
         _bodegas = r.Status == ResponseStatus._0
             ? (r.Responses ?? new()).Where(b => b.IdSucursal == IdSucursal()).ToList()

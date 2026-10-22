@@ -30,6 +30,7 @@
 @inject ICompras Compras
 @inject IEmisoresFiscales EmisoresApi
 @inject IPerfilesEmision PerfilesApi
+@inject ISeriesFacturacionFiscales SeriesApi
 @inject IComandosFacturacion Comandos
 @inject ICobrosCredito CobrosCreditoApi
 @inject ITipoCambio TipoCambioApi
@@ -78,6 +79,10 @@
                                     <option value="false">Contado</option>
                                     <option value="true">Crédito</option>
                                 </select>
+                                @if (EsPrefacturaConsignacion)
+                                {
+                                    <div class="form-text">La liquidación (contado/crédito) se confirma al facturar; aquí sirve para listar la serie.</div>
+                                }
                                 @if (_creditoAviso is not null)
                                 {
                                     <div class="form-text text-danger">@_creditoAviso</div>
@@ -86,7 +91,7 @@
                             <div class="col-12 col-md-4">
                                 <label class="form-label">Serie / documento a emitir</label>
                                 <select class="form-select" @bind="_idPerfil" @bind:after="AlCambiarPerfil" disabled="@(_perfiles.Count == 0)">
-                                    <option value="0">@(_perfiles.Count == 0 ? "Seleccione empresa y sucursal..." : "Seleccione...")</option>
+                                    <option value="0">@(_perfiles.Count == 0 ? (_idEmpresa <= 0 ? "Seleccione empresa..." : "No hay series para esta empresa") : "Seleccione...")</option>
                                     @foreach (var p in _perfiles)
                                     {
                                         <option value="@p.IdSerie" disabled="@(!p.Elegible)">
@@ -791,7 +796,7 @@
         // REDISENO_TIPOS_SERIES_CONDICION.md: el Tipo ya no lleva Contado/Credito —
         // la condición y la elegibilidad de la serie las resuelve PerfilesApi.Elegibles
         // según la Condición de venta elegida en pantalla.
-        _tipos = (await Respuestas.DatoAsync(await Api.Tipos(), "consultar los tipos de factura"))?.Where(t => t.Activo && (int)t.Uso == 1).ToList() ?? new();
+        _tipos = (await Respuestas.DatoAsync(await Api.Tipos(), "consultar los tipos de factura"))?.Where(t => t.Activo).ToList() ?? new();
         _monedas = (await Respuestas.DatoAsync(await Compras.Monedas(), "consultar las monedas"))?.ToList() ?? new();
         if (_moneda == 0) _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0;
         await CargarRutasComerciales();
@@ -802,7 +807,9 @@
 
         _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
         _idEmisor = _emisores.Count == 1 ? _emisores[0].Id : _emisores.FirstOrDefault()?.Id ?? 0;
-        await CargarPerfiles();
+        // Las series se cargan al desbloquear, cuando ya hay empresa de facturación.
+        // ObtenerEmpresas (todos los emisores) no es el mismo catálogo que
+        // ObtenerEmpresasFacturacion: usar el primero dejaba el combo vacío.
     }
 
     private async Task CargarRutasComerciales()
@@ -871,15 +878,87 @@
         _idPerfil = 0;
         _tipoFactura = 0;
         _perfilAviso = null;
-        if (_idEmisor <= 0 || Sesion.IdSucursal <= 0) return;
+        if (_idEmisor <= 0) return;
 
-        var lista = await Respuestas.DatoAsync(
-            await PerfilesApi.Elegibles(_idEmisor, Sesion.IdSucursal, null, _esCredito ? "credito" : "contado"),
-            "consultar las series disponibles para facturar");
-        _perfiles = (lista ?? new List<SuvesaPosSitioAplicacion.DTOs.Cobros.PerfilEmisionElegibleWebDTO>())
+        var modalidad = _esCredito ? "credito" : "contado";
+        if (Sesion.IdSucursal > 0)
+        {
+            var r = await PerfilesApi.Elegibles(_idEmisor, Sesion.IdSucursal, null, modalidad);
+            if (r.EsCorrecta && r.Responses is { Count: > 0 })
+                _perfiles = r.Responses.OrderByDescending(p => p.Elegible).ThenBy(p => p.Descripcion).ToList();
+        }
+
+        // Elegibles exige permiso de Facturación y emisor+sucursal exactos. Si viene
+        // vacío (403, sucursal distinta, serie de consignación), se lista el catálogo.
+        if (_perfiles.Count == 0)
+            await CargarPerfilesDesdeCatalogo();
+
+        RecalcularRuta();
+        await AutoSeleccionarPerfil();
+    }
+
+    private async Task CargarPerfilesDesdeCatalogo()
+    {
+        var r = await SeriesApi.Obtener();
+        if (!r.EsCorrecta || r.Responses is null) return;
+
+        var delEmisor = r.Responses.Where(s => s.IdEmisor == _idEmisor).ToList();
+        var delAmbito = Sesion.IdSucursal > 0
+            ? delEmisor.Where(s => s.IdSucursal == Sesion.IdSucursal).ToList()
+            : delEmisor;
+        if (delAmbito.Count == 0) delAmbito = delEmisor;
+
+        _perfiles = delAmbito
+            .Select(s =>
+            {
+                string? motivo = null;
+                if (string.Equals(s.CodigoFE, "03", StringComparison.Ordinal))
+                    motivo = "La serie es de nota de crédito.";
+                else if (_esCredito && s.EsTiquete)
+                    motivo = "Un tiquete no puede ser a crédito.";
+                else if (!EsPrefacturaConsignacion && _esCredito && !s.EsCredito)
+                    motivo = "La serie no está marcada para crédito.";
+                else if (!EsPrefacturaConsignacion && !_esCredito && s.EsCredito)
+                    motivo = "La serie es exclusiva de crédito.";
+                return new SuvesaPosSitioAplicacion.DTOs.Cobros.PerfilEmisionElegibleWebDTO
+                {
+                    IdSerie = s.IdSerie,
+                    Descripcion = string.IsNullOrWhiteSpace(s.SucursalNombre) ? s.Descripcion : $"{s.Descripcion} — {s.SucursalNombre}",
+                    NumeroTerminal = s.NumeroTerminal,
+                    IdTipoFactura = s.IdTipoFactura,
+                    CodigoFe = s.CodigoFE,
+                    TipoNombre = s.TipoFacturaDescripcion,
+                    EsCredito = s.EsCredito,
+                    EmisionV44Habilitada = s.EmisionV44Habilitada,
+                    Elegible = motivo is null,
+                    MotivoNoElegible = motivo,
+                    EsTiquete = s.EsTiquete,
+                    EsInterna = !s.RequiereDocumentoElectronico,
+                    Naturaleza = s.Naturaleza,
+                };
+            })
             .OrderByDescending(p => p.Elegible).ThenBy(p => p.Descripcion)
             .ToList();
-        RecalcularRuta();
+    }
+
+    private async Task AutoSeleccionarPerfil()
+    {
+        var elegibles = _perfiles.Where(p => p.Elegible).ToList();
+        SuvesaPosSitioAplicacion.DTOs.Cobros.PerfilEmisionElegibleWebDTO? pick = null;
+        if (elegibles.Count == 1)
+            pick = elegibles[0];
+        else if (EsPrefacturaConsignacion && elegibles.Count > 0)
+            pick = elegibles.FirstOrDefault(p => !p.EsTiquete) ?? elegibles[0];
+        if (pick is not null)
+        {
+            _idPerfil = pick.IdSerie;
+            await AlCambiarPerfil();
+            return;
+        }
+        if (_idEmpresa > 0 && _perfiles.Count == 0)
+            _perfilAviso = "No hay series configuradas para esta empresa. Revise Parámetros → Series de facturación.";
+        else if (_perfiles.Count > 0 && elegibles.Count == 0)
+            _perfilAviso = _perfiles[0].MotivoNoElegible ?? "Ninguna serie aplica a esta condición.";
     }
 
     private async Task AlCambiarPerfil()
@@ -895,12 +974,12 @@
             return;
         }
         var tipo = _tipos.FirstOrDefault(t => t.Id == p.IdTipoFactura);
-        if (tipo is null)
+        if (tipo is null && !EsPrefacturaConsignacion)
         {
             _perfilAviso = "El tipo de documento del perfil no está disponible en esta pantalla.";
             return;
         }
-        _tipoFactura = tipo.Codigo;
+        _tipoFactura = tipo?.Codigo ?? 0;
         // La apertura de caja se necesita para preventa de contado y para tiquete;
         // el aviso de ruta inválida se muestra junto al botón Emitir.
         await CargarCobroContadoAsync();
@@ -1245,7 +1324,7 @@
 
         _empresas = (await Respuestas.DatoAsync(await Api.Empresas(), "consultar las empresas de facturación"))?.ToList() ?? new();
         if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
-        AlCambiarEmpresa();
+        await AlCambiarEmpresa();
 
         // La descarga grande empieza mientras el cajero elige cliente y tipo de
         // factura, por lo que normalmente el catálogo ya está disponible al abrirlo.
@@ -1255,13 +1334,17 @@
 
     // Al cambiar de empresa se refrescan sus actividades económicas (vienen en el
     // emisor) y se preselecciona la principal.
-    private void AlCambiarEmpresa()
+    private async Task AlCambiarEmpresa()
     {
         var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
         _actividadesEmpresa = empresa?.Actividades?.ToList() ?? new();
         _codActividad = _actividadesEmpresa.FirstOrDefault(a => a.Principal == true)?.Codigo
                         ?? _actividadesEmpresa.FirstOrDefault()?.Codigo
                         ?? string.Empty;
+        // Empresa y emisor son el mismo registro (Centros/Emisor). Las series se
+        // filtran por IdEmisor: hay que recargarlas al cambiar de empresa.
+        _idEmisor = _idEmpresa;
+        await CargarPerfiles();
     }
 
     private async Task BuscarClientes()
@@ -1919,12 +2002,23 @@
     private async Task AbrirCobro()
     {
         if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
-        if (_cliente is null || _idPerfil == 0 || _tipoFactura == 0 || _moneda == 0 || _lineas.Count == 0)
-        { await Dialogos.ErrorAsync("Seleccione cliente, condición, la serie a emitir, moneda y al menos un artículo."); return; }
+        if (MotivoCabeceraIncompleta() is { } motivoCobro) { await Dialogos.ErrorAsync(motivoCobro); return; }
         if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { await Dialogos.ErrorAsync("El cliente tiene restricción de morosidad."); return; }
         if (_cliente.OrdenCompra && string.IsNullOrWhiteSpace(_ordenCompra)) { await Dialogos.ErrorAsync("El cliente requiere una orden de compra."); return; }
         if (RequiereAperturaContado && _numAperturaContado is not > 0) { await Dialogos.ErrorAsync(_avisoCajaContado ?? "No hay una caja abierta para facturar de contado."); return; }
         await _modalCobro.ShowAsync();
+    }
+
+    private string? MotivoCabeceraIncompleta()
+    {
+        if (_cliente is null) return "Seleccione el cliente.";
+        if (_lineas.Count == 0) return "Agregue al menos un artículo.";
+        if (_moneda == 0) return "Seleccione la moneda.";
+        if (_idPerfil == 0 || (!EsPrefacturaConsignacion && _tipoFactura == 0))
+            return _perfiles.Count == 0
+                ? "No hay series configuradas para esta empresa. Revise Parámetros → Series de facturación."
+                : "Seleccione la serie / documento a emitir.";
+        return null;
     }
 
     private Task EmitirDesdeModal() => Emitir();
@@ -1940,7 +2034,7 @@
     private async Task Emitir()
     {
         if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
-        if (_cliente is null || _idPerfil == 0 || _tipoFactura == 0 || _moneda == 0 || _lineas.Count == 0) { await Dialogos.ErrorAsync("Seleccione cliente, condición, la serie a emitir, moneda y al menos un artículo."); return; }
+        if (MotivoCabeceraIncompleta() is { } motivoCabecera) { await Dialogos.ErrorAsync(motivoCabecera); return; }
         if (UsuarioValidadoTieneRutas && _idRutaComercial == 0) { await Dialogos.ErrorAsync("Seleccione la ruta comercial del usuario validado."); return; }
         if (UsuarioValidadoTieneRutas && string.IsNullOrWhiteSpace(_idUsuarioAgente)) { await Dialogos.ErrorAsync("La ruta no tiene un agente predeterminado activo."); return; }
         if (_moneda == 2 && _tipoCambio is null) { await Dialogos.ErrorAsync("No se pudo obtener el tipo de cambio. Vuelva a seleccionar la moneda dólares."); return; }

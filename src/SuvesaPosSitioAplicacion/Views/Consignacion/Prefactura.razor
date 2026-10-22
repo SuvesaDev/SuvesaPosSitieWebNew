@@ -55,10 +55,46 @@
           </tr>
         }
         @if (_cargandoLista) { <tr><td colspan="7" class="text-secondary">Cargando prefacturas...</td></tr> }
-        else if (!_lista.Any()) { <tr><td colspan="7" class="text-secondary">No hay prefacturas pendientes. Genérelas desde Inventario Físico de Consignación (botón «Generar prefactura») o ábralas por el N.º que aparece en la columna #.</td></tr> }
+        else if (!_lista.Any()) { <tr><td colspan="7" class="text-secondary">No hay prefacturas pendientes. Si hay un conteo abierto abajo, genere la prefactura desde ahí.</td></tr> }
       </tbody>
     </table></div>
-    <span class="form-text">La prefactura se genera desde <strong>Inventario Físico de Consignación</strong> (botón "Generar prefactura").</span>
+    @if (_conteos.Any())
+    {
+      <div class="mt-3">
+        <strong>Conteos pendientes de facturar</strong>
+        <div class="table-responsive mt-2"><table class="table table-sm align-middle mb-0">
+          <thead><tr><th>Conteo</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th class="text-end">Vendido</th><th></th></tr></thead>
+          <tbody>
+            @foreach (var c in _conteos)
+            {
+              <tr>
+                <td>#@c.Id</td><td>@c.NombreCliente</td><td>@c.Fecha.ToString("dd/MM/yyyy")</td>
+                <td><span class="badge text-bg-secondary">@c.EstadoDescripcion</span></td>
+                <td class="text-end">@c.VendidoTotal.ToString("N3")</td>
+                <td class="text-end">
+                  @if (c.IdPrefactura is > 0)
+                  {
+                    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => Cargar(c.IdPrefactura!.Value)">Abrir prefactura</button>
+                  }
+                  else if (c.Estado == 1 && c.VendidoTotal > 0)
+                  {
+                    <button type="button" class="btn btn-sm btn-primary" @onclick="() => IrAGenerar(c.Id)">Generar prefactura</button>
+                  }
+                  else
+                  {
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => IrAConteo(c.Id)">Abrir conteo</button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table></div>
+      </div>
+    }
+    else
+    {
+      <span class="form-text">La prefactura se genera desde un conteo en <strong>Inventario Físico de Consignación</strong>.</span>
+    }
   </div></div>
 
   @if (_pref is not null)
@@ -207,6 +243,7 @@
 
  private PrefacturaConsignacion? _pref;
  private List<PrefacturaConsignacionResumen> _lista = new();
+ private List<ConteoConsignacionResumen> _conteos = new();
  private string _estadoFiltro = "";
  private long _idBuscar;
  private int _condicion = 1;
@@ -275,13 +312,21 @@
          {
              _lista = new();
              await Fallo(r, "No se pudieron cargar las prefacturas de consignación.");
-             return;
          }
-         _lista = r.Responses ?? new();
+         else _lista = r.Responses ?? new();
+
+         var rc = await Api.ConteosAsync(new ConteosConsignacionFiltro());
+         if (Ok(rc)) _conteos = rc.Responses ?? new();
+         else
+         {
+             _conteos = new();
+             await Fallo(rc, "No se pudieron cargar los conteos pendientes.");
+         }
      }
      catch (Exception ex)
      {
          _lista = new();
+         _conteos = new();
          _error = ex.Message;
          await Dialogos.ErrorAsync(_error);
      }
@@ -290,6 +335,9 @@
          _cargandoLista = false;
      }
  }
+
+ private void IrAGenerar(long idConteo) => Nav.NavigateTo($"/consignment/prebill/from/{idConteo}");
+ private void IrAConteo(long idConteo) => Nav.NavigateTo($"/consignment/count?id={idConteo}");
 
  private async Task AbrirPorNumero()
  {

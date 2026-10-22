@@ -108,9 +108,20 @@ public sealed class ContextoSesion : IContextoSesion
 
         var codigo = MenuSeePos.ResolverCodigo(funcionCodigo);
 
-        if (_porFuncion.TryGetValue(codigo, out var permiso))
+        if (_porFuncion.TryGetValue(codigo, out var permiso) && permiso.Permite(accion))
         {
-            return permiso.Permite(accion);
+            return true;
+        }
+
+        // VER (u otra acción) en el grupo padre cubre las hojas. En Roles, marcar
+        // Compras → Toma no grababa Pretoma ni Toma Física, y el submenú las
+        // enseñaba igual: la pantalla y el API las negaban.
+        foreach (var padre in _permisos)
+        {
+            if (PermisoFuncion.Cubre(padre.FuncionCodigo, codigo) && padre.Permite(accion))
+            {
+                return true;
+            }
         }
 
         // Funcion no mencionada por el rol: no es lo mismo que denegada mientras el

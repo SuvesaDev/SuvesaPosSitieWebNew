@@ -105,7 +105,10 @@ public sealed class LotesApiCliente : ILotesApiCliente
         }
         catch (JsonException)
         {
-            return new LoteEnvelope<T> { Status = ResponseStatus._1, CurrentException = $"Respuesta no reconocida del API ({(int)resp.StatusCode})." };
+            var denegado = (int)resp.StatusCode == 403
+                ? "No tiene permiso para esta operación. Revise VER/CREAR de esa función en Roles (en Toma hay que marcar Pretoma y Toma Física, o el grupo Toma)."
+                : $"Respuesta no reconocida del API ({(int)resp.StatusCode}).";
+            return new LoteEnvelope<T> { Status = ResponseStatus._1, CurrentException = denegado };
         }
     }
 

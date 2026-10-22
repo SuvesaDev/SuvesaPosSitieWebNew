@@ -23,12 +23,15 @@ public interface IConsignacionInvApiCliente
 
     Task<LoteEnvelope<BoletaConsignacion>> RegistrarBoletaAsync(BoletaConsignacionRequest req);
     Task<LoteEnvelope<BoletaConsignacion>> BoletaAsync(long id);
+    Task<LoteEnvelope<List<BoletaConsignacionResumen>>> BoletasAsync(BoletasConsignacionFiltro req);
     Task<LoteEnvelope<BoletaConsignacion>> AnularBoletaAsync(AnularBoletaConsignacion req);
 
     Task<LoteEnvelope<ExistenciaConsignacion>> ExistenciaAsync(long idCliente);
     Task<LoteEnvelope<ConteoConsignacion>> RegistrarConteoAsync(ConteoConsignacionRequest req);
     Task<LoteEnvelope<ConteoConsignacion>> AprobarDiferenciasConteoAsync(AprobarDiferenciasConteoConsignacion req);
     Task<LoteEnvelope<ConteoConsignacion>> ConteoAsync(long id);
+    Task<LoteEnvelope<List<ConteoConsignacionResumen>>> ConteosAsync(ConteosConsignacionFiltro req);
+    Task<LoteEnvelope<ConteoConsignacion>> AnularConteoAsync(AnularConteoConsignacion req);
     Task<LoteEnvelope<LiquidacionConsignacion>> LiquidacionAsync(long idConteo);
     Task<LoteEnvelope<List<LiquidacionConsignacion>>> LiquidacionesAsync(LiquidacionesConsignacionFiltro req);
     Task<LoteEnvelope<TableroConsignacion>> TableroAsync();
@@ -106,6 +109,9 @@ public sealed class ConsignacionInvApiCliente : IConsignacionInvApiCliente
     public Task<LoteEnvelope<BoletaConsignacion>> BoletaAsync(long id)
         => EnviarAsync<BoletaConsignacion>(HttpMethod.Get, $"ConsignacionInventario/Boleta?id={id}");
 
+    public Task<LoteEnvelope<List<BoletaConsignacionResumen>>> BoletasAsync(BoletasConsignacionFiltro req)
+        => EnviarAsync<List<BoletaConsignacionResumen>>(HttpMethod.Post, "ConsignacionInventario/Boletas", req);
+
     public Task<LoteEnvelope<BoletaConsignacion>> AnularBoletaAsync(AnularBoletaConsignacion req)
         => EnviarAsync<BoletaConsignacion>(HttpMethod.Post, "ConsignacionInventario/AnularBoleta", req);
 
@@ -130,6 +136,12 @@ public sealed class ConsignacionInvApiCliente : IConsignacionInvApiCliente
 
     public Task<LoteEnvelope<ConteoConsignacion>> ConteoAsync(long id)
         => EnviarAsync<ConteoConsignacion>(HttpMethod.Get, $"ConsignacionInventario/Conteo?id={id}");
+
+    public Task<LoteEnvelope<List<ConteoConsignacionResumen>>> ConteosAsync(ConteosConsignacionFiltro req)
+        => EnviarAsync<List<ConteoConsignacionResumen>>(HttpMethod.Post, "ConsignacionInventario/Conteos", req);
+
+    public Task<LoteEnvelope<ConteoConsignacion>> AnularConteoAsync(AnularConteoConsignacion req)
+        => EnviarAsync<ConteoConsignacion>(HttpMethod.Post, "ConsignacionInventario/AnularConteo", req);
 
     public Task<LoteEnvelope<LiquidacionConsignacion>> LiquidacionAsync(long idConteo)
         => EnviarAsync<LiquidacionConsignacion>(HttpMethod.Get, $"ConsignacionInventario/Liquidacion?idConteo={idConteo}");

@@ -38,7 +38,9 @@ public class FiltroMenuTests
         public IReadOnlyCollection<PermisoFuncion> Permisos => Array.Empty<PermisoFuncion>();
 
         public bool EstaGobernada(string funcionCodigo) => true;
-        public bool PuedeVer(string funcionCodigo) => EsSuperAdministrador || _codigos.Contains(funcionCodigo);
+        public bool PuedeVer(string funcionCodigo)
+            => EsSuperAdministrador
+               || _codigos.Any(c => PermisoFuncion.Cubre(c, funcionCodigo));
         public bool Puede(string funcionCodigo, AccionPantalla accion) => PuedeVer(funcionCodigo);
         public Task CargarAsync() => Task.CompletedTask;
     }
@@ -96,6 +98,33 @@ public class FiltroMenuTests
 
         Assert.Single(hojas);
         Assert.Equal("Proformas o Cotización", hojas[0].Titulo);
+    }
+
+    [Fact]
+    public void RamaToma_ElPermisoDelGrupoCubrePretomaYTomaFisica()
+    {
+        var sesion = new SesionFalsa(false, "COMPRAS.TOMA");
+        var toma = MenuSeePos.Items
+            .Single(i => i.Codigo == "COMPRAS")
+            .Hijos.Single(h => h.Codigo == "COMPRAS.TOMA");
+
+        var hojas = FiltroMenu.Visibles(toma.Hijos, sesion).Select(h => h.Codigo).ToList();
+
+        Assert.Contains("COMPRAS.TOMA.PRETOMA", hojas);
+        Assert.Contains("COMPRAS.TOMA.TOMA_FISICA", hojas);
+    }
+
+    [Fact]
+    public void RamaToma_SoloTomaFisicaNoEnseñaPretoma()
+    {
+        var sesion = new SesionFalsa(false, "COMPRAS.TOMA.TOMA_FISICA");
+        var toma = MenuSeePos.Items
+            .Single(i => i.Codigo == "COMPRAS")
+            .Hijos.Single(h => h.Codigo == "COMPRAS.TOMA");
+
+        var hojas = FiltroMenu.Visibles(toma.Hijos, sesion).Select(h => h.Codigo).ToList();
+
+        Assert.Equal(new[] { "COMPRAS.TOMA.TOMA_FISICA" }, hojas);
     }
 
     [Fact]
