@@ -362,10 +362,7 @@
                     {
                         <button type="button" class="btn btn-sm @ClasePestanaBonificacion" @onclick="MostrarBonificacion">Bonificación</button>
                     }
-                    @if (!Sesion.EsCostaPets)
-                    {
-                        <button type="button" class="btn btn-sm @ClasePestanaOtros" @onclick="MostrarOtros">Otros datos</button>
-                    }
+                    <button type="button" class="btn btn-sm @ClasePestanaOtros" @onclick="MostrarOtros">Otros datos</button>
                 </nav>
 
                 @if (_pestanaInventario == "generales")
