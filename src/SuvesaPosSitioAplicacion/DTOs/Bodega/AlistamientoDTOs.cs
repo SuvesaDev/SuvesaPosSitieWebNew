@@ -4,6 +4,11 @@ public sealed class AlistamientoFiltro
 {
     public int? Estado { get; set; }
     public string? Texto { get; set; }
+    public int? IdSucursal { get; set; }
+    /// <summary>1 = alta (crédito), 0 = normal. Sin valor: todas.</summary>
+    public int? Prioridad { get; set; }
+    /// <summary>true = solo tiquetes, false = solo facturas. Sin valor: todos.</summary>
+    public bool? EsTiquete { get; set; }
 }
 
 public sealed class AlistamientoResumen
@@ -19,6 +24,8 @@ public sealed class AlistamientoResumen
     public long CodCliente { get; set; }
     public bool EsCredito { get; set; }
     public bool EsPreventa { get; set; }
+    public bool EsTiquete { get; set; }
+    public DateTime? FechaAceptacion { get; set; }
     public string? UsuarioAlistamiento { get; set; }
     public int Lineas { get; set; }
     public int LineasCompletas { get; set; }

@@ -117,6 +117,7 @@ public partial class SeriesFacturacionFiscal
             RequiereDocumentoElectronico = serie.RequiereDocumentoElectronico,
             CodigoFE = serie.CodigoFE,
             EmisionV44Habilitada = serie.EmisionV44Habilitada,
+            SinAlistamiento = serie.SinAlistamiento,
             NumeroSucursalFE = serie.NumeroSucursalFE,
             TieneDocumentos = serie.TieneDocumentos
         };

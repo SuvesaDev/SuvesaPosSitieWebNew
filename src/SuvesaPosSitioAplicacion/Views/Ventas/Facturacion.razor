@@ -66,7 +66,7 @@
                             <div class="col-12 col-md-5">
                                 <label class="form-label">Buscar cliente</label>
                                 <div class="seepos-factura-cliente">
-                                    <div class="input-group"><input class="form-control" placeholder="Cédula o nombre" value="@_textoCliente" @oninput="AlEscribirCliente" @onkeydown="BuscarClienteConEnter" /><button type="button" class="btn btn-outline-primary" @onclick="BuscarClientes">Buscar</button></div>
+                                    <div class="input-group"><input class="form-control" placeholder="Cédula o nombre" value="@_textoCliente" @oninput="AlEscribirCliente" @onkeydown="BuscarClienteConEnter" /><button type="button" class="btn btn-outline-primary" @onclick="BuscarClientes">Buscar</button><button type="button" class="btn btn-outline-secondary" title="Venta ocasional (feria, cliente final): tiquete de contado a nombre genérico" @onclick="ElegirClienteContado"><i class="bi bi-person me-1" aria-hidden="true"></i>Cliente de contado</button></div>
                                     @if (_clientesEncontrados.Count > 0)
                                     {
                                         <div class="list-group seepos-factura-cliente-lista">@foreach (var cliente in _clientesEncontrados) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirCliente(cliente)"><strong>@cliente.Nombre</strong><span class="text-secondary ms-2">@cliente.Cedula</span></button> }</div>
@@ -108,6 +108,14 @@
                         @if (_cliente is not null)
                         {
                             <div class="alert alert-light border mt-3 mb-0"><div class="d-flex justify-content-between"><strong>@_cliente.Nombre</strong><div><button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="AbrirCorreos"><i class="bi bi-envelope me-1" aria-hidden="true"></i>Correos del comprobante</button><button type="button" class="btn btn-sm btn-link" @onclick="QuitarCliente">Cambiar</button></div></div><div class="small text-secondary">@_cliente.Cedula · @_cliente.Telefono_01 · @_cliente.E_Mail</div>@if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { <div class="small text-danger mt-1">Cliente con restricción de morosidad.</div> } @if (_cliente.OrdenCompra) { <div class="small text-warning mt-1">El cliente requiere orden de compra.</div> } @if (_correoComprobanteConsultado && !_tieneCorreoComprobante) { <div class="small text-warning mt-1">Este cliente no tiene correo de comprobante. Si se emite, el documento no se le podrá enviar.</div> }
+                                @if (EsClienteContado && MostrarCobroContado)
+                                {
+                                    <div class="mt-2 pt-2 border-top">
+                                        <label class="form-label small mb-1" for="factura-nombre-generico">Nombre del cliente (opcional)</label>
+                                        <input id="factura-nombre-generico" class="form-control form-control-sm" maxlength="100" placeholder="Ej.: Alberto" @bind="_nombreGenerico" @bind:event="onchange" />
+                                        <div class="form-text">Cliente de contado: no requiere identificación. Solo tiquete, sin crédito.</div>
+                                    </div>
+                                }
                                 <div class="mt-2 pt-2 border-top">
                                     <label class="form-label small mb-1">Actividad económica del cliente</label>
                                     @if (_buscandoActsCliente)
@@ -184,6 +192,15 @@
                                         @foreach (var b in _bodegas) { <option value="@b.IdBodega">@b.NombreBodega</option> }
                                     </select></div>
                             }
+                            <div class="col-12 col-md-3"><label class="form-label" for="factura-tarifa">Tarifa</label>
+                                <select id="factura-tarifa" class="form-select" @bind="_tarifa" @bind:after="AlCambiarTarifa" disabled="@(_cliente is null)">
+                                    <option value="0">Del cliente (@NombreTarifa(_cliente?.Tipoprecio is > 0 and <= 4 ? _cliente.Tipoprecio : 1))</option>
+                                    <option value="1">Precio A</option>
+                                    <option value="2">Precio B</option>
+                                    <option value="3">Precio C</option>
+                                    <option value="4">Precio D</option>
+                                </select>
+                                <div class="form-text">Lista de precios de esta factura.</div></div>
                             <div class="col-12 col-md-6"><label class="form-label">Empresa</label><select class="form-select" @bind="_idEmpresa" @bind:after="AlCambiarEmpresa"><option value="0">Seleccione...</option>@foreach (var empresa in _empresas) { <option value="@empresa.Id">@empresa.Nombre</option> }</select></div>
                                 <div class="col-12 col-md-6">
                                     <label class="form-label">Actividad económica</label>
@@ -192,7 +209,7 @@
                                         @foreach (var act in _actividadesEmpresa) { <option value="@act.Codigo">@act.Codigo — @act.Descripcion@(act.Principal == true ? " (principal)" : "")</option> }
                                     </select>
                                 </div>
-                                @if (UsuarioValidadoTieneRutas)
+                                @if (RutaRequerida)
                                 {
                                     <div class="col-12 col-md-6">
                                         <label class="form-label" for="factura-ruta">Ruta comercial *</label>
@@ -200,7 +217,7 @@
                                             <option value="0">@(_rutasComerciales.Count == 0 ? "No hay rutas configuradas" : "Seleccione...")</option>
                                             @foreach (var ruta in _rutasComerciales) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }
                                         </select>
-                                        <div class="form-text">@(_rutaEsSeleccionManual ? "Obligatoria: seleccione la ruta de venta (Funcionario SAC)." : "Rutas asignadas al usuario validado con la clave interna.")</div>
+                                        <div class="form-text">@(_rutasComerciales.Count == 0 ? "No hay rutas activas para este usuario en esta sucursal. Créelas o asígnelas en Parámetros → Rutas." : _rutaEsSeleccionManual ? "Obligatoria: seleccione la ruta de venta (Funcionario SAC)." : "Rutas asignadas al usuario validado con la clave interna.")</div>
                                     </div>
                                     <div class="col-12 col-md-6">
                                         <label class="form-label" for="factura-agente-ruta">Agente asignado</label>
@@ -485,7 +502,7 @@
     </FooterTemplate>
 </HxModal>
 
-<AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="PrepararArticulo" IdBodega="@(EsConsignacion ? null : (int?)_bodega)" />
+<AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="PrepararArticulo" IdBodega="@(EsConsignacion ? null : (int?)_bodega)" TiposPermitidos="TiposVendibles" />
 
 <HxModal @ref="_modalCobro" Title="Cobro del tiquete" Size="ModalSize.Regular" Scrollable="true">
     <BodyTemplate>
@@ -734,6 +751,10 @@
     private bool _rutaEsSeleccionManual;
     private string NombreAgenteRuta => _agentesRuta.FirstOrDefault(a => a.IdUsuario == _idUsuarioAgente)?.Nombre ?? "Sin agente asignado";
     private bool UsuarioValidadoTieneRutas => _usuarioVenta is not null && _rutasComerciales.Count > 0;
+    /// <summary>true cuando el usuario validado es Agente o Funcionario SAC: la venta exige ruta
+    /// aunque la sucursal no tenga ninguna configurada (en ese caso se avisa en vez de ocultar el combo).</summary>
+    private bool _rutaObligatoria;
+    private bool RutaRequerida => _usuarioVenta is not null && (_rutaObligatoria || _rutasComerciales.Count > 0);
     private readonly List<string> _correos = new();
     private string _correoNuevo = string.Empty;
     private int? _correoEditandoIndice;
@@ -826,6 +847,7 @@
         _rutasComerciales = ((await Respuestas.DatoAsync(await RutasApi.Listar(Sesion.IdSucursal), "consultar las rutas")) ?? Array.Empty<RutaComercialDTO>())
             .Where(r => r.Activo).ToList();
         _rutaEsSeleccionManual = false;
+        _rutaObligatoria = false;
         var usuarioValidado = _usuarioVenta?.IdUsuario;
         if (string.IsNullOrWhiteSpace(usuarioValidado))
         {
@@ -844,6 +866,7 @@
 
         if (capacidad?.EsAgente == true)
         {
+            _rutaObligatoria = true;
             _rutasComerciales = _rutasComerciales
                 .Where(r => r.Agentes.Any(a => a.IdUsuario == usuarioValidado))
                 .ToList();
@@ -858,6 +881,7 @@
             // Todas las rutas activas de la sucursal quedan disponibles para elegir; no
             // hay predeterminada propia porque el SAC no es agente de ninguna.
             _rutaEsSeleccionManual = true;
+            _rutaObligatoria = true;
             _idRutaComercial = 0;
             return;
         }
@@ -1288,6 +1312,8 @@
         if (_colaArticulosCatalogo.Count == 0) return;
         var (articulo, cantidad) = _colaArticulosCatalogo.Dequeue();
 
+        if (!await EsArticuloVendible(articulo)) { await ProcesarSiguienteArticuloCatalogo(); return; }
+
         if (articulo.Bonificado && await IniciarBonificacion(articulo, cantidad)) return;
 
         var consolCat = await Lotes2.ExistenciaConsolidadaAsync(articulo.Codigo);
@@ -1395,6 +1421,8 @@
     private async Task ElegirCliente(FiltranClienteDTO cliente)
     {
         _cliente = cliente;
+        _tarifa = 0;
+        _nombreGenerico = string.Empty;
         _textoCliente = cliente.Nombre ?? cliente.Cedula ?? string.Empty;
         _clientesEncontrados.Clear();
         RecalcularTodo();
@@ -1565,6 +1593,7 @@
         if (_cliente is null) { await Dialogos.ErrorAsync("Seleccione primero el cliente."); return; }
         var completo = await Respuestas.DatoAsync(await Inventario.Uno(articulo.Codigo), "consultar el artículo");
         if (completo is null) return;
+        if (!await EsArticuloVendible(completo)) return;
 
         // §4.3.b — si el artículo es bonificable, resolver la bonificación en vez de agregar la línea directa.
         if (completo.Bonificado && await IniciarBonificacion(completo, cantidad)) return;
@@ -1941,9 +1970,52 @@
         linea.Recalcular(); _lineas.Add(linea); RecalcularTodo();
     }
     private DateTime _hoyEquipo = DateTime.Today;
+
+    // Solo se factura Normal (1) y Producto terminado (2); la materia prima (3) no se vende.
+    private static readonly int[] TiposVendibles = { 1, 2 };
+    private async Task<bool> EsArticuloVendible(InventarioDTO articulo)
+    {
+        if (TiposVendibles.Contains(articulo.TipoArticulo)) return true;
+        await Dialogos.ErrorAsync($"«{articulo.Descripcion}» es materia prima y no se puede facturar. Solo se venden artículos Normal y Producto terminado.");
+        return false;
+    }
+
+    // Tarifa: 0 = la del cliente; 1..4 = Precio A..D elegido en esta factura.
+    private int _tarifa;
+    private int TarifaEfectiva => _tarifa > 0 ? _tarifa : (_cliente?.Tipoprecio is > 0 and <= 4 ? _cliente.Tipoprecio : 1);
+    private static string NombreTarifa(int t) => t switch { 2 => "Precio B", 3 => "Precio C", 4 => "Precio D", _ => "Precio A" };
+    private void AlCambiarTarifa()
+    {
+        foreach (var linea in _lineas.Where(l => !l.EsDeGrupo))
+        {
+            linea.Precio = PrecioCliente(linea.Articulo);
+            linea.Recalcular();
+        }
+        RecalcularTodo();
+    }
+
+    // Cliente de contado: ficha genérica para ventas ocasionales (feria, cliente final).
+    // Solo tiquete de contado; el nombre que se escriba aquí es el que sale en el documento.
+    private const string NombreClienteContado = "CLIENTE DE CONTADO";
+    private string _nombreGenerico = string.Empty;
+    private bool EsClienteContado => _cliente is not null
+        && string.Equals((_cliente.Nombre ?? "").Trim(), NombreClienteContado, StringComparison.OrdinalIgnoreCase);
+    private async Task ElegirClienteContado()
+    {
+        var r = await Respuestas.DatoAsync(await Clientes.Buscar(NombreClienteContado), "buscar el cliente de contado");
+        var contado = r?.FirstOrDefault(c => !c.Anulado && !c.Fallecido
+            && string.Equals((c.Nombre ?? "").Trim(), NombreClienteContado, StringComparison.OrdinalIgnoreCase));
+        if (contado is null)
+        {
+            await Dialogos.ErrorAsync($"No existe el cliente «{NombreClienteContado}». Créelo en Clientes con una cédula genérica y sin crédito.");
+            return;
+        }
+        await ElegirCliente(contado);
+    }
+
     private decimal PrecioCliente(InventarioDTO articulo)
     {
-        var enMonedaCosto = (_cliente?.Tipoprecio ?? 1) switch
+        var enMonedaCosto = TarifaEfectiva switch
         {
             2 when articulo.Precio_B > 0 => Formato.AImporte(articulo.Precio_B),
             3 when articulo.Precio_C > 0 => Formato.AImporte(articulo.Precio_C),
@@ -2026,6 +2098,8 @@
         if (MotivoCabeceraIncompleta() is { } motivoCobro) { await Dialogos.ErrorAsync(motivoCobro); return; }
         if (_cliente.Cliente_Moroso && !_cliente.Sinrestriccion) { await Dialogos.ErrorAsync("El cliente tiene restricción de morosidad."); return; }
         if (_cliente.OrdenCompra && string.IsNullOrWhiteSpace(_ordenCompra)) { await Dialogos.ErrorAsync("El cliente requiere una orden de compra."); return; }
+        if (RutaRequerida && _rutasComerciales.Count == 0) { await Dialogos.ErrorAsync("No hay rutas comerciales activas para el usuario validado en esta sucursal. Créelas o asígnelas en Parámetros → Rutas."); return; }
+        if (RutaRequerida && _idRutaComercial == 0) { await Dialogos.ErrorAsync("Seleccione la ruta comercial del usuario validado."); return; }
         if (RequiereAperturaContado && _numAperturaContado is not > 0) { await Dialogos.ErrorAsync(_avisoCajaContado ?? "No hay una caja abierta para facturar de contado."); return; }
         await _modalCobro.ShowAsync();
     }
@@ -2056,8 +2130,9 @@
     {
         if (!_ventaDesbloqueada) { await AbrirDesbloqueo(); return; }
         if (MotivoCabeceraIncompleta() is { } motivoCabecera) { await Dialogos.ErrorAsync(motivoCabecera); return; }
-        if (UsuarioValidadoTieneRutas && _idRutaComercial == 0) { await Dialogos.ErrorAsync("Seleccione la ruta comercial del usuario validado."); return; }
-        if (UsuarioValidadoTieneRutas && string.IsNullOrWhiteSpace(_idUsuarioAgente)) { await Dialogos.ErrorAsync("La ruta no tiene un agente predeterminado activo."); return; }
+        if (RutaRequerida && _rutasComerciales.Count == 0) { await Dialogos.ErrorAsync("No hay rutas comerciales activas para el usuario validado en esta sucursal. Créelas o asígnelas en Parámetros → Rutas."); return; }
+        if (RutaRequerida && _idRutaComercial == 0) { await Dialogos.ErrorAsync("Seleccione la ruta comercial del usuario validado."); return; }
+        if (RutaRequerida && string.IsNullOrWhiteSpace(_idUsuarioAgente)) { await Dialogos.ErrorAsync("La ruta no tiene un agente predeterminado activo."); return; }
         if (_moneda == 2 && _tipoCambio is null) { await Dialogos.ErrorAsync("No se pudo obtener el tipo de cambio. Vuelva a seleccionar la moneda dólares."); return; }
         if (_idEmpresa <= 0) { await Dialogos.ErrorAsync("Seleccione una empresa para registrar la facturación."); return; }
         if (!EsConsignacion && _bodega <= 0) { await Dialogos.ErrorAsync("Seleccione la bodega de la que sale el inventario."); return; }
@@ -2108,7 +2183,7 @@
         _guardando = true;
         var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
         var perfil = _perfiles.FirstOrDefault(x => x.IdSerie == _idPerfil);
-        var factura = new FacturaDTO { Tipo = _tipoFactura, NumCaja = (perfil?.NumeroTerminal ?? 0).ToString(), Fecha = string.Empty, CodCliente = _cliente.Identificacion.ToString(), NumeroCedula = _cliente.Cedula, NombreCliente = _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), TipoCambio = _moneda == 2 ? (double?)(_tipoCambio ?? 1m) : null, IdRutaComercial = _idRutaComercial > 0 ? _idRutaComercial : null, IdUsuarioAgente = string.IsNullOrWhiteSpace(_idUsuarioAgente) ? null : _idUsuarioAgente, IdUsuarioValidado = _usuarioVenta?.IdUsuario, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = _idEmpresa, Empresa = empresa?.Nombre, CodigoActividadEmisor = string.IsNullOrWhiteSpace(_codActividad) ? null : _codActividad, CodigoActividadReceptor = string.IsNullOrWhiteSpace(_codActividadCliente) ? null : _codActividadCliente, Preventa = EsPrefacturaConsignacion || _ruta.Ruta == PoliticaRutaFacturacion.Ruta.GuardarPreventaContado, EsConsignacion = EsConsignacion, EsCredito = _esCredito, IdSerie = _idPerfil > 0 ? _idPerfil : null, NumApertura = !EsPrefacturaConsignacion && !EsConsignacion ? NumAperturaVenta : null, Pagos = MostrarCobroContado ? _montosContado.Where(kv => kv.Value > 0).Select(kv => new PagoFacturaDTO { FormaPago = kv.Key, Monto = (double)kv.Value, Referencia = _referenciasContado.TryGetValue(kv.Key, out var _rf) ? _rf : null, NumeroCheque = _numerosChequeContado.TryGetValue(kv.Key, out var _nc) ? _nc : null, IdBanco = _idsBancoContado.TryGetValue(kv.Key, out var _ib) ? _ib : null }).ToList() : new(), SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = EsConsignacion ? 0 : _bodega, Lote = l.IdLote, NumeroLote = l.Lote, Lotes = l.Lotes, EsBonificacion = l.EsBonificacion, IdGrupoBonificacion = l.IdGrupoBonificacion, IdConfiguracionBonificacion = l.IdConfiguracionBonificacion, EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null }).ToList() };
+        var factura = new FacturaDTO { Tipo = _tipoFactura, NumCaja = (perfil?.NumeroTerminal ?? 0).ToString(), Fecha = string.Empty, CodCliente = _cliente.Identificacion.ToString(), NumeroCedula = _cliente.Cedula, NombreCliente = EsClienteContado && !string.IsNullOrWhiteSpace(_nombreGenerico) && MostrarCobroContado ? _nombreGenerico.Trim() : _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), TipoCambio = _moneda == 2 ? (double?)(_tipoCambio ?? 1m) : null, IdRutaComercial = _idRutaComercial > 0 ? _idRutaComercial : null, IdUsuarioAgente = string.IsNullOrWhiteSpace(_idUsuarioAgente) ? null : _idUsuarioAgente, IdUsuarioValidado = _usuarioVenta?.IdUsuario, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = _idEmpresa, Empresa = empresa?.Nombre, CodigoActividadEmisor = string.IsNullOrWhiteSpace(_codActividad) ? null : _codActividad, CodigoActividadReceptor = string.IsNullOrWhiteSpace(_codActividadCliente) ? null : _codActividadCliente, Preventa = EsPrefacturaConsignacion || _ruta.Ruta == PoliticaRutaFacturacion.Ruta.GuardarPreventaContado, EsConsignacion = EsConsignacion, EsCredito = _esCredito, RequiereDespacho = MostrarCobroContado ? false : null, IdSerie = _idPerfil > 0 ? _idPerfil : null, NumApertura = !EsPrefacturaConsignacion && !EsConsignacion ? NumAperturaVenta : null, Pagos = MostrarCobroContado ? _montosContado.Where(kv => kv.Value > 0).Select(kv => new PagoFacturaDTO { FormaPago = kv.Key, Monto = (double)kv.Value, Referencia = _referenciasContado.TryGetValue(kv.Key, out var _rf) ? _rf : null, NumeroCheque = _numerosChequeContado.TryGetValue(kv.Key, out var _nc) ? _nc : null, IdBanco = _idsBancoContado.TryGetValue(kv.Key, out var _ib) ? _ib : null }).ToList() : new(), SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = EsConsignacion ? 0 : _bodega, Lote = l.IdLote, NumeroLote = l.Lote, Lotes = l.Lotes, EsBonificacion = l.EsBonificacion, IdGrupoBonificacion = l.IdGrupoBonificacion, IdConfiguracionBonificacion = l.IdConfiguracionBonificacion, EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null }).ToList() };
         factura.Fecha = (await RelojEquipo.AhoraAsync()).ToString("yyyy-MM-dd HH:mm:ss");
         if (EsPrefacturaConsignacion)
         {
@@ -2201,5 +2276,5 @@
         if (r.FueReintento) lineas.Add("(Se recuperó el resultado de un envío anterior; no se cobró ni emitió dos veces.)");
         _avisoResultado = string.Join(" ", lineas);
     }
-    private async Task Limpiar() { _cliente = null; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _esCredito = false; _creditoAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _tipoCambio = null; _idRutaComercial = 0; _idUsuarioAgente = string.Empty; _agentesRuta.Clear(); _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; _formasPagoContado = new(); _montosContado.Clear(); _referenciasContado.Clear(); _numerosChequeContado.Clear(); _idsBancoContado.Clear(); _numAperturaContado = null; _avisoCajaContado = null; _claveIdempotencia = null; _correoComprobanteConsultado = false; _tieneCorreoComprobante = false; _correos.Clear(); _ruta = new(PoliticaRutaFacturacion.Ruta.ConfiguracionInvalida, null); await CargarRutasComerciales(); await CargarPerfiles(); RecalcularTodo(); }
+    private async Task Limpiar() { _cliente = null; _tarifa = 0; _nombreGenerico = string.Empty; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _esCredito = false; _creditoAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _tipoCambio = null; _idRutaComercial = 0; _idUsuarioAgente = string.Empty; _agentesRuta.Clear(); _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; _formasPagoContado = new(); _montosContado.Clear(); _referenciasContado.Clear(); _numerosChequeContado.Clear(); _idsBancoContado.Clear(); _numAperturaContado = null; _avisoCajaContado = null; _claveIdempotencia = null; _correoComprobanteConsultado = false; _tieneCorreoComprobante = false; _correos.Clear(); _ruta = new(PoliticaRutaFacturacion.Ruta.ConfiguracionInvalida, null); await CargarRutasComerciales(); await CargarPerfiles(); RecalcularTodo(); }
 }

@@ -20,6 +20,8 @@ public sealed class SerieFacturacionFiscalDTO
     /// <summary>Switch: si esta serie requiere emitir documento electrónico.</summary>
     public bool RequiereDocumentoElectronico { get; set; }
     public bool EmisionV44Habilitada { get; set; }
+    /// <summary>Las ventas de esta serie (p. ej. Ferias) no entran a la cola de alistamiento.</summary>
+    public bool SinAlistamiento { get; set; }
     /// <summary>Código de comprobante electrónico de esta serie (01/03/04). Se manda
     /// al guardar cuando RequiereDocumentoElectronico es true.</summary>
     public string? CodigoFE { get; set; }

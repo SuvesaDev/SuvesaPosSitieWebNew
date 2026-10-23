@@ -105,6 +105,11 @@
     [Parameter]
     public int? IdBodega { get; set; }
 
+    /// <summary>Si viene, solo se listan artículos de estos tipos (1 Normal, 2 Producto
+    /// terminado, 3 Materia prima). Sin valor se muestran todos.</summary>
+    [Parameter]
+    public int[]? TiposPermitidos { get; set; }
+
     private static readonly TimeSpan Espera = TimeSpan.FromMilliseconds(400);
 
     private HxModal _modal = default!;
@@ -211,7 +216,8 @@
         }
 
         _resultados = (await Respuestas.DatoAsync(r, "buscar en el inventario"))
-                      ?.ToList() ?? new List<InventarioDTO>();
+                      ?.Where(a => TiposPermitidos is null || TiposPermitidos.Contains(a.TipoArticulo))
+                      .ToList() ?? new List<InventarioDTO>();
 
         _resaltado = 0;
         _buscando = false;
