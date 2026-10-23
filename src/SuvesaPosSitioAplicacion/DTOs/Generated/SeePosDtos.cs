@@ -12496,6 +12496,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("diferenciasBloqueantes")]
         public int DiferenciasBloqueantes { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("entregasSinComprobante")]
+        public int EntregasSinComprobante { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("detalles")]
         public System.Collections.Generic.ICollection<string>? Detalles { get; set; } = default!;
 
@@ -13501,6 +13504,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("contrasena")]
         public string? Contrasena { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("motivo")]
+        public string? Motivo { get; set; } = default!;
+
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -14065,6 +14071,24 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("idProveedor")]
         public long? IdProveedor { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("numero")]
+        public long? Numero { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoPoliza")]
+        public string? TipoPoliza { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("concepto")]
+        public string? Concepto { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("motivoReverso")]
+        public string? MotivoReverso { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("usuarioCreacion")]
+        public string? UsuarioCreacion { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("reversado")]
+        public bool Reversado { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("lineas")]
         public System.Collections.Generic.ICollection<LineaAsientoContableDTO>? Lineas { get; set; } = default!;

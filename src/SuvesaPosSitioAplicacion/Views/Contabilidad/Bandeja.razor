@@ -197,6 +197,15 @@
     }
 </AppModal>
 
+<AppModal @ref="_modalReverso" Titulo="Reversar póliza" AlGuardar="ConfirmarReverso" Guardando="_guardando"
+          PuedeGuardar="!string.IsNullOrWhiteSpace(_motivoReverso)" TextoGuardar="Reversar">
+    <p>Se creará un asiento espejo; la póliza original no se borra.</p>
+    <div class="mb-2">
+        <label class="form-label" for="bj-motivo-reverso">Motivo</label>
+        <textarea id="bj-motivo-reverso" class="form-control" rows="3" maxlength="500" @bind="_motivoReverso"></textarea>
+    </div>
+</AppModal>
+
 <AppModal @ref="_modalManual" Titulo="Nueva póliza manual" Tamano="ModalSize.ExtraLarge" AlGuardar="GuardarPolizaManual" Guardando="_guardando">
     <div class="row g-2 mb-3">
         <div class="col-6">
@@ -286,6 +295,11 @@
 
     private AppModal _modalDetalle = default!;
     private AsientoContableDTO? _asientoDetalle;
+
+    private AppModal _modalReverso = default!;
+    private AsientoContableDTO? _asientoAReversar;
+    private string? _contrasenaReverso;
+    private string _motivoReverso = "";
 
     private AppModal _modalManual = default!;
     private List<DTOs.Fiscal.SucursalFiscalDTO> _sucursales = new();
@@ -393,17 +407,28 @@
             contrasena = await _confirmarClave.MostrarAsync();
             if (contrasena is null) return;
         }
-        else if (!await Dialogos.ConfirmarPeligroAsync("¿Reversar esta póliza? Se creará un asiento espejo — la original no se borra.", "Reversar póliza"))
-        {
-            return;
-        }
 
-        var respuesta = await Contabilidad.ReversarAsiento(asiento.Id, contrasena);
-        if (await Respuestas.CorrectaAsync(respuesta, "reversar la póliza"))
+        _asientoAReversar = asiento;
+        _contrasenaReverso = contrasena;
+        _motivoReverso = "";
+        await _modalReverso.MostrarAsync();
+    }
+
+    private async Task ConfirmarReverso()
+    {
+        if (_asientoAReversar is null || string.IsNullOrWhiteSpace(_motivoReverso)) return;
+        _guardando = true;
+        try
         {
-            Dialogos.Exito("Póliza reversada.");
-            await CargarAsientos();
+            var respuesta = await Contabilidad.ReversarAsiento(_asientoAReversar.Id, _contrasenaReverso, _motivoReverso.Trim());
+            if (await Respuestas.CorrectaAsync(respuesta, "reversar la póliza"))
+            {
+                await _modalReverso.OcultarAsync();
+                Dialogos.Exito("Póliza reversada.");
+                await CargarAsientos();
+            }
         }
+        finally { _guardando = false; }
     }
 
     private async Task NuevaPolizaManual()

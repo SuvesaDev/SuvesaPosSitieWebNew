@@ -229,10 +229,10 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "crear la póliza manual");
 
-    public Task<ResponseGeneric<AsientoContableDTO>> ReversarAsiento(long idAsiento, string? contrasena)
+    public Task<ResponseGeneric<AsientoContableDTO>> ReversarAsiento(long idAsiento, string? contrasena, string motivo)
         => Ejecutar(async () =>
         {
-            var r = await _api.ReversarAsync(idAsiento, new ReversarAsientoDTO { Contrasena = contrasena });
+            var r = await _api.ReversarAsync(idAsiento, new ReversarAsientoDTO { Contrasena = contrasena, Motivo = motivo });
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "reversar la póliza");
 

@@ -57,7 +57,7 @@ public class ContextoContabilidadTests
         public Task<ResponseGeneric<bool>> ReintentarEvento(long idEvento) => throw new NotImplementedException();
         public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina, long? idCliente = null, long? idProveedor = null, string? origenModulo = null, int? idSucursal = null) => throw new NotImplementedException();
         public Task<ResponseGeneric<AsientoContableDTO>> CrearAsientoManual(CrearAsientoManualDTO comando) => throw new NotImplementedException();
-        public Task<ResponseGeneric<AsientoContableDTO>> ReversarAsiento(long idAsiento, string? contrasena) => throw new NotImplementedException();
+        public Task<ResponseGeneric<AsientoContableDTO>> ReversarAsiento(long idAsiento, string? contrasena, string motivo) => throw new NotImplementedException();
         public Task<ResponseGeneric<EjecucionRepolinizacionDTO>> SimularRepolinizacion(FiltroRepolinizacionDTO filtro) => throw new NotImplementedException();
         public Task<ResponseGeneric<EjecucionRepolinizacionDTO>> ObtenerRepolinizacion(long idEjecucion) => throw new NotImplementedException();
         public Task<ResponseGeneric<EjecucionRepolinizacionDTO>> AprobarRepolinizacion(long idEjecucion, string contrasena) => throw new NotImplementedException();
