@@ -61,6 +61,15 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "consultar las cajas");
 
+    public Task<ResponseGeneric<ICollection<CajaMantenimientoDTO>>> CajasMantenimiento() => Ejecutar(async () =>
+    {
+        var r = await LecturaEnvelope.Leer<List<CajaMantenimientoDTO>>(
+            await _api.PostAsync("Caja/ObtenerCajasMantenimiento", null));
+        return r.EsCorrecta
+            ? new ResponseGeneric<ICollection<CajaMantenimientoDTO>>(r.Responses ?? new List<CajaMantenimientoDTO>())
+            : new ResponseGeneric<ICollection<CajaMantenimientoDTO>>(r.Excepcion ?? "No se pudieron consultar las cajas.");
+    }, "consultar las cajas");
+
     public Task<ResponseGeneric<CajasCantidad>> CrearCaja(long numCaja)
         => Ejecutar(async () => await LecturaEnvelope.Leer<CajasCantidad>(
             await _api.PostAsJsonAsync("Caja/CrearCaja", new { NumCaja = numCaja })),

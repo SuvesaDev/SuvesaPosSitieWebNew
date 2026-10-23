@@ -11,9 +11,11 @@
 @inject NavigationManager Nav
 @inject IServicioDialogos Dialogos
 @inject IJSRuntime JS
+@inject IContextoSesion Sesion
+@inject IConfiguration Config
 
 <AppPantalla Pantalla="Cola de alistamiento" Codigo="BODEGA.COLA_DE_ALISTAMIENTO" Icono="bi-list-check"
-             Subtitulo="Entra la venta o preventa que requiere despacho. El tiquete de mostrador no entra salvo que lo fuerce. Empacar y salir a ruta esperan que Hacienda acepte la factura electrónica." Nivel="NivelPantalla.Tableta">
+             Subtitulo="Al emitir la venta o la preventa entra sola, de cualquier serie; solo la serie de Ferias no entra. Empacar y salir a ruta esperan que Hacienda acepte la factura electrónica." Nivel="NivelPantalla.Tableta">
  <Acciones>
   <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar">Actualizar</button>
  </Acciones>
@@ -41,6 +43,18 @@
         <option value="2">Crédito</option>
         <option value="3">Contado</option>
       </select></div>
+    <div class="col-md-2"><label class="form-label">Prioridad</label>
+      <select class="form-select" @bind="_prioridad">
+        <option value="-1">Todas</option>
+        <option value="1">Alta (crédito)</option>
+        <option value="0">Normal</option>
+      </select></div>
+    <div class="col-md-2"><label class="form-label">Documento</label>
+      <select class="form-select" @bind="_documento">
+        <option value="0">Todos</option>
+        <option value="1">Factura</option>
+        <option value="2">Tiquete</option>
+      </select></div>
     <div class="col-md-2 d-grid"><button class="btn btn-primary" @onclick="Cargar">Filtrar</button></div>
     <div class="col-md-3"><label class="form-label">Traer factura</label>
       <div class="input-group">
@@ -50,14 +64,15 @@
   </div></div>
 
   <div class="card"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
-    <thead><tr><th>Hora</th><th>Pri.</th><th>Documento</th><th>Cliente</th><th>Estado</th><th class="text-end">Avance</th><th></th></tr></thead>
+    <thead><tr><th>Hora</th><th>Espera</th><th>Pri.</th><th>Documento</th><th>Cliente</th><th>Estado</th><th class="text-end">Avance</th><th></th></tr></thead>
     <tbody>
       @foreach (var o in Visibles)
       {
         <tr>
           <td>@o.Fecha.ToString("HH:mm")</td>
+          <td><span class="badge @ClaseEspera(o)" title="@TituloEspera(o)">@TextoEspera(o)</span></td>
           <td>@(o.Prioridad >= 2 ? "Alta" : "—")</td>
-          <td><code>@o.NumeroDocumento</code> @(o.EsPreventa ? "preventa" : o.EsCredito ? "crédito" : "contado")
+          <td><code>@o.NumeroDocumento</code> @(o.EsTiquete ? "tiquete " : "")@(o.EsPreventa ? "preventa" : o.EsCredito ? "crédito" : "contado")
             @if (o.EsElectronica && !o.HaciendaAceptada && !o.EsPreventa) { <span class="badge text-bg-warning ms-1">Espera Hacienda</span> }
           </td>
           <td>@o.NombreCliente</td>
@@ -81,7 +96,7 @@
           </td>
         </tr>
       }
-      @if (!Visibles.Any()) { <tr><td colspan="7" class="text-secondary">No hay órdenes en cola. Al facturar o guardar una preventa aparecen aquí.</td></tr> }
+      @if (!Visibles.Any()) { <tr><td colspan="8" class="text-secondary">No hay órdenes en cola. Al facturar o guardar una preventa aparecen aquí.</td></tr> }
     </tbody>
   </table></div></div>
  </ChildContent>
@@ -91,7 +106,7 @@
  private List<AlistamientoResumen> _cola = new();
  private readonly HashSet<long> _vistos = new();
  private string _error = "", _texto = "", _idVenta = "", _aviso = "";
- private int _estado, _tipo;
+ private int _estado, _tipo, _prioridad = -1, _documento;
  private PeriodicTimer? _timer;
  private CancellationTokenSource? _cts;
  private IJSObjectReference? _js;
@@ -128,7 +143,14 @@
  private async Task Cargar()
  {
      _error = "";
-     var r = await Api.ColaAsync(new AlistamientoFiltro { Estado = _estado == 0 ? null : _estado, Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim() });
+     var r = await Api.ColaAsync(new AlistamientoFiltro
+     {
+         Estado = _estado == 0 ? null : _estado,
+         Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim(),
+         IdSucursal = Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null,
+         Prioridad = _prioridad < 0 ? null : _prioridad,
+         EsTiquete = _documento == 0 ? null : _documento == 2
+     });
      if (r.Status != ResponseStatus._0) { _error = r.CurrentException ?? "No se pudo cargar la cola."; return; }
      var lista = r.Responses ?? new();
      if (_vistos.Count > 0)
@@ -172,6 +194,22 @@
  private static string TextoAnular(int estado) => estado == 3
      ? "¿Anular esta orden empacada? Se emite nota de crédito (o se suelta la preventa) y el producto reingresa, igual que no entregado."
      : "¿Anular esta orden de alistamiento? La factura no se toca.";
+
+ // Tiempo desde la facturación hasta que bodega inicia el alistamiento (o hasta ahora si sigue pendiente).
+ // Umbrales en minutos: SeePos:Alistamiento:MinutosAmarillo (5) y MinutosRojo (15).
+ private TimeSpan Espera(AlistamientoResumen o) => (o.FechaAceptacion ?? DateTime.Now) - o.Fecha;
+ private int MinutosAmarillo => Config.GetValue("SeePos:Alistamiento:MinutosAmarillo", 5);
+ private int MinutosRojo => Config.GetValue("SeePos:Alistamiento:MinutosRojo", 15);
+ private static string TextoEspera(TimeSpan t)
+     => t.TotalHours >= 1 ? $"{(int)t.TotalHours} h {t.Minutes} min" : $"{Math.Max(0, (int)t.TotalMinutes)} min";
+ private string TextoEspera(AlistamientoResumen o) => TextoEspera(Espera(o));
+ private string TituloEspera(AlistamientoResumen o) => o.FechaAceptacion is null ? "Esperando que bodega inicie el alistamiento" : "Tiempo que tardó bodega en iniciar el alistamiento";
+ private string ClaseEspera(AlistamientoResumen o)
+ {
+     if (o.Estado != 1 && o.FechaAceptacion is null) return "text-bg-light";
+     var min = Espera(o).TotalMinutes;
+     return min >= MinutosRojo ? "text-bg-danger" : min >= MinutosAmarillo ? "text-bg-warning" : "text-bg-success";
+ }
 
  private static string Badge(int e) => e switch
  {

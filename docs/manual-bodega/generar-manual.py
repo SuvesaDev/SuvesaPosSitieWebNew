@@ -156,7 +156,7 @@ def main():
 
     st = doc.add_paragraph()
     st.paragraph_format.space_after = Pt(6)
-    rs = st.add_run("Cola de alistamiento, empaque, manifiesto y entrega")
+    rs = st.add_run("Cola de alistamiento, empaque, manifiesto, entrega y recibo de devoluciones")
     set_run(rs, size=14, color=NARANJA)
 
     add_body(
@@ -174,14 +174,24 @@ def main():
         "ruta San José Centro, vehículo SJO-001, chofer Carlos Pérez.",
     )
 
+    add_callout(
+        doc,
+        "Sobre las capturas",
+        "Las imágenes se tomaron antes de las últimas mejoras (rutas con zonas, ingreso manual con supervisor, "
+        "manifiesto editable, comprobante de entrega y recibo de mercadería). El texto de cada sección sí está actualizado; "
+        "las pantallas nuevas se describen sin captura.",
+        fill="FFF4EA",
+    )
+
     add_heading_custom(doc, "1. Qué cubre el módulo Bodega", 1)
     add_body(
         doc,
-        "El menú Bodega agrupa cinco pantallas. Se recorren en este orden operativo:",
+        "El menú Bodega agrupa seis pantallas. Se recorren en este orden operativo:",
     )
     add_bullet(doc, "bins de pasillo / rack / estante. Se sugieren al empacar.", bold_prefix="Ubicaciones. ")
-    add_bullet(doc, "zona, vehículo y chofer del camión. Distinto de la ruta comercial del vendedor.", bold_prefix="Rutas de entrega. ")
-    add_bullet(doc, "las facturas y preventas pendientes de recoger. El tiquete de mostrador no entra solo.", bold_prefix="Cola de alistamiento. ")
+    add_bullet(doc, "rutas de despacho con las zonas que cubren, más vehículos y choferes. Solo el encargado de bodega crea rutas. Distinto de la ruta comercial del vendedor (comisiones).", bold_prefix="Rutas de entrega. ")
+    add_bullet(doc, "las facturas, tiquetes, consignaciones y preventas pendientes de recoger. Entran todas las series, salvo la de Ferias.", bold_prefix="Cola de alistamiento. ")
+    add_bullet(doc, "la mercadería devuelta por clientes: el inventario sube cuando bodega confirma lo que recibió.", bold_prefix="Recibo de mercadería. ")
     add_bullet(doc, "una orden a la vez. Un disparo de pistola = una caja o etiqueta. El lote es el de la factura.", bold_prefix="Empaque. ")
     add_bullet(doc, "armar el manifiesto con bultos empacados, escanear al camión y salir a ruta.", bold_prefix="Despacho. ")
     add_figure(doc, "01-menu-bodega.png", "Figura 1. Menú Bodega: Cola, Empaque, Despacho, Ubicaciones y Rutas de entrega.")
@@ -202,22 +212,28 @@ def main():
         doc,
         2,
         "Registrar zona, vehículo y chofer",
-        "Bodega → Rutas de entrega. Son tres listas independientes. La zona de despacho no es la ruta comercial del SAC. "
-        "En el ejemplo: zona San José Centro, placa SJO-001, chofer Carlos Pérez.",
+        "Bodega → Rutas de entrega. Son tres listas independientes. La ruta de despacho no es la ruta comercial del SAC. "
+        "En el ejemplo: ruta San José Centro, placa SJO-001, chofer Carlos Pérez.\n"
+        "Cada ruta tiene un nombre, una casilla Activa y las zonas que cubre: una provincia completa, o un cantón o distrito concreto; "
+        "puede ser de varias provincias o de una zona específica. Solo el encargado de bodega (permiso Crear/Editar) crea y modifica rutas; "
+        "el despachador solo las elige en Despacho, y solo ve las activas. Una ruta inactiva ya no se ofrece pero no se pierde.",
     )
     add_figure(doc, "05-rutas.png", "Figura 4. Rutas de entrega: zonas, vehículos y choferes.")
 
     add_heading_custom(doc, "3. Cola de alistamiento", 1)
     add_body(
         doc,
-        "Al emitir una factura (contado o crédito) o guardar una preventa, la orden entra sola en Pendiente. "
-        "El tiquete de mostrador y la consignación no entran. Si una factura ya emitida no apareció, "
-        "use Traer factura con el número o el id de la venta y pulse Crear.",
+        "Al emitir una factura (contado o crédito), un tiquete, una consignación o guardar una preventa, la orden entra sola en Pendiente. "
+        "Entran todas las series, salvo la marcada «Sin alistamiento» en Parámetros → Series (la de Ferias, de entrega inmediata). "
+        "Si una factura ya emitida no apareció, use Traer factura con el número o el id de la venta y pulse Crear.\n"
+        "La cola solo muestra las órdenes de la sucursal de su sesión. La columna Espera indica cuánto lleva la orden desde la facturación "
+        "(o cuánto tardó bodega en iniciarla): verde, amarillo o rojo según los minutos configurados. "
+        "Puede filtrar por estado, tipo, prioridad (alta = crédito) y documento (factura o tiquete).",
     )
     add_figure(
         doc,
         "02-cola-vacia.png",
-        "Figura 5. Cola vacía. El subtítulo lo recuerda: el tiquete de mostrador no entra.",
+        "Figura 5. Cola vacía (captura de la versión anterior).",
     )
     add_step(
         doc,
@@ -264,16 +280,23 @@ def main():
         doc,
         5,
         "Escanear (un disparo = una caja o etiqueta)",
-        "Pistola USB o colectora en Pistola / código. Si la barra está dañada, escriba el código del artículo (002) o el EAN. "
-        "El lote escaneado tiene que ser el de la factura. Una etiqueta GS1 puede traer lote (AI 10) y cantidad (AI 37) "
-        "y cubre la línea de un disparo. En el ejemplo, un GS1 con cantidad 10 dejó la línea Completa (10,000 / 10,000).",
+        "Pistola USB o colectora en Pistola / código. El lote escaneado tiene que ser el de la factura. "
+        "Una etiqueta GS1 puede traer lote (AI 10) y cantidad (AI 37) y cubre la línea de un disparo. "
+        "En el ejemplo, un GS1 con cantidad 10 dejó la línea Completa (10,000 / 10,000). "
+        "Se bloquea un lote vencido (el del código o el de la factura) o con menos vida útil de la que exige el cliente.\n"
+        "Si la barra está dañada, o la etiqueta no trae lote, use Ingreso manual (supervisor): escriba el código del artículo y pida "
+        "al supervisor su clave interna. Solo vale un usuario cuyo perfil tenga la opción «Supervisor de bodega». "
+        "En el ingreso manual el lote es siempre el de la factura (no se puede elegir otro) y el escaneo queda registrado con quién autorizó. "
+        "Los artículos sin ningún código de barras registrado se siguen identificando por su código, sin supervisor.",
     )
     add_step(
         doc,
         6,
         "Cerrar el bulto y marcar empacado",
-        "Indique el peso en kg y pulse Cerrar bulto: el bulto queda Cerrado (BULT-1) y se puede imprimir etiqueta A4 o 80 mm. "
-        "Cuando todas las líneas están Completas, pulse Marcar empacado. SeePOS avisa: pase a Despacho para armar el manifiesto.",
+        "Indique el peso en kg y pulse Cerrar bulto: el bulto queda Cerrado (BULT-1) y se abre la etiqueta para imprimir "
+        "(A4 u 80 mm desde la lista de bultos). Al completar el 100 % de lo facturado, SeePOS cierra el bulto abierto y abre la etiqueta solo. "
+        "Cuando todas las líneas están Completas, pulse Marcar empacado: los bultos que seguían abiertos se cierran y se imprimen. "
+        "SeePOS avisa: pase a Despacho para armar el manifiesto.",
     )
     add_figure(
         doc,
@@ -302,7 +325,10 @@ def main():
         7,
         "Armar el manifiesto",
         "Bodega → Despacho. Marque los bultos empacados sin manifiesto (BULT-1 · factura 6). "
-        "Elija ruta, vehículo y chofer. Pulse Crear manifiesto. SeePOS abre el PDF del manifiesto.",
+        "Elija la ruta (obligatoria; solo aparecen las activas), el vehículo y el chofer. Pulse Crear manifiesto. SeePOS abre el PDF del manifiesto.\n"
+        "Cada bulto muestra la zona y la dirección de su cliente. Con una ruta elegida puede marcar «Solo bultos de la ruta» para ver únicamente "
+        "los que caen en sus zonas; si carga un bulto fuera de las zonas, SeePOS lo avisa pero no lo impide: la decisión es del despachador. "
+        "Si no hay rutas activas, pida al encargado de bodega que cree una.",
     )
     add_figure(
         doc,
@@ -314,7 +340,14 @@ def main():
         8,
         "Escanear al camión y salir a ruta",
         "En el manifiesto pulse el campo Escanear bulto al camión y dispare el código BULT-n (o escríbalo). "
-        "Hay que cargar todos los bultos del manifiesto. Luego pulse Salir a ruta. La orden pasa a En ruta.",
+        "Hay que cargar todos los bultos del manifiesto, y el manifiesto debe tener ruta. Luego pulse Salir a ruta. La orden pasa a En ruta.",
+    )
+    add_callout(
+        doc,
+        "Corregir un manifiesto antes de salir",
+        "Mientras el manifiesto esté Armado se puede cambiar la ruta, el vehículo y el chofer (Guardar cambios), quitar un bulto "
+        "(queda libre para otro manifiesto) o anular el manifiesto con un motivo. Una vez que sale a ruta ya no se puede corregir.",
+        fill="FFF4EA",
     )
     add_figure(doc, "14-cola-en-ruta.png", "Figura 14. Cola filtrada en En ruta. Documento 6 crédito, avance completo.")
     add_figure(
@@ -330,7 +363,8 @@ def main():
         "Confirmar entregado",
         "Desde Empaque (o desde Despacho, factura por factura) pulse Entregado. "
         "Indique quién recibió. La firma en el recuadro es opcional: rastro de quién recibió, no certificado legal. "
-        "Pulse Confirmar.",
+        "Pulse Confirmar. Con la orden cerrada puede imprimir el Comprobante de entrega (qué se entregó, quién recibió, ruta, vehículo y chofer, "
+        "y una línea para la firma a mano) desde Empaque o desde el manifiesto en Despacho.",
     )
     add_figure(
         doc,
@@ -353,18 +387,44 @@ def main():
         fill="FFF4EA",
     )
 
-    add_heading_custom(doc, "7. Resumen para el mostrador de bodega", 1)
-    add_bullet(doc, "Ubicaciones y rutas se mantienen en catálogo; no se tocan en cada pedido.", bold_prefix="Antes. ")
-    add_bullet(doc, "La factura/preventa entra sola. Si no, Traer factura con el número o el id.", bold_prefix="Cola. ")
-    add_bullet(doc, "Aceptar → escanear (lote de la factura) → cerrar bulto → marcar empacado.", bold_prefix="Empaque. ")
-    add_bullet(doc, "Elegir bultos + ruta/vehículo/chofer → crear manifiesto → escanear BULT-n → salir a ruta.", bold_prefix="Despacho. ")
-    add_bullet(doc, "Entregado pide quién recibió. No entregado corrige el documento (NC o preventa).", bold_prefix="Cierre. ")
+    add_heading_custom(doc, "7. Recibo de mercadería (devoluciones)", 1)
+    add_body(
+        doc,
+        "Cuando se emite una devolución de venta con mercadería (nota de crédito o devolución interna), el inventario no sube de inmediato: "
+        "la devolución entra a Bodega → Recibo de mercadería como una orden Pendiente de recibo.",
+    )
+    add_step(
+        doc,
+        10,
+        "Recibir la mercadería",
+        "Abra la orden con Recibir. Verá el cliente, la factura, las líneas con su lote y bodega, y la cantidad devuelta. "
+        "Escriba la cantidad realmente recibida de cada línea (por defecto, lo devuelto; no puede ser mayor) y pulse Confirmar recibo. "
+        "Solo entonces el inventario sube, y por lo recibido. Si se recibe menos de lo devuelto, la diferencia queda anotada como faltante.",
+    )
+    add_callout(
+        doc,
+        "Anular y excepciones",
+        "Una orden pendiente se puede anular con un motivo (Anular orden): la mercadería no entra al inventario. "
+        "Si se anula la devolución de origen mientras la orden sigue pendiente, la orden se anula sola; si ya se recibió, se revierte lo recibido. "
+        "Los faltantes de alistamiento no pasan por recibo: esa mercadería nunca salió de bodega. "
+        "Con Devoluciones:ExigirRecibo en false el inventario vuelve a subir al emitir la devolución.",
+        fill="FFF4EA",
+    )
 
-    add_heading_custom(doc, "8. Qué no hacer", 1)
+    add_heading_custom(doc, "8. Resumen para el mostrador de bodega", 1)
+    add_bullet(doc, "Ubicaciones y rutas (con sus zonas) se mantienen en catálogo; las rutas las crea el encargado de bodega.", bold_prefix="Antes. ")
+    add_bullet(doc, "La venta entra sola, de cualquier serie salvo Ferias. Si no, Traer factura con el número o el id.", bold_prefix="Cola. ")
+    add_bullet(doc, "Aceptar → escanear (lote de la factura; manual solo con supervisor) → la etiqueta sale al cerrar el bulto → marcar empacado.", bold_prefix="Empaque. ")
+    add_bullet(doc, "Elegir bultos + ruta/vehículo/chofer → crear manifiesto (se puede corregir) → escanear BULT-n → salir a ruta.", bold_prefix="Despacho. ")
+    add_bullet(doc, "Entregado pide quién recibió y permite imprimir el comprobante. No entregado corrige el documento (NC o preventa).", bold_prefix="Cierre. ")
+    add_bullet(doc, "Las devoluciones se reciben en Recibo de mercadería; el inventario sube por lo recibido.", bold_prefix="Devoluciones. ")
+
+    add_heading_custom(doc, "9. Qué no hacer", 1)
     add_bullet(doc, "Ajustar existencias otra vez al empacar: el stock ya salió con la factura.")
     add_bullet(doc, "Cambiar el lote en empaque. El lote es el de la factura, no se elige por FEFO.")
-    add_bullet(doc, "Meter un tiquete de mostrador a la cola salvo que de verdad haya que alistar (Traer factura).")
-    add_bullet(doc, "Salir a ruta sin escanear todos los bultos del manifiesto.")
+    add_bullet(doc, "Pedir a un compañero sin perfil de supervisor que «autorice» el ingreso manual: la clave debe ser de un supervisor de bodega.")
+    add_bullet(doc, "Salir a ruta sin ruta o sin escanear todos los bultos del manifiesto.")
+    add_bullet(doc, "Confundir la ruta de despacho (a dónde va el camión) con la ruta comercial de Facturación (la de las comisiones).")
     add_bullet(doc, "Confirmar Entregado sin el nombre de quien recibió.")
 
     p = doc.add_paragraph()

@@ -770,7 +770,15 @@
                 {
                     <div class="row g-3">
                         <div class="col-12"><h3 class="h6 mb-0">Presentación empaquetada</h3>
-                            <p class="form-text">Si este código es una caja o paquete, elija el artículo unidad y cuántas unidades trae cada caja. El inventario se controla en la unidad: vender 1 caja descuenta ese factor. El comprobante sigue mostrando este código y su precio. Un factor mayor que 1 activa este comportamiento.</p></div>
+                            @if (Sesion.EsCostaPets)
+                            {
+                                <p class="form-text">Elija el artículo que se rebaja del inventario y cuántas unidades se rebajan por cada venta de este código.</p>
+                            }
+                            else
+                            {
+                            <p class="form-text">Si este código es una caja o paquete, elija el artículo unidad y cuántas unidades trae cada caja. El inventario se controla en la unidad: vender 1 caja descuenta ese factor. El comprobante sigue mostrando este código y su precio. Un factor mayor que 1 activa este comportamiento.</p>
+                            }
+                        </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label">Artículo a rebajar</label>
                             <div class="input-group">
@@ -778,14 +786,25 @@
                                 <button type="button" class="btn btn-outline-primary" @onclick="AbrirBuscadorDescarga"><i class="bi bi-search" aria-hidden="true"></i></button>
                             </div>
                         </div>
+                        @if (!Sesion.EsCostaPets)
+                        {
                         <div class="col-12 col-md-6"><label class="form-label">Código de presentación</label><input type="number" min="0" class="form-control" @bind="_edicion.Cod_PresentOtro" /></div>
                         <div class="col-12 col-md-6"><label class="form-label">Cantidad de presentación</label><input type="number" min="0" step="0.001" class="form-control" @bind="_edicion.CantidadPresentOtro" /></div>
-                        <div class="col-12 col-md-6"><label class="form-label">Unidades por caja</label><input type="number" min="0" step="1" class="form-control" @bind="_edicion.CantidadDescarga" @bind:after="AlCambiarFactorEmpaque" /></div>
+                        }
+                        <div class="col-12 col-md-6"><label class="form-label">@(Sesion.EsCostaPets ? "Cantidad a rebajar" : "Unidades por caja")</label><input type="number" min="0" step="1" class="form-control" @bind="_edicion.CantidadDescarga" @bind:after="AlCambiarFactorEmpaque" /></div>
+                        <div class="col-12">
+                            <div class="alert @(ResumenEmpaque.Valido ? "alert-success" : "alert-light border") py-2 mb-0" role="status" aria-live="polite">
+                                <i class="bi @(ResumenEmpaque.Valido ? "bi-check-circle" : "bi-info-circle") me-1" aria-hidden="true"></i>@ResumenEmpaque.Texto
+                            </div>
+                        </div>
 
+                        @if (!Sesion.EsCostaPets)
+                        {
                         <div class="col-12"><hr /><h3 class="h6 mb-0">Información de proveedor</h3></div>
                         <div class="col-12 col-md-4"><label class="form-label">Código QVET</label><input type="number" min="0" class="form-control" @bind="_edicion.IdCodigoInternoQvet" /></div>
                         <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Código de proveedor" @bind-Valor="_edicion.CodigoProveedor" /></div>
                         <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Descripción de proveedor" @bind-Valor="_edicion.DescripcionProveedor" /></div>
+                        }
                     </div>
                 }
                 else if (_pestanaInventario == "existencias")
@@ -1627,6 +1646,34 @@
         {
             _edicion.CodigoDescarga = articulo.Cod_Articulo;
             AlCambiarFactorEmpaque();
+        }
+    }
+
+    /// <summary>Confirma en palabras la relación caja/unidad que se está capturando, para
+    /// detectar un error de digitación antes de guardar.</summary>
+    private (string Texto, bool Valido) ResumenEmpaque
+    {
+        get
+        {
+            if (_edicion is null) return (string.Empty, false);
+            var caja = (_edicion.Cod_Articulo ?? string.Empty).Trim();
+            var unidad = (_edicion.CodigoDescarga ?? string.Empty).Trim();
+            var factor = Convert.ToDouble(_edicion.CantidadDescarga);
+            if (unidad.Length == 0 && factor <= 1)
+                return ("Sin presentación empaquetada: este artículo se controla por sí mismo.", false);
+            if (unidad.Length == 0)
+                return ("Elija el artículo a rebajar.", false);
+            if (factor <= 1)
+                return ("Indique una cantidad mayor que 1 para activar la presentación empaquetada.", false);
+            if (string.Equals(caja, unidad, StringComparison.OrdinalIgnoreCase))
+                return ("Un artículo no puede rebajarse a sí mismo.", false);
+            var nombreCaja = caja.Length == 0 ? "(sin código todavía)" : caja;
+            var cantidad = factor.ToString("0.###");
+            var descripcion = _articuloDescargaSeleccionado is { } a
+                && string.Equals((a.Cod_Articulo ?? string.Empty).Trim(), unidad, StringComparison.OrdinalIgnoreCase)
+                    ? $" ({a.Descripcion})" : string.Empty;
+            return ($"El artículo {nombreCaja} equivale a {cantidad} unidades del artículo {unidad}{descripcion}. "
+                + $"Vender 1 de {nombreCaja} descuenta {cantidad} de {unidad}.", true);
         }
     }
 

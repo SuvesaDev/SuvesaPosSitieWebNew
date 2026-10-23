@@ -91,11 +91,27 @@
           ]
         },
         {
+          "codigo": "BODEGA.RECIBO_DE_MERCADERIA",
+          "nombre": "Recibo de mercadería",
+          "ruta": "/bodega/recibo",
+          "padre": null,
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "BODEGA.EMPAQUE",
           "nombre": "Empaque",
           "ruta": "/bodega/empaque",
           "padre": null,
-          "orden": 2,
+          "orden": 3,
           "acciones": [
             "VER",
             "CREAR",
@@ -111,7 +127,7 @@
           "nombre": "Despacho",
           "ruta": "/bodega/despacho",
           "padre": null,
-          "orden": 3,
+          "orden": 4,
           "acciones": [
             "VER",
             "CREAR",
@@ -127,7 +143,7 @@
           "nombre": "Ubicaciones",
           "ruta": "/bodega/ubicaciones",
           "padre": null,
-          "orden": 4,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -143,7 +159,7 @@
           "nombre": "Rutas de entrega",
           "ruta": "/bodega/rutas",
           "padre": null,
-          "orden": 5,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",

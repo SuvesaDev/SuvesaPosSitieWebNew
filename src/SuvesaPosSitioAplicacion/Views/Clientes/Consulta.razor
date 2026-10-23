@@ -112,6 +112,7 @@
                             <PropertyColumn Property="c => c.Nombre" Title="Nombre" />
                             <PropertyColumn Property="c => c.Telefono_01" Title="Teléfono" />
                             <PropertyColumn Property="c => c.E_Mail" Title="Correo" />
+                            <PropertyColumn Property="c => c.Tipoprecio" Title="Precio" CellClass="justify-center" HeaderClass="justify-center"><CellTemplate>@NombreCategoriaPrecio(context.Item.Tipoprecio)</CellTemplate></PropertyColumn>
                             <PropertyColumn Property="c => c.Max_Credito" Title="Crédito" CellClass="justify-end" HeaderClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Max_Credito)</CellTemplate></PropertyColumn>
                             <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate><div class="d-flex gap-1"><button class="btn btn-sm btn-success" title="Ver detalle" aria-label="Ver detalle" @onclick="() => Ver(context.Item)"><i class="bi bi-eye"></i></button> @if (Sesion.Puede(Titulo, AccionPantalla.Modificar)) { <button class="btn btn-sm btn-outline-success" title="Editar cliente" aria-label="Editar cliente" @onclick="() => Editar(context.Item)"><i class="bi bi-pencil"></i></button> }</div></CellTemplate></TemplateColumn>
                         </Columns>
@@ -389,6 +390,18 @@
                         <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono01" Requerido="true" /></div>
                         <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono alterno" @bind-Valor="_edicion.Telefono02" /></div>
                         <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Correo cuentas por cobrar" @bind-Valor="_edicion.EMail" Requerido="true" /></div>
+
+                        <div class="col-12 seepos-form-seccion">Precios</div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cliente-categoria-precio">Categoría de precio</label>
+                            <select id="cliente-categoria-precio" class="form-select" @bind="CategoriaPrecioEdicion">
+                                <option value="1">Precio A</option>
+                                <option value="2">Precio B</option>
+                                <option value="3">Precio C</option>
+                                <option value="4">Precio D</option>
+                            </select>
+                            <div class="form-text">Lista de precios que se propone al facturar a este cliente. Si el artículo no tiene ese precio, se usa el Precio A.</div>
+                        </div>
 
                         <div class="col-12 seepos-form-seccion">Ubicación</div>
                         <div class="col-12 col-md-4">
@@ -709,6 +722,14 @@
     private InventarioDTO? _articuloBonificacionSeleccionado;
     private string _descripcionBonificacion = string.Empty;
     private string _pestanaEdicion = "generales";
+
+    /// <summary>Tipoprecio del cliente (1 A, 2 B, 3 C, 4 D); un valor vacío o fuera de rango se muestra como A.</summary>
+    private int CategoriaPrecioEdicion
+    {
+        get => _edicion?.Tipoprecio is > 0 and <= 4 ? _edicion.Tipoprecio : 1;
+        set { if (_edicion is not null) _edicion.Tipoprecio = value; }
+    }
+    private static string NombreCategoriaPrecio(int t) => t switch { 2 => "B", 3 => "C", 4 => "D", _ => "A" };
     private bool _variasSucursales;
 
     /// <summary>

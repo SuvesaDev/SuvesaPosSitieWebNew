@@ -112,6 +112,7 @@ public static class TiposImpresionUi
         18 => "devolucion-compra",
         19 => "bulto-despacho",
         20 => "manifiesto-despacho",
+        21 => "entrega-despacho",
         _ => "",
     };
 

@@ -9,6 +9,7 @@
 @inject IAlistamientoApiCliente Api
 @inject IServicioDialogos Dialogos
 @inject IJSRuntime JS
+@inject IContextoSesion Sesion
 
 <AppPantalla Pantalla="Despacho" Codigo="BODEGA.DESPACHO" Icono="bi-truck"
              Subtitulo="Arme el manifiesto con bultos empacados, escanee al camión y salga a ruta." Nivel="NivelPantalla.Escritorio">
@@ -17,23 +18,41 @@
 
   <div class="row g-3">
     <div class="col-lg-7">
-      <div class="card mb-3"><div class="card-header">Bultos empacados sin manifiesto</div>
+      <div class="card mb-3"><div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span>Bultos empacados sin manifiesto</span>
+          @if (RutaElegida is { Zonas.Count: > 0 })
+          {
+            <div class="form-check mb-0">
+              <input id="solo-zona" class="form-check-input" type="checkbox" @bind="_soloZona" />
+              <label class="form-check-label small" for="solo-zona">Solo bultos de la ruta «@RutaElegida.Nombre»</label>
+            </div>
+          }
+        </div>
         <div class="list-group list-group-flush">
-          @foreach (var b in _bultos)
+          @foreach (var b in BultosVisibles)
           {
             <label class="list-group-item d-flex gap-2 align-items-center">
               <input class="form-check-input" type="checkbox" checked="@_elegidos.Contains(b.Id)" @onchange="e => Toggle(b.Id, e)" />
-              <span><code>@b.Codigo</code> @b.NombreCliente · factura @b.NumeroDocumento</span>
+              <span>
+                <code>@b.Codigo</code> @b.NombreCliente · factura @b.NumeroDocumento
+                <span class="d-block small text-secondary">@(string.IsNullOrWhiteSpace(b.Zona) ? "Sin zona en la ficha del cliente" : b.Zona)@(string.IsNullOrWhiteSpace(b.DireccionCliente) ? "" : " · " + b.DireccionCliente)</span>
+                @if (RutaElegida is { Zonas.Count: > 0 } && _elegidos.Contains(b.Id) && !RutaElegida.CubreA(b))
+                {
+                  <span class="badge text-bg-warning">Fuera de las zonas de la ruta</span>
+                }
+              </span>
             </label>
           }
           @if (_bultos.Count == 0) { <div class="list-group-item text-secondary">No hay bultos listos.</div> }
+          else if (!BultosVisibles.Any()) { <div class="list-group-item text-secondary">Ningún bulto listo cae en las zonas de esta ruta.</div> }
         </div>
         <div class="card-body row g-2 align-items-end">
-          <div class="col-md-4"><label class="form-label">Ruta</label>
-            <select class="form-select" @bind="_idRuta">
-              <option value="0">—</option>
+          <div class="col-md-4"><label class="form-label" for="despacho-ruta">Ruta <span class="text-danger">*</span></label>
+            <select id="despacho-ruta" class="form-select" @bind="_idRuta">
+              <option value="0">@(_rutas.Count == 0 ? "No hay rutas activas" : "Seleccione...")</option>
               @foreach (var r in _rutas) { <option value="@r.Id">@r.Nombre</option> }
-            </select></div>
+            </select>
+            @if (_rutas.Count == 0) { <div class="form-text text-danger">Pida al encargado de bodega que cree una ruta de despacho.</div> }</div>
           <div class="col-md-4"><label class="form-label">Vehículo</label>
             <select class="form-select" @bind="_idVehiculo">
               <option value="0">—</option>
@@ -44,7 +63,7 @@
               <option value="0">—</option>
               @foreach (var c in _choferes) { <option value="@c.Id">@c.Nombre</option> }
             </select></div>
-          <div class="col-12 d-grid"><button class="btn btn-primary" @onclick="Crear" disabled="@(_elegidos.Count == 0)">Crear manifiesto</button></div>
+          <div class="col-12 d-grid"><button class="btn btn-primary" @onclick="Crear" disabled="@(_elegidos.Count == 0 || _idRuta == 0)">Crear manifiesto</button></div>
         </div>
       </div>
     </div>
@@ -53,14 +72,57 @@
       {
         <div class="card mb-3"><div class="card-header">Manifiesto @_actual.Id · @_actual.EstadoDescripcion</div>
           <div class="card-body">
-            <p class="mb-2">@_actual.NombreRuta · @_actual.Placa · @_actual.NombreChofer</p>
+            <p class="mb-2">@(_actual.NombreRuta ?? "Sin ruta") · @_actual.Placa · @_actual.NombreChofer</p>
+            @if (_actual.Estado == 1 && Sesion.Puede(Titulo, AccionPantalla.Editar))
+            {
+              <div class="border rounded p-2 mb-3">
+                <div class="small fw-semibold mb-2">Corregir el manifiesto (mientras no salga)</div>
+                <div class="row g-2">
+                  <div class="col-12"><label class="form-label small" for="ed-ruta">Ruta</label>
+                    <select id="ed-ruta" class="form-select form-select-sm" @bind="_edRuta">
+                      <option value="0">—</option>
+                      @foreach (var r in _rutas) { <option value="@r.Id">@r.Nombre</option> }
+                      @if (_edRuta > 0 && !_rutas.Any(r => r.Id == _edRuta)) { <option value="@_edRuta">@_actual.NombreRuta (inactiva)</option> }
+                    </select></div>
+                  <div class="col-6"><label class="form-label small" for="ed-veh">Vehículo</label>
+                    <select id="ed-veh" class="form-select form-select-sm" @bind="_edVehiculo">
+                      <option value="0">—</option>
+                      @foreach (var v in _vehiculos) { <option value="@v.Id">@v.Placa</option> }
+                    </select></div>
+                  <div class="col-6"><label class="form-label small" for="ed-cho">Chofer</label>
+                    <select id="ed-cho" class="form-select form-select-sm" @bind="_edChofer">
+                      <option value="0">—</option>
+                      @foreach (var c in _choferes) { <option value="@c.Id">@c.Nombre</option> }
+                    </select></div>
+                  <div class="col-12 d-flex gap-2 flex-wrap">
+                    <button class="btn btn-sm btn-outline-primary" @onclick="GuardarCorreccion">Guardar cambios</button>
+                    @if (Sesion.Puede(Titulo, AccionPantalla.Borrar))
+                    {
+                      <input class="form-control form-control-sm w-auto" maxlength="200" placeholder="Motivo para anular" aria-label="Motivo para anular el manifiesto" @bind="_motivoAnular" @bind:event="onchange" />
+                      <button class="btn btn-sm btn-outline-danger" @onclick="AnularManifiesto">Anular manifiesto</button>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+            @if (_actual.Estado == 1 && _actual.IdRutaDespacho is not > 0)
+            {
+              <div class="alert alert-warning py-2 small">Asigne una ruta antes de salir a ruta.</div>
+            }
             <label class="form-label" for="scan-bulto">Escanear bulto al camión</label>
             <input id="scan-bulto" @ref="_scanEl" class="form-control mb-2" @bind="_scan" @bind:event="onchange" @bind:after="CargarBulto"
                    placeholder="BULT-…" autocomplete="off" />
             <ul class="list-unstyled mb-3">
               @foreach (var b in _actual.Bultos)
               {
-                <li><code>@b.Codigo</code> @b.EstadoDescripcion · @b.NombreCliente</li>
+                <li>
+                  <code>@b.Codigo</code> @b.EstadoDescripcion · @b.NombreCliente
+                  @if (b.Estado == 4) { <BotonImprimir Tipo="entrega-despacho" Id="b.IdOrden" Texto="Comprobante" Clase="btn-sm btn-outline-secondary ms-1" /> }
+                  @if (_actual.Estado == 1 && Sesion.Puede(Titulo, AccionPantalla.Editar))
+                  {
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-1" @onclick="() => QuitarBulto(b.Id)">Quitar</button>
+                  }
+                </li>
               }
             </ul>
             <div class="d-flex gap-2 flex-wrap">
@@ -68,7 +130,7 @@
               <BotonImprimir Tipo="manifiesto-despacho" Id="_actual.Id" Formato="termico80" Texto="80 mm" Clase="btn-outline-secondary" />
               @if (_actual.Estado == 1)
               {
-                <button class="btn btn-success" @onclick="Salir">Salir a ruta</button>
+                <button class="btn btn-success" @onclick="Salir" disabled="@(_actual.IdRutaDespacho is not > 0)">Salir a ruta</button>
               }
             </div>
             @if (_actual.Estado == 2)
@@ -118,7 +180,16 @@
  private CerrarEntregaModal _entrega = default!;
  private ElementReference _scanEl;
  private IJSObjectReference? _js;
+ // Debe coincidir con el título del menú: de ahí sale el código de permiso de la función.
+ private const string Titulo = "Despacho";
  private int _idRuta, _idVehiculo, _idChofer;
+ private int _edRuta, _edVehiculo, _edChofer;
+ private string _motivoAnular = "";
+ private bool _soloZona;
+ private RutaDespacho? RutaElegida => _idRuta == 0 ? null : _rutas.FirstOrDefault(r => r.Id == _idRuta);
+ // Solo ayuda para armar el manifiesto: el despachador decide y puede cargar un bulto fuera de las zonas.
+ private IEnumerable<BultoDespacho> BultosVisibles
+     => _soloZona && RutaElegida is { Zonas.Count: > 0 } ruta ? _bultos.Where(ruta.CubreA) : _bultos;
  private bool _focoScan;
 
  protected override async Task OnInitializedAsync() => await Cargar();
@@ -140,7 +211,7 @@
  {
      _error = "";
      var b = await Api.BultosEmpacadosAsync();
-     var r = await Api.RutasAsync();
+     var r = await Api.RutasAsync(soloActivas: true);
      var v = await Api.VehiculosAsync();
      var c = await Api.ChoferesAsync();
      var m = await Api.ManifiestosAsync();
@@ -163,6 +234,7 @@
      var r = await Api.CrearManifiestoAsync(_idRuta == 0 ? null : _idRuta, _idVehiculo == 0 ? null : _idVehiculo, _idChofer == 0 ? null : _idChofer, _elegidos.ToList());
      if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo crear."); return; }
      _actual = r.Responses;
+     SincronizarCorreccion();
      _elegidos.Clear();
      if (_actual is not null) await AbrirPdf(_actual.Id);
      _focoScan = _actual?.Estado == 1;
@@ -175,6 +247,47 @@
      if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se abrió."); return; }
      _actual = r.Responses;
      _focoScan = _actual?.Estado == 1;
+     SincronizarCorreccion();
+ }
+
+ private void SincronizarCorreccion()
+ {
+     _edRuta = _actual?.IdRutaDespacho ?? 0;
+     _edVehiculo = _actual?.IdVehiculo ?? 0;
+     _edChofer = _actual?.IdChofer ?? 0;
+     _motivoAnular = "";
+ }
+
+ private async Task GuardarCorreccion()
+ {
+     if (_actual is null) return;
+     var r = await Api.EditarManifiestoAsync(_actual.Id, _edRuta == 0 ? null : _edRuta, _edVehiculo == 0 ? null : _edVehiculo, _edChofer == 0 ? null : _edChofer, _actual.Observaciones);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo corregir el manifiesto."); return; }
+     _actual = r.Responses;
+     SincronizarCorreccion();
+     Dialogos.Exito("Manifiesto actualizado.");
+     await Cargar();
+ }
+
+ private async Task QuitarBulto(long idBulto)
+ {
+     if (_actual is null) return;
+     if (!await Dialogos.ConfirmarAsync("¿Sacar este bulto del manifiesto? Queda libre para otro manifiesto.", "Quitar bulto")) return;
+     var r = await Api.QuitarBultoAsync(_actual.Id, idBulto);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo quitar el bulto."); return; }
+     _actual = r.Responses;
+     await Cargar();
+ }
+
+ private async Task AnularManifiesto()
+ {
+     if (_actual is null) return;
+     if (string.IsNullOrWhiteSpace(_motivoAnular)) { await Dialogos.ErrorAsync("Indique el motivo para anular el manifiesto."); return; }
+     if (!await Dialogos.ConfirmarPeligroAsync("¿Anular este manifiesto? Sus bultos quedan libres para armar otro.")) return;
+     var r = await Api.AnularManifiestoAsync(_actual.Id, _motivoAnular.Trim());
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo anular el manifiesto."); return; }
+     _actual = null;
+     await Cargar();
  }
 
  private async Task CargarBulto()

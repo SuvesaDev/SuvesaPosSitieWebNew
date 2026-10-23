@@ -291,6 +291,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Recibo de mercadería",
+                    Codigo = "BODEGA.RECIBO_DE_MERCADERIA",
+                    Ruta = "/bodega/recibo",
+                },
+                new ItemMenu
+                {
                     Titulo = "Empaque",
                     Codigo = "BODEGA.EMPAQUE",
                     Ruta = "/bodega/empaque",

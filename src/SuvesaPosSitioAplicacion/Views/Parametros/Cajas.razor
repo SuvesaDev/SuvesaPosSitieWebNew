@@ -1,5 +1,6 @@
 @page "/parameters/cash-registers"
 @using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Caja
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ICajaOperaciones Api
@@ -26,17 +27,17 @@
     <ChildContent>
         <div class="card">
             <div class="card-body">
-                <AppRejilla TItem="CajasCantidad"
+                <AppRejilla TItem="CajaMantenimientoDTO"
                             Datos="Cargar"
                             Nivel="NivelPantalla.Tableta"
                             TextoVacio="No hay cajas registradas."
                             @ref="_rejilla">
                     <Columnas>
-                        <HxGridColumn TItem="CajasCantidad" HeaderText="N.º de caja"
+                        <HxGridColumn TItem="CajaMantenimientoDTO" HeaderText="N.º de caja"
                                       ItemTextSelector="c => c.NumCaja.ToString()"
                                       SortKeySelector="c => c.NumCaja" />
 
-                        <HxGridColumn TItem="CajasCantidad" HeaderText="Estado"
+                        <HxGridColumn TItem="CajaMantenimientoDTO" HeaderText="Estado"
                                       SortKeySelector="c => c.NumApertura">
                             <ItemTemplate Context="c">
                                 @if (c.NumApertura == 0)
@@ -45,12 +46,12 @@
                                 }
                                 else
                                 {
-                                    <span class="badge text-bg-secondary">Apertura #@c.NumApertura</span>
+                                    <span class="badge text-bg-secondary" title="@TituloApertura(c)">Apertura #@c.NumApertura@(string.IsNullOrWhiteSpace(c.UsuarioApertura) ? "" : " · " + c.UsuarioApertura)</span>
                                 }
                             </ItemTemplate>
                         </HxGridColumn>
 
-                        <HxGridColumn TItem="CajasCantidad" HeaderText=""
+                        <HxGridColumn TItem="CajaMantenimientoDTO" HeaderText=""
                                       HeaderCssClass="text-end" ItemCssClass="text-end">
                             <ItemTemplate Context="c">
                                 @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
@@ -84,22 +85,25 @@
 @code {
     private const string Titulo = "Cajas";
 
-    private AppRejilla<CajasCantidad>? _rejilla;
+    private AppRejilla<CajaMantenimientoDTO>? _rejilla;
     private HxModal _modal = default!;
 
-    private List<CajasCantidad> _cajas = new();
+    private List<CajaMantenimientoDTO> _cajas = new();
     private bool _cargado;
     private long _numCajaNueva;
 
-    private async Task<GridDataProviderResult<CajasCantidad>> Cargar(GridDataProviderRequest<CajasCantidad> peticion)
+    private async Task<GridDataProviderResult<CajaMantenimientoDTO>> Cargar(GridDataProviderRequest<CajaMantenimientoDTO> peticion)
     {
         if (!_cargado)
         {
-            _cajas = (await Respuestas.DatoAsync(await Api.TodasLasCajas(), "consultar las cajas"))?.ToList() ?? new();
+            _cajas = (await Respuestas.DatoAsync(await Api.CajasMantenimiento(), "consultar las cajas"))?.ToList() ?? new();
             _cargado = true;
         }
         return peticion.ApplyTo(_cajas);
     }
+
+    private static string TituloApertura(CajaMantenimientoDTO c)
+        => c.FechaApertura is { } f ? $"Abierta el {f:dd/MM/yyyy HH:mm}" : "Apertura activa";
 
     private async Task Recargar()
     {
@@ -124,7 +128,7 @@
         }
     }
 
-    private async Task Quitar(CajasCantidad caja)
+    private async Task Quitar(CajaMantenimientoDTO caja)
     {
         if (caja.NumApertura != 0) return;
         if (!await Dialogos.ConfirmarAsync($"¿Quitar la caja {caja.NumCaja}?", "Cajas")) return;

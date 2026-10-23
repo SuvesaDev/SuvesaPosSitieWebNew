@@ -27,6 +27,7 @@ public sealed class PerfilLoginDTO
     [JsonPropertyName("aceptaConsignacion")] public bool AceptaConsignacion { get; set; }
     [JsonPropertyName("permiteExistenciaNegativa")] public bool PermiteExistenciaNegativa { get; set; }
     [JsonPropertyName("habilitaImportaciones")] public bool HabilitaImportaciones { get; set; }
+    [JsonPropertyName("esSupervisorBodega")] public bool EsSupervisorBodega { get; set; }
 }
 
 public sealed class PermisoLoginDTO
@@ -120,6 +121,7 @@ public sealed class PerfilSeguridadDTO
     [JsonPropertyName("aceptaConsignacion")] public bool AceptaConsignacion { get; set; }
     [JsonPropertyName("permiteExistenciaNegativa")] public bool PermiteExistenciaNegativa { get; set; }
     [JsonPropertyName("habilitaImportaciones")] public bool HabilitaImportaciones { get; set; }
+    [JsonPropertyName("esSupervisorBodega")] public bool EsSupervisorBodega { get; set; }
     [JsonPropertyName("activo")] public bool Activo { get; set; } = true;
 }
 

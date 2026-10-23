@@ -150,8 +150,8 @@ public class FiltroMenuTests
         // Auxiliar CxC, Auxiliar CxP, Auxiliar Inventario, Bitácora, W4) + 6 (Cierre,
         // Cierre anual, Balanza, Estado de resultados, Balance general, Flujo de
         // efectivo, W5) + 1 (Pretoma) + 1 (Boletas de Consignación) + 6 (módulo Bodega:
-        // raíz + Cola, Empaque, Despacho, Ubicaciones, Rutas).
-        Assert.Equal(142, Contar(MenuSeePos.Items));
+        // raíz + Cola, Empaque, Despacho, Ubicaciones, Rutas) + 1 (Recibo de mercadería).
+        Assert.Equal(143, Contar(MenuSeePos.Items));
     }
 
     private sealed class ContabilidadFalsa : IContextoContabilidad

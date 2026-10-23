@@ -64,6 +64,7 @@
                                     </td>
                                     <td>
                                         @x.TipoFacturaDescripcion
+                                        @if (x.SinAlistamiento) { <span class="badge text-bg-info ms-1" title="Sus ventas no entran a la cola de alistamiento">Sin alistamiento</span> }
                                         @if (x.EsTiquete) { <span class="badge text-bg-dark ms-1" title="Se cobra y confirma en Facturación, sin preventa">Tiquete</span> }
                                     </td>
                                     <td><span class="small">@x.UsoDescripcion</span></td>
@@ -123,6 +124,13 @@
                                 <input class="form-control" maxlength="100" @bind="_edicion.Descripcion" />
                                 <button type="button" class="btn btn-outline-secondary" @onclick="SugerirDescripcion">Sugerir</button>
                             </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input id="serie-sin-alistamiento" class="form-check-input" type="checkbox" @bind="_edicion.SinAlistamiento" />
+                                <label class="form-check-label" for="serie-sin-alistamiento">Sin alistamiento (Ferias: entrega inmediata)</label>
+                            </div>
+                            <div class="form-text">Todas las series envían sus ventas a la cola de alistamiento de bodega. Marque esta casilla solo en la serie de Ferias.</div>
                         </div>
                     </div>
                 </div>
