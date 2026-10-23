@@ -85,6 +85,8 @@ public sealed class AlistamientoScan
     public DateTime Fecha { get; set; }
     public string? Usuario { get; set; }
     public bool LoteDistintoAlFacturado { get; set; }
+    public bool IngresoManual { get; set; }
+    public string? UsuarioAutorizo { get; set; }
 }
 
 public sealed class BultoDespacho
@@ -99,6 +101,12 @@ public sealed class BultoDespacho
     public decimal PesoKg { get; set; }
     public string? NombreCliente { get; set; }
     public string? NumeroDocumento { get; set; }
+    /// <summary>Zona del cliente: ayuda para armar la ruta, no obliga.</summary>
+    public int? IdProvincia { get; set; }
+    public int? IdCanton { get; set; }
+    public int? IdDistrito { get; set; }
+    public string? Zona { get; set; }
+    public string? DireccionCliente { get; set; }
 }
 
 public sealed class UbicacionBin
@@ -122,6 +130,22 @@ public sealed class RutaDespacho
     public string Nombre { get; set; } = "";
     public string? Observaciones { get; set; }
     public bool Activa { get; set; } = true;
+    public List<RutaZona> Zonas { get; set; } = new();
+
+    /// <summary>¿El cliente de este bulto cae dentro de las zonas de la ruta? Sin zonas definidas no se puede saber.</summary>
+    public bool CubreA(BultoDespacho b) => Zonas.Any(z =>
+        b.IdProvincia == z.IdProvincia
+        && (z.IdCanton is not > 0 || b.IdCanton == z.IdCanton)
+        && (z.IdDistrito is not > 0 || b.IdDistrito == z.IdDistrito));
+}
+
+/// <summary>Zona de una ruta: provincia completa, o un cantón o distrito concreto.</summary>
+public sealed class RutaZona
+{
+    public int IdProvincia { get; set; }
+    public int? IdCanton { get; set; }
+    public int? IdDistrito { get; set; }
+    public string? Descripcion { get; set; }
 }
 
 public sealed class VehiculoDespacho

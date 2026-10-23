@@ -16,7 +16,7 @@ public interface IAlistamientoApiCliente
     Task<LoteEnvelope<AlistamientoOrden>> OrdenAsync(long id);
     Task<LoteEnvelope<AlistamientoOrden>> AsegurarAsync(long idVenta, bool forzar, string? numeroDocumento = null);
     Task<LoteEnvelope<AlistamientoOrden>> AceptarAsync(long idOrden);
-    Task<LoteEnvelope<AlistamientoOrden>> EscanearAsync(long idOrden, string codigo, long? idBulto);
+    Task<LoteEnvelope<AlistamientoOrden>> EscanearAsync(long idOrden, string codigo, long? idBulto, bool manual = false, string? claveSupervisor = null);
     Task<LoteEnvelope<AlistamientoOrden>> CerrarBultoAsync(long idOrden, long? idBulto, decimal pesoKg);
     Task<LoteEnvelope<AlistamientoOrden>> EmpacarAsync(long idOrden, bool autorizarFaltante, string? motivo);
     Task<LoteEnvelope<AlistamientoOrden>> FaltanteAsync(long idOrden);
@@ -25,8 +25,9 @@ public interface IAlistamientoApiCliente
 
     Task<LoteEnvelope<List<UbicacionBin>>> UbicacionesAsync(int? idBodega);
     Task<LoteEnvelope<UbicacionBin>> GuardarUbicacionAsync(UbicacionBin dto);
-    Task<LoteEnvelope<List<RutaDespacho>>> RutasAsync();
+    Task<LoteEnvelope<List<RutaDespacho>>> RutasAsync(bool soloActivas = false);
     Task<LoteEnvelope<RutaDespacho>> GuardarRutaAsync(RutaDespacho dto);
+    Task<LoteEnvelope<RutaDespacho>> ActualizarRutaAsync(RutaDespacho dto);
     Task<LoteEnvelope<List<VehiculoDespacho>>> VehiculosAsync();
     Task<LoteEnvelope<VehiculoDespacho>> GuardarVehiculoAsync(VehiculoDespacho dto);
     Task<LoteEnvelope<List<ChoferDespacho>>> ChoferesAsync();
@@ -38,6 +39,9 @@ public interface IAlistamientoApiCliente
     Task<LoteEnvelope<ManifiestoDespacho>> CrearManifiestoAsync(int? idRuta, int? idVehiculo, int? idChofer, List<long> idsBultos);
     Task<LoteEnvelope<ManifiestoDespacho>> CargarBultoAsync(long idManifiesto, string codigoBulto);
     Task<LoteEnvelope<ManifiestoDespacho>> SalirRutaAsync(long idManifiesto);
+    Task<LoteEnvelope<ManifiestoDespacho>> EditarManifiestoAsync(long idManifiesto, int? idRuta, int? idVehiculo, int? idChofer, string? observaciones);
+    Task<LoteEnvelope<ManifiestoDespacho>> QuitarBultoAsync(long idManifiesto, long idBulto);
+    Task<LoteEnvelope<ManifiestoDespacho>> AnularManifiestoAsync(long idManifiesto, string motivo);
 }
 
 public sealed class AlistamientoApiCliente : IAlistamientoApiCliente
@@ -105,8 +109,8 @@ public sealed class AlistamientoApiCliente : IAlistamientoApiCliente
     public Task<LoteEnvelope<AlistamientoOrden>> AceptarAsync(long idOrden)
         => EnviarAsync<AlistamientoOrden>(HttpMethod.Post, "Alistamiento/Aceptar", new { idOrden });
 
-    public Task<LoteEnvelope<AlistamientoOrden>> EscanearAsync(long idOrden, string codigo, long? idBulto)
-        => EnviarAsync<AlistamientoOrden>(HttpMethod.Post, "Alistamiento/Escanear", new { idOrden, codigo, idBulto });
+    public Task<LoteEnvelope<AlistamientoOrden>> EscanearAsync(long idOrden, string codigo, long? idBulto, bool manual = false, string? claveSupervisor = null)
+        => EnviarAsync<AlistamientoOrden>(HttpMethod.Post, "Alistamiento/Escanear", new { idOrden, codigo, idBulto, manual, claveSupervisor });
 
     public Task<LoteEnvelope<AlistamientoOrden>> CerrarBultoAsync(long idOrden, long? idBulto, decimal pesoKg)
         => EnviarAsync<AlistamientoOrden>(HttpMethod.Post, "Alistamiento/CerrarBulto", new { idOrden, idBulto, pesoKg });
@@ -129,11 +133,14 @@ public sealed class AlistamientoApiCliente : IAlistamientoApiCliente
     public Task<LoteEnvelope<UbicacionBin>> GuardarUbicacionAsync(UbicacionBin dto)
         => EnviarAsync<UbicacionBin>(HttpMethod.Post, "Alistamiento/GuardarUbicacion", dto);
 
-    public Task<LoteEnvelope<List<RutaDespacho>>> RutasAsync()
-        => EnviarAsync<List<RutaDespacho>>(HttpMethod.Get, "Alistamiento/Rutas");
+    public Task<LoteEnvelope<List<RutaDespacho>>> RutasAsync(bool soloActivas = false)
+        => EnviarAsync<List<RutaDespacho>>(HttpMethod.Get, soloActivas ? "Alistamiento/Rutas?soloActivas=true" : "Alistamiento/Rutas");
 
     public Task<LoteEnvelope<RutaDespacho>> GuardarRutaAsync(RutaDespacho dto)
         => EnviarAsync<RutaDespacho>(HttpMethod.Post, "Alistamiento/GuardarRuta", dto);
+
+    public Task<LoteEnvelope<RutaDespacho>> ActualizarRutaAsync(RutaDespacho dto)
+        => EnviarAsync<RutaDespacho>(HttpMethod.Post, "Alistamiento/ActualizarRuta", dto);
 
     public Task<LoteEnvelope<List<VehiculoDespacho>>> VehiculosAsync()
         => EnviarAsync<List<VehiculoDespacho>>(HttpMethod.Get, "Alistamiento/Vehiculos");
@@ -165,4 +172,14 @@ public sealed class AlistamientoApiCliente : IAlistamientoApiCliente
 
     public Task<LoteEnvelope<ManifiestoDespacho>> SalirRutaAsync(long idManifiesto)
         => EnviarAsync<ManifiestoDespacho>(HttpMethod.Post, "Alistamiento/SalirRuta", new { idManifiesto });
+
+    public Task<LoteEnvelope<ManifiestoDespacho>> EditarManifiestoAsync(long idManifiesto, int? idRuta, int? idVehiculo, int? idChofer, string? observaciones)
+        => EnviarAsync<ManifiestoDespacho>(HttpMethod.Post, "Alistamiento/EditarManifiesto",
+            new { idManifiesto, idRutaDespacho = idRuta, idVehiculo, idChofer, observaciones });
+
+    public Task<LoteEnvelope<ManifiestoDespacho>> QuitarBultoAsync(long idManifiesto, long idBulto)
+        => EnviarAsync<ManifiestoDespacho>(HttpMethod.Post, "Alistamiento/QuitarBulto", new { idManifiesto, idBulto });
+
+    public Task<LoteEnvelope<ManifiestoDespacho>> AnularManifiestoAsync(long idManifiesto, string motivo)
+        => EnviarAsync<ManifiestoDespacho>(HttpMethod.Post, "Alistamiento/AnularManifiesto", new { idManifiesto, motivo });
 }

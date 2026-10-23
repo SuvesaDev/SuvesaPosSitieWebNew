@@ -8,32 +8,82 @@
 @using SuvesaPosSitioAplicacion.Services
 @inject IAlistamientoApiCliente Api
 @inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+@inject IGeografia Geografia
 
 <AppPantalla Pantalla="Rutas de entrega" Codigo="BODEGA.RUTAS_DE_ENTREGA" Icono="bi-signpost"
-             Subtitulo="Zona, vehículo y chofer. Distinto de la ruta comercial del vendedor." Nivel="NivelPantalla.Tableta">
+             Subtitulo="Rutas de despacho: las zonas que cubre cada una, más vehículos y choferes. No es la ruta comercial de comisiones." Nivel="NivelPantalla.Tableta">
  <ChildContent>
   @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
 
   <div class="row g-3">
-    <div class="col-lg-4">
-      <div class="card"><div class="card-header d-flex justify-content-between"><span>Zonas</span><button class="btn btn-sm btn-outline-primary" @onclick="NuevaRuta">Agregar</button></div>
+    <div class="col-12">
+      <div class="card"><div class="card-header d-flex justify-content-between align-items-center">
+        <span>Rutas de despacho</span>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear)) { <button class="btn btn-sm btn-outline-primary" @onclick="NuevaRuta">Agregar ruta</button> }
+      </div>
         <ul class="list-group list-group-flush">
           @foreach (var r in _rutas)
           {
-            <li class="list-group-item d-flex justify-content-between"><span>@r.Nombre</span><button class="btn btn-sm btn-link" @onclick="() => EditarRuta(r)">Editar</button></li>
+            <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+              <span>
+                <strong>@r.Nombre</strong>
+                @if (!r.Activa) { <span class="badge text-bg-secondary ms-1">Inactiva</span> }
+                <span class="d-block small text-secondary">@(r.Zonas.Count == 0 ? "Sin zonas definidas" : string.Join(" · ", r.Zonas.Select(z => z.Descripcion)))</span>
+                @if (!string.IsNullOrWhiteSpace(r.Observaciones)) { <span class="d-block small">@r.Observaciones</span> }
+              </span>
+              @if (Sesion.Puede(Titulo, AccionPantalla.Editar)) { <button class="btn btn-sm btn-link" @onclick="() => EditarRuta(r)">Editar</button> }
+            </li>
           }
+          @if (_rutas.Count == 0) { <li class="list-group-item text-secondary">Todavía no hay rutas de despacho. El encargado de bodega las crea aquí.</li> }
         </ul>
         @if (_editRuta)
         {
-          <div class="card-body">
-            <input class="form-control mb-2" @bind="_ruta.Nombre" placeholder="Nombre" />
-            <input class="form-control mb-2" @bind="_ruta.Observaciones" placeholder="Observaciones" />
-            <button class="btn btn-primary btn-sm" @onclick="GuardarRuta">Guardar</button>
+          <div class="card-body border-top">
+            <div class="row g-2">
+              <div class="col-md-6"><label class="form-label" for="ruta-nombre">Nombre</label>
+                <input id="ruta-nombre" class="form-control" maxlength="120" @bind="_ruta.Nombre" placeholder="Ej.: Heredia y Alajuela" /></div>
+              <div class="col-md-6"><label class="form-label" for="ruta-obs">Observaciones</label>
+                <input id="ruta-obs" class="form-control" maxlength="250" @bind="_ruta.Observaciones" /></div>
+              <div class="col-12"><div class="form-check">
+                <input id="ruta-activa" class="form-check-input" type="checkbox" @bind="_ruta.Activa" />
+                <label class="form-check-label" for="ruta-activa">Activa (Despacho solo ofrece las activas)</label></div></div>
+
+              <div class="col-12 seepos-form-seccion">Zonas que cubre</div>
+              <div class="col-md-3"><label class="form-label" for="zona-prov">Provincia</label>
+                <select id="zona-prov" class="form-select" @bind="_zonaProvincia" @bind:after="AlCambiarProvincia">
+                  <option value="0">Seleccione...</option>
+                  @foreach (var p in _provincias) { <option value="@p.Id">@p.Nombre</option> }
+                </select></div>
+              <div class="col-md-3"><label class="form-label" for="zona-canton">Cantón</label>
+                <select id="zona-canton" class="form-select" @bind="_zonaCanton" @bind:after="AlCambiarCanton" disabled="@(_zonaProvincia == 0)">
+                  <option value="0">Toda la provincia</option>
+                  @foreach (var c in _cantones) { <option value="@c.Id">@c.Nombre</option> }
+                </select></div>
+              <div class="col-md-3"><label class="form-label" for="zona-distrito">Distrito</label>
+                <select id="zona-distrito" class="form-select" @bind="_zonaDistrito" disabled="@(_zonaCanton == 0)">
+                  <option value="0">Todo el cantón</option>
+                  @foreach (var d in _distritos) { <option value="@d.Id">@d.Nombre</option> }
+                </select></div>
+              <div class="col-md-3 d-grid align-items-end"><button type="button" class="btn btn-outline-primary" @onclick="AgregarZona" disabled="@(_zonaProvincia == 0)">Agregar zona</button></div>
+              <div class="col-12">
+                @if (_ruta.Zonas.Count == 0) { <div class="form-text">Agregue al menos una zona: varias provincias, o un cantón o distrito concreto.</div> }
+                @foreach (var z in _ruta.Zonas)
+                {
+                  <span class="badge text-bg-light border me-1 mb-1">@z.Descripcion
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-1" aria-label="Quitar zona @z.Descripcion" @onclick="() => QuitarZona(z)"><i class="bi bi-x-lg" aria-hidden="true"></i></button></span>
+                }
+              </div>
+              <div class="col-12 d-flex gap-2">
+                <button class="btn btn-primary btn-sm" @onclick="GuardarRuta">Guardar ruta</button>
+                <button class="btn btn-outline-secondary btn-sm" @onclick="CancelarRuta">Cancelar</button>
+              </div>
+            </div>
           </div>
         }
       </div>
     </div>
-    <div class="col-lg-4">
+    <div class="col-lg-6">
       <div class="card"><div class="card-header d-flex justify-content-between"><span>Vehículos</span><button class="btn btn-sm btn-outline-primary" @onclick="NuevoVehiculo">Agregar</button></div>
         <ul class="list-group list-group-flush">
           @foreach (var v in _vehiculos)
@@ -47,7 +97,7 @@
             <input class="form-control mb-2" @bind="_veh.Placa" placeholder="Placa" />
             <input class="form-control mb-2" @bind="_veh.Descripcion" placeholder="Descripción" />
             <select class="form-select mb-2" @bind="_veh.IdRutaDespacho">
-              <option value="">Sin zona</option>
+              <option value="">Sin ruta habitual</option>
               @foreach (var r in _rutas) { <option value="@r.Id">@r.Nombre</option> }
             </select>
             <button class="btn btn-primary btn-sm" @onclick="GuardarVehiculo">Guardar</button>
@@ -55,7 +105,7 @@
         }
       </div>
     </div>
-    <div class="col-lg-4">
+    <div class="col-lg-6">
       <div class="card"><div class="card-header d-flex justify-content-between"><span>Choferes</span><button class="btn btn-sm btn-outline-primary" @onclick="NuevoChofer">Agregar</button></div>
         <ul class="list-group list-group-flush">
           @foreach (var c in _choferes)
@@ -87,12 +137,20 @@
  private VehiculoDespacho _veh = new() { Activo = true };
  private ChoferDespacho _chofer = new() { Activo = true };
  private bool _editRuta, _editVeh, _editChofer;
+ // Debe coincidir con el título del menú: de ahí sale el código de permiso de la función.
+ private const string Titulo = "Rutas de entrega";
+ private List<ProvinciaDTO> _provincias = new();
+ private List<CantonDTO> _cantones = new();
+ private List<DistritoDTO> _distritos = new();
+ private int _zonaProvincia, _zonaCanton, _zonaDistrito;
 
  protected override async Task OnInitializedAsync() => await Cargar();
 
  private async Task Cargar()
  {
      var r = await Api.RutasAsync();
+     if (_provincias.Count == 0)
+         _provincias = (await Geografia.Provincias()).Responses?.OrderBy(p => p.Nombre).ToList() ?? new();
      var v = await Api.VehiculosAsync();
      var c = await Api.ChoferesAsync();
      if (r.Status != ResponseStatus._0) { _error = r.CurrentException ?? ""; return; }
@@ -101,13 +159,57 @@
      _choferes = c.Responses ?? new();
  }
 
- private void NuevaRuta() { _ruta = new RutaDespacho { Activa = true }; _editRuta = true; }
- private void EditarRuta(RutaDespacho r) { _ruta = new RutaDespacho { Id = r.Id, Nombre = r.Nombre, Observaciones = r.Observaciones, Activa = r.Activa }; _editRuta = true; }
+ private void NuevaRuta() { _ruta = new RutaDespacho { Activa = true }; LimpiarZona(); _editRuta = true; }
+ private void EditarRuta(RutaDespacho r)
+ {
+     _ruta = new RutaDespacho
+     {
+         Id = r.Id, Nombre = r.Nombre, Observaciones = r.Observaciones, Activa = r.Activa,
+         Zonas = r.Zonas.Select(z => new RutaZona { IdProvincia = z.IdProvincia, IdCanton = z.IdCanton, IdDistrito = z.IdDistrito, Descripcion = z.Descripcion }).ToList()
+     };
+     LimpiarZona();
+     _editRuta = true;
+ }
+ private void CancelarRuta() { _editRuta = false; }
+
+ private void LimpiarZona() { _zonaProvincia = _zonaCanton = _zonaDistrito = 0; _cantones = new(); _distritos = new(); }
+
+ private async Task AlCambiarProvincia()
+ {
+     _zonaCanton = _zonaDistrito = 0;
+     _distritos = new();
+     _cantones = _zonaProvincia == 0 ? new() : (await Geografia.Cantones(_zonaProvincia)).Responses?.OrderBy(c => c.Nombre).ToList() ?? new();
+ }
+
+ private async Task AlCambiarCanton()
+ {
+     _zonaDistrito = 0;
+     _distritos = _zonaCanton == 0 ? new() : (await Geografia.Distritos(_zonaCanton)).Responses?.OrderBy(d => d.Nombre).ToList() ?? new();
+ }
+
+ private void AgregarZona()
+ {
+     if (_zonaProvincia == 0) return;
+     int? canton = _zonaCanton == 0 ? null : _zonaCanton;
+     int? distrito = _zonaDistrito == 0 ? null : _zonaDistrito;
+     if (_ruta.Zonas.Any(z => z.IdProvincia == _zonaProvincia && z.IdCanton == canton && z.IdDistrito == distrito)) return;
+     var partes = new List<string?> { _provincias.FirstOrDefault(p => p.Id == _zonaProvincia)?.Nombre };
+     if (canton is not null) partes.Add(_cantones.FirstOrDefault(c => c.Id == canton)?.Nombre);
+     if (distrito is not null) partes.Add(_distritos.FirstOrDefault(d => d.Id == distrito)?.Nombre);
+     _ruta.Zonas.Add(new RutaZona { IdProvincia = _zonaProvincia, IdCanton = canton, IdDistrito = distrito, Descripcion = string.Join(" · ", partes.Where(x => !string.IsNullOrWhiteSpace(x))) });
+     LimpiarZona();
+ }
+
+ private void QuitarZona(RutaZona z) => _ruta.Zonas.Remove(z);
+
  private async Task GuardarRuta()
  {
-     var x = await Api.GuardarRutaAsync(_ruta);
-     if (x.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(x.CurrentException ?? ""); return; }
-     _editRuta = false; await Cargar();
+     if (string.IsNullOrWhiteSpace(_ruta.Nombre)) { await Dialogos.ErrorAsync("Indique el nombre de la ruta."); return; }
+     if (_ruta.Zonas.Count == 0) { await Dialogos.ErrorAsync("Agregue al menos una zona a la ruta."); return; }
+     var x = _ruta.Id > 0 ? await Api.ActualizarRutaAsync(_ruta) : await Api.GuardarRutaAsync(_ruta);
+     if (x.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(x.CurrentException ?? "No se pudo guardar la ruta."); return; }
+     _editRuta = false;
+     await Cargar();
  }
 
  private void NuevoVehiculo() { _veh = new VehiculoDespacho { Activo = true }; _editVeh = true; }

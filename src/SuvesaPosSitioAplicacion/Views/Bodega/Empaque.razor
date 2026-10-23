@@ -64,6 +64,10 @@
           <button class="btn btn-outline-success" @onclick="() => PedirEntrega(false)">Entregado</button>
           <button class="btn btn-outline-dark" @onclick="() => PedirEntrega(true)">No entregado</button>
         }
+        @if (_orden.Estado is 5 or 6)
+        {
+          <BotonImprimir Tipo="entrega-despacho" Id="_orden.Id" Texto="Comprobante de entrega" Clase="btn-outline-secondary" />
+        }
       </div>
     </div></div>
 
@@ -73,8 +77,28 @@
         <label class="form-label" for="scan-alistamiento">Pistola / código</label>
         <input id="scan-alistamiento" @ref="_scanEl" class="form-control form-control-lg" @bind="_scan" @bind:event="onchange" @bind:after="Escanear"
                placeholder="EAN-13 o GS1-128" autocomplete="off" />
-        <p class="form-text mb-0">Pistola USB o colectora: un disparo es la caja/etiqueta (cantidad o peso del GS1). Si la barra está dañada, escriba el código del artículo. Cierre el bulto para abrir el siguiente. El lote tiene que ser el de la factura.</p>
+        <p class="form-text mb-0">Pistola USB o colectora: un disparo es la caja/etiqueta (cantidad o peso del GS1). Si la barra está dañada, use el ingreso manual con un supervisor. Cierre el bulto para abrir el siguiente. El lote tiene que ser el de la factura.</p>
       </div></div>
+    }
+
+    @if (_orden.Estado == 2)
+    {
+      <div class="mb-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => _manual = !_manual">
+          <i class="bi bi-keyboard me-1" aria-hidden="true"></i>Ingreso manual (supervisor)
+        </button>
+        @if (_manual)
+        {
+          <div class="card mt-2"><div class="card-body row g-2 align-items-end">
+            <div class="col-md-5"><label class="form-label" for="manual-codigo">Código del artículo</label>
+              <input id="manual-codigo" class="form-control" @bind="_codigoManual" @bind:event="onchange" autocomplete="off" /></div>
+            <div class="col-md-4"><label class="form-label" for="manual-clave">Clave interna del supervisor</label>
+              <input id="manual-clave" type="password" class="form-control" @bind="_claveSupervisor" @bind:event="onchange" autocomplete="off" /></div>
+            <div class="col-md-3 d-grid"><button class="btn btn-primary" @onclick="EscanearManual">Autorizar y agregar</button></div>
+            <div class="col-12 form-text">Solo un usuario con la opción «Supervisor de bodega» en su perfil. Si el artículo lleva lote, se toma el de la factura; no se puede elegir otro. Queda registrado quién autorizó.</div>
+          </div></div>
+        }
+      </div>
     }
 
     <div class="card mb-3"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
@@ -127,7 +151,7 @@
               <tr>
                 <td>@s.Fecha.ToString("HH:mm:ss")</td>
                 <td><code>@s.CodigoCrudo</code></td>
-                <td>@(s.Lote ?? "—") @(s.LoteDistintoAlFacturado ? "(distinto al facturado)" : "")</td>
+                <td>@(s.Lote ?? "—") @(s.LoteDistintoAlFacturado ? "(distinto al facturado)" : "")@(s.IngresoManual ? $" · manual, autorizó {s.UsuarioAutorizo}" : "")</td>
                 <td class="text-end">@s.Cantidad.ToString("N3")</td>
                 <td>@s.Usuario</td>
               </tr>
@@ -151,6 +175,9 @@
  private string _error = "", _scan = "", _idManual = "";
  private decimal _pesoKg;
  private bool _focoScan;
+ private bool _manual;
+ private string _codigoManual = "", _claveSupervisor = "";
+ private readonly HashSet<long> _etiquetasImpresas = new();
 
  protected override async Task OnParametersSetAsync()
  {
@@ -197,6 +224,37 @@
      if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "Código rechazado."); _focoScan = true; return; }
      _orden = r.Responses;
      _focoScan = true;
+     await CerrarSiEstaCompleto();
+ }
+
+ private async Task EscanearManual()
+ {
+     if (_orden is null) return;
+     if (string.IsNullOrWhiteSpace(_codigoManual)) { await Dialogos.ErrorAsync("Escriba el código del artículo."); return; }
+     if (string.IsNullOrWhiteSpace(_claveSupervisor)) { await Dialogos.ErrorAsync("Indique la clave interna del supervisor."); return; }
+     var r = await Api.EscanearAsync(_orden.Id, _codigoManual.Trim(), null, manual: true, claveSupervisor: _claveSupervisor);
+     _claveSupervisor = "";
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "Ingreso manual rechazado."); return; }
+     _codigoManual = "";
+     _orden = r.Responses;
+     _focoScan = true;
+     await CerrarSiEstaCompleto();
+ }
+
+ // Al completar el 100% de lo facturado se cierra el bulto y se imprime la etiqueta sin pasos extra.
+ private async Task CerrarSiEstaCompleto()
+ {
+     if (_orden is null || _orden.Estado != 2 || _orden.Lineas.Count == 0) return;
+     if (_orden.Lineas.Any(l => l.Estado != 2)) return;
+     if (!_orden.Bultos.Any(b => b.Estado == 1)) return;
+     await CerrarBulto();
+ }
+
+ private async Task ImprimirEtiqueta(long idBulto)
+ {
+     if (!_etiquetasImpresas.Add(idBulto)) return;
+     _js ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/bodega.js");
+     await _js.InvokeVoidAsync("abrir", $"/documentos/bulto-despacho/{idBulto}/pdf?formato=termico80");
  }
 
  private async Task CerrarBulto()
@@ -207,20 +265,20 @@
      _pesoKg = 0;
      _orden = r.Responses;
      var cerrado = _orden?.Bultos.Where(b => b.Estado != 1).OrderByDescending(b => b.Numero).FirstOrDefault();
-     if (cerrado is not null)
-     {
-         _js ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/bodega.js");
-         await _js.InvokeVoidAsync("abrir", $"/documentos/bulto-despacho/{cerrado.Id}/pdf?formato=termico80");
-     }
+     if (cerrado is not null) await ImprimirEtiqueta(cerrado.Id);
      _focoScan = true;
  }
 
  private async Task Empacar()
  {
      if (_orden is null) return;
+     var abiertos = _orden.Bultos.Where(b => b.Estado == 1).Select(b => b.Id).ToHashSet();
      var r = await Api.EmpacarAsync(_orden.Id, false, null);
      if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo empacar."); return; }
      _orden = r.Responses;
+     // «Marcar empacado» cierra los bultos que seguían abiertos: se imprime la etiqueta de cada uno.
+     foreach (var b in _orden?.Bultos.Where(x => x.Estado != 1 && abiertos.Contains(x.Id)) ?? Enumerable.Empty<BultoDespacho>())
+         await ImprimirEtiqueta(b.Id);
      await Dialogos.InformarAsync("Orden empacada. Pase a Despacho para armar el manifiesto.");
  }
 

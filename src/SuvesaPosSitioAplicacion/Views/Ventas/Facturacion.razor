@@ -212,12 +212,12 @@
                                 @if (RutaRequerida)
                                 {
                                     <div class="col-12 col-md-6">
-                                        <label class="form-label" for="factura-ruta">Ruta comercial *</label>
+                                        <label class="form-label" for="factura-ruta">Ruta comercial (comisión) *</label>
                                         <select id="factura-ruta" class="form-select" @bind="_idRutaComercial" @bind:after="AlCambiarRuta">
                                             <option value="0">@(_rutasComerciales.Count == 0 ? "No hay rutas configuradas" : "Seleccione...")</option>
                                             @foreach (var ruta in _rutasComerciales) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }
                                         </select>
-                                        <div class="form-text">@(_rutasComerciales.Count == 0 ? "No hay rutas activas para este usuario en esta sucursal. Créelas o asígnelas en Parámetros → Rutas." : _rutaEsSeleccionManual ? "Obligatoria: seleccione la ruta de venta (Funcionario SAC)." : "Rutas asignadas al usuario validado con la clave interna.")</div>
+                                        <div class="form-text">@(_rutasComerciales.Count == 0 ? "No hay rutas activas para este usuario en esta sucursal. Créelas o asígnelas en Parámetros → Rutas." : _rutaEsSeleccionManual ? "Obligatoria: seleccione la ruta comercial de la venta (Funcionario SAC). La ruta de despacho la define bodega." : "Rutas asignadas al usuario validado con la clave interna.")</div>
                                     </div>
                                     <div class="col-12 col-md-6">
                                         <label class="form-label" for="factura-agente-ruta">Agente asignado</label>

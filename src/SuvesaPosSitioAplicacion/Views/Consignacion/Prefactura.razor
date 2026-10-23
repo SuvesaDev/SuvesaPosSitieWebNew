@@ -151,12 +151,12 @@
             else if (UsuarioValidadoTieneRutas)
             {
               <div style="width:16rem">
-                <label class="form-label" for="prefactura-ruta">Ruta comercial *</label>
+                <label class="form-label" for="prefactura-ruta">Ruta comercial (comisión) *</label>
                 <select id="prefactura-ruta" class="form-select" @bind="_idRutaComercial" @bind:after="AlCambiarRuta">
                   <option value="0">@(_rutasComerciales.Count == 0 ? "No hay rutas configuradas" : "Seleccione...")</option>
                   @foreach (var ruta in _rutasComerciales) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }
                 </select>
-                <div class="form-text">@(_rutaEsSeleccionManual ? "Obligatoria: seleccione la ruta de venta (Funcionario SAC)." : "Rutas asignadas al usuario validado con la clave interna.")</div>
+                <div class="form-text">@(_rutaEsSeleccionManual ? "Obligatoria: seleccione la ruta comercial de la venta (Funcionario SAC)." : "Rutas asignadas al usuario validado con la clave interna.")</div>
               </div>
               <div style="width:16rem">
                 <label class="form-label" for="prefactura-agente-ruta">Agente asignado</label>
@@ -481,7 +481,7 @@
      }
      if (!TieneAtribucionCongelada && _rutaEsSeleccionManual && _idRutaComercial <= 0)
      {
-         await Dialogos.ErrorAsync("Seleccione la ruta de venta (Funcionario SAC).");
+         await Dialogos.ErrorAsync("Seleccione la ruta comercial de la venta (Funcionario SAC): es la de comisiones, no la de despacho.");
          return;
      }
      if (!await Dialogos.ConfirmarAsync(
