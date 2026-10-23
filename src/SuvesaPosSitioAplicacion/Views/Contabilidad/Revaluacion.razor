@@ -1,0 +1,144 @@
+@page "/accounting/revaluation"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Contabilidad
+@using SuvesaPosSitioAplicacion.Services
+@inject IAprobaciones Aprobaciones
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* F4: revaluación mensual de las cuentas monetarias en moneda extranjera (efectivo, bancos, por
+   cobrar y por pagar) con una sola tasa: la de venta del último día hábil del mes. Se simula
+   primero; ejecutar publica la póliza y el cierre del mes la exige. *@
+
+<AppPantalla Pantalla="Revaluación" Codigo="CONTABILIDAD.REVALUACION" Icono="bi-arrow-repeat" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <AppSelectorLibroContable Prefijo="rv" AlCambiarLibro="AlCambiarLibro" />
+                @if (_idLibro > 0)
+                {
+                    <div class="row g-3 mt-1 align-items-end">
+                        <div class="col-6 col-md-2">
+                            <label class="form-label" for="rv-ejercicio">Ejercicio</label>
+                            <input id="rv-ejercicio" type="number" class="form-control" @bind="_ejercicio" />
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label" for="rv-mes">Mes</label>
+                            <input id="rv-mes" type="number" min="1" max="12" class="form-control" @bind="_mes" />
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label" for="rv-moneda">Moneda</label>
+                            <input id="rv-moneda" class="form-control" maxlength="3" @bind="_moneda" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <button class="btn btn-outline-primary w-100" disabled="@_procesando" @onclick="Simular">Simular</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (_actual is not null)
+        {
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Tasa de venta @_actual.TipoCambioVenta.ToString("N4") al @_actual.FechaTasa.ToString("yyyy-MM-dd")</span>
+                    @if (_actual.ProcesoEjecutado)
+                    {
+                        <span class="badge bg-success">Ejecutada</span>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary btn-sm" disabled="@_procesando" @onclick="Ejecutar">Ejecutar revaluación</button>
+                    }
+                </div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Cuenta</th><th class="text-end">Saldo en @_actual.Moneda</th><th class="text-end">Saldo actual (₡)</th><th class="text-end">Saldo revaluado (₡)</th><th class="text-end">Ajuste</th></tr></thead>
+                    <tbody>
+                        @foreach (var l in _actual.Lineas)
+                        {
+                            <tr>
+                                <td><span class="font-monospace">@l.Codigo</span> @l.Descripcion</td>
+                                <td class="text-end">@l.SaldoMonedaExtranjera.ToString("N2")</td>
+                                <td class="text-end">@l.SaldoFuncionalActual.ToString("N2")</td>
+                                <td class="text-end">@l.SaldoFuncionalRevaluado.ToString("N2")</td>
+                                <td class="text-end @(l.Ajuste < 0 ? "text-danger" : "text-success")">@l.Ajuste.ToString("N2")</td>
+                            </tr>
+                        }
+                        @if (_actual.Lineas.Count == 0) { <tr><td colspan="5" class="text-secondary">Sin ajustes: las cuentas ya están a esta tasa.</td></tr> }
+                    </tbody>
+                    <tfoot><tr><th colspan="4" class="text-end">Ganancia / pérdida cambiaria</th><th class="text-end">@_actual.TotalGanancia.ToString("N2") / @_actual.TotalPerdida.ToString("N2")</th></tr></tfoot>
+                </table></div>
+            </div>
+        }
+
+        @if (_idLibro > 0)
+        {
+            <div class="card">
+                <div class="card-header">Revaluaciones ejecutadas</div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Período</th><th>Moneda</th><th class="text-end">Tasa</th><th class="text-end">Ganancia</th><th class="text-end">Pérdida</th></tr></thead>
+                    <tbody>
+                        @foreach (var r in _historial)
+                        {
+                            <tr>
+                                <td>@r.Mes.ToString("00")/@r.Ejercicio</td>
+                                <td>@r.Moneda</td>
+                                <td class="text-end">@r.TipoCambioVenta.ToString("N4")</td>
+                                <td class="text-end">@r.TotalGanancia.ToString("N2")</td>
+                                <td class="text-end">@r.TotalPerdida.ToString("N2")</td>
+                            </tr>
+                        }
+                        @if (_historial.Count == 0) { <tr><td colspan="5" class="text-secondary">Todavía no hay revaluaciones.</td></tr> }
+                    </tbody>
+                </table></div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private long _idLibro;
+    private int _ejercicio = DateTime.Today.Year;
+    private int _mes = DateTime.Today.AddMonths(-1).Month;
+    private string _moneda = "USD";
+    private bool _procesando;
+    private RevaluacionDTO? _actual;
+    private List<RevaluacionDTO> _historial = new();
+
+    private async Task AlCambiarLibro(long idLibro)
+    {
+        _idLibro = idLibro;
+        _actual = null;
+        await CargarHistorial();
+    }
+
+    private async Task CargarHistorial()
+    {
+        _historial = _idLibro == 0
+            ? new()
+            : (await Respuestas.DatoAsync(await Aprobaciones.Revaluaciones(_idLibro), "consultar las revaluaciones"))?.ToList() ?? new();
+    }
+
+    private async Task Simular()
+    {
+        _procesando = true;
+        _actual = await Respuestas.DatoAsync(await Aprobaciones.SimularRevaluacion(_idLibro, _ejercicio, _mes, _moneda.Trim().ToUpperInvariant()), "simular la revaluación");
+        _procesando = false;
+    }
+
+    private async Task Ejecutar()
+    {
+        if (_actual is null) return;
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Publicar la revaluación de {_mes:00}/{_ejercicio} a la tasa {_actual.TipoCambioVenta:N4}? Se crea una póliza y no se puede repetir.", "Ejecutar revaluación"))
+            return;
+        _procesando = true;
+        var respuesta = await Aprobaciones.EjecutarRevaluacion(_idLibro, _ejercicio, _mes, _moneda.Trim().ToUpperInvariant());
+        _procesando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "ejecutar la revaluación")) return;
+        _actual = respuesta.Responses;
+        Dialogos.Exito("Revaluación publicada.");
+        await CargarHistorial();
+    }
+}

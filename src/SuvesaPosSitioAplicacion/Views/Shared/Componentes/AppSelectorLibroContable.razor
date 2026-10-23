@@ -1,0 +1,67 @@
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IFacturacion FacturacionApi
+@inject IEmisoresFiscales EmisoresApi
+@inject IContabilidad Contabilidad
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+
+@* Empresa + emisor -> libro contable. Lo repetían a mano las pantallas de Contabilidad;
+   las pantallas nuevas lo piden aquí. Avisa con AlCambiarLibro (0 si no hay libro activo). *@
+
+<div class="row g-3">
+    <div class="col-12 col-md-6">
+        <label class="form-label" for="@($"{Prefijo}-empresa")">Empresa</label>
+        <select id="@($"{Prefijo}-empresa")" class="form-select" @bind="_idEmpresa" @bind:after="Resolver">
+            <option value="0">Seleccione...</option>
+            @foreach (var empresa in _empresas)
+            {
+                <option value="@empresa.Id">@empresa.Nombre</option>
+            }
+        </select>
+    </div>
+    <div class="col-12 col-md-6">
+        <label class="form-label" for="@($"{Prefijo}-emisor")">Emisor</label>
+        <select id="@($"{Prefijo}-emisor")" class="form-select" @bind="_idEmisor" @bind:after="Resolver">
+            <option value="0">Seleccione...</option>
+            @foreach (var emisor in _emisores)
+            {
+                <option value="@emisor.Id">@emisor.Nombre</option>
+            }
+        </select>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Prefijo { get; set; } = "sl";
+    [Parameter] public EventCallback<long> AlCambiarLibro { get; set; }
+
+    private List<EmpresaDTO> _empresas = new();
+    private List<DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
+    private int _idEmpresa;
+    private int _idEmisor;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _empresas = (await Respuestas.DatoAsync(await FacturacionApi.Empresas(), "consultar las empresas"))?.ToList() ?? new();
+        _emisores = (await Respuestas.DatoAsync(await EmisoresApi.Obtener(), "consultar los emisores"))?.ToList() ?? new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+        if (_emisores.Count == 1) _idEmisor = _emisores[0].Id;
+        await Resolver();
+    }
+
+    private async Task Resolver()
+    {
+        long idLibro = 0;
+        if (_idEmpresa > 0 && _idEmisor > 0)
+        {
+            var estado = await Respuestas.DatoAsync(
+                await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor, Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null),
+                "consultar el estado de activación");
+            idLibro = estado?.IdLibroContable ?? 0;
+        }
+        await AlCambiarLibro.InvokeAsync(idLibro);
+    }
+}

@@ -12599,6 +12599,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("esEfectivo")]
         public bool EsEfectivo { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("esMonetaria")]
+        public bool EsMonetaria { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("clasificacionFlujo")]
         public string? ClasificacionFlujo { get; set; } = default!;
 
@@ -12802,6 +12805,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("esEfectivo")]
         public bool EsEfectivo { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("esMonetaria")]
+        public bool EsMonetaria { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("clasificacionFlujo")]
         public string? ClasificacionFlujo { get; set; } = default!;
 
@@ -12849,6 +12855,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("esEfectivo")]
         public bool EsEfectivo { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("esMonetaria")]
+        public bool EsMonetaria { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("clasificacionFlujo")]
         public string? ClasificacionFlujo { get; set; } = default!;
@@ -13432,6 +13441,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("contrasena")]
         public string? Contrasena { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idSolicitud")]
+        public long? IdSolicitud { get; set; } = default!;
 
     }
 
@@ -14187,6 +14199,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("contrasena")]
         public string? Contrasena { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idSolicitud")]
+        public long? IdSolicitud { get; set; } = default!;
 
     }
 

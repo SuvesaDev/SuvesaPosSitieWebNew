@@ -6,6 +6,7 @@
 @inject IFacturacion FacturacionApi
 @inject IEmisoresFiscales EmisoresApi
 @inject IContabilidad Contabilidad
+@inject IAprobaciones AprobacionesApi
 @inject ISucursales SucursalesApi
 @inject IContextoSesion Sesion
 @inject IServicioDialogos Dialogos
@@ -218,6 +219,14 @@
                 }
             </select>
         </div>
+        <div class="col-12">
+            <label class="form-label" for="pm-concepto">Concepto</label>
+            <input id="pm-concepto" class="form-control" maxlength="300" @bind="_conceptoManual" />
+            @if (_modoMakerChecker)
+            {
+                <div class="form-text">Modo maker-checker: se envía como solicitud y otra persona debe aprobarla antes de publicarse.</div>
+            }
+        </div>
         <div class="col-6">
             <label class="form-label" for="pm-fecha">Fecha contable</label>
             <input id="pm-fecha" type="date" class="form-control" @bind="_fechaManual" />
@@ -305,6 +314,9 @@
     private List<DTOs.Fiscal.SucursalFiscalDTO> _sucursales = new();
     private DateOnly _fechaManual = DateOnly.FromDateTime(DateTime.Today);
     private int _idSucursalManual;
+    private string _conceptoManual = "";
+    /// <summary>En maker-checker las pólizas manuales y los reversos viajan como solicitud de aprobación.</summary>
+    private bool _modoMakerChecker;
     private long? _idClienteManual;
     private List<LineaAsientoManualDTO> _lineasManual = new();
 
@@ -330,6 +342,8 @@
         var estado = await Respuestas.DatoAsync(await Contabilidad.EstadoActivacion(_idEmpresa, _idEmisor, Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null), "consultar el estado de activación");
         _idLibroContable = estado?.IdLibroContable ?? 0;
         if (_idLibroContable == 0) return;
+
+        _modoMakerChecker = (await Respuestas.DatoAsync(await AprobacionesApi.Configuracion(_idLibroContable), "consultar el modo de aprobación"))?.Modo == "MakerChecker";
 
         var cuentas = (await Respuestas.DatoAsync(await Contabilidad.ListarCuentas(_idLibroContable), "consultar las cuentas"))?.ToList() ?? new();
         _cuentas = cuentas.ToDictionary(c => c.Id);
@@ -420,6 +434,20 @@
         _guardando = true;
         try
         {
+            if (_modoMakerChecker)
+            {
+                var solicitud = await AprobacionesApi.Solicitar(new DTOs.Contabilidad.SolicitarAprobacionDTO
+                {
+                    IdLibroContable = _idLibroContable, Tipo = "ReversoPoliza", IdReferencia = _asientoAReversar.Id, Motivo = _motivoReverso.Trim(),
+                });
+                if (await Respuestas.CorrectaAsync(solicitud, "enviar la solicitud de reverso"))
+                {
+                    await _modalReverso.OcultarAsync();
+                    Dialogos.Exito("Solicitud enviada: otra persona debe aprobarla en Aprobaciones.");
+                }
+                return;
+            }
+
             var respuesta = await Contabilidad.ReversarAsiento(_asientoAReversar.Id, _contrasenaReverso, _motivoReverso.Trim());
             if (await Respuestas.CorrectaAsync(respuesta, "reversar la póliza"))
             {
@@ -460,9 +488,15 @@
             return;
         }
 
+        if (_modoMakerChecker && string.IsNullOrWhiteSpace(_conceptoManual))
+        {
+            await Dialogos.ErrorAsync("Indique el concepto: es el motivo que verá quien aprueba.");
+            return;
+        }
+
         var tocaControl = _lineasManual.Any(l => _cuentas.TryGetValue(l.IdCuentaContable, out var c) && c.EsControl == true);
         string? contrasena = null;
-        if (tocaControl)
+        if (tocaControl && !_modoMakerChecker)
         {
             contrasena = await _confirmarClave.MostrarAsync();
             if (contrasena is null) return;
@@ -477,9 +511,27 @@
             FechaContable = new DateTimeOffset(_fechaManual.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
             FechaFiscal = new DateTimeOffset(_fechaManual.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
             IdCliente = _idClienteManual,
+            Concepto = string.IsNullOrWhiteSpace(_conceptoManual) ? null : _conceptoManual.Trim(),
             Contrasena = contrasena,
             Lineas = _lineasManual,
         };
+
+        if (_modoMakerChecker)
+        {
+            _guardando = true;
+            var solicitud = await AprobacionesApi.Solicitar(new DTOs.Contabilidad.SolicitarAprobacionDTO
+            {
+                IdLibroContable = _idLibroContable, Tipo = "AsientoManual", Motivo = comando.Concepto!, Asiento = comando,
+            });
+            _guardando = false;
+            if (await Respuestas.CorrectaAsync(solicitud, "enviar la solicitud de la póliza"))
+            {
+                Dialogos.Exito("Solicitud enviada: otra persona debe aprobarla en Aprobaciones.");
+                _conceptoManual = "";
+                await _modalManual.OcultarAsync();
+            }
+            return;
+        }
 
         _guardando = true;
         var respuesta = await Contabilidad.CrearAsientoManual(comando);

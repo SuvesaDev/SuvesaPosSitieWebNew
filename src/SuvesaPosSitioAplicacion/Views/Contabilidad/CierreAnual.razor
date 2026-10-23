@@ -7,6 +7,7 @@
 @inject IFacturacion FacturacionApi
 @inject IEmisoresFiscales EmisoresApi
 @inject IContabilidad Contabilidad
+@inject IAprobaciones AprobacionesApi
 @inject IContextoSesion Sesion
 @inject IServicioDialogos Dialogos
 @inject IManejadorRespuestas Respuestas
@@ -209,11 +210,19 @@
         if (!await Dialogos.ConfirmarPeligroAsync($"¿Ejecutar el cierre anual {_ejercicio}? Traslada el resultado neto a Utilidades Acumuladas y no se puede deshacer.", "Cierre anual"))
             return;
 
+        var aprobada = (await Respuestas.DatoAsync(await AprobacionesApi.Solicitudes(_idLibroContable, "Aprobada"), "consultar las solicitudes aprobadas"))
+            ?.FirstOrDefault(s => s.Tipo == "CierreAnual" && s.IdReferencia == _ejercicio);
+        if (aprobada is null)
+        {
+            Dialogos.Advertencia($"El cierre anual {_ejercicio} necesita una solicitud aprobada por el Autorizador (dueño). Pídala en Aprobaciones.");
+            return;
+        }
+
         var clave = await _confirmarClave.MostrarAsync();
         if (clave is null) return;
 
         _procesando = true;
-        var respuesta = await Contabilidad.EjecutarCierreAnual(_idLibroContable, _ejercicio, clave);
+        var respuesta = await Contabilidad.EjecutarCierreAnual(_idLibroContable, _ejercicio, clave, aprobada.Id);
         _procesando = false;
 
         if (await Respuestas.CorrectaAsync(respuesta, "ejecutar el cierre anual"))

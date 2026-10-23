@@ -151,6 +151,10 @@
                 <input class="form-check-input" type="checkbox" id="nc-efectivo" @bind="_nueva.EsEfectivo" />
                 <label class="form-check-label" for="nc-efectivo">Es efectivo (caja/bancos)</label>
             </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="nc-monetaria" @bind="_nueva.EsMonetaria" />
+                <label class="form-check-label" for="nc-monetaria">Cuenta monetaria (se revalúa en moneda extranjera)</label>
+            </div>
         </div>
     </div>
 </AppModal>
@@ -218,6 +222,10 @@
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="ec-efectivo" @bind="_edicion.EsEfectivo" />
                     <label class="form-check-label" for="ec-efectivo">Es efectivo (caja/bancos)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="ec-monetaria" @bind="_edicion.EsMonetaria" />
+                    <label class="form-check-label" for="ec-monetaria">Cuenta monetaria (se revalúa en moneda extranjera)</label>
                 </div>
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="ec-activo" @bind="_edicion.Activo" />
@@ -353,6 +361,7 @@
             MapeoFinanciero = cuenta.MapeoFinanciero,
             Moneda = cuenta.Moneda,
             EsEfectivo = cuenta.EsEfectivo == true,
+            EsMonetaria = cuenta.EsMonetaria,
             ClasificacionFlujo = cuenta.ClasificacionFlujo,
             Activo = cuenta.Activo != false,
             ActualizarPadre = true,

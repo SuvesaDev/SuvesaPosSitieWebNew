@@ -12,6 +12,10 @@ public partial class CrearAsientoManualDTO
 
     [JsonPropertyName("idEmpresa")]
     public long? IdEmpresa { get; set; }
+
+    /// <summary>Descripción de la póliza; si falta el API guarda "Póliza manual".</summary>
+    [JsonPropertyName("concepto")]
+    public string? Concepto { get; set; }
 }
 
 public partial class LineaAsientoContableDTO

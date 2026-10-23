@@ -151,7 +151,7 @@ public class FiltroMenuTests
         // Cierre anual, Balanza, Estado de resultados, Balance general, Flujo de
         // efectivo, W5) + 1 (Pretoma) + 1 (Boletas de Consignación) + 6 (módulo Bodega:
         // raíz + Cola, Empaque, Despacho, Ubicaciones, Rutas) + 1 (Recibo de mercadería).
-        Assert.Equal(143, Contar(MenuSeePos.Items));
+        Assert.Equal(146, Contar(MenuSeePos.Items));
     }
 
     private sealed class ContabilidadFalsa : IContextoContabilidad

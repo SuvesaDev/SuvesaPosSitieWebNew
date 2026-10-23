@@ -380,19 +380,19 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "bloquear el período");
 
-    public Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ReabrirPeriodo(long idPeriodo, string motivo, string contrasena)
+    public Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ReabrirPeriodo(long idPeriodo, string motivo, string contrasena, long? idSolicitud = null)
         => Ejecutar(async () =>
         {
-            var r = await _api.ReabrirAsync(idPeriodo, new ReabrirPeriodoDTO { Motivo = motivo, Contrasena = contrasena });
+            var r = await _api.ReabrirAsync(idPeriodo, new ReabrirPeriodoDTO { Motivo = motivo, Contrasena = contrasena, IdSolicitud = idSolicitud });
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "reabrir el período");
 
     // ---- W5: cierre anual y evidencia de adjunto ----
 
-    public Task<ResponseGeneric<CierreAnualDTO>> EjecutarCierreAnual(long idLibroContable, int ejercicio, string contrasena)
+    public Task<ResponseGeneric<CierreAnualDTO>> EjecutarCierreAnual(long idLibroContable, int ejercicio, string contrasena, long? idSolicitud = null)
         => Ejecutar(async () =>
         {
-            var r = await _api.CierreAnualPOSTAsync(new EjecutarCierreAnualDTO { IdLibroContable = idLibroContable, Ejercicio = ejercicio, Contrasena = contrasena });
+            var r = await _api.CierreAnualPOSTAsync(new EjecutarCierreAnualDTO { IdLibroContable = idLibroContable, Ejercicio = ejercicio, Contrasena = contrasena, IdSolicitud = idSolicitud });
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "ejecutar el cierre anual");
 

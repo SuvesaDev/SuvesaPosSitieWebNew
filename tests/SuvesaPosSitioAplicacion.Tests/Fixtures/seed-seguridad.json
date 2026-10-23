@@ -695,7 +695,7 @@
     {
       "codigo": "CONTABILIDAD",
       "nombre": "Contabilidad",
-      "orden": 4,
+      "orden": 5,
       "icono": "bi-journal-text",
       "funciones": [
         {
@@ -923,11 +923,59 @@
           ]
         },
         {
+          "codigo": "CONTABILIDAD.APROBACIONES",
+          "nombre": "Aprobaciones",
+          "ruta": "/accounting/approvals",
+          "padre": null,
+          "orden": 15,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CONTABILIDAD.TIPOS_DE_CAMBIO",
+          "nombre": "Tipos de cambio",
+          "ruta": "/accounting/exchange-rates",
+          "padre": null,
+          "orden": 16,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CONTABILIDAD.REVALUACION",
+          "nombre": "Revaluación",
+          "ruta": "/accounting/revaluation",
+          "padre": null,
+          "orden": 17,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "CONTABILIDAD.BALANZA",
           "nombre": "Balanza",
           "ruta": "/accounting/trial-balance",
           "padre": null,
-          "orden": 15,
+          "orden": 18,
           "acciones": [
             "VER",
             "CREAR",
@@ -943,7 +991,7 @@
           "nombre": "Estado de resultados",
           "ruta": "/accounting/income-statement",
           "padre": null,
-          "orden": 16,
+          "orden": 19,
           "acciones": [
             "VER",
             "CREAR",
@@ -959,7 +1007,7 @@
           "nombre": "Balance general",
           "ruta": "/accounting/balance-sheet",
           "padre": null,
-          "orden": 17,
+          "orden": 20,
           "acciones": [
             "VER",
             "CREAR",
@@ -975,7 +1023,7 @@
           "nombre": "Flujo de efectivo",
           "ruta": "/accounting/cash-flow",
           "padre": null,
-          "orden": 18,
+          "orden": 21,
           "acciones": [
             "VER",
             "CREAR",
@@ -991,7 +1039,7 @@
     {
       "codigo": "INICIO",
       "nombre": "Inicio",
-      "orden": 5,
+      "orden": 6,
       "icono": "bi-house-door-fill",
       "funciones": [
         {
@@ -1095,7 +1143,7 @@
     {
       "codigo": "MODULO_INVENTARIO",
       "nombre": "Módulo Inventario",
-      "orden": 6,
+      "orden": 7,
       "icono": "bi-boxes",
       "funciones": [
         {
@@ -1119,7 +1167,7 @@
     {
       "codigo": "MODULO_REPORTES",
       "nombre": "Módulo Reportes",
-      "orden": 7,
+      "orden": 8,
       "icono": "bi-bar-chart-fill",
       "funciones": [
         {
@@ -1575,7 +1623,7 @@
     {
       "codigo": "PRESUPUESTOS",
       "nombre": "Presupuestos",
-      "orden": 8,
+      "orden": 9,
       "icono": "bi-file-earmark-text",
       "funciones": [
         {
@@ -1615,7 +1663,7 @@
     {
       "codigo": "PRODUCCION",
       "nombre": "Producción",
-      "orden": 9,
+      "orden": 10,
       "icono": "bi-hammer",
       "funciones": [
         {
@@ -1655,7 +1703,7 @@
     {
       "codigo": "VENTAS",
       "nombre": "Ventas",
-      "orden": 10,
+      "orden": 11,
       "icono": "bi-receipt",
       "funciones": [
         {
@@ -1775,7 +1823,7 @@
     {
       "codigo": "PARAMETROS",
       "nombre": "Parametros",
-      "orden": 11,
+      "orden": 12,
       "icono": "bi-gear-fill",
       "funciones": [
         {

@@ -80,9 +80,9 @@ public class ContextoContabilidadTests
         public Task<ResponseGeneric<ChecklistPreCierreDTO>> EjecutarPreCierre(long idPeriodo) => throw new NotImplementedException();
         public Task<ResponseGeneric<PeriodoContableDTO>> CerrarPeriodo(long idPeriodo) => throw new NotImplementedException();
         public Task<ResponseGeneric<PeriodoContableDTO>> BloquearPeriodo(long idPeriodo) => throw new NotImplementedException();
-        public Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ReabrirPeriodo(long idPeriodo, string motivo, string contrasena) => throw new NotImplementedException();
+        public Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ReabrirPeriodo(long idPeriodo, string motivo, string contrasena, long? idSolicitud = null) => throw new NotImplementedException();
 
-        public Task<ResponseGeneric<CierreAnualDTO>> EjecutarCierreAnual(long idLibroContable, int ejercicio, string contrasena) => throw new NotImplementedException();
+        public Task<ResponseGeneric<CierreAnualDTO>> EjecutarCierreAnual(long idLibroContable, int ejercicio, string contrasena, long? idSolicitud = null) => throw new NotImplementedException();
         public Task<ResponseGeneric<CierreAnualDTO>> ObtenerCierreAnual(long idLibroContable, int ejercicio) => throw new NotImplementedException();
         public Task<ResponseGeneric<EvidenciaCierreDTO>> CargarEvidenciaCierre(long idLibroContable, string tipoOperacion, long idReferencia, Stream archivo, string nombreArchivo, string contentType) => throw new NotImplementedException();
         public Task<ResponseGeneric<ICollection<EvidenciaCierreDTO>>> ListarEvidenciasCierre(string tipoOperacion, long idReferencia) => throw new NotImplementedException();

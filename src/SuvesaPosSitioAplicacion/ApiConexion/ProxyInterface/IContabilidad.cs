@@ -72,10 +72,10 @@ public interface IContabilidad
     Task<ResponseGeneric<ChecklistPreCierreDTO>> EjecutarPreCierre(long idPeriodo);
     Task<ResponseGeneric<PeriodoContableDTO>> CerrarPeriodo(long idPeriodo);
     Task<ResponseGeneric<PeriodoContableDTO>> BloquearPeriodo(long idPeriodo);
-    Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ReabrirPeriodo(long idPeriodo, string motivo, string contrasena);
+    Task<ResponseGeneric<ICollection<PeriodoContableDTO>>> ReabrirPeriodo(long idPeriodo, string motivo, string contrasena, long? idSolicitud = null);
 
     // ---- W5: cierre anual y evidencia de adjunto ----
-    Task<ResponseGeneric<CierreAnualDTO>> EjecutarCierreAnual(long idLibroContable, int ejercicio, string contrasena);
+    Task<ResponseGeneric<CierreAnualDTO>> EjecutarCierreAnual(long idLibroContable, int ejercicio, string contrasena, long? idSolicitud = null);
     Task<ResponseGeneric<CierreAnualDTO>> ObtenerCierreAnual(long idLibroContable, int ejercicio);
     Task<ResponseGeneric<EvidenciaCierreDTO>> CargarEvidenciaCierre(long idLibroContable, string tipoOperacion, long idReferencia, Stream archivo, string nombreArchivo, string contentType);
     Task<ResponseGeneric<ICollection<EvidenciaCierreDTO>>> ListarEvidenciasCierre(string tipoOperacion, long idReferencia);

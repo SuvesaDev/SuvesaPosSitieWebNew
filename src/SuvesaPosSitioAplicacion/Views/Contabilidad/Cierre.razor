@@ -7,6 +7,7 @@
 @inject IFacturacion FacturacionApi
 @inject IEmisoresFiscales EmisoresApi
 @inject IContabilidad Contabilidad
+@inject IAprobaciones AprobacionesApi
 @inject IContextoSesion Sesion
 @inject IServicioDialogos Dialogos
 @inject IManejadorRespuestas Respuestas
@@ -173,7 +174,7 @@
 </AppPantalla>
 
 <AppModal @ref="_modalReapertura" Titulo="Reabrir período (cascada)" AlGuardar="ConfirmarReapertura" Guardando="_procesando"
-          PuedeGuardar="!string.IsNullOrWhiteSpace(_motivoReapertura)">
+          PuedeGuardar="!string.IsNullOrWhiteSpace(_motivoReapertura) && _idSolicitudReapertura > 0">
     <p>Se reabrirán, en este orden, todos los períodos siguientes:</p>
     <ul>
         @foreach (var periodo in _cascadaReapertura)
@@ -181,6 +182,20 @@
             <li>@periodo.Mes.ToString("00")/@periodo.Ejercicio</li>
         }
     </ul>
+    <div class="mb-2">
+        <label class="form-label" for="cr-solicitud">Solicitud aprobada</label>
+        <select id="cr-solicitud" class="form-select" @bind="_idSolicitudReapertura">
+            <option value="0">Seleccione...</option>
+            @foreach (var s in _solicitudesReapertura)
+            {
+                <option value="@s.Id">#@s.Id — @s.Motivo (aprobó @s.ResueltoPor)</option>
+            }
+        </select>
+        @if (_solicitudesReapertura.Count == 0)
+        {
+            <div class="form-text text-danger">No hay una solicitud aprobada para este período. Pídala en Aprobaciones: el Autorizador (dueño) debe aprobarla con su evidencia.</div>
+        }
+    </div>
     <div class="mb-2">
         <label class="form-label" for="cr-motivo">Motivo</label>
         <textarea id="cr-motivo" class="form-control" rows="3" @bind="_motivoReapertura"></textarea>
@@ -210,6 +225,8 @@
     private AppConfirmarClaveContabilidad _confirmarClave = default!;
     private List<PeriodoContableDTO> _cascadaReapertura = new();
     private string _motivoReapertura = "";
+    private long _idSolicitudReapertura;
+    private List<DTOs.Contabilidad.SolicitudAprobacionDTO> _solicitudesReapertura = new();
     private int _ejercicio = DateTime.Today.Year;
     private int _mes = DateTime.Today.Month;
 
@@ -342,6 +359,11 @@
             .OrderBy(p => p.Ejercicio).ThenBy(p => p.Mes)
             .ToList();
         _motivoReapertura = "";
+        _idSolicitudReapertura = 0;
+        var periodoId = _periodoActual.Id;
+        _solicitudesReapertura = (await Respuestas.DatoAsync(await AprobacionesApi.Solicitudes(_idLibroContable, "Aprobada"), "consultar las solicitudes aprobadas"))
+            ?.Where(s => s.Tipo == "Reapertura" && s.IdReferencia == periodoId).ToList() ?? new();
+        if (_solicitudesReapertura.Count == 1) _idSolicitudReapertura = _solicitudesReapertura[0].Id;
         await _modalReapertura.MostrarAsync();
     }
 
@@ -353,7 +375,7 @@
         if (clave is null) return;
 
         _procesando = true;
-        var respuesta = await Contabilidad.ReabrirPeriodo(_periodoActual.Id, _motivoReapertura, clave);
+        var respuesta = await Contabilidad.ReabrirPeriodo(_periodoActual.Id, _motivoReapertura, clave, _idSolicitudReapertura);
         _procesando = false;
 
         if (await Respuestas.CorrectaAsync(respuesta, "reabrir el período"))

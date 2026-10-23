@@ -976,6 +976,24 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Aprobaciones",
+                    Codigo = "CONTABILIDAD.APROBACIONES",
+                    Ruta = "/accounting/approvals",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Tipos de cambio",
+                    Codigo = "CONTABILIDAD.TIPOS_DE_CAMBIO",
+                    Ruta = "/accounting/exchange-rates",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Revaluación",
+                    Codigo = "CONTABILIDAD.REVALUACION",
+                    Ruta = "/accounting/revaluation",
+                },
+                new ItemMenu
+                {
                     Titulo = "Balanza",
                     Codigo = "CONTABILIDAD.BALANZA",
                     Ruta = "/accounting/trial-balance",

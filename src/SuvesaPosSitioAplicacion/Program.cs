@@ -123,6 +123,10 @@ ClienteApi<IUsuarioApiCliente, UsuarioApiCliente>();
 builder.Services.AddHttpClient<ISeguridadApiCliente, SeguridadApiCliente>(c => c.BaseAddress = new Uri(urlApi))
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 
+// Cliente hecho a mano para aprobaciones, tipos de cambio y revaluación de Contabilidad (Ola 2).
+builder.Services.AddHttpClient<IAprobacionesApiCliente, AprobacionesApiCliente>(c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+
 // Cliente hecho a mano para el CRUD de /ConfiguracionBonificacion/* (§3.1, contratos NSwag no regenerables en local).
 builder.Services.AddHttpClient<IBonificacionApiCliente, BonificacionApiCliente>(c => c.BaseAddress = new Uri(urlApi))
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
@@ -221,6 +225,7 @@ builder.Services.AddScoped<IPresentaciones, Presentaciones>();
 builder.Services.AddScoped<IUsuarios, Usuarios>();
 builder.Services.AddScoped<IRolesPermisos, RolesPermisos>();
 builder.Services.AddScoped<IPerfiles, Perfiles>();
+builder.Services.AddScoped<IAprobaciones, Aprobaciones>();
 builder.Services.AddScoped<ISucursales, Sucursales>();
 builder.Services.AddScoped<IEmpresas, Empresas>();
 builder.Services.AddScoped<IConfiguracion, Configuracion>();
