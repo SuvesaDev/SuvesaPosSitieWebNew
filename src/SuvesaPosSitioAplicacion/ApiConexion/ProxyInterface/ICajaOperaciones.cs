@@ -13,6 +13,8 @@ public interface ICajaOperaciones
 
     /// <summary>Todas las cajas del catálogo (mantenimiento en Parámetros).</summary>
     Task<ResponseGeneric<ICollection<CajasCantidad>>> TodasLasCajas();
+    /// <summary>Lo mismo que <see cref="TodasLasCajas"/>, con el cajero de la apertura activa de cada caja.</summary>
+    Task<ResponseGeneric<ICollection<CajaMantenimientoDTO>>> CajasMantenimiento();
     Task<ResponseGeneric<CajasCantidad>> CrearCaja(long numCaja);
     Task<ResponseGeneric<bool>> EliminarCaja(long idCaja);
     Task<ResponseGeneric<ICollection<DenominacionMonedum>>> Denominaciones();
