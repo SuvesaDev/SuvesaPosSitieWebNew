@@ -61,7 +61,10 @@
 
       <div class="row mb-3"><div class="col-md-4"><label class="form-label">Cantidad a producir <span class="text-danger">*</span></label>
         <input type="number" min="1" class="form-control" @bind="_cantidadAProducir" @bind:after="InvalidarCalculo" /></div>
-        <div class="col-md-8 d-flex align-items-end"><p class="form-text mb-2">Por cada insumo debe seleccionar lotes que sumen <strong>exactamente</strong> lo requerido (cantidad por unidad × cantidad a producir). Al elegir un lote se propone la cantidad que falta.</p></div>
+        <div class="col-md-3"><label class="form-label" for="merma-unidades">Merma (unidades perdidas)</label>
+        <input id="merma-unidades" type="number" min="0" class="form-control" @bind="_mermaUnidades" @bind:after="InvalidarCalculo" />
+        <div class="form-text">Hasta el 3% del consumo es merma normal; el exceso se lleva a gasto.</div></div>
+        <div class="col-md-5 d-flex align-items-end"><p class="form-text mb-2">Por cada insumo debe seleccionar lotes que sumen <strong>exactamente</strong> lo requerido (cantidad por unidad × (cantidad a producir + merma)). Al elegir un lote se propone la cantidad que falta.</p></div>
       </div>
 
       @foreach (var c in _formula)
@@ -127,6 +130,11 @@
         <div class="col-md-4"><strong>Cantidad:</strong> @_reporte.CantidadProducida</div>
         <div class="col-md-4"><strong>Costo total:</strong> @_reporte.CostoTotalInsumos.ToString("N2")</div>
         <div class="col-md-4"><strong>Costo del artículo:</strong> @_reporte.CostoUnitarioTerminado.ToString("N2")</div>
+        @if (_reporte.MermaUnidades > 0)
+        {
+            <div class="col-md-4"><strong>Merma:</strong> @_reporte.MermaUnidades unidades</div>
+            <div class="col-md-4"><strong>Merma anormal (gasto):</strong> @_reporte.MermaAnormal.ToString("N2")</div>
+        }
       </div>
       <table class="table table-sm"><thead><tr><th>Insumo</th><th>Lote</th><th class="text-end">Cantidad</th><th class="text-end">Costo línea</th></tr></thead>
         <tbody>@foreach (var l in _reporte.Lineas){<tr><td><code>@l.CodArticuloInsumo</code> @l.DescripcionInsumo</td><td>@l.NumeroLote</td>
@@ -149,7 +157,7 @@
  private readonly Dictionary<long, List<LoteSeleccionado>> _seleccion = new();
  private readonly Dictionary<long, long> _loteElegido = new();
  private readonly Dictionary<long, double> _cantidadLote = new();
- private int _bodega, _cantidadAProducir = 1;
+ private int _bodega, _cantidadAProducir = 1, _mermaUnidades;
  private string _texto = "", _loteProducido = "", _error = "", _errorModal = "";
  private DateOnly? _vencimientoProducido;
  private CalculoProduccion? _calculo;
@@ -191,6 +199,7 @@
      _reporte = null;
      _calculo = null;
      _cantidadAProducir = 1;
+     _mermaUnidades = 0;
      _loteProducido = "";
      _vencimientoProducido = null;
      _seleccion.Clear();
@@ -227,7 +236,7 @@
  }
 
  private List<LoteExistencia> LotesDe(long id) => _lotes.TryGetValue(id, out var l) ? l : new();
- private double Requerido(FormulaComponente c) => c.CantidadPorUnidad * _cantidadAProducir;
+ private double Requerido(FormulaComponente c) => c.CantidadPorUnidad * (_cantidadAProducir + _mermaUnidades);
  private double Seleccionado(FormulaComponente c) => _seleccion.TryGetValue(c.IdInsumo, out var l) ? l.Sum(x => x.Cantidad) : 0;
  private bool InsumoCuadra(FormulaComponente c) => Math.Abs(Seleccionado(c) - Requerido(c)) < 1e-6;
  private bool TodoCuadra() => _bodega > 0 && _cantidadAProducir >= 1 && _formula.Any() && _formula.All(InsumoCuadra);
@@ -280,6 +289,7 @@
      Bodega = _bodega,
      Convertir = convertir,
      CantidadAProducir = _cantidadAProducir,
+     MermaUnidades = _mermaUnidades,
      NumeroLoteProducido = _loteProducido.Trim(),
      VencimientoLoteProducido = _vencimientoProducido,
      Insumos = _formula.Select(c => new ConsumoInsumo

@@ -6677,6 +6677,12 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("facturaCancelado")]
         public bool FacturaCancelado { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("anulada")]
+        public bool Anulada { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("motivoAnulacion")]
+        public string? MotivoAnulacion { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("gasto")]
         public bool Gasto { get; set; } = default!;
 
