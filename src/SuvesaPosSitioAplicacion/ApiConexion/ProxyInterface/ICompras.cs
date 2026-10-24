@@ -17,6 +17,9 @@ public interface ICompras
     Task<ResponseGeneric<FacturaCompraDTO>> Crear(FacturaCompraDTO compra);
     Task<ResponseGeneric<FacturaCompraDTO>> Editar(FacturaCompraDTO compra);
     Task<ResponseGeneric<FacturaCompraDTO>> Anular(FacturaCompraDTO compra);
+
+    /// <summary>Anula la compra con motivo (a crédito, sin pagos ni devoluciones, con el período abierto). No borra: revierte inventario, costo y póliza.</summary>
+    Task<ResponseGeneric<FacturaCompraDTO>> AnularConMotivo(long idCompra, string motivo);
     Task<ResponseGeneric<ICollection<FacturaCompraDTO>>> Buscar(FiltroFacturaCompras filtro);
     Task<ResponseGeneric<FacturaCompraDTO>> Obtener(long id);
     Task<ResponseGeneric<ICollection<CatalogoProductosInternosDTO>>> CatalogosInternos(ICollection<CatalogoProductosInternosDTO> productos);

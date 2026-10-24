@@ -125,6 +125,12 @@
     </ChildContent>
 </AppPantalla>
 
+<AppModal @ref="_modalAnular" Titulo="Anular compra" AlGuardar="ConfirmarAnulacion" Guardando="_guardando" PuedeGuardar="!string.IsNullOrWhiteSpace(_motivoAnulacion)" TextoGuardar="Anular">
+    <p class="small text-secondary">Se revierte el inventario, el costo y la póliza; la compra queda marcada como anulada, no se borra. Solo se anula una compra a crédito sin pagos ni devoluciones, con el período contable abierto y sin aceptación de Hacienda; si no, use una devolución.</p>
+    <label class="form-label" for="cp-motivo-anulacion">Motivo</label>
+    <textarea id="cp-motivo-anulacion" class="form-control" rows="3" maxlength="500" @bind="_motivoAnulacion"></textarea>
+</AppModal>
+
 
 <HxModal @ref="_modalNuevaProveedor" Title="Nuevo proveedor" Size="ModalSize.Regular">
     <BodyTemplate><div class="row g-3"><div class="col-12"><label class="form-label">Cédula</label><input class="form-control" @bind="_nuevoProveedorCedula" /></div><div class="col-12"><label class="form-label">Nombre</label><input class="form-control" @bind="_nuevoProveedorNombre" /></div><div class="col-12"><label class="form-label">Teléfono</label><input class="form-control" @bind="_nuevoProveedorTelefono" /></div></div></BodyTemplate>
@@ -683,11 +689,24 @@
     private async Task TrasMensajeReceptor() => await NuevaCompra();
     private async Task TrasMensajeReceptorEnviado(DTOs.Compras.ResultadoMensajeReceptorDTO? _) => await NuevaCompra();
 
+    private AppModal _modalAnular = default!;
+    private string _motivoAnulacion = string.Empty;
+
     private async Task Anular()
     {
-        if (_idCompra <= 0 || !await Dialogos.ConfirmarAsync("Se anulará la compra y se revertirá el movimiento de inventario. ¿Desea continuar?")) return;
-        _guardando = true; var respuesta = await Api.Anular(ArmarCompra()); _guardando = false;
-        if (await Respuestas.CorrectaAsync(respuesta, "anular la compra")) { Dialogos.Exito("Compra anulada correctamente."); await NuevaCompra(); }
+        if (_idCompra <= 0) return;
+        _motivoAnulacion = string.Empty;
+        await _modalAnular.MostrarAsync();
+    }
+
+    private async Task ConfirmarAnulacion()
+    {
+        if (_idCompra <= 0 || string.IsNullOrWhiteSpace(_motivoAnulacion)) return;
+        _guardando = true; var respuesta = await Api.AnularConMotivo(_idCompra, _motivoAnulacion.Trim()); _guardando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "anular la compra")) return;
+        await _modalAnular.OcultarAsync();
+        Dialogos.Exito("Compra anulada: se revirtieron el inventario, el costo y la póliza.");
+        await NuevaCompra();
     }
 
     private async Task AbrirImportadorXml()

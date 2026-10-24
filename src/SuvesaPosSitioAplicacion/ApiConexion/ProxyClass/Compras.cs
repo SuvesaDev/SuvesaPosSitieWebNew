@@ -92,6 +92,10 @@ public sealed class Compras : ProxyBase, ICompras
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "anular la compra");
 
+    public Task<ResponseGeneric<FacturaCompraDTO>> AnularConMotivo(long idCompra, string motivo)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<FacturaCompraDTO>(
+            await _http.PostAsync($"Compras/AnularCompra?id={idCompra}&motivo={Uri.EscapeDataString(motivo ?? string.Empty)}", null)), "anular la compra");
+
     public Task<ResponseGeneric<ICollection<FacturaCompraDTO>>> Buscar(FiltroFacturaCompras filtro)
         => Ejecutar(async () =>
         {
