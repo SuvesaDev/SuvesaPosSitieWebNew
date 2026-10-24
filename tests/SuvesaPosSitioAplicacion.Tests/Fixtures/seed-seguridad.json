@@ -971,11 +971,43 @@
           ]
         },
         {
+          "codigo": "CONTABILIDAD.PROCESADORES_DE_PAGO",
+          "nombre": "Procesadores de pago",
+          "ruta": "/accounting/payment-processors",
+          "padre": null,
+          "orden": 18,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CONTABILIDAD.GASTOS",
+          "nombre": "Gastos",
+          "ruta": "/accounting/expenses",
+          "padre": null,
+          "orden": 19,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "CONTABILIDAD.BALANZA",
           "nombre": "Balanza",
           "ruta": "/accounting/trial-balance",
           "padre": null,
-          "orden": 18,
+          "orden": 20,
           "acciones": [
             "VER",
             "CREAR",
@@ -991,7 +1023,7 @@
           "nombre": "Estado de resultados",
           "ruta": "/accounting/income-statement",
           "padre": null,
-          "orden": 19,
+          "orden": 21,
           "acciones": [
             "VER",
             "CREAR",
@@ -1007,7 +1039,7 @@
           "nombre": "Balance general",
           "ruta": "/accounting/balance-sheet",
           "padre": null,
-          "orden": 20,
+          "orden": 22,
           "acciones": [
             "VER",
             "CREAR",
@@ -1023,7 +1055,7 @@
           "nombre": "Flujo de efectivo",
           "ruta": "/accounting/cash-flow",
           "padre": null,
-          "orden": 21,
+          "orden": 23,
           "acciones": [
             "VER",
             "CREAR",

@@ -119,6 +119,7 @@
                                         @if (evento.Estado == "ErrorConfiguracion" && Sesion.Puede("CONTABILIDAD.BANDEJA", AccionPantalla.Editar))
                                         {
                                             <button class="btn btn-sm btn-link p-0" @onclick="() => Reintentar(evento)">Reintentar</button>
+                                            <button class="btn btn-sm btn-link text-secondary p-0 ms-2" @onclick="() => DescartarEvento(evento)">No aplica</button>
                                         }
                                     </td>
                                 </tr>
@@ -392,6 +393,14 @@
     {
         _paginaAsientos = Math.Max(1, _paginaAsientos + delta);
         await CargarAsientos();
+    }
+
+    private async Task DescartarEvento(EventoContableDTO evento)
+    {
+        if (!await Dialogos.ConfirmarAsync($"¿Marcar el evento {evento.TipoEvento} #{evento.Id} como «no aplica»? Sale de la cola y no genera póliza.", "No aplica")) return;
+        var respuesta = await AprobacionesApi.DescartarEvento(evento.Id, "NoAplicable", "Sin efecto contable, descartado desde la bandeja.");
+        if (await Respuestas.CorrectaAsync(respuesta, "descartar el evento"))
+            await CambiarTab(_tab);
     }
 
     private async Task Reintentar(EventoContableDTO evento)

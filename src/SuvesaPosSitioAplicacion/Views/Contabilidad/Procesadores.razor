@@ -1,0 +1,94 @@
+@page "/accounting/payment-processors"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Contabilidad
+@using SuvesaPosSitioAplicacion.Services
+@inject IAprobaciones AprobacionesApi
+@inject IContextoSesion Sesion
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* F5: lo cobrado con tarjeta queda por cobrar al procesador hasta que deposite. Al registrar la
+   liquidación se reconocen la comisión, el IVA de la comisión y la retención de renta. *@
+
+<AppPantalla Pantalla="Procesadores de pago" Codigo="CONTABILIDAD.PROCESADORES_DE_PAGO" Icono="bi-credit-card" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body"><AppSelectorLibroContable Prefijo="pp" AlCambiarLibro="AlCambiarLibro" /></div>
+        </div>
+
+        @if (_idLibro > 0 && _resumen is not null)
+        {
+            <div class="alert alert-info">Pendiente de liquidar por los procesadores: <strong>@_resumen.SaldoPorLiquidar.ToString("N2")</strong></div>
+
+            <div class="card mb-3">
+                <div class="card-header">Registrar liquidación</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3"><label class="form-label" for="pp-proc">Procesador</label><input id="pp-proc" class="form-control" @bind="_nueva.Procesador" /></div>
+                        <div class="col-6 col-md-3"><label class="form-label" for="pp-num">Nº de liquidación</label><input id="pp-num" class="form-control" @bind="_nueva.NumeroLiquidacion" /></div>
+                        <div class="col-6 col-md-3"><label class="form-label" for="pp-fecha">Fecha</label><input id="pp-fecha" type="date" class="form-control" @bind="_fecha" /></div>
+                        <div class="col-6 col-md-3"><label class="form-label" for="pp-bruto">Bruto</label><input id="pp-bruto" type="number" step="0.01" class="form-control" @bind="_nueva.Bruto" @bind:after="Recalcular" /></div>
+                        <div class="col-6 col-md-3"><label class="form-label" for="pp-com">Comisión</label><input id="pp-com" type="number" step="0.01" class="form-control" @bind="_nueva.Comision" @bind:after="Recalcular" /></div>
+                        <div class="col-6 col-md-3"><label class="form-label" for="pp-iva">IVA de la comisión</label><input id="pp-iva" type="number" step="0.01" class="form-control" @bind="_nueva.IvaComision" @bind:after="Recalcular" /></div>
+                        <div class="col-6 col-md-3"><label class="form-label" for="pp-ret">Retención de renta</label><input id="pp-ret" type="number" step="0.01" class="form-control" @bind="_nueva.RetencionRenta" @bind:after="Recalcular" /></div>
+                        <div class="col-6 col-md-3"><label class="form-label" for="pp-neto">Neto depositado</label><input id="pp-neto" type="number" step="0.01" class="form-control" @bind="_nueva.Neto" /></div>
+                    </div>
+                    <button class="btn btn-primary mt-3" disabled="@_guardando" @onclick="Registrar">Registrar</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Fecha</th><th>Procesador</th><th>Liquidación</th><th class="text-end">Bruto</th><th class="text-end">Comisión</th><th class="text-end">IVA</th><th class="text-end">Retención</th><th class="text-end">Neto</th><th>Contabilidad</th></tr></thead>
+                    <tbody>
+                        @foreach (var l in _resumen.Liquidaciones)
+                        {
+                            <tr>
+                                <td>@l.Fecha.ToString("yyyy-MM-dd")</td><td>@l.Procesador</td><td>@l.NumeroLiquidacion</td>
+                                <td class="text-end">@l.Bruto.ToString("N2")</td><td class="text-end">@l.Comision.ToString("N2")</td>
+                                <td class="text-end">@l.IvaComision.ToString("N2")</td><td class="text-end">@l.RetencionRenta.ToString("N2")</td><td class="text-end">@l.Neto.ToString("N2")</td>
+                                <td><span class="badge @(l.EstadoContable == "Contabilizado" ? "bg-success" : "bg-warning text-dark")">@l.EstadoContable</span>
+                                    @if (!string.IsNullOrEmpty(l.UltimoError)) { <div class="small text-danger">@l.UltimoError</div> }</td>
+                            </tr>
+                        }
+                        @if (_resumen.Liquidaciones.Count == 0) { <tr><td colspan="9" class="text-secondary">Sin liquidaciones.</td></tr> }
+                    </tbody>
+                </table></div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private long _idLibro;
+    private bool _guardando;
+    private ResumenProcesadoresDTO? _resumen;
+    private RegistrarLiquidacionProcesadorDTO _nueva = new();
+    private DateTime _fecha = DateTime.Today;
+
+    private async Task AlCambiarLibro(long idLibro)
+    {
+        _idLibro = idLibro;
+        _resumen = null;
+        if (idLibro > 0) await Cargar();
+    }
+
+    private async Task Cargar() => _resumen = await Respuestas.DatoAsync(await AprobacionesApi.ResumenProcesadores(_idLibro), "consultar los procesadores");
+
+    private void Recalcular() => _nueva.Neto = _nueva.Bruto - _nueva.Comision - _nueva.IvaComision - _nueva.RetencionRenta;
+
+    private async Task Registrar()
+    {
+        _nueva.IdLibroContable = _idLibro;
+        _nueva.IdSucursal = Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null;
+        _nueva.Fecha = DateOnly.FromDateTime(_fecha);
+        _guardando = true;
+        var respuesta = await AprobacionesApi.RegistrarLiquidacion(_nueva);
+        _guardando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "registrar la liquidación")) return;
+        Dialogos.Exito("Liquidación registrada: se contabiliza en unos segundos.");
+        _nueva = new();
+        await Cargar();
+    }
+}

@@ -170,6 +170,34 @@
                 </div>
             </div>
         }
+
+        @if (_periodoActual is { Estado: "Abierto" })
+        {
+            <div class="card mt-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Corte de entregas de @_periodoActual.Mes.ToString("00")/@_periodoActual.Ejercicio</span>
+                    <button class="btn btn-sm btn-outline-primary" disabled="@_procesando" @onclick="SimularCorte">Simular</button>
+                </div>
+                <div class="card-body">
+                    <p class="small text-secondary">El ingreso se reconoce al entregar. Lo facturado y no entregado al cierre se difiere si supera el menor entre el 5% de la utilidad del mes y ₡5.000.000; el día 1 el asiento se reversa solo.</p>
+                    @if (_corte is not null)
+                    {
+                        <p class="mb-1">@_corte.CantidadDocumentos documento(s) sin entregar: ingreso @_corte.IngresoDiferido.ToString("N2"), costo @_corte.CostoDiferido.ToString("N2").
+                            Umbral @_corte.Umbral.ToString("N2") (utilidad del mes @_corte.UtilidadDelMes.ToString("N2")).</p>
+                        @foreach (var aviso in _corte.Avisos) { <div class="small text-warning">@aviso</div> }
+                        @if (_corte.Ejecutado)
+                        {
+                            <div class="text-success">Corte ejecutado. @(_corte.Material ? $"Se difirió; se reversa el {_corte.FechaReverso:yyyy-MM-dd}." : "No era material: no se difirió nada.")</div>
+                        }
+                        else
+                        {
+                            <div class="@(_corte.Material ? "text-danger" : "text-secondary")">@(_corte.Material ? "Supera el umbral: se difiere." : "No supera el umbral: queda registrado sin asiento.")</div>
+                            <button class="btn btn-primary btn-sm mt-2" disabled="@_procesando" @onclick="EjecutarCorte">Ejecutar corte</button>
+                        }
+                    }
+                </div>
+            </div>
+        }
     </ChildContent>
 </AppPantalla>
 
@@ -226,6 +254,7 @@
     private List<PeriodoContableDTO> _cascadaReapertura = new();
     private string _motivoReapertura = "";
     private long _idSolicitudReapertura;
+    private DTOs.Contabilidad.CorteEntregaDTO? _corte;
     private List<DTOs.Contabilidad.SolicitudAprobacionDTO> _solicitudesReapertura = new();
     private int _ejercicio = DateTime.Today.Year;
     private int _mes = DateTime.Today.Month;
@@ -292,8 +321,29 @@
         _ => "Diciembre",
     };
 
+    private async Task SimularCorte()
+    {
+        if (_periodoActual is null) return;
+        _procesando = true;
+        _corte = await Respuestas.DatoAsync(await AprobacionesApi.SimularCorteEntrega(_idLibroContable, _periodoActual.Ejercicio, _periodoActual.Mes), "simular el corte de entregas");
+        _procesando = false;
+    }
+
+    private async Task EjecutarCorte()
+    {
+        if (_periodoActual is null) return;
+        if (!await Dialogos.ConfirmarPeligroAsync("¿Ejecutar el corte de entregas? Publica el asiento de diferimiento y no se repite.", "Corte de entregas")) return;
+        _procesando = true;
+        var respuesta = await AprobacionesApi.EjecutarCorteEntrega(_idLibroContable, _periodoActual.Ejercicio, _periodoActual.Mes);
+        _procesando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "ejecutar el corte de entregas")) return;
+        _corte = respuesta.Responses;
+        Dialogos.Exito("Corte de entregas ejecutado.");
+    }
+
     private async Task AlCambiarPeriodo()
     {
+        _corte = null;
         _checklist = null;
         _periodoActual = _periodos.FirstOrDefault(p => p.Id == _idPeriodo);
         _evidencias = new();

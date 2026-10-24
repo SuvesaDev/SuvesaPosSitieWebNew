@@ -1,0 +1,188 @@
+@page "/accounting/expenses"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Contabilidad
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IAprobaciones AprobacionesApi
+@inject IContabilidad Contabilidad
+@inject IProveedoresConsulta ProveedoresApi
+@inject IContextoSesion Sesion
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* F7: documento de gasto por pagar. Deja el gasto, el IVA soportado y la cuenta por pagar al proveedor;
+   luego se programa y se paga. La retención se digita a mano con su sustento: el sistema no calcula
+   porcentajes mientras no se cargue la tabla oficial de la DGT. *@
+
+<AppPantalla Pantalla="Gastos" Codigo="CONTABILIDAD.GASTOS" Icono="bi-receipt" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3"><div class="card-body"><AppSelectorLibroContable Prefijo="gs" AlCambiarLibro="AlCambiarLibro" /></div></div>
+
+        @if (_retenciones is { Cargada: false })
+        {
+            <div class="alert alert-warning small">@_retenciones.Mensaje</div>
+        }
+
+        @if (_idLibro > 0)
+        {
+            <div class="d-flex justify-content-between mb-2">
+                <select class="form-select form-select-sm w-auto" aria-label="Estado" @bind="_filtro" @bind:after="Cargar">
+                    <option value="">Todos</option><option value="Registrado">Registrado</option><option value="Programado">Programado</option>
+                    <option value="Pagado">Pagado</option><option value="Anulado">Anulado</option>
+                </select>
+                @if (Sesion.Puede("CONTABILIDAD.GASTOS", AccionPantalla.Crear)) { <button class="btn btn-primary btn-sm" @onclick="Nuevo">Nuevo gasto</button> }
+            </div>
+            <div class="card">
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Fecha</th><th>Proveedor</th><th>Documento</th><th>Concepto</th><th class="text-end">Total</th><th class="text-end">Retención</th><th>Estado</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var g in _gastos)
+                        {
+                            <tr>
+                                <td>@g.FechaDocumento.ToString("yyyy-MM-dd")</td><td>@g.NombreProveedor</td><td>@g.NumeroDocumento</td><td>@g.Concepto</td>
+                                <td class="text-end">@g.Total.ToString("N2")</td><td class="text-end">@g.Retencion.ToString("N2")</td>
+                                <td>@g.Estado@(g.FechaPagoProgramada is not null && g.Estado == "Programado" ? $" ({g.FechaPagoProgramada:yyyy-MM-dd})" : "")</td>
+                                <td class="text-nowrap">
+                                    @if (g.Estado is "Registrado" or "Programado" && Sesion.Puede("CONTABILIDAD.GASTOS", AccionPantalla.Editar))
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => Programar(g)">Programar</button>
+                                        <button class="btn btn-sm btn-success" @onclick="() => Pagar(g)">Pagar</button>
+                                        <button class="btn btn-sm btn-link text-danger" @onclick="() => Anular(g)">Anular</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        @if (_gastos.Count == 0) { <tr><td colspan="8" class="text-secondary">Sin gastos.</td></tr> }
+                    </tbody>
+                </table></div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modal" Titulo="Nuevo gasto" Tamano="ModalSize.Large" AlGuardar="Guardar" Guardando="_guardando">
+    <div class="row g-2">
+        <div class="col-12 col-md-6">
+            <label class="form-label" for="gs-prov">Proveedor</label>
+            <select id="gs-prov" class="form-select" @bind="_idProveedor">
+                <option value="0">Seleccione...</option>
+                @foreach (var p in _proveedores) { <option value="@p.CodigoProv">@p.Nombre</option> }
+            </select>
+        </div>
+        <div class="col-6 col-md-3"><label class="form-label" for="gs-doc">Nº de documento</label><input id="gs-doc" class="form-control" @bind="_nuevo.NumeroDocumento" /></div>
+        <div class="col-6 col-md-3"><label class="form-label" for="gs-fecha">Fecha</label><input id="gs-fecha" type="date" class="form-control" @bind="_fecha" /></div>
+        <div class="col-12"><label class="form-label" for="gs-concepto">Concepto</label><input id="gs-concepto" class="form-control" maxlength="300" @bind="_nuevo.Concepto" /></div>
+        <div class="col-6 col-md-3"><label class="form-label" for="gs-cuenta">Cuenta de gasto</label>
+            <select id="gs-cuenta" class="form-select" @bind="_linea.IdCuentaContable">
+                <option value="0">Seleccione...</option>
+                @foreach (var c in _cuentas) { <option value="@c.Id">@c.Codigo — @c.Descripcion</option> }
+            </select></div>
+        <div class="col-6 col-md-3"><label class="form-label" for="gs-monto">Monto sin IVA</label><input id="gs-monto" type="number" step="0.01" class="form-control" @bind="_linea.Monto" /></div>
+        <div class="col-6 col-md-3"><label class="form-label" for="gs-iva">IVA</label><input id="gs-iva" type="number" step="0.01" class="form-control" @bind="_nuevo.Iva" /></div>
+        <div class="col-6 col-md-3"><label class="form-label" for="gs-ret">Retención (manual)</label><input id="gs-ret" type="number" step="0.01" class="form-control" @bind="_nuevo.Retencion" /></div>
+        @if (_nuevo.Retencion > 0)
+        {
+            <div class="col-12"><label class="form-label" for="gs-sustento">Sustento de la retención</label><input id="gs-sustento" class="form-control" @bind="_nuevo.ReferenciaRetencion" /></div>
+        }
+        <div class="col-12 text-end fw-semibold">Total: @((_linea.Monto + _nuevo.Iva).ToString("N2"))</div>
+    </div>
+</AppModal>
+
+<AppModal @ref="_modalFecha" Titulo="@_tituloFecha" AlGuardar="ConfirmarFecha" Guardando="_guardando">
+    <label class="form-label" for="gs-fecha-accion">Fecha</label>
+    <input id="gs-fecha-accion" type="date" class="form-control" @bind="_fechaAccion" />
+</AppModal>
+
+@code {
+    private long _idLibro;
+    private bool _guardando;
+    private string _filtro = "";
+    private List<GastoDTO> _gastos = new();
+    private List<CuentaContableDTO> _cuentas = new();
+    private List<ProveedorDTO> _proveedores = new();
+    private EstadoTablaRetencionesDTO? _retenciones;
+    private AppModal _modal = default!;
+    private AppModal _modalFecha = default!;
+    private RegistrarGastoDTO _nuevo = new();
+    private LineaGastoDTO _linea = new();
+    private int _idProveedor;
+    private DateTime _fecha = DateTime.Today;
+    private DateTime _fechaAccion = DateTime.Today;
+    private string _tituloFecha = "";
+    private GastoDTO? _gastoAccion;
+    private bool _esPago;
+
+    protected override async Task OnInitializedAsync()
+        => _retenciones = await Respuestas.DatoAsync(await AprobacionesApi.EstadoTablaRetenciones(), "consultar la tabla de retenciones");
+
+    private async Task AlCambiarLibro(long idLibro)
+    {
+        _idLibro = idLibro;
+        _gastos = new();
+        if (idLibro == 0) return;
+        _cuentas = (await Respuestas.DatoAsync(await Contabilidad.ListarCuentas(idLibro), "consultar las cuentas"))
+            ?.Where(c => c.PermiteMovimiento == true && c.Tipo is "Gasto" or "Costo").OrderBy(c => c.Codigo).ToList() ?? new();
+        _proveedores = (await Respuestas.DatoAsync(await ProveedoresApi.Obtener(), "consultar los proveedores"))?.OrderBy(p => p.Nombre).ToList() ?? new();
+        await Cargar();
+    }
+
+    private async Task Cargar()
+        => _gastos = (await Respuestas.DatoAsync(await AprobacionesApi.Gastos(_idLibro, string.IsNullOrEmpty(_filtro) ? null : _filtro), "consultar los gastos"))?.ToList() ?? new();
+
+    private async Task Nuevo()
+    {
+        _nuevo = new();
+        _linea = new();
+        _idProveedor = 0;
+        _fecha = DateTime.Today;
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Guardar()
+    {
+        var proveedor = _proveedores.FirstOrDefault(p => p.CodigoProv == _idProveedor);
+        if (proveedor is null) { Dialogos.Advertencia("Seleccione el proveedor."); return; }
+        _nuevo.IdLibroContable = _idLibro;
+        _nuevo.IdSucursal = Sesion.IdSucursal;
+        _nuevo.IdProveedor = proveedor.CodigoProv;
+        _nuevo.NombreProveedor = proveedor.Nombre ?? proveedor.CodigoProv.ToString();
+        _nuevo.FechaDocumento = DateOnly.FromDateTime(_fecha);
+        _nuevo.Lineas = new() { new LineaGastoDTO { IdCuentaContable = _linea.IdCuentaContable, Monto = _linea.Monto, Descripcion = _nuevo.Concepto } };
+        _guardando = true;
+        var respuesta = await AprobacionesApi.RegistrarGasto(_nuevo);
+        _guardando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "registrar el gasto")) return;
+        await _modal.OcultarAsync();
+        Dialogos.Exito("Gasto registrado y contabilizado.");
+        await Cargar();
+    }
+
+    private async Task Programar(GastoDTO g) => await AbrirFecha(g, false, "Programar pago");
+    private async Task Pagar(GastoDTO g) => await AbrirFecha(g, true, "Fecha del pago");
+
+    private async Task AbrirFecha(GastoDTO g, bool pago, string titulo)
+    {
+        _gastoAccion = g; _esPago = pago; _tituloFecha = titulo; _fechaAccion = DateTime.Today;
+        await _modalFecha.MostrarAsync();
+    }
+
+    private async Task ConfirmarFecha()
+    {
+        if (_gastoAccion is null) return;
+        var fecha = DateOnly.FromDateTime(_fechaAccion);
+        _guardando = true;
+        var respuesta = _esPago ? await AprobacionesApi.PagarGasto(_gastoAccion.Id, fecha) : await AprobacionesApi.ProgramarPagoGasto(_gastoAccion.Id, fecha);
+        _guardando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, _esPago ? "pagar el gasto" : "programar el pago")) return;
+        await _modalFecha.OcultarAsync();
+        await Cargar();
+    }
+
+    private async Task Anular(GastoDTO g)
+    {
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Anular el gasto {g.NumeroDocumento}? Se reversa su póliza.", "Anular gasto")) return;
+        var respuesta = await AprobacionesApi.AnularGasto(g.Id, "Anulado desde Gastos");
+        if (await Respuestas.CorrectaAsync(respuesta, "anular el gasto")) await Cargar();
+    }
+}

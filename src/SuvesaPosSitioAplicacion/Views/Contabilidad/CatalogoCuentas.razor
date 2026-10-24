@@ -6,6 +6,7 @@
 @inject IFacturacion FacturacionApi
 @inject IEmisoresFiscales EmisoresApi
 @inject IContabilidad Contabilidad
+@inject IAprobaciones AprobacionesApi
 @inject IContextoSesion Sesion
 @inject IServicioDialogos Dialogos
 @inject IManejadorRespuestas Respuestas
@@ -68,6 +69,43 @@
         }
         else
         {
+            @if (Sesion.Puede("CONTABILIDAD.CATALOGO_CUENTAS", AccionPantalla.Crear))
+            {
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <button class="btn btn-sm btn-outline-primary" disabled="@_guardando" @onclick="Sincronizar">Actualizar con el catálogo inicial</button>
+                            <span class="small text-secondary">Agrega las cuentas nuevas y deja en borrador las plantillas que cambiaron, para simularlas y activarlas en Plantillas. No toca lo activo.</span>
+                        </div>
+                        @if (_sincronizacion is not null)
+                        {
+                            <ul class="small mt-2 mb-0">@foreach (var d in _sincronizacion.Detalles) { <li>@d</li> }
+                                @if (_sincronizacion.Detalles.Count == 0) { <li>El libro ya está al día.</li> }</ul>
+                        }
+                        <details class="mt-2">
+                            <summary class="small">Cuentas de uso del motor (caja de cobro, procesadores, ingresos diferidos…)</summary>
+                            <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                                <thead><tr><th>Uso</th><th>Cuenta</th><th>Origen</th></tr></thead>
+                                <tbody>
+                                    @foreach (var u in _usos)
+                                    {
+                                        <tr>
+                                            <td>@u.Descripcion<div class="small text-secondary">por omisión @u.CodigoPorOmision</div></td>
+                                            <td>
+                                                <select class="form-select form-select-sm" aria-label="Cuenta para @u.Descripcion" value="@(u.IdCuentaContable ?? 0)" @onchange="e => AsignarUso(u, e.Value)">
+                                                    <option value="0">Sin cuenta</option>
+                                                    @foreach (var c in _cuentas.Where(c => c.PermiteMovimiento == true)) { <option value="@c.Id">@c.Codigo — @c.Descripcion</option> }
+                                                </select>
+                                            </td>
+                                            <td class="small">@u.Origen</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table></div>
+                        </details>
+                    </div>
+                </div>
+            }
             <div class="card">
                 <div class="card-body">
                     <AppArbol TItem="CuentaContableDTO" Raices="_raices" ObtenerHijos="ObtenerHijos" ObtenerClave="c => c.Id">
@@ -242,6 +280,8 @@
     private int _idEmpresa;
     private int _idEmisor;
     private long _idLibroContable;
+    private DTOs.Contabilidad.ResultadoSincronizacionCatalogoDTO? _sincronizacion;
+    private List<DTOs.Contabilidad.UsoCuentaContableDTO> _usos = new();
     private bool _cargando;
     private bool _guardando;
 
@@ -288,6 +328,7 @@
     {
         _cuentas = (await Respuestas.DatoAsync(await Contabilidad.ListarCuentas(_idLibroContable), "consultar el catálogo de cuentas"))?.ToList() ?? new();
         ArmarArbol();
+        await CargarUsos();
     }
 
     private void ArmarArbol()
@@ -331,6 +372,27 @@
             await _modalNueva.OcultarAsync();
             await CargarCuentas();
         }
+    }
+
+    private async Task CargarUsos()
+        => _usos = _idLibroContable == 0 ? new() : (await Respuestas.DatoAsync(await AprobacionesApi.UsosCuenta(_idLibroContable), "consultar las cuentas de uso"))?.ToList() ?? new();
+
+    private async Task Sincronizar()
+    {
+        _guardando = true;
+        var respuesta = await AprobacionesApi.SincronizarCatalogo(_idLibroContable);
+        _guardando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "actualizar el catálogo")) return;
+        _sincronizacion = respuesta.Responses;
+        await CargarCuentas();
+        await CargarUsos();
+    }
+
+    private async Task AsignarUso(DTOs.Contabilidad.UsoCuentaContableDTO uso, object? valor)
+    {
+        if (!long.TryParse(valor?.ToString(), out var idCuenta) || idCuenta == 0) return;
+        var respuesta = await AprobacionesApi.AsignarUsoCuenta(_idLibroContable, uso.Uso, idCuenta);
+        if (await Respuestas.CorrectaAsync(respuesta, "asignar la cuenta de uso")) await CargarUsos();
     }
 
     private async Task CargarCatalogoInicial()

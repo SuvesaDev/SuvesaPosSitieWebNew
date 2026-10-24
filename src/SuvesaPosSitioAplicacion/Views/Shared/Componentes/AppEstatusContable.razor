@@ -1,0 +1,48 @@
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.DTOs.Contabilidad
+@inject IAprobaciones AprobacionesApi
+@inject IManejadorRespuestas Respuestas
+
+@* Qué pasó contablemente con un documento: sus eventos y la póliza que generaron. *@
+
+<button type="button" class="@Clase" title="Estatus contable" @onclick="Abrir"><i class="bi bi-journal-check"></i></button>
+
+<AppModal @ref="_modal" Titulo="Estatus contable" MostrarCancelar="true" TextoCancelar="Cerrar">
+    @if (_estatus.Count == 0)
+    {
+        <p class="text-secondary mb-0">Este documento no ha generado eventos contables (puede que la contabilidad no esté activa en su sucursal).</p>
+    }
+    else
+    {
+        <table class="table table-sm mb-0">
+            <thead><tr><th>Evento</th><th>Estado</th><th>Póliza</th></tr></thead>
+            <tbody>
+                @foreach (var s in _estatus)
+                {
+                    <tr>
+                        <td>@s.TipoEvento<div class="small text-secondary">@s.FechaContable.ToString("yyyy-MM-dd")</div></td>
+                        <td><span class="badge @(s.Estado == "Contabilizado" ? "bg-success" : s.Estado is "NoAplicable" or "Cancelado" ? "bg-secondary" : "bg-warning text-dark")">@s.Estado</span>
+                            @if (!string.IsNullOrEmpty(s.UltimoError)) { <div class="small text-danger">@s.UltimoError</div> }</td>
+                        <td>@(s.NumeroPoliza?.ToString() ?? s.IdAsiento?.ToString())</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</AppModal>
+
+@code {
+    [Parameter, EditorRequired] public string Modulo { get; set; } = "";
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+    [Parameter] public string Clase { get; set; } = "btn btn-sm btn-link p-0";
+
+    private AppModal _modal = default!;
+    private List<EstatusContableDocumentoDTO> _estatus = new();
+
+    private async Task Abrir()
+    {
+        _estatus = (await Respuestas.DatoAsync(await AprobacionesApi.EstatusDocumento(Modulo, Id), "consultar el estatus contable"))?.ToList() ?? new();
+        await _modal.MostrarAsync();
+    }
+}
