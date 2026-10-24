@@ -32,7 +32,7 @@
     <div class="card mb-3"><div class="card-body d-flex flex-wrap justify-content-between gap-2">
       <div>
         <strong>@_orden.NombreCliente</strong>
-        <div class="text-secondary small">Factura @_orden.NumeroDocumento · @_orden.EstadoDescripcion · @_orden.UsuarioAlistamiento
+        <div class="text-secondary small">@(_orden.EsConsignacionEnvio ? "Envío de consignación" : "Factura") @_orden.NumeroDocumento · @_orden.EstadoDescripcion · @_orden.UsuarioAlistamiento
           @if (_orden.DiasMinimosCaducidad is > 0) { <span> · caducidad mínima @_orden.DiasMinimosCaducidad días</span> }
           @if (!string.IsNullOrWhiteSpace(_orden.RecibidoPor)) { <span> · recibió @_orden.RecibidoPor</span> }
           @if (!string.IsNullOrWhiteSpace(_orden.FirmaPng))
@@ -102,12 +102,11 @@
     }
 
     <div class="card mb-3"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
-      <thead><tr><th>Ubicación</th><th>Artículo</th><th>Lote</th><th class="text-end">Facturado</th><th class="text-end">Alistado</th><th>Estado</th></tr></thead>
+      <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Facturado</th><th class="text-end">Alistado</th><th>Estado</th></tr></thead>
       <tbody>
-        @foreach (var l in _orden.Lineas.OrderBy(x => x.UbicacionSugerida))
+        @foreach (var l in _orden.Lineas)
         {
           <tr class="@(l.Estado == 2 ? "table-success" : l.Estado == 3 ? "table-warning" : null)">
-            <td><code>@(l.UbicacionSugerida ?? "—")</code></td>
             <td><code>@l.CodArticulo</code> @l.Descripcion</td>
             <td>@(l.LoteFacturado ?? "—")</td>
             <td class="text-end">@l.CantidadFacturada.ToString("N3")</td>
@@ -285,17 +284,21 @@
  private async Task Faltante()
  {
      if (_orden is null) return;
-     var texto = _orden.EsPreventa
-         ? "Hay cantidad sin empacar. Se quitará de la preventa y se devolverá al inventario. ¿Continuar?"
-         : "Hay cantidad sin empacar. Se emitirá una nota de crédito por lo faltante. ¿Continuar?";
+     var texto = _orden.EsConsignacionEnvio
+         ? "Hay cantidad sin empacar. Se anulará la boleta de consignación y se emitirá otra por lo empacado; lo faltante vuelve a la bodega central. ¿Continuar?"
+         : _orden.EsPreventa
+             ? "Hay cantidad sin empacar. Se quitará de la preventa y se devolverá al inventario. ¿Continuar?"
+             : "Hay cantidad sin empacar. Se emitirá una nota de crédito por lo faltante. ¿Continuar?";
      if (!await Dialogos.ConfirmarAsync(texto)) return;
      var r = await Api.FaltanteAsync(_orden.Id);
      if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo registrar el faltante."); return; }
      _orden = r.Responses;
      var preventa = _orden?.EsPreventa == true;
-     await Dialogos.InformarAsync(preventa
-         ? "Se quitó lo faltante de la preventa. Puede marcar empacado si el resto está cubierto."
-         : "Se emitió la nota de crédito. Puede marcar empacado si el resto está cubierto.");
+     await Dialogos.InformarAsync(_orden?.EsConsignacionEnvio == true
+         ? "Se ajustó la boleta de consignación por lo empacado. Puede marcar empacado si el resto está cubierto."
+         : preventa
+             ? "Se quitó lo faltante de la preventa. Puede marcar empacado si el resto está cubierto."
+             : "Se emitió la nota de crédito. Puede marcar empacado si el resto está cubierto.");
  }
 
  private async Task Anular()

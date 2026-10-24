@@ -145,6 +145,6 @@ public class FiltroMenuTests
         // huérfana que ya existía sin nodo de menú) + 1 (Ventas entre horas) + 1
         // (Importaciones) + 1 (Reportes → Importaciones, KPI trasladado fuera de
         // Compras → Importaciones) + 1 (Pretoma) + 1 (Boletas de Consignación) + 1 (Recibo de mercadería).
-        Assert.Equal(124, Contar(MenuSeePos.Items));
+        Assert.Equal(123, Contar(MenuSeePos.Items));   // 124 antes de retirar Bodega → Ubicaciones
     }
 }

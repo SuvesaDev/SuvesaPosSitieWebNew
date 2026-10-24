@@ -94,7 +94,6 @@ public class PantallasMigradasTests
         { "/bodega/cola", "Cola de alistamiento" },
         { "/bodega/empaque", "Empaque" },
         { "/bodega/despacho", "Despacho" },
-        { "/bodega/ubicaciones", "Ubicaciones" },
         { "/bodega/rutas", "Rutas de entrega" }
     };
 

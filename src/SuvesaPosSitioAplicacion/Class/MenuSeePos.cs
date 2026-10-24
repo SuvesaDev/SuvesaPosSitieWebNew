@@ -309,12 +309,6 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
-                    Titulo = "Ubicaciones",
-                    Codigo = "BODEGA.UBICACIONES",
-                    Ruta = "/bodega/ubicaciones",
-                },
-                new ItemMenu
-                {
                     Titulo = "Rutas de entrega",
                     Codigo = "BODEGA.RUTAS_DE_ENTREGA",
                     Ruta = "/bodega/rutas",
