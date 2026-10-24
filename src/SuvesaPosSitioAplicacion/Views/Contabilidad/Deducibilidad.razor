@@ -1,0 +1,139 @@
+@page "/accounting/deductibility"
+@using Microsoft.AspNetCore.Components.Forms
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Contabilidad
+@using SuvesaPosSitioAplicacion.Services
+@inject IAprobaciones AprobacionesApi
+@inject IContabilidad Contabilidad
+@inject IContextoSesion Sesion
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* Los cargos a cuentas no deducibles (faltantes de caja y gastos no deducibles) no se deducen de renta por omisión.
+   Solo un Aprobador o el Autorizador puede declararlos deducibles, y únicamente con el respaldo adjunto (planilla con el
+   rebajo al cajero o denuncia). La póliza no se modifica: la declaración queda en un registro aparte. *@
+
+<AppPantalla Pantalla="Deducibilidad" Codigo="CONTABILIDAD.DEDUCIBILIDAD" Icono="bi-percent" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <AppSelectorLibroContable Prefijo="dd" AlCambiarLibro="AlCambiarLibro" />
+                @if (_idLibro > 0)
+                {
+                    <div class="row g-3 mt-1 align-items-end">
+                        <div class="col-6 col-md-3"><label class="form-label" for="dd-desde">Desde</label><input id="dd-desde" type="date" class="form-control" @bind="_desde" /></div>
+                        <div class="col-6 col-md-3"><label class="form-label" for="dd-hasta">Hasta</label><input id="dd-hasta" type="date" class="form-control" @bind="_hasta" /></div>
+                        <div class="col-6 col-md-2"><button class="btn btn-primary w-100" @onclick="Cargar">Consultar</button></div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (_idLibro > 0)
+        {
+            <div class="card">
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Póliza</th><th>Fecha</th><th>Cuenta</th><th>Concepto</th><th class="text-end">Monto</th><th>Deducible</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var l in _lineas)
+                        {
+                            <tr>
+                                <td>@(l.NumeroPoliza?.ToString() ?? l.IdAsiento.ToString())</td>
+                                <td>@l.FechaContable.ToString("yyyy-MM-dd")</td>
+                                <td><span class="font-monospace">@l.CodigoCuenta</span> @l.Cuenta</td>
+                                <td>@l.Concepto</td>
+                                <td class="text-end">@l.Monto.ToString("N2")</td>
+                                <td>@if (l.DeclaradoDeducible) { <span class="badge bg-success">Sí, con respaldo</span><div class="small text-secondary">@l.MotivoDeclaracion</div> } else { <span class="badge bg-secondary">No</span> }</td>
+                                <td class="text-nowrap">
+                                    @if (Sesion.Puede("CONTABILIDAD.DEDUCIBILIDAD", AccionPantalla.Editar))
+                                    {
+                                        @if (!l.DeclaradoDeducible)
+                                        {
+                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => AbrirRespaldo(l)">Respaldo</button>
+                                            <button class="btn btn-sm btn-success" @onclick="() => AbrirDeclaracion(l, true)">Declarar deducible</button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => AbrirDeclaracion(l, false)">Volver a no deducible</button>
+                                        }
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        @if (_lineas.Count == 0) { <tr><td colspan="7" class="text-secondary">Sin cargos no deducibles en el rango.</td></tr> }
+                    </tbody>
+                </table></div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modalRespaldo" Titulo="Respaldo de deducibilidad" AlGuardar="SubirRespaldo" Guardando="_guardando" PuedeGuardar="_archivo is not null" TextoGuardar="Adjuntar">
+    <p class="small text-secondary">Copia de la planilla donde se ve el rebajo al cajero, o la denuncia policial (PDF, JPG, PNG, EML o MSG, hasta 10 MB).</p>
+    <InputFile class="form-control" OnChange="e => _archivo = e.File" />
+</AppModal>
+
+<AppModal @ref="_modalDeclaracion" Titulo="@(_declarar ? "Declarar deducible" : "Volver a no deducible")" AlGuardar="ConfirmarDeclaracion" Guardando="_guardando" PuedeGuardar="!string.IsNullOrWhiteSpace(_motivo)">
+    <label class="form-label" for="dd-motivo">Motivo</label>
+    <textarea id="dd-motivo" class="form-control" rows="3" maxlength="500" @bind="_motivo"></textarea>
+</AppModal>
+
+@code {
+    private long _idLibro;
+    private DateTime _desde = new(DateTime.Today.Year, 1, 1);
+    private DateTime _hasta = DateTime.Today;
+    private List<LineaNoDeducibleDTO> _lineas = new();
+    private AppModal _modalRespaldo = default!;
+    private AppModal _modalDeclaracion = default!;
+    private IBrowserFile? _archivo;
+    private LineaNoDeducibleDTO? _activa;
+    private bool _declarar;
+    private string _motivo = "";
+    private bool _guardando;
+
+    private async Task AlCambiarLibro(long idLibro)
+    {
+        _idLibro = idLibro;
+        _lineas = new();
+        if (idLibro > 0) await Cargar();
+    }
+
+    private async Task Cargar()
+        => _lineas = (await Respuestas.DatoAsync(await AprobacionesApi.NoDeducibles(_idLibro, DateOnly.FromDateTime(_desde), DateOnly.FromDateTime(_hasta)), "consultar los gastos no deducibles"))?.ToList() ?? new();
+
+    private async Task AbrirRespaldo(LineaNoDeducibleDTO l)
+    {
+        _activa = l; _archivo = null;
+        await _modalRespaldo.MostrarAsync();
+    }
+
+    private async Task SubirRespaldo()
+    {
+        if (_activa is null || _archivo is null) return;
+        _guardando = true;
+        await using var flujo = _archivo.OpenReadStream(10 * 1024 * 1024);
+        var respuesta = await Contabilidad.CargarEvidenciaCierre(_idLibro, "Deducibilidad", _activa.IdAsiento, flujo, _archivo.Name, _archivo.ContentType);
+        _guardando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "cargar el respaldo")) return;
+        await _modalRespaldo.OcultarAsync();
+        Dialogos.Exito("Respaldo adjunto.");
+    }
+
+    private async Task AbrirDeclaracion(LineaNoDeducibleDTO l, bool declarar)
+    {
+        _activa = l; _declarar = declarar; _motivo = "";
+        await _modalDeclaracion.MostrarAsync();
+    }
+
+    private async Task ConfirmarDeclaracion()
+    {
+        if (_activa is null) return;
+        _guardando = true;
+        var respuesta = await AprobacionesApi.DeclararDeducible(_idLibro, _activa.IdAsiento, _declarar, _motivo.Trim());
+        _guardando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "declarar la deducibilidad")) return;
+        await _modalDeclaracion.OcultarAsync();
+        await Cargar();
+    }
+}

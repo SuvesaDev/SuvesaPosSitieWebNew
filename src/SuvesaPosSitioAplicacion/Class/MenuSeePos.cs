@@ -1006,6 +1006,18 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Diferencias de caja",
+                    Codigo = "CONTABILIDAD.DIFERENCIAS_DE_CAJA",
+                    Ruta = "/accounting/cash-differences",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Deducibilidad",
+                    Codigo = "CONTABILIDAD.DEDUCIBILIDAD",
+                    Ruta = "/accounting/deductibility",
+                },
+                new ItemMenu
+                {
                     Titulo = "Balanza",
                     Codigo = "CONTABILIDAD.BALANZA",
                     Ruta = "/accounting/trial-balance",

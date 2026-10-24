@@ -1,0 +1,104 @@
+@page "/accounting/cash-differences"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Contabilidad
+@using SuvesaPosSitioAplicacion.Services
+@inject IAprobaciones AprobacionesApi
+@inject IContextoSesion Sesion
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* Sobrantes y faltantes que dejó el cierre de cada caja. Hasta el tope van directo a resultados; un faltante mayor se
+   carga al cajero y aquí se resuelve: se rebajó de la planilla, o se castiga a gasto no deducible. *@
+
+<AppPantalla Pantalla="Diferencias de caja" Codigo="CONTABILIDAD.DIFERENCIAS_DE_CAJA" Icono="bi-cash-coin" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="d-flex gap-2 align-items-center mb-2">
+            <label class="small" for="dc-estado">Estado</label>
+            <select id="dc-estado" class="form-select form-select-sm w-auto" @bind="_estado" @bind:after="Cargar">
+                <option value="">Todos</option>
+                <option value="PorCobrarAlCajero">Por cobrar al cajero</option>
+                <option value="EnResultados">En resultados</option>
+                <option value="Rebajada">Rebajada por planilla</option>
+                <option value="Castigada">Castigada</option>
+            </select>
+        </div>
+        <div class="card">
+            <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Fecha</th><th>Cajero</th><th>Apertura</th><th class="text-end">Diferencia</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var d in _lista)
+                    {
+                        <tr>
+                            <td>@d.Fecha.ToString("yyyy-MM-dd")</td>
+                            <td>@d.NombreCajero<div class="small text-secondary">@d.CedulaCajero</div></td>
+                            <td>@d.NumApertura</td>
+                            <td class="text-end @(d.Monto < 0 ? "text-danger" : "text-success")">@d.Monto.ToString("N2")<div class="small text-secondary">@(d.Monto < 0 ? "faltante" : "sobrante")</div></td>
+                            <td>@TextoEstado(d.Estado)@if (!string.IsNullOrEmpty(d.Resolucion)) { <div class="small text-secondary">@d.Resolucion</div> }</td>
+                            <td class="text-nowrap">
+                                @if (d.Estado == "PorCobrarAlCajero" && Sesion.Puede("CONTABILIDAD.DIFERENCIAS_DE_CAJA", AccionPantalla.Editar))
+                                {
+                                    <button class="btn btn-sm btn-success" @onclick='() => Abrir(d, "RebajoPlanilla")'>Rebajo por planilla</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick='() => Abrir(d, "Castigo")'>Castigar</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (_lista.Count == 0) { <tr><td colspan="6" class="text-secondary">Sin diferencias.</td></tr> }
+                </tbody>
+            </table></div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modal" Titulo="@(_modo == "Castigo" ? "Castigar faltante" : "Rebajo por planilla")" AlGuardar="Confirmar" Guardando="_guardando"
+          PuedeGuardar="!string.IsNullOrWhiteSpace(_motivo)">
+    <p class="small text-secondary">
+        @if (_modo == "Castigo") { <text>El faltante pasa a gasto de faltantes de caja, que no es deducible de renta salvo que luego se declare con su respaldo en Deducibilidad.</text> }
+        else { <text>Se debita salarios por pagar y se acredita la cuenta por cobrar al cajero.</text> }
+    </p>
+    <label class="form-label" for="dc-motivo">Motivo o referencia</label>
+    <textarea id="dc-motivo" class="form-control" rows="3" maxlength="500" @bind="_motivo"></textarea>
+</AppModal>
+
+@code {
+    private List<DiferenciaCajaDTO> _lista = new();
+    private string _estado = "PorCobrarAlCajero";
+    private AppModal _modal = default!;
+    private DiferenciaCajaDTO? _activa;
+    private string _modo = "";
+    private string _motivo = "";
+    private bool _guardando;
+
+    protected override Task OnInitializedAsync() => Cargar();
+
+    private async Task Cargar()
+        => _lista = (await Respuestas.DatoAsync(await AprobacionesApi.DiferenciasCaja(string.IsNullOrEmpty(_estado) ? null : _estado), "consultar las diferencias de caja"))?.ToList() ?? new();
+
+    private static string TextoEstado(string e) => e switch
+    {
+        "PorCobrarAlCajero" => "Por cobrar al cajero",
+        "EnResultados" => "En resultados",
+        "Rebajada" => "Rebajada por planilla",
+        "Castigada" => "Castigada",
+        _ => e,
+    };
+
+    private async Task Abrir(DiferenciaCajaDTO d, string modo)
+    {
+        _activa = d; _modo = modo; _motivo = "";
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Confirmar()
+    {
+        if (_activa is null) return;
+        _guardando = true;
+        var respuesta = await AprobacionesApi.ResolverDiferenciaCaja(_activa.Id, _modo, _motivo.Trim());
+        _guardando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "resolver la diferencia")) return;
+        await _modal.OcultarAsync();
+        Dialogos.Exito("Diferencia resuelta.");
+        await Cargar();
+    }
+}

@@ -113,4 +113,16 @@ public sealed class Aprobaciones : ProxyBase, IAprobaciones
 
     public Task<ResponseGeneric<ICollection<EstatusContableDocumentoDTO>>> EstatusDocumento(string modulo, string id)
         => Ejecutar<ICollection<EstatusContableDocumentoDTO>>(async () => TraducirLista(await _api.EstatusDocumentoAsync(modulo, id)), "consultar el estatus contable");
+
+    public Task<ResponseGeneric<ICollection<DiferenciaCajaDTO>>> DiferenciasCaja(string? estado = null)
+        => Ejecutar<ICollection<DiferenciaCajaDTO>>(async () => TraducirLista(await _api.DiferenciasCajaAsync(estado)), "consultar las diferencias de caja");
+
+    public Task<ResponseGeneric<DiferenciaCajaDTO>> ResolverDiferenciaCaja(long id, string modo, string motivo)
+        => Ejecutar(async () => Traducir(await _api.ResolverDiferenciaCajaAsync(id, new ResolverDiferenciaCajaDTO { Modo = modo, Motivo = motivo })), "resolver la diferencia de caja");
+
+    public Task<ResponseGeneric<ICollection<LineaNoDeducibleDTO>>> NoDeducibles(long idLibro, DateOnly desde, DateOnly hasta)
+        => Ejecutar<ICollection<LineaNoDeducibleDTO>>(async () => TraducirLista(await _api.NoDeduciblesAsync(idLibro, desde, hasta)), "consultar los gastos no deducibles");
+
+    public Task<ResponseGeneric<bool>> DeclararDeducible(long idLibro, long idAsiento, bool esDeducible, string motivo)
+        => Ejecutar(async () => Traducir(await _api.DeclararDeducibleAsync(new DeclararDeducibleDTO { IdLibroContable = idLibro, IdAsiento = idAsiento, EsDeducible = esDeducible, Motivo = motivo })), "declarar la deducibilidad");
 }

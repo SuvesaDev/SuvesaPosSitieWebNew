@@ -40,4 +40,8 @@ public interface IAprobaciones
     Task<ResponseGeneric<EstadoTablaRetencionesDTO>> EstadoTablaRetenciones();
     Task<ResponseGeneric<bool>> DescartarEvento(long idEvento, string estado, string motivo);
     Task<ResponseGeneric<ICollection<EstatusContableDocumentoDTO>>> EstatusDocumento(string modulo, string id);
+    Task<ResponseGeneric<ICollection<DiferenciaCajaDTO>>> DiferenciasCaja(string? estado = null);
+    Task<ResponseGeneric<DiferenciaCajaDTO>> ResolverDiferenciaCaja(long id, string modo, string motivo);
+    Task<ResponseGeneric<ICollection<LineaNoDeducibleDTO>>> NoDeducibles(long idLibro, DateOnly desde, DateOnly hasta);
+    Task<ResponseGeneric<bool>> DeclararDeducible(long idLibro, long idAsiento, bool esDeducible, string motivo);
 }

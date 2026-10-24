@@ -45,6 +45,10 @@ public interface IAprobacionesApiCliente
     Task<SeguridadEnvelope<EstadoTablaRetencionesDTO>> EstadoTablaRetencionesAsync();
     Task<SeguridadEnvelope<bool>> DescartarEventoAsync(long idEvento, DescartarEventoDTO dto);
     Task<SeguridadEnvelope<List<EstatusContableDocumentoDTO>>> EstatusDocumentoAsync(string modulo, string id);
+    Task<SeguridadEnvelope<List<DiferenciaCajaDTO>>> DiferenciasCajaAsync(string? estado);
+    Task<SeguridadEnvelope<DiferenciaCajaDTO>> ResolverDiferenciaCajaAsync(long id, ResolverDiferenciaCajaDTO dto);
+    Task<SeguridadEnvelope<List<LineaNoDeducibleDTO>>> NoDeduciblesAsync(long idLibro, DateOnly desde, DateOnly hasta);
+    Task<SeguridadEnvelope<bool>> DeclararDeducibleAsync(DeclararDeducibleDTO dto);
 }
 
 public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
@@ -172,4 +176,16 @@ public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
 
     public Task<SeguridadEnvelope<List<EstatusContableDocumentoDTO>>> EstatusDocumentoAsync(string modulo, string id)
         => EnviarAsync<List<EstatusContableDocumentoDTO>>(HttpMethod.Get, $"estatus-documento?modulo={Uri.EscapeDataString(modulo)}&id={Uri.EscapeDataString(id)}");
+
+    public Task<SeguridadEnvelope<List<DiferenciaCajaDTO>>> DiferenciasCajaAsync(string? estado)
+        => EnviarAsync<List<DiferenciaCajaDTO>>(HttpMethod.Get, "diferencias-caja" + (string.IsNullOrWhiteSpace(estado) ? "" : $"?estado={Uri.EscapeDataString(estado)}"));
+
+    public Task<SeguridadEnvelope<DiferenciaCajaDTO>> ResolverDiferenciaCajaAsync(long id, ResolverDiferenciaCajaDTO dto)
+        => EnviarAsync<DiferenciaCajaDTO>(HttpMethod.Post, $"diferencias-caja/{id}/resolver", dto);
+
+    public Task<SeguridadEnvelope<List<LineaNoDeducibleDTO>>> NoDeduciblesAsync(long idLibro, DateOnly desde, DateOnly hasta)
+        => EnviarAsync<List<LineaNoDeducibleDTO>>(HttpMethod.Get, $"deducibilidad?idLibroContable={idLibro}&desde={Fecha(desde)}&hasta={Fecha(hasta)}");
+
+    public Task<SeguridadEnvelope<bool>> DeclararDeducibleAsync(DeclararDeducibleDTO dto)
+        => EnviarAsync<bool>(HttpMethod.Post, "deducibilidad", dto);
 }

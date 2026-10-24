@@ -340,3 +340,45 @@ public sealed class EstatusContableDocumentoDTO
     [JsonPropertyName("numeroPoliza")] public long? NumeroPoliza { get; set; }
     [JsonPropertyName("fechaContable")] public DateOnly FechaContable { get; set; }
 }
+
+public sealed class DiferenciaCajaDTO
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("idCierreCaja")] public long IdCierreCaja { get; set; }
+    [JsonPropertyName("numApertura")] public long NumApertura { get; set; }
+    [JsonPropertyName("idSucursal")] public int IdSucursal { get; set; }
+    [JsonPropertyName("cedulaCajero")] public string CedulaCajero { get; set; } = string.Empty;
+    [JsonPropertyName("nombreCajero")] public string NombreCajero { get; set; } = string.Empty;
+    [JsonPropertyName("fecha")] public DateOnly Fecha { get; set; }
+    [JsonPropertyName("monto")] public decimal Monto { get; set; }
+    [JsonPropertyName("tope")] public decimal Tope { get; set; }
+    [JsonPropertyName("estado")] public string Estado { get; set; } = string.Empty;
+    [JsonPropertyName("resolucion")] public string? Resolucion { get; set; }
+}
+
+public sealed class ResolverDiferenciaCajaDTO
+{
+    [JsonPropertyName("modo")] public string Modo { get; set; } = string.Empty;
+    [JsonPropertyName("motivo")] public string Motivo { get; set; } = string.Empty;
+}
+
+public sealed class LineaNoDeducibleDTO
+{
+    [JsonPropertyName("idAsiento")] public long IdAsiento { get; set; }
+    [JsonPropertyName("numeroPoliza")] public long? NumeroPoliza { get; set; }
+    [JsonPropertyName("fechaContable")] public DateOnly FechaContable { get; set; }
+    [JsonPropertyName("codigoCuenta")] public string CodigoCuenta { get; set; } = string.Empty;
+    [JsonPropertyName("cuenta")] public string Cuenta { get; set; } = string.Empty;
+    [JsonPropertyName("monto")] public decimal Monto { get; set; }
+    [JsonPropertyName("concepto")] public string? Concepto { get; set; }
+    [JsonPropertyName("declaradoDeducible")] public bool DeclaradoDeducible { get; set; }
+    [JsonPropertyName("motivoDeclaracion")] public string? MotivoDeclaracion { get; set; }
+}
+
+public sealed class DeclararDeducibleDTO
+{
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("idAsiento")] public long IdAsiento { get; set; }
+    [JsonPropertyName("esDeducible")] public bool EsDeducible { get; set; }
+    [JsonPropertyName("motivo")] public string Motivo { get; set; } = string.Empty;
+}
