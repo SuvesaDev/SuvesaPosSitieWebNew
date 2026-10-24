@@ -28,6 +28,23 @@ public interface IAprobacionesApiCliente
     Task<SeguridadEnvelope<List<RevaluacionDTO>>> RevaluacionesAsync(long idLibro);
     Task<SeguridadEnvelope<RevaluacionDTO>> SimularRevaluacionAsync(EjecutarRevaluacionDTO dto);
     Task<SeguridadEnvelope<RevaluacionDTO>> EjecutarRevaluacionAsync(EjecutarRevaluacionDTO dto);
+
+    Task<SeguridadEnvelope<ResultadoSincronizacionCatalogoDTO>> SincronizarCatalogoAsync(long idLibro);
+    Task<SeguridadEnvelope<List<UsoCuentaContableDTO>>> UsosCuentaAsync(long idLibro);
+    Task<SeguridadEnvelope<bool>> AsignarUsoCuentaAsync(AsignarUsoCuentaDTO dto);
+    Task<SeguridadEnvelope<ResumenProcesadoresDTO>> ResumenProcesadoresAsync(long idLibro);
+    Task<SeguridadEnvelope<LiquidacionProcesadorDTO>> RegistrarLiquidacionAsync(RegistrarLiquidacionProcesadorDTO dto);
+    Task<SeguridadEnvelope<List<CorteEntregaDTO>>> CortesEntregaAsync(long idLibro);
+    Task<SeguridadEnvelope<CorteEntregaDTO>> SimularCorteEntregaAsync(EjecutarCorteEntregaDTO dto);
+    Task<SeguridadEnvelope<CorteEntregaDTO>> EjecutarCorteEntregaAsync(EjecutarCorteEntregaDTO dto);
+    Task<SeguridadEnvelope<List<GastoDTO>>> GastosAsync(long idLibro, string? estado);
+    Task<SeguridadEnvelope<GastoDTO>> RegistrarGastoAsync(RegistrarGastoDTO dto);
+    Task<SeguridadEnvelope<GastoDTO>> ProgramarPagoGastoAsync(long idGasto, FechaGastoDTO dto);
+    Task<SeguridadEnvelope<GastoDTO>> PagarGastoAsync(long idGasto, FechaGastoDTO dto);
+    Task<SeguridadEnvelope<GastoDTO>> AnularGastoAsync(long idGasto, AnularGastoDTO dto);
+    Task<SeguridadEnvelope<EstadoTablaRetencionesDTO>> EstadoTablaRetencionesAsync();
+    Task<SeguridadEnvelope<bool>> DescartarEventoAsync(long idEvento, DescartarEventoDTO dto);
+    Task<SeguridadEnvelope<List<EstatusContableDocumentoDTO>>> EstatusDocumentoAsync(string modulo, string id);
 }
 
 public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
@@ -107,4 +124,52 @@ public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
 
     public Task<SeguridadEnvelope<RevaluacionDTO>> EjecutarRevaluacionAsync(EjecutarRevaluacionDTO dto)
         => EnviarAsync<RevaluacionDTO>(HttpMethod.Post, "revaluaciones/ejecutar", dto);
+
+    public Task<SeguridadEnvelope<ResultadoSincronizacionCatalogoDTO>> SincronizarCatalogoAsync(long idLibro)
+        => EnviarAsync<ResultadoSincronizacionCatalogoDTO>(HttpMethod.Post, $"libros/{idLibro}/sincronizar-catalogo");
+
+    public Task<SeguridadEnvelope<List<UsoCuentaContableDTO>>> UsosCuentaAsync(long idLibro)
+        => EnviarAsync<List<UsoCuentaContableDTO>>(HttpMethod.Get, $"libros/{idLibro}/usos-cuenta");
+
+    public Task<SeguridadEnvelope<bool>> AsignarUsoCuentaAsync(AsignarUsoCuentaDTO dto)
+        => EnviarAsync<bool>(HttpMethod.Put, "usos-cuenta", dto);
+
+    public Task<SeguridadEnvelope<ResumenProcesadoresDTO>> ResumenProcesadoresAsync(long idLibro)
+        => EnviarAsync<ResumenProcesadoresDTO>(HttpMethod.Get, $"procesadores/resumen?idLibroContable={idLibro}");
+
+    public Task<SeguridadEnvelope<LiquidacionProcesadorDTO>> RegistrarLiquidacionAsync(RegistrarLiquidacionProcesadorDTO dto)
+        => EnviarAsync<LiquidacionProcesadorDTO>(HttpMethod.Post, "procesadores/liquidaciones", dto);
+
+    public Task<SeguridadEnvelope<List<CorteEntregaDTO>>> CortesEntregaAsync(long idLibro)
+        => EnviarAsync<List<CorteEntregaDTO>>(HttpMethod.Get, $"cortes-entrega?idLibroContable={idLibro}");
+
+    public Task<SeguridadEnvelope<CorteEntregaDTO>> SimularCorteEntregaAsync(EjecutarCorteEntregaDTO dto)
+        => EnviarAsync<CorteEntregaDTO>(HttpMethod.Post, "cortes-entrega/simular", dto);
+
+    public Task<SeguridadEnvelope<CorteEntregaDTO>> EjecutarCorteEntregaAsync(EjecutarCorteEntregaDTO dto)
+        => EnviarAsync<CorteEntregaDTO>(HttpMethod.Post, "cortes-entrega/ejecutar", dto);
+
+    public Task<SeguridadEnvelope<List<GastoDTO>>> GastosAsync(long idLibro, string? estado)
+        => EnviarAsync<List<GastoDTO>>(HttpMethod.Get, $"gastos?idLibroContable={idLibro}" + (string.IsNullOrWhiteSpace(estado) ? "" : $"&estado={Uri.EscapeDataString(estado)}"));
+
+    public Task<SeguridadEnvelope<GastoDTO>> RegistrarGastoAsync(RegistrarGastoDTO dto)
+        => EnviarAsync<GastoDTO>(HttpMethod.Post, "gastos", dto);
+
+    public Task<SeguridadEnvelope<GastoDTO>> ProgramarPagoGastoAsync(long idGasto, FechaGastoDTO dto)
+        => EnviarAsync<GastoDTO>(HttpMethod.Post, $"gastos/{idGasto}/programar-pago", dto);
+
+    public Task<SeguridadEnvelope<GastoDTO>> PagarGastoAsync(long idGasto, FechaGastoDTO dto)
+        => EnviarAsync<GastoDTO>(HttpMethod.Post, $"gastos/{idGasto}/pagar", dto);
+
+    public Task<SeguridadEnvelope<GastoDTO>> AnularGastoAsync(long idGasto, AnularGastoDTO dto)
+        => EnviarAsync<GastoDTO>(HttpMethod.Post, $"gastos/{idGasto}/anular", dto);
+
+    public Task<SeguridadEnvelope<EstadoTablaRetencionesDTO>> EstadoTablaRetencionesAsync()
+        => EnviarAsync<EstadoTablaRetencionesDTO>(HttpMethod.Get, "retenciones/estado");
+
+    public Task<SeguridadEnvelope<bool>> DescartarEventoAsync(long idEvento, DescartarEventoDTO dto)
+        => EnviarAsync<bool>(HttpMethod.Post, $"eventos/{idEvento}/descartar", dto);
+
+    public Task<SeguridadEnvelope<List<EstatusContableDocumentoDTO>>> EstatusDocumentoAsync(string modulo, string id)
+        => EnviarAsync<List<EstatusContableDocumentoDTO>>(HttpMethod.Get, $"estatus-documento?modulo={Uri.EscapeDataString(modulo)}&id={Uri.EscapeDataString(id)}");
 }

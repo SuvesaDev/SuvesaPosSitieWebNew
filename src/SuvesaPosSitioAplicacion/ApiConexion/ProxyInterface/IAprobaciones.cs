@@ -22,4 +22,22 @@ public interface IAprobaciones
     Task<ResponseGeneric<ICollection<RevaluacionDTO>>> Revaluaciones(long idLibro);
     Task<ResponseGeneric<RevaluacionDTO>> SimularRevaluacion(long idLibro, int ejercicio, int mes, string moneda);
     Task<ResponseGeneric<RevaluacionDTO>> EjecutarRevaluacion(long idLibro, int ejercicio, int mes, string moneda);
+
+    // ---- Ola 3 ----
+    Task<ResponseGeneric<ResultadoSincronizacionCatalogoDTO>> SincronizarCatalogo(long idLibro);
+    Task<ResponseGeneric<ICollection<UsoCuentaContableDTO>>> UsosCuenta(long idLibro);
+    Task<ResponseGeneric<bool>> AsignarUsoCuenta(long idLibro, string uso, long idCuenta);
+    Task<ResponseGeneric<ResumenProcesadoresDTO>> ResumenProcesadores(long idLibro);
+    Task<ResponseGeneric<LiquidacionProcesadorDTO>> RegistrarLiquidacion(RegistrarLiquidacionProcesadorDTO comando);
+    Task<ResponseGeneric<ICollection<CorteEntregaDTO>>> CortesEntrega(long idLibro);
+    Task<ResponseGeneric<CorteEntregaDTO>> SimularCorteEntrega(long idLibro, int ejercicio, int mes);
+    Task<ResponseGeneric<CorteEntregaDTO>> EjecutarCorteEntrega(long idLibro, int ejercicio, int mes);
+    Task<ResponseGeneric<ICollection<GastoDTO>>> Gastos(long idLibro, string? estado = null);
+    Task<ResponseGeneric<GastoDTO>> RegistrarGasto(RegistrarGastoDTO comando);
+    Task<ResponseGeneric<GastoDTO>> ProgramarPagoGasto(long idGasto, DateOnly fecha);
+    Task<ResponseGeneric<GastoDTO>> PagarGasto(long idGasto, DateOnly fecha);
+    Task<ResponseGeneric<GastoDTO>> AnularGasto(long idGasto, string motivo);
+    Task<ResponseGeneric<EstadoTablaRetencionesDTO>> EstadoTablaRetenciones();
+    Task<ResponseGeneric<bool>> DescartarEvento(long idEvento, string estado, string motivo);
+    Task<ResponseGeneric<ICollection<EstatusContableDocumentoDTO>>> EstatusDocumento(string modulo, string id);
 }

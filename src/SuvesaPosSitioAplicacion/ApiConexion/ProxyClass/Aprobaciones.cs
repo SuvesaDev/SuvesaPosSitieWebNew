@@ -65,4 +65,52 @@ public sealed class Aprobaciones : ProxyBase, IAprobaciones
 
     public Task<ResponseGeneric<RevaluacionDTO>> EjecutarRevaluacion(long idLibro, int ejercicio, int mes, string moneda)
         => Ejecutar(async () => Traducir(await _api.EjecutarRevaluacionAsync(new EjecutarRevaluacionDTO { IdLibroContable = idLibro, Ejercicio = ejercicio, Mes = mes, Moneda = moneda })), "ejecutar la revaluación");
+
+    public Task<ResponseGeneric<ResultadoSincronizacionCatalogoDTO>> SincronizarCatalogo(long idLibro)
+        => Ejecutar(async () => Traducir(await _api.SincronizarCatalogoAsync(idLibro)), "actualizar el catálogo");
+
+    public Task<ResponseGeneric<ICollection<UsoCuentaContableDTO>>> UsosCuenta(long idLibro)
+        => Ejecutar<ICollection<UsoCuentaContableDTO>>(async () => TraducirLista(await _api.UsosCuentaAsync(idLibro)), "consultar las cuentas de uso");
+
+    public Task<ResponseGeneric<bool>> AsignarUsoCuenta(long idLibro, string uso, long idCuenta)
+        => Ejecutar(async () => Traducir(await _api.AsignarUsoCuentaAsync(new AsignarUsoCuentaDTO { IdLibroContable = idLibro, Uso = uso, IdCuentaContable = idCuenta })), "asignar la cuenta de uso");
+
+    public Task<ResponseGeneric<ResumenProcesadoresDTO>> ResumenProcesadores(long idLibro)
+        => Ejecutar(async () => Traducir(await _api.ResumenProcesadoresAsync(idLibro)), "consultar los procesadores de pago");
+
+    public Task<ResponseGeneric<LiquidacionProcesadorDTO>> RegistrarLiquidacion(RegistrarLiquidacionProcesadorDTO comando)
+        => Ejecutar(async () => Traducir(await _api.RegistrarLiquidacionAsync(comando)), "registrar la liquidación");
+
+    public Task<ResponseGeneric<ICollection<CorteEntregaDTO>>> CortesEntrega(long idLibro)
+        => Ejecutar<ICollection<CorteEntregaDTO>>(async () => TraducirLista(await _api.CortesEntregaAsync(idLibro)), "consultar los cortes de entregas");
+
+    public Task<ResponseGeneric<CorteEntregaDTO>> SimularCorteEntrega(long idLibro, int ejercicio, int mes)
+        => Ejecutar(async () => Traducir(await _api.SimularCorteEntregaAsync(new EjecutarCorteEntregaDTO { IdLibroContable = idLibro, Ejercicio = ejercicio, Mes = mes })), "simular el corte de entregas");
+
+    public Task<ResponseGeneric<CorteEntregaDTO>> EjecutarCorteEntrega(long idLibro, int ejercicio, int mes)
+        => Ejecutar(async () => Traducir(await _api.EjecutarCorteEntregaAsync(new EjecutarCorteEntregaDTO { IdLibroContable = idLibro, Ejercicio = ejercicio, Mes = mes })), "ejecutar el corte de entregas");
+
+    public Task<ResponseGeneric<ICollection<GastoDTO>>> Gastos(long idLibro, string? estado = null)
+        => Ejecutar<ICollection<GastoDTO>>(async () => TraducirLista(await _api.GastosAsync(idLibro, estado)), "consultar los gastos");
+
+    public Task<ResponseGeneric<GastoDTO>> RegistrarGasto(RegistrarGastoDTO comando)
+        => Ejecutar(async () => Traducir(await _api.RegistrarGastoAsync(comando)), "registrar el gasto");
+
+    public Task<ResponseGeneric<GastoDTO>> ProgramarPagoGasto(long idGasto, DateOnly fecha)
+        => Ejecutar(async () => Traducir(await _api.ProgramarPagoGastoAsync(idGasto, new FechaGastoDTO { Fecha = fecha })), "programar el pago");
+
+    public Task<ResponseGeneric<GastoDTO>> PagarGasto(long idGasto, DateOnly fecha)
+        => Ejecutar(async () => Traducir(await _api.PagarGastoAsync(idGasto, new FechaGastoDTO { Fecha = fecha })), "pagar el gasto");
+
+    public Task<ResponseGeneric<GastoDTO>> AnularGasto(long idGasto, string motivo)
+        => Ejecutar(async () => Traducir(await _api.AnularGastoAsync(idGasto, new AnularGastoDTO { Motivo = motivo })), "anular el gasto");
+
+    public Task<ResponseGeneric<EstadoTablaRetencionesDTO>> EstadoTablaRetenciones()
+        => Ejecutar(async () => Traducir(await _api.EstadoTablaRetencionesAsync()), "consultar la tabla de retenciones");
+
+    public Task<ResponseGeneric<bool>> DescartarEvento(long idEvento, string estado, string motivo)
+        => Ejecutar(async () => Traducir(await _api.DescartarEventoAsync(idEvento, new DescartarEventoDTO { Estado = estado, Motivo = motivo })), "descartar el evento");
+
+    public Task<ResponseGeneric<ICollection<EstatusContableDocumentoDTO>>> EstatusDocumento(string modulo, string id)
+        => Ejecutar<ICollection<EstatusContableDocumentoDTO>>(async () => TraducirLista(await _api.EstatusDocumentoAsync(modulo, id)), "consultar el estatus contable");
 }

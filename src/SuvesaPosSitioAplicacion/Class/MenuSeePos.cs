@@ -994,6 +994,18 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Procesadores de pago",
+                    Codigo = "CONTABILIDAD.PROCESADORES_DE_PAGO",
+                    Ruta = "/accounting/payment-processors",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Gastos",
+                    Codigo = "CONTABILIDAD.GASTOS",
+                    Ruta = "/accounting/expenses",
+                },
+                new ItemMenu
+                {
                     Titulo = "Balanza",
                     Codigo = "CONTABILIDAD.BALANZA",
                     Ruta = "/accounting/trial-balance",

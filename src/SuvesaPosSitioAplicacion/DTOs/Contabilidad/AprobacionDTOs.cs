@@ -159,3 +159,184 @@ public sealed class RevaluacionDTO
     [JsonPropertyName("procesoEjecutado")] public bool ProcesoEjecutado { get; set; }
     [JsonPropertyName("lineas")] public List<LineaRevaluacionDTO> Lineas { get; set; } = new();
 }
+
+// ---- Ola 3 ----
+
+public sealed class ResultadoSincronizacionCatalogoDTO
+{
+    [JsonPropertyName("cuentasAgregadas")] public int CuentasAgregadas { get; set; }
+    [JsonPropertyName("cuentasRenombradas")] public int CuentasRenombradas { get; set; }
+    [JsonPropertyName("plantillasNuevas")] public int PlantillasNuevas { get; set; }
+    [JsonPropertyName("versionesBorrador")] public int VersionesBorrador { get; set; }
+    [JsonPropertyName("detalles")] public List<string> Detalles { get; set; } = new();
+}
+
+public sealed class UsoCuentaContableDTO
+{
+    [JsonPropertyName("uso")] public string Uso { get; set; } = string.Empty;
+    [JsonPropertyName("descripcion")] public string Descripcion { get; set; } = string.Empty;
+    [JsonPropertyName("codigoPorOmision")] public string CodigoPorOmision { get; set; } = string.Empty;
+    [JsonPropertyName("idCuentaContable")] public long? IdCuentaContable { get; set; }
+    [JsonPropertyName("codigoCuenta")] public string? CodigoCuenta { get; set; }
+    [JsonPropertyName("origen")] public string Origen { get; set; } = string.Empty;
+}
+
+public sealed class AsignarUsoCuentaDTO
+{
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("uso")] public string Uso { get; set; } = string.Empty;
+    [JsonPropertyName("idCuentaContable")] public long IdCuentaContable { get; set; }
+}
+
+public sealed class RegistrarLiquidacionProcesadorDTO
+{
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("idSucursal")] public int? IdSucursal { get; set; }
+    [JsonPropertyName("procesador")] public string Procesador { get; set; } = string.Empty;
+    [JsonPropertyName("numeroLiquidacion")] public string NumeroLiquidacion { get; set; } = string.Empty;
+    [JsonPropertyName("fecha")] public DateOnly Fecha { get; set; }
+    [JsonPropertyName("bruto")] public decimal Bruto { get; set; }
+    [JsonPropertyName("comision")] public decimal Comision { get; set; }
+    [JsonPropertyName("ivaComision")] public decimal IvaComision { get; set; }
+    [JsonPropertyName("retencionRenta")] public decimal RetencionRenta { get; set; }
+    [JsonPropertyName("neto")] public decimal Neto { get; set; }
+}
+
+public sealed class LiquidacionProcesadorDTO
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("procesador")] public string Procesador { get; set; } = string.Empty;
+    [JsonPropertyName("numeroLiquidacion")] public string NumeroLiquidacion { get; set; } = string.Empty;
+    [JsonPropertyName("fecha")] public DateOnly Fecha { get; set; }
+    [JsonPropertyName("bruto")] public decimal Bruto { get; set; }
+    [JsonPropertyName("comision")] public decimal Comision { get; set; }
+    [JsonPropertyName("ivaComision")] public decimal IvaComision { get; set; }
+    [JsonPropertyName("retencionRenta")] public decimal RetencionRenta { get; set; }
+    [JsonPropertyName("neto")] public decimal Neto { get; set; }
+    [JsonPropertyName("estadoContable")] public string EstadoContable { get; set; } = string.Empty;
+    [JsonPropertyName("ultimoError")] public string? UltimoError { get; set; }
+}
+
+public sealed class ResumenProcesadoresDTO
+{
+    [JsonPropertyName("saldoPorLiquidar")] public decimal SaldoPorLiquidar { get; set; }
+    [JsonPropertyName("liquidaciones")] public List<LiquidacionProcesadorDTO> Liquidaciones { get; set; } = new();
+}
+
+public sealed class EjecutarCorteEntregaDTO
+{
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("ejercicio")] public int Ejercicio { get; set; }
+    [JsonPropertyName("mes")] public int Mes { get; set; }
+}
+
+public sealed class DocumentoCorteEntregaDTO
+{
+    [JsonPropertyName("idVenta")] public long IdVenta { get; set; }
+    [JsonPropertyName("numeroDocumento")] public string? NumeroDocumento { get; set; }
+    [JsonPropertyName("ingreso")] public decimal Ingreso { get; set; }
+    [JsonPropertyName("costo")] public decimal Costo { get; set; }
+}
+
+public sealed class CorteEntregaDTO
+{
+    [JsonPropertyName("id")] public long? Id { get; set; }
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("ejercicio")] public int Ejercicio { get; set; }
+    [JsonPropertyName("mes")] public int Mes { get; set; }
+    [JsonPropertyName("fechaCorte")] public DateOnly FechaCorte { get; set; }
+    [JsonPropertyName("cantidadDocumentos")] public int CantidadDocumentos { get; set; }
+    [JsonPropertyName("ingresoGravado")] public decimal IngresoGravado { get; set; }
+    [JsonPropertyName("ingresoExento")] public decimal IngresoExento { get; set; }
+    [JsonPropertyName("ingresoDiferido")] public decimal IngresoDiferido { get; set; }
+    [JsonPropertyName("costoDiferido")] public decimal CostoDiferido { get; set; }
+    [JsonPropertyName("utilidadDelMes")] public decimal UtilidadDelMes { get; set; }
+    [JsonPropertyName("umbral")] public decimal Umbral { get; set; }
+    [JsonPropertyName("material")] public bool Material { get; set; }
+    [JsonPropertyName("ejecutado")] public bool Ejecutado { get; set; }
+    [JsonPropertyName("idAsiento")] public long? IdAsiento { get; set; }
+    [JsonPropertyName("fechaReverso")] public DateOnly FechaReverso { get; set; }
+    [JsonPropertyName("idAsientoReverso")] public long? IdAsientoReverso { get; set; }
+    [JsonPropertyName("documentos")] public List<DocumentoCorteEntregaDTO> Documentos { get; set; } = new();
+    [JsonPropertyName("avisos")] public List<string> Avisos { get; set; } = new();
+}
+
+public sealed class LineaGastoDTO
+{
+    [JsonPropertyName("idCuentaContable")] public long IdCuentaContable { get; set; }
+    [JsonPropertyName("monto")] public decimal Monto { get; set; }
+    [JsonPropertyName("descripcion")] public string Descripcion { get; set; } = string.Empty;
+    [JsonPropertyName("idValorDimension")] public long? IdValorDimension { get; set; }
+}
+
+public sealed class RegistrarGastoDTO
+{
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("idSucursal")] public int IdSucursal { get; set; }
+    [JsonPropertyName("idProveedor")] public long IdProveedor { get; set; }
+    [JsonPropertyName("nombreProveedor")] public string NombreProveedor { get; set; } = string.Empty;
+    [JsonPropertyName("fechaDocumento")] public DateOnly FechaDocumento { get; set; }
+    [JsonPropertyName("numeroDocumento")] public string NumeroDocumento { get; set; } = string.Empty;
+    [JsonPropertyName("concepto")] public string Concepto { get; set; } = string.Empty;
+    [JsonPropertyName("iva")] public decimal Iva { get; set; }
+    [JsonPropertyName("retencion")] public decimal Retencion { get; set; }
+    [JsonPropertyName("referenciaRetencion")] public string? ReferenciaRetencion { get; set; }
+    [JsonPropertyName("fechaVencimiento")] public DateOnly? FechaVencimiento { get; set; }
+    [JsonPropertyName("lineas")] public List<LineaGastoDTO> Lineas { get; set; } = new();
+}
+
+public sealed class GastoDTO
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("idProveedor")] public long IdProveedor { get; set; }
+    [JsonPropertyName("nombreProveedor")] public string NombreProveedor { get; set; } = string.Empty;
+    [JsonPropertyName("fechaDocumento")] public DateOnly FechaDocumento { get; set; }
+    [JsonPropertyName("numeroDocumento")] public string NumeroDocumento { get; set; } = string.Empty;
+    [JsonPropertyName("concepto")] public string Concepto { get; set; } = string.Empty;
+    [JsonPropertyName("subtotal")] public decimal Subtotal { get; set; }
+    [JsonPropertyName("iva")] public decimal Iva { get; set; }
+    [JsonPropertyName("total")] public decimal Total { get; set; }
+    [JsonPropertyName("retencion")] public decimal Retencion { get; set; }
+    [JsonPropertyName("referenciaRetencion")] public string? ReferenciaRetencion { get; set; }
+    [JsonPropertyName("fechaVencimiento")] public DateOnly? FechaVencimiento { get; set; }
+    [JsonPropertyName("fechaPagoProgramada")] public DateOnly? FechaPagoProgramada { get; set; }
+    [JsonPropertyName("fechaPago")] public DateOnly? FechaPago { get; set; }
+    [JsonPropertyName("estado")] public string Estado { get; set; } = string.Empty;
+    [JsonPropertyName("idAsiento")] public long? IdAsiento { get; set; }
+    [JsonPropertyName("motivoAnulacion")] public string? MotivoAnulacion { get; set; }
+    [JsonPropertyName("lineas")] public List<LineaGastoDTO> Lineas { get; set; } = new();
+}
+
+public sealed class FechaGastoDTO
+{
+    [JsonPropertyName("fecha")] public DateOnly Fecha { get; set; }
+}
+
+public sealed class AnularGastoDTO
+{
+    [JsonPropertyName("motivo")] public string Motivo { get; set; } = string.Empty;
+}
+
+public sealed class EstadoTablaRetencionesDTO
+{
+    [JsonPropertyName("cargada")] public bool Cargada { get; set; }
+    [JsonPropertyName("filas")] public int Filas { get; set; }
+    [JsonPropertyName("mensaje")] public string Mensaje { get; set; } = string.Empty;
+}
+
+public sealed class DescartarEventoDTO
+{
+    [JsonPropertyName("estado")] public string Estado { get; set; } = string.Empty;
+    [JsonPropertyName("motivo")] public string Motivo { get; set; } = string.Empty;
+}
+
+public sealed class EstatusContableDocumentoDTO
+{
+    [JsonPropertyName("tipoEvento")] public string TipoEvento { get; set; } = string.Empty;
+    [JsonPropertyName("estado")] public string Estado { get; set; } = string.Empty;
+    [JsonPropertyName("ultimoError")] public string? UltimoError { get; set; }
+    [JsonPropertyName("idAsiento")] public long? IdAsiento { get; set; }
+    [JsonPropertyName("numeroPoliza")] public long? NumeroPoliza { get; set; }
+    [JsonPropertyName("fechaContable")] public DateOnly FechaContable { get; set; }
+}
