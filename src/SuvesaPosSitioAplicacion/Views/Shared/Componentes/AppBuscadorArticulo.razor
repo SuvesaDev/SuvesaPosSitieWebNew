@@ -78,7 +78,7 @@
                                 <td><code class="small">@a.Cod_Articulo</code></td>
                                 <td>@a.Descripcion</td>
                                 <td class="seepos-importe">@Formato.Cantidad(a.Existencia)</td>
-                                <td class="seepos-importe">@Formato.Importe(PrecioVenta.EnColones(a, a.Precio_A))</td>
+                                <td class="seepos-importe">@Formato.Importe(PrecioDe is null ? PrecioVenta.EnColones(a, a.Precio_A) : PrecioDe(a))</td>
                             </tr>
                         }
                     </tbody>
@@ -105,10 +105,15 @@
     [Parameter]
     public int? IdBodega { get; set; }
 
-    /// <summary>Si viene, solo se listan artículos de estos tipos (1 Normal, 2 Producto
-    /// terminado, 3 Materia prima). Sin valor se muestran todos.</summary>
+    /// <summary>Si viene, solo se listan artículos de estos tipos (1 Normal, 2 Materia
+    /// prima, 3 Producto terminado). Sin valor se muestran todos.</summary>
     [Parameter]
     public int[]? TiposPermitidos { get; set; }
+
+    /// <summary>Si viene, calcula el precio mostrado de cada artículo (p. ej. según la
+    /// lista de precios elegida en la factura). Sin valor se muestra el Precio A.</summary>
+    [Parameter]
+    public Func<InventarioDTO, decimal>? PrecioDe { get; set; }
 
     private static readonly TimeSpan Espera = TimeSpan.FromMilliseconds(400);
 

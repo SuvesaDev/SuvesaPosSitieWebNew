@@ -1562,6 +1562,17 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("codigo")]
         public string? Codigo { get; set; } = default!;
 
+        // Agregado a mano: precios de las listas B, C y D (0 = sin precio en esa lista),
+        // espejo de ArticulosImagenesCatalogoDTO del API.
+        [System.Text.Json.Serialization.JsonPropertyName("precioB")]
+        public double PrecioB { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("precioC")]
+        public double PrecioC { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("precioD")]
+        public double PrecioD { get; set; } = default!;
+
         // Agregado a mano (16 sep 2026): tools/actualizar-contratos.sh necesita un API
         // vivo y no había uno disponible en esta sesión. Coincide exactamente con los
         // campos del API — al regenerar de verdad contra un servidor, estos campos deben

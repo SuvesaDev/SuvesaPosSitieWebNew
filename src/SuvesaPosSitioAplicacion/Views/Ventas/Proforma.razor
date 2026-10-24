@@ -226,10 +226,13 @@
     </ChildContent>
 </AppPantalla>
 
-<AppBuscadorArticulo @ref="_buscador" AlElegir="AgregarLinea" />
+<AppBuscadorArticulo @ref="_buscador" AlElegir="AgregarLinea" TiposPermitidos="TiposVendibles" />
 
 @code {
     private const string Titulo = "Proformas o Cotización";
+
+    // Solo se cotiza Normal (1) y Producto terminado (3); la materia prima (2) no se vende.
+    private static readonly int[] TiposVendibles = { 1, 3 };
 
     /// <summary>Una linea en edicion. Los importes viven en decimal, no en double.</summary>
     private sealed class Linea
