@@ -49,6 +49,8 @@ public interface IAprobacionesApiCliente
     Task<SeguridadEnvelope<DiferenciaCajaDTO>> ResolverDiferenciaCajaAsync(long id, ResolverDiferenciaCajaDTO dto);
     Task<SeguridadEnvelope<List<LineaNoDeducibleDTO>>> NoDeduciblesAsync(long idLibro, DateOnly desde, DateOnly hasta);
     Task<SeguridadEnvelope<bool>> DeclararDeducibleAsync(DeclararDeducibleDTO dto);
+    Task<SeguridadEnvelope<ReclasificacionInventarioDTO>> SimularReclasificacionInventarioAsync(EjecutarReclasificacionDTO dto);
+    Task<SeguridadEnvelope<ReclasificacionInventarioDTO>> EjecutarReclasificacionInventarioAsync(EjecutarReclasificacionDTO dto);
 }
 
 public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
@@ -188,4 +190,10 @@ public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
 
     public Task<SeguridadEnvelope<bool>> DeclararDeducibleAsync(DeclararDeducibleDTO dto)
         => EnviarAsync<bool>(HttpMethod.Post, "deducibilidad", dto);
+
+    public Task<SeguridadEnvelope<ReclasificacionInventarioDTO>> SimularReclasificacionInventarioAsync(EjecutarReclasificacionDTO dto)
+        => EnviarAsync<ReclasificacionInventarioDTO>(HttpMethod.Post, "reclasificacion-inventario/simular", dto);
+
+    public Task<SeguridadEnvelope<ReclasificacionInventarioDTO>> EjecutarReclasificacionInventarioAsync(EjecutarReclasificacionDTO dto)
+        => EnviarAsync<ReclasificacionInventarioDTO>(HttpMethod.Post, "reclasificacion-inventario/ejecutar", dto);
 }

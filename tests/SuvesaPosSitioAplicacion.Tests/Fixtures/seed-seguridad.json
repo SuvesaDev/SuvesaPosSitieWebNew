@@ -1035,11 +1035,27 @@
           ]
         },
         {
+          "codigo": "CONTABILIDAD.RECLASIFICACION_DE_INVENTARIO",
+          "nombre": "Reclasificación de inventario",
+          "ruta": "/accounting/inventory-reclassification",
+          "padre": null,
+          "orden": 22,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "CONTABILIDAD.BALANZA",
           "nombre": "Balanza",
           "ruta": "/accounting/trial-balance",
           "padre": null,
-          "orden": 22,
+          "orden": 23,
           "acciones": [
             "VER",
             "CREAR",
@@ -1055,7 +1071,7 @@
           "nombre": "Estado de resultados",
           "ruta": "/accounting/income-statement",
           "padre": null,
-          "orden": 23,
+          "orden": 24,
           "acciones": [
             "VER",
             "CREAR",
@@ -1071,7 +1087,7 @@
           "nombre": "Balance general",
           "ruta": "/accounting/balance-sheet",
           "padre": null,
-          "orden": 24,
+          "orden": 25,
           "acciones": [
             "VER",
             "CREAR",
@@ -1087,7 +1103,7 @@
           "nombre": "Flujo de efectivo",
           "ruta": "/accounting/cash-flow",
           "padre": null,
-          "orden": 25,
+          "orden": 26,
           "acciones": [
             "VER",
             "CREAR",

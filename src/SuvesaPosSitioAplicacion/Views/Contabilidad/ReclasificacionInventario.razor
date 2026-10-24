@@ -1,0 +1,100 @@
+@page "/accounting/inventory-reclassification"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Contabilidad
+@using SuvesaPosSitioAplicacion.Services
+@inject IAprobaciones Aprobaciones
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* Inventario por tipo: una sola vez, al corte (30-nov-2026), el saldo de la cuenta general de inventario se reparte entre
+   materia prima, producto terminado y mercadería según la valoración física. Se simula primero; ejecutar publica la
+   póliza (la ejecuta el Autorizador del libro) y deja la cuenta general como agrupadora. *@
+
+<AppPantalla Pantalla="Reclasificación de inventario" Codigo="CONTABILIDAD.RECLASIFICACION_DE_INVENTARIO" Icono="bi-diagram-3" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <AppSelectorLibroContable Prefijo="rc" AlCambiarLibro="AlCambiarLibro" />
+                @if (_idLibro > 0)
+                {
+                    <div class="row g-3 mt-1 align-items-end">
+                        <div class="col-12 col-md-3">
+                            <label class="form-label" for="rc-corte">Fecha de corte</label>
+                            <input id="rc-corte" type="date" class="form-control" @bind="_fechaCorte" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <button class="btn btn-outline-primary w-100" disabled="@_procesando" @onclick="Simular">Simular</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (_actual is not null)
+        {
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Reclasificación al @_actual.FechaCorte.ToString("yyyy-MM-dd")</span>
+                    @if (_actual.Ejecutada)
+                    {
+                        <span class="badge bg-success">Ejecutada@(_actual.IdAsiento is null ? "" : $" · póliza {_actual.IdAsiento}")</span>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary btn-sm" disabled="@_procesando" @onclick="Ejecutar">Ejecutar reclasificación</button>
+                    }
+                </div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Cuenta</th><th class="text-end">Monto (₡)</th></tr></thead>
+                    <tbody>
+                        <tr><td><span class="font-monospace">1.1.6.1.1</span> Materia prima</td><td class="text-end">@_actual.MateriaPrima.ToString("N2")</td></tr>
+                        <tr><td><span class="font-monospace">1.1.6.1.3</span> Producto terminado</td><td class="text-end">@_actual.ProductoTerminado.ToString("N2")</td></tr>
+                        <tr><td><span class="font-monospace">1.1.6.1.4</span> Mercadería</td><td class="text-end">@_actual.Mercaderia.ToString("N2")</td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr><th>Saldo de la cuenta general 1.1.6.1</th><th class="text-end">@_actual.SaldoLibro.ToString("N2")</th></tr>
+                        <tr><td>Diferencia contra la valoración física (incluida en mercadería)</td><td class="text-end @(_actual.DiferenciaContraValoracion == 0 ? "" : "text-danger")">@_actual.DiferenciaContraValoracion.ToString("N2")</td></tr>
+                    </tfoot>
+                </table></div>
+                @foreach (var aviso in _actual.Avisos)
+                {
+                    <div class="alert alert-warning m-2 mb-0" role="alert">@aviso</div>
+                }
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private long _idLibro;
+    private DateOnly _fechaCorte = new(2026, 11, 30);
+    private bool _procesando;
+    private ReclasificacionInventarioDTO? _actual;
+
+    private void AlCambiarLibro(long idLibro)
+    {
+        _idLibro = idLibro;
+        _actual = null;
+    }
+
+    private async Task Simular()
+    {
+        _procesando = true;
+        _actual = await Respuestas.DatoAsync(await Aprobaciones.SimularReclasificacionInventario(_idLibro, _fechaCorte), "simular la reclasificación");
+        _procesando = false;
+    }
+
+    private async Task Ejecutar()
+    {
+        if (_actual is null) return;
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Publicar la reclasificación del inventario al {_fechaCorte:yyyy-MM-dd} por {_actual.SaldoLibro:N2}? Se crea una póliza, la cuenta general deja de recibir movimientos y no se puede repetir.", "Ejecutar reclasificación"))
+            return;
+        _procesando = true;
+        var respuesta = await Aprobaciones.EjecutarReclasificacionInventario(_idLibro, _fechaCorte);
+        _procesando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "ejecutar la reclasificación")) return;
+        _actual = respuesta.Responses;
+        Dialogos.Exito("Reclasificación publicada.");
+    }
+}

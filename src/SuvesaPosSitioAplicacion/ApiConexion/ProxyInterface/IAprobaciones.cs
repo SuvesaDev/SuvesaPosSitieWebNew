@@ -44,4 +44,6 @@ public interface IAprobaciones
     Task<ResponseGeneric<DiferenciaCajaDTO>> ResolverDiferenciaCaja(long id, string modo, string motivo);
     Task<ResponseGeneric<ICollection<LineaNoDeducibleDTO>>> NoDeducibles(long idLibro, DateOnly desde, DateOnly hasta);
     Task<ResponseGeneric<bool>> DeclararDeducible(long idLibro, long idAsiento, bool esDeducible, string motivo);
+    Task<ResponseGeneric<ReclasificacionInventarioDTO>> SimularReclasificacionInventario(long idLibro, DateOnly fechaCorte);
+    Task<ResponseGeneric<ReclasificacionInventarioDTO>> EjecutarReclasificacionInventario(long idLibro, DateOnly fechaCorte);
 }

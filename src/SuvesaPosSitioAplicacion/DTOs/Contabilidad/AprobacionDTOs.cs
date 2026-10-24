@@ -160,6 +160,26 @@ public sealed class RevaluacionDTO
     [JsonPropertyName("lineas")] public List<LineaRevaluacionDTO> Lineas { get; set; } = new();
 }
 
+public sealed class EjecutarReclasificacionDTO
+{
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("fechaCorte")] public DateOnly FechaCorte { get; set; }
+}
+
+public sealed class ReclasificacionInventarioDTO
+{
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("fechaCorte")] public DateOnly FechaCorte { get; set; }
+    [JsonPropertyName("saldoLibro")] public decimal SaldoLibro { get; set; }
+    [JsonPropertyName("materiaPrima")] public decimal MateriaPrima { get; set; }
+    [JsonPropertyName("productoTerminado")] public decimal ProductoTerminado { get; set; }
+    [JsonPropertyName("mercaderia")] public decimal Mercaderia { get; set; }
+    [JsonPropertyName("diferenciaContraValoracion")] public decimal DiferenciaContraValoracion { get; set; }
+    [JsonPropertyName("ejecutada")] public bool Ejecutada { get; set; }
+    [JsonPropertyName("idAsiento")] public long? IdAsiento { get; set; }
+    [JsonPropertyName("avisos")] public List<string> Avisos { get; set; } = new();
+}
+
 // ---- Ola 3 ----
 
 public sealed class ResultadoSincronizacionCatalogoDTO

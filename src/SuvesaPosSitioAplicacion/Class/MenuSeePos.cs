@@ -1018,6 +1018,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Reclasificación de inventario",
+                    Codigo = "CONTABILIDAD.RECLASIFICACION_DE_INVENTARIO",
+                    Ruta = "/accounting/inventory-reclassification",
+                },
+                new ItemMenu
+                {
                     Titulo = "Balanza",
                     Codigo = "CONTABILIDAD.BALANZA",
                     Ruta = "/accounting/trial-balance",

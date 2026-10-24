@@ -125,4 +125,10 @@ public sealed class Aprobaciones : ProxyBase, IAprobaciones
 
     public Task<ResponseGeneric<bool>> DeclararDeducible(long idLibro, long idAsiento, bool esDeducible, string motivo)
         => Ejecutar(async () => Traducir(await _api.DeclararDeducibleAsync(new DeclararDeducibleDTO { IdLibroContable = idLibro, IdAsiento = idAsiento, EsDeducible = esDeducible, Motivo = motivo })), "declarar la deducibilidad");
+
+    public Task<ResponseGeneric<ReclasificacionInventarioDTO>> SimularReclasificacionInventario(long idLibro, DateOnly fechaCorte)
+        => Ejecutar(async () => Traducir(await _api.SimularReclasificacionInventarioAsync(new EjecutarReclasificacionDTO { IdLibroContable = idLibro, FechaCorte = fechaCorte })), "simular la reclasificación del inventario");
+
+    public Task<ResponseGeneric<ReclasificacionInventarioDTO>> EjecutarReclasificacionInventario(long idLibro, DateOnly fechaCorte)
+        => Ejecutar(async () => Traducir(await _api.EjecutarReclasificacionInventarioAsync(new EjecutarReclasificacionDTO { IdLibroContable = idLibro, FechaCorte = fechaCorte })), "ejecutar la reclasificación del inventario");
 }
