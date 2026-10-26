@@ -195,4 +195,16 @@ public sealed class Aprobaciones : ProxyBase, IAprobaciones
 
     public Task<ResponseGeneric<FirmaUatDTO>> FirmarUat(long idLibro, string? comentario, string? contrasena)
         => Ejecutar(async () => Traducir(await _api.FirmarUatAsync(new FirmarUatDTO { IdLibroContable = idLibro, Comentario = comentario, Contrasena = contrasena })), "firmar la UAT");
+
+    public Task<ResponseGeneric<CorteAlbaranDTO>> SimularCorteAlbaranes(long idLibro, int ejercicio, int mes)
+        => Ejecutar(async () => Traducir(await _api.SimularCorteAlbaranesAsync(new EjecutarCorteEntregaDTO { IdLibroContable = idLibro, Ejercicio = ejercicio, Mes = mes })), "simular el corte de albaranes");
+
+    public Task<ResponseGeneric<CorteAlbaranDTO>> EjecutarCorteAlbaranes(long idLibro, int ejercicio, int mes)
+        => Ejecutar(async () => Traducir(await _api.EjecutarCorteAlbaranesAsync(new EjecutarCorteEntregaDTO { IdLibroContable = idLibro, Ejercicio = ejercicio, Mes = mes })), "ejecutar el corte de albaranes");
+
+    public Task<ResponseGeneric<ICollection<EvidenciaCierreDTO>>> EvidenciasUat(long idCaso)
+        => Ejecutar<ICollection<EvidenciaCierreDTO>>(async () => TraducirLista(await _api.EvidenciasUatAsync(idCaso)), "consultar los soportes del caso");
+
+    public Task<ResponseGeneric<EvidenciaCierreDTO>> AdjuntarEvidenciaUat(long idCaso, Stream contenido, string nombreArchivo, string contentType)
+        => Ejecutar(async () => Traducir(await _api.AdjuntarEvidenciaUatAsync(idCaso, contenido, nombreArchivo, contentType)), "adjuntar el soporte del caso");
 }

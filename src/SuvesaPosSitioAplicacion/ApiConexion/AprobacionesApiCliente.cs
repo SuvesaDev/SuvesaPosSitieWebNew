@@ -72,6 +72,10 @@ public interface IAprobacionesApiCliente
     Task<SeguridadEnvelope<List<CasoUatDTO>>> CasosUatAsync(long idLibro);
     Task<SeguridadEnvelope<CasoUatDTO>> ResultadoUatAsync(long idCaso, RegistrarResultadoUatDTO dto);
     Task<SeguridadEnvelope<FirmaUatDTO>> FirmarUatAsync(FirmarUatDTO dto);
+    Task<SeguridadEnvelope<CorteAlbaranDTO>> SimularCorteAlbaranesAsync(EjecutarCorteEntregaDTO dto);
+    Task<SeguridadEnvelope<CorteAlbaranDTO>> EjecutarCorteAlbaranesAsync(EjecutarCorteEntregaDTO dto);
+    Task<SeguridadEnvelope<List<EvidenciaCierreDTO>>> EvidenciasUatAsync(long idCaso);
+    Task<SeguridadEnvelope<EvidenciaCierreDTO>> AdjuntarEvidenciaUatAsync(long idCaso, Stream contenido, string nombreArchivo, string contentType);
 }
 
 public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
@@ -297,4 +301,16 @@ public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
 
     public Task<SeguridadEnvelope<FirmaUatDTO>> FirmarUatAsync(FirmarUatDTO dto)
         => EnviarAsync<FirmaUatDTO>(HttpMethod.Post, "puesta-en-marcha/uat/firmar", dto);
+
+    public Task<SeguridadEnvelope<CorteAlbaranDTO>> SimularCorteAlbaranesAsync(EjecutarCorteEntregaDTO dto)
+        => EnviarAsync<CorteAlbaranDTO>(HttpMethod.Post, "cortes-albaranes/simular", dto);
+
+    public Task<SeguridadEnvelope<CorteAlbaranDTO>> EjecutarCorteAlbaranesAsync(EjecutarCorteEntregaDTO dto)
+        => EnviarAsync<CorteAlbaranDTO>(HttpMethod.Post, "cortes-albaranes/ejecutar", dto);
+
+    public Task<SeguridadEnvelope<List<EvidenciaCierreDTO>>> EvidenciasUatAsync(long idCaso)
+        => EnviarAsync<List<EvidenciaCierreDTO>>(HttpMethod.Get, $"puesta-en-marcha/uat/{idCaso}/evidencias");
+
+    public Task<SeguridadEnvelope<EvidenciaCierreDTO>> AdjuntarEvidenciaUatAsync(long idCaso, Stream contenido, string nombreArchivo, string contentType)
+        => EnviarArchivoAsync<EvidenciaCierreDTO>($"puesta-en-marcha/uat/{idCaso}/evidencias", contenido, nombreArchivo, contentType);
 }

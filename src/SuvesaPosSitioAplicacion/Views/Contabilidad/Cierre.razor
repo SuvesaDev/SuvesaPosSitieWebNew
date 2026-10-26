@@ -198,6 +198,32 @@
                 </div>
             </div>
         }
+
+        @if (_periodoActual is { Estado: "Abierto" })
+        {
+            <div class="card mt-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Corte de albaranes de @_periodoActual.Mes.ToString("00")/@_periodoActual.Ejercicio</span>
+                    <button class="btn btn-sm btn-outline-primary" disabled="@_procesando" @onclick="SimularCorteAlbaranes">Simular</button>
+                </div>
+                <div class="card-body">
+                    <p class="small text-secondary">Los albaranes entregados y todavía sin facturar al cierre se devengan contra activos por contrato (1.1.4.2); el día 1 el asiento se reversa solo y la factura reconoce el ingreso por la vía normal. El albarán no trae costo, así que el costo de ventas no se devenga.</p>
+                    @if (_corteAlbaranes is not null)
+                    {
+                        <p class="mb-1">@_corteAlbaranes.CantidadAlbaranes albarán(es) sin facturar: ingreso devengado @_corteAlbaranes.IngresoDevengado.ToString("N2") (gravado @_corteAlbaranes.IngresoGravado.ToString("N2"), exento @_corteAlbaranes.IngresoExento.ToString("N2")).</p>
+                        @foreach (var aviso in _corteAlbaranes.Avisos) { <div class="small text-warning">@aviso</div> }
+                        @if (_corteAlbaranes.Ejecutado)
+                        {
+                            <div class="text-success">Corte ejecutado.@(_corteAlbaranes.IdAsiento is null ? " No había nada que devengar." : $" Se reversa el {_corteAlbaranes.FechaReverso:yyyy-MM-dd}.")</div>
+                        }
+                        else
+                        {
+                            <button class="btn btn-primary btn-sm mt-2" disabled="@_procesando" @onclick="EjecutarCorteAlbaranes">Ejecutar corte de albaranes</button>
+                        }
+                    }
+                </div>
+            </div>
+        }
     </ChildContent>
 </AppPantalla>
 
@@ -255,6 +281,7 @@
     private string _motivoReapertura = "";
     private long _idSolicitudReapertura;
     private DTOs.Contabilidad.CorteEntregaDTO? _corte;
+    private DTOs.Contabilidad.CorteAlbaranDTO? _corteAlbaranes;
     private List<DTOs.Contabilidad.SolicitudAprobacionDTO> _solicitudesReapertura = new();
     private int _ejercicio = DateTime.Today.Year;
     private int _mes = DateTime.Today.Month;
@@ -341,8 +368,29 @@
         Dialogos.Exito("Corte de entregas ejecutado.");
     }
 
+    private async Task SimularCorteAlbaranes()
+    {
+        if (_periodoActual is null) return;
+        _procesando = true;
+        _corteAlbaranes = await Respuestas.DatoAsync(await AprobacionesApi.SimularCorteAlbaranes(_idLibroContable, _periodoActual.Ejercicio, _periodoActual.Mes), "simular el corte de albaranes");
+        _procesando = false;
+    }
+
+    private async Task EjecutarCorteAlbaranes()
+    {
+        if (_periodoActual is null) return;
+        if (!await Dialogos.ConfirmarPeligroAsync("¿Ejecutar el corte de albaranes? Publica el asiento de devengo y no se repite.", "Corte de albaranes")) return;
+        _procesando = true;
+        var respuesta = await AprobacionesApi.EjecutarCorteAlbaranes(_idLibroContable, _periodoActual.Ejercicio, _periodoActual.Mes);
+        _procesando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "ejecutar el corte de albaranes")) return;
+        _corteAlbaranes = respuesta.Responses;
+        Dialogos.Exito("Corte de albaranes ejecutado.");
+    }
+
     private async Task AlCambiarPeriodo()
     {
+        _corteAlbaranes = null;
         _corte = null;
         _checklist = null;
         _periodoActual = _periodos.FirstOrDefault(p => p.Id == _idPeriodo);

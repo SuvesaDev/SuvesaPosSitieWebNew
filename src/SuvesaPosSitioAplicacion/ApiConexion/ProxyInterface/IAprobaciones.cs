@@ -68,4 +68,8 @@ public interface IAprobaciones
     Task<ResponseGeneric<ICollection<CasoUatDTO>>> CasosUat(long idLibro);
     Task<ResponseGeneric<CasoUatDTO>> ResultadoUat(long idCaso, string estado, string? comentario);
     Task<ResponseGeneric<FirmaUatDTO>> FirmarUat(long idLibro, string? comentario, string? contrasena);
+    Task<ResponseGeneric<CorteAlbaranDTO>> SimularCorteAlbaranes(long idLibro, int ejercicio, int mes);
+    Task<ResponseGeneric<CorteAlbaranDTO>> EjecutarCorteAlbaranes(long idLibro, int ejercicio, int mes);
+    Task<ResponseGeneric<ICollection<EvidenciaCierreDTO>>> EvidenciasUat(long idCaso);
+    Task<ResponseGeneric<EvidenciaCierreDTO>> AdjuntarEvidenciaUat(long idCaso, Stream contenido, string nombreArchivo, string contentType);
 }
