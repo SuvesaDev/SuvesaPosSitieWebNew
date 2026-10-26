@@ -23,8 +23,6 @@ public interface IAlistamientoApiCliente
     Task<LoteEnvelope<AlistamientoOrden>> AnularAsync(long idOrden, string motivo);
     Task<LoteEnvelope<AlistamientoOrden>> EntregarAsync(long idOrden, string? recibidoPor, bool noEntregado, bool merma = false, string? observaciones = null, string? firmaPng = null);
 
-    Task<LoteEnvelope<List<UbicacionBin>>> UbicacionesAsync(int? idBodega);
-    Task<LoteEnvelope<UbicacionBin>> GuardarUbicacionAsync(UbicacionBin dto);
     Task<LoteEnvelope<List<RutaDespacho>>> RutasAsync(bool soloActivas = false);
     Task<LoteEnvelope<RutaDespacho>> GuardarRutaAsync(RutaDespacho dto);
     Task<LoteEnvelope<RutaDespacho>> ActualizarRutaAsync(RutaDespacho dto);
@@ -126,12 +124,6 @@ public sealed class AlistamientoApiCliente : IAlistamientoApiCliente
 
     public Task<LoteEnvelope<AlistamientoOrden>> EntregarAsync(long idOrden, string? recibidoPor, bool noEntregado, bool merma = false, string? observaciones = null, string? firmaPng = null)
         => EnviarAsync<AlistamientoOrden>(HttpMethod.Post, "Alistamiento/Entregar", new { idOrden, recibidoPor, noEntregado, merma, observaciones, firmaPng });
-
-    public Task<LoteEnvelope<List<UbicacionBin>>> UbicacionesAsync(int? idBodega)
-        => EnviarAsync<List<UbicacionBin>>(HttpMethod.Get, idBodega is > 0 ? $"Alistamiento/Ubicaciones?idBodega={idBodega}" : "Alistamiento/Ubicaciones");
-
-    public Task<LoteEnvelope<UbicacionBin>> GuardarUbicacionAsync(UbicacionBin dto)
-        => EnviarAsync<UbicacionBin>(HttpMethod.Post, "Alistamiento/GuardarUbicacion", dto);
 
     public Task<LoteEnvelope<List<RutaDespacho>>> RutasAsync(bool soloActivas = false)
         => EnviarAsync<List<RutaDespacho>>(HttpMethod.Get, soloActivas ? "Alistamiento/Rutas?soloActivas=true" : "Alistamiento/Rutas");

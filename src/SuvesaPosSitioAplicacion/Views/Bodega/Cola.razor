@@ -72,7 +72,7 @@
           <td>@o.Fecha.ToString("HH:mm")</td>
           <td><span class="badge @ClaseEspera(o)" title="@TituloEspera(o)">@TextoEspera(o)</span></td>
           <td>@(o.Prioridad >= 2 ? "Alta" : "—")</td>
-          <td><code>@o.NumeroDocumento</code> @(o.EsTiquete ? "tiquete " : "")@(o.EsPreventa ? "preventa" : o.EsCredito ? "crédito" : "contado")
+          <td><code>@o.NumeroDocumento</code> @(o.EsConsignacionEnvio ? "envío consignación" : (o.EsTiquete ? "tiquete " : "") + (o.EsPreventa ? "preventa" : o.EsCredito ? "crédito" : "contado"))
             @if (o.EsElectronica && !o.HaciendaAceptada && !o.EsPreventa) { <span class="badge text-bg-warning ms-1">Espera Hacienda</span> }
           </td>
           <td>@o.NombreCliente</td>

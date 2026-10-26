@@ -15,6 +15,9 @@ public sealed class AlistamientoResumen
 {
     public long Id { get; set; }
     public long IdVenta { get; set; }
+    /// <summary>Boleta de consignación (envío de mercadería al cliente); null si viene de una venta.</summary>
+    public long? IdBoleta { get; set; }
+    public bool EsConsignacionEnvio { get; set; }
     public int Estado { get; set; }
     public string? EstadoDescripcion { get; set; }
     public int Prioridad { get; set; }
@@ -41,6 +44,9 @@ public sealed class AlistamientoOrden
 {
     public long Id { get; set; }
     public long IdVenta { get; set; }
+    /// <summary>Boleta de consignación (envío de mercadería al cliente); null si viene de una venta.</summary>
+    public long? IdBoleta { get; set; }
+    public bool EsConsignacionEnvio { get; set; }
     public int Estado { get; set; }
     public string? EstadoDescripcion { get; set; }
     public int Prioridad { get; set; }
@@ -74,7 +80,6 @@ public sealed class AlistamientoLinea
     public decimal CantidadAlistada { get; set; }
     public string? LoteFacturado { get; set; }
     public DateTime? VencimientoFacturado { get; set; }
-    public string? UbicacionSugerida { get; set; }
     public int Estado { get; set; }
     public string? EstadoDescripcion { get; set; }
     public bool AutorizoFaltante { get; set; }
@@ -113,21 +118,6 @@ public sealed class BultoDespacho
     public int? IdDistrito { get; set; }
     public string? Zona { get; set; }
     public string? DireccionCliente { get; set; }
-}
-
-public sealed class UbicacionBin
-{
-    public long Id { get; set; }
-    public int IdBodega { get; set; }
-    public string? NombreBodega { get; set; }
-    public string Pasillo { get; set; } = "";
-    public string Rack { get; set; } = "";
-    public string Estante { get; set; } = "";
-    public string Bin { get; set; } = "";
-    public string? Codigo { get; set; }
-    public long? IdArticulo { get; set; }
-    public string? CodArticulo { get; set; }
-    public bool Activa { get; set; } = true;
 }
 
 public sealed class RutaDespacho

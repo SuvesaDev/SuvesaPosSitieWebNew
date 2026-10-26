@@ -307,7 +307,7 @@
                             <div class="card-body py-2">
                                 <p class="fw-semibold small mb-1">@producto.Datos.Descripcion</p>
                                 <div class="d-flex justify-content-between align-items-baseline">
-                                    <span class="small text-secondary">@Formato.Importe(producto.Datos.Precio)</span>
+                                    <span class="small text-secondary">@Formato.Importe(PrecioCatalogo(producto.Datos))</span>
                                     <span class="small @(producto.Datos.Existencia > 0 ? "text-secondary" : "text-danger fw-semibold")" title="Existencia (global, no por bodega)">
                                         @(producto.Datos.Existencia > 0 ? $"Exist.: {producto.Datos.Existencia:N2}" : "Sin existencia")
                                     </span>
@@ -503,7 +503,7 @@
     </FooterTemplate>
 </HxModal>
 
-<AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="PrepararArticulo" IdBodega="@(EsConsignacion ? null : (int?)_bodega)" TiposPermitidos="TiposVendibles" />
+<AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="PrepararArticulo" IdBodega="@(EsConsignacion ? null : (int?)_bodega)" TiposPermitidos="TiposVendibles" PrecioDe="PrecioCliente" />
 
 <HxModal @ref="_modalCobro" Title="Cobro del tiquete" Size="ModalSize.Regular" Scrollable="true">
     <BodyTemplate>
@@ -1117,6 +1117,7 @@
             {
                 var ri = await Inventario.Uno(l.IdArticulo);
                 if (!ri.EsCorrecta || ri.Responses is null) continue;
+                if (!await EsArticuloVendible(ri.Responses)) continue;
                 var precio = l.PrecioUnitario > 0 ? (decimal?)l.PrecioUnitario : null;
 
                 if (l.IdStockLote is > 0)
@@ -1978,8 +1979,8 @@
     }
     private DateTime _hoyEquipo = DateTime.Today;
 
-    // Solo se factura Normal (1) y Producto terminado (2); la materia prima (3) no se vende.
-    private static readonly int[] TiposVendibles = { 1, 2 };
+    // Solo se factura Normal (1) y Producto terminado (3); la materia prima (2) no se vende.
+    private static readonly int[] TiposVendibles = { 1, 3 };
     private async Task<bool> EsArticuloVendible(InventarioDTO articulo)
     {
         if (TiposVendibles.Contains(articulo.TipoArticulo)) return true;
@@ -2019,6 +2020,17 @@
         }
         await ElegirCliente(contado);
     }
+
+    // El catálogo visual solo trae los precios de lista (sin la ficha completa del artículo):
+    // misma regla que PrecioCliente — si la lista elegida no tiene precio, cae al Precio A.
+    private decimal PrecioCatalogo(ArticulosImagenesCatalogoDTO c)
+        => Formato.AImporte(TarifaEfectiva switch
+        {
+            2 when c.PrecioB > 0 => c.PrecioB,
+            3 when c.PrecioC > 0 => c.PrecioC,
+            4 when c.PrecioD > 0 => c.PrecioD,
+            _ => c.Precio
+        });
 
     private decimal PrecioCliente(InventarioDTO articulo)
     {

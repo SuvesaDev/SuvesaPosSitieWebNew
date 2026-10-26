@@ -22,9 +22,9 @@
                 <div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="todasCajas" checked="@_todasLasCajas" @onchange="AlternarTodasLasCajas" /><label class="form-check-label small" for="todasCajas">Todas las cajas (globalizar depósitos)</label></div>
             </div>
         </div></div></div>
-        <div class="card"><div class="card-header d-flex justify-content-between"><strong>Pre depósitos disponibles</strong><strong>Total seleccionado: @Formato.Importe(MontoSeleccionado)</strong></div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th></th><th>Fecha</th><th>Cajero</th><th>Depositante</th><th class="text-end">Monto</th></tr></thead><tbody>
-            @foreach (var pre in _preDepositos) { <tr><td><input type="checkbox" checked="@_seleccionados.Contains(pre.Id)" @onchange="() => Alternar(pre.Id)" aria-label="Seleccionar pre depósito @pre.Id" /></td><td>@pre.Fecha.ToString("dd/MM/yyyy")</td><td>@pre.Cajero</td><td>@pre.Depositante</td><td class="text-end">@Formato.Importe(pre.Monto)</td></tr> }
-            @if (_preDepositos.Count == 0) { <tr><td colspan="5" class="text-center text-secondary py-4">Indique una apertura y presione Buscar.</td></tr> }
+        <div class="card"><div class="card-header d-flex justify-content-between"><strong>Pre depósitos disponibles</strong><strong>Total seleccionado: @(MonedaSeleccionada == 1 ? "₡" : "$") @Formato.Importe(MontoSeleccionado)</strong></div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th></th><th>Fecha</th><th>Cajero</th><th>Depositante</th><th>Moneda</th><th class="text-end">Monto</th></tr></thead><tbody>
+            @foreach (var pre in _preDepositos) { <tr><td><input type="checkbox" checked="@_seleccionados.Contains(pre.Id)" disabled="@(_seleccionados.Count > 0 && !_seleccionados.Contains(pre.Id) && pre.CodMoneda != MonedaSeleccionada)" @onchange="() => Alternar(pre.Id)" aria-label="Seleccionar pre depósito @pre.Id" /></td><td>@pre.Fecha.ToString("dd/MM/yyyy")</td><td>@pre.Cajero</td><td>@pre.Depositante</td><td>@(pre.CodMoneda == 1 ? "Colones" : "Dólares")</td><td class="text-end">@Formato.Importe(pre.Monto)</td></tr> }
+            @if (_preDepositos.Count == 0) { <tr><td colspan="6" class="text-center text-secondary py-4">Indique una apertura y presione Buscar.</td></tr> }
         </tbody></table></div></div></div>
         </fieldset>
     </ChildContent>
@@ -39,6 +39,7 @@
     private Task AlDesbloquear(bool _) => InvokeAsync(StateHasChanged);
     private IEnumerable<PreDepositosDTO> Seleccionados => _preDepositos.Where(p => _seleccionados.Contains(p.Id));
     private float MontoSeleccionado => Seleccionados.Sum(p => p.Monto);
+    private int MonedaSeleccionada => Seleccionados.FirstOrDefault()?.CodMoneda ?? 1;
     protected override async Task OnInitializedAsync() { _fecha = await RelojEquipo.HoyAsync(); await Cargar(); }
     private async Task Cargar()
     {
@@ -63,7 +64,18 @@
         var pre = await Respuestas.DatoAsync(await Api.PreDepositosDeApertura(_todasLasCajas ? 0 : _apertura), "consultar los pre depósitos");
         _preDepositos.AddRange((pre ?? Array.Empty<PreDepositosDTO>()).Where(p => p.IdDeposito is null));
     }
-    private void Alternar(long id) { if (!_seleccionados.Add(id)) _seleccionados.Remove(id); }
+    private async Task Alternar(long id)
+    {
+        if (_seleccionados.Remove(id)) return;
+        // Un depósito bancario no mezcla monedas: el API también lo rechaza.
+        var pre = _preDepositos.FirstOrDefault(p => p.Id == id);
+        if (pre is not null && _seleccionados.Count > 0 && pre.CodMoneda != MonedaSeleccionada)
+        {
+            await Dialogos.InformarAsync("Un depósito solo puede agrupar pre depósitos de una misma moneda.");
+            return;
+        }
+        _seleccionados.Add(id);
+    }
     private async Task Guardar()
     {
         if (_empresa == 0 || _banco == 0 || _cuenta == 0 || string.IsNullOrWhiteSpace(_numeroDeposito) || !Seleccionados.Any()) { await Dialogos.InformarAsync("Complete empresa, banco, cuenta, número de depósito y seleccione al menos un pre depósito."); return; }

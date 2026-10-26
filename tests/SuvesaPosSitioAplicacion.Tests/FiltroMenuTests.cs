@@ -151,7 +151,7 @@ public class FiltroMenuTests
         // Cierre anual, Balanza, Estado de resultados, Balance general, Flujo de
         // efectivo, W5) + 1 (Pretoma) + 1 (Boletas de Consignación) + 6 (módulo Bodega:
         // raíz + Cola, Empaque, Despacho, Ubicaciones, Rutas) + 1 (Recibo de mercadería).
-        Assert.Equal(155, Contar(MenuSeePos.Items));
+        Assert.Equal(155, Contar(MenuSeePos.Items));   // develop suma "Consulta de Arqueos" y quita "Bodega → Ubicaciones" (ya está en Catálogos)
     }
 
     private sealed class ContabilidadFalsa : IContextoContabilidad
