@@ -12505,6 +12505,15 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("entregasSinComprobante")]
         public int EntregasSinComprobante { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("diferenciasContraMayor")]
+        public int DiferenciasContraMayor { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("balanzaCuadra")]
+        public bool BalanzaCuadra { get; set; } = true;
+
+        [System.Text.Json.Serialization.JsonPropertyName("diferenciasCajaPendientes")]
+        public int DiferenciasCajaPendientes { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("detalles")]
         public System.Collections.Generic.ICollection<string>? Detalles { get; set; } = default!;
 
@@ -12895,6 +12904,12 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("totalDiferencias")]
         public int TotalDiferencias { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("fechaCorte")]
+        public System.DateOnly? FechaCorte { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("avisos")]
+        public System.Collections.Generic.ICollection<string>? Avisos { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("diferencias")]
         public System.Collections.Generic.ICollection<DiferenciaConciliacionDTO>? Diferencias { get; set; } = default!;
@@ -14229,6 +14244,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("idAsientoCierre")]
         public long? IdAsientoCierre { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idAsientoCierreNominales")]
+        public long? IdAsientoCierreNominales { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("fechaEjecucionUtc")]
         public System.DateTime FechaEjecucionUtc { get; set; } = default!;

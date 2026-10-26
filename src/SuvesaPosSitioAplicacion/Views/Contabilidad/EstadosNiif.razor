@@ -1,0 +1,275 @@
+@page "/accounting/financial-statements"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Contabilidad
+@using SuvesaPosSitioAplicacion.Services
+@inject IAprobaciones Aprobaciones
+@inject IManejadorRespuestas Respuestas
+
+@* F10: estados financieros con la presentación de la NIIF para las PYMES, en tiempo real contra el mayor. Los asientos del cierre anual no cuentan en el
+   estado de resultados del año que cierran. Con "Reexpresado", los ajustes materiales a períodos cerrados se llevan al período que afectan. *@
+
+<AppPantalla Pantalla="Estados NIIF PYMES" Codigo="CONTABILIDAD.ESTADOS_NIIF_PYMES" Icono="bi-file-earmark-bar-graph" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <AppSelectorLibroContable Prefijo="en" AlCambiarLibro="AlCambiarLibro" />
+                @if (_idLibro > 0)
+                {
+                    <ul class="nav nav-pills mt-3 mb-3">
+                        @foreach (var (clave, titulo) in Vistas)
+                        {
+                            <li class="nav-item"><button type="button" class="nav-link @(_vista == clave ? "active" : "")" @onclick="() => CambiarVista(clave)">@titulo</button></li>
+                        }
+                    </ul>
+                    <div class="row g-3 align-items-end">
+                        @if (_vista != "situacion")
+                        {
+                            <div class="col-6 col-md-3">
+                                <label class="form-label" for="en-desde">@(_vista == "comparativo" ? "Ejercicio" : "Desde")</label>
+                                @if (_vista == "comparativo") { <input id="en-desde" type="number" class="form-control" @bind="_ejercicio" /> }
+                                else { <input id="en-desde" type="date" class="form-control" @bind="_desde" /> }
+                            </div>
+                        }
+                        @if (_vista != "comparativo")
+                        {
+                            <div class="col-6 col-md-3">
+                                <label class="form-label" for="en-hasta">@(_vista == "situacion" ? "Al" : "Hasta")</label>
+                                <input id="en-hasta" type="date" class="form-control" @bind="_hasta" />
+                            </div>
+                        }
+                        @if (_vista is "resultados" or "situacion")
+                        {
+                            <div class="col-6 col-md-3">
+                                <div class="form-check"><input id="en-reexp" class="form-check-input" type="checkbox" @bind="_reexpresado" /><label class="form-check-label" for="en-reexp">Reexpresado</label></div>
+                            </div>
+                        }
+                        <div class="col-6 col-md-3">
+                            <button class="btn btn-primary w-100" disabled="@_procesando" @onclick="Consultar">Consultar</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (_vista == "resultados" && _resultados is not null) { @RenderResultados(_resultados, "Estado de resultados") }
+        @if (_vista == "situacion" && _situacion is not null) { @RenderSituacion(_situacion, "Estado de situación financiera") }
+        @if (_vista == "flujo" && _flujo is not null)
+        {
+            <div class="card mb-3">
+                <div class="card-header">Estado de flujos de efectivo (método indirecto) — @_flujo.Desde.ToString("yyyy-MM-dd") al @_flujo.Hasta.ToString("yyyy-MM-dd")</div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <tbody>
+                        <tr class="table-light"><th>Actividades de operación</th><th></th></tr>
+                        <tr><td>Utilidad neta</td><td class="text-end">@M(_flujo.UtilidadNeta)</td></tr>
+                        @foreach (var l in _flujo.AjustesNoMonetarios) { <tr><td class="ps-4">@l.Concepto</td><td class="text-end">@M(l.Monto)</td></tr> }
+                        @foreach (var l in _flujo.CambiosCapitalTrabajo) { <tr><td class="ps-4">@l.Concepto</td><td class="text-end">@M(l.Monto)</td></tr> }
+                        <tr class="fw-semibold"><td>Flujo de operación</td><td class="text-end">@M(_flujo.FlujoOperacion)</td></tr>
+                        <tr class="table-light"><th>Actividades de inversión</th><th></th></tr>
+                        @foreach (var l in _flujo.Inversion) { <tr><td class="ps-4">@l.Concepto</td><td class="text-end">@M(l.Monto)</td></tr> }
+                        <tr class="fw-semibold"><td>Flujo de inversión</td><td class="text-end">@M(_flujo.FlujoInversion)</td></tr>
+                        <tr class="table-light"><th>Actividades de financiamiento</th><th></th></tr>
+                        @foreach (var l in _flujo.Financiamiento) { <tr><td class="ps-4">@l.Concepto</td><td class="text-end">@M(l.Monto)</td></tr> }
+                        <tr class="fw-semibold"><td>Flujo de financiamiento</td><td class="text-end">@M(_flujo.FlujoFinanciamiento)</td></tr>
+                        <tr class="table-light"><td>Variación neta del efectivo</td><td class="text-end">@M(_flujo.VariacionNeta)</td></tr>
+                        <tr><td>Efectivo al inicio</td><td class="text-end">@M(_flujo.SaldoInicial)</td></tr>
+                        <tr class="fw-semibold"><td>Efectivo al final</td><td class="text-end">@M(_flujo.SaldoFinal)</td></tr>
+                    </tbody>
+                </table></div>
+                @RenderNotas(_flujo.Notas, _flujo.Cuadra)
+            </div>
+        }
+        @if (_vista == "patrimonio" && _patrimonio is not null)
+        {
+            <div class="card mb-3">
+                <div class="card-header">Estado de cambios en el patrimonio — @_patrimonio.Desde.ToString("yyyy-MM-dd") al @_patrimonio.Hasta.ToString("yyyy-MM-dd")</div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Cuenta</th><th class="text-end">Saldo inicial</th><th class="text-end">Aumentos</th><th class="text-end">Disminuciones</th><th class="text-end">Saldo final</th></tr></thead>
+                    <tbody>
+                        @foreach (var f in _patrimonio.Filas)
+                        {
+                            <tr><td><span class="font-monospace">@f.Codigo</span> @f.Descripcion</td><td class="text-end">@M(f.SaldoInicial)</td><td class="text-end">@M(f.Aumentos)</td><td class="text-end">@M(f.Disminuciones)</td><td class="text-end">@M(f.SaldoFinal)</td></tr>
+                        }
+                    </tbody>
+                    <tfoot><tr class="fw-semibold"><td>Total</td><td class="text-end">@M(_patrimonio.TotalInicial)</td><td class="text-end">@M(_patrimonio.TotalAumentos)</td><td class="text-end">@M(_patrimonio.TotalDisminuciones)</td><td class="text-end">@M(_patrimonio.TotalFinal)</td></tr></tfoot>
+                </table></div>
+            </div>
+        }
+        @if (_vista == "balanza" && _balanza is not null)
+        {
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Balanza del período — @_balanza.Desde.ToString("yyyy-MM-dd") al @_balanza.Hasta.ToString("yyyy-MM-dd")</span>
+                    @if (_balanza.Cuadra) { <span class="badge text-bg-success">Cuadra</span> } else { <span class="badge text-bg-danger">No cuadra</span> }
+                </div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Cuenta</th><th class="text-end">Saldo inicial</th><th class="text-end">Débitos</th><th class="text-end">Créditos</th><th class="text-end">Saldo final</th></tr></thead>
+                    <tbody>
+                        @foreach (var l in _balanza.Lineas)
+                        {
+                            <tr><td><span class="font-monospace">@l.Codigo</span> @l.Descripcion</td><td class="text-end">@M(l.SaldoInicial)</td><td class="text-end">@M(l.Debitos)</td><td class="text-end">@M(l.Creditos)</td><td class="text-end">@M(l.SaldoFinal)</td></tr>
+                        }
+                        @if (_balanza.Lineas.Count == 0) { <tr><td colspan="5" class="text-secondary">Sin movimientos en el período.</td></tr> }
+                    </tbody>
+                    <tfoot><tr class="fw-semibold"><td colspan="2">Totales</td><td class="text-end">@M(_balanza.TotalDebitos)</td><td class="text-end">@M(_balanza.TotalCreditos)</td><td></td></tr></tfoot>
+                </table></div>
+            </div>
+        }
+        @if (_vista == "comparativo" && _comparativo is not null)
+        {
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Comparativo @_comparativo.Ejercicio contra @(_comparativo.Ejercicio - 1)</span>
+                    @if (_comparativo.HayReexpresion) { <span class="badge text-bg-warning">Reexpresado</span> }
+                </div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Concepto</th><th class="text-end">@_comparativo.Ejercicio</th><th class="text-end">@(_comparativo.Ejercicio - 1)</th><th class="text-end">Variación</th></tr></thead>
+                    <tbody>
+                        @foreach (var (nombre, actual, anterior) in FilasComparativo())
+                        {
+                            <tr><td>@nombre</td><td class="text-end">@M(actual)</td><td class="text-end">@M(anterior)</td><td class="text-end">@M(actual - anterior)</td></tr>
+                        }
+                    </tbody>
+                </table></div>
+                @if (_comparativo.ResultadoCerradoAnterior is not null)
+                {
+                    <div class="small px-3 py-2">Resultado del año anterior al cierre: @M(_comparativo.ResultadoCerradoAnterior.Value) (diferencia actual: @M(_comparativo.DiferenciaContraCierre)).</div>
+                }
+                @if (_comparativo.Ajustes.Count > 0)
+                {
+                    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Ajuste material</th><th>Período afectado</th><th>Contabilizado</th><th class="text-end">Efecto en resultados</th></tr></thead>
+                        <tbody>
+                            @foreach (var a in _comparativo.Ajustes)
+                            {
+                                <tr><td>@(a.Concepto ?? $"Póliza {a.IdAsiento}")</td><td>@a.PeriodoAfectado</td><td>@a.FechaContable.ToString("yyyy-MM-dd")</td><td class="text-end">@M(a.ImpactoResultado)</td></tr>
+                            }
+                        </tbody>
+                    </table></div>
+                }
+                @foreach (var nota in _comparativo.Notas) { <div class="small text-secondary px-3 py-1">@nota</div> }
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private static readonly (string Clave, string Titulo)[] Vistas =
+    {
+        ("resultados", "Resultados"), ("situacion", "Situación financiera"), ("flujo", "Flujo indirecto"),
+        ("patrimonio", "Cambios en el patrimonio"), ("comparativo", "Comparativo"), ("balanza", "Balanza del período"),
+    };
+
+    private long _idLibro;
+    private string _vista = "resultados";
+    private int _ejercicio = DateTime.Today.Year;
+    private DateOnly _desde = new(DateTime.Today.Year, 1, 1);
+    private DateOnly _hasta = DateOnly.FromDateTime(DateTime.Today);
+    private bool _reexpresado, _procesando;
+
+    private EstadoResultadosNiifDTO? _resultados;
+    private SituacionFinancieraNiifDTO? _situacion;
+    private FlujoEfectivoIndirectoDTO? _flujo;
+    private EstadoCambiosPatrimonioDTO? _patrimonio;
+    private BalanzaPeriodoDTO? _balanza;
+    private ComparativoNiifDTO? _comparativo;
+
+    private static string M(decimal monto) => monto.ToString("N2");
+
+    private void AlCambiarLibro(long idLibro)
+    {
+        _idLibro = idLibro;
+        _resultados = null; _situacion = null; _flujo = null; _patrimonio = null; _balanza = null; _comparativo = null;
+    }
+
+    private void CambiarVista(string clave) => _vista = clave;
+
+    private async Task Consultar()
+    {
+        _procesando = true;
+        switch (_vista)
+        {
+            case "resultados": _resultados = await Respuestas.DatoAsync(await Aprobaciones.ResultadosNiif(_idLibro, _desde, _hasta, _reexpresado), "consultar el estado de resultados"); break;
+            case "situacion": _situacion = await Respuestas.DatoAsync(await Aprobaciones.SituacionNiif(_idLibro, _hasta, _reexpresado), "consultar la situación financiera"); break;
+            case "flujo": _flujo = await Respuestas.DatoAsync(await Aprobaciones.FlujoIndirecto(_idLibro, _desde, _hasta), "consultar el flujo de efectivo"); break;
+            case "patrimonio": _patrimonio = await Respuestas.DatoAsync(await Aprobaciones.CambiosPatrimonio(_idLibro, _desde, _hasta), "consultar los cambios en el patrimonio"); break;
+            case "balanza": _balanza = await Respuestas.DatoAsync(await Aprobaciones.BalanzaPeriodo(_idLibro, _desde, _hasta), "consultar la balanza del período"); break;
+            case "comparativo": _comparativo = await Respuestas.DatoAsync(await Aprobaciones.ComparativoNiif(_idLibro, _ejercicio), "consultar el comparativo"); break;
+        }
+        _procesando = false;
+    }
+
+    private IEnumerable<(string Nombre, decimal Actual, decimal Anterior)> FilasComparativo()
+    {
+        var c = _comparativo!;
+        yield return ("Ingresos de actividades ordinarias", c.ResultadosActual.IngresosOrdinarios, c.ResultadosAnterior.IngresosOrdinarios);
+        yield return ("Costo de ventas", c.ResultadosActual.CostoVentas, c.ResultadosAnterior.CostoVentas);
+        yield return ("Utilidad bruta", c.ResultadosActual.UtilidadBruta, c.ResultadosAnterior.UtilidadBruta);
+        yield return ("Resultado de operación", c.ResultadosActual.ResultadoOperacion, c.ResultadosAnterior.ResultadoOperacion);
+        yield return ("Resultado neto", c.ResultadosActual.ResultadoNeto, c.ResultadosAnterior.ResultadoNeto);
+        yield return ("Total activos", c.SituacionActual.TotalActivos, c.SituacionAnterior.TotalActivos);
+        yield return ("Total pasivos", c.SituacionActual.TotalPasivos, c.SituacionAnterior.TotalPasivos);
+        yield return ("Total patrimonio", c.SituacionActual.TotalPatrimonio, c.SituacionAnterior.TotalPatrimonio);
+    }
+
+    private RenderFragment RenderNotas(List<string> notas, bool cuadra) => __builder =>
+    {
+        foreach (var nota in notas)
+        {
+            <div class="alert @(cuadra ? "alert-secondary" : "alert-warning") small m-2 mb-0" role="alert">@nota</div>
+        }
+    };
+
+    private RenderFragment RenderSeccion(SeccionEstadoNiifDTO seccion) => __builder =>
+    {
+        <tr class="table-light"><th>@seccion.Titulo</th><th class="text-end">@M(seccion.Total)</th></tr>
+        foreach (var grupo in seccion.Grupos)
+        {
+            <tr><td class="ps-4"><span class="font-monospace">@grupo.Codigo</span> @grupo.Descripcion</td><td class="text-end">@M(grupo.Total)</td></tr>
+        }
+    };
+
+    private RenderFragment RenderResultados(EstadoResultadosNiifDTO r, string titulo) => __builder =>
+    {
+        <div class="card mb-3">
+            <div class="card-header">@titulo — @r.Desde.ToString("yyyy-MM-dd") al @r.Hasta.ToString("yyyy-MM-dd")@(r.Reexpresado ? " (reexpresado)" : "")</div>
+            <div class="table-responsive"><table class="table table-sm align-middle mb-0"><tbody>
+                @RenderSeccion(r.Secciones.First(s => s.Clave == "IngresosOrdinarios"))
+                @RenderSeccion(r.Secciones.First(s => s.Clave == "CostoVentas"))
+                <tr class="fw-semibold"><td>Utilidad bruta</td><td class="text-end">@M(r.UtilidadBruta)</td></tr>
+                @RenderSeccion(r.Secciones.First(s => s.Clave == "GastosAdministrativos"))
+                @RenderSeccion(r.Secciones.First(s => s.Clave == "GastosVenta"))
+                <tr class="fw-semibold"><td>Resultado de operación</td><td class="text-end">@M(r.ResultadoOperacion)</td></tr>
+                @RenderSeccion(r.Secciones.First(s => s.Clave == "OtrosIngresos"))
+                @RenderSeccion(r.Secciones.First(s => s.Clave == "IngresosFinancieros"))
+                @RenderSeccion(r.Secciones.First(s => s.Clave == "GastosFinancieros"))
+                @RenderSeccion(r.Secciones.First(s => s.Clave == "OtrosGastos"))
+                <tr class="fw-semibold"><td>Resultado antes de impuesto</td><td class="text-end">@M(r.ResultadoAntesImpuesto)</td></tr>
+                @RenderSeccion(r.Secciones.First(s => s.Clave == "ImpuestoRenta"))
+                <tr class="fw-semibold table-light"><td>Resultado neto</td><td class="text-end">@M(r.ResultadoNeto)</td></tr>
+            </tbody></table></div>
+            @RenderNotas(r.Notas, true)
+        </div>
+    };
+
+    private RenderFragment RenderSituacion(SituacionFinancieraNiifDTO s, string titulo) => __builder =>
+    {
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>@titulo al @s.FechaCorte.ToString("yyyy-MM-dd")@(s.Reexpresado ? " (reexpresado)" : "")</span>
+                @if (s.Cuadra) { <span class="badge text-bg-success">Cuadra</span> } else { <span class="badge text-bg-danger">No cuadra</span> }
+            </div>
+            <div class="table-responsive"><table class="table table-sm align-middle mb-0"><tbody>
+                @RenderSeccion(s.ActivoCorriente)
+                @RenderSeccion(s.ActivoNoCorriente)
+                <tr class="fw-semibold"><td>Total activos</td><td class="text-end">@M(s.TotalActivos)</td></tr>
+                @RenderSeccion(s.PasivoCorriente)
+                @RenderSeccion(s.PasivoNoCorriente)
+                <tr class="fw-semibold"><td>Total pasivos</td><td class="text-end">@M(s.TotalPasivos)</td></tr>
+                @RenderSeccion(s.Patrimonio)
+                <tr class="fw-semibold table-light"><td>Total pasivos y patrimonio</td><td class="text-end">@M(s.TotalPasivos + s.TotalPatrimonio)</td></tr>
+            </tbody></table></div>
+            @RenderNotas(s.Notas, s.Cuadra)
+        </div>
+    };
+}

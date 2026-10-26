@@ -1,0 +1,152 @@
+@page "/accounting/ledger-reconciliation"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IAprobaciones Aprobaciones
+@inject IContabilidad Contabilidad
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* F9: concilia las cuentas de control del mayor (cuentas por cobrar, por pagar e inventario por tipo) contra sus auxiliares a una fecha de corte y
+   revisa que la balanza cuadre. Cada diferencia se corrige o se acepta con motivo; el pre-cierre del período usa esas aceptaciones para el mismo corte. *@
+
+<AppPantalla Pantalla="Conciliación contra el mayor" Codigo="CONTABILIDAD.CONCILIACION_CONTRA_EL_MAYOR" Icono="bi-check2-square" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <AppSelectorLibroContable Prefijo="cm" AlCambiarLibro="AlCambiarLibro" />
+                @if (_idLibro > 0)
+                {
+                    <div class="row g-3 mt-1 align-items-end">
+                        <div class="col-12 col-md-3">
+                            <label class="form-label" for="cm-corte">Fecha de corte</label>
+                            <input id="cm-corte" type="date" class="form-control" @bind="_fechaCorte" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <button class="btn btn-primary w-100" disabled="@_procesando" @onclick="Conciliar">
+                                @if (_procesando) { <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> }
+                                Conciliar
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (_resultado is not null)
+        {
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Corte al @_resultado.FechaCorte?.ToString("yyyy-MM-dd")</span>
+                    @if (Pendientes == 0) { <span class="badge text-bg-success">Todo cuadra o está aceptado</span> }
+                    else { <span class="badge text-bg-warning">@Pendientes diferencia(s) por resolver</span> }
+                </div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Comparación</th><th>Cuenta</th><th class="text-end">Auxiliar</th><th class="text-end">Mayor</th><th class="text-end">Diferencia</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var d in _resultado.Diferencias ?? new List<DiferenciaConciliacionDTO>())
+                        {
+                            <tr>
+                                <td>@Nombre(d.OrigenId)</td>
+                                <td class="font-monospace">@d.CodigoCuenta</td>
+                                <td class="text-end">@d.SaldoLegado.ToString("N2")</td>
+                                <td class="text-end">@d.SaldoMotor.ToString("N2")</td>
+                                <td class="text-end text-danger">@d.Diferencia.ToString("N2")</td>
+                                <td>
+                                    @if (d.Resuelta == true) { <span class="badge text-bg-success" title="@d.Motivo">Aceptada</span> }
+                                    else { <button class="btn btn-sm btn-link p-0" @onclick="() => Resolver(d)">Aceptar con motivo</button> }
+                                </td>
+                            </tr>
+                        }
+                        @if ((_resultado.Diferencias?.Count ?? 0) == 0) { <tr><td colspan="6" class="text-secondary">Sin diferencias: el mayor cuadra con sus auxiliares.</td></tr> }
+                    </tbody>
+                </table></div>
+                @foreach (var aviso in _resultado.Avisos ?? new List<string>())
+                {
+                    <div class="small text-secondary px-3 py-1">@aviso</div>
+                }
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modalResolver" Titulo="Aceptar diferencia" AlGuardar="ConfirmarResolucion" Guardando="_resolviendo" PuedeGuardar="!string.IsNullOrWhiteSpace(_motivo)">
+    <div class="mb-2">
+        <label class="form-label" for="cm-motivo">Motivo</label>
+        <textarea id="cm-motivo" class="form-control" rows="3" @bind="_motivo" placeholder="Por qué se acepta esta diferencia sin corregirla"></textarea>
+        <div class="form-text">Vale solo para este corte y este monto: si cambia, vuelve a bloquear el cierre.</div>
+    </div>
+</AppModal>
+
+<AppConfirmarClaveContabilidad @ref="_confirmarClave" />
+
+@code {
+    private long _idLibro;
+    private DateOnly _fechaCorte = FinDeMesAnterior();
+    private bool _procesando, _resolviendo;
+    private EjecucionConciliacionDTO? _resultado;
+    private AppModal _modalResolver = default!;
+    private AppConfirmarClaveContabilidad _confirmarClave = default!;
+    private string _motivo = "";
+    private DiferenciaConciliacionDTO? _enResolucion;
+
+    private int Pendientes => (_resultado?.Diferencias ?? new List<DiferenciaConciliacionDTO>()).Count(d => d.Resuelta != true);
+
+    private static DateOnly FinDeMesAnterior()
+    {
+        var hoy = DateTime.Today;
+        return DateOnly.FromDateTime(new DateTime(hoy.Year, hoy.Month, 1).AddDays(-1));
+    }
+
+    private static string Nombre(string? clave) => clave switch
+    {
+        "Balanza" => "Balanza: débitos contra créditos",
+        "CxC" => "Cuentas por cobrar",
+        "CxP" => "Cuentas por pagar (compras y gastos)",
+        "Inventario" => "Inventario disponible para la venta",
+        "Inventario:MateriaPrima" => "Inventario de materia prima",
+        "Inventario:Terminado" => "Inventario de producto terminado",
+        "Inventario:Mercaderia" => "Inventario de mercadería",
+        "Inventario:General" => "Cuenta general de inventario (debe quedar en cero)",
+        _ => clave ?? "",
+    };
+
+    private void AlCambiarLibro(long idLibro)
+    {
+        _idLibro = idLibro;
+        _resultado = null;
+    }
+
+    private async Task Conciliar()
+    {
+        _procesando = true;
+        _resultado = await Respuestas.DatoAsync(await Aprobaciones.ConciliarContraMayor(_idLibro, _fechaCorte), "conciliar contra el mayor");
+        _procesando = false;
+    }
+
+    private async Task Resolver(DiferenciaConciliacionDTO diferencia)
+    {
+        _enResolucion = diferencia;
+        _motivo = "";
+        await _modalResolver.MostrarAsync();
+    }
+
+    private async Task ConfirmarResolucion()
+    {
+        if (_enResolucion is null || string.IsNullOrWhiteSpace(_motivo)) return;
+        var clave = await _confirmarClave.MostrarAsync();
+        if (clave is null) return;
+
+        _resolviendo = true;
+        var respuesta = await Contabilidad.ResolverDiferencia(_enResolucion.Id, _motivo.Trim(), clave);
+        _resolviendo = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "aceptar la diferencia")) return;
+
+        // No se vuelve a conciliar: crearía otra ejecución con las mismas diferencias sin aceptar. Se marca la fila.
+        _enResolucion.Resuelta = true;
+        _enResolucion.Motivo = _motivo.Trim();
+        Dialogos.Exito("Diferencia aceptada para este corte.");
+        await _modalResolver.OcultarAsync();
+    }
+}

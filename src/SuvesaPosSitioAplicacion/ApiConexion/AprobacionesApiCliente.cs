@@ -51,6 +51,13 @@ public interface IAprobacionesApiCliente
     Task<SeguridadEnvelope<bool>> DeclararDeducibleAsync(DeclararDeducibleDTO dto);
     Task<SeguridadEnvelope<ReclasificacionInventarioDTO>> SimularReclasificacionInventarioAsync(EjecutarReclasificacionDTO dto);
     Task<SeguridadEnvelope<ReclasificacionInventarioDTO>> EjecutarReclasificacionInventarioAsync(EjecutarReclasificacionDTO dto);
+    Task<SeguridadEnvelope<EjecucionConciliacionDTO>> ConciliarContraMayorAsync(long idLibro, DateOnly fechaCorte);
+    Task<SeguridadEnvelope<BalanzaPeriodoDTO>> BalanzaPeriodoAsync(long idLibro, DateOnly desde, DateOnly hasta);
+    Task<SeguridadEnvelope<EstadoResultadosNiifDTO>> ResultadosNiifAsync(long idLibro, DateOnly desde, DateOnly hasta, bool reexpresado);
+    Task<SeguridadEnvelope<SituacionFinancieraNiifDTO>> SituacionNiifAsync(long idLibro, DateOnly fechaCorte, bool reexpresado);
+    Task<SeguridadEnvelope<FlujoEfectivoIndirectoDTO>> FlujoIndirectoAsync(long idLibro, DateOnly desde, DateOnly hasta);
+    Task<SeguridadEnvelope<EstadoCambiosPatrimonioDTO>> CambiosPatrimonioAsync(long idLibro, DateOnly desde, DateOnly hasta);
+    Task<SeguridadEnvelope<ComparativoNiifDTO>> ComparativoNiifAsync(long idLibro, int ejercicio);
 }
 
 public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
@@ -196,4 +203,25 @@ public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
 
     public Task<SeguridadEnvelope<ReclasificacionInventarioDTO>> EjecutarReclasificacionInventarioAsync(EjecutarReclasificacionDTO dto)
         => EnviarAsync<ReclasificacionInventarioDTO>(HttpMethod.Post, "reclasificacion-inventario/ejecutar", dto);
+
+    public Task<SeguridadEnvelope<EjecucionConciliacionDTO>> ConciliarContraMayorAsync(long idLibro, DateOnly fechaCorte)
+        => EnviarAsync<EjecucionConciliacionDTO>(HttpMethod.Post, $"conciliaciones/mayor?idLibroContable={idLibro}&fechaCorte={Fecha(fechaCorte)}");
+
+    public Task<SeguridadEnvelope<BalanzaPeriodoDTO>> BalanzaPeriodoAsync(long idLibro, DateOnly desde, DateOnly hasta)
+        => EnviarAsync<BalanzaPeriodoDTO>(HttpMethod.Get, $"estados-niif/balanza-periodo?idLibroContable={idLibro}&desde={Fecha(desde)}&hasta={Fecha(hasta)}");
+
+    public Task<SeguridadEnvelope<EstadoResultadosNiifDTO>> ResultadosNiifAsync(long idLibro, DateOnly desde, DateOnly hasta, bool reexpresado)
+        => EnviarAsync<EstadoResultadosNiifDTO>(HttpMethod.Get, $"estados-niif/resultados?idLibroContable={idLibro}&desde={Fecha(desde)}&hasta={Fecha(hasta)}&reexpresado={(reexpresado ? "true" : "false")}");
+
+    public Task<SeguridadEnvelope<SituacionFinancieraNiifDTO>> SituacionNiifAsync(long idLibro, DateOnly fechaCorte, bool reexpresado)
+        => EnviarAsync<SituacionFinancieraNiifDTO>(HttpMethod.Get, $"estados-niif/situacion?idLibroContable={idLibro}&fechaCorte={Fecha(fechaCorte)}&reexpresado={(reexpresado ? "true" : "false")}");
+
+    public Task<SeguridadEnvelope<FlujoEfectivoIndirectoDTO>> FlujoIndirectoAsync(long idLibro, DateOnly desde, DateOnly hasta)
+        => EnviarAsync<FlujoEfectivoIndirectoDTO>(HttpMethod.Get, $"estados-niif/flujo-indirecto?idLibroContable={idLibro}&desde={Fecha(desde)}&hasta={Fecha(hasta)}");
+
+    public Task<SeguridadEnvelope<EstadoCambiosPatrimonioDTO>> CambiosPatrimonioAsync(long idLibro, DateOnly desde, DateOnly hasta)
+        => EnviarAsync<EstadoCambiosPatrimonioDTO>(HttpMethod.Get, $"estados-niif/cambios-patrimonio?idLibroContable={idLibro}&desde={Fecha(desde)}&hasta={Fecha(hasta)}");
+
+    public Task<SeguridadEnvelope<ComparativoNiifDTO>> ComparativoNiifAsync(long idLibro, int ejercicio)
+        => EnviarAsync<ComparativoNiifDTO>(HttpMethod.Get, $"estados-niif/comparativo?idLibroContable={idLibro}&ejercicio={ejercicio}");
 }

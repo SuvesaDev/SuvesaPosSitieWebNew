@@ -1024,6 +1024,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Conciliación contra el mayor",
+                    Codigo = "CONTABILIDAD.CONCILIACION_CONTRA_EL_MAYOR",
+                    Ruta = "/accounting/ledger-reconciliation",
+                },
+                new ItemMenu
+                {
                     Titulo = "Balanza",
                     Codigo = "CONTABILIDAD.BALANZA",
                     Ruta = "/accounting/trial-balance",
@@ -1045,6 +1051,12 @@ public static partial class MenuSeePos
                     Titulo = "Flujo de efectivo",
                     Codigo = "CONTABILIDAD.FLUJO_DE_EFECTIVO",
                     Ruta = "/accounting/cash-flow",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Estados NIIF PYMES",
+                    Codigo = "CONTABILIDAD.ESTADOS_NIIF_PYMES",
+                    Ruta = "/accounting/financial-statements",
                 },
             }
         }

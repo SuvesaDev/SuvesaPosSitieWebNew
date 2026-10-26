@@ -1,3 +1,4 @@
+using EjecucionConciliacionDTO = SuvesaPosSitioAplicacion.DTOs.Generated.EjecucionConciliacionDTO;
 using SuvesaPosSitioAplicacion.DTOs.Contabilidad;
 using SuvesaPosSitioAplicacion.Helpers;
 
@@ -46,4 +47,11 @@ public interface IAprobaciones
     Task<ResponseGeneric<bool>> DeclararDeducible(long idLibro, long idAsiento, bool esDeducible, string motivo);
     Task<ResponseGeneric<ReclasificacionInventarioDTO>> SimularReclasificacionInventario(long idLibro, DateOnly fechaCorte);
     Task<ResponseGeneric<ReclasificacionInventarioDTO>> EjecutarReclasificacionInventario(long idLibro, DateOnly fechaCorte);
+    Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarContraMayor(long idLibro, DateOnly fechaCorte);
+    Task<ResponseGeneric<BalanzaPeriodoDTO>> BalanzaPeriodo(long idLibro, DateOnly desde, DateOnly hasta);
+    Task<ResponseGeneric<EstadoResultadosNiifDTO>> ResultadosNiif(long idLibro, DateOnly desde, DateOnly hasta, bool reexpresado);
+    Task<ResponseGeneric<SituacionFinancieraNiifDTO>> SituacionNiif(long idLibro, DateOnly fechaCorte, bool reexpresado);
+    Task<ResponseGeneric<FlujoEfectivoIndirectoDTO>> FlujoIndirecto(long idLibro, DateOnly desde, DateOnly hasta);
+    Task<ResponseGeneric<EstadoCambiosPatrimonioDTO>> CambiosPatrimonio(long idLibro, DateOnly desde, DateOnly hasta);
+    Task<ResponseGeneric<ComparativoNiifDTO>> ComparativoNiif(long idLibro, int ejercicio);
 }

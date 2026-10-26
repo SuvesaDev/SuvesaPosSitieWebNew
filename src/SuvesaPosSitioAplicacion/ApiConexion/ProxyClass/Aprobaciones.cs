@@ -1,3 +1,4 @@
+using EjecucionConciliacionDTO = SuvesaPosSitioAplicacion.DTOs.Generated.EjecucionConciliacionDTO;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 using SuvesaPosSitioAplicacion.DTOs.Contabilidad;
 using SuvesaPosSitioAplicacion.Helpers;
@@ -131,4 +132,25 @@ public sealed class Aprobaciones : ProxyBase, IAprobaciones
 
     public Task<ResponseGeneric<ReclasificacionInventarioDTO>> EjecutarReclasificacionInventario(long idLibro, DateOnly fechaCorte)
         => Ejecutar(async () => Traducir(await _api.EjecutarReclasificacionInventarioAsync(new EjecutarReclasificacionDTO { IdLibroContable = idLibro, FechaCorte = fechaCorte })), "ejecutar la reclasificación del inventario");
+
+    public Task<ResponseGeneric<EjecucionConciliacionDTO>> ConciliarContraMayor(long idLibro, DateOnly fechaCorte)
+        => Ejecutar(async () => Traducir(await _api.ConciliarContraMayorAsync(idLibro, fechaCorte)), "conciliar contra el mayor");
+
+    public Task<ResponseGeneric<BalanzaPeriodoDTO>> BalanzaPeriodo(long idLibro, DateOnly desde, DateOnly hasta)
+        => Ejecutar(async () => Traducir(await _api.BalanzaPeriodoAsync(idLibro, desde, hasta)), "consultar la balanza del período");
+
+    public Task<ResponseGeneric<EstadoResultadosNiifDTO>> ResultadosNiif(long idLibro, DateOnly desde, DateOnly hasta, bool reexpresado)
+        => Ejecutar(async () => Traducir(await _api.ResultadosNiifAsync(idLibro, desde, hasta, reexpresado)), "consultar el estado de resultados");
+
+    public Task<ResponseGeneric<SituacionFinancieraNiifDTO>> SituacionNiif(long idLibro, DateOnly fechaCorte, bool reexpresado)
+        => Ejecutar(async () => Traducir(await _api.SituacionNiifAsync(idLibro, fechaCorte, reexpresado)), "consultar la situación financiera");
+
+    public Task<ResponseGeneric<FlujoEfectivoIndirectoDTO>> FlujoIndirecto(long idLibro, DateOnly desde, DateOnly hasta)
+        => Ejecutar(async () => Traducir(await _api.FlujoIndirectoAsync(idLibro, desde, hasta)), "consultar el flujo de efectivo");
+
+    public Task<ResponseGeneric<EstadoCambiosPatrimonioDTO>> CambiosPatrimonio(long idLibro, DateOnly desde, DateOnly hasta)
+        => Ejecutar(async () => Traducir(await _api.CambiosPatrimonioAsync(idLibro, desde, hasta)), "consultar los cambios en el patrimonio");
+
+    public Task<ResponseGeneric<ComparativoNiifDTO>> ComparativoNiif(long idLibro, int ejercicio)
+        => Ejecutar(async () => Traducir(await _api.ComparativoNiifAsync(idLibro, ejercicio)), "consultar el comparativo");
 }
