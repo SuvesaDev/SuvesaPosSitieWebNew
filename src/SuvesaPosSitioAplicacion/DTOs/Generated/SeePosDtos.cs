@@ -9779,6 +9779,10 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("monto")]
         public float Monto { get; set; } = default!;
 
+        // Agregado a mano hasta regenerar los contratos (./tools/actualizar-contratos.sh) contra el API nuevo.
+        [System.Text.Json.Serialization.JsonPropertyName("codMoneda")]
+        public int CodMoneda { get; set; } = 1;
+
         [System.Text.Json.Serialization.JsonPropertyName("observaciones")]
         public string? Observaciones { get; set; } = default!;
 

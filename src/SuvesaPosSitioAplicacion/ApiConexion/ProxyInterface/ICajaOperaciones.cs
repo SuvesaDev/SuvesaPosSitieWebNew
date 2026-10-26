@@ -20,9 +20,10 @@ public interface ICajaOperaciones
     Task<ResponseGeneric<ICollection<DenominacionMonedum>>> Denominaciones();
     Task<ResponseGeneric<ICollection<User>>> CajerosConCajaAbierta();
     Task<ResponseGeneric<ICollection<AperturaCajaDTO>>> AperturasSinCerrar();
-    Task<ResponseGeneric<ICollection<ObtenerAperturaCajaDTO>>> AperturasSinArqueo();
+    /// <summary>Apertura abierta del cajero dueño de la clave interna. El API no devuelve las de otros usuarios.</summary>
+    Task<ResponseGeneric<ICollection<ObtenerAperturaCajaDTO>>> AperturasSinArqueo(string? claveInterna);
     Task<ResponseGeneric<AperturaCajaDTO>> CrearApertura(AperturaCajaDTO apertura);
-    Task<ResponseGeneric<ArqueoCajaDTO>> CrearArqueo(ArqueoCajaDTO arqueo);
+    Task<ResponseGeneric<ArqueoCajaDTO>> CrearArqueo(ArqueoCajaDTO arqueo, string? claveInterna);
     Task<ResponseGeneric<ObtenerDatosCierreCaja>> DatosCierre(long numeroApertura);
     Task<ResponseGeneric<CierreCajaDTO>> CrearCierre(CierreCajaDTO cierre);
     Task<ResponseGeneric<ICollection<EntidadesBancariasDTO>>> Bancos();
@@ -52,10 +53,11 @@ public interface ICajaOperaciones
     Task<ResponseGeneric<AperturaCajaDTO>> AnularApertura(int numeroApertura);
 
     // --- Arqueo: buscar, abrir para editar, anular ---
-    Task<ResponseGeneric<ICollection<ArqueoCajaFiltroResultadoDTO>>> BuscarArqueos(ArqueoCajaFiltroDTO filtro);
-    Task<ResponseGeneric<ArqueoCajaDTO>> ObtenerArqueo(long id);
-    Task<ResponseGeneric<ArqueoCajaDTO>> EditarArqueo(ArqueoCajaDTO arqueo);
-    Task<ResponseGeneric<ArqueoCajaDTO>> AnularArqueo(long id);
+    // Sin clave interna el API solo responde a quien tenga el permiso de consulta de arqueos.
+    Task<ResponseGeneric<ICollection<ArqueoCajaFiltroResultadoDTO>>> BuscarArqueos(ArqueoCajaFiltroDTO filtro, string? claveInterna = null);
+    Task<ResponseGeneric<ArqueoCajaDTO>> ObtenerArqueo(long id, string? claveInterna = null);
+    Task<ResponseGeneric<ArqueoCajaDTO>> EditarArqueo(ArqueoCajaDTO arqueo, string? claveInterna);
+    Task<ResponseGeneric<ArqueoCajaDTO>> AnularArqueo(long id, string? claveInterna);
 
     // --- Cierre: buscar y anular. No existe "editar cierre" en el API: un
     // cierre ya hecho solo se anula, no se corrige. ---
@@ -73,7 +75,10 @@ public interface ICajaOperaciones
     Task<ResponseGeneric<ICollection<OpcionesDePagoCierreCaja>>> DocumentosDeApertura(long numeroApertura);
 
     /// <summary>Total de depositos que el sistema tiene registrados para esta apertura.</summary>
-    Task<ResponseGeneric<ArqueoMontoDepositoDTO>> MontoDepositosDeApertura(int numeroApertura);
+    Task<ResponseGeneric<ArqueoMontoDepositoDTO>> MontoDepositosDeApertura(int numeroApertura, string? claveInterna = null);
+
+    /// <summary>Lo que el sistema tiene registrado en la apertura, por moneda, calculado en el API. Solo referencia: no compara.</summary>
+    Task<ResponseGeneric<ArqueoReferenciaSistemaWebDTO>> ReferenciaSistemaArqueo(long numeroApertura, string? claveInterna = null);
 
     /// <summary>Catalogo de tipos de tarjeta/forma de pago para desglosar el arqueo
     /// (una fila por tipo, en vez de un total de tarjetas sin desglosar).</summary>

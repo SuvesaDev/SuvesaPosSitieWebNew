@@ -195,11 +195,27 @@
           ]
         },
         {
+          "codigo": "CAJA.CONSULTA_DE_ARQUEOS",
+          "nombre": "Consulta de Arqueos",
+          "ruta": "/initial/cash/arqueoconsulta",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "CAJA.CONCILIACION_DE_CAJA",
           "nombre": "Conciliación de caja",
           "ruta": "/initial/cash/reconciliation",
           "padre": null,
-          "orden": 3,
+          "orden": 4,
           "acciones": [
             "VER",
             "CREAR",
@@ -215,7 +231,7 @@
           "nombre": "Cobrar",
           "ruta": "/initial/charge",
           "padre": null,
-          "orden": 4,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -231,7 +247,7 @@
           "nombre": "Depósitos",
           "ruta": "/initial/cash/deposits",
           "padre": null,
-          "orden": 5,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",

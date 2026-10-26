@@ -1,0 +1,95 @@
+@page "/initial/cash/arqueoconsulta"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICajaOperaciones Api
+@inject IManejadorRespuestas Respuestas
+
+@* Solo lectura: supervisores y administradores con el permiso «Consulta de Arqueos» ven los arqueos de
+   todos los cajeros. Registrar o editar sigue siendo exclusivo del dueño de la caja, en «Arqueo Caja».
+   El API decide por permiso (no por lo que esta pantalla muestre), asi que sin permiso no devuelve nada. *@
+
+<AppPantalla Pantalla="Consulta de Arqueos" Nivel="NivelPantalla.Escritorio">
+    <ChildContent>
+        <div class="card mb-3"><div class="card-header"><strong>Buscar arqueos</strong></div><div class="card-body"><div class="row g-2 align-items-end">
+            <div class="col-6 col-md-3"><label class="form-label" for="desde">Fecha desde</label><InputDate id="desde" class="form-control" @bind-Value="_desde" /></div>
+            <div class="col-6 col-md-3"><label class="form-label" for="hasta">Fecha hasta</label><InputDate id="hasta" class="form-control" @bind-Value="_hasta" /></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="numero">N.º arqueo</label><InputNumber id="numero" class="form-control" min="0" @bind-Value="_numero" /></div>
+            <div class="col-6 col-md-2"><label class="form-label" for="usuario">Cajero</label><InputText id="usuario" class="form-control" @bind-Value="_usuario" /></div>
+            <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="Buscar" disabled="@_buscando">Buscar</button></div>
+        </div></div></div>
+
+        <div class="card">
+            @if (_buscando)
+            {
+                <div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Buscando</span></div></div>
+            }
+            else if (_encontradas.Count == 0)
+            {
+                <p class="text-secondary text-center py-4 mb-0">Use uno de los filtros para consultar arqueos.</p>
+            }
+            else
+            {
+                <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>N.º</th><th>Cajero</th><th>Fecha</th><th></th></tr></thead><tbody>
+                    @foreach (var a in _encontradas) { <tr><td>@a.NumeroArqueo</td><td>@a.NomUsuario</td><td>@a.Fecha.ToString("dd/MM/yyyy HH:mm")</td><td class="text-end"><button type="button" class="btn btn-sm btn-primary" @onclick="() => Ver(a.NumeroArqueo)">Ver</button></td></tr> }
+                </tbody></table></div>
+            }
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modal" Titulo="@(_detalle is null ? "Arqueo" : $"Arqueo de la apertura #{_detalle.IdApertura}")" Tamano="ModalSize.Large">
+    @if (_detalle is not null)
+    {
+        <dl class="row mb-3">
+            <dt class="col-sm-3">Cajero</dt><dd class="col-sm-9">@_detalle.Cajero</dd>
+            <dt class="col-sm-3">Fecha</dt><dd class="col-sm-9">@_detalle.Fecha</dd>
+            <dt class="col-sm-3">Estado</dt><dd class="col-sm-9">@(_detalle.Anulado ? "Anulado" : _detalle.TieneCierre ? "Caja cerrada" : "Caja abierta")</dd>
+            <dt class="col-sm-3">Observaciones</dt><dd class="col-sm-9">@(string.IsNullOrWhiteSpace(_detalle.Observaciones) ? "—" : _detalle.Observaciones)</dd>
+        </dl>
+        <table class="table table-sm align-middle">
+            <thead><tr><th>Renglón declarado</th><th class="text-end">Colones</th><th class="text-end">Dólares</th></tr></thead>
+            <tbody>
+                <tr><td>Efectivo</td><td class="text-end">@Formato.Importe(_detalle.EfectivoColones)</td><td class="text-end">@Formato.Importe(_detalle.EfectivoDolares)</td></tr>
+                <tr><td>Tarjetas</td><td class="text-end">@Formato.Importe(_detalle.TarjetaColones)</td><td class="text-end">@Formato.Importe(_detalle.TarjetaDolares)</td></tr>
+                <tr><td>Cheques</td><td class="text-end">@Formato.Importe(_detalle.Cheques)</td><td class="text-end">@Formato.Importe(_detalle.ChequesDol)</td></tr>
+                <tr><td>Depósitos</td><td class="text-end">@Formato.Importe(_detalle.DepositoCol)</td><td class="text-end">@Formato.Importe(_detalle.DepositoDol)</td></tr>
+            </tbody>
+            <tfoot><tr><th>Total arqueado (tipo de cambio @Formato.Importe(_detalle.TipoCambioD))</th><th class="text-end" colspan="2">@Formato.Importe(_detalle.Total)</th></tr></tfoot>
+        </table>
+        @if (_detalle.Tarjeta is { Count: > 0 })
+        {
+            <h6 class="mt-3">Detalle por tipo de tarjeta</h6>
+            <table class="table table-sm align-middle"><thead><tr><th>Tipo</th><th>Moneda</th><th class="text-end">Monto</th></tr></thead><tbody>
+                @foreach (var t in _detalle.Tarjeta) { <tr><td>@t.TarjetaDescripcion</td><td>@(t.CodMoneda == 1 ? "Colones" : "Dólares")</td><td class="text-end">@Formato.Importe(t.Monto)</td></tr> }
+            </tbody></table>
+        }
+        <p class="small text-secondary mb-0">Las diferencias contra el sistema se revisan en el cierre y la conciliación de caja, no en el arqueo.</p>
+    }
+</AppModal>
+
+@code {
+    private readonly List<ArqueoCajaFiltroResultadoDTO> _encontradas = new();
+    private DateTime? _desde, _hasta;
+    private long? _numero;
+    private string? _usuario;
+    private bool _buscando;
+    private AppModal _modal = default!;
+    private ArqueoCajaDTO? _detalle;
+
+    private async Task Buscar()
+    {
+        _buscando = true;
+        var filtro = new ArqueoCajaFiltroDTO { Desde = _desde, Hasta = _hasta, NumArqueo = _numero, UsuarioApertura = _usuario };
+        // Sin clave interna: el API responde por el permiso de consulta del usuario de la sesión.
+        var resultado = await Respuestas.DatoAsync(await Api.BuscarArqueos(filtro), "buscar los arqueos");
+        _encontradas.Clear(); _encontradas.AddRange(resultado ?? Array.Empty<ArqueoCajaFiltroResultadoDTO>());
+        _buscando = false;
+    }
+
+    private async Task Ver(long idApertura)
+    {
+        _detalle = await Respuestas.DatoAsync(await Api.ObtenerArqueo(idApertura), "consultar el arqueo");
+        if (_detalle is not null) await _modal.MostrarAsync();
+    }
+}

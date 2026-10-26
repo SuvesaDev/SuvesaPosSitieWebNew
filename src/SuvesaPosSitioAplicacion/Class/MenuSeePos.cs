@@ -96,6 +96,14 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    // Solo lectura, para supervisores y administradores: cada cajero ve únicamente
+                    // el arqueo de su propia caja en "Arqueo Caja"; este permiso muestra los de todos.
+                    Titulo = "Consulta de Arqueos",
+                    Codigo = "CAJA.CONSULTA_DE_ARQUEOS",
+                    Ruta = "/initial/cash/arqueoconsulta",
+                },
+                new ItemMenu
+                {
                     // El "Cierre Caja" legado (/initial/cash/closecash, lee OpcionesDePagos)
                     // fue reemplazado por "Conciliación de caja", que cierra desde el mayor
                     // de caja (MovimientoCaja) — la fuente única tras la Fase 3. La pantalla

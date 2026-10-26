@@ -98,11 +98,11 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "consultar las aperturas sin cerrar");
 
-    public Task<ResponseGeneric<ICollection<ObtenerAperturaCajaDTO>>> AperturasSinArqueo() => Ejecutar(async () =>
+    public Task<ResponseGeneric<ICollection<ObtenerAperturaCajaDTO>>> AperturasSinArqueo(string? claveInterna) => Ejecutar(async () =>
     {
         var r = await _arqueo.ObtenerAperturasDeCajaSinArqueoAsync();
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-    }, "consultar las aperturas sin arqueo");
+    }, "consultar las aperturas sin arqueo", claveInterna);
 
     public Task<ResponseGeneric<AperturaCajaDTO>> CrearApertura(AperturaCajaDTO apertura) => Ejecutar(async () =>
     {
@@ -110,11 +110,11 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "crear la apertura de caja");
 
-    public Task<ResponseGeneric<ArqueoCajaDTO>> CrearArqueo(ArqueoCajaDTO arqueo) => Ejecutar(async () =>
+    public Task<ResponseGeneric<ArqueoCajaDTO>> CrearArqueo(ArqueoCajaDTO arqueo, string? claveInterna) => Ejecutar(async () =>
     {
         var r = await _arqueo.CrearArqueoCajaAsync(arqueo);
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-    }, "crear el arqueo de caja");
+    }, "crear el arqueo de caja", claveInterna);
 
     public Task<ResponseGeneric<ObtenerDatosCierreCaja>> DatosCierre(long numeroApertura) => Ejecutar(async () =>
     {
@@ -218,29 +218,29 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "anular la apertura de caja");
 
-    public Task<ResponseGeneric<ICollection<ArqueoCajaFiltroResultadoDTO>>> BuscarArqueos(ArqueoCajaFiltroDTO filtro) => Ejecutar(async () =>
+    public Task<ResponseGeneric<ICollection<ArqueoCajaFiltroResultadoDTO>>> BuscarArqueos(ArqueoCajaFiltroDTO filtro, string? claveInterna = null) => Ejecutar(async () =>
     {
         var r = await _arqueo.ObtenerFiltrosArqueoCajaAsync(filtro);
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-    }, "buscar los arqueos de caja");
+    }, "buscar los arqueos de caja", claveInterna);
 
-    public Task<ResponseGeneric<ArqueoCajaDTO>> ObtenerArqueo(long id) => Ejecutar(async () =>
+    public Task<ResponseGeneric<ArqueoCajaDTO>> ObtenerArqueo(long id, string? claveInterna = null) => Ejecutar(async () =>
     {
         var r = await _arqueo.ConsultarArqueoCajaAsync(id);
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-    }, "consultar el arqueo de caja");
+    }, "consultar el arqueo de caja", claveInterna);
 
-    public Task<ResponseGeneric<ArqueoCajaDTO>> EditarArqueo(ArqueoCajaDTO arqueo) => Ejecutar(async () =>
+    public Task<ResponseGeneric<ArqueoCajaDTO>> EditarArqueo(ArqueoCajaDTO arqueo, string? claveInterna) => Ejecutar(async () =>
     {
         var r = await _arqueo.EditarArqueoCajaAsync(arqueo);
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-    }, "editar el arqueo de caja");
+    }, "editar el arqueo de caja", claveInterna);
 
-    public Task<ResponseGeneric<ArqueoCajaDTO>> AnularArqueo(long id) => Ejecutar(async () =>
+    public Task<ResponseGeneric<ArqueoCajaDTO>> AnularArqueo(long id, string? claveInterna) => Ejecutar(async () =>
     {
         var r = await _arqueo.DeleteArqueoCajaAsync(id);
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-    }, "anular el arqueo de caja");
+    }, "anular el arqueo de caja", claveInterna);
 
     public Task<ResponseGeneric<ICollection<FiltroCierreCajaBusquedaDTO>>> BuscarCierres(BuscarCierreCajaDTO filtro) => Ejecutar(async () =>
     {
@@ -266,11 +266,16 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "consultar los documentos de la apertura");
 
-    public Task<ResponseGeneric<ArqueoMontoDepositoDTO>> MontoDepositosDeApertura(int numeroApertura) => Ejecutar(async () =>
+    public Task<ResponseGeneric<ArqueoMontoDepositoDTO>> MontoDepositosDeApertura(int numeroApertura, string? claveInterna = null) => Ejecutar(async () =>
     {
         var r = await _arqueo.ObtenerMontoDepositosCajaAsync(numeroApertura);
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-    }, "consultar el monto de depósitos registrados");
+    }, "consultar el monto de depósitos registrados", claveInterna);
+
+    public Task<ResponseGeneric<ArqueoReferenciaSistemaWebDTO>> ReferenciaSistemaArqueo(long numeroApertura, string? claveInterna = null) => Ejecutar(async () =>
+        await LecturaEnvelope.Leer<ArqueoReferenciaSistemaWebDTO>(
+            await _api.PostAsync($"Arqueo/ObtenerReferenciaSistemaArqueo?numApertura={numeroApertura}", content: null)),
+        "consultar lo registrado por el sistema en la apertura", claveInterna);
 
     public Task<ResponseGeneric<ICollection<FormasPagoDTO>>> TiposDeTarjeta() => Ejecutar(async () =>
     {
