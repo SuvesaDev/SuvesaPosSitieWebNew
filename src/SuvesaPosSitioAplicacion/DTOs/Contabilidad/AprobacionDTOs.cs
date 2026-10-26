@@ -258,32 +258,6 @@ public sealed class DocumentoCorteEntregaDTO
     [JsonPropertyName("costo")] public decimal Costo { get; set; }
 }
 
-public sealed class DocumentoCorteAlbaranDTO
-{
-    [JsonPropertyName("idAlbaran")] public long IdAlbaran { get; set; }
-    [JsonPropertyName("cliente")] public string? Cliente { get; set; }
-    [JsonPropertyName("ingreso")] public decimal Ingreso { get; set; }
-}
-
-public sealed class CorteAlbaranDTO
-{
-    [JsonPropertyName("id")] public long? Id { get; set; }
-    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
-    [JsonPropertyName("ejercicio")] public int Ejercicio { get; set; }
-    [JsonPropertyName("mes")] public int Mes { get; set; }
-    [JsonPropertyName("fechaCorte")] public DateOnly FechaCorte { get; set; }
-    [JsonPropertyName("cantidadAlbaranes")] public int CantidadAlbaranes { get; set; }
-    [JsonPropertyName("ingresoGravado")] public decimal IngresoGravado { get; set; }
-    [JsonPropertyName("ingresoExento")] public decimal IngresoExento { get; set; }
-    [JsonPropertyName("ingresoDevengado")] public decimal IngresoDevengado { get; set; }
-    [JsonPropertyName("ejecutado")] public bool Ejecutado { get; set; }
-    [JsonPropertyName("idAsiento")] public long? IdAsiento { get; set; }
-    [JsonPropertyName("fechaReverso")] public DateOnly FechaReverso { get; set; }
-    [JsonPropertyName("idAsientoReverso")] public long? IdAsientoReverso { get; set; }
-    [JsonPropertyName("documentos")] public List<DocumentoCorteAlbaranDTO> Documentos { get; set; } = new();
-    [JsonPropertyName("avisos")] public List<string> Avisos { get; set; } = new();
-}
-
 public sealed class CorteEntregaDTO
 {
     [JsonPropertyName("id")] public long? Id { get; set; }
