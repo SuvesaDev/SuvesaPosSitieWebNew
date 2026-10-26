@@ -1,4 +1,5 @@
 using EjecucionConciliacionDTO = SuvesaPosSitioAplicacion.DTOs.Generated.EjecucionConciliacionDTO;
+using ImportacionSaldosInicialesDTO = SuvesaPosSitioAplicacion.DTOs.Generated.ImportacionSaldosInicialesDTO;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 using SuvesaPosSitioAplicacion.DTOs.Contabilidad;
 using SuvesaPosSitioAplicacion.Helpers;
@@ -153,4 +154,44 @@ public sealed class Aprobaciones : ProxyBase, IAprobaciones
 
     public Task<ResponseGeneric<ComparativoNiifDTO>> ComparativoNiif(long idLibro, int ejercicio)
         => Ejecutar(async () => Traducir(await _api.ComparativoNiifAsync(idLibro, ejercicio)), "consultar el comparativo");
+
+    public Task<ResponseGeneric<ICollection<ImportacionSaldosInicialesDTO>>> SaldosIniciales(long idLibro)
+        => Ejecutar<ICollection<ImportacionSaldosInicialesDTO>>(async () => TraducirLista(await _api.SaldosInicialesAsync(idLibro)), "consultar las cargas de saldos iniciales");
+
+    public Task<ResponseGeneric<ImportacionSaldosInicialesDTO>> CargarSaldosIniciales(long idLibro, DateOnly fechaCorte, Stream contenido, string nombreArchivo)
+        => Ejecutar(async () => Traducir(await _api.CargarSaldosInicialesAsync(idLibro, fechaCorte, contenido, nombreArchivo)), "cargar los saldos iniciales");
+
+    public Task<ResponseGeneric<ImportacionSaldosInicialesDTO>> ObtenerSaldosIniciales(long idImportacion)
+        => Ejecutar(async () => Traducir(await _api.ObtenerSaldosInicialesAsync(idImportacion)), "consultar la carga de saldos iniciales");
+
+    public Task<ResponseGeneric<bool>> ConfirmarSaldosIniciales(long idImportacion, string? contrasena)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ConfirmarSaldosInicialesAsync(idImportacion, new ConfirmarSaldosInicialesDTO { Contrasena = contrasena });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses is not null);
+        }, "confirmar los saldos iniciales");
+
+    public Task<ResponseGeneric<bool>> RechazarSaldosIniciales(long idImportacion, string motivo)
+        => Ejecutar(async () => Traducir(await _api.RechazarSaldosInicialesAsync(idImportacion, new RechazarSaldosInicialesDTO { Motivo = motivo })), "rechazar los saldos iniciales");
+
+    public Task<ResponseGeneric<EjecucionConciliacionDTO>> CompararParalelo(long idLibro, DateOnly fechaCorte, Dictionary<string, decimal> saldosReferencia)
+        => Ejecutar(async () => Traducir(await _api.CompararParaleloAsync(new ParaleloComandoDTO { IdLibroContable = idLibro, FechaCorte = fechaCorte, SaldosReferencia = saldosReferencia })), "comparar contra el sistema legado");
+
+    public Task<ResponseGeneric<PuestaEnMarchaDTO>> PuestaEnMarcha(long idLibro)
+        => Ejecutar(async () => Traducir(await _api.PuestaEnMarchaAsync(idLibro)), "consultar la puesta en marcha");
+
+    public Task<ResponseGeneric<PuestaEnMarchaDTO>> IniciarSombra(long idLibro, int idSucursalPiloto)
+        => Ejecutar(async () => Traducir(await _api.IniciarSombraAsync(new IniciarSombraDTO { IdLibroContable = idLibro, IdSucursalPiloto = idSucursalPiloto })), "iniciar el modo sombra");
+
+    public Task<ResponseGeneric<PuestaEnMarchaDTO>> PasarAOficial(long idLibro, string? contrasena)
+        => Ejecutar(async () => Traducir(await _api.PasarAOficialAsync(new PasarAOficialDTO { IdLibroContable = idLibro, Contrasena = contrasena })), "pasar el libro a oficial");
+
+    public Task<ResponseGeneric<ICollection<CasoUatDTO>>> CasosUat(long idLibro)
+        => Ejecutar<ICollection<CasoUatDTO>>(async () => TraducirLista(await _api.CasosUatAsync(idLibro)), "consultar los casos de la UAT");
+
+    public Task<ResponseGeneric<CasoUatDTO>> ResultadoUat(long idCaso, string estado, string? comentario)
+        => Ejecutar(async () => Traducir(await _api.ResultadoUatAsync(idCaso, new RegistrarResultadoUatDTO { Estado = estado, Comentario = comentario })), "registrar el resultado del caso");
+
+    public Task<ResponseGeneric<FirmaUatDTO>> FirmarUat(long idLibro, string? comentario, string? contrasena)
+        => Ejecutar(async () => Traducir(await _api.FirmarUatAsync(new FirmarUatDTO { IdLibroContable = idLibro, Comentario = comentario, Contrasena = contrasena })), "firmar la UAT");
 }

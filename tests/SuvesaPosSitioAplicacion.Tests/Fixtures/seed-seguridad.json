@@ -1067,11 +1067,43 @@
           ]
         },
         {
+          "codigo": "CONTABILIDAD.SALDOS_INICIALES",
+          "nombre": "Saldos iniciales",
+          "ruta": "/accounting/opening-balances",
+          "padre": null,
+          "orden": 24,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CONTABILIDAD.PUESTA_EN_MARCHA",
+          "nombre": "Puesta en marcha",
+          "ruta": "/accounting/go-live",
+          "padre": null,
+          "orden": 25,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "CONTABILIDAD.BALANZA",
           "nombre": "Balanza",
           "ruta": "/accounting/trial-balance",
           "padre": null,
-          "orden": 24,
+          "orden": 26,
           "acciones": [
             "VER",
             "CREAR",
@@ -1087,7 +1119,7 @@
           "nombre": "Estado de resultados",
           "ruta": "/accounting/income-statement",
           "padre": null,
-          "orden": 25,
+          "orden": 27,
           "acciones": [
             "VER",
             "CREAR",
@@ -1103,7 +1135,7 @@
           "nombre": "Balance general",
           "ruta": "/accounting/balance-sheet",
           "padre": null,
-          "orden": 26,
+          "orden": 28,
           "acciones": [
             "VER",
             "CREAR",
@@ -1119,7 +1151,7 @@
           "nombre": "Flujo de efectivo",
           "ruta": "/accounting/cash-flow",
           "padre": null,
-          "orden": 27,
+          "orden": 29,
           "acciones": [
             "VER",
             "CREAR",
@@ -1135,7 +1167,7 @@
           "nombre": "Estados NIIF PYMES",
           "ruta": "/accounting/financial-statements",
           "padre": null,
-          "orden": 28,
+          "orden": 30,
           "acciones": [
             "VER",
             "CREAR",

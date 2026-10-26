@@ -58,6 +58,20 @@ public interface IAprobacionesApiCliente
     Task<SeguridadEnvelope<FlujoEfectivoIndirectoDTO>> FlujoIndirectoAsync(long idLibro, DateOnly desde, DateOnly hasta);
     Task<SeguridadEnvelope<EstadoCambiosPatrimonioDTO>> CambiosPatrimonioAsync(long idLibro, DateOnly desde, DateOnly hasta);
     Task<SeguridadEnvelope<ComparativoNiifDTO>> ComparativoNiifAsync(long idLibro, int ejercicio);
+
+    Task<SeguridadEnvelope<List<ImportacionSaldosInicialesDTO>>> SaldosInicialesAsync(long idLibro);
+    Task<SeguridadEnvelope<ImportacionSaldosInicialesDTO>> CargarSaldosInicialesAsync(long idLibro, DateOnly fechaCorte, Stream contenido, string nombreArchivo);
+    Task<SeguridadEnvelope<ImportacionSaldosInicialesDTO>> ObtenerSaldosInicialesAsync(long idImportacion);
+    Task<SeguridadEnvelope<AsientoContableDTO>> ConfirmarSaldosInicialesAsync(long idImportacion, ConfirmarSaldosInicialesDTO dto);
+    Task<SeguridadEnvelope<bool>> RechazarSaldosInicialesAsync(long idImportacion, RechazarSaldosInicialesDTO dto);
+    Task<SeguridadEnvelope<EjecucionConciliacionDTO>> CompararParaleloAsync(ParaleloComandoDTO dto);
+
+    Task<SeguridadEnvelope<PuestaEnMarchaDTO>> PuestaEnMarchaAsync(long idLibro);
+    Task<SeguridadEnvelope<PuestaEnMarchaDTO>> IniciarSombraAsync(IniciarSombraDTO dto);
+    Task<SeguridadEnvelope<PuestaEnMarchaDTO>> PasarAOficialAsync(PasarAOficialDTO dto);
+    Task<SeguridadEnvelope<List<CasoUatDTO>>> CasosUatAsync(long idLibro);
+    Task<SeguridadEnvelope<CasoUatDTO>> ResultadoUatAsync(long idCaso, RegistrarResultadoUatDTO dto);
+    Task<SeguridadEnvelope<FirmaUatDTO>> FirmarUatAsync(FirmarUatDTO dto);
 }
 
 public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
@@ -91,6 +105,29 @@ public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
     }
 
     private static string Fecha(DateOnly f) => f.ToString("yyyy-MM-dd");
+
+    /// <summary>Envía un archivo como formulario multipart (la carga de saldos iniciales).</summary>
+    private async Task<SeguridadEnvelope<T>> EnviarArchivoAsync<T>(string ruta, Stream contenido, string nombreArchivo)
+    {
+        using var formulario = new MultipartFormDataContent();
+        var archivo = new StreamContent(contenido);
+        archivo.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        formulario.Add(archivo, "archivo", nombreArchivo);
+        using var req = new HttpRequestMessage(HttpMethod.Post, Base + ruta) { Content = formulario };
+        using var resp = await _http.SendAsync(req);
+        var texto = await resp.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(texto))
+            return new SeguridadEnvelope<T> { Status = ResponseStatus._1, CurrentException = $"El API respondio {(int)resp.StatusCode} sin cuerpo." };
+        try
+        {
+            return JsonSerializer.Deserialize<SeguridadEnvelope<T>>(texto, Json)
+                   ?? new SeguridadEnvelope<T> { Status = ResponseStatus._1, CurrentException = "Respuesta vacia." };
+        }
+        catch (JsonException)
+        {
+            return new SeguridadEnvelope<T> { Status = ResponseStatus._1, CurrentException = $"Respuesta no reconocida del API ({(int)resp.StatusCode})." };
+        }
+    }
 
     public Task<SeguridadEnvelope<ConfiguracionAprobacionDTO>> ConfiguracionAsync(long idLibro)
         => EnviarAsync<ConfiguracionAprobacionDTO>(HttpMethod.Get, $"aprobaciones/configuracion?idLibroContable={idLibro}");
@@ -224,4 +261,40 @@ public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
 
     public Task<SeguridadEnvelope<ComparativoNiifDTO>> ComparativoNiifAsync(long idLibro, int ejercicio)
         => EnviarAsync<ComparativoNiifDTO>(HttpMethod.Get, $"estados-niif/comparativo?idLibroContable={idLibro}&ejercicio={ejercicio}");
+
+    public Task<SeguridadEnvelope<List<ImportacionSaldosInicialesDTO>>> SaldosInicialesAsync(long idLibro)
+        => EnviarAsync<List<ImportacionSaldosInicialesDTO>>(HttpMethod.Get, $"dia-cero/saldos-iniciales?idLibroContable={idLibro}");
+
+    public Task<SeguridadEnvelope<ImportacionSaldosInicialesDTO>> CargarSaldosInicialesAsync(long idLibro, DateOnly fechaCorte, Stream contenido, string nombreArchivo)
+        => EnviarArchivoAsync<ImportacionSaldosInicialesDTO>($"dia-cero/saldos-iniciales?idLibroContable={idLibro}&fechaCorte={Fecha(fechaCorte)}", contenido, nombreArchivo);
+
+    public Task<SeguridadEnvelope<ImportacionSaldosInicialesDTO>> ObtenerSaldosInicialesAsync(long idImportacion)
+        => EnviarAsync<ImportacionSaldosInicialesDTO>(HttpMethod.Get, $"dia-cero/saldos-iniciales/{idImportacion}");
+
+    public Task<SeguridadEnvelope<AsientoContableDTO>> ConfirmarSaldosInicialesAsync(long idImportacion, ConfirmarSaldosInicialesDTO dto)
+        => EnviarAsync<AsientoContableDTO>(HttpMethod.Post, $"dia-cero/saldos-iniciales/{idImportacion}/confirmar", dto);
+
+    public Task<SeguridadEnvelope<bool>> RechazarSaldosInicialesAsync(long idImportacion, RechazarSaldosInicialesDTO dto)
+        => EnviarAsync<bool>(HttpMethod.Post, $"dia-cero/saldos-iniciales/{idImportacion}/rechazar", dto);
+
+    public Task<SeguridadEnvelope<EjecucionConciliacionDTO>> CompararParaleloAsync(ParaleloComandoDTO dto)
+        => EnviarAsync<EjecucionConciliacionDTO>(HttpMethod.Post, "dia-cero/paralelo", dto);
+
+    public Task<SeguridadEnvelope<PuestaEnMarchaDTO>> PuestaEnMarchaAsync(long idLibro)
+        => EnviarAsync<PuestaEnMarchaDTO>(HttpMethod.Get, $"puesta-en-marcha?idLibroContable={idLibro}");
+
+    public Task<SeguridadEnvelope<PuestaEnMarchaDTO>> IniciarSombraAsync(IniciarSombraDTO dto)
+        => EnviarAsync<PuestaEnMarchaDTO>(HttpMethod.Post, "puesta-en-marcha/sombra", dto);
+
+    public Task<SeguridadEnvelope<PuestaEnMarchaDTO>> PasarAOficialAsync(PasarAOficialDTO dto)
+        => EnviarAsync<PuestaEnMarchaDTO>(HttpMethod.Post, "puesta-en-marcha/oficial", dto);
+
+    public Task<SeguridadEnvelope<List<CasoUatDTO>>> CasosUatAsync(long idLibro)
+        => EnviarAsync<List<CasoUatDTO>>(HttpMethod.Get, $"puesta-en-marcha/uat?idLibroContable={idLibro}");
+
+    public Task<SeguridadEnvelope<CasoUatDTO>> ResultadoUatAsync(long idCaso, RegistrarResultadoUatDTO dto)
+        => EnviarAsync<CasoUatDTO>(HttpMethod.Post, $"puesta-en-marcha/uat/{idCaso}/resultado", dto);
+
+    public Task<SeguridadEnvelope<FirmaUatDTO>> FirmarUatAsync(FirmarUatDTO dto)
+        => EnviarAsync<FirmaUatDTO>(HttpMethod.Post, "puesta-en-marcha/uat/firmar", dto);
 }

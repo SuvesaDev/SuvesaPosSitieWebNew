@@ -1030,6 +1030,18 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Saldos iniciales",
+                    Codigo = "CONTABILIDAD.SALDOS_INICIALES",
+                    Ruta = "/accounting/opening-balances",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Puesta en marcha",
+                    Codigo = "CONTABILIDAD.PUESTA_EN_MARCHA",
+                    Ruta = "/accounting/go-live",
+                },
+                new ItemMenu
+                {
                     Titulo = "Balanza",
                     Codigo = "CONTABILIDAD.BALANZA",
                     Ruta = "/accounting/trial-balance",

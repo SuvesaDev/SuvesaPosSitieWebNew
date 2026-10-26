@@ -13128,6 +13128,12 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("totalErrores")]
         public int TotalErrores { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("totalTerceros")]
+        public int TotalTerceros { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("avisos")]
+        public System.Collections.Generic.ICollection<string>? Avisos { get; set; } = default!;
+
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -13312,6 +13318,12 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("descripcion")]
         public string? Descripcion { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoTercero")]
+        public string? TipoTercero { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idTercero")]
+        public long? IdTercero { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("error")]
         public string? Error { get; set; } = default!;

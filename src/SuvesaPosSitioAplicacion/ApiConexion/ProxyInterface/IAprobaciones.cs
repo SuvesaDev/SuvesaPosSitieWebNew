@@ -1,4 +1,5 @@
 using EjecucionConciliacionDTO = SuvesaPosSitioAplicacion.DTOs.Generated.EjecucionConciliacionDTO;
+using ImportacionSaldosInicialesDTO = SuvesaPosSitioAplicacion.DTOs.Generated.ImportacionSaldosInicialesDTO;
 using SuvesaPosSitioAplicacion.DTOs.Contabilidad;
 using SuvesaPosSitioAplicacion.Helpers;
 
@@ -54,4 +55,16 @@ public interface IAprobaciones
     Task<ResponseGeneric<FlujoEfectivoIndirectoDTO>> FlujoIndirecto(long idLibro, DateOnly desde, DateOnly hasta);
     Task<ResponseGeneric<EstadoCambiosPatrimonioDTO>> CambiosPatrimonio(long idLibro, DateOnly desde, DateOnly hasta);
     Task<ResponseGeneric<ComparativoNiifDTO>> ComparativoNiif(long idLibro, int ejercicio);
+    Task<ResponseGeneric<ICollection<ImportacionSaldosInicialesDTO>>> SaldosIniciales(long idLibro);
+    Task<ResponseGeneric<ImportacionSaldosInicialesDTO>> CargarSaldosIniciales(long idLibro, DateOnly fechaCorte, Stream contenido, string nombreArchivo);
+    Task<ResponseGeneric<ImportacionSaldosInicialesDTO>> ObtenerSaldosIniciales(long idImportacion);
+    Task<ResponseGeneric<bool>> ConfirmarSaldosIniciales(long idImportacion, string? contrasena);
+    Task<ResponseGeneric<bool>> RechazarSaldosIniciales(long idImportacion, string motivo);
+    Task<ResponseGeneric<EjecucionConciliacionDTO>> CompararParalelo(long idLibro, DateOnly fechaCorte, Dictionary<string, decimal> saldosReferencia);
+    Task<ResponseGeneric<PuestaEnMarchaDTO>> PuestaEnMarcha(long idLibro);
+    Task<ResponseGeneric<PuestaEnMarchaDTO>> IniciarSombra(long idLibro, int idSucursalPiloto);
+    Task<ResponseGeneric<PuestaEnMarchaDTO>> PasarAOficial(long idLibro, string? contrasena);
+    Task<ResponseGeneric<ICollection<CasoUatDTO>>> CasosUat(long idLibro);
+    Task<ResponseGeneric<CasoUatDTO>> ResultadoUat(long idCaso, string estado, string? comentario);
+    Task<ResponseGeneric<FirmaUatDTO>> FirmarUat(long idLibro, string? comentario, string? contrasena);
 }

@@ -1,0 +1,274 @@
+@page "/accounting/opening-balances"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@using System.Globalization
+@inject IAprobaciones Aprobaciones
+@inject IContabilidad Contabilidad
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* F12 · Día Cero: saldos iniciales por cuenta y, para cuentas por cobrar y por pagar, por cliente y proveedor. El archivo se carga como borrador, se revisa
+   (errores, terceros, diferencias contra el auxiliar legado) y se confirma con la contraseña. Después se compara la balanza contra la del sistema legado. *@
+
+<AppPantalla Pantalla="Saldos iniciales" Codigo="CONTABILIDAD.SALDOS_INICIALES" Icono="bi-box-arrow-in-down" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <AppSelectorLibroContable Prefijo="si" AlCambiarLibro="AlCambiarLibro" />
+                @if (_idLibro > 0)
+                {
+                    <div class="row g-3 mt-1 align-items-end">
+                        <div class="col-12 col-md-3">
+                            <label class="form-label" for="si-corte">Fecha de corte</label>
+                            <input id="si-corte" type="date" class="form-control" @bind="_fechaCorte" />
+                        </div>
+                        <div class="col-12 col-md-5">
+                            <label class="form-label" for="si-archivo">Archivo (CSV o Excel)</label>
+                            <InputFile id="si-archivo" class="form-control" accept=".csv,.xlsx" OnChange="ElegirArchivo" />
+                            <div class="form-text">Columnas: Codigo, Debito, Credito, Descripcion y, para el saldo de un cliente o proveedor, TipoTercero (Cliente o Proveedor) e IdTercero.</div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <button class="btn btn-primary w-100" disabled="@(_archivo is null || _procesando)" @onclick="Cargar">Cargar borrador</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (_idLibro > 0)
+        {
+            <div class="card mb-3">
+                <div class="card-header">Cargas de saldos iniciales</div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>#</th><th>Corte</th><th>Archivo</th><th>Estado</th><th class="text-end">Terceros</th><th class="text-end">Débito</th><th class="text-end">Crédito</th><th class="text-end">Errores</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var i in _cargas)
+                        {
+                            <tr>
+                                <td>@i.Id</td><td>@i.FechaCorte.ToString("yyyy-MM-dd")</td><td>@i.NombreArchivo</td>
+                                <td><span class="badge @ClaseEstado(i.Estado)">@i.Estado</span></td>
+                                <td class="text-end">@i.TotalTerceros</td><td class="text-end">@i.TotalDebito.ToString("N2")</td><td class="text-end">@i.TotalCredito.ToString("N2")</td><td class="text-end">@i.TotalErrores</td>
+                                <td><button class="btn btn-sm btn-link p-0" @onclick="() => Ver(i.Id)">Ver</button></td>
+                            </tr>
+                        }
+                        @if (_cargas.Count == 0) { <tr><td colspan="9" class="text-secondary">Todavía no hay cargas.</td></tr> }
+                    </tbody>
+                </table></div>
+            </div>
+        }
+
+        @if (_actual is not null)
+        {
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Carga #@_actual.Id — @_actual.NombreArchivo</span>
+                    <span class="badge @ClaseEstado(_actual.Estado)">@_actual.Estado</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2 mb-2">
+                        <div class="col-6 col-md-3"><strong>Débito:</strong> @_actual.TotalDebito.ToString("N2")</div>
+                        <div class="col-6 col-md-3"><strong>Crédito:</strong> @_actual.TotalCredito.ToString("N2")</div>
+                        <div class="col-6 col-md-3"><strong>Cuadra:</strong> @(Cuadra ? "Sí" : "No")</div>
+                        <div class="col-6 col-md-3"><strong>Terceros:</strong> @_actual.TotalTerceros</div>
+                    </div>
+                    @foreach (var aviso in _actual.Avisos ?? new List<string>())
+                    {
+                        <div class="alert alert-secondary small py-1 mb-1" role="alert">@aviso</div>
+                    }
+                    @if (_actual.TotalErrores > 0)
+                    {
+                        <div class="alert alert-danger small py-1 mb-1" role="alert">@_actual.TotalErrores fila(s) con error: corríjalas en el archivo y vuelva a cargarlo.</div>
+                    }
+                    @if (_actual.Estado == "Borrador")
+                    {
+                        <div class="d-flex gap-2 mt-2">
+                            <button class="btn btn-primary" disabled="@(_actual.TotalErrores > 0 || !Cuadra || _procesando)" @onclick="Confirmar">Confirmar saldos iniciales</button>
+                            <button class="btn btn-outline-danger" disabled="@_procesando" @onclick="PedirRechazo">Rechazar</button>
+                        </div>
+                    }
+                </div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Fila</th><th>Cuenta</th><th class="text-end">Débito</th><th class="text-end">Crédito</th><th>Tercero</th><th>Descripción</th><th>Error</th></tr></thead>
+                    <tbody>
+                        @foreach (var l in (_actual.Lineas ?? new List<LineaImportacionSaldosInicialesDTO>()).Take(300))
+                        {
+                            <tr class="@(l.Error is null ? "" : "table-danger")">
+                                <td>@l.NumeroFila</td><td class="font-monospace">@l.CodigoCuenta</td>
+                                <td class="text-end">@l.Debito.ToString("N2")</td><td class="text-end">@l.Credito.ToString("N2")</td>
+                                <td>@(l.TipoTercero is null ? "" : $"{l.TipoTercero} {l.IdTercero}")</td><td>@l.Descripcion</td><td class="text-danger">@l.Error</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table></div>
+                @if ((_actual.Lineas?.Count ?? 0) > 300) { <div class="small text-secondary px-3 py-2">Se muestran las primeras 300 filas de @_actual.Lineas!.Count.</div> }
+            </div>
+        }
+
+        @if (_idLibro > 0)
+        {
+            <div class="card mb-3">
+                <div class="card-header">Comparar contra el sistema legado (paralelo)</div>
+                <div class="card-body">
+                    <p class="small text-secondary">Pegue la balanza del sistema legado al corte, una cuenta por línea: <span class="font-monospace">Codigo,Saldo</span> (saldo en el sentido natural de la cuenta).</p>
+                    <textarea class="form-control font-monospace mb-2" rows="5" @bind="_textoParalelo" placeholder="1.1.2.1,500000&#10;2.1.1.1,400000"></textarea>
+                    <button class="btn btn-outline-primary" disabled="@(_procesando || string.IsNullOrWhiteSpace(_textoParalelo))" @onclick="Comparar">Comparar</button>
+                    @if (_paralelo is not null)
+                    {
+                        <div class="table-responsive mt-3"><table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Cuenta</th><th class="text-end">Legado</th><th class="text-end">Motor</th><th class="text-end">Diferencia</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach (var d in _paralelo.Diferencias ?? new List<DiferenciaConciliacionDTO>())
+                                {
+                                    <tr>
+                                        <td class="font-monospace">@d.CodigoCuenta</td><td class="text-end">@d.SaldoLegado.ToString("N2")</td><td class="text-end">@d.SaldoMotor.ToString("N2")</td><td class="text-end text-danger">@d.Diferencia.ToString("N2")</td>
+                                        <td>@if (d.Resuelta == true) { <span class="badge text-bg-success">Aceptada</span> } else { <button class="btn btn-sm btn-link p-0" @onclick="() => PedirAceptacion(d)">Aceptar con motivo</button> }</td>
+                                    </tr>
+                                }
+                                @if ((_paralelo.Diferencias?.Count ?? 0) == 0) { <tr><td colspan="5" class="text-secondary">La balanza coincide con la del sistema legado.</td></tr> }
+                            </tbody>
+                        </table></div>
+                    }
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modalMotivo" Titulo="@_tituloMotivo" AlGuardar="ConfirmarMotivo" Guardando="_procesando" PuedeGuardar="!string.IsNullOrWhiteSpace(_motivo)">
+    <div class="mb-2">
+        <label class="form-label" for="si-motivo">Motivo</label>
+        <textarea id="si-motivo" class="form-control" rows="3" @bind="_motivo"></textarea>
+    </div>
+</AppModal>
+
+<AppConfirmarClaveContabilidad @ref="_confirmarClave" />
+
+@code {
+    private long _idLibro;
+    private DateOnly _fechaCorte = DateOnly.FromDateTime(DateTime.Today);
+    private Microsoft.AspNetCore.Components.Forms.IBrowserFile? _archivo;
+    private bool _procesando;
+    private List<ImportacionSaldosInicialesDTO> _cargas = new();
+    private ImportacionSaldosInicialesDTO? _actual;
+    private string _textoParalelo = "";
+    private EjecucionConciliacionDTO? _paralelo;
+    private AppModal _modalMotivo = default!;
+    private AppConfirmarClaveContabilidad _confirmarClave = default!;
+    private string _motivo = "", _tituloMotivo = "";
+    private string _accionMotivo = "";
+    private DiferenciaConciliacionDTO? _diferencia;
+
+    private bool Cuadra => _actual is not null && Math.Abs(_actual.TotalDebito - _actual.TotalCredito) <= 0.01;
+
+    private static string ClaseEstado(string? estado) => estado switch
+    {
+        "Confirmado" => "text-bg-success",
+        "Rechazado" => "text-bg-secondary",
+        _ => "text-bg-warning",
+    };
+
+    private async Task AlCambiarLibro(long idLibro)
+    {
+        _idLibro = idLibro;
+        _actual = null; _paralelo = null; _archivo = null;
+        await CargarLista();
+    }
+
+    private async Task CargarLista()
+        => _cargas = _idLibro == 0 ? new() : (await Respuestas.DatoAsync(await Aprobaciones.SaldosIniciales(_idLibro), "consultar las cargas de saldos iniciales"))?.ToList() ?? new();
+
+    private void ElegirArchivo(Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs evento) => _archivo = evento.File;
+
+    private async Task Cargar()
+    {
+        if (_archivo is null) return;
+        _procesando = true;
+        try
+        {
+            await using var flujo = _archivo.OpenReadStream(10 * 1024 * 1024);
+            _actual = await Respuestas.DatoAsync(await Aprobaciones.CargarSaldosIniciales(_idLibro, _fechaCorte, flujo, _archivo.Name), "cargar los saldos iniciales");
+        }
+        finally { _procesando = false; }
+        await CargarLista();
+    }
+
+    private async Task Ver(long id)
+        => _actual = await Respuestas.DatoAsync(await Aprobaciones.ObtenerSaldosIniciales(id), "consultar la carga de saldos iniciales");
+
+    private async Task Confirmar()
+    {
+        if (_actual is null) return;
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Confirmar los saldos iniciales al {_actual.FechaCorte:yyyy-MM-dd}? Se publica una póliza y no se puede repetir.", "Confirmar saldos iniciales"))
+            return;
+        var clave = await _confirmarClave.MostrarAsync();
+        if (clave is null) return;
+        _procesando = true;
+        var respuesta = await Aprobaciones.ConfirmarSaldosIniciales(_actual.Id, clave);
+        _procesando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "confirmar los saldos iniciales")) return;
+        Dialogos.Exito("Saldos iniciales confirmados.");
+        await Ver(_actual.Id);
+        await CargarLista();
+    }
+
+    private async Task PedirRechazo()
+    {
+        _accionMotivo = "rechazar"; _tituloMotivo = "Rechazar la carga"; _motivo = "";
+        await _modalMotivo.MostrarAsync();
+    }
+
+    private async Task PedirAceptacion(DiferenciaConciliacionDTO diferencia)
+    {
+        _diferencia = diferencia; _accionMotivo = "aceptar"; _tituloMotivo = "Aceptar la diferencia"; _motivo = "";
+        await _modalMotivo.MostrarAsync();
+    }
+
+    private async Task ConfirmarMotivo()
+    {
+        if (string.IsNullOrWhiteSpace(_motivo)) return;
+        if (_accionMotivo == "rechazar" && _actual is not null)
+        {
+            _procesando = true;
+            var respuesta = await Aprobaciones.RechazarSaldosIniciales(_actual.Id, _motivo.Trim());
+            _procesando = false;
+            if (!await Respuestas.CorrectaAsync(respuesta, "rechazar la carga")) return;
+            await _modalMotivo.OcultarAsync();
+            await Ver(_actual.Id);
+            await CargarLista();
+        }
+        else if (_accionMotivo == "aceptar" && _diferencia is not null)
+        {
+            var clave = await _confirmarClave.MostrarAsync();
+            if (clave is null) return;
+            _procesando = true;
+            var respuesta = await Contabilidad.ResolverDiferencia(_diferencia.Id, _motivo.Trim(), clave);
+            _procesando = false;
+            if (!await Respuestas.CorrectaAsync(respuesta, "aceptar la diferencia")) return;
+            _diferencia.Resuelta = true;
+            _diferencia.Motivo = _motivo.Trim();
+            await _modalMotivo.OcultarAsync();
+        }
+    }
+
+    private async Task Comparar()
+    {
+        var saldos = new Dictionary<string, decimal>();
+        foreach (var linea in _textoParalelo.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var partes = linea.Split(linea.Contains(';') ? ';' : ',', StringSplitOptions.TrimEntries);
+            if (partes.Length < 2 || partes[0].Equals("codigo", StringComparison.OrdinalIgnoreCase)) continue;
+            if (!decimal.TryParse(partes[1], NumberStyles.Any, CultureInfo.InvariantCulture, out var saldo))
+            {
+                await Dialogos.ErrorAsync($"La línea «{linea}» no tiene un saldo numérico.");
+                return;
+            }
+            saldos[partes[0]] = saldo;
+        }
+        if (saldos.Count == 0) { await Dialogos.ErrorAsync("No hay cuentas para comparar."); return; }
+        _procesando = true;
+        _paralelo = await Respuestas.DatoAsync(await Aprobaciones.CompararParalelo(_idLibro, _fechaCorte, saldos), "comparar contra el sistema legado");
+        _procesando = false;
+    }
+}

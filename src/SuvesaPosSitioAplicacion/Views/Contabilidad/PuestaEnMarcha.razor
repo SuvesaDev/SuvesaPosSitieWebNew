@@ -1,0 +1,226 @@
+@page "/accounting/go-live"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Contabilidad
+@using SuvesaPosSitioAplicacion.Services
+@inject IAprobaciones Aprobaciones
+@inject ISucursales SucursalesApi
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* F12 · Puesta en marcha: el libro corre en modo sombra en una sucursal piloto, en paralelo con el sistema legado. Pasa a oficial cuando se cumplen las puertas de
+   salida: saldos iniciales confirmados, paralelo sin diferencias, un cierre ensayado, el mayor conciliado y la UAT firmada. *@
+
+<AppPantalla Pantalla="Puesta en marcha" Codigo="CONTABILIDAD.PUESTA_EN_MARCHA" Icono="bi-rocket-takeoff" Nivel="NivelPantalla.Tableta">
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-body">
+                <AppSelectorLibroContable Prefijo="pm" AlCambiarLibro="AlCambiarLibro" />
+            </div>
+        </div>
+
+        @if (_estado is not null)
+        {
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Estado del libro</span>
+                    <span class="badge @(_estado.Modo == "Sombra" ? "text-bg-warning" : "text-bg-success")">@(_estado.Modo == "Sombra" ? "Modo sombra" : "Oficial")</span>
+                </div>
+                <div class="card-body">
+                    @if (_estado.Modo == "Sombra")
+                    {
+                        <p class="mb-2">Sucursal piloto: <strong>@NombreSucursal(_estado.IdSucursalPiloto)</strong>. Mientras el libro está en sombra no se bloquean períodos, no se cierra el año y los estados llevan la marca de modo sombra.</p>
+                    }
+                    else if (_estado.FechaPaseOficialUtc is not null)
+                    {
+                        <p class="mb-2">Oficial desde @_estado.FechaPaseOficialUtc.Value.ToString("yyyy-MM-dd") (@_estado.UsuarioPaseOficial).</p>
+                    }
+                    else
+                    {
+                        <p class="mb-2">El libro opera como oficial. Para ensayar la puesta en marcha en paralelo con el sistema legado, inicie el modo sombra en una sucursal piloto.</p>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-md-5">
+                                <label class="form-label" for="pm-piloto">Sucursal piloto</label>
+                                <select id="pm-piloto" class="form-select" @bind="_idPiloto">
+                                    <option value="0">Seleccione...</option>
+                                    @foreach (var s in _sucursales) { <option value="@s.Id">@(s.NombreComercial ?? s.Alias ?? s.Id.ToString())</option> }
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-3"><button class="btn btn-warning w-100" disabled="@(_idPiloto == 0 || _procesando)" @onclick="IniciarSombra">Iniciar modo sombra</button></div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (_estado.Modo == "Sombra")
+            {
+                <div class="card mb-3">
+                    <div class="card-header">Puertas de salida</div>
+                    <ul class="list-group list-group-flush">
+                        @foreach (var p in _estado.Puertas)
+                        {
+                            <li class="list-group-item d-flex align-items-start gap-2">
+                                <i class="bi @(p.Cumplida ? "bi-check-circle-fill text-success" : "bi-x-circle-fill text-danger") mt-1" aria-hidden="true"></i>
+                                <div><strong>@p.Descripcion</strong><div class="small text-secondary">@p.Detalle</div></div>
+                            </li>
+                        }
+                    </ul>
+                    <div class="card-body">
+                        <button class="btn btn-success" disabled="@(!_estado.PuedePasarAOficial || _procesando)" @onclick="PasarAOficial">Pasar a oficial</button>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>UAT: @_estado.CasosAprobados de @_estado.CasosUat aprobados@(_estado.CasosRechazados > 0 ? $", {_estado.CasosRechazados} rechazados" : "")</span>
+                        @if (_estado.Firma is { Vigente: true }) { <span class="badge text-bg-success">Firmada por @_estado.Firma.FirmadoPor</span> }
+                        else { <button class="btn btn-sm btn-primary" disabled="@(_estado.CasosAprobados != _estado.CasosUat || _procesando)" @onclick="PedirFirma">Firmar UAT</button> }
+                    </div>
+                    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Área</th><th>Caso</th><th>Descripción</th><th>Estado</th><th>Comentario</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var c in _casos)
+                            {
+                                <tr>
+                                    <td>@c.Area</td><td class="font-monospace small">@c.Codigo</td><td>@c.Descripcion</td>
+                                    <td><span class="badge @ClaseCaso(c.Estado)">@c.Estado</span></td>
+                                    <td class="small">@c.Comentario</td>
+                                    <td class="text-nowrap">
+                                        <button class="btn btn-sm btn-outline-success" title="Aprobar" disabled="@_procesando" @onclick='() => Resultado(c, "Aprobado", null)'><i class="bi bi-check-lg" aria-hidden="true"></i></button>
+                                        <button class="btn btn-sm btn-outline-danger" title="Rechazar" disabled="@_procesando" @onclick="() => PedirRechazo(c)"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                                        <button class="btn btn-sm btn-outline-secondary" title="Volver a pendiente" disabled="@_procesando" @onclick='() => Resultado(c, "Pendiente", null)'><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table></div>
+                </div>
+            }
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modalTexto" Titulo="@_tituloTexto" AlGuardar="ConfirmarTexto" Guardando="_procesando" PuedeGuardar="@(_obligatorio ? !string.IsNullOrWhiteSpace(_texto) : true)">
+    <div class="mb-2">
+        <label class="form-label" for="pm-texto">Comentario</label>
+        <textarea id="pm-texto" class="form-control" rows="3" @bind="_texto"></textarea>
+    </div>
+</AppModal>
+
+<AppConfirmarClaveContabilidad @ref="_confirmarClave" />
+
+@code {
+    private long _idLibro;
+    private PuestaEnMarchaDTO? _estado;
+    private List<CasoUatDTO> _casos = new();
+    private List<DTOs.Fiscal.SucursalFiscalDTO> _sucursales = new();
+    private int _idPiloto;
+    private bool _procesando;
+    private AppModal _modalTexto = default!;
+    private AppConfirmarClaveContabilidad _confirmarClave = default!;
+    private string _texto = "", _tituloTexto = "", _accionTexto = "";
+    private bool _obligatorio;
+    private CasoUatDTO? _casoEnRechazo;
+
+    protected override async Task OnInitializedAsync()
+        => _sucursales = (await Respuestas.DatoAsync(await SucursalesApi.Obtener(), "consultar las sucursales"))?.ToList() ?? new();
+
+    private string NombreSucursal(int? id)
+    {
+        var s = _sucursales.FirstOrDefault(x => x.Id == id);
+        return s is null ? (id?.ToString() ?? "—") : (s.NombreComercial ?? s.Alias ?? s.Id.ToString());
+    }
+
+    private static string ClaseCaso(string estado) => estado switch
+    {
+        "Aprobado" => "text-bg-success",
+        "Rechazado" => "text-bg-danger",
+        _ => "text-bg-secondary",
+    };
+
+    private async Task AlCambiarLibro(long idLibro)
+    {
+        _idLibro = idLibro;
+        _estado = null;
+        _casos = new();
+        await Recargar();
+    }
+
+    private async Task Recargar()
+    {
+        if (_idLibro == 0) return;
+        _estado = await Respuestas.DatoAsync(await Aprobaciones.PuestaEnMarcha(_idLibro), "consultar la puesta en marcha");
+        _casos = _estado?.Modo == "Sombra" || (_estado?.CasosUat ?? 0) > 0
+            ? (await Respuestas.DatoAsync(await Aprobaciones.CasosUat(_idLibro), "consultar los casos de la UAT"))?.ToList() ?? new()
+            : new();
+    }
+
+    private async Task IniciarSombra()
+    {
+        if (!await Dialogos.ConfirmarPeligroAsync("¿Iniciar el modo sombra? El libro deja de bloquear períodos y de cerrar el año hasta que pase a oficial.", "Iniciar modo sombra"))
+            return;
+        _procesando = true;
+        var respuesta = await Aprobaciones.IniciarSombra(_idLibro, _idPiloto);
+        _procesando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "iniciar el modo sombra")) return;
+        Dialogos.Exito("Modo sombra iniciado.");
+        await Recargar();
+    }
+
+    private async Task Resultado(CasoUatDTO caso, string estado, string? comentario)
+    {
+        _procesando = true;
+        var respuesta = await Aprobaciones.ResultadoUat(caso.Id, estado, comentario);
+        _procesando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "registrar el resultado del caso")) return;
+        await Recargar();
+    }
+
+    private async Task PedirRechazo(CasoUatDTO caso)
+    {
+        _casoEnRechazo = caso; _accionTexto = "rechazo"; _tituloTexto = $"Rechazar {caso.Codigo}"; _texto = ""; _obligatorio = true;
+        await _modalTexto.MostrarAsync();
+    }
+
+    private async Task PedirFirma()
+    {
+        _accionTexto = "firma"; _tituloTexto = "Firmar la UAT"; _texto = ""; _obligatorio = false;
+        await _modalTexto.MostrarAsync();
+    }
+
+    private async Task ConfirmarTexto()
+    {
+        if (_obligatorio && string.IsNullOrWhiteSpace(_texto)) return;
+        if (_accionTexto == "rechazo" && _casoEnRechazo is not null)
+        {
+            await Resultado(_casoEnRechazo, "Rechazado", _texto.Trim());
+            await _modalTexto.OcultarAsync();
+        }
+        else if (_accionTexto == "firma")
+        {
+            var clave = await _confirmarClave.MostrarAsync();
+            if (clave is null) return;
+            _procesando = true;
+            var respuesta = await Aprobaciones.FirmarUat(_idLibro, string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim(), clave);
+            _procesando = false;
+            if (!await Respuestas.CorrectaAsync(respuesta, "firmar la UAT")) return;
+            Dialogos.Exito("UAT firmada.");
+            await _modalTexto.OcultarAsync();
+            await Recargar();
+        }
+    }
+
+    private async Task PasarAOficial()
+    {
+        if (!await Dialogos.ConfirmarPeligroAsync("¿Pasar el libro a oficial? Ya no vuelve a modo sombra y desde ese momento se pueden bloquear períodos y cerrar el año.", "Pasar a oficial"))
+            return;
+        var clave = await _confirmarClave.MostrarAsync();
+        if (clave is null) return;
+        _procesando = true;
+        var respuesta = await Aprobaciones.PasarAOficial(_idLibro, clave);
+        _procesando = false;
+        if (!await Respuestas.CorrectaAsync(respuesta, "pasar el libro a oficial")) return;
+        Dialogos.Exito("El libro ya es oficial.");
+        await Recargar();
+    }
+}
