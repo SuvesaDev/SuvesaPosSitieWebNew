@@ -46,6 +46,7 @@ public sealed class CasoUatDTO
     [JsonPropertyName("comentario")] public string? Comentario { get; set; }
     [JsonPropertyName("usuario")] public string? Usuario { get; set; }
     [JsonPropertyName("fechaResultadoUtc")] public DateTime? FechaResultadoUtc { get; set; }
+    [JsonPropertyName("evidencias")] public int Evidencias { get; set; }
 }
 
 public sealed class IniciarSombraDTO

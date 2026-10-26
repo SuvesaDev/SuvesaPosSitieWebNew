@@ -619,6 +619,33 @@ app.MapGet("/reportes/evidencia-cierre/{idEvidencia:long}", async (
     }
 });
 
+// F12 — descarga del soporte de un caso de la UAT; mismo patrón BFF que la evidencia de cierre.
+app.MapGet("/reportes/evidencia-uat/{idEvidencia:long}", async (
+    long idEvidencia,
+    IHttpClientFactory factory,
+    IContextoSesion sesion) =>
+{
+    await sesion.CargarAsync();
+    ContextoLlamada.Token = sesion.Token;
+    try
+    {
+        var http = factory.CreateClient("SeePosApi");
+        var resp = await http.GetAsync($"api/contabilidad/puesta-en-marcha/uat/evidencias/{idEvidencia}/archivo");
+        if (!resp.IsSuccessStatusCode) return Results.NotFound();
+        var bytes = await resp.Content.ReadAsByteArrayAsync();
+        if (bytes.Length == 0) return Results.NotFound();
+        var mime = resp.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
+        var nombre = resp.Content.Headers.ContentDisposition?.FileNameStar
+            ?? resp.Content.Headers.ContentDisposition?.FileName
+            ?? $"soporte-{idEvidencia}";
+        return Results.File(bytes, mime, nombre.Trim('"'));
+    }
+    finally
+    {
+        ContextoLlamada.Token = null;
+    }
+});
+
 app.MapGet("/healthz", () => Results.Ok(new { estado = "ok", ola = 0 })).AllowAnonymous();
 
 // Diagnostico de sesion, solo en desarrollo.

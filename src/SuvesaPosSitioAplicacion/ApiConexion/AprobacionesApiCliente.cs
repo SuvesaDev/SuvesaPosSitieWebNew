@@ -107,11 +107,11 @@ public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
     private static string Fecha(DateOnly f) => f.ToString("yyyy-MM-dd");
 
     /// <summary>Envía un archivo como formulario multipart (la carga de saldos iniciales).</summary>
-    private async Task<SeguridadEnvelope<T>> EnviarArchivoAsync<T>(string ruta, Stream contenido, string nombreArchivo)
+    private async Task<SeguridadEnvelope<T>> EnviarArchivoAsync<T>(string ruta, Stream contenido, string nombreArchivo, string contentType = "application/octet-stream")
     {
         using var formulario = new MultipartFormDataContent();
         var archivo = new StreamContent(contenido);
-        archivo.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        archivo.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType);
         formulario.Add(archivo, "archivo", nombreArchivo);
         using var req = new HttpRequestMessage(HttpMethod.Post, Base + ruta) { Content = formulario };
         using var resp = await _http.SendAsync(req);

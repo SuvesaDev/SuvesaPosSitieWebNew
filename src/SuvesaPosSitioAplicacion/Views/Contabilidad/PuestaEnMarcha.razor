@@ -2,6 +2,7 @@
 @using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.DTOs.Contabilidad
+@using EvidenciaCierreDTO = SuvesaPosSitioAplicacion.DTOs.Generated.EvidenciaCierreDTO
 @using SuvesaPosSitioAplicacion.Services
 @inject IAprobaciones Aprobaciones
 @inject ISucursales SucursalesApi
@@ -88,6 +89,7 @@
                                     <td class="text-nowrap">
                                         <button class="btn btn-sm btn-outline-success" title="Aprobar" disabled="@_procesando" @onclick='() => Resultado(c, "Aprobado", null)'><i class="bi bi-check-lg" aria-hidden="true"></i></button>
                                         <button class="btn btn-sm btn-outline-danger" title="Rechazar" disabled="@_procesando" @onclick="() => PedirRechazo(c)"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                                        <button class="btn btn-sm btn-outline-primary" title="Soportes del caso" disabled="@_procesando" @onclick="() => AbrirSoportes(c)"><i class="bi bi-paperclip" aria-hidden="true"></i>@(c.Evidencias > 0 ? $" {c.Evidencias}" : "")</button>
                                         <button class="btn btn-sm btn-outline-secondary" title="Volver a pendiente" disabled="@_procesando" @onclick='() => Resultado(c, "Pendiente", null)'><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i></button>
                                     </td>
                                 </tr>
@@ -107,6 +109,23 @@
     </div>
 </AppModal>
 
+<AppModal @ref="_modalSoportes" Titulo="@($"Soportes de {_casoSoportes?.Codigo}")" AlGuardar="SubirSoporte" Guardando="_procesando" PuedeGuardar="@(_archivoSoporte is not null)" TextoGuardar="Adjuntar">
+    <div class="mb-3">
+        <label class="form-label" for="pm-soporte">Captura, correo o PDF (hasta 10 MB)</label>
+        <InputFile id="pm-soporte" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.eml,.msg" OnChange="ElegirSoporte" />
+    </div>
+    <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Archivo</th><th>Usuario</th><th>Fecha</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var s in _soportes)
+            {
+                <tr><td>@s.NombreArchivo</td><td>@s.UsuarioCarga</td><td>@s.FechaCargaUtc.ToString("yyyy-MM-dd HH:mm")</td><td><a class="btn btn-sm btn-link p-0" href="@($"/reportes/evidencia-uat/{s.Id}")" target="_blank">Descargar</a></td></tr>
+            }
+            @if (_soportes.Count == 0) { <tr><td colspan="4" class="text-secondary">Sin soportes todavía.</td></tr> }
+        </tbody>
+    </table>
+</AppModal>
+
 <AppConfirmarClaveContabilidad @ref="_confirmarClave" />
 
 @code {
@@ -121,6 +140,10 @@
     private string _texto = "", _tituloTexto = "", _accionTexto = "";
     private bool _obligatorio;
     private CasoUatDTO? _casoEnRechazo;
+    private AppModal _modalSoportes = default!;
+    private CasoUatDTO? _casoSoportes;
+    private List<EvidenciaCierreDTO> _soportes = new();
+    private Microsoft.AspNetCore.Components.Forms.IBrowserFile? _archivoSoporte;
 
     protected override async Task OnInitializedAsync()
         => _sucursales = (await Respuestas.DatoAsync(await SucursalesApi.Obtener(), "consultar las sucursales"))?.ToList() ?? new();
@@ -180,6 +203,32 @@
     {
         _casoEnRechazo = caso; _accionTexto = "rechazo"; _tituloTexto = $"Rechazar {caso.Codigo}"; _texto = ""; _obligatorio = true;
         await _modalTexto.MostrarAsync();
+    }
+
+    private async Task AbrirSoportes(CasoUatDTO caso)
+    {
+        _casoSoportes = caso;
+        _archivoSoporte = null;
+        _soportes = (await Respuestas.DatoAsync(await Aprobaciones.EvidenciasUat(caso.Id), "consultar los soportes del caso"))?.ToList() ?? new();
+        await _modalSoportes.MostrarAsync();
+    }
+
+    private void ElegirSoporte(Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs evento) => _archivoSoporte = evento.File;
+
+    private async Task SubirSoporte()
+    {
+        if (_casoSoportes is null || _archivoSoporte is null) return;
+        _procesando = true;
+        try
+        {
+            await using var flujo = _archivoSoporte.OpenReadStream(10 * 1024 * 1024);
+            var respuesta = await Aprobaciones.AdjuntarEvidenciaUat(_casoSoportes.Id, flujo, _archivoSoporte.Name, _archivoSoporte.ContentType);
+            if (!await Respuestas.CorrectaAsync(respuesta, "adjuntar el soporte")) return;
+        }
+        finally { _procesando = false; }
+        _archivoSoporte = null;
+        _soportes = (await Respuestas.DatoAsync(await Aprobaciones.EvidenciasUat(_casoSoportes.Id), "consultar los soportes del caso"))?.ToList() ?? new();
+        await Recargar();
     }
 
     private async Task PedirFirma()

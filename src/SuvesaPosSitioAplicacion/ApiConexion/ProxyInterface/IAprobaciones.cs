@@ -1,5 +1,6 @@
 using EjecucionConciliacionDTO = SuvesaPosSitioAplicacion.DTOs.Generated.EjecucionConciliacionDTO;
 using ImportacionSaldosInicialesDTO = SuvesaPosSitioAplicacion.DTOs.Generated.ImportacionSaldosInicialesDTO;
+using EvidenciaCierreDTO = SuvesaPosSitioAplicacion.DTOs.Generated.EvidenciaCierreDTO;
 using SuvesaPosSitioAplicacion.DTOs.Contabilidad;
 using SuvesaPosSitioAplicacion.Helpers;
 
