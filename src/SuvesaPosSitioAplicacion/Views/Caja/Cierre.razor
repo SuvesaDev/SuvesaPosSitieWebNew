@@ -165,7 +165,7 @@
     {
         _buscando = true;
         var filtro = new BuscarCierreCajaDTO { DesdeFecha = _filtroDesde, HastaFecha = _filtroHasta, NumApertura = _filtroNumApertura, Nombre = _filtroNombre };
-        var resultado = await Respuestas.DatoAsync(await Api.BuscarCierres(filtro), "buscar los cierres");
+        var resultado = await Respuestas.DatoAsync(await Api.BuscarCierres(filtro, _bloqueo?.ClaveValidada), "buscar los cierres");
         _encontrados.Clear(); _encontrados.AddRange(resultado ?? Array.Empty<FiltroCierreCajaBusquedaDTO>());
         _buscando = false;
     }

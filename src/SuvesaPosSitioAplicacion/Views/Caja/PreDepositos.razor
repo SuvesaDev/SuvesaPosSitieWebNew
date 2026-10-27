@@ -59,7 +59,7 @@
     private async Task CargarRegistrados()
     {
         _registrados.Clear(); if (_numeroApertura == 0) return;
-        var datos = await Respuestas.DatoAsync(await Api.PreDepositosDeApertura(_numeroApertura), "consultar los pre depósitos"); _registrados.AddRange(datos ?? Array.Empty<PreDepositosDTO>());
+        var datos = await Respuestas.DatoAsync(await Api.PreDepositosDeApertura(_numeroApertura, _bloqueo?.ClaveValidada), "consultar los pre depósitos"); _registrados.AddRange(datos ?? Array.Empty<PreDepositosDTO>());
     }
     private async Task Guardar()
     {

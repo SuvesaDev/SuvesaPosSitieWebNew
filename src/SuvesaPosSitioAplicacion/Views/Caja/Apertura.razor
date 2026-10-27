@@ -179,7 +179,7 @@
     {
         _buscando = true;
         var filtro = new AperturaCajaFiltroDTO { Desde = _filtroDesde, Hasta = _filtroHasta, NumApertura = _filtroNumero, UsuarioApertura = _filtroUsuario };
-        var resultado = await Respuestas.DatoAsync(await Api.BuscarAperturas(filtro), "buscar las aperturas");
+        var resultado = await Respuestas.DatoAsync(await Api.BuscarAperturas(filtro, _bloqueo?.ClaveValidada), "buscar las aperturas");
         _encontradas.Clear(); _encontradas.AddRange(resultado ?? Array.Empty<AperturaCajaFiltroResultadoDTO>());
         _buscando = false;
     }

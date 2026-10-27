@@ -6,6 +6,7 @@
 @inject ICajaOperaciones Api
 @inject IServicioDialogos Dialogos
 @inject IManejadorRespuestas Respuestas
+@inject IContextoSesion Sesion
 
 <AppPantalla Pantalla="Generar Depósito" Nivel="NivelPantalla.Tableta">
     <Acciones><button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" disabled="@(_cargando || Bloqueada)"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button><button class="btn btn-sm btn-primary" @onclick="Guardar" disabled="@(Bloqueada || _guardando || !Seleccionados.Any())"><i class="bi bi-bank me-1" aria-hidden="true"></i>@(_guardando ? "Guardando..." : "Generar depósito")</button></Acciones>
@@ -19,7 +20,7 @@
             <div class="col-12 col-md-4"><label class="form-label" for="numero">Número de depósito</label><InputText id="numero" class="form-control" @bind-Value="_numeroDeposito" /></div>
             <div class="col-6 col-md-4"><label class="form-label" for="fecha">Fecha</label><InputDate id="fecha" class="form-control" @bind-Value="_fecha" /></div>
             <div class="col-6 col-md-4"><label class="form-label" for="apertura">N.º apertura</label><div class="input-group"><InputNumber id="apertura" class="form-control" min="0" disabled="@_todasLasCajas" @bind-Value="_apertura" /><button class="btn btn-outline-primary" type="button" @onclick="BuscarPreDepositos">Buscar</button></div>
-                <div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="todasCajas" checked="@_todasLasCajas" @onchange="AlternarTodasLasCajas" /><label class="form-check-label small" for="todasCajas">Todas las cajas (globalizar depósitos)</label></div>
+                <div class="form-check mt-1"><input class="form-check-input" type="checkbox" id="todasCajas" checked="@_todasLasCajas" @onchange="AlternarTodasLasCajas" /><label class="form-check-label small" for="todasCajas">@(PermisosCaja.VeTodasLasCajas(Sesion) ? "Todas las cajas (globalizar depósitos)" : "Todas mis cajas (incluye las ya cerradas)")</label></div>
             </div>
         </div></div></div>
         <div class="card"><div class="card-header d-flex justify-content-between"><strong>Pre depósitos disponibles</strong><strong>Total seleccionado: @(MonedaSeleccionada == 1 ? "₡" : "$") @Formato.Importe(MontoSeleccionado)</strong></div><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th></th><th>Fecha</th><th>Cajero</th><th>Depositante</th><th>Moneda</th><th class="text-end">Monto</th></tr></thead><tbody>
@@ -60,8 +61,8 @@
     {
         _preDepositos.Clear(); _seleccionados.Clear();
         // apertura = 0 (o "Todas las cajas") trae todos los pre depósitos pendientes.
-        if (!_todasLasCajas && _apertura <= 0) { await Dialogos.InformarAsync("Indique el número de apertura, o marque «Todas las cajas»."); return; }
-        var pre = await Respuestas.DatoAsync(await Api.PreDepositosDeApertura(_todasLasCajas ? 0 : _apertura), "consultar los pre depósitos");
+        if (!_todasLasCajas && _apertura <= 0) { await Dialogos.InformarAsync("Indique el número de apertura, o marque «Todas las cajas» / «Todas mis cajas»."); return; }
+        var pre = await Respuestas.DatoAsync(await Api.PreDepositosDeApertura(_todasLasCajas ? 0 : _apertura, _bloqueo?.ClaveValidada), "consultar los pre depósitos");
         _preDepositos.AddRange((pre ?? Array.Empty<PreDepositosDTO>()).Where(p => p.IdDeposito is null));
     }
     private async Task Alternar(long id)
@@ -83,7 +84,7 @@
         _guardando = true;
         _fecha = await RelojEquipo.HoyAsync();
         var deposito = new DepositosDTO { NumeroDeposito = _numeroDeposito, Fecha = _fecha, IdCuenta = _cuenta, IdEmpresa = _empresa, MontoDeposito = MontoSeleccionado, PreDepositos = Seleccionados.ToList() };
-        var creado = await Respuestas.DatoAsync(await Api.CrearDeposito(deposito), "generar el depósito"); _guardando = false;
+        var creado = await Respuestas.DatoAsync(await Api.CrearDeposito(deposito, _bloqueo?.ClaveValidada), "generar el depósito"); _guardando = false;
         if (creado is null) return; Dialogos.Exito($"Depósito {_numeroDeposito} creado correctamente."); _numeroDeposito = null; _seleccionados.Clear(); await BuscarPreDepositos();
     }
 }
