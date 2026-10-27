@@ -48,12 +48,20 @@
             <dt class="col-sm-3">Observaciones</dt><dd class="col-sm-9">@(string.IsNullOrWhiteSpace(_detalle.Observaciones) ? "—" : _detalle.Observaciones)</dd>
         </dl>
         <table class="table table-sm align-middle">
-            <thead><tr><th>Renglón declarado</th><th class="text-end">Colones</th><th class="text-end">Dólares</th></tr></thead>
+            <thead><tr><th>Declarado</th><th class="text-end">Colones</th><th class="text-end">Dólares</th></tr></thead>
             <tbody>
                 <tr><td>Efectivo</td><td class="text-end">@Formato.Importe(_detalle.EfectivoColones)</td><td class="text-end">@Formato.Importe(_detalle.EfectivoDolares)</td></tr>
                 <tr><td>Tarjetas</td><td class="text-end">@Formato.Importe(_detalle.TarjetaColones)</td><td class="text-end">@Formato.Importe(_detalle.TarjetaDolares)</td></tr>
-                <tr><td>Cheques</td><td class="text-end">@Formato.Importe(_detalle.Cheques)</td><td class="text-end">@Formato.Importe(_detalle.ChequesDol)</td></tr>
-                <tr><td>Depósitos</td><td class="text-end">@Formato.Importe(_detalle.DepositoCol)</td><td class="text-end">@Formato.Importe(_detalle.DepositoDol)</td></tr>
+                @* Cheques y depósitos ya no se declaran en el arqueo (van por el módulo de Depósitos); solo
+                   se muestran en arqueos anteriores que los hayan guardado. *@
+                @if (_detalle.Cheques != 0 || _detalle.ChequesDol != 0)
+                {
+                    <tr><td>Cheques (histórico)</td><td class="text-end">@Formato.Importe(_detalle.Cheques)</td><td class="text-end">@Formato.Importe(_detalle.ChequesDol)</td></tr>
+                }
+                @if (_detalle.DepositoCol != 0 || _detalle.DepositoDol != 0)
+                {
+                    <tr><td>Depósitos (histórico)</td><td class="text-end">@Formato.Importe(_detalle.DepositoCol)</td><td class="text-end">@Formato.Importe(_detalle.DepositoDol)</td></tr>
+                }
             </tbody>
             <tfoot><tr><th>Total arqueado (tipo de cambio @Formato.Importe(_detalle.TipoCambioD))</th><th class="text-end" colspan="2">@Formato.Importe(_detalle.Total)</th></tr></tfoot>
         </table>

@@ -42,4 +42,6 @@ public sealed class LineaConciliacionCajaWebDTO
     public decimal Egresos { get; set; }
     public decimal SaldoEsperado { get; set; }
     public int Movimientos { get; set; }
+    /// <summary>Cheques y depósitos: se confirman en el módulo de Depósitos y no cuentan en el total esperado.</summary>
+    public bool Informativa { get; set; }
 }

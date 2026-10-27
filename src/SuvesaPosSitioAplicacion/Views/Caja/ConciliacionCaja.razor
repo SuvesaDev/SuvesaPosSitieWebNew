@@ -138,7 +138,7 @@
                         @foreach (var l in _datos.Lineas)
                         {
                             <tr>
-                                <td>@l.CodigoFormaPago</td>
+                                <td>@l.CodigoFormaPago@if (l.Informativa) { <span class="badge text-bg-secondary ms-1" title="Se confirma en el módulo de Depósitos; no entra al total esperado ni a la diferencia">informativa</span> }</td>
                                 <td class="text-center">@MonedaTexto(l.CodMoneda)</td>
                                 <td class="text-end">@Money(l.Ingresos)</td>
                                 <td class="text-end">@Money(l.Egresos)</td>

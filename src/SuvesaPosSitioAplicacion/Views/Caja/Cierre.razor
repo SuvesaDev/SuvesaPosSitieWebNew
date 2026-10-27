@@ -52,6 +52,12 @@
                     <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><span class="text-secondary small">Total cajero</span><strong class="d-block fs-5">@Formato.Importe(_datos.TotalCajero)</strong></div></div></div>
                     <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><span class="text-secondary small">Diferencia</span><strong class="d-block fs-5 @(DiferenciaCierre == 0 ? "text-success" : "text-danger")">@Formato.Importe(DiferenciaCierre)</strong></div></div></div>
                 </div>
+                @if (PagosSinConfirmar.Count > 0)
+                {
+                    <div class="alert alert-warning mb-3" role="alert">
+                        <strong>Hay pagos sin confirmar.</strong> Falta confirmar en el módulo de Depósitos: @string.Join(" · ", PagosSinConfirmar.Select(p => $"{p.Nombre} {Formato.Importe(p.Pendiente)}")). El cierre se puede registrar; la diferencia de caja solo considera efectivo y tarjetas.
+                    </div>
+                }
                 <div class="row g-3">
                     <div class="col-12 col-xl-7"><div class="card h-100"><div class="card-header"><strong>General por forma de pago</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Forma de pago</th><th class="text-end">Cajero</th><th class="text-end">Sistema</th></tr></thead><tbody>@foreach (var d in _datos.DetalleOperaciones ?? Array.Empty<GeneralDetallesCierreDeCaja>()) { <tr><td>@d.FormaPago</td><td class="text-end">@Formato.Importe(d.Cajero)</td><td class="text-end">@Formato.Importe(d.Sistema)</td></tr> }</tbody></table></div></div></div>
                     <div class="col-12 col-xl-5"><div class="card h-100"><div class="card-header"><strong>Detalle de tarjetas</strong></div><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Descripción</th><th>Moneda</th><th class="text-end">Cajero</th><th class="text-end">Sistema</th></tr></thead><tbody>@foreach (var d in _datos.DetalleFormasPago ?? Array.Empty<CierreCajaDetalleFormasPagos>()) { <tr><td>@d.Descripcion</td><td>@d.Moneda</td><td class="text-end">@Formato.Importe(d.TotalCajero)</td><td class="text-end">@Formato.Importe(d.Totalsistema)</td></tr> }</tbody></table></div></div></div>
@@ -117,6 +123,12 @@
         var aperturas = await Respuestas.DatoAsync(await Api.AperturasSinCerrar(), "consultar las aperturas sin cerrar");
         _aperturas.Clear(); _aperturas.AddRange(aperturas ?? Array.Empty<AperturaCajaDTO>()); _cargando = false;
     }
+    // Depósitos y cheques: «Sistema» (registrado) menos «Cajero» (confirmado) es lo que falta confirmar.
+    private List<(string Nombre, decimal Pendiente)> PagosSinConfirmar => (_datos?.DetalleOperaciones ?? Array.Empty<GeneralDetallesCierreDeCaja>())
+        .Where(d => d.FormaPago is not null && (d.FormaPago.StartsWith("Deposito", StringComparison.OrdinalIgnoreCase) || d.FormaPago.StartsWith("Cheque", StringComparison.OrdinalIgnoreCase)))
+        .Select(d => (Nombre: d.FormaPago!, Pendiente: Formato.AImporte(d.Sistema) - Formato.AImporte(d.Cajero)))
+        .Where(d => d.Pendiente > 0.005m)
+        .ToList();
     private decimal TotalSistemaCierre => _conciliacion?.TotalEsperado ?? (decimal)(_datos?.TotalSistema ?? 0);
     private decimal DiferenciaCierre => _conciliacion?.Diferencia ?? (decimal)(_datos?.DiferenciaCaja ?? 0);
 

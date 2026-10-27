@@ -32,7 +32,8 @@ public interface ICajaOperaciones
     Task<ResponseGeneric<ICollection<PreDepositosDTO>>> PreDepositosDeApertura(long apertura);
     Task<ResponseGeneric<ICollection<PreDepositosBuscarDTO>>> BuscarPreDepositos(FiltroBusquedaPreDepositosDTO filtro);
     Task<ResponseGeneric<ICollection<DepositosBuscarDTO>>> BuscarDepositos(FiltroBusquedaDepositosDTO filtro);
-    Task<ResponseGeneric<PreDepositosDTO>> CrearPreDeposito(PreDepositosDTO deposito);
+    /// <summary>Solo el cajero dueño de la apertura puede sacar efectivo de ella: el API valida su clave interna.</summary>
+    Task<ResponseGeneric<PreDepositosDTO>> CrearPreDeposito(PreDepositosDTO deposito, string? claveInterna);
     Task<ResponseGeneric<PreDepositosDTO>> EliminarPreDeposito(int id);
     Task<ResponseGeneric<DepositosDTO>> CrearDeposito(DepositosDTO deposito);
 

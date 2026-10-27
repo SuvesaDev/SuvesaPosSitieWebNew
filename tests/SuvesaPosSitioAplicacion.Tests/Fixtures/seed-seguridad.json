@@ -139,27 +139,11 @@
           ]
         },
         {
-          "codigo": "BODEGA.UBICACIONES",
-          "nombre": "Ubicaciones",
-          "ruta": "/bodega/ubicaciones",
-          "padre": null,
-          "orden": 5,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
           "codigo": "BODEGA.RUTAS_DE_ENTREGA",
           "nombre": "Rutas de entrega",
           "ruta": "/bodega/rutas",
           "padre": null,
-          "orden": 6,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -211,11 +195,27 @@
           ]
         },
         {
+          "codigo": "CAJA.CONSULTA_DE_ARQUEOS",
+          "nombre": "Consulta de Arqueos",
+          "ruta": "/initial/cash/arqueoconsulta",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "CAJA.CONCILIACION_DE_CAJA",
           "nombre": "Conciliación de caja",
           "ruta": "/initial/cash/reconciliation",
           "padre": null,
-          "orden": 3,
+          "orden": 4,
           "acciones": [
             "VER",
             "CREAR",
@@ -231,7 +231,7 @@
           "nombre": "Cobrar",
           "ruta": "/initial/charge",
           "padre": null,
-          "orden": 4,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -247,7 +247,7 @@
           "nombre": "Depósitos",
           "ruta": "/initial/cash/deposits",
           "padre": null,
-          "orden": 5,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",
@@ -693,497 +693,9 @@
       ]
     },
     {
-      "codigo": "CONTABILIDAD",
-      "nombre": "Contabilidad",
-      "orden": 5,
-      "icono": "bi-journal-text",
-      "funciones": [
-        {
-          "codigo": "CONTABILIDAD.CONFIGURACION_EMISOR",
-          "nombre": "Configuración emisor",
-          "ruta": "/accounting/issuer-setup",
-          "padre": null,
-          "orden": 1,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.CATALOGO_CUENTAS",
-          "nombre": "Catálogo cuentas",
-          "ruta": "/accounting/chart-of-accounts",
-          "padre": null,
-          "orden": 2,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.DIMENSIONES",
-          "nombre": "Dimensiones",
-          "ruta": "/accounting/dimensions",
-          "padre": null,
-          "orden": 3,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.PLANTILLAS",
-          "nombre": "Plantillas",
-          "ruta": "/accounting/templates",
-          "padre": null,
-          "orden": 4,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.BANDEJA",
-          "nombre": "Bandeja",
-          "ruta": "/accounting/inbox",
-          "padre": null,
-          "orden": 5,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.REPROCESO",
-          "nombre": "Reproceso",
-          "ruta": "/accounting/reprocessing",
-          "padre": null,
-          "orden": 6,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.DIARIO",
-          "nombre": "Diario",
-          "ruta": "/accounting/journal",
-          "padre": null,
-          "orden": 7,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.MAYOR",
-          "nombre": "Mayor",
-          "ruta": "/accounting/ledger",
-          "padre": null,
-          "orden": 8,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.AUXILIAR_CXC",
-          "nombre": "Auxiliar CxC",
-          "ruta": "/accounting/subledger-ar",
-          "padre": null,
-          "orden": 9,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.AUXILIAR_CXP",
-          "nombre": "Auxiliar CxP",
-          "ruta": "/accounting/subledger-ap",
-          "padre": null,
-          "orden": 10,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.AUXILIAR_INVENTARIO",
-          "nombre": "Auxiliar Inventario",
-          "ruta": "/accounting/subledger-inventory",
-          "padre": null,
-          "orden": 11,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.BITACORA",
-          "nombre": "Bitácora",
-          "ruta": "/accounting/audit-log",
-          "padre": null,
-          "orden": 12,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.CIERRE",
-          "nombre": "Cierre",
-          "ruta": "/accounting/close",
-          "padre": null,
-          "orden": 13,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.CIERRE_ANUAL",
-          "nombre": "Cierre anual",
-          "ruta": "/accounting/annual-close",
-          "padre": null,
-          "orden": 14,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.APROBACIONES",
-          "nombre": "Aprobaciones",
-          "ruta": "/accounting/approvals",
-          "padre": null,
-          "orden": 15,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.TIPOS_DE_CAMBIO",
-          "nombre": "Tipos de cambio",
-          "ruta": "/accounting/exchange-rates",
-          "padre": null,
-          "orden": 16,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.REVALUACION",
-          "nombre": "Revaluación",
-          "ruta": "/accounting/revaluation",
-          "padre": null,
-          "orden": 17,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.PROCESADORES_DE_PAGO",
-          "nombre": "Procesadores de pago",
-          "ruta": "/accounting/payment-processors",
-          "padre": null,
-          "orden": 18,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.GASTOS",
-          "nombre": "Gastos",
-          "ruta": "/accounting/expenses",
-          "padre": null,
-          "orden": 19,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.DIFERENCIAS_DE_CAJA",
-          "nombre": "Diferencias de caja",
-          "ruta": "/accounting/cash-differences",
-          "padre": null,
-          "orden": 20,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.DEDUCIBILIDAD",
-          "nombre": "Deducibilidad",
-          "ruta": "/accounting/deductibility",
-          "padre": null,
-          "orden": 21,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.RECLASIFICACION_DE_INVENTARIO",
-          "nombre": "Reclasificación de inventario",
-          "ruta": "/accounting/inventory-reclassification",
-          "padre": null,
-          "orden": 22,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.CONCILIACION_CONTRA_EL_MAYOR",
-          "nombre": "Conciliación contra el mayor",
-          "ruta": "/accounting/ledger-reconciliation",
-          "padre": null,
-          "orden": 23,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.SALDOS_INICIALES",
-          "nombre": "Saldos iniciales",
-          "ruta": "/accounting/opening-balances",
-          "padre": null,
-          "orden": 24,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.PUESTA_EN_MARCHA",
-          "nombre": "Puesta en marcha",
-          "ruta": "/accounting/go-live",
-          "padre": null,
-          "orden": 25,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.BALANZA",
-          "nombre": "Balanza",
-          "ruta": "/accounting/trial-balance",
-          "padre": null,
-          "orden": 26,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.ESTADO_DE_RESULTADOS",
-          "nombre": "Estado de resultados",
-          "ruta": "/accounting/income-statement",
-          "padre": null,
-          "orden": 27,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.BALANCE_GENERAL",
-          "nombre": "Balance general",
-          "ruta": "/accounting/balance-sheet",
-          "padre": null,
-          "orden": 28,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.FLUJO_DE_EFECTIVO",
-          "nombre": "Flujo de efectivo",
-          "ruta": "/accounting/cash-flow",
-          "padre": null,
-          "orden": 29,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        },
-        {
-          "codigo": "CONTABILIDAD.ESTADOS_NIIF_PYMES",
-          "nombre": "Estados NIIF PYMES",
-          "ruta": "/accounting/financial-statements",
-          "padre": null,
-          "orden": 30,
-          "acciones": [
-            "VER",
-            "CREAR",
-            "EDITAR",
-            "BORRAR",
-            "ACTIVAR",
-            "EXPORTAR",
-            "IMPRIMIR"
-          ]
-        }
-      ]
-    },
-    {
       "codigo": "INICIO",
       "nombre": "Inicio",
-      "orden": 6,
+      "orden": 5,
       "icono": "bi-house-door-fill",
       "funciones": [
         {
@@ -1287,7 +799,7 @@
     {
       "codigo": "MODULO_INVENTARIO",
       "nombre": "Módulo Inventario",
-      "orden": 7,
+      "orden": 6,
       "icono": "bi-boxes",
       "funciones": [
         {
@@ -1311,7 +823,7 @@
     {
       "codigo": "MODULO_REPORTES",
       "nombre": "Módulo Reportes",
-      "orden": 8,
+      "orden": 7,
       "icono": "bi-bar-chart-fill",
       "funciones": [
         {
@@ -1767,7 +1279,7 @@
     {
       "codigo": "PRESUPUESTOS",
       "nombre": "Presupuestos",
-      "orden": 9,
+      "orden": 8,
       "icono": "bi-file-earmark-text",
       "funciones": [
         {
@@ -1807,7 +1319,7 @@
     {
       "codigo": "PRODUCCION",
       "nombre": "Producción",
-      "orden": 10,
+      "orden": 9,
       "icono": "bi-hammer",
       "funciones": [
         {
@@ -1847,7 +1359,7 @@
     {
       "codigo": "VENTAS",
       "nombre": "Ventas",
-      "orden": 11,
+      "orden": 10,
       "icono": "bi-receipt",
       "funciones": [
         {
@@ -1967,7 +1479,7 @@
     {
       "codigo": "PARAMETROS",
       "nombre": "Parametros",
-      "orden": 12,
+      "orden": 11,
       "icono": "bi-gear-fill",
       "funciones": [
         {

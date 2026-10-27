@@ -164,11 +164,11 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "buscar los depósitos");
 
-    public Task<ResponseGeneric<PreDepositosDTO>> CrearPreDeposito(PreDepositosDTO deposito) => Ejecutar(async () =>
+    public Task<ResponseGeneric<PreDepositosDTO>> CrearPreDeposito(PreDepositosDTO deposito, string? claveInterna) => Ejecutar(async () =>
     {
         var r = await _bancos.CrearPreDepositoAsync(deposito);
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-    }, "crear el pre depósito");
+    }, "crear el pre depósito", claveInterna);
 
     public Task<ResponseGeneric<PreDepositosDTO>> EliminarPreDeposito(int id) => Ejecutar(async () =>
     {
