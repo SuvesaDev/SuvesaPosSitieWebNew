@@ -12,6 +12,8 @@ public sealed class ConciliacionCajaWebDTO
     public decimal FondoInicial { get; set; }
     public List<LineaConciliacionCajaWebDTO> Lineas { get; set; } = new();
     public decimal TotalEsperado { get; set; }
+    /// <summary>Tarjetas, depósitos y cheques por moneda. Informativo: no entra al total esperado ni a la diferencia.</summary>
+    public List<ResumenBancarioWebDTO> ResumenBancario { get; set; } = new();
     /// <summary>Ventas del período — informativo, NO entra en la fórmula monetaria.</summary>
     public decimal VentasComercialInformativo { get; set; }
     /// <summary>Total declarado por el cajero en el arqueo físico. Null si aún no hay arqueo.</summary>
@@ -44,4 +46,20 @@ public sealed class LineaConciliacionCajaWebDTO
     public int Movimientos { get; set; }
     /// <summary>Cheques y depósitos: se confirman en el módulo de Depósitos y no cuentan en el total esperado.</summary>
     public bool Informativa { get; set; }
+}
+
+public sealed class ResumenBancarioWebDTO
+{
+    public int CodMoneda { get; set; }
+    /// <summary>Tarjetas declaradas por el cajero. Null si la apertura no tiene arqueo.</summary>
+    public decimal? TarjetasCajero { get; set; }
+    public decimal TarjetasSistema { get; set; }
+    /// <summary>Depósitos, transferencias o SINPE hechos directo por el cliente y ya confirmados.</summary>
+    public decimal DepositosDirectos { get; set; }
+    public decimal DepositosDirectosPendientes { get; set; }
+    /// <summary>Efectivo que el cajero envió al banco.</summary>
+    public decimal PreDepositos { get; set; }
+    public decimal TotalDepositos { get; set; }
+    public decimal ChequesConfirmados { get; set; }
+    public decimal ChequesPendientes { get; set; }
 }

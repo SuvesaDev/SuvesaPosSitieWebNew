@@ -161,6 +161,32 @@
                 </table>
             </div>
 
+            @if (_datos.ResumenBancario.Count > 0)
+            {
+                var col = _datos.ResumenBancario.FirstOrDefault(r => r.CodMoneda == 1) ?? new ResumenBancarioWebDTO { CodMoneda = 1 };
+                var dol = _datos.ResumenBancario.FirstOrDefault(r => r.CodMoneda != 1) ?? new ResumenBancarioWebDTO { CodMoneda = 2 };
+                <div class="card mt-3">
+                    <div class="card-header"><strong>Tarjetas, depósitos y cheques</strong><span class="text-secondary small ms-2">Informativo. No entra al total esperado ni a la diferencia.</span></div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr><th></th><th class="text-end">Colones</th><th class="text-end">Dólares</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Tarjetas — arqueo del cajero</td><td class="text-end">@(col.TarjetasCajero is { } tc ? Money(tc) : "Sin arqueo")</td><td class="text-end">@(dol.TarjetasCajero is { } td ? Money(td) : "Sin arqueo")</td></tr>
+                                <tr><td>Tarjetas — sistema</td><td class="text-end">@Money(col.TarjetasSistema)</td><td class="text-end">@Money(dol.TarjetasSistema)</td></tr>
+                                <tr><td>Depósitos directos del cliente (confirmados)</td><td class="text-end">@Money(col.DepositosDirectos)</td><td class="text-end">@Money(dol.DepositosDirectos)</td></tr>
+                                <tr><td>Pre-depósitos del cajero</td><td class="text-end">@Money(col.PreDepositos)</td><td class="text-end">@Money(dol.PreDepositos)</td></tr>
+                                <tr class="fw-semibold"><td>Total depósitos</td><td class="text-end">@Money(col.TotalDepositos)</td><td class="text-end">@Money(dol.TotalDepositos)</td></tr>
+                                <tr class="text-secondary"><td>Depósitos pendientes de confirmar</td><td class="text-end">@Money(col.DepositosDirectosPendientes)</td><td class="text-end">@Money(dol.DepositosDirectosPendientes)</td></tr>
+                                <tr class="fw-semibold"><td>Cheques confirmados</td><td class="text-end">@Money(col.ChequesConfirmados)</td><td class="text-end">@Money(dol.ChequesConfirmados)</td></tr>
+                                <tr class="text-secondary"><td>Cheques pendientes de confirmar</td><td class="text-end">@Money(col.ChequesPendientes)</td><td class="text-end">@Money(dol.ChequesPendientes)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
             <div class="card mt-3">
                 <div class="card-header"><strong>Documentos del sistema</strong><span class="text-secondary small ms-2">Lo que el sistema registró durante esta apertura, para comparar.</span></div>
                 @if (_documentos.Count == 0)
