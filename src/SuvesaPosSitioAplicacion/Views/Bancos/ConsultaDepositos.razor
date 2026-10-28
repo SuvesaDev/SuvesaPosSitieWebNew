@@ -18,6 +18,13 @@
 
 <AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Movil">
     <ChildContent>
+        @* Cada cajero ve y confirma solo los depósitos y cheques de sus cajas: se identifica con su clave interna y el API lo
+           valida. El administrador (o quien tenga el permiso de ver todas las cajas) entra sin clave y ve todo. *@
+        @if (!VeTodas)
+        {
+            <AppDesbloqueoClave @ref="_bloqueo" Titulo="la consulta de depósitos" AlCambiar="AlDesbloquear" />
+        }
+        <fieldset disabled="@Bloqueada" class="border-0 p-0 m-0">
         <div class="card mb-3">
             <div class="card-body">
                 <div class="row g-2 align-items-end">
@@ -41,7 +48,7 @@
                     </div>
                     <div class="col-12 col-md-3">
                         <button class="btn btn-primary btn-sm w-100" @onclick="Buscar"
-                                disabled="@_buscando">
+                                disabled="@(_buscando || Bloqueada)">
                             @(_buscando ? "Buscando..." : "Buscar")
                         </button>
                     </div>
@@ -147,6 +154,7 @@
             </div>
         }
 
+        </fieldset>
     </ChildContent>
 </AppPantalla>
 
@@ -223,6 +231,15 @@
     private decimal _total;
     private bool _buscando;
     private bool _hayBusqueda;
+    private AppDesbloqueoClave? _bloqueo;
+    private bool VeTodas => PermisosCaja.VeTodasLasCajas(Sesion);
+    private bool Bloqueada => !VeTodas && (_bloqueo is null || !_bloqueo.Desbloqueado);
+    private string? Clave => VeTodas ? null : _bloqueo?.ClaveValidada;
+    private async Task AlDesbloquear(bool desbloqueado)
+    {
+        if (desbloqueado) await CargarInstrumentos();
+        await InvokeAsync(StateHasChanged);
+    }
     private List<EntidadesBancariasDTO> _bancos = new();
     protected override async Task OnInitializedAsync()
     {
@@ -230,7 +247,7 @@
         _desde = hoy.AddDays(-7);
         _hasta = hoy;
         _bancos = ((await BancosApi.Obtener()).Responses ?? Array.Empty<EntidadesBancariasDTO>()).OrderBy(b => b.Banco).ToList();
-        await CargarInstrumentos();
+        if (VeTodas) await CargarInstrumentos();
     }
 
     private string BancoTexto(int? idBanco) => idBanco is null ? "-" : _bancos.FirstOrDefault(b => b.Id == idBanco)?.Banco ?? "-";
@@ -257,7 +274,7 @@
         _hayBusqueda = true;
 
         _depositos = (await Respuestas.DatoAsync(
-            await Api.Buscar(_numero, _desde, _hasta), "consultar los depositos"))
+            await Api.Buscar(_numero, _desde, _hasta, Clave), "consultar los depositos"))
             ?.ToList() ?? new List<DepositosBuscarDTO>();
 
         // Los montos llegan en float: se convierten en el borde y se suman en decimal.
@@ -276,7 +293,7 @@
     {
         if (_cargandoInstrumentos) return;
         _cargandoInstrumentos = true;
-        var datos = await Respuestas.DatoAsync(await Instrumentos.Buscar(new FiltroInstrumentosConfirmacionWebDTO { Estado = _estadoInstrumento, Tipo = _tipoInstrumento }), "consultar los estados de depósitos y cheques");
+        var datos = await Respuestas.DatoAsync(await Instrumentos.Buscar(new FiltroInstrumentosConfirmacionWebDTO { Estado = _estadoInstrumento, Tipo = _tipoInstrumento }, Clave), "consultar los estados de depósitos y cheques");
         _instrumentos.Clear(); _instrumentos.AddRange(datos ?? Array.Empty<InstrumentoConfirmacionWebDTO>()); _cargandoInstrumentos = false;
     }
 
@@ -291,7 +308,7 @@
             await _modalCambioEstado.MostrarAsync();
             return;
         }
-        if (await Respuestas.CorrectaAsync(await Instrumentos.CambiarEstado(instrumento.Id, new CambioEstadoInstrumentoWebDTO { Estado = estado }), "actualizar el instrumento")) { Dialogos.Exito("Estado actualizado."); await CargarInstrumentos(); }
+        if (await Respuestas.CorrectaAsync(await Instrumentos.CambiarEstado(instrumento.Id, new CambioEstadoInstrumentoWebDTO { Estado = estado }, Clave), "actualizar el instrumento")) { Dialogos.Exito("Estado actualizado."); await CargarInstrumentos(); }
     }
 
     private async Task GuardarCambioEstado()
@@ -301,7 +318,7 @@
         try
         {
             if (!await Respuestas.CorrectaAsync(await Instrumentos.CambiarEstado(_instrumentoEditando.Id,
-                    new CambioEstadoInstrumentoWebDTO { Estado = _estadoCambio, Motivo = _motivoCambio.Trim() }), "actualizar el instrumento")) return;
+                    new CambioEstadoInstrumentoWebDTO { Estado = _estadoCambio, Motivo = _motivoCambio.Trim() }, Clave), "actualizar el instrumento")) return;
             await _modalCambioEstado.OcultarAsync();
             Dialogos.Exito("Estado actualizado.");
             await CargarInstrumentos();

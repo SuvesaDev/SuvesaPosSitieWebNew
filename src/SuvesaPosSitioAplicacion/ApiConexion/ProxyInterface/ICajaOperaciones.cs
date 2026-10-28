@@ -29,12 +29,14 @@ public interface ICajaOperaciones
     Task<ResponseGeneric<ICollection<EntidadesBancariasDTO>>> Bancos();
     Task<ResponseGeneric<ICollection<EmpresaDTO>>> Empresas();
     Task<ResponseGeneric<ICollection<CuentaBancariaDTO>>> Cuentas(int banco, int empresa);
-    Task<ResponseGeneric<ICollection<PreDepositosDTO>>> PreDepositosDeApertura(long apertura);
+    // Cada cajero ve solo lo de sus cajas (clave interna); el administrador, todo. Ver PermisosCaja.
+    Task<ResponseGeneric<ICollection<PreDepositosDTO>>> PreDepositosDeApertura(long apertura, string? claveInterna = null);
     Task<ResponseGeneric<ICollection<PreDepositosBuscarDTO>>> BuscarPreDepositos(FiltroBusquedaPreDepositosDTO filtro);
     Task<ResponseGeneric<ICollection<DepositosBuscarDTO>>> BuscarDepositos(FiltroBusquedaDepositosDTO filtro);
-    Task<ResponseGeneric<PreDepositosDTO>> CrearPreDeposito(PreDepositosDTO deposito);
+    /// <summary>Solo el cajero dueño de la apertura puede sacar efectivo de ella: el API valida su clave interna.</summary>
+    Task<ResponseGeneric<PreDepositosDTO>> CrearPreDeposito(PreDepositosDTO deposito, string? claveInterna);
     Task<ResponseGeneric<PreDepositosDTO>> EliminarPreDeposito(int id);
-    Task<ResponseGeneric<DepositosDTO>> CrearDeposito(DepositosDTO deposito);
+    Task<ResponseGeneric<DepositosDTO>> CrearDeposito(DepositosDTO deposito, string? claveInterna = null);
 
     /// <summary>
     /// Tipo de cambio del dólar (venta) para consolidar montos en dólares dentro
@@ -46,7 +48,7 @@ public interface ICajaOperaciones
     // --- Apertura: buscar, abrir para editar, anular ---
     // No hay "editar la apertura completa": el API edita cada linea de
     // denominacion y cada linea de total/tope por separado.
-    Task<ResponseGeneric<ICollection<AperturaCajaFiltroResultadoDTO>>> BuscarAperturas(AperturaCajaFiltroDTO filtro);
+    Task<ResponseGeneric<ICollection<AperturaCajaFiltroResultadoDTO>>> BuscarAperturas(AperturaCajaFiltroDTO filtro, string? claveInterna = null);
     Task<ResponseGeneric<AperturaCajaDTO>> ObtenerApertura(int numeroApertura);
     Task<ResponseGeneric<AperturaDenominacionDTO>> EditarDenominacionApertura(AperturaDenominacionDTO linea);
     Task<ResponseGeneric<AperturaTotalTopeDTO>> EditarTotalTopeApertura(AperturaTotalTopeDTO linea);
@@ -61,7 +63,7 @@ public interface ICajaOperaciones
 
     // --- Cierre: buscar y anular. No existe "editar cierre" en el API: un
     // cierre ya hecho solo se anula, no se corrige. ---
-    Task<ResponseGeneric<ICollection<FiltroCierreCajaBusquedaDTO>>> BuscarCierres(BuscarCierreCajaDTO filtro);
+    Task<ResponseGeneric<ICollection<FiltroCierreCajaBusquedaDTO>>> BuscarCierres(BuscarCierreCajaDTO filtro, string? claveInterna = null);
     Task<ResponseGeneric<CierreCajaDTO>> AnularCierre(long idCierre);
 
     /// <summary>Consolidado de un cierre ya registrado (a diferencia de <see cref="DatosCierre"/>,

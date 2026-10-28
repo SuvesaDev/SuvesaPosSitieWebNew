@@ -10,8 +10,7 @@
 
 <AppPantalla Pantalla="Arqueo Caja" Nivel="NivelPantalla.Escritorio">
     <Acciones>
-        <a class="btn btn-sm btn-outline-secondary" href="/initial/cash/deposits/predeposits" target="_blank" rel="noopener" title="Se abre en otra pestaña para no perder lo que lleva escrito en el arqueo"><i class="bi bi-piggy-bank me-1" aria-hidden="true"></i>Agregar pre-depósito</a>
-        <button class="btn btn-sm btn-outline-secondary" @onclick="ActualizarReferencia" disabled="@(Bloqueada || _idAperturaActiva == 0 || _actualizando)" title="Vuelve a consultar lo registrado por el sistema (pre-depósitos y pagos) sin borrar lo que escribió"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>@(_actualizando ? "Actualizando..." : "Actualizar pre-depósitos")</button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="AbrirPreDeposito" disabled="@(Bloqueada || _aperturaSeleccionada is null || _editando)" title="@(_aperturaSeleccionada is null ? "Necesita una caja abierta pendiente de arqueo" : "Registra el efectivo que saca de la caja para enviarlo al banco")"><i class="bi bi-piggy-bank me-1" aria-hidden="true"></i>Agregar pre-depósito</button>
         <button class="btn btn-sm btn-outline-secondary" @onclick="AbrirBuscador" disabled="@Bloqueada"><i class="bi bi-search me-1" aria-hidden="true"></i>Buscar</button>
         <button class="btn btn-sm btn-outline-secondary" @onclick="CargarAperturas" disabled="@(_cargando || Bloqueada)" title="Volver a consultar mi caja"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i></button>
         @if (_editando)
@@ -62,22 +61,11 @@
                         <label class="form-label" for="tarjetaDol">Tarjetas dólares</label><InputNumber id="tarjetaDol" class="form-control text-end" min="0" @bind-Value="_tarjetaDol" />
                         @if (_referencia is not null) { <div class="form-text">Sistema: @Formato.Importe(_referencia.Dolares.Tarjetas)</div> }
                     </div>
-                    <div class="col-6">
-                        <label class="form-label">Cheques colones</label><InputNumber class="form-control text-end" min="0" @bind-Value="_cheques" />
-                        @if (_referencia is not null) { <div class="form-text">Sistema: @Formato.Importe(_referencia.Colones.ChequesConfirmados)@(_referencia.Colones.ChequesPendientes > 0 ? $" · pendiente de confirmar: {Formato.Importe(_referencia.Colones.ChequesPendientes)}" : "")</div> }
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label">Cheques dólares</label><InputNumber class="form-control text-end" min="0" @bind-Value="_chequesDol" />
-                        @if (_referencia is not null) { <div class="form-text">Sistema: @Formato.Importe(_referencia.Dolares.ChequesConfirmados)@(_referencia.Dolares.ChequesPendientes > 0 ? $" · pendiente de confirmar: {Formato.Importe(_referencia.Dolares.ChequesPendientes)}" : "")</div> }
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label">Depósitos colones</label><InputNumber class="form-control text-end" min="0" @bind-Value="_depositoCol" />
-                        @if (_referencia is not null) { <div class="form-text">Sistema: @Formato.Importe(_referencia.Colones.DepositosConfirmados) (pre-depósitos @Formato.Importe(_referencia.Colones.PreDepositos) + pagos confirmados @Formato.Importe(_referencia.Colones.PagosDepositoConfirmados))@(_referencia.Colones.DepositosPendientes > 0 ? $" · pendiente de confirmar: {Formato.Importe(_referencia.Colones.DepositosPendientes)}" : "")</div> }
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label">Depósitos dólares</label><InputNumber class="form-control text-end" min="0" @bind-Value="_depositoDol" />
-                        @if (_referencia is not null) { <div class="form-text">Sistema: @Formato.Importe(_referencia.Dolares.DepositosConfirmados) (pre-depósitos @Formato.Importe(_referencia.Dolares.PreDepositos) + pagos confirmados @Formato.Importe(_referencia.Dolares.PagosDepositoConfirmados))@(_referencia.Dolares.DepositosPendientes > 0 ? $" · pendiente de confirmar: {Formato.Importe(_referencia.Dolares.DepositosPendientes)}" : "")</div> }
-                    </div>
+                    <div class="col-12"><p class="small text-secondary mb-0">Cheques y depósitos no se cuentan aquí: se registran y confirman en el módulo de Depósitos y se ven en el cierre.</p></div>
+                    @if (_referencia is not null && (_referencia.Colones.PreDepositos > 0 || _referencia.Dolares.PreDepositos > 0))
+                    {
+                        <div class="col-12"><p class="small mb-0">Pre-depósitos enviados en esta apertura: <strong>₡ @Formato.Importe(_referencia.Colones.PreDepositos)</strong> · <strong>$ @Formato.Importe(_referencia.Dolares.PreDepositos)</strong></p></div>
+                    }
                     <div class="col-6"><label class="form-label">Tipo de cambio (dólar)</label><input class="form-control text-end" value="@_tipoCambio.ToString("N2")" disabled /></div>
                     <div class="col-12 border-top pt-3 d-flex justify-content-between"><span>Total arqueado</span><strong>@Formato.Importe(Total)</strong></div>
                     @if (DolaresDeclarados > 0)
@@ -114,6 +102,8 @@
         </fieldset>
     </ChildContent>
 </AppPantalla>
+
+<ModalPreDeposito @ref="_modalPreDeposito" Apertura="_aperturaSeleccionada" ClaveInterna="@Clave" AlRegistrado="ActualizarReferencia" />
 
 <HxModal @ref="_modalBuscar" Title="Buscar arqueos" Size="ModalSize.Large">
     <BodyTemplate>
@@ -161,10 +151,10 @@
         if (desbloqueado) await CargarAperturas();
         await InvokeAsync(StateHasChanged);
     }
-    private decimal _cheques, _chequesDol, _depositoCol, _depositoDol;
     // Lo que el cajero cuenta con el datáfono: se digita, no se calcula. El sistema solo da la referencia.
     private decimal _tarjetaCol, _tarjetaDol;
-    private bool _verDetalleTarjetas, _actualizando;
+    private bool _verDetalleTarjetas;
+    private ModalPreDeposito _modalPreDeposito = default!;
     private ArqueoReferenciaSistemaWebDTO? _referencia;
     private string? Clave => _bloqueo?.ClaveValidada;
     // Apertura cuyo detalle del sistema se está mostrando (la elegida o la que se edita).
@@ -177,8 +167,9 @@
     private decimal _tipoCambio = 1;
     private decimal EfectivoColones => _efectivo.Where(e => e.CodMoneda == 1).Sum(e => e.Total);
     private decimal EfectivoDolares => _efectivo.Where(e => e.CodMoneda != 1).Sum(e => e.Total);
-    private decimal ColonesDeclarados => EfectivoColones + _tarjetaCol + _cheques + _depositoCol;
-    private decimal DolaresDeclarados => EfectivoDolares + _tarjetaDol + _chequesDol + _depositoDol;
+    // El arqueo declara solo lo físico: efectivo y tarjetas. Cheques y depósitos van por el módulo de Depósitos.
+    private decimal ColonesDeclarados => EfectivoColones + _tarjetaCol;
+    private decimal DolaresDeclarados => EfectivoDolares + _tarjetaDol;
     private decimal Total => CalculoArqueo.Total(ColonesDeclarados, DolaresDeclarados, _tipoCambio);
 
     // Lo que el sistema tiene registrado durante esta apertura, para comparar
@@ -249,15 +240,15 @@
         _referencia = await Respuestas.DatoAsync(await Api.ReferenciaSistemaArqueo(numeroApertura, Clave), "consultar lo registrado por el sistema");
     }
 
-    // Vuelve a pedir al API lo registrado (por ejemplo tras hacer un pre-depósito en otra pestaña).
-    // Solo cambian las cifras «Sistema»: lo que el cajero escribió queda intacto.
+    // Tras registrar un pre-depósito se vuelve a pedir al API lo registrado: solo cambian las cifras
+    // «Sistema» y el resumen de pre-depósitos; lo que el cajero escribió queda intacto.
     private async Task ActualizarReferencia()
     {
         if (_idAperturaActiva <= 0) return;
-        _actualizando = true;
         _referencia = await Respuestas.DatoAsync(await Api.ReferenciaSistemaArqueo(_idAperturaActiva, Clave), "consultar lo registrado por el sistema");
-        _actualizando = false;
     }
+
+    private Task AbrirPreDeposito() => _modalPreDeposito.AbrirAsync();
 
     private async Task AbrirBuscador()
     {
@@ -284,10 +275,6 @@
         _idAperturaEditando = arqueo.IdApertura;
         _cajeroEditando = arqueo.Cajero;
         _observaciones = arqueo.Observaciones;
-        _cheques = Formato.AImporte(arqueo.Cheques);
-        _chequesDol = Formato.AImporte(arqueo.ChequesDol);
-        _depositoCol = Formato.AImporte(arqueo.DepositoCol);
-        _depositoDol = Formato.AImporte(arqueo.DepositoDol);
         _tarjetaCol = Formato.AImporte(arqueo.TarjetaColones);
         _tarjetaDol = Formato.AImporte(arqueo.TarjetaDolares);
         _tipoCambio = arqueo.TipoCambioD > 0 ? Formato.AImporte(arqueo.TipoCambioD) : 1;
@@ -308,7 +295,7 @@
     {
         _editando = false; _idArqueoEditando = 0; _idAperturaEditando = 0; _cajeroEditando = null;
         _idApertura = 0; _aperturaSeleccionada = null; _observaciones = null;
-        _cheques = _chequesDol = _depositoCol = _depositoDol = _tarjetaCol = _tarjetaDol = 0;
+        _tarjetaCol = _tarjetaDol = 0;
         _documentos.Clear(); _referencia = null;
         foreach (var t in _tarjetas) t.Monto = 0;
         foreach (var e in _efectivo) e.Cantidad = 0;
@@ -339,8 +326,6 @@
             Fecha = (await RelojEquipo.AhoraAsync()).ToString("yyyy-MM-dd"), Observaciones = _observaciones,
             EfectivoColones = (double)EfectivoColones, EfectivoDolares = (double)EfectivoDolares,
             TarjetaColones = (double)_tarjetaCol, TarjetaDolares = (double)_tarjetaDol,
-            Cheques = (double)_cheques, ChequesDol = (double)_chequesDol,
-            DepositoCol = (double)_depositoCol, DepositoDol = (double)_depositoDol,
             TipoCambioD = (double)_tipoCambio, Total = (double)Total,
             Efectivos = _efectivo.Select(e => new ArqueoEfectivoDTO { IdDenominacion = e.IdDenominacion, Monto = (double)e.Monto, Cantidad = e.Cantidad, CodMoneda = e.CodMoneda, Tipo = e.Tipo }).ToList(),
             Tarjeta = _tarjetas.Where(t => t.Monto != 0).Select(t => new ArqueoTarjetaDTO { Id = t.Id, IdArqueo = _editando ? _idArqueoEditando : 0, IdTarjeta = t.IdTarjeta, Monto = (double)t.Monto, CodMoneda = t.CodMoneda, TarjetaDescripcion = t.Descripcion }).ToList()

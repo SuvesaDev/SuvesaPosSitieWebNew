@@ -146,11 +146,11 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "consultar las cuentas bancarias");
 
-    public Task<ResponseGeneric<ICollection<PreDepositosDTO>>> PreDepositosDeApertura(long apertura) => Ejecutar(async () =>
+    public Task<ResponseGeneric<ICollection<PreDepositosDTO>>> PreDepositosDeApertura(long apertura, string? claveInterna = null) => Ejecutar(async () =>
     {
         var r = await _bancos.ObtenerPreDepositosPorNumAperturaAsync(apertura);
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-    }, "consultar los pre depósitos");
+    }, "consultar los pre depósitos", claveInterna);
 
     public Task<ResponseGeneric<ICollection<PreDepositosBuscarDTO>>> BuscarPreDepositos(FiltroBusquedaPreDepositosDTO filtro) => Ejecutar(async () =>
     {
@@ -164,11 +164,11 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "buscar los depósitos");
 
-    public Task<ResponseGeneric<PreDepositosDTO>> CrearPreDeposito(PreDepositosDTO deposito) => Ejecutar(async () =>
+    public Task<ResponseGeneric<PreDepositosDTO>> CrearPreDeposito(PreDepositosDTO deposito, string? claveInterna) => Ejecutar(async () =>
     {
         var r = await _bancos.CrearPreDepositoAsync(deposito);
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-    }, "crear el pre depósito");
+    }, "crear el pre depósito", claveInterna);
 
     public Task<ResponseGeneric<PreDepositosDTO>> EliminarPreDeposito(int id) => Ejecutar(async () =>
     {
@@ -176,11 +176,11 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "eliminar el pre depósito");
 
-    public Task<ResponseGeneric<DepositosDTO>> CrearDeposito(DepositosDTO deposito) => Ejecutar(async () =>
+    public Task<ResponseGeneric<DepositosDTO>> CrearDeposito(DepositosDTO deposito, string? claveInterna = null) => Ejecutar(async () =>
     {
         var r = await _bancos.CrearDepositoAsync(deposito);
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-    }, "crear el depósito");
+    }, "crear el depósito", claveInterna);
 
     public Task<ResponseGeneric<Moneda>> TipoCambioDolar() => Ejecutar(async () =>
     {
@@ -188,11 +188,11 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "consultar el tipo de cambio del dólar");
 
-    public Task<ResponseGeneric<ICollection<AperturaCajaFiltroResultadoDTO>>> BuscarAperturas(AperturaCajaFiltroDTO filtro) => Ejecutar(async () =>
+    public Task<ResponseGeneric<ICollection<AperturaCajaFiltroResultadoDTO>>> BuscarAperturas(AperturaCajaFiltroDTO filtro, string? claveInterna = null) => Ejecutar(async () =>
     {
         var r = await _caja.ObtenerFiltrosAperturaCajaAsync(filtro);
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-    }, "buscar las aperturas de caja");
+    }, "buscar las aperturas de caja", claveInterna);
 
     public Task<ResponseGeneric<AperturaCajaDTO>> ObtenerApertura(int numeroApertura) => Ejecutar(async () =>
     {
@@ -242,11 +242,11 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "anular el arqueo de caja", claveInterna);
 
-    public Task<ResponseGeneric<ICollection<FiltroCierreCajaBusquedaDTO>>> BuscarCierres(BuscarCierreCajaDTO filtro) => Ejecutar(async () =>
+    public Task<ResponseGeneric<ICollection<FiltroCierreCajaBusquedaDTO>>> BuscarCierres(BuscarCierreCajaDTO filtro, string? claveInterna = null) => Ejecutar(async () =>
     {
         var r = await _cierre.BuscarCierreCajaAsync(filtro);
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-    }, "buscar los cierres de caja");
+    }, "buscar los cierres de caja", claveInterna);
 
     public Task<ResponseGeneric<CierreCajaDTO>> AnularCierre(long idCierre) => Ejecutar(async () =>
     {
