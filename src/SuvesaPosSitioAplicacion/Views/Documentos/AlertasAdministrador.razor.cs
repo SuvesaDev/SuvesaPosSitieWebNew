@@ -61,6 +61,8 @@ public partial class AlertasAdministrador
         "MensajeReceptorPendiente" => "warning",
         "LotePorVencer" or "RegistroSanitarioPorVencer" => "warning",
         "ExistenciaBajoMinimo" => "danger",
+        "CertificadoPorVencer" => "warning",
+        "CertificadoVencido" => "danger",
         _ => "secondary",
     };
 
@@ -76,6 +78,8 @@ public partial class AlertasAdministrador
             "LotePorVencer" => "Lote por vencer",
             "RegistroSanitarioPorVencer" => "Registro sanitario",
             "ExistenciaBajoMinimo" => "Existencia bajo el mínimo",
+            "CertificadoPorVencer" => "Registro por vencer",
+            "CertificadoVencido" => "Registro vencido",
             "InstrumentoPendienteConfirmacion" => "Instrumento pendiente",
             "InstrumentoEnRecuperacion" => "Instrumento en recuperación",
             _ => alerta.Tipo,

@@ -1,0 +1,294 @@
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Certificados
+@inject ICertificadosRegistro Api
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+@inject IJSRuntime JS
+
+@* Certificados de registro de un artículo o de un proveedor (laboratorio): PDF, número, vencimiento y fecha de
+   aviso. El administrador recibe una alerta cuando llega la fecha de aviso y otra cuando vence; no bloquea
+   ninguna venta ni compra. Vive dentro de formularios de edición: Enter en un campo no debe guardar el
+   formulario de afuera, por eso el div raíz lo frena (solo en <input>, para no romper el teclado en botones). *@
+
+<div class="seepos-certificados" onkeydown="if (event.key === 'Enter' && event.target.tagName === 'INPUT') event.preventDefault();">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <div>
+            <h3 class="h6 mb-0">Certificados de registro</h3>
+            <p class="form-text mb-0">Suba el PDF y escriba cuándo vence. El administrador recibe un aviso en la fecha indicada.</p>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <div class="form-check mb-0">
+                <input id="@IdControl("hist")" class="form-check-input" type="checkbox" checked="@_historial" @onchange="CambiarHistorial" />
+                <label class="form-check-label small" for="@IdControl("hist")">Ver historial</label>
+            </div>
+            @if (!SoloLectura && _form is null)
+            {
+                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="Nuevo"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar certificado</button>
+            }
+        </div>
+    </div>
+
+    @if (_cargando)
+    {
+        <p class="text-secondary small mb-0">Cargando...</p>
+    }
+    else if (_certificados.Count == 0 && _form is null)
+    {
+        <p class="text-secondary small mb-0">@(_historial ? "Sin certificados registrados." : "Sin certificados vigentes.")</p>
+    }
+    else if (_certificados.Count > 0)
+    {
+        <div class="table-responsive mb-3">
+            <table class="table table-sm align-middle mb-0">
+                <thead>
+                    <tr><th>@(Dueno == "proveedor" ? "Planta o descripción" : "Descripción")</th><th>Registro</th><th>Vence</th><th>Aviso</th><th>Estado</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in _certificados)
+                    {
+                        var situacion = c.Situacion(_hoy);
+                        <tr>
+                            <td>@(string.IsNullOrWhiteSpace(c.Descripcion) ? "—" : c.Descripcion)</td>
+                            <td>@(string.IsNullOrWhiteSpace(c.NumeroRegistro) ? "—" : c.NumeroRegistro)</td>
+                            <td>@c.FechaVencimiento.ToString("dd/MM/yyyy")</td>
+                            <td>@(c.FechaAviso?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            <td><span class="badge @Clase(situacion)">@situacion</span></td>
+                            <td class="text-end text-nowrap">
+                                @if (c.TieneArchivo)
+                                {
+                                    <button type="button" class="btn btn-sm btn-link" @onclick="() => Descargar(c)"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> PDF</button>
+                                }
+                                @if (!SoloLectura && c.Estado == "Vigente")
+                                {
+                                    <button type="button" class="btn btn-sm btn-link" @onclick="() => Editar(c)">Editar</button>
+                                    <button type="button" class="btn btn-sm btn-link" @onclick="() => Renovar(c)">Renovar</button>
+                                    <button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => DarDeBaja(c)"><i class="bi bi-trash" aria-hidden="true"></i> Baja</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (_form is not null)
+    {
+        <div class="border rounded p-3">
+            <div class="fw-semibold mb-2">@(_form.Reemplaza is not null ? "Renovar certificado" : _form.IdCertificado > 0 ? "Editar certificado" : "Nuevo certificado")</div>
+            @if (_form.Reemplaza is not null)
+            {
+                <p class="form-text">Al guardar, el certificado anterior queda en el historial y deja de avisar.</p>
+            }
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="@IdControl("desc")">@(Dueno == "proveedor" ? "Planta o descripción" : "Descripción")</label>
+                    <input id="@IdControl("desc")" class="form-control" maxlength="200" @bind="_form.Descripcion" @bind:event="onchange"
+                           placeholder="@(Dueno == "proveedor" ? "Por ejemplo: Planta México" : "Opcional")" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="@IdControl("num")">Número de registro</label>
+                    <input id="@IdControl("num")" class="form-control" maxlength="80" @bind="_form.NumeroRegistro" @bind:event="onchange" />
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="@IdControl("emi")">Fecha de emisión</label>
+                    <input id="@IdControl("emi")" type="date" class="form-control" @bind="_form.FechaEmision" @bind:event="onchange" />
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="@IdControl("ven")">Fecha de vencimiento <span class="text-danger">*</span></label>
+                    <input id="@IdControl("ven")" type="date" class="form-control" value="@Texto(_vence)" @onchange="e => CambioVencimiento(e.Value?.ToString())" />
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="@IdControl("avi")">Fecha de aviso</label>
+                    <input id="@IdControl("avi")" type="date" class="form-control" value="@Texto(_form.FechaAviso)" @onchange="e => CambioAviso(e.Value?.ToString())" />
+                    <div class="form-text">Por defecto, 12 meses antes del vencimiento. Puede cambiarla.</div>
+                </div>
+                <div class="col-12 col-md-8">
+                    <label class="form-label" for="@IdControl("pdf")">Certificado en PDF</label>
+                    <InputFile id="@IdControl("pdf")" class="form-control" OnChange="ElegirPdf" accept=".pdf,application/pdf" />
+                    <div class="form-text">
+                        @if (_pdfNuevo is not null) { <span>Se guardará: @_nombrePdf</span> }
+                        else if (_form.TieneArchivo) { <span>Ya tiene un PDF adjunto: @_form.NombreArchivo. Elija otro solo si quiere reemplazarlo.</span> }
+                        else { <span>Solo PDF, hasta 10 MB.</span> }
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="@IdControl("not")">Notas</label>
+                    <input id="@IdControl("not")" class="form-control" maxlength="500" @bind="_form.Notas" @bind:event="onchange" />
+                </div>
+            </div>
+            <div class="d-flex gap-2 mt-3">
+                <button type="button" class="btn btn-primary" @onclick="Guardar" disabled="@_guardando">@(_guardando ? "Guardando..." : "Guardar certificado")</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="Cancelar" disabled="@_guardando">Cancelar</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private const long MaximoBytes = 10 * 1024 * 1024;
+
+    /// <summary>«articulo» o «proveedor».</summary>
+    [Parameter, EditorRequired] public string Dueno { get; set; } = "articulo";
+    [Parameter, EditorRequired] public long IdDueno { get; set; }
+    /// <summary>Sin permiso de edición: solo se consulta y se descarga.</summary>
+    [Parameter] public bool SoloLectura { get; set; }
+
+    private List<CertificadoRegistroWebDTO> _certificados = new();
+    private CertificadoRegistroWebDTO? _form;
+    private DateOnly? _vence;
+    private bool _avisoManual;
+    private bool _historial, _cargando, _guardando;
+    private byte[]? _pdfNuevo;
+    private string? _nombrePdf;
+    private DateOnly _hoy = DateOnly.FromDateTime(DateTime.Today);
+    private long _idCargado = -1;
+    private string _dueno = "";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IdDueno == _idCargado && Dueno == _dueno) return;
+        _idCargado = IdDueno;
+        _dueno = Dueno;
+        _form = null;
+        await Cargar();
+    }
+
+    private string IdControl(string campo) => $"cert-{Dueno}-{campo}";
+
+    private static string Texto(DateOnly? fecha) => fecha?.ToString("yyyy-MM-dd") ?? "";
+
+    private static string Clase(string situacion) => situacion switch
+    {
+        "Vencido" => "text-bg-danger",
+        "Por vencer" => "text-bg-warning",
+        "Vigente" => "text-bg-success",
+        _ => "text-bg-secondary",
+    };
+
+    private async Task Cargar()
+    {
+        if (IdDueno <= 0) { _certificados = new(); return; }
+        _cargando = true;
+        _hoy = DateOnly.FromDateTime(DateTime.Today);
+        var r = await Respuestas.DatoAsync(await Api.Listar(Dueno, IdDueno, _historial), "consultar los certificados de registro");
+        _certificados = r ?? new();
+        _cargando = false;
+    }
+
+    private async Task CambiarHistorial(ChangeEventArgs e)
+    {
+        _historial = e.Value is true;
+        await Cargar();
+    }
+
+    private void Nuevo() => Abrir(new CertificadoRegistroWebDTO());
+
+    private void Editar(CertificadoRegistroWebDTO c) => Abrir(new CertificadoRegistroWebDTO
+    {
+        IdCertificado = c.IdCertificado, Descripcion = c.Descripcion, NumeroRegistro = c.NumeroRegistro,
+        TieneArchivo = c.TieneArchivo, NombreArchivo = c.NombreArchivo, FechaEmision = c.FechaEmision,
+        FechaVencimiento = c.FechaVencimiento, FechaAviso = c.FechaAviso, Notas = c.Notas,
+    });
+
+    // Renovar arranca de los datos del anterior, pero sin fechas ni archivo: son los del certificado nuevo.
+    private void Renovar(CertificadoRegistroWebDTO c) => Abrir(new CertificadoRegistroWebDTO
+    {
+        Reemplaza = c.IdCertificado, Descripcion = c.Descripcion, NumeroRegistro = c.NumeroRegistro,
+    });
+
+    private void Abrir(CertificadoRegistroWebDTO form)
+    {
+        _form = form;
+        _pdfNuevo = null;
+        _nombrePdf = null;
+        _vence = form.IdCertificado > 0 ? form.FechaVencimiento : null;
+        // Un aviso que ya venía guardado se respeta; uno nuevo se calcula solo hasta que lo toquen.
+        _avisoManual = form.IdCertificado > 0;
+    }
+
+    private void CambioVencimiento(string? valor)
+    {
+        _vence = DateOnly.TryParse(valor, out var f) ? f : null;
+        if (_form is null) return;
+        if (_vence is { } v)
+        {
+            _form.FechaVencimiento = v;
+            if (!_avisoManual) _form.FechaAviso = v.AddMonths(-12);
+        }
+    }
+
+    private void CambioAviso(string? valor)
+    {
+        if (_form is null) return;
+        _avisoManual = true;
+        _form.FechaAviso = DateOnly.TryParse(valor, out var f) ? f : null;
+    }
+
+    private async Task ElegirPdf(InputFileChangeEventArgs evento)
+    {
+        var archivo = evento.File;
+        if (!string.Equals(Path.GetExtension(archivo.Name), ".pdf", StringComparison.OrdinalIgnoreCase) || archivo.Size > MaximoBytes)
+        {
+            _pdfNuevo = null;
+            _nombrePdf = null;
+            await Dialogos.ErrorAsync("El certificado debe ser un PDF de máximo 10 MB.");
+            return;
+        }
+
+        await using var entrada = archivo.OpenReadStream(MaximoBytes);
+        await using var memoria = new MemoryStream();
+        await entrada.CopyToAsync(memoria);
+        _pdfNuevo = memoria.ToArray();
+        _nombrePdf = archivo.Name;
+    }
+
+    private void Cancelar() => _form = null;
+
+    private async Task Guardar()
+    {
+        if (_form is null || _guardando) return;
+        if (_vence is null)
+        {
+            await Dialogos.ErrorAsync("Indique la fecha de vencimiento del registro.");
+            return;
+        }
+        if (_form.FechaAviso is { } aviso && aviso > _vence)
+        {
+            await Dialogos.ErrorAsync("La fecha de aviso no puede ser posterior al vencimiento.");
+            return;
+        }
+
+        _form.FechaVencimiento = _vence.Value;
+        _form.ArchivoBase64 = _pdfNuevo is null ? null : Convert.ToBase64String(_pdfNuevo);
+        _form.NombreArchivo = _pdfNuevo is null ? _form.NombreArchivo : _nombrePdf;
+
+        _guardando = true;
+        var r = await Respuestas.DatoAsync(await Api.Guardar(Dueno, IdDueno, _form), "guardar el certificado de registro");
+        _guardando = false;
+        if (r is null) return;
+
+        Dialogos.Exito("Certificado guardado.");
+        _form = null;
+        await Cargar();
+    }
+
+    private async Task DarDeBaja(CertificadoRegistroWebDTO c)
+    {
+        if (!await Dialogos.ConfirmarPeligroAsync("El certificado deja de avisar y pasa al historial. Úselo cuando el registro ya no aplica; para un registro renovado use «Renovar»."))
+            return;
+        if (await Respuestas.DatoAsync(await Api.DarDeBaja(Dueno, IdDueno, c.IdCertificado), "dar de baja el certificado"))
+        {
+            Dialogos.Exito("Certificado dado de baja.");
+            await Cargar();
+        }
+    }
+
+    private async Task Descargar(CertificadoRegistroWebDTO c)
+    {
+        var archivo = await Respuestas.DatoAsync(await Api.Archivo(Dueno, IdDueno, c.IdCertificado), "descargar el certificado");
+        if (archivo is null) return;
+        await JS.InvokeVoidAsync("seepos.descargarBase64", archivo.NombreArchivo, archivo.ArchivoBase64, "application/pdf");
+    }
+}
