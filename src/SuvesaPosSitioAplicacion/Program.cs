@@ -260,6 +260,7 @@ builder.Services.AddScoped<IArticuloBonificacion, ArticuloBonificacion>();
 builder.Services.AddScoped<IConfiguracionCorreo, ConfiguracionCorreo>();
 builder.Services.AddScoped<IEnviosCorreo, EnviosCorreo>();
 builder.Services.AddScoped<IAlertasAdministrador, AlertasAdministrador>();
+builder.Services.AddScoped<ICertificadosRegistro, CertificadosRegistro>();
 builder.Services.AddScoped<IAvisadorAlertas, AvisadorAlertas>();
 builder.Services.AddScoped<ITipoCambio, TipoCambio>();
 

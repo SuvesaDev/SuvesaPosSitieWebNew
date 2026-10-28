@@ -362,6 +362,10 @@
                     {
                         <button type="button" class="btn btn-sm @ClasePestanaBonificacion" @onclick="MostrarBonificacion">Bonificación</button>
                     }
+                    @if (!_esNuevo)
+                    {
+                        <button type="button" class="btn btn-sm @ClasePestanaRegistro" @onclick="MostrarRegistro">Registro</button>
+                    }
                     <button type="button" class="btn btn-sm @ClasePestanaOtros" @onclick="MostrarOtros">Otros datos</button>
                 </nav>
 
@@ -765,6 +769,10 @@
                             <div class="col-12 table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Código</th><th>Descripción</th><th></th></tr></thead><tbody>@foreach (var producto in _productosRegalo) { <tr><td><code>@producto.CodArticulo</code></td><td>@producto.Descripcion</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarProductoRegalo(producto)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
                         }
                     </div>
+                }
+                else if (_pestanaInventario == "registro")
+                {
+                    <CertificadosRegistroPanel Dueno="articulo" IdDueno="_edicion.Codigo" SoloLectura="@(!Sesion.Puede(Titulo, AccionPantalla.Modificar))" />
                 }
                 else if (_pestanaInventario == "otros")
                 {
@@ -1474,6 +1482,7 @@
     private string ClasePestanaFormula => ClasePestana("formula");
     private string ClasePestanaLotes => ClasePestana("lotes");
     private string ClasePestanaBonificacion => ClasePestana("bonificacion");
+    private string ClasePestanaRegistro => ClasePestana("registro");
     private string ClasePestanaOtros => ClasePestana("otros");
     private string ClasePestanaExistencias => ClasePestana("existencias");
     private string ClasePestanaMovimientos => ClasePestana("movimientos");
@@ -1489,6 +1498,7 @@
     private void MostrarFormula() => _pestanaInventario = "formula";
     private void MostrarLotes() => _pestanaInventario = "lotes";
     private void MostrarBonificacion() => _pestanaInventario = "bonificacion";
+    private void MostrarRegistro() => _pestanaInventario = "registro";
     private void MostrarOtros() => _pestanaInventario = "otros";
 
     // ---- §3.1b/c — pestañas Existencias y Movimientos ----
