@@ -14,6 +14,8 @@ public interface ICobranza
 
     Task<ResponseGeneric<long>> Abrir(AbrirSeguimientoWebComando comando);
 
+    Task<ResponseGeneric<bool>> AgregarFacturas(long idSeguimiento, AgregarFacturasWebComando comando);
+
     Task<ResponseGeneric<long>> RegistrarInteraccion(long idSeguimiento, NuevaInteraccionWebComando comando);
 
     Task<ResponseGeneric<long>> RegistrarPromesa(long idSeguimiento, NuevaPromesaWebComando comando);

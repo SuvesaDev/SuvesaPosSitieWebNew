@@ -48,6 +48,10 @@ public sealed class Cobranza : ProxyBase, ICobranza
         => Ejecutar(async () => await LecturaEnvelope.Leer<long>(
             await _api.PostAsJsonAsync("api/cobranza/seguimientos", comando, LecturaEnvelope.Json)), "abrir el seguimiento");
 
+    public Task<ResponseGeneric<bool>> AgregarFacturas(long idSeguimiento, AgregarFacturasWebComando comando)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<bool>(
+            await _api.PostAsJsonAsync($"api/cobranza/seguimientos/{idSeguimiento}/facturas", comando, LecturaEnvelope.Json)), "agregar facturas al seguimiento");
+
     public Task<ResponseGeneric<long>> RegistrarInteraccion(long idSeguimiento, NuevaInteraccionWebComando comando)
         => Ejecutar(async () => await LecturaEnvelope.Leer<long>(
             await _api.PostAsJsonAsync($"api/cobranza/seguimientos/{idSeguimiento}/interacciones", comando, LecturaEnvelope.Json)), "registrar la interacción");

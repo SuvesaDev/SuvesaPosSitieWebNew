@@ -82,6 +82,9 @@
                                     <button class="btn btn-outline-primary" disabled="@(_hayPromesaPendiente)" title="@(_hayPromesaPendiente ? "Ya hay una promesa pendiente" : null)" @onclick="AbrirPromesa">
                                         <i class="bi bi-calendar-check me-1" aria-hidden="true"></i>Promesa de pago
                                     </button>
+                                    <button class="btn btn-outline-secondary" @onclick="AbrirAgregarFacturas">
+                                        <i class="bi bi-plus-square me-1" aria-hidden="true"></i>Agregar facturas
+                                    </button>
                                 </div>
                             </div>
                         </div></div>
@@ -146,6 +149,12 @@
                                     </div>
                                     <div class="mt-1" style="white-space:pre-wrap">@i.Observacion</div>
                                     @if (i.Monto is { } m) { <div class="small text-success">Monto aplicado: @Formato.Importe(m)</div> }
+                                    @if (PuedeGestionar && i.Tipo != TipoInteraccionWeb.Sistema)
+                                    {
+                                        <button class="btn btn-sm btn-link p-0 mt-1" @onclick="() => AbrirCorreccion(i)">
+                                            <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Corregir nota
+                                        </button>
+                                    }
                                 </li>
                             }
                         </ul>
@@ -189,6 +198,54 @@
                 </div>
             </AppModal>
 
+            <AppModal @ref="_modalFacturas" Titulo="Agregar facturas" Subtitulo="@($"Vencidas de {r.NombreCliente} sin seguimiento")" AlGuardar="GuardarFacturas"
+                      Guardando="_guardando" PuedeGuardar="@(_marcadas.Count > 0 && PresentacionCobranza.ObservacionValida(_obsFacturas))">
+                @if (_disponibles is null)
+                {
+                    <div class="text-secondary">Buscando facturas...</div>
+                }
+                else if (_disponibles.Count == 0)
+                {
+                    <div class="alert alert-info mb-2">El cliente no tiene otras facturas vencidas libres en la misma moneda.</div>
+                }
+                else
+                {
+                    <div class="table-responsive mb-2"><table class="table table-sm align-middle mb-0">
+                        <thead><tr><th style="width:2rem"></th><th>Factura</th><th>Vence</th><th class="text-end">Mora</th><th class="text-end">Saldo</th></tr></thead>
+                        <tbody>
+                            @foreach (var f in _disponibles)
+                            {
+                                <tr>
+                                    <td><input type="checkbox" class="form-check-input" checked="@_marcadas.Contains(f.IdVenta)"
+                                               @onchange="e => MarcarFactura(f.IdVenta, (bool)(e.Value ?? false))" aria-label="Agregar factura @f.NumFactura.ToString("0")" /></td>
+                                    <td>@f.NumFactura.ToString("0")</td>
+                                    <td>@(f.Vence?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                    <td class="text-end">@f.DiasMora d</td>
+                                    <td class="text-end">@Formato.Importe(f.Saldo)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table></div>
+                }
+                <label class="form-label small" for="obs-facturas">Observación (por qué se suman)</label>
+                <textarea id="obs-facturas" class="form-control" rows="3" maxlength="2000" @bind="_obsFacturas" @bind:event="oninput"></textarea>
+                <div class="form-text">Mínimo @PresentacionCobranza.MinimoObservacion caracteres.</div>
+            </AppModal>
+
+            <AppModal @ref="_modalCorreccion" Titulo="Corregir nota" Subtitulo="La nota original no se modifica: se agrega una nueva que la corrige."
+                      AlGuardar="GuardarCorreccion" Guardando="_guardando" PuedeGuardar="PresentacionCobranza.ObservacionValida(_textoCorreccion)">
+                @if (_original is not null)
+                {
+                    <div class="border rounded p-2 mb-2 bg-body-tertiary small">
+                        <div class="text-secondary">@PresentacionCobranza.Rotulo(_original.Tipo) · @_original.Usuario · @PresentacionCobranza.Fecha(_original.FechaUtc)</div>
+                        <div style="white-space:pre-wrap">@_original.Observacion</div>
+                    </div>
+                }
+                <label class="form-label small" for="obs-correccion">Corrección</label>
+                <textarea id="obs-correccion" class="form-control" rows="3" maxlength="2000" @bind="_textoCorreccion" @bind:event="oninput"></textarea>
+                <div class="form-text">Mínimo @PresentacionCobranza.MinimoObservacion caracteres.</div>
+            </AppModal>
+
             <AppModal @ref="_modalReasignar" Titulo="Reasignar seguimiento" AlGuardar="GuardarReasignar" Guardando="_guardando"
                       PuedeGuardar="@(!string.IsNullOrWhiteSpace(_nuevoCobrador) && _motivoReasignar.Trim().Length >= 5)">
                 <div class="mb-2">
@@ -219,6 +276,15 @@
     private decimal _montoPromesa;
     private string _motivoPromesa = string.Empty;
     private string _obsPromesa = string.Empty;
+
+    private AppModal _modalFacturas = default!;
+    private List<FacturaVencidaWebDTO>? _disponibles;
+    private readonly HashSet<long> _marcadas = new();
+    private string _obsFacturas = string.Empty;
+
+    private AppModal _modalCorreccion = default!;
+    private InteraccionWebDTO? _original;
+    private string _textoCorreccion = string.Empty;
 
     private AppModal _modalReasignar = default!;
     private string _nuevoCobrador = string.Empty;
@@ -290,6 +356,70 @@
         if (id == 0) return;
         await _modalPromesa.OcultarAsync();
         Dialogos.Exito("Promesa de pago registrada.");
+        await Cargar();
+    }
+
+    private async Task AbrirAgregarFacturas()
+    {
+        if (_detalle is null) return;
+        _disponibles = null;
+        _marcadas.Clear();
+        _obsFacturas = string.Empty;
+        await _modalFacturas.MostrarAsync();
+
+        var r = _detalle.Resumen;
+        var pagina = await Respuestas.DatoAsync(await Api.FacturasVencidas(new FiltroFacturasVencidasWeb
+        {
+            IdCliente = r.IdCliente, Gestion = FiltroGestionWeb.SinSeguimiento, Tamano = 200,
+        }), "consultar las facturas vencidas del cliente");
+        // El API exige la misma moneda del seguimiento.
+        _disponibles = pagina?.Items.Where(f => f.CodMoneda == r.CodMoneda).ToList() ?? new();
+    }
+
+    private void MarcarFactura(long idVenta, bool marcada)
+    {
+        if (marcada) _marcadas.Add(idVenta); else _marcadas.Remove(idVenta);
+    }
+
+    private async Task GuardarFacturas()
+    {
+        if (_marcadas.Count == 0 || !PresentacionCobranza.ObservacionValida(_obsFacturas)) return;
+        _guardando = true;
+        var ok = await Respuestas.DatoAsync(await Api.AgregarFacturas(Id, new AgregarFacturasWebComando
+        {
+            IdsVenta = _marcadas.ToList(), Observacion = _obsFacturas.Trim(),
+        }), "agregar facturas al seguimiento");
+        _guardando = false;
+        // Si falló (p. ej. otro cobrador tomó una factura), se recarga la lista para mostrar lo vigente.
+        if (!ok) { await AbrirAgregarFacturas(); return; }
+        await _modalFacturas.OcultarAsync();
+        Dialogos.Exito("Facturas agregadas al seguimiento.");
+        await Cargar();
+    }
+
+    private async Task AbrirCorreccion(InteraccionWebDTO original)
+    {
+        _original = original;
+        _textoCorreccion = string.Empty;
+        await _modalCorreccion.MostrarAsync();
+    }
+
+    /// <summary>La corrección es una nota nueva que apunta a la original; la bitácora es inmutable.</summary>
+    private async Task GuardarCorreccion()
+    {
+        if (_original is null || !PresentacionCobranza.ObservacionValida(_textoCorreccion)) return;
+        _guardando = true;
+        var id = await Respuestas.DatoAsync(await Api.RegistrarInteraccion(Id, new NuevaInteraccionWebComando
+        {
+            Tipo = TipoInteraccionWeb.NotaInterna,
+            Resultado = ResultadoInteraccionWeb.SinResultado,
+            Observacion = _textoCorreccion.Trim(),
+            IdCorrige = _original.Id,
+        }), "registrar la corrección");
+        _guardando = false;
+        if (id == 0) return;
+        await _modalCorreccion.OcultarAsync();
+        Dialogos.Exito("Corrección registrada.");
         await Cargar();
     }
 

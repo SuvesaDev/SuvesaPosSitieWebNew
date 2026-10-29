@@ -29,6 +29,14 @@ Módulo de menú **Cobranza** (`COBRANZA`, ícono `bi-telephone-outbound`), tres
   conflicto, la pantalla lo muestra y recarga el listado.
 - **Solo gestiona quien tiene asignado el seguimiento:** los demás ven un aviso con el nombre del responsable.
   La reasignación (administración) queda en la bitácora.
+- **Agregar facturas:** desde el detalle, *Agregar facturas* lista las vencidas del mismo cliente y moneda que
+  no tienen seguimiento, pide la observación y las suma (`POST seguimientos/{id}/facturas`). Si otro cobrador
+  tomó alguna mientras tanto, se muestra el conflicto y se recarga la lista.
+- **Corregir nota:** cada nota digitada en la bitácora tiene *Corregir nota*; abre un modal con el texto original
+  y registra una nota nueva con `IdCorrige` (la original no se modifica).
+- **Filtro de cliente por nombre:** el listado de vencidas busca al escribir (pausa de 400 ms, desde 2
+  caracteres) por nombre o cédula con `IClientesConsulta`, igual que Estado de cuenta; filtra por la
+  identificación elegida.
 - **Selección múltiple** con las mismas reglas del API (mismo cliente y misma moneda), avisadas antes de enviar.
 - Los dashboards se recalculan en el API como máximo cada 5 minutos; *Actualizar* no fuerza el cálculo.
 
@@ -59,9 +67,5 @@ compilar las pruebas). Falta **asignar los permisos a los roles** de cobro y de 
 
 - **Verificación visual con datos reales:** compilado y probado con pruebas unitarias, **pero no se recorrieron
   las pantallas en un navegador** contra un API con la migración aplicada. Es lo primero a hacer en pruebas.
-- **Agregar facturas a un seguimiento existente:** el API lo soporta (`POST seguimientos/{id}/facturas`); la
-  pantalla todavía no lo ofrece.
-- **Filtro de cliente por nombre:** hoy es por identificación numérica.
-- **Corrección de notas** (`IdCorrige`): el API lo soporta y la bitácora lo muestra; no hay botón "corregir".
 - **Fechas** de la bitácora: se muestran en la hora del servidor del sitio (las marcas vienen en UTC).
 - **E2E (Playwright):** sin cubrir; requiere usuario y datos de prueba.

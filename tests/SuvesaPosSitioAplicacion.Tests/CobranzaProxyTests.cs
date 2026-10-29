@@ -123,6 +123,36 @@ public sealed class CobranzaProxyTests
     }
 
     [Fact]
+    public async Task AgregarFacturas_PublicaLasFacturasYLaObservacion()
+    {
+        var (proxy, handler) = Nuevo("""{"status":0,"responses":true}""");
+
+        var r = await proxy.AgregarFacturas(3, new AgregarFacturasWebComando { IdsVenta = { 7, 9 }, Observacion = "El cliente reconoce también la 1009" });
+
+        Assert.True(r.EsCorrecta, r.Excepcion);
+        Assert.Equal(HttpMethod.Post, handler.Metodo);
+        Assert.Equal("/api/cobranza/seguimientos/3/facturas", handler.Ruta);
+        Assert.Contains("\"idsVenta\":[7,9]", handler.Cuerpo);
+        Assert.Contains("\"observacion\":\"El cliente reconoce", handler.Cuerpo);
+    }
+
+    [Fact]
+    public async Task CorregirNota_EnviaIdCorrigeSinTocarLaOriginal()
+    {
+        var (proxy, handler) = Nuevo("""{"status":0,"responses":52}""");
+
+        await proxy.RegistrarInteraccion(3, new NuevaInteraccionWebComando
+        {
+            Tipo = TipoInteraccionWeb.NotaInterna, Resultado = ResultadoInteraccionWeb.SinResultado,
+            Observacion = "Corrección: dijo que paga 5000", IdCorrige = 41,
+        });
+
+        Assert.Equal(HttpMethod.Post, handler.Metodo);
+        Assert.Equal("/api/cobranza/seguimientos/3/interacciones", handler.Ruta);
+        Assert.Contains("\"idCorrige\":41", handler.Cuerpo);
+    }
+
+    [Fact]
     public async Task RegistrarPromesa_EnviaLaFechaComoDateOnly()
     {
         var (proxy, handler) = Nuevo("""{"status":0,"responses":5}""");

@@ -63,6 +63,12 @@ public sealed class AbrirSeguimientoWebComando
     public string Observacion { get; set; } = string.Empty;
 }
 
+public sealed class AgregarFacturasWebComando
+{
+    public List<long> IdsVenta { get; set; } = new();
+    public string Observacion { get; set; } = string.Empty;
+}
+
 public sealed class NuevaInteraccionWebComando
 {
     public TipoInteraccionWeb Tipo { get; set; } = TipoInteraccionWeb.Llamada;
