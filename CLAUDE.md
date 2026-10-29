@@ -728,3 +728,11 @@ Produce `DTOs/Generated/SeePosDtos.cs` y `ApiConexion/Generated/SeePosApiCliente
 - Nombres de codigo en ingles cuando son tecnicos; dominio y textos de interfaz en espanol.
 - Los nombres de campos que vienen del API se respetan tal cual (`CodArticulo`, `Monto_Impuesto`).
 - Nada de `float`/`double` para dinero. Siempre `decimal`.
+
+## Cobranza — gestión y seguimiento (Web)
+
+Módulo de menú `Cobranza` (`COBRANZA.SEGUIMIENTO` / `.DASHBOARD` / `.GERENCIAL`) con cuatro pantallas en
+`Views/Cobranza/` sobre `api/cobranza`. Proxy a mano `ICobranza`/`Cobranza` y DTOs espejo en
+`DTOs/Cobranza/` (el API serializa enums como número). Las reglas viven en el API. Compilado y con pruebas
+unitarias (`CobranzaProxyTests`); **sin recorrer en navegador con datos reales**. Detalle y pendientes:
+`docs/COBRANZA_WEB.md`.

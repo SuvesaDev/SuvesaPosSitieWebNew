@@ -138,13 +138,14 @@ public class FiltroMenuTests
     public void ElMenuRealSeCargoCompleto()
     {
         static int Contar(IEnumerable<ItemMenu> ns) => ns.Sum(n => 1 + Contar(n.Hijos));
-        Assert.Equal(11, MenuSeePos.Items.Count);
+        Assert.Equal(12, MenuSeePos.Items.Count);
         // 84 originales + 19 (arbol de permisos MODULO_REPORTES.*) + 2 (Gastos,
         // Cumplimiento CABYS) + 4 (Apartados y préstamos, KPI por ruta, Empaquetado y
         // maquila, Mermas) + 1 (Panel ejecutivo) + 1 (Tablero de Consignación, pantalla
         // huérfana que ya existía sin nodo de menú) + 1 (Ventas entre horas) + 1
         // (Importaciones) + 1 (Reportes → Importaciones, KPI trasladado fuera de
         // Compras → Importaciones) + 1 (Pretoma) + 1 (Boletas de Consignación) + 1 (Recibo de mercadería).
-        Assert.Equal(124, Contar(MenuSeePos.Items));   // 123 + "Consulta de Arqueos" (permiso de ver todos los arqueos)
+        // + 4 (módulo Cobranza: Cobranza, Seguimiento, Dashboard, Gerencial).
+        Assert.Equal(128, Contar(MenuSeePos.Items));   // 124 + Cobranza
     }
 }
