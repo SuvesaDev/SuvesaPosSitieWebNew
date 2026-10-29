@@ -62,6 +62,8 @@ Códigos con los que arranca el catálogo, y que usted puede apuntar a otra cuen
 | Cuentas por pagar | 2.1.1.1 |
 | Banco en colones (sugerido en el pago) | 1.1.2.1 |
 | Caja cobro ruta (sugerida en el cobro) | 1.1.1.2 |
+| Costo de ventas (línea opcional de la venta) | 5.1.1 |
+| Merma y faltante (ajuste de inventario) | 6.1.6.8 |
 
 ## 3. Elegir las cuentas de uso
 
@@ -102,14 +104,17 @@ Mientras la versión diga **Borrador**, el documento se guarda y no hay póliza.
 
 | Plantilla | Cuándo se usa | Borrador sugerido |
 |---|---|---|
-| VentaEmitida | Al emitir o al aceptar la venta | Débito por cobrar (total), débito descuento, crédito ventas (subtotal), crédito IVA |
+| VentaEmitida | Al emitir o al aceptar la venta | Débito por cobrar (total), débito descuento, crédito ventas (subtotal), crédito IVA. En borrador también trae costo de ventas e inventario |
 | CobroAplicado | Al aplicar un cobro ya confirmado | Débito caja, crédito por cobrar |
-| NotaCreditoEmitida | Al emitir la nota de crédito | Espejo de la venta |
+| NotaCreditoEmitida | Al aceptar Hacienda, o al grabar si es tiquete interno | Espejo de la venta, con el reverso del costo si esa línea está activa |
 | CompraRegistrada | Al registrar o al aceptar la compra | Débito inventario (base menos descuento), débito IVA soportado, crédito por pagar |
 | DevolucionCompraRegistrada | Al registrar la devolución de compra | Débito por pagar, crédito inventario |
 | PagoProveedorAplicado | Al pagar al proveedor | Débito por pagar, crédito banco por el neto, crédito retención |
 | ComisionLiquidada | Al liquidar comisiones | Débito gasto, crédito comisiones por pagar |
 | ImportacionCerrada | Al cerrar la importación | Débito inventario, crédito por pagar |
+| AjusteInventario | Toma física aplicada, o merma en tránsito | Débito merma (6.1.6.8), crédito inventario. Queda en borrador hasta que el contador la active |
+
+Si el libro **ya tenía catálogo** cuando se agregaron estas recetas, la carga inicial no se vuelve a correr. En ese caso, cree a mano la cuenta `6.1.6.8` y las plantillas de costo y de ajuste, o pida una carga puntual. El catálogo no se congela: los códigos de la tabla son el punto de partida.
 
 En el pago, la retención usa el porcentaje de la ficha del proveedor y la cuenta de uso de retención. Si el porcentaje está vacío o en cero, esa línea no se genera.
 
@@ -139,6 +144,18 @@ Además de los pasos 1 a 5:
 
 El cobro es otro asiento, con la plantilla **CobroAplicado**. Un depósito o cheque pendiente no se contabiliza hasta confirmarlo.
 
+Alistar, empacar o entregar **no** genera un segundo asiento de venta. El ingreso ya quedó en la factura. Lo que sí deja póliza es la excepción: nota de crédito, merma o suelta de preventa. El detalle está en el apartado de Bodega.
+
+## 7.1 Nota de crédito
+
+La receta es **NotaCreditoEmitida**.
+
+1. Si la nota es de un **tiquete interno**, el asiento se genera al grabarla.
+2. Si es **electrónica**, espera a que Hacienda la deje en **Aceptado** o **Aceptado parcial**, igual que la factura.
+3. La sucursal, el período y la plantilla tienen que estar listos, como en la venta.
+
+Un faltante o un no entregado de Bodega usa este mismo camino. No hay una póliza distinta para el picking.
+
 ## 8. Qué hace falta para que una compra deje asiento
 
 ![La compra sin clave se contabiliza al registrarla; la que tiene clave espera el mensaje receptor aceptado](contabilidad-compra.jpg)
@@ -151,6 +168,27 @@ Se piden los mismos cuatro preparativos, con la plantilla **CompraRegistrada** a
 4. Si **trae clave fiscal**, espera a que el mensaje receptor quede en **Aceptado** o **Aceptado parcial**.
 
 El pago al proveedor es otro asiento: **PagoProveedorAplicado**.
+
+## 8.1 Bodega y despacho
+
+Bodega confirma que salió lo que la factura ya descontó. El picking **no** vuelve a mover el mayor.
+
+En **Facturación**, el check **Requiere despacho** decide si la factura entra a la cola. Sale del cliente y se puede cambiar en esa venta.
+
+| Qué hace Bodega | Qué ve Contabilidad |
+|---|---|
+| Alistar, empacar, salir a ruta, entregar | Nada. Un solo `VentaEmitida`, el de la factura (o de Hacienda) |
+| Faltante o no entregado de tiquete interno | `NotaCreditoEmitida` al grabar la devolución interna |
+| Faltante o no entregado de factura electrónica | La NC va a Hacienda. El asiento nace cuando Hacienda acepta |
+| Faltante de preventa | Se quita de la preventa. No hay `VentaEmitida` ni NC |
+| No entregado con reingreso | Igual que el faltante. El producto vuelve |
+| No entregado con merma | NC al cliente y, aparte, `AjusteInventario` por el costo perdido |
+| Anular una orden **empacada** | El mismo camino que no entregado: NC o suelta de preventa |
+| Toma física / pretoma aprobada | `AjusteInventario` de la toma. Sin plantilla activa, el evento queda en bandeja |
+
+La factura electrónica se puede **alistar** mientras Hacienda responde. **Empacar** y **salir a ruta** esperan **Aceptado** o **Aceptado parcial**. Una preventa se alista; no se marca **Entregado** hasta facturarla. El no entregado sí se registra.
+
+La merma usa la sucursal de la **bodega** de la línea, no la de la factura. La plantilla **AjusteInventario** nace en borrador: débito a `6.1.6.8` Merma y faltante, crédito a inventario, por `CostoPerdidas`. Hasta que el contador la active, el evento se ve en **Bandeja → Eventos** y no hay póliza.
 
 ## 9. Asiento manual
 
@@ -219,6 +257,24 @@ Los estados se consultan en su pantalla, con la fecha de corte o el rango, y se 
 - [ ] Catálogo cargado o armado a mano
 - [ ] Cuentas de uso guardadas
 - [ ] Mes de trabajo abierto
-- [ ] Plantillas del día activadas, después de revisarlas
+- [ ] Plantillas del día activadas, después de revisarlas (venta, cobro, compra y pago, como mínimo)
+- [ ] Costo de ventas y `AjusteInventario` revisados: se activan cuando el contador lo pida; mientras, quedan en borrador
 - [ ] Porcentaje de retención en los proveedores que corresponda
 - [ ] Una venta o una compra de prueba, y el asiento visible en **Bandeja → Pólizas**
+- [ ] Si usa Bodega: el check **Requiere despacho** en la factura, y una prueba de faltante o merma vista en Eventos
+
+## Preguntas frecuentes
+
+**El menú Contabilidad no aparece.** Con la sucursal apagada el menú muestra solo Configuración emisor. Entre ahí, elija la sucursal y pulse Encender sucursal.
+
+**La venta se guardó y no hay póliza.** Mire si es preventa o si la factura electrónica todavía no está aceptada. Si ya debería contabilizarse, abra Bandeja → Eventos.
+
+**Alisté y entregué, y no hay un segundo asiento.** Así debe ser. El ingreso quedó en la factura. Lo que deja póliza es el faltante, el no entregado o la merma.
+
+**Empacar dice que Hacienda no ha aceptado.** La factura electrónica se puede alistar. Empacar y salir a ruta esperan Aceptado o Aceptado parcial.
+
+**La merma no dejó póliza.** `AjusteInventario` nace en borrador. Active esa plantilla cuando el contador lo pida, y pulse Reintentar en Eventos.
+
+**El libro ya tenía catálogo y no veo 6.1.6.8.** La carga inicial no se vuelve a correr. Cree la cuenta y las plantillas a mano, o pida una carga puntual.
+
+**¿El dos por ciento es para todos los proveedores?** Cada proveedor trae el suyo en la ficha. Vacío o cero significa que a ese proveedor no se le retiene.

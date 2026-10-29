@@ -155,7 +155,7 @@ def main():
     p(doc, "Manual de usuario", bold=True, size=28, center=True, space_after=2)
     p(doc, "Módulo de Contabilidad", bold=True, size=18, center=True, color=AZUL, space_after=8)
     p(doc, "Guía para encender el libro, abrir los meses y ver cómo una venta, una compra o un pago se convierte en póliza.", center=True, size=12, space_after=4)
-    p(doc, "Septiembre 2026", center=True, italic=True, size=11, space_after=14)
+    p(doc, "Octubre 2026", center=True, italic=True, size=11, space_after=14)
 
     figura(doc, "contabilidad-puesta-en-marcha.jpg", "Figura 1. Los cinco pasos, en este orden. Si se salta uno, el documento se guarda y el asiento espera.")
 
@@ -242,6 +242,8 @@ def main():
         ["Retención a proveedores", "2.1.3.2", "Retención 2%"],
         ["Ventas gravadas", "4.1.2", "Ventas gravadas"],
         ["Descuento sobre ventas", "4.1.3", "Descuentos sobre ventas"],
+        ["Costo de ventas (línea opcional de la venta)", "5.1.1", "Costo de ventas"],
+        ["Merma y faltante (ajuste de inventario)", "6.1.6.8", "Merma y faltante de inventario"],
     ])
     p(doc, "El nombre «Retención 2%» es el del catálogo sugerido. El porcentaje real no está fijo: se escribe en la ficha de cada proveedor, en el capítulo 4.")
 
@@ -280,7 +282,7 @@ def main():
         "Pulse Detalle para ver cuentas y fórmulas, o Simular para probar importes de ejemplo.",
         "Si las cuentas son las de este emisor, pulse Activar. Confirme el aviso: a partir de ahí los eventos de ese tipo se contabilizan con esas cuentas.",
     ])
-    p(doc, "Mientras la versión diga Borrador, el documento operativo se guarda y no hay póliza. Active solo las recetas que ya revisó. El cobro y el pago sugieren caja de ruta y banco en colones: cámbielos en una versión nueva si en esta sucursal el dinero entra o sale por otra cuenta, y active esa versión.")
+    p(doc, "Mientras la versión diga Borrador, el documento operativo se guarda y no hay póliza. Active solo las recetas que ya revisó. El cobro y el pago sugieren caja de ruta y banco en colones: cámbielos en una versión nueva si en esta sucursal el dinero entra o sale por otra cuenta, y active esa versión. El costo de ventas y AjusteInventario también nacen en borrador: se activan cuando el contador lo pida.")
     p(doc, "Para corregir una plantilla ya activa: Nueva versión, cambie las líneas, simule y active. La versión nueva reemplaza a la activa. Lo ya contabilizado no se reescribe solo; para eso está Reproceso, en el capítulo 9.")
 
     # 3 plantillas
@@ -293,8 +295,11 @@ def main():
         ["Débito", "4.1.3 Descuentos", "Descuento"],
         ["Crédito", "4.1.2 Ventas gravadas", "Subtotal"],
         ["Crédito", "2.1.3.1 IVA devengado", "Impuesto de la venta"],
+        ["Débito", "5.1.1 Costo de ventas", "Costo. En borrador hasta que el contador la active"],
+        ["Crédito", "1.1.6.1 Inventario", "Costo. En borrador hasta que el contador la active"],
     ])
     p(doc, "La identidad que cuadra es: Total = Subtotal − Descuento + Impuesto. Esta receta lleva el total a cuentas por cobrar, también en una venta de contado. El cobro, en la plantilla siguiente, baja esa cuenta y sube la caja. Si el contador prefiere que el contado vaya directo a caja, se cambia la plantilla antes de activarla.")
+    p(doc, "Las dos líneas de costo salen del catálogo inicial en borrador. Sin ellas activas, el asiento de la venta es el de por cobrar, ventas e IVA. Con ellas activas, además baja el inventario por el costo y sube el gasto de costo de ventas. No se autoactivan.")
 
     doc.add_heading("3.2 Cobro aplicado", level=2)
     tabla(doc, ["Movimiento", "Cuenta sugerida", "Importe"], [
@@ -304,7 +309,7 @@ def main():
     p(doc, "Un depósito o un cheque que sigue pendiente no genera este asiento. Entra cuando la confirmación del instrumento queda hecha.")
 
     doc.add_heading("3.3 Nota de crédito emitida", level=2)
-    p(doc, "Es el espejo de la venta: débito a ventas por el subtotal, débito al IVA, crédito al descuento y crédito a cuentas por cobrar por el total.")
+    p(doc, "Es el espejo de la venta: débito a ventas por el subtotal, débito al IVA, crédito al descuento y crédito a cuentas por cobrar por el total. Si el costo de ventas está activo, la nota también revierte esas dos líneas. Un tiquete interno se contabiliza al grabar la nota. Una nota electrónica espera a que Hacienda la deje en Aceptado o Aceptado parcial, igual que la factura.")
 
     doc.add_heading("3.4 Compra registrada", level=2)
     tabla(doc, ["Movimiento", "Cuenta sugerida", "Importe"], [
@@ -335,9 +340,16 @@ def main():
     bullets(doc, [
         "Traslado de inventario entre dos sucursales del mismo emisor: débito y crédito a la misma cuenta de inventario, cada línea con su sucursal. El saldo total de la cuenta no se mueve. Hace falta la cuenta de inventario del emisor, las dos sucursales encendidas y ligadas, y un período abierto. Un traslado entre bodegas de la misma sucursal no genera póliza.",
         "Consignación entre sucursales del mismo emisor: la misma póliza de traslado. Dentro de la misma sucursal no hay asiento.",
-        "Toma física: registra un evento de ajuste de inventario. El catálogo inicial no trae plantilla para ese evento. Para que deje póliza hay que crear y activar una plantilla de tipo AjusteInventario con las cuentas que indique el contador.",
+        "Toma física y pretoma aprobada: registran un evento AjusteInventario. El catálogo inicial ahora trae esa plantilla en borrador. Sin activarla, el evento queda en Bandeja. El borrador cubre la merma (pérdida): débito a 6.1.6.8 y crédito a inventario. Un sobrante de toma no arma línea mientras no exista fórmula de ganancia.",
         "Una conversión de producción que entra y sale por la misma cuenta y la misma bodega no genera póliza: el efecto neto es cero.",
     ])
+
+    doc.add_heading("3.10 Ajuste de inventario", level=2)
+    tabla(doc, ["Movimiento", "Cuenta sugerida", "Importe"], [
+        ["Débito", "6.1.6.8 Merma y faltante", "CostoPerdidas"],
+        ["Crédito", "1.1.6.1 Inventario", "CostoPerdidas"],
+    ])
+    p(doc, "Nace en borrador. La usan la toma física aplicada y la merma de Bodega. La sucursal de la merma es la de la bodega de la línea, no la de la factura. Si el libro ya tenía catálogo cuando se agregó esta receta, créela a mano: la carga inicial no se vuelve a correr.")
 
     # 4 retencion
     doc.add_heading("4. Retención en la ficha del proveedor", level=1)
@@ -373,7 +385,24 @@ def main():
         "Al confirmarse, el asiento debita la caja y acredita cuentas por cobrar.",
     ])
     doc.add_heading("5.5 Nota de crédito y anulación", level=2)
-    p(doc, "La nota de crédito usa NotaCreditoEmitida y deja el espejo de la venta. Si se anula el origen y no hubo nota de crédito contabilizada, el sistema reversa la venta y, si existía, el cobro aplicado. La anulación de un cobro ya contabilizado deja la póliza contraria.")
+    p(doc, "La nota de crédito usa NotaCreditoEmitida y deja el espejo de la venta. Si la nota es de un tiquete interno, el asiento se genera al grabarla. Si es electrónica, espera a que Hacienda la deje en Aceptado o Aceptado parcial, igual que la factura. Un faltante o un no entregado de Bodega usa este mismo camino.")
+    p(doc, "Si se anula el origen y no hubo nota de crédito contabilizada, el sistema reversa la venta y, si existía, el cobro aplicado. La anulación de un cobro ya contabilizado deja la póliza contraria.")
+
+    doc.add_heading("5.6 Bodega y despacho", level=2)
+    p(doc, "Bodega confirma que salió lo que la factura ya descontó. Alistar, empacar o entregar no genera un segundo asiento de venta. El ingreso ya quedó en la factura. Lo que sí deja póliza es la excepción: nota de crédito, merma o suelta de preventa.")
+    p(doc, "En Facturación, el check Requiere despacho decide si la factura entra a la cola. Sale del cliente y se puede cambiar en esa venta.")
+    tabla(doc, ["Qué hace Bodega", "Qué ve Contabilidad"], [
+        ["Alistar, empacar, salir a ruta, entregar", "Nada. Un solo VentaEmitida, el de la factura o de Hacienda."],
+        ["Faltante o no entregado de tiquete interno", "NotaCreditoEmitida al grabar la devolución interna."],
+        ["Faltante o no entregado de factura electrónica", "La NC va a Hacienda. El asiento nace cuando Hacienda acepta."],
+        ["Faltante de preventa", "Se quita de la preventa. No hay VentaEmitida ni NC."],
+        ["No entregado con reingreso", "Igual que el faltante. El producto vuelve."],
+        ["No entregado con merma", "NC al cliente y, aparte, AjusteInventario por el costo perdido."],
+        ["Anular una orden empacada", "El mismo camino que no entregado: NC o suelta de preventa."],
+        ["Toma física / pretoma aprobada", "AjusteInventario de la toma. Sin plantilla activa, el evento queda en bandeja."],
+    ])
+    p(doc, "La factura electrónica se puede alistar mientras Hacienda responde. Empacar y salir a ruta esperan Aceptado o Aceptado parcial. Una preventa se alista; no se marca Entregado hasta facturarla. El no entregado sí se registra.")
+    p(doc, "La merma usa la sucursal de la bodega de la línea. Hasta que el contador active AjusteInventario, el evento se ve en Bandeja → Eventos y no hay póliza.")
 
     # 6 compras
     doc.add_heading("6. Compras", level=1)
@@ -432,6 +461,8 @@ def main():
         ["La partida no cuadra", "La plantilla no cierra con los importes del documento. Simule, corrija con una versión nueva, actívela y reintente."],
         ["La cuenta no admite movimiento", "El asiento apunta a una cuenta de grupo. Cambie la plantilla a una cuenta hija y reintente."],
         ["La póliza sí está, y quiere anularla", "Pestaña Pólizas → Reversar, con su contraseña."],
+        ["Alistó y entregó, y no hay segundo asiento", "Así debe ser. El ingreso está en la factura. Busque póliza solo si hubo faltante, no entregado o merma."],
+        ["Hay un AjusteInventario en Eventos, sin póliza", "La plantilla sigue en borrador. Revísela, actívela y pulse Reintentar."],
     ])
 
     # 9 consultas
@@ -489,6 +520,7 @@ def main():
     p(doc, "Cuando la puesta en marcha ya está hecha, el día se parece a esto.")
     bullets(doc, [
         "Facture y cobre como siempre. La electrónica contabiliza al aceptarla Hacienda; el tiquete interno, al emitirlo; el cobro, al confirmarse.",
+        "Si la factura requiere despacho, aliste y entregue. Eso no deja un segundo asiento. El faltante, el no entregado y la merma sí: NC o AjusteInventario.",
         "Registre la compra. Sin clave, el asiento nace al guardar. Con clave, al aceptar el mensaje receptor.",
         "Pague al proveedor. La retención sale de su ficha.",
         "Si algo no aparece en Pólizas, abra Eventos, lea el mensaje y pulse Reintentar cuando ya esté corregido.",
@@ -503,8 +535,10 @@ def main():
         ["☐", "Cuentas de uso guardadas: retención, banco en dólares, tránsito y comisiones por pagar."],
         ["☐", "Mes de trabajo abierto en Cierre."],
         ["☐", "Plantillas del día revisadas y activadas: venta, cobro, compra y pago, como mínimo."],
+        ["☐", "Costo de ventas y AjusteInventario revisados: se activan cuando el contador lo pida; mientras, quedan en borrador."],
         ["☐", "Porcentaje de retención en los proveedores que corresponda."],
         ["☐", "Una venta o compra de prueba y su póliza visible en Bandeja → Pólizas."],
+        ["☐", "Si usa Bodega: el check Requiere despacho en la factura, y una prueba de faltante o merma vista en Eventos."],
     ])
 
     doc.add_heading("15. Preguntas frecuentes", level=1)
@@ -520,6 +554,14 @@ def main():
     p(doc, "Los asientos ya hechos conservan la cuenta con la que se registraron. Lo nuevo sigue la plantilla activa en ese momento. Para rehacer un rango, use Reproceso: simule, revise y apruebe.")
     doc.add_heading("¿Puedo contabilizar a mano en una cuenta de por cobrar o de inventario?", level=2)
     p(doc, "Sí, en Nueva póliza manual, confirmando su contraseña. Esas cuentas están marcadas como control precisamente para que un asiento directo no pase desapercibido.")
+    doc.add_heading("Alisté y entregué, y no hay un segundo asiento", level=2)
+    p(doc, "Así debe ser. Bodega confirma la salida que la factura ya descontó. El ingreso quedó en VentaEmitida. Lo que deja póliza es el faltante, el no entregado o la merma.")
+    doc.add_heading("Empacar dice que Hacienda no ha aceptado", level=2)
+    p(doc, "La factura electrónica se puede alistar. Empacar y salir a ruta esperan Aceptado o Aceptado parcial.")
+    doc.add_heading("La merma no dejó póliza", level=2)
+    p(doc, "AjusteInventario nace en borrador. Active esa plantilla cuando el contador lo pida y pulse Reintentar en Eventos.")
+    doc.add_heading("El libro ya tenía catálogo y no veo 6.1.6.8", level=2)
+    p(doc, "La carga inicial no se vuelve a correr sobre un libro con cuentas. Cree la cuenta y las plantillas a mano, o pida una carga puntual.")
     doc.add_heading("Cerré el mes y necesito un asiento de ese mes", level=2)
     p(doc, "En Cierre, elija el período y pulse Reabrir. Confirme la contraseña. Si hay meses posteriores cerrados, se reabren junto con ese. Un mes bloqueado ya no se reabre.")
 

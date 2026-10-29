@@ -65,7 +65,7 @@ def escena_ciclo(t):
         (4, "Ficha del proveedor", "El porcentaje de retención, si aplica"),
         (5, "Cierre", "Abrir el mes de trabajo"),
         (6, "Plantillas", "Revisar y activar cada receta"),
-        (7, "Operación del día", "Vender, cobrar, comprar y pagar"),
+        (7, "Operación del día", "Vender, cobrar, comprar, pagar y despachar"),
         (8, "Bandeja y consultas", "Revisar, y al final cerrar el mes"),
     ]
     for i, (n, titulo, detalle) in enumerate(pasos):
@@ -159,6 +159,8 @@ def escena_plantillas(t):
         fd.rounded_rectangle((520, 8, 760, 52), radius=16, fill=(VERDE if t > 1.4 + i * 0.25 else (180, 170, 150)) + (255,))
         fd.text((560, 16), "Activa" if t > 1.4 + i * 0.25 else "Borrador", font=ui.f_chip, fill=BLANCO + (255,))
         ui.pegar(im, fila, ui.ease((t - 0.6 - i * 0.15) / 0.25), (980, 330 + i * 90))
+    if t > 2.4:
+        ui.pegar(im, ui.texto_rgba("Costo de ventas y AjusteInventario quedan en borrador.", ui.f_lbl, GRIS, 820), ui.ease((t - 2.4) / 0.3), (980, 710))
     d = ImageDraw.Draw(im)
     d.text((64, ui.H - 52), "En Versiones se revisan las cuentas y se pulsa Activar. El borrador no contabiliza.", font=ui.f_pie, fill=BLANCO)
     return im
@@ -182,14 +184,31 @@ def escena_dia(t):
     return im
 
 
+def escena_bodega(t):
+    im, d = ui.lienzo("Despacho", "Bodega confirma. No duplica la venta")
+    filas = [
+        ("Requiere despacho", "El check de la factura decide si entra a la cola."),
+        ("Alistar, empacar, entregar", "Sin segundo asiento. El ingreso ya está en la factura."),
+        ("Empacar y salir a ruta", "Esperan que Hacienda acepte la factura electrónica."),
+        ("Preventa", "Se alista. Entregar espera a que se facture."),
+        ("Faltante o no entregado", "Nota de crédito. Electrónica, cuando Hacienda acepta."),
+        ("Merma", "AjusteInventario, en borrador, con la sucursal de la bodega."),
+    ]
+    for i, (titulo, detalle) in enumerate(filas):
+        ui.pegar(im, chip(i + 1, titulo, detalle, 1720), ui.ease((t - i * 0.22) / 0.28), (80, 200 + i * 105))
+    d = ImageDraw.Draw(im)
+    d.text((64, ui.H - 52), "Anular una orden empacada usa el mismo camino que no entregado.", font=ui.f_pie, fill=BLANCO)
+    return im
+
+
 def escena_bandeja(t):
     im, d = ui.lienzo("8  ·  Bandeja", "Eventos explica. Pólizas muestra lo que ya quedó")
     ui.tarjeta(d, 70, 210, 860, 640)
     d.text((110, 250), "Pestaña Eventos", font=ui.f_big, fill=TEXTO)
-    causas = ["Plantilla todavía en borrador", "El mes de la fecha no está abierto", "Sucursal apagada o sin relación", "Hacienda aún no acepta"]
+    causas = ["Plantilla todavía en borrador", "El mes de la fecha no está abierto", "Sucursal apagada o sin relación", "Hacienda aún no acepta", "Merma o toma, sin AjusteInventario activo"]
     for i, c in enumerate(causas):
         ui.pegar(im, ui.texto_rgba(c, ui.f_num, TEXTO, 760), ui.ease((t - 0.4 - i * 0.2) / 0.25), (120, 340 + i * 70))
-    ui.pegar(im, boton("Reintentar", 320, 68, AZUL), ui.ease((t - 1.6) / 0.3), (110, 680))
+    ui.pegar(im, boton("Reintentar", 320, 68, AZUL), ui.ease((t - 1.6) / 0.3), (110, 730))
     ui.tarjeta(d, 980, 210, 860, 640)
     d.text((1020, 250), "Pestaña Pólizas", font=ui.f_big, fill=TEXTO)
     d.text((1020, 330), "Ahí se lee el asiento ya cuadrado.", font=ui.f_sub, fill=TEXTO)
@@ -237,7 +256,7 @@ def escena_cierre(t):
 
 ESCENAS = [
     ("01", escena_ciclo,
-     "Esta capacitación es de uso. Vamos a recorrer el ciclo completo de Contabilidad en SeePOS, pantalla por pantalla. El orden es este: configuración del emisor, catálogo, cuentas de uso, ficha del proveedor, abrir el mes, activar las plantillas, trabajar el día, revisar en la bandeja, y cerrar el mes. Mientras la sucursal está apagada, el menú solo muestra Configuración emisor. Ahí se enciende."),
+     "Esta capacitación es de uso. Vamos a recorrer el ciclo completo de Contabilidad en SeePOS, pantalla por pantalla. El orden es este: configuración del emisor, catálogo, cuentas de uso, ficha del proveedor, abrir el mes, activar las plantillas, trabajar el día, incluyendo el despacho, revisar en la bandeja, y cerrar el mes. Mientras la sucursal está apagada, el menú solo muestra Configuración emisor. Ahí se enciende."),
     ("02", escena_emisor,
      "Entre a Contabilidad, Configuración emisor. Elija la empresa, la sucursal y el emisor. Pulse Encender sucursal. Después, Crear libro del emisor. Si esa sucursal todavía no estaba ligada, ese mismo botón la deja vigente. Cuando termine, tienen que verse cuatro estados: sucursal encendida, libro creado, relación vigente y contabilidad efectiva activa. Para dejar de contabilizar se usa Apagar sucursal. Lo ya hecho se conserva."),
     ("03", escena_catalogo,
@@ -245,14 +264,16 @@ ESCENAS = [
     ("04", escena_proveedor,
      "El porcentaje no es igual para todos. En Compras, Proveedores, abra la ficha y escriba Retención, en porcentaje. Con dos, un pago de cien mil deja dos mil en la cuenta de retención y noventa y ocho mil en el banco. Si el campo queda vacío, o en cero, a ese proveedor no se le retiene. El porcentaje se toma al pagar. Un pago ya hecho no cambia si después edita la ficha."),
     ("05", escena_plantillas,
-     "Dos pasos antes de operar. En Cierre, indique el año y el mes, y pulse Abrir período. El mes queda abierto. En Plantillas, abra Versiones de cada receta del día: venta, cobro, compra y pago al proveedor. Revise las cuentas. Si la caja o el banco no son los sugeridos, cámbielos en una versión nueva. Pulse Activar. Mientras diga Borrador, el documento se guarda y no hay póliza."),
+     "Dos pasos antes de operar. En Cierre, indique el año y el mes, y pulse Abrir período. El mes queda abierto. En Plantillas, abra Versiones de cada receta del día: venta, cobro, compra y pago al proveedor. Revise las cuentas. Si la caja o el banco no son los sugeridos, cámbielos en una versión nueva. Pulse Activar. El costo de ventas y AjusteInventario quedan en borrador hasta que el contador los pida. Mientras diga Borrador, el documento se guarda y no hay póliza."),
     ("06", escena_dia,
      "Ya con el mes abierto y las plantillas activas, el día sigue la operación normal. La preventa no se contabiliza. El tiquete interno sí, al emitirlo. La factura electrónica, cuando Hacienda la acepta. El cobro, cuando queda confirmado: un cheque pendiente espera. La compra sin clave se contabiliza al registrarla. La compra con clave, cuando el mensaje receptor queda aceptado. El pago al proveedor usa la retención de su ficha. La sucursal de la compra es la de la bodega."),
-    ("07", escena_bandeja,
-     "Si un documento se guardó y no ve la póliza, abra Bandeja, pestaña Eventos. El mensaje dice la causa: plantilla en borrador, mes sin abrir, sucursal apagada, o Hacienda todavía no acepta. Corrija eso y pulse Reintentar. En la pestaña Pólizas se ven los asientos ya hechos. Detalle muestra las líneas. Reversar deja el asiento contrario, con la contraseña. Nueva póliza manual sirve para un movimiento que no nace de una factura."),
-    ("08", escena_consultas,
+    ("07", escena_bodega,
+     "Si la factura requiere despacho, entra a la cola de Bodega. Alistar, empacar y entregar no dejan un segundo asiento: el ingreso ya está en la factura. Empacar y salir a ruta esperan que Hacienda acepte. Una preventa se alista, y no se marca Entregado hasta facturarla. Un faltante o un no entregado arma nota de crédito. Si es tiquete interno, al grabarla. Si es electrónica, cuando Hacienda acepta. La merma deja AjusteInventario, en borrador, con la sucursal de la bodega. Anular una orden empacada usa el mismo camino que no entregado."),
+    ("08", escena_bandeja,
+     "Si un documento se guardó y no ve la póliza, abra Bandeja, pestaña Eventos. El mensaje dice la causa: plantilla en borrador, mes sin abrir, sucursal apagada, o Hacienda todavía no acepta. Una merma o una toma física también espera ahí si AjusteInventario sigue en borrador. Corrija eso y pulse Reintentar. En la pestaña Pólizas se ven los asientos ya hechos. Detalle muestra las líneas. Reversar deja el asiento contrario, con la contraseña. Nueva póliza manual sirve para un movimiento que no nace de una factura."),
+    ("09", escena_consultas,
      "Durante el mes se consulta en estas pantallas. Diario muestra las pólizas del período. Mayor, el movimiento de una cuenta. Auxiliar de cuentas por cobrar y el de cuentas por pagar muestran el cliente o el proveedor, y Conciliar auxiliar compara el saldo de la operación con el del libro. Balanza da el debe y el haber a una fecha de corte. Estado de resultados da ingresos, gastos y utilidad neta, y se puede descargar en CSV."),
-    ("09", escena_cierre,
+    ("10", escena_cierre,
      "Para cerrar el ciclo del mes, vuelva a Cierre. Elija el período, ejecute el pre-cierre y, si está listo, pulse Cerrar período. Ese mes deja de recibir asientos. El mismo día, abra el mes siguiente, para que el día primero no se quede sin período. El cierre anual se hace en su propia pantalla, cuando los doce meses del año ya están cerrados. Si queda uno abierto, el cierre anual no sigue. Así se recorre el módulo, de la sucursal encendida al cierre del ejercicio."),
 ]
 

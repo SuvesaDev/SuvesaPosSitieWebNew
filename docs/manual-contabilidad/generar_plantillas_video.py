@@ -115,7 +115,7 @@ def escena_lineas(t):
     if t > 2.2:
         ui.pegar(im, ui.texto_rgba("Cada línea pide cuenta y fórmula. Guardar deja la versión en borrador.", ui.f_sub, VERDE, 1400), ui.ease((t - 2.2) / 0.3), (120, 760))
     d = ImageDraw.Draw(im)
-    d.text((64, ui.H - 52), "La fórmula usa los importes del documento: Total, SubTotal, Descuento, ImpVenta.", font=ui.f_pie, fill=BLANCO)
+    d.text((64, ui.H - 52), "La fórmula usa los importes del documento: Total, SubTotal, Descuento, ImpVenta, Costo.", font=ui.f_pie, fill=BLANCO)
     return im
 
 
@@ -171,19 +171,58 @@ def escena_activar(t):
     return im
 
 
+def escena_borrador(t):
+    im, d = ui.lienzo("Lo que queda en borrador", "Costo de ventas y merma, hasta que el contador lo pida")
+    ui.tarjeta(d, 70, 200, 860, 680)
+    d.text((110, 230), "VentaEmitida, extra", font=ui.f_big, fill=TEXTO)
+    extras = [
+        ("5", "Débito", "5.1.1  Costo de ventas", "Costo"),
+        ("6", "Crédito", "1.1.6.1  Inventario", "Costo"),
+    ]
+    anchos = [80, 180, 380, 140]
+    for i, celdas in enumerate(extras):
+        ui.pegar(im, fila(celdas, anchos), ui.ease((t - 0.4 - i * 0.3) / 0.3), (110, 320 + i * 80))
+    if t > 1.2:
+        nota = Image.new("RGBA", (760, 90), (0, 0, 0, 0))
+        nd = ImageDraw.Draw(nota)
+        nd.rounded_rectangle((0, 0, 740, 80), radius=12, fill=(255, 244, 220, 255))
+        nd.text((24, 24), "Borrador. No se autoactiva.", font=ui.f_num, fill=(140, 90, 20, 255))
+        ui.pegar(im, nota, ui.ease((t - 1.2) / 0.3), (110, 520))
+    ui.tarjeta(d, 990, 200, 860, 680)
+    d.text((1030, 230), "AjusteInventario", font=ui.f_big, fill=TEXTO)
+    merma = [
+        ("1", "Débito", "6.1.6.8  Merma", "CostoPerdidas"),
+        ("2", "Crédito", "1.1.6.1  Inventario", "CostoPerdidas"),
+    ]
+    for i, celdas in enumerate(merma):
+        ui.pegar(im, fila(celdas, anchos), ui.ease((t - 0.8 - i * 0.3) / 0.3), (1030, 320 + i * 80))
+    if t > 1.6:
+        nota2 = Image.new("RGBA", (760, 120), (0, 0, 0, 0))
+        nd2 = ImageDraw.Draw(nota2)
+        nd2.rounded_rectangle((0, 0, 740, 110), radius=12, fill=VERDE_SUAVE + (255,))
+        nd2.text((24, 18), "Toma física y merma de Bodega.", font=ui.f_num, fill=VERDE + (255,))
+        nd2.text((24, 60), "Si el libro ya tenía catálogo, créela a mano.", font=ui.f_lbl, fill=GRIS + (255,))
+        ui.pegar(im, nota2, ui.ease((t - 1.6) / 0.3), (1030, 520))
+    d = ImageDraw.Draw(im)
+    d.text((64, ui.H - 52), "La NotaCreditoEmitida revierte el costo si esa línea ya está activa.", font=ui.f_pie, fill=BLANCO)
+    return im
+
+
 ESCENAS = [
     ("01", escena_idea,
      "En Plantillas se decide cómo se arma cada asiento. Una plantilla es el tipo de documento, por ejemplo Venta emitida. La versión es el detalle: qué cuentas y qué fórmulas. La plantilla se crea una vez. Puede tener varias versiones, y solo una queda activa. Mientras la versión esté en borrador, el documento se guarda y no hay póliza. Entre a Contabilidad, Plantillas, y elija la empresa y el emisor."),
     ("02", escena_crear,
-     "Para un tipo nuevo, pulse Nueva plantilla. Escriba el tipo de evento con el nombre que usa el sistema, por ejemplo AjusteInventario, y una descripción. Guarde. La plantilla aparece en la lista. Todavía no contabiliza, porque no tiene una versión activa. Las plantillas del catálogo inicial, como la venta y la compra, ya vienen creadas. No hace falta volver a crearlas."),
+     "Para un tipo nuevo, pulse Nueva plantilla. Escriba el tipo de evento con el nombre que usa el sistema, por ejemplo AjusteInventario, y una descripción. Guarde. La plantilla aparece en la lista. Todavía no contabiliza, porque no tiene una versión activa. El catálogo inicial ya trae la venta, la compra, la nota de crédito y también AjusteInventario, en borrador. Si el libro ya tenía cuentas, esa carga no se vuelve a correr: créela a mano."),
     ("03", escena_versiones,
      "En la fila de la plantilla pulse Versiones. Verá el número, el estado y la fecha desde la que rige. Reemplazada es una versión vieja. Activa es la que está contabilizando. Borrador es la que todavía se puede revisar. En cada fila están Detalle, Simular y, si es borrador, Activar. Nueva versión arma la siguiente. El sistema le pone el número: uno, dos, tres."),
     ("04", escena_lineas,
-     "Al crear la versión se indica la prioridad, desde cuándo rige y, si quiere, hasta cuándo. Después van las líneas. Cada línea tiene orden, débito o crédito, una cuenta que admita movimiento, y una fórmula. En la venta, el total va a cuentas por cobrar, el subtotal a ventas y el impuesto al IVA. El descuento usa la fórmula Descuento. Cada línea necesita cuenta y fórmula. Al guardar, la versión queda en borrador."),
+     "Al crear la versión se indica la prioridad, desde cuándo rige y, si quiere, hasta cuándo. Después van las líneas. Cada línea tiene orden, débito o crédito, una cuenta que admita movimiento, y una fórmula. En la venta, el total va a cuentas por cobrar, el subtotal a ventas y el impuesto al IVA. El descuento usa la fórmula Descuento. El costo, si el contador lo pide, usa la fórmula Costo. Cada línea necesita cuenta y fórmula. Al guardar, la versión queda en borrador."),
     ("05", escena_simular,
      "Antes de activar, pulse Simular. Escriba importes de prueba, por ejemplo un total de ciento trece mil, un subtotal de cien mil y un impuesto de trece mil. Simular muestra cada línea con su monto. Si el descuento es cero, esa línea no aparece. El recuadro dice Cuadra cuando el debe iguala al haber. Si no cuadra, corrija la fórmula en una versión nueva. Simular no graba asientos."),
     ("06", escena_activar,
      "Cuando la simulación cuadra, pulse Activar y confirme. La versión pasa de borrador a activa. Si ya había otra activa de la misma plantilla, esa queda reemplazada. A partir de ese momento, los documentos de ese tipo usan estas cuentas. Los asientos que ya se habían hecho no se reescriben. Para cambiar las cuentas más adelante, cree otra versión, simúlela y actívela."),
+    ("07", escena_borrador,
+     "Dos recetas se quedan en borrador a propósito. El catálogo inicial agrega a la venta dos líneas de costo: débito a cinco punto uno punto uno, crédito a inventario, con la fórmula Costo. Y trae AjusteInventario: débito a merma seis punto uno punto seis punto ocho, crédito a inventario, con CostoPerdidas. Sirve para la toma física y para la merma de Bodega. No se autoactivan. Cuando el contador las pida, se revisan, se simulan y se activan, igual que las demás. Si el libro ya tenía catálogo, esas cuentas y esas plantillas se crean a mano."),
 ]
 
 

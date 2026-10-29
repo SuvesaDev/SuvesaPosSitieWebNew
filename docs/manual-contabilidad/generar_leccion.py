@@ -373,9 +373,53 @@ def escena_anual(t):
     return im
 
 
+def escena_bodega(t):
+    im, d = lienzo("Caso  ·  Bodega", "El picking no duplica la venta. La excepción sí deja póliza")
+    tarjeta(d, 70, 200, 860, 680)
+    d.text((110, 230), "Camino feliz", font=f_big, fill=AZUL)
+    feliz = [
+        "Alistar",
+        "Empacar",
+        "Salir a ruta",
+        "Entregar",
+    ]
+    for i, texto in enumerate(feliz):
+        capa = Image.new("RGBA", (760, 70), (0, 0, 0, 0))
+        cd = ImageDraw.Draw(capa)
+        cd.rounded_rectangle((0, 0, 740, 62), radius=14, fill=BLANCO + (255,), outline=LINEA + (255,), width=2)
+        cd.ellipse((16, 12, 60, 56), fill=AZUL + (255,))
+        cd.text((30, 20), str(i + 1), font=f_chip, fill=BLANCO + (255,))
+        cd.text((80, 16), texto, font=f_num, fill=TEXTO + (255,))
+        pegar(im, capa, ease((t - 0.25 - i * 0.22) / 0.3), (110, 300 + i * 80))
+    if t > 1.4:
+        sello = Image.new("RGBA", (760, 80), (0, 0, 0, 0))
+        sd = ImageDraw.Draw(sello)
+        sd.rounded_rectangle((0, 0, 740, 72), radius=12, fill=VERDE_SUAVE + (255,))
+        sd.text((24, 18), "Un solo VentaEmitida. El de la factura.", font=f_num, fill=VERDE + (255,))
+        pegar(im, sello, ease((t - 1.4) / 0.35), (110, 650))
+    tarjeta(d, 990, 200, 860, 680)
+    d.text((1030, 230), "Excepción", font=f_big, fill=ROJO)
+    extras = [
+        ("Faltante o no entregado", "NotaCreditoEmitida"),
+        ("NC electrónica", "Cuando Hacienda acepta"),
+        ("Merma en tránsito", "AjusteInventario, en borrador"),
+        ("Preventa", "No Entregar hasta facturar"),
+    ]
+    for i, (titulo, detalle) in enumerate(extras):
+        capa = Image.new("RGBA", (780, 90), (0, 0, 0, 0))
+        cd = ImageDraw.Draw(capa)
+        cd.rounded_rectangle((0, 0, 760, 82), radius=14, fill=BLANCO + (255,), outline=LINEA + (255,), width=2)
+        cd.text((24, 10), titulo, font=f_num, fill=TEXTO + (255,))
+        cd.text((24, 46), detalle, font=f_lbl, fill=GRIS + (255,))
+        pegar(im, capa, ease((t - 0.8 - i * 0.22) / 0.3), (1030, 300 + i * 100))
+    d = ImageDraw.Draw(im)
+    d.text((64, H - 52), "Empacar espera a Hacienda. Requiere despacho decide si la factura entra a la cola.", font=f_pie, fill=BLANCO)
+    return im
+
+
 ESCENAS = [
     ("01", escena_venta,
-     "Caso de venta. El cliente Mascotas del Valle compra por cien mil colones, más trece mil de IVA. El total de la factura es ciento trece mil. El asiento debita cuentas por cobrar por el total, acredita las ventas por el subtotal y acredita el IVA. El debe y el haber quedan iguales. El tiquete interno se contabiliza al emitirlo. La factura electrónica espera a que Hacienda la acepte."),
+     "Caso de venta. El cliente Mascotas del Valle compra por cien mil colones, más trece mil de IVA. El total de la factura es ciento trece mil. El asiento debita cuentas por cobrar por el total, acredita las ventas por el subtotal y acredita el IVA. El debe y el haber quedan iguales. El tiquete interno se contabiliza al emitirlo. La factura electrónica espera a que Hacienda la acepte. El catálogo también trae, en borrador, el costo de ventas: se activa cuando el contador lo pida. En este caso no está activo."),
     ("02", escena_compra,
      "Caso de compra. Llega la factura de Distribuidora Vet: ochenta mil de inventario y diez mil cuatrocientos de IVA. El total a pagar es noventa mil cuatrocientos. El asiento debita inventario, debita el IVA soportado y acredita cuentas por pagar. También cuadra. Si la compra no trae clave fiscal, el asiento nace al registrarla. Si trae clave, espera a que el mensaje receptor quede aceptado."),
     ("03", escena_manual,
@@ -394,6 +438,8 @@ ESCENAS = [
      "La balanza de comprobación lista cada cuenta a una fecha de corte, con su débito, su crédito y su saldo. Al pie, el total del debe tiene que ser igual al total del haber. Con la venta y la compra de este caso, ambos dan doscientos tres mil cuatrocientos. Si no coinciden, se revisa la bandeja antes de cerrar el mes."),
     ("10", escena_anual,
      "El cierre anual se hace cuando los doce meses del ejercicio ya están cerrados. En la pantalla Cierre anual se consulta el año. Si falta un mes, o si alguno sigue abierto, el cierre no sigue. Cuando los doce dicen cerrado, se pulsa Ejecutar cierre anual. Así queda cerrado el ejercicio y se puede adjuntar la autorización."),
+    ("11", escena_bodega,
+     "Bodega no duplica la venta. Alistar, empacar y entregar confirman lo que la factura ya descontó. Un solo asiento de venta, el de la factura o el de Hacienda. Lo que sí deja póliza es la excepción. Un faltante o un no entregado arma nota de crédito: si es tiquete interno, al grabarla; si es electrónica, cuando Hacienda acepta. La merma, aparte, deja AjusteInventario, en borrador, hasta que el contador lo active. Empacar espera a Hacienda. Una preventa se alista, y no se marca Entregado hasta facturarla. El check Requiere despacho decide si la factura entra a la cola."),
 ]
 
 
