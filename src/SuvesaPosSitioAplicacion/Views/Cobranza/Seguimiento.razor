@@ -1,0 +1,341 @@
+@page "/collections/follow-up"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Cobranza
+@using SuvesaPosSitioAplicacion.Security
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICobranza Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+@inject IClientesConsulta Clientes
+@inject NavigationManager Navegacion
+
+@* Gestión y seguimiento de cobranzas (docs/COBRANZA_WEB.md). Facturas vencidas con filtros para abrir un
+   seguimiento (una o varias facturas del mismo cliente) y lista de seguimientos. Las que ya tienen
+   seguimiento activo muestran quién las tiene; las de una promesa incumplida van en rojo. *@
+
+<AppPantalla Pantalla="Seguimiento" Codigo="COBRANZA.SEGUIMIENTO" Icono="bi-telephone-outbound"
+             Subtitulo="Facturas vencidas y casos de cobranza">
+    <ChildContent>
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item"><button class="nav-link @(_pestana == 0 ? "active" : null)" @onclick="() => CambiarPestana(0)">Facturas vencidas</button></li>
+            <li class="nav-item"><button class="nav-link @(_pestana == 1 ? "active" : null)" @onclick="() => CambiarPestana(1)">Seguimientos</button></li>
+        </ul>
+
+        @if (_pestana == 0)
+        {
+            <div class="card mb-3"><div class="card-body row g-2 align-items-end">
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">Mora desde (días)</label>
+                    <input type="number" min="0" class="form-control" @bind="_filtro.DiasMoraMin" @bind:event="onchange" />
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">Mora hasta (días)</label>
+                    <input type="number" min="0" class="form-control" @bind="_filtro.DiasMoraMax" @bind:event="onchange" />
+                </div>
+                <div class="col-12 col-md-3 position-relative">
+                    <label class="form-label small" for="fil-cliente">Cliente (nombre o cédula)</label>
+                    @if (_clienteFiltro is not null)
+                    {
+                        <div class="input-group">
+                            <span class="form-control text-truncate" title="@_clienteFiltro.Nombre">@_clienteFiltro.Nombre</span>
+                            <button class="btn btn-outline-secondary" type="button" aria-label="Quitar cliente" @onclick="QuitarCliente"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                        </div>
+                    }
+                    else
+                    {
+                        <input id="fil-cliente" class="form-control" placeholder="Escriba para buscar" autocomplete="off"
+                               @bind="_textoCliente" @bind:event="oninput" @bind:after="BuscarClientes" />
+                        @if (_sugeridos.Count > 0)
+                        {
+                            <div class="list-group position-absolute w-100 shadow-sm" style="z-index:5">
+                                @foreach (var c in _sugeridos.Take(8))
+                                {
+                                    <button type="button" class="list-group-item list-group-item-action py-1" @onclick="() => ElegirCliente(c)">
+                                        <span class="text-secondary small me-2">@c.Identificacion</span>@c.Nombre
+                                    </button>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">Cobrador</label>
+                    <input class="form-control" @bind="_filtro.Cobrador" @bind:event="onchange" />
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small">Gestión</label>
+                    <select class="form-select" @bind="_filtro.Gestion">
+                        <option value="@FiltroGestionWeb.Todas">Todas</option>
+                        <option value="@FiltroGestionWeb.SinSeguimiento">Sin seguimiento</option>
+                        <option value="@FiltroGestionWeb.ConSeguimiento">Con seguimiento</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <button class="btn btn-primary w-100" disabled="@_cargando" @onclick="() => BuscarVencidas(1)">
+                        @(_cargando ? "Buscando..." : "Buscar")
+                    </button>
+                </div>
+            </div></div>
+
+            @if (_pagina is not null)
+            {
+                <div class="d-flex flex-wrap gap-3 align-items-center mb-2">
+                    <span class="text-secondary small">@_pagina.Total facturas · saldo @Formato.Importe(_pagina.SaldoTotal)</span>
+                    @if (_seleccionadas.Count > 0)
+                    {
+                        <span class="badge text-bg-light">@_seleccionadas.Count seleccionada(s) · @Formato.Importe(SaldoSeleccion)</span>
+                    }
+                    @if (Sesion.Puede("COBRANZA.SEGUIMIENTO", AccionPantalla.Crear))
+                    {
+                        <button class="btn btn-sm btn-primary ms-auto" disabled="@(!PuedeAbrir)" @onclick="AbrirModal">
+                            <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Abrir seguimiento
+                        </button>
+                    }
+                </div>
+                @if (_motivoNoAbrir is not null && _seleccionadas.Count > 0)
+                {
+                    <div class="text-warning small mb-2">@_motivoNoAbrir</div>
+                }
+
+                <div class="table-responsive"><table class="table table-sm align-middle">
+                    <thead><tr>
+                        <th style="width:2rem"></th><th>Factura</th><th>Cliente</th><th>Vence</th>
+                        <th class="text-end">Mora</th><th class="text-end">Saldo</th><th>Gestión</th>
+                    </tr></thead>
+                    <tbody>
+                        @if (_pagina.Items.Count == 0) { <tr><td colspan="7" class="text-center text-secondary py-3">Sin facturas vencidas con esos filtros.</td></tr> }
+                        @foreach (var f in _pagina.Items)
+                        {
+                            <tr class="@(f.TienePromesaIncumplida ? "table-danger" : null)">
+                                <td>
+                                    @if (f.IdSeguimiento is null)
+                                    {
+                                        <input type="checkbox" class="form-check-input" checked="@_seleccionadas.Contains(f.IdVenta)"
+                                               @onchange="e => Marcar(f, (bool)(e.Value ?? false))" aria-label="Seleccionar factura @f.NumFactura.ToString("0")" />
+                                    }
+                                </td>
+                                <td>@f.NumFactura.ToString("0")</td>
+                                <td><span class="text-secondary small me-1">@f.IdCliente</span>@f.NombreCliente</td>
+                                <td>@(f.Vence?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                <td class="text-end">@f.DiasMora d</td>
+                                <td class="text-end fw-semibold">@Formato.Importe(f.Saldo)</td>
+                                <td>
+                                    @if (f.TienePromesaIncumplida) { <span class="badge text-bg-danger me-1" title="Una promesa de pago sobre esta factura quedó incumplida">Promesa incumplida</span> }
+                                    @if (f.IdSeguimiento is { } idSeg)
+                                    {
+                                        <a href="/collections/follow-up/@idSeg" class="text-decoration-none">
+                                            <span class="badge @PresentacionCobranza.ClaseEstado(f.EstadoSeguimiento ?? EstadoSeguimientoWeb.Abierto)">
+                                                @PresentacionCobranza.Rotulo(f.EstadoSeguimiento ?? EstadoSeguimientoWeb.Abierto)
+                                            </span> @f.Cobrador
+                                        </a>
+                                    }
+                                    else { <span class="text-secondary small">Sin seguimiento</span> }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table></div>
+
+                @if (_pagina.Total > _pagina.Tamano)
+                {
+                    <div class="d-flex justify-content-between align-items-center">
+                        <button class="btn btn-sm btn-outline-secondary" disabled="@(_pagina.Pagina <= 1)" @onclick="() => BuscarVencidas(_pagina.Pagina - 1)">Anterior</button>
+                        <span class="small text-secondary">Página @_pagina.Pagina de @TotalPaginas</span>
+                        <button class="btn btn-sm btn-outline-secondary" disabled="@(_pagina.Pagina >= TotalPaginas)" @onclick="() => BuscarVencidas(_pagina.Pagina + 1)">Siguiente</button>
+                    </div>
+                }
+            }
+        }
+        else
+        {
+            <div class="card mb-3"><div class="card-body row g-2 align-items-end">
+                <div class="col-6 col-md-3">
+                    <label class="form-label small">Estado</label>
+                    <select class="form-select" @bind="_estadoLista">
+                        <option value="">Todos</option>
+                        <option value="@((int)EstadoSeguimientoWeb.Abierto)">Abierto</option>
+                        <option value="@((int)EstadoSeguimientoWeb.EnPromesa)">En promesa</option>
+                        <option value="@((int)EstadoSeguimientoWeb.Cerrado)">Cerrado</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="form-check mt-4">
+                        <input id="solo-mios" type="checkbox" class="form-check-input" @bind="_soloMios" />
+                        <label for="solo-mios" class="form-check-label">Solo los míos</label>
+                    </div>
+                </div>
+                <div class="col-12 col-md-2">
+                    <button class="btn btn-primary w-100" disabled="@_cargando" @onclick="BuscarSeguimientos">Buscar</button>
+                </div>
+            </div></div>
+
+            @if (_seguimientos is not null)
+            {
+                <div class="table-responsive"><table class="table table-sm align-middle">
+                    <thead><tr>
+                        <th>#</th><th>Cliente</th><th>Cobrador</th><th>Estado</th>
+                        <th class="text-end">Facturas</th><th class="text-end">Saldo</th><th>Abierto</th><th></th>
+                    </tr></thead>
+                    <tbody>
+                        @if (_seguimientos.Count == 0) { <tr><td colspan="8" class="text-center text-secondary py-3">Sin seguimientos.</td></tr> }
+                        @foreach (var s in _seguimientos)
+                        {
+                            <tr>
+                                <td>@s.Id</td>
+                                <td><span class="text-secondary small me-1">@s.IdCliente</span>@s.NombreCliente</td>
+                                <td>@s.Cobrador</td>
+                                <td>
+                                    <span class="badge @PresentacionCobranza.ClaseEstado(s.Estado)">@PresentacionCobranza.Rotulo(s.Estado)</span>
+                                    @if (s.Estado == EstadoSeguimientoWeb.Cerrado) { <span class="small text-secondary ms-1">@PresentacionCobranza.Rotulo(s.MotivoCierre)</span> }
+                                </td>
+                                <td class="text-end">@s.FacturasActivas</td>
+                                <td class="text-end">@Formato.Importe(s.SaldoActivo)</td>
+                                <td>@PresentacionCobranza.Fecha(s.FechaCreacionUtc)</td>
+                                <td><a class="btn btn-sm btn-outline-primary" href="/collections/follow-up/@s.Id">Abrir</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table></div>
+            }
+        }
+
+        <AppModal @ref="_modal" Titulo="Abrir seguimiento" Subtitulo="@ResumenSeleccion" AlGuardar="Abrir"
+                  Guardando="_guardando" PuedeGuardar="PresentacionCobranza.ObservacionValida(_observacion)">
+            <label class="form-label" for="obs-apertura">Observación (lo conversado con el cliente)</label>
+            <textarea id="obs-apertura" class="form-control" rows="4" maxlength="2000" @bind="_observacion" @bind:event="oninput"></textarea>
+            <div class="form-text">Mínimo @PresentacionCobranza.MinimoObservacion caracteres.</div>
+        </AppModal>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private int _pestana;
+    private bool _cargando;
+    private bool _guardando;
+    private bool _soloMios = true;
+    private string _estadoLista = string.Empty;
+    private string _observacion = string.Empty;
+    private AppModal _modal = default!;
+    private readonly FiltroFacturasVencidasWeb _filtro = new();
+    private PaginaFacturasVencidasWeb? _pagina;
+    private List<SeguimientoResumenWebDTO>? _seguimientos;
+    private readonly HashSet<long> _seleccionadas = new();
+    private readonly Dictionary<long, FacturaVencidaWebDTO> _datosSeleccion = new();
+
+    private string _textoCliente = string.Empty;
+    private List<FiltranClienteDTO> _sugeridos = new();
+    private FiltranClienteDTO? _clienteFiltro;
+    private CancellationTokenSource? _debounce;
+
+    private int TotalPaginas => _pagina is null ? 1 : Math.Max(1, (int)Math.Ceiling(_pagina.Total / (double)_pagina.Tamano));
+    private decimal SaldoSeleccion => _datosSeleccion.Values.Sum(f => f.Saldo);
+
+    private string ResumenSeleccion => _datosSeleccion.Count == 0
+        ? string.Empty
+        : $"{_datosSeleccion.Count} factura(s) de {_datosSeleccion.Values.First().NombreCliente} · {Formato.Importe(SaldoSeleccion)}";
+
+    /// <summary>Reglas que el API también exige: mismo cliente y misma moneda.</summary>
+    private string? _motivoNoAbrir => _datosSeleccion.Values.Select(f => f.IdCliente).Distinct().Count() > 1
+        ? "Todas las facturas del seguimiento deben ser del mismo cliente."
+        : _datosSeleccion.Values.Select(f => f.CodMoneda).Distinct().Count() > 1
+            ? "Todas las facturas del seguimiento deben estar en la misma moneda."
+            : null;
+
+    private bool PuedeAbrir => _seleccionadas.Count > 0 && _motivoNoAbrir is null;
+
+    protected override async Task OnInitializedAsync() => await BuscarVencidas(1);
+
+    /// <summary>Busca al escribir (con una pausa de 400 ms para no consultar por cada tecla).</summary>
+    private async Task BuscarClientes()
+    {
+        _debounce?.Cancel();
+        _debounce = new CancellationTokenSource();
+        var token = _debounce.Token;
+        var texto = _textoCliente.Trim();
+        if (texto.Length < 2) { _sugeridos = new(); return; }
+        try { await Task.Delay(400, token); } catch (TaskCanceledException) { return; }
+        var r = await Respuestas.DatoAsync(await Clientes.Buscar(texto), "buscar clientes");
+        if (token.IsCancellationRequested) return;
+        _sugeridos = r?.Where(c => !c.Anulado && !c.Fallecido).ToList() ?? new();
+    }
+
+    private void ElegirCliente(FiltranClienteDTO cliente)
+    {
+        _clienteFiltro = cliente;
+        _filtro.IdCliente = cliente.Identificacion;
+        _sugeridos = new();
+    }
+
+    private void QuitarCliente()
+    {
+        _clienteFiltro = null;
+        _filtro.IdCliente = null;
+        _textoCliente = string.Empty;
+        _sugeridos = new();
+    }
+
+    private async Task CambiarPestana(int pestana)
+    {
+        _pestana = pestana;
+        if (pestana == 1 && _seguimientos is null) await BuscarSeguimientos();
+    }
+
+    private async Task BuscarVencidas(int pagina)
+    {
+        _cargando = true;
+        _filtro.Pagina = pagina;
+        _pagina = await Respuestas.DatoAsync(await Api.FacturasVencidas(_filtro), "consultar las facturas vencidas");
+        // Lo seleccionado en otra página se conserva; lo que ya no existe o ya tiene seguimiento se descarta.
+        if (_pagina is not null)
+            foreach (var f in _pagina.Items.Where(f => f.IdSeguimiento is not null))
+            {
+                _seleccionadas.Remove(f.IdVenta);
+                _datosSeleccion.Remove(f.IdVenta);
+            }
+        _cargando = false;
+    }
+
+    private async Task BuscarSeguimientos()
+    {
+        _cargando = true;
+        EstadoSeguimientoWeb? estado = int.TryParse(_estadoLista, out var e) ? (EstadoSeguimientoWeb)e : null;
+        _seguimientos = await Respuestas.DatoAsync(
+            await Api.Seguimientos(_soloMios ? Sesion.Usuario : null, estado, null), "consultar los seguimientos");
+        _cargando = false;
+    }
+
+    private void Marcar(FacturaVencidaWebDTO f, bool marcada)
+    {
+        if (marcada) { _seleccionadas.Add(f.IdVenta); _datosSeleccion[f.IdVenta] = f; }
+        else { _seleccionadas.Remove(f.IdVenta); _datosSeleccion.Remove(f.IdVenta); }
+    }
+
+    private async Task AbrirModal()
+    {
+        _observacion = string.Empty;
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Abrir()
+    {
+        if (!PuedeAbrir || !PresentacionCobranza.ObservacionValida(_observacion)) return;
+        _guardando = true;
+        var id = await Respuestas.DatoAsync(
+            await Api.Abrir(new AbrirSeguimientoWebComando { IdsVenta = _seleccionadas.ToList(), Observacion = _observacion.Trim() }),
+            "abrir el seguimiento");
+        _guardando = false;
+        if (id == 0)
+        {
+            // El manejador ya mostró el motivo (p. ej. factura tomada por otro cobrador): se refresca el listado.
+            await _modal.OcultarAsync();
+            await BuscarVencidas(_filtro.Pagina);
+            return;
+        }
+        await _modal.OcultarAsync();
+        Dialogos.Exito("Seguimiento abierto.");
+        Navegacion.NavigateTo($"/collections/follow-up/{id}");
+    }
+}

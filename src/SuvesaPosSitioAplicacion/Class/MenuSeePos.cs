@@ -690,6 +690,36 @@ public static partial class MenuSeePos
         },
         new ItemMenu
         {
+            // Gestión y seguimiento de cobranzas (docs/COBRANZA_WEB.md). Los códigos casan con
+            // el módulo COBRANZA de la semilla del API.
+            Titulo = "Cobranza",
+            Codigo = "COBRANZA",
+            Ruta = "/collections",
+            Icono = "bi-telephone-outbound",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Seguimiento",
+                    Codigo = "COBRANZA.SEGUIMIENTO",
+                    Ruta = "/collections/follow-up",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Dashboard",
+                    Codigo = "COBRANZA.DASHBOARD",
+                    Ruta = "/collections/dashboard",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Gerencial",
+                    Codigo = "COBRANZA.GERENCIAL",
+                    Ruta = "/collections/management",
+                },
+            }
+        },
+        new ItemMenu
+        {
             Titulo = "Módulo Reportes",
             Codigo = "MODULO_REPORTES",
             Ruta = "/moduloReportes",

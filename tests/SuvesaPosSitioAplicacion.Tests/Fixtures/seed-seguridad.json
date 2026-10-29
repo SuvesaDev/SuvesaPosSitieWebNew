@@ -2467,6 +2467,62 @@
           ]
         }
       ]
+    },
+    {
+      "codigo": "COBRANZA",
+      "nombre": "Cobranza",
+      "orden": 12,
+      "icono": "bi-telephone-outbound",
+      "funciones": [
+        {
+          "codigo": "COBRANZA.SEGUIMIENTO",
+          "nombre": "Seguimiento",
+          "ruta": "/collections/follow-up",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "COBRANZA.DASHBOARD",
+          "nombre": "Dashboard",
+          "ruta": "/collections/dashboard",
+          "padre": null,
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "COBRANZA.GERENCIAL",
+          "nombre": "Gerencial",
+          "ruta": "/collections/management",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        }
+      ]
     }
   ]
 }
