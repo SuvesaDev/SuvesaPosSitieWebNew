@@ -720,7 +720,44 @@
                             }
                             else
                             {
-                                <div class="col-12 table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Insumo</th><th class="text-end">Cantidad</th><th></th></tr></thead><tbody>@foreach (var item in _formula) { <tr><td><strong>@item.CodArticulo</strong><br /><span class="small text-secondary">@item.Descripcion</span></td><td class="text-end">@item.CantidadPorUnidad.ToString("N4")</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarFormula(item)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
+                                <div class="col-12 table-responsive">
+                                    <table class="table table-sm align-middle">
+                                        <thead><tr><th>Insumo</th><th class="text-end">Cantidad</th><th></th></tr></thead>
+                                        <tbody>
+                                            @foreach (var item in _formula)
+                                            {
+                                                <tr>
+                                                    <td><strong>@item.CodArticulo</strong><br /><span class="small text-secondary">@item.Descripcion</span></td>
+                                                    @if (_formulaEditando == item.IdInsumo)
+                                                    {
+                                                        <td class="text-end"><input type="number" min="0.0001" step="0.0001" class="form-control form-control-sm text-end ms-auto" style="max-width: 9rem;" aria-label="Cantidad por unidad" @bind="_cantidadFormulaEdicion" /></td>
+                                                        <td class="text-end text-nowrap">
+                                                            <button type="button" class="btn btn-sm btn-primary" @onclick="() => GuardarEdicionFormula(item)">Guardar</button>
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelarAccionFormula">Cancelar</button>
+                                                        </td>
+                                                    }
+                                                    else if (_formulaQuitando == item.IdInsumo)
+                                                    {
+                                                        <td class="text-end">@item.CantidadPorUnidad.ToString("N4")</td>
+                                                        <td class="text-end text-nowrap">
+                                                            <span class="small text-danger me-1">¿Quitar este insumo?</span>
+                                                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => QuitarFormula(item)">Sí, quitar</button>
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelarAccionFormula">No</button>
+                                                        </td>
+                                                    }
+                                                    else
+                                                    {
+                                                        <td class="text-end">@item.CantidadPorUnidad.ToString("N4")</td>
+                                                        <td class="text-end text-nowrap">
+                                                            <button type="button" class="btn btn-sm btn-link" @onclick="() => EditarFormula(item)"><i class="bi bi-pencil" aria-hidden="true"></i> Editar</button>
+                                                            <button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => PedirQuitarFormula(item)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button>
+                                                        </td>
+                                                    }
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
                             }
                         </div>
                     }
@@ -1089,6 +1126,9 @@
     private long _codigoFormula;
     private double _cantidadFormula = 1;
     private string? _errorFormula;
+    private long? _formulaEditando;
+    private long? _formulaQuitando;
+    private double _cantidadFormulaEdicion;
     private string _textoInsumoFormula = string.Empty;
     private List<InventarioDTO> _insumosFormula = new();
     private bool _buscandoInsumoFormula, _insumoFormulaBuscado;
@@ -1621,9 +1661,10 @@
                             ?? _existenciaConsol?.Lotes.SelectMany(l => l.PorBodega).FirstOrDefault(b => b.IdBodega == bodega)?.NombreBodega
                             ?? _bodegasMov.FirstOrDefault(b => b.IdBodega == bodega)?.NombreBodega
                             ?? $"bodega {bodega}";
-        if (!await Dialogos.ConfirmarAsync(
-                $"Se fijará la existencia en {nombreBodega} en {cantidad:N2} y quedará registrado el movimiento.", "Ajustar existencia"))
-            return;
+        var confirmoAjuste = await Dialogos.ConfirmarAsync(
+            $"Se fijará la existencia en {nombreBodega} en {cantidad:N2} y quedará registrado el movimiento.", "Ajustar existencia");
+        await ReabrirEdicionArticulo();
+        if (!confirmoAjuste) return;
         var r = await Lotes2.ActualizarExistenciaAsync(new ActualizarExistencia
         {
             IdArticulo = _edicion.Codigo,
@@ -1784,7 +1825,7 @@
 
     private async Task EliminarBonificacionArticulo(ArticuloBonificacionConfiguracion bonificacion)
     {
-        if (!await Dialogos.ConfirmarPeligroAsync("¿Desea quitar esta bonificación del artículo?")) return;
+        if (!await ConfirmarQuitarEnFichaAsync("¿Desea quitar esta bonificación del artículo?")) return;
 
         if (await Respuestas.CorrectaAsync(await ArticuloBonificacion.Eliminar(bonificacion.IdConfiguracion), "quitar la bonificación"))
         {
@@ -1805,6 +1846,18 @@
         if (_edicion is not null) await _modal.ShowAsync();
     }
 
+    /// <summary>
+    /// Confirmación de algo que se quita desde dentro de "Editar artículo". El cuadro de
+    /// confirmación es otro modal y HxModal cierra el que estaba abierto, así que la ficha
+    /// se vuelve a mostrar (con su estado) sea cual sea la respuesta.
+    /// </summary>
+    private async Task<bool> ConfirmarQuitarEnFichaAsync(string mensaje)
+    {
+        var acepto = await Dialogos.ConfirmarPeligroAsync(mensaje);
+        await ReabrirEdicionArticulo();
+        return acepto;
+    }
+
     private async Task AgregarProductoRegalo()
     {
         if (_edicion is null || _articuloRegaloSeleccionado is null) return;
@@ -1822,7 +1875,7 @@
 
     private async Task QuitarProductoRegalo(ArticulosRelacionadosDTO producto)
     {
-        if (_edicion is null || !await Dialogos.ConfirmarPeligroAsync("¿Quitar este artículo de la mezcla?")) return;
+        if (_edicion is null || !await ConfirmarQuitarEnFichaAsync("¿Quitar este artículo de la mezcla?")) return;
 
         if (await Respuestas.CorrectaAsync(
             await Relacionados.GuardarBonificacion(_edicion.Codigo, producto.Codigo, 1, false),
@@ -1960,6 +2013,7 @@
         _codigoFormula = 0;
         _cantidadFormula = 1;
         _errorFormula = null;
+        CancelarAccionFormula();
         _textoInsumoFormula = string.Empty;
         _insumosFormula = new();
         _insumoFormulaBuscado = false;
@@ -2073,15 +2127,65 @@
         Dialogos.Exito("Insumo agregado a la fórmula.");
     }
 
+    private void CancelarAccionFormula()
+    {
+        _formulaEditando = null;
+        _formulaQuitando = null;
+    }
+
+    private void EditarFormula(SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente item)
+    {
+        _errorFormula = null;
+        _formulaQuitando = null;
+        _formulaEditando = item.IdInsumo;
+        _cantidadFormulaEdicion = item.CantidadPorUnidad;
+    }
+
+    private void PedirQuitarFormula(SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente item)
+    {
+        _errorFormula = null;
+        _formulaEditando = null;
+        _formulaQuitando = item.IdInsumo;
+    }
+
+    /// <summary>El API actualiza la cantidad cuando el insumo ya está en la fórmula.</summary>
+    private async Task GuardarEdicionFormula(SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente item)
+    {
+        _errorFormula = null;
+        if (_edicion is null) return;
+        if (_cantidadFormulaEdicion <= 0)
+        {
+            _errorFormula = "La cantidad por unidad debe ser mayor a cero.";
+            return;
+        }
+        var r = await ProduccionApi.GuardarComponenteAsync(new SuvesaPosSitioAplicacion.DTOs.Produccion.GuardarComponenteFormula
+        {
+            IdArticuloTerminado = _edicion.Codigo,
+            IdInsumo = item.IdInsumo,
+            Cantidad = _cantidadFormulaEdicion,
+            Activo = true
+        });
+        if (r.Status != DTOs.Generated.ResponseStatus._0)
+        {
+            _errorFormula = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? "No se pudo actualizar la cantidad del insumo.";
+            return;
+        }
+        CancelarAccionFormula();
+        await CargarFormula();
+        Dialogos.Exito("Cantidad actualizada.");
+    }
+
+    /// <summary>La confirmación es en la propia fila: un cuadro de mensaje cerraría "Editar artículo".</summary>
     private async Task QuitarFormula(SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente item)
     {
-        if (_edicion is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea quitar este insumo de la fórmula?")) return;
+        if (_edicion is null) return;
         var r = await ProduccionApi.GuardarComponenteAsync(new SuvesaPosSitioAplicacion.DTOs.Produccion.GuardarComponenteFormula
         {
             IdArticuloTerminado = _edicion.Codigo,
             IdInsumo = item.IdInsumo,
             Activo = false
         });
+        CancelarAccionFormula();
         if (r.Status != DTOs.Generated.ResponseStatus._0)
         {
             _errorFormula = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? "No se pudo quitar el insumo de la fórmula.";
@@ -2212,7 +2316,7 @@
 
     private async Task EliminarLote(StockLoteDTO lote)
     {
-        if (lote.Id <= 0 || !await Dialogos.ConfirmarPeligroAsync($"¿Desea quitar el lote {lote.Lote}?")) return;
+        if (lote.Id <= 0 || !await ConfirmarQuitarEnFichaAsync($"¿Desea quitar el lote {lote.Lote}?")) return;
         if (await Respuestas.CorrectaAsync(await Api.EliminarLote(lote.Id), "quitar el lote"))
         {
             _lotesEdicion.Remove(lote);
@@ -2252,7 +2356,7 @@
     private async Task QuitarCodigoBarras(CodigoBarrasInventarioDTO codigo)
     {
         if (_edicion?.CodigoBarras is null
-            || !await Dialogos.ConfirmarPeligroAsync("¿Desea quitar este código de barras?"))
+            || !await ConfirmarQuitarEnFichaAsync("¿Desea quitar este código de barras?"))
         {
             return;
         }
