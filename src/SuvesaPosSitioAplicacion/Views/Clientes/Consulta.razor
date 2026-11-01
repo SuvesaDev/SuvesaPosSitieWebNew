@@ -654,6 +654,10 @@
         }
     </BodyTemplate>
     <FooterTemplate>
+        @if (!string.IsNullOrEmpty(_errorFicha))
+        {
+            <div class="alert alert-danger py-2 px-3 mb-0 me-auto small text-start" role="alert" style="white-space: pre-line;">@_errorFicha</div>
+        }
         <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
         <button class="btn btn-primary" type="submit" form="formCliente" disabled="@_guardando">
             @(_guardando ? "Guardando..." : "Guardar")
@@ -688,6 +692,8 @@
     private ClienteDTO? _edicion;
     private bool _esNuevo;
     private bool _guardando;
+    // Errores de guardado dentro de la ficha: un cuadro de aviso encima cerraba el modal.
+    private string? _errorFicha;
     private List<ClienteAdjuntoDTO> _adjuntos = new();
     private List<ClienteAdjuntoDTO> _adjuntosNuevos = new();
     private bool _cargandoAdjuntos;
@@ -890,6 +896,7 @@
         _adjuntosNuevos = new List<ClienteAdjuntoDTO>();
         _cargandoAdjuntos = false;
         _pestanaEdicion = "generales";
+        _errorFicha = null;
         _variasSucursales = false;
         _cantones = new List<CantonDTO>();
         _distritos = new List<DistritoDTO>();
@@ -930,6 +937,7 @@
         _datosSucursalOriginal = null;
         _variasSucursales = _edicion.DatosSucursal.Count > 0;
         _pestanaEdicion = "generales";
+        _errorFicha = null;
         _adjuntos = new List<ClienteAdjuntoDTO>();
         _adjuntosNuevos = new List<ClienteAdjuntoDTO>();
         _carta = null;
@@ -1369,6 +1377,7 @@
             return;
         }
 
+        _errorFicha = null;
         var faltantes = new List<string>();
         if (string.IsNullOrWhiteSpace(_edicion.Cedula)) faltantes.Add("Cédula");
         if (string.IsNullOrWhiteSpace(_edicion.Nombre)) faltantes.Add("Nombre");
@@ -1379,23 +1388,14 @@
         if (faltantes.Count > 0)
         {
             _pestanaEdicion = "generales";
-            await Dialogos.ErrorAsync(
-                ValidacionFormulario.MensajeCamposFaltantes(faltantes),
-                "Datos incompletos");
+            _errorFicha = ValidacionFormulario.MensajeCamposFaltantes(faltantes);
             return;
         }
 
         if (_variasSucursales && (_edicion.DatosSucursal?.Count ?? 0) == 0)
         {
             _pestanaEdicion = "facturacion";
-            await Dialogos.ErrorAsync("Agregue al menos una sucursal para sus datos de facturación.");
-            return;
-        }
-
-        var confirmar = await Dialogos.ConfirmarAsync(
-            _esNuevo ? "Se registrará el nuevo cliente." : "Se actualizarán los datos del cliente.");
-        if (!confirmar)
-        {
+            _errorFicha = "Agregue al menos una sucursal para sus datos de facturación.";
             return;
         }
 
@@ -1414,32 +1414,36 @@
         var respuesta = eraNuevo ? await Api.Crear(_edicion) : await Api.Editar(_edicion);
         _guardando = false;
 
-        if (await Respuestas.CorrectaAsync(respuesta, eraNuevo ? "crear el cliente" : "editar el cliente"))
+        var error = await Respuestas.MensajeSiFallaAsync(respuesta, eraNuevo ? "crear el cliente" : "editar el cliente");
+        if (error is not null)
         {
-            if (eraNuevo && _adjuntosNuevos.Count > 0)
-            {
-                var idCliente = respuesta.Responses?.Identificacion ?? 0;
-                if (idCliente <= 0)
-                {
-                    await Dialogos.ErrorAsync("El cliente fue creado, pero la API no devolvió su identificador para guardar los documentos. Ábralo en edición para cargarlos.");
-                    await _modal.HideAsync();
-                    await RefrescarResultados();
-                    return;
-                }
+            _errorFicha = error.Length > 0 ? error : null;
+            return;
+        }
 
-                _edicion.Identificacion = idCliente;
-                _esNuevo = false;
-                if (!await PersistirAdjuntos(idCliente, recargar: false))
-                {
-                    await Dialogos.ErrorAsync("El cliente fue creado, pero no se pudieron guardar todos los documentos. Puede reintentarlo desde esta pestaña.");
-                    return;
-                }
+        if (eraNuevo && _adjuntosNuevos.Count > 0)
+        {
+            var idCliente = respuesta.Responses?.Identificacion ?? 0;
+            if (idCliente <= 0)
+            {
+                await Dialogos.ErrorAsync("El cliente fue creado, pero la API no devolvió su identificador para guardar los documentos. Ábralo en edición para cargarlos.");
+                await _modal.HideAsync();
+                await RefrescarResultados();
+                return;
             }
 
-            await _modal.HideAsync();
-            Dialogos.Exito(eraNuevo ? "Cliente creado." : "Cliente actualizado.");
-            await RefrescarResultados();
+            _edicion.Identificacion = idCliente;
+            _esNuevo = false;
+            if (!await PersistirAdjuntos(idCliente, recargar: false))
+            {
+                await Dialogos.ErrorAsync("El cliente fue creado, pero no se pudieron guardar todos los documentos. Puede reintentarlo desde esta pestaña.");
+                return;
+            }
         }
+
+        await _modal.HideAsync();
+        Dialogos.Exito(eraNuevo ? "Cliente creado." : "Cliente actualizado.");
+        await RefrescarResultados();
     }
 
     private async Task CambiarEstado(FiltranClienteDTO cliente)
@@ -1489,7 +1493,7 @@
         PlazoCredito = cliente.Plazo_Credito,
         Descuento = cliente.Descuento,
         Empresa = cliente.Empresa,
-        Tipoprecio = cliente.Tipoprecio,
+        Tipoprecio = cliente.Tipoprecio is > 0 and <= 5 ? cliente.Tipoprecio : 1,
         Sinrestriccion = cliente.Sinrestriccion,
         Agente = cliente.Agente,
         CodMonedaCredito = cliente.CodMonedaCredito,
