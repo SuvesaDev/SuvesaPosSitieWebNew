@@ -184,6 +184,9 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
     {
         container.Column(col =>
         {
+            if (reporte.Empresa is not null)
+                col.Item().PaddingBottom(8).Element(c => IdentidadEmpresa(c, reporte.Empresa));
+
             col.Item().Row(row =>
             {
                 row.RelativeItem().Column(cliente =>
@@ -274,13 +277,14 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
             {
                 tabla.ColumnsDefinition(def =>
                 {
-                    def.RelativeColumn(1.25f);
-                    def.RelativeColumn(1.1f);
-                    def.RelativeColumn(1.1f);
-                    def.RelativeColumn(1.25f);
-                    def.RelativeColumn(1.0f);
-                    def.RelativeColumn(1.1f);
-                    def.RelativeColumn(1.25f);
+                    def.RelativeColumn(1.2f);
+                    def.RelativeColumn(1.05f);
+                    def.RelativeColumn(1.05f);
+                    def.RelativeColumn(0.7f);
+                    def.RelativeColumn(1.2f);
+                    def.RelativeColumn(0.95f);
+                    def.RelativeColumn(1.05f);
+                    def.RelativeColumn(1.2f);
                     def.RelativeColumn(0.95f);
                 });
 
@@ -289,6 +293,7 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                     CabeceraEstadoCuenta(h.Cell(), "FACTURA", "izquierda");
                     CabeceraEstadoCuenta(h.Cell(), "FECHA", "centro");
                     CabeceraEstadoCuenta(h.Cell(), "VENCE", "centro");
+                    CabeceraEstadoCuenta(h.Cell(), "DÍAS MORA", "centro");
                     CabeceraEstadoCuenta(h.Cell(), "ORIGINAL", "derecha");
                     CabeceraEstadoCuenta(h.Cell(), "N/C", "derecha");
                     CabeceraEstadoCuenta(h.Cell(), "PAGADO", "derecha");
@@ -298,7 +303,7 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
 
                 if (reporte.Detalle.Count == 0)
                 {
-                    tabla.Cell().ColumnSpan(8).Background("#FFFFFF").BorderBottom(0.5f).BorderColor("#D4E2E8")
+                    tabla.Cell().ColumnSpan(9).Background("#FFFFFF").BorderBottom(0.5f).BorderColor("#D4E2E8")
                         .Padding(8).AlignCenter().Text("No hay facturas con saldo pendiente.")
                         .FontColor(Colors.Grey.Darken1);
                 }
@@ -314,6 +319,8 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "izquierda").Text(linea.Factura).SemiBold();
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "centro").Text(linea.Fecha.ToString("dd/MM/yyyy"));
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "centro").Text(linea.Vence?.ToString("dd/MM/yyyy") ?? "—");
+                        CeldaEstadoCuenta(tabla.Cell(), fondo, "centro").Text(linea.DiasMora > 0 ? linea.DiasMora.ToString() : "—")
+                            .FontColor(linea.DiasMora > 0 ? "#B42318" : "#1F2933");
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "derecha").Text(FormatearMonto(linea.Original, reporte.Moneda));
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "derecha").Text(FormatearMonto(linea.NotasCredito, reporte.Moneda));
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "derecha").Text(FormatearMonto(linea.Pagado, reporte.Moneda));

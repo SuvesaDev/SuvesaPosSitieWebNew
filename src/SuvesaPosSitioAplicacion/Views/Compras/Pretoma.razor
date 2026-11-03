@@ -262,7 +262,7 @@
                                 <td class="text-end">
                                     <input type="number" step="0.001" min="0" class="form-control form-control-sm text-end"
                                            disabled="@_soloLectura"
-                                           value="@(a.ASumar?.ToString() ?? "")"
+                                           value="@EntradaNumerica.Texto(a.ASumar)"
                                            @onchange="e => SetConteo(a, e.Value?.ToString())" />
                                 </td>
                                 <td class="text-end">
@@ -440,7 +440,7 @@
     private static void SetConteo(Fila a, string? valor)
     {
         if (string.IsNullOrWhiteSpace(valor)) { a.ASumar = null; return; }
-        if (!double.TryParse(valor, out var v) || v < 0) { a.ASumar = null; return; }
+        if (!EntradaNumerica.TryLeer(valor, out var v) || v < 0) { a.ASumar = null; return; }
         a.ASumar = v;
     }
 
@@ -584,7 +584,12 @@
         double? cantidad = null;
         if (!string.IsNullOrWhiteSpace(_loteCantidadTexto))
         {
-            if (!double.TryParse(_loteCantidadTexto, out var v) || v < 0)
+            if (!EntradaNumerica.TryLeer(_loteCantidadTexto, out var v))
+            {
+                await Dialogos.ErrorAsync("La cantidad no es un número válido.");
+                return;
+            }
+            if (v < 0)
             {
                 await Dialogos.ErrorAsync("La cantidad no puede ser negativa.");
                 return;

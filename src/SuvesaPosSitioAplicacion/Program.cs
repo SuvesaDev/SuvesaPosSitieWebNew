@@ -254,6 +254,8 @@ builder.Services.AddScoped<IEnviosCorreo, EnviosCorreo>();
 builder.Services.AddScoped<IAlertasAdministrador, AlertasAdministrador>();
 builder.Services.AddScoped<ICertificadosRegistro, CertificadosRegistro>();
 builder.Services.AddScoped<ICobranza, Cobranza>();
+builder.Services.AddScoped<IDesbloqueoCredito, DesbloqueoCredito>();
+builder.Services.AddScoped<IClienteUnificacion, ClienteUnificacion>();
 builder.Services.AddScoped<IAvisadorAlertas, AvisadorAlertas>();
 builder.Services.AddScoped<ITipoCambio, TipoCambio>();
 
@@ -545,6 +547,7 @@ app.MapGet("/reportes/estado-cuenta", async (
     [Microsoft.AspNetCore.Mvc.FromQuery] DateTime? corte,
     SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IComandosFacturacion api,
     IGeneradorPdf pdf,
+    MembreteReporte membrete,
     HttpContext http) =>
 {
     var generadoPor = http.User?.FindFirst(ClaimsSeePos.NombreUsuario)?.Value
@@ -577,8 +580,12 @@ app.MapGet("/reportes/estado-cuenta", async (
             NotasCredito: (decimal)d.NotasCreditoAplicadas,
             Pagado: (decimal)d.PagosAplicados,
             Saldo: (decimal)d.SaldoActual,
-            EstadoMh: d.EstadoMh)).ToList(),
-        GeneradoPor: generadoPor));
+            EstadoMh: d.EstadoMh,
+            DiasMora: Math.Max(0, (e.FechaCorte.Date - (d.Vence ?? d.Fecha).Date).Days))).ToList(),
+        GeneradoPor: generadoPor)
+    {
+        Empresa = await membrete.ResolverAsync()
+    });
 
     return Results.File(bytes, "application/pdf", $"estado-cuenta-{idCliente}.pdf");
 });

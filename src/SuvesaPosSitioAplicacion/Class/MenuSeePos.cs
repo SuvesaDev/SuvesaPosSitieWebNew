@@ -716,6 +716,14 @@ public static partial class MenuSeePos
                     Codigo = "COBRANZA.GERENCIAL",
                     Ruta = "/collections/management",
                 },
+                new ItemMenu
+                {
+                    // El administrador aprueba o rechaza las solicitudes de facturar a crédito a un
+                    // cliente bloqueado por morosidad (una factura por autorización).
+                    Titulo = "Autorizaciones de crédito",
+                    Codigo = "COBRANZA.AUTORIZACIONES_DE_CREDITO",
+                    Ruta = "/collections/credit-authorizations",
+                },
             }
         },
         new ItemMenu

@@ -465,10 +465,14 @@
                         </div>
                         <div class="form-check">
                             <input id="articulo-lote" class="form-check-input" type="checkbox" @bind="_edicion.Lote" @bind:after="AlCambiarLotes"
-                                   disabled="@(_tipoArticulo is 2 or 3 || _edicion.LoteUnicoFijado)" />
-                            <label class="form-check-label" for="articulo-lote">Maneja lotes @(_tipoArticulo is 2 or 3 ? "(obligatorio)" : "")</label>
+                                   disabled="@(_tipoArticulo == 3 || _edicion.LoteUnicoFijado)" />
+                            <label class="form-check-label" for="articulo-lote">Maneja lotes @(_tipoArticulo == 3 ? "(obligatorio)" : "")</label>
+                            @if (_tipoArticulo == 2 && !_edicion.Lote)
+                            {
+                                <div class="form-text">Sin lote: no se pedirá lote en entradas ni movimientos. Un artículo sin lote no puede formar parte de una fórmula de producción.</div>
+                            }
                         </div>
-                        @if (_tipoArticulo == 2)
+                        @if (_tipoArticulo == 2 && _edicion.Lote)
                         {
                             <div class="form-check">
                                 <input id="articulo-lote-unico" class="form-check-input" type="checkbox" @bind="_edicion.LoteUnico"
@@ -1680,6 +1684,26 @@
         }
         Dialogos.Exito("Existencia ajustada.");
         await CargarExistencias();
+        if (_movimientos is not null) await CargarMovimientos(1);
+        await RefrescarListadoAsync();
+    }
+
+    /// <summary>
+    /// El ajuste cambia la existencia que muestran la rejilla, la tarjeta de resumen y las
+    /// presentaciones derivadas del artículo; sin esto había que recargar la página.
+    /// </summary>
+    private async Task RefrescarListadoAsync()
+    {
+        if (!_modoBusqueda) await RecargarDesdeApi();
+        else if (Helpers.Texto.Normalizar(_texto).Length >= 2)
+        {
+            _todos = (await Respuestas.DatoAsync(await Api.Buscar(_texto, IncluirInhabilitados), "actualizar el inventario"))
+                     ?.ToList() ?? _todos;
+            Refiltrar();
+        }
+
+        if (_elegido is not null)
+            _elegido = _todos.FirstOrDefault(a => a.Codigo == _elegido.Codigo) ?? _elegido;
     }
 
     // Costo = base + fletes + otros cargos, igual que el sistema actual
@@ -2256,9 +2280,12 @@
     {
         if (_edicion is not null)
         {
+            var tipoPrevio = _edicion.TipoArticulo;
             _edicion.TipoArticulo = _tipoArticulo;
             _edicion.EsPadre = _tipoArticulo == 2;          // compat
-            if (_tipoArticulo is 2 or 3) _edicion.Lote = true;   // MP y PT obligan lote
+            if (_tipoArticulo == 3) _edicion.Lote = true;   // PT obliga lote
+            // MP maneja lote por defecto, pero se puede quitar (envases, empaques, embalajes).
+            else if (_tipoArticulo == 2 && tipoPrevio != 2) _edicion.Lote = true;
             if (_tipoArticulo != 2) _edicion.LoteUnico = false;  // lote único sólo en MP
             if (_tipoArticulo != 3 && _pestanaInventario == "formula") _pestanaInventario = "generales";
         }

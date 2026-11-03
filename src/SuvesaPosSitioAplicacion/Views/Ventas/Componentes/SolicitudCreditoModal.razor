@@ -1,0 +1,130 @@
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Cobranza
+@using SuvesaPosSitioAplicacion.Services
+@using Havit.Blazor.Components.Web.Bootstrap
+@inject IDesbloqueoCredito Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+@* REQ-01: el cliente tiene el crédito bloqueado por morosidad. Quien factura pide aquí la autorización
+   de un administrador (que la resuelve desde Cobranza → Autorizaciones de crédito, esté donde esté).
+   La aprobación sirve para UNA factura a crédito de este cliente. A contado sí se puede facturar. *@
+
+<AppModal @ref="_modal" Titulo="Crédito bloqueado" Subtitulo="@($"{_nombre} · {_idCliente}")" Tamano="ModalSize.Regular"
+          MostrarCancelar="true" TextoCancelar="Cerrar" Pie="@_pie">
+    <ChildContent>
+        <div class="alert alert-warning" role="alert">
+            <strong>@_motivoBloqueo</strong>
+            <div class="small mt-1">Mientras no se pague, solo se puede facturar a contado, salvo que un administrador autorice esta factura a crédito.</div>
+        </div>
+
+        @if (_cargando)
+        {
+            <p class="text-secondary">Consultando…</p>
+        }
+        else if (_solicitud is { Estado: "Pendiente" })
+        {
+            <div class="alert alert-info" role="status">
+                Ya hay una solicitud pendiente de <strong>@_solicitud.Solicitante</strong> (@HoraCr(_solicitud.FechaSolicitudUtc)).
+                Un administrador debe aprobarla; cuando lo haga, vuelva a facturar.
+            </div>
+        }
+        else if (_solicitud is { Estado: "Aprobada" })
+        {
+            <div class="alert alert-success" role="status">
+                Autorizada por <strong>@_solicitud.Resolutor</strong>. Cierre esta ventana y vuelva a facturar a crédito
+                @(_solicitud.FechaVencimientoUtc is { } v ? $"(vale hasta {HoraCr(v)})" : "").
+                Sirve para una sola factura; el límite de crédito se sigue exigiendo.
+            </div>
+        }
+        else
+        {
+            @if (_solicitud is { Estado: "Rechazada" })
+            {
+                <div class="alert alert-danger" role="status">
+                    La última solicitud fue rechazada por <strong>@_solicitud.Resolutor</strong>@(string.IsNullOrWhiteSpace(_solicitud.ComentarioResolucion) ? "" : $": {_solicitud.ComentarioResolucion}").
+                </div>
+            }
+            <label class="form-label" for="credito-motivo">Motivo de la solicitud</label>
+            <textarea id="credito-motivo" class="form-control" rows="3" maxlength="300" @bind="_motivo"
+                      placeholder="Por ejemplo: el cliente paga mañana, entrega urgente aprobada por gerencia…"></textarea>
+        }
+
+        @if (_error is not null)
+        {
+            <div class="alert alert-danger mt-3 mb-0" role="alert">@_error</div>
+        }
+    </ChildContent>
+</AppModal>
+
+@code {
+    private AppModal _modal = default!;
+    private long _idCliente;
+    private string _nombre = string.Empty;
+    private string _motivoBloqueo = string.Empty;
+    private decimal _monto;
+    private string _motivo = string.Empty;
+    private string? _error;
+    private bool _cargando;
+    private bool _enviando;
+    private SolicitudDesbloqueoWebDTO? _solicitud;
+    private RenderFragment? _pie;
+
+    public async Task AbrirAsync(long idCliente, string nombre, string? motivoBloqueo, decimal montoVenta)
+    {
+        _idCliente = idCliente;
+        _nombre = nombre;
+        _motivoBloqueo = string.IsNullOrWhiteSpace(motivoBloqueo) ? "El cliente tiene el crédito bloqueado." : motivoBloqueo;
+        _monto = montoVenta;
+        _motivo = string.Empty;
+        _error = null;
+        _solicitud = null;
+        _pie = Pie;
+        await _modal.MostrarAsync();
+        await Refrescar();
+    }
+
+    private async Task Refrescar()
+    {
+        _cargando = true;
+        StateHasChanged();
+        var r = await Api.UltimaDelCliente(_idCliente);
+        var falla = await Respuestas.MensajeSiFallaAsync(r, "consultar la autorización de crédito");
+        _error = string.IsNullOrEmpty(falla) ? null : falla;
+        _solicitud = falla is null ? r.Responses : null;
+        _cargando = false;
+    }
+
+    private async Task Solicitar()
+    {
+        if (_motivo.Trim().Length < 5) { _error = "Indique el motivo de la solicitud (al menos 5 caracteres)."; return; }
+        _enviando = true;
+        _error = null;
+        var r = await Api.Solicitar(new SolicitarDesbloqueoWebComando { IdCliente = _idCliente, Motivo = _motivo, MontoEstimado = _monto });
+        var falla = await Respuestas.MensajeSiFallaAsync(r, "solicitar la autorización");
+        _enviando = false;
+        if (falla is not null)
+        {
+            // En línea: un cuadro de diálogo encima cerraría esta ventana.
+            _error = falla.Length > 0 ? falla : null;
+            return;
+        }
+        _solicitud = r.Responses;
+    }
+
+    private bool PuedeSolicitar => !_cargando && _solicitud is not { Estado: "Pendiente" or "Aprobada" };
+
+    private RenderFragment Pie => __builder =>
+    {
+        <button type="button" class="btn btn-outline-secondary" @onclick="Refrescar" disabled="@(_cargando || _enviando)">Actualizar estado</button>
+        @if (PuedeSolicitar)
+        {
+            <button type="button" class="btn btn-primary" @onclick="Solicitar" disabled="@_enviando">
+                @(_enviando ? "Enviando…" : "Solicitar autorización")
+            </button>
+        }
+    };
+
+    /// <summary>La hora se muestra en Costa Rica (UTC−6, sin horario de verano), no en la zona del servidor.</summary>
+    private static string HoraCr(DateTime utc) => DateTime.SpecifyKind(utc, DateTimeKind.Utc).AddHours(-6).ToString("dd/MM/yyyy HH:mm");
+}

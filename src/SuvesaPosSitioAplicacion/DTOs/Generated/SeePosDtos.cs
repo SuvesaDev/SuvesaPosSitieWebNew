@@ -2068,6 +2068,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("tipoprecio")]
         public int Tipoprecio { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("idRutaComercial")]
+        public int? IdRutaComercial { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("descuentoEspecial")]
         public double DescuentoEspecial { get; set; } = default!;
 
@@ -3318,6 +3321,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("tipoprecio")]
         [System.ComponentModel.DataAnnotations.Range(1, 5)]
         public int Tipoprecio { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idRutaComercial")]
+        public int? IdRutaComercial { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("sinrestriccion")]
         public bool Sinrestriccion { get; set; } = default!;
@@ -7449,6 +7455,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("tipoprecio")]
         public int Tipoprecio { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idRutaComercial")]
+        public int? IdRutaComercial { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("sinrestriccion")]
         public bool Sinrestriccion { get; set; } = default!;

@@ -75,4 +75,40 @@ public sealed class EstadoCuentaPdfTests
         Assert.True(pdf.Length > 800);
         Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
     }
+
+    [Fact]
+    public void EstadoCuenta_ConMembreteYDiasMora_GeneraPdfValido()
+    {
+        var reporte = new EstadoCuentaPdf(
+            NombreCliente: "Almacén La Canasta",
+            IdentificacionCliente: "3101123456",
+            FechaCorte: new DateTime(2026, 11, 2),
+            LimiteAprobado: 100000m,
+            SaldoAbierto: 24253.19m,
+            CreditoAFavor: 0m,
+            Disponible: 75746.81m,
+            PorVencer: 0m,
+            Vencido1a30: 24253.19m,
+            Vencido31a60: 0m,
+            Vencido61a90: 0m,
+            Vencido91oMas: 0m,
+            Detalle:
+            [
+                new LineaEstadoCuentaPdf("1", null, new DateTime(2026, 9, 5), new DateTime(2026, 10, 5),
+                    24253.19m, 0m, 0m, 24253.19m, "Aceptado", DiasMora: 28)
+            ])
+        {
+            Empresa = new EncabezadoEmpresaPdf(
+                NombreEmisor: "Costa Pets S.A.",
+                Identificacion: "3102886777",
+                Telefono: "2222-2222",
+                Correo: "info@costapets.example",
+                Direccion: "San José")
+        };
+
+        var pdf = new GeneradorPdfQuestPdf().EstadoCuenta(reporte);
+
+        Assert.True(pdf.Length > 800);
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
+    }
 }

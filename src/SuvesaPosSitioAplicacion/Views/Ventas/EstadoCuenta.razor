@@ -109,18 +109,19 @@
                 <div class="table-responsive">
                     <table class="table table-sm align-middle">
                         <thead><tr>
-                            <th>Factura</th><th>Fecha</th><th>Vence</th>
+                            <th>Factura</th><th>Fecha</th><th>Vence</th><th class="text-center">Días mora</th>
                             <th class="text-end">Original</th><th class="text-end">NC</th>
                             <th class="text-end">Pagado</th><th class="text-end">Saldo</th><th>Estado MH</th>
                         </tr></thead>
                         <tbody>
-                            @if (_estado.Detalle.Count == 0) { <tr><td colspan="8" class="text-center text-secondary py-3">Sin facturas con saldo.</td></tr> }
+                            @if (_estado.Detalle.Count == 0) { <tr><td colspan="9" class="text-center text-secondary py-3">Sin facturas con saldo.</td></tr> }
                             @foreach (var f in _estado.Detalle.OrderBy(d => d.Vence ?? d.Fecha))
                             {
                                 <tr class="@(EsVencida(f) ? "table-warning" : null)">
                                     <td>@f.NumFactura.ToString("0")@if (!string.IsNullOrWhiteSpace(f.ConsecutivoMh)) { <div class="small text-secondary">@f.ConsecutivoMh</div> }</td>
                                     <td>@f.Fecha.ToString("dd/MM/yyyy")</td>
                                     <td>@(f.Vence?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                    <td class="text-center @(DiasMora(f) > 0 ? "text-danger fw-semibold" : "text-secondary")">@(DiasMora(f) > 0 ? DiasMora(f).ToString() : "—")</td>
                                     <td class="text-end">@Formato.Importe((decimal)f.MontoOriginal)</td>
                                     <td class="text-end">@Formato.Importe((decimal)f.NotasCreditoAplicadas)</td>
                                     <td class="text-end">@Formato.Importe((decimal)f.PagosAplicados)</td>
@@ -176,6 +177,9 @@
         _cargando = false;
     }
 
+    private int DiasMora(SuvesaPosSitioAplicacion.DTOs.Fiscal.FacturaCreditoConSaldoDTO f)
+        => Math.Max(0, (_corte.Date - (f.Vence ?? f.Fecha).Date).Days);
+
     private bool EsVencida(SuvesaPosSitioAplicacion.DTOs.Fiscal.FacturaCreditoConSaldoDTO f)
         => (f.Vence ?? f.Fecha).Date < _corte.Date;
 
@@ -183,13 +187,14 @@
     {
         if (_estado is null) return;
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("Factura;Fecha;Vence;Original;NC;Pagado;Saldo;EstadoMH");
+        sb.AppendLine("Factura;Fecha;Vence;DiasMora;Original;NC;Pagado;Saldo;EstadoMH");
         foreach (var d in _estado.Detalle.OrderBy(x => x.Vence ?? x.Fecha))
             sb.AppendLine(string.Join(';', new[]
             {
                 d.NumFactura.ToString("0"),
                 d.Fecha.ToString("yyyy-MM-dd"),
                 d.Vence?.ToString("yyyy-MM-dd") ?? "",
+                DiasMora(d).ToString(),
                 ((decimal)d.MontoOriginal).ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ((decimal)d.NotasCreditoAplicadas).ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ((decimal)d.PagosAplicados).ToString(System.Globalization.CultureInfo.InvariantCulture),

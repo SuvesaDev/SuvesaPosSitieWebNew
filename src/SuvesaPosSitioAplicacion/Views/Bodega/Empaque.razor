@@ -34,6 +34,8 @@
         <strong>@_orden.NombreCliente</strong>
         <div class="text-secondary small">@(_orden.EsConsignacionEnvio ? "Envío de consignación" : "Factura") @_orden.NumeroDocumento · @_orden.EstadoDescripcion · @_orden.UsuarioAlistamiento
           @if (_orden.DiasMinimosCaducidad is > 0) { <span> · caducidad mínima @_orden.DiasMinimosCaducidad días</span> }
+          @if (_orden.IdOrdenOrigen is { } origen) { <span class="badge text-bg-warning ms-1">Saldo pendiente de la orden <a href="/bodega/empaque/@origen" class="text-reset">#@origen</a></span> }
+          @if (_orden.IdOrdenSaldo is { } saldo) { <span class="badge text-bg-info ms-1">Entrega parcial: el saldo quedó en la orden <a href="/bodega/empaque/@saldo" class="text-reset">#@saldo</a></span> }
           @if (!string.IsNullOrWhiteSpace(_orden.RecibidoPor)) { <span> · recibió @_orden.RecibidoPor</span> }
           @if (!string.IsNullOrWhiteSpace(_orden.FirmaPng))
           {
@@ -42,6 +44,12 @@
         </div>
       </div>
       <div class="d-flex gap-2 flex-wrap">
+        @if (!_orden.EsPreventa && !_orden.EsConsignacionEnvio && _orden.Estado != 7)
+        {
+          <BotonImprimir Tipo="@(_orden.EsTiquete ? "tiquete-electronico" : "factura-electronica")" Id="_orden.IdVenta"
+                         Texto="@(_orden.EsTiquete ? "Imprimir tiquete" : "Imprimir factura")" Consecutivo="@_orden.NumeroDocumento"
+                         Clase="btn-outline-primary" />
+        }
         @if (_orden.Estado == 1)
         {
           <button class="btn btn-primary" @onclick="Aceptar">Aceptar</button>
@@ -56,7 +64,11 @@
             <input class="form-control" type="number" min="0" step="0.01" @bind="_pesoKg" placeholder="kg" title="Peso del bulto" />
             <button class="btn btn-outline-secondary" @onclick="CerrarBulto">Cerrar bulto</button>
           </div>
-          <button class="btn btn-outline-danger" @onclick="Faltante">Faltante</button>
+          @if (!_orden.EsConsignacionEnvio && HayAlistadoYPendiente)
+          {
+            <button class="btn btn-outline-warning" @onclick="EntregaParcial" title="Despacha lo alistado y deja lo que falta pendiente en una orden nueva, sin nota de crédito">Entrega parcial</button>
+          }
+          <button class="btn btn-outline-danger" @onclick="Faltante" title="Cancela lo que falta: nota de crédito (o se quita de la preventa)">Cancelar faltante</button>
           <button class="btn btn-success" @onclick="Empacar">Marcar empacado</button>
         }
         @if (_orden.Estado is 3 or 4)
@@ -102,7 +114,7 @@
     }
 
     <div class="card mb-3"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
-      <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Facturado</th><th class="text-end">Alistado</th><th>Estado</th></tr></thead>
+      <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Facturado</th><th class="text-end">Alistado</th><th>Estado</th>@if (_orden.Estado == 2) { <th style="min-width:11rem">Cantidad (sin lote)</th> }</tr></thead>
       <tbody>
         @foreach (var l in _orden.Lineas)
         {
@@ -112,6 +124,20 @@
             <td class="text-end">@l.CantidadFacturada.ToString("N3")</td>
             <td class="text-end">@l.CantidadAlistada.ToString("N3")</td>
             <td>@l.EstadoDescripcion</td>
+            @if (_orden.Estado == 2)
+            {
+              <td>
+                @if (string.IsNullOrWhiteSpace(l.LoteFacturado) && l.Estado != 2)
+                {
+                  <div class="input-group input-group-sm">
+                    <input type="number" min="0" step="0.001" class="form-control text-end" aria-label="Cantidad de @l.CodArticulo"
+                           value="@(_cantidades.GetValueOrDefault(l.Id, string.Empty))" @onchange="e => _cantidades[l.Id] = e.Value?.ToString() ?? string.Empty" />
+                    <button type="button" class="btn btn-outline-primary" @onclick="() => IngresarCantidad(l)">Alistar</button>
+                  </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(l.LoteFacturado)) { <span class="text-secondary small">Escanee la etiqueta</span> }
+              </td>
+            }
           </tr>
         }
       </tbody>
@@ -279,6 +305,42 @@
      foreach (var b in _orden?.Bultos.Where(x => x.Estado != 1 && abiertos.Contains(x.Id)) ?? Enumerable.Empty<BultoDespacho>())
          await ImprimirEtiqueta(b.Id);
      await Dialogos.InformarAsync("Orden empacada. Pase a Despacho para armar el manifiesto.");
+ }
+
+ private readonly Dictionary<long, string> _cantidades = new();
+
+ private bool HayAlistadoYPendiente => _orden is not null
+     && _orden.Lineas.Any(l => l.CantidadAlistada > 0)
+     && _orden.Lineas.Any(l => l.Estado != 2);
+
+ /// <summary>El operador digita la cantidad de un artículo sin lote; nunca más de lo facturado (lo valida el API).</summary>
+ private async Task IngresarCantidad(AlistamientoLinea linea)
+ {
+     if (_orden is null) return;
+     _cantidades.TryGetValue(linea.Id, out var texto);
+     if (!EntradaNumerica.TryLeer(texto, out var valor) || valor <= 0)
+     {
+         await Dialogos.ErrorAsync("Digite una cantidad mayor a cero.");
+         return;
+     }
+     var r = await Api.IngresarCantidadAsync(_orden.Id, linea.Id, (decimal)valor);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo registrar la cantidad."); return; }
+     _cantidades.Remove(linea.Id);
+     _orden = r.Responses;
+ }
+
+ private async Task EntregaParcial()
+ {
+     if (_orden is null) return;
+     if (!await Dialogos.ConfirmarAsync(
+             "Se despachará lo alistado y lo que falta quedará pendiente en una orden nueva para una segunda entrega. No se emite nota de crédito. ¿Continuar?",
+             "Entrega parcial")) return;
+     var r = await Api.EntregaParcialAsync(_orden.Id, null);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo registrar la entrega parcial."); return; }
+     _orden = r.Responses;
+     await Dialogos.InformarAsync(_orden?.IdOrdenSaldo is { } saldo
+         ? $"Entrega parcial registrada. Lo que falta quedó pendiente en la orden #{saldo}, que vuelve a la cola."
+         : "Entrega parcial registrada.");
  }
 
  private async Task Faltante()

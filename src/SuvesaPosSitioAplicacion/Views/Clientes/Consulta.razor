@@ -14,6 +14,8 @@
 @inject IClienteBonificacion ClienteBonificacion
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IConfiguracionPlazosFiscales Plazos
 @inject IRelojEquipo RelojEquipo
+@inject IRutasComerciales RutasApi
+@inject IClienteUnificacion Unificacion
 @inject IJSRuntime JS
 
 @*  RUTA DEL MENU, no una propia.
@@ -126,6 +128,71 @@
     </ChildContent>
 </AppPantalla>
 
+<AppModal @ref="_modalUnificar" Titulo="Unificar clientes" Subtitulo="@(_origenUnificar?.Nombre)" Tamano="ModalSize.Large"
+          AlGuardar="Unificar" Guardando="_unificando" PuedeGuardar="@(_vistaUnificar is not null && _confirmoUnificar)"
+          TextoGuardar="Unificar" Peligro="true">
+    <ChildContent>
+        @if (_origenUnificar is not null)
+        {
+            <div class="alert alert-warning" role="alert">
+                Todo el historial de <strong>@_origenUnificar.Nombre</strong> (@_origenUnificar.Cedula) —facturas, cobros, saldos, pedidos y su ficha—
+                pasará al cliente que usted elija. <strong>@_origenUnificar.Nombre</strong> quedará inactivo. Las facturas electrónicas ya emitidas
+                no cambian; el cliente que queda conserva su límite de crédito, plazo y tipo de precio.
+            </div>
+
+            <label class="form-label" for="unificar-destino">Cliente que queda</label>
+            <div class="input-group">
+                <input id="unificar-destino" class="form-control" placeholder="Cédula o nombre" @bind="_textoDestinoUnificar"
+                       @bind:event="oninput" @onkeydown="@(async (KeyboardEventArgs e) => { if (e.Key == "Enter") await BuscarDestinoUnificar(); })" />
+                <button type="button" class="btn btn-outline-primary" @onclick="BuscarDestinoUnificar">Buscar</button>
+            </div>
+            @if (_candidatosUnificar.Count > 0)
+            {
+                <div class="list-group mt-1">
+                    @foreach (var c in _candidatosUnificar)
+                    {
+                        <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirDestinoUnificar(c)">
+                            <span class="text-secondary me-2">@c.Cedula</span>@c.Nombre
+                        </button>
+                    }
+                </div>
+            }
+
+            @if (_destinoUnificar is not null && _vistaUnificar is not null)
+            {
+                <div class="mt-3">
+                    <div class="mb-2">Pasará a <strong>@_destinoUnificar.Nombre</strong> (@_destinoUnificar.Cedula): @_vistaUnificar.TotalFilas registro(s).</div>
+                    @if (_vistaUnificar.Filas.Count == 0)
+                    {
+                        <div class="text-secondary small">El cliente no tiene registros que pasar; solo quedará inactivo.</div>
+                    }
+                    else
+                    {
+                        <table class="table table-sm mb-2">
+                            <thead><tr><th>Registro</th><th class="text-end">Cantidad</th></tr></thead>
+                            <tbody>
+                                @foreach (var f in _vistaUnificar.Filas)
+                                {
+                                    <tr><td>@f.Tabla @(f.EsHistorial ? "" : "(ficha)")</td><td class="text-end">@f.Filas</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    <div class="form-check">
+                        <input id="unificar-confirmo" class="form-check-input" type="checkbox" @bind="_confirmoUnificar" />
+                        <label class="form-check-label" for="unificar-confirmo">Entiendo que esta acción no se puede deshacer.</label>
+                    </div>
+                </div>
+            }
+
+            @if (_errorUnificar is not null)
+            {
+                <div class="alert alert-danger mt-3 mb-0" role="alert">@_errorUnificar</div>
+            }
+        }
+    </ChildContent>
+</AppModal>
+
 <HxOffcanvas @ref="_detalle" Title="@(_elegido?.Nombre ?? "Cliente")"
              Placement="OffcanvasPlacement.End">
     <BodyTemplate>
@@ -224,8 +291,20 @@
                             @onclick="() => CambiarEstado(_elegido)">
                         @(_elegido.Anulado ? "Activar" : "Desactivar")
                     </button>
+                    <button class="btn btn-sm btn-outline-danger" disabled="@(_estadoEliminacion is not { PuedeEliminar: true })"
+                            title="@(_estadoEliminacion?.Mensaje ?? "Elimina la ficha definitivamente")" @onclick="() => Eliminar(_elegido)">
+                        <i class="bi bi-trash me-1" aria-hidden="true"></i>Eliminar
+                    </button>
+                }
+                @if (PuedeUnificar)
+                {
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => AbrirUnificar(_elegido)">Unificar con otro…</button>
                 }
             </div>
+            @if (_estadoEliminacion is { PuedeEliminar: false, Mensaje: not null })
+            {
+                <div class="form-text mt-2">@_estadoEliminacion.Mensaje</div>
+            }
 
             <hr />
             <h3 class="h6">Carta de exoneración</h3>
@@ -401,6 +480,20 @@
                                 <option value="4">Precio D</option>
                             </select>
                             <div class="form-text">Lista de precios que se propone al facturar a este cliente. Si el artículo no tiene ese precio, se usa el Precio A.</div>
+                        </div>
+
+                        <div class="col-12 seepos-form-seccion">Ruta comercial</div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cliente-ruta">Ruta comercial <span class="text-danger" aria-hidden="true">*</span></label>
+                            <select id="cliente-ruta" class="form-select" value="@(_edicion.IdRutaComercial ?? 0)" @onchange="e => _edicion.IdRutaComercial = int.TryParse(e.Value?.ToString(), out var r) && r > 0 ? r : null">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var ruta in _rutasComerciales) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }
+                                @if (_edicion.IdRutaComercial is > 0 && !_rutasComerciales.Any(r => r.IdRuta == _edicion.IdRutaComercial))
+                                {
+                                    <option value="@_edicion.IdRutaComercial">Ruta @_edicion.IdRutaComercial (inactiva)</option>
+                                }
+                            </select>
+                            <div class="form-text">Obligatoria: de la ruta sale el agente responsable del cliente y es la ruta de todas sus facturas.</div>
                         </div>
 
                         <div class="col-12 seepos-form-seccion">Ubicación</div>
@@ -754,6 +847,7 @@
     // lista; se guarda la cantidad de días en PlazoCredito y el API la traduce al
     // IdPlazo al facturar.
     private List<SuvesaPosSitioAplicacion.DTOs.Fiscal.ConfiguracionPlazoFiscalDTO> _plazosCredito = new();
+    private List<SuvesaPosSitioAplicacion.DTOs.Rutas.RutaComercialDTO> _rutasComerciales = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -764,6 +858,10 @@
                 .Where(p => p.Activo)
                 .OrderBy(p => p.CantidadDias)
                 .ToList();
+
+        _rutasComerciales = ((await Respuestas.DatoAsync(await RutasApi.Listar(null), "consultar las rutas comerciales"))
+            ?? Array.Empty<SuvesaPosSitioAplicacion.DTOs.Rutas.RutaComercialDTO>())
+            .Where(r => r.Activo).OrderBy(r => r.Nombre).ToList();
     }
 
     /// <summary>
@@ -864,10 +962,108 @@
         _carta = null;
         _cargandoCarta = true;
         await _detalle.ShowAsync();
+        _estadoEliminacion = null;
         await Task.WhenAll(
             CargarDatosSucursalDetalle(cliente.Identificacion),
             CargarAdjuntos(cliente.Identificacion),
-            CargarCarta(cliente.Cedula));
+            CargarCarta(cliente.Cedula),
+            CargarEstadoEliminacion(cliente.Identificacion));
+    }
+
+    // ---- REQ-03: eliminar (solo sin historial) y unificar clientes duplicados ----
+    private SuvesaPosSitioAplicacion.DTOs.Clientes.EstadoEliminacionClienteWebDTO? _estadoEliminacion;
+
+    /// <summary>Unificar mueve todo el historial de un cliente a otro: solo un administrador (el API lo vuelve a exigir).</summary>
+    private bool PuedeUnificar => Sesion.Puede(Titulo, AccionPantalla.Modificar)
+        && (Sesion.EsSuperAdministrador || string.Equals(Sesion.PerfilCodigo, "ADMIN", StringComparison.OrdinalIgnoreCase));
+
+    private async Task CargarEstadoEliminacion(long idCliente)
+    {
+        var r = await Unificacion.PuedeEliminar(idCliente);
+        _estadoEliminacion = r.EsCorrecta ? r.Responses : null;
+    }
+
+    private async Task Eliminar(FiltranClienteDTO cliente)
+    {
+        if (_estadoEliminacion is not { PuedeEliminar: true }) return;
+        if (!await Dialogos.ConfirmarPeligroAsync(
+                $"¿Eliminar definitivamente a {cliente.Nombre}? No tiene historial, pero la ficha no se podrá recuperar.")) return;
+
+        var r = await Unificacion.Eliminar(cliente.Identificacion);
+        var falla = await Respuestas.MensajeSiFallaAsync(r, "eliminar el cliente");
+        if (falla is not null) { if (falla.Length > 0) await Dialogos.ErrorAsync(falla); return; }
+        if (r.Responses is { Eliminado: false } rechazo)
+        {
+            // Apareció historial mientras tanto: se orienta a unificar.
+            _estadoEliminacion = rechazo;
+            await Dialogos.ErrorAsync(rechazo.Mensaje ?? "No se pudo eliminar el cliente.");
+            return;
+        }
+
+        await _detalle.HideAsync();
+        Dialogos.Exito("Cliente eliminado.");
+        await RefrescarResultados();
+    }
+
+    private AppModal _modalUnificar = default!;
+    private FiltranClienteDTO? _origenUnificar;
+    private string _textoDestinoUnificar = string.Empty;
+    private List<FiltranClienteDTO> _candidatosUnificar = new();
+    private FiltranClienteDTO? _destinoUnificar;
+    private SuvesaPosSitioAplicacion.DTOs.Clientes.VistaUnificacionWebDTO? _vistaUnificar;
+    private bool _confirmoUnificar;
+    private bool _unificando;
+    private string? _errorUnificar;
+
+    private async Task AbrirUnificar(FiltranClienteDTO origen)
+    {
+        _origenUnificar = origen;
+        _textoDestinoUnificar = string.Empty;
+        _candidatosUnificar = new();
+        _destinoUnificar = null;
+        _vistaUnificar = null;
+        _confirmoUnificar = false;
+        _errorUnificar = null;
+        await _detalle.HideAsync();
+        await _modalUnificar.MostrarAsync();
+    }
+
+    private async Task BuscarDestinoUnificar()
+    {
+        _errorUnificar = null;
+        if (string.IsNullOrWhiteSpace(_textoDestinoUnificar)) { _candidatosUnificar = new(); return; }
+        _candidatosUnificar = (await Respuestas.DatoAsync(await Api.Buscar(_textoDestinoUnificar), "buscar clientes"))?
+            .Where(c => !c.Anulado && c.Identificacion != _origenUnificar?.Identificacion).Take(8).ToList() ?? new();
+    }
+
+    private async Task ElegirDestinoUnificar(FiltranClienteDTO destino)
+    {
+        if (_origenUnificar is null) return;
+        _destinoUnificar = destino;
+        _candidatosUnificar = new();
+        _vistaUnificar = null;
+        _confirmoUnificar = false;
+        var r = await Unificacion.VistaPrevia(_origenUnificar.Identificacion, destino.Identificacion);
+        var falla = await Respuestas.MensajeSiFallaAsync(r, "consultar qué se va a unificar");
+        // En línea: un cuadro encima cerraría esta ventana.
+        _errorUnificar = string.IsNullOrEmpty(falla) ? null : falla;
+        if (falla is null) _vistaUnificar = r.Responses;
+        else _destinoUnificar = null;
+    }
+
+    private async Task Unificar()
+    {
+        if (_origenUnificar is null || _destinoUnificar is null || !_confirmoUnificar) return;
+        _unificando = true;
+        _errorUnificar = null;
+        var r = await Unificacion.Unificar(_origenUnificar.Identificacion, _destinoUnificar.Identificacion);
+        var falla = await Respuestas.MensajeSiFallaAsync(r, "unificar los clientes");
+        _unificando = false;
+        if (falla is not null) { _errorUnificar = falla.Length > 0 ? falla : null; return; }
+
+        await _modalUnificar.OcultarAsync();
+        Dialogos.Exito($"Clientes unificados: {r.Responses?.TotalFilas ?? 0} registros pasaron a {_destinoUnificar.Nombre}.");
+        await RefrescarResultados();
     }
 
     private async Task Agregar()
@@ -1385,6 +1581,7 @@
         if (string.IsNullOrWhiteSpace(_edicion.EMail)) faltantes.Add("Correo cuentas por cobrar");
         if (string.IsNullOrWhiteSpace(_edicion.Direccion)) faltantes.Add("Dirección");
         if (string.IsNullOrWhiteSpace(_edicion.CorreoComprobante)) faltantes.Add("Correo de facturación electrónica");
+        if (_edicion.IdRutaComercial is not > 0) faltantes.Add("Ruta comercial");
         if (faltantes.Count > 0)
         {
             _pestanaEdicion = "generales";
@@ -1494,6 +1691,7 @@
         Descuento = cliente.Descuento,
         Empresa = cliente.Empresa,
         Tipoprecio = cliente.Tipoprecio is > 0 and <= 5 ? cliente.Tipoprecio : 1,
+        IdRutaComercial = cliente.IdRutaComercial,
         Sinrestriccion = cliente.Sinrestriccion,
         Agente = cliente.Agente,
         CodMonedaCredito = cliente.CodMonedaCredito,

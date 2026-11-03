@@ -221,7 +221,7 @@
 
     private void FijarRecibida(long id, string? texto)
     {
-        if (double.TryParse(texto, out var n) && n >= 0)
+        if (EntradaNumerica.TryLeer(texto, out var n) && n >= 0)
             _recibido[id] = n;
     }
 

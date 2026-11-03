@@ -146,6 +146,7 @@ public class FiltroMenuTests
         // (Importaciones) + 1 (Reportes → Importaciones, KPI trasladado fuera de
         // Compras → Importaciones) + 1 (Pretoma) + 1 (Boletas de Consignación) + 1 (Recibo de mercadería).
         // + 4 (módulo Cobranza: Cobranza, Seguimiento, Dashboard, Gerencial).
-        Assert.Equal(128, Contar(MenuSeePos.Items));   // 124 + Cobranza
+        // + 1 (Cobranza → Autorizaciones de crédito: aprobación de facturas a crédito a clientes morosos).
+        Assert.Equal(129, Contar(MenuSeePos.Items));   // 124 + Cobranza + Autorizaciones
     }
 }

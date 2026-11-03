@@ -20,6 +20,10 @@ public interface IAlistamientoApiCliente
     Task<LoteEnvelope<AlistamientoOrden>> CerrarBultoAsync(long idOrden, long? idBulto, decimal pesoKg);
     Task<LoteEnvelope<AlistamientoOrden>> EmpacarAsync(long idOrden, bool autorizarFaltante, string? motivo);
     Task<LoteEnvelope<AlistamientoOrden>> FaltanteAsync(long idOrden);
+    /// <summary>El operador digita la cantidad alistada de una línea sin lote.</summary>
+    Task<LoteEnvelope<AlistamientoOrden>> IngresarCantidadAsync(long idOrden, long idLinea, decimal cantidad);
+    /// <summary>Despacha lo alistado y deja lo que falta pendiente en una orden nueva (sin nota de crédito).</summary>
+    Task<LoteEnvelope<AlistamientoOrden>> EntregaParcialAsync(long idOrden, string? motivo);
     Task<LoteEnvelope<AlistamientoOrden>> AnularAsync(long idOrden, string motivo);
     Task<LoteEnvelope<AlistamientoOrden>> EntregarAsync(long idOrden, string? recibidoPor, bool noEntregado, bool merma = false, string? observaciones = null, string? firmaPng = null);
 
@@ -118,6 +122,12 @@ public sealed class AlistamientoApiCliente : IAlistamientoApiCliente
 
     public Task<LoteEnvelope<AlistamientoOrden>> FaltanteAsync(long idOrden)
         => EnviarAsync<AlistamientoOrden>(HttpMethod.Post, "Alistamiento/Faltante", new { idOrden });
+
+    public Task<LoteEnvelope<AlistamientoOrden>> IngresarCantidadAsync(long idOrden, long idLinea, decimal cantidad)
+        => EnviarAsync<AlistamientoOrden>(HttpMethod.Post, "Alistamiento/IngresarCantidad", new { idOrden, idLinea, cantidad });
+
+    public Task<LoteEnvelope<AlistamientoOrden>> EntregaParcialAsync(long idOrden, string? motivo)
+        => EnviarAsync<AlistamientoOrden>(HttpMethod.Post, "Alistamiento/EntregaParcial", new { idOrden, motivo });
 
     public Task<LoteEnvelope<AlistamientoOrden>> AnularAsync(long idOrden, string motivo)
         => EnviarAsync<AlistamientoOrden>(HttpMethod.Post, "Alistamiento/Anular", new { idOrden, motivo });
