@@ -118,13 +118,17 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
         });
     }
 
+    /// <summary>Lado de la caja del logo en el membrete (mm). El logo se ajusta sin deformarse.</summary>
+    private const float LogoMm = 26;
+
     private static void IdentidadEmpresa(IContainer container, EncabezadoEmpresaPdf empresa)
     {
         container.Row(row =>
         {
             if (empresa.Logo is { Length: > 0 })
             {
-                row.ConstantItem(42).Height(18, Unit.Millimetre).Image(empresa.Logo).FitArea();
+                // Milímetros, no puntos: con 42 (puntos) la caja medía ~15 mm y el logo apenas se leía.
+                row.ConstantItem(LogoMm, Unit.Millimetre).Height(LogoMm, Unit.Millimetre).Image(empresa.Logo).FitArea();
                 row.ConstantItem(6);
             }
 

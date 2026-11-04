@@ -2,6 +2,7 @@
 @using MudBlazor
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.DTOs.Tarifas
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IClientesConsulta Api
 @inject IManejadorRespuestas Respuestas
@@ -15,6 +16,7 @@
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IConfiguracionPlazosFiscales Plazos
 @inject IRelojEquipo RelojEquipo
 @inject IRutasComerciales RutasApi
+@inject ITarifasPrecio TarifasApi
 @inject IClienteUnificacion Unificacion
 @inject IJSRuntime JS
 
@@ -474,20 +476,28 @@
                         <div class="col-12 col-md-4">
                             <label class="form-label" for="cliente-categoria-precio">Categoría de precio</label>
                             <select id="cliente-categoria-precio" class="form-select" @bind="CategoriaPrecioEdicion">
-                                <option value="1">Precio A</option>
-                                <option value="2">Precio B</option>
-                                <option value="3">Precio C</option>
-                                <option value="4">Precio D</option>
+                                @foreach (var t in OpcionesTarifa)
+                                {
+                                    <option value="@t.IdTarifa">@t.Nombre@(t.Activa ? string.Empty : " (inactiva)")</option>
+                                }
                             </select>
-                            <div class="form-text">Lista de precios que se propone al facturar a este cliente. Si el artículo no tiene ese precio, se usa el Precio A.</div>
+                            <div class="form-text">Tarifa de este cliente: la que se respeta al facturar. Se administran en Catálogos → Tarifas. Si el artículo no tiene precio en ella, se usa el Precio A.</div>
                         </div>
 
                         <div class="col-12 seepos-form-seccion">Ruta comercial</div>
                         <div class="col-12 col-md-4">
-                            <label class="form-label" for="cliente-ruta">Ruta comercial <span class="text-danger" aria-hidden="true">*</span></label>
-                            <select id="cliente-ruta" class="form-select" value="@(_edicion.IdRutaComercial ?? 0)" @onchange="e => _edicion.IdRutaComercial = int.TryParse(e.Value?.ToString(), out var r) && r > 0 ? r : null">
-                                <option value="0">Seleccione...</option>
-                                @foreach (var ruta in _rutasComerciales) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }
+                            <label class="form-label" for="cliente-tipo">Tipo de cliente</label>
+                            <select id="cliente-tipo" class="form-select" value="@(_edicion.TipoCliente ?? "PUNTO_VENTA")" @onchange="e => _edicion.TipoCliente = e.Value?.ToString()">
+                                <option value="PUNTO_VENTA">Punto de venta / distribuidora</option>
+                                <option value="CONSUMIDOR_FINAL">Consumidor final</option>
+                            </select>
+                            <div class="form-text">@(_edicion.TipoCliente == "CONSUMIDOR_FINAL" ? "Consumidor final: usa la ruta de sistema «Consumidor Final»; la comisión es solo de quien factura." : "Punto de venta: tiene ruta y agente responsable.")</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cliente-ruta">Ruta comercial @if (_edicion.TipoCliente != "CONSUMIDOR_FINAL") { <span class="text-danger" aria-hidden="true">*</span> }</label>
+                            <select id="cliente-ruta" class="form-select" disabled="@(_edicion.TipoCliente == "CONSUMIDOR_FINAL")" value="@(_edicion.IdRutaComercial ?? 0)" @onchange="e => _edicion.IdRutaComercial = int.TryParse(e.Value?.ToString(), out var r) && r > 0 ? r : null">
+                                <option value="0">@(_edicion.TipoCliente == "CONSUMIDOR_FINAL" ? "Consumidor Final (automática)" : "Seleccione...")</option>
+                                @foreach (var ruta in _rutasComerciales.Where(r => !r.EsConsumidorFinal)) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }
                                 @if (_edicion.IdRutaComercial is > 0 && !_rutasComerciales.Any(r => r.IdRuta == _edicion.IdRutaComercial))
                                 {
                                     <option value="@_edicion.IdRutaComercial">Ruta @_edicion.IdRutaComercial (inactiva)</option>
@@ -822,13 +832,33 @@
     private string _descripcionBonificacion = string.Empty;
     private string _pestanaEdicion = "generales";
 
-    /// <summary>Tipoprecio del cliente (1 A, 2 B, 3 C, 4 D); un valor vacío o fuera de rango se muestra como A.</summary>
+    private List<TarifaPrecioDTO> _tarifas = new();
+
+    /// <summary>Tipoprecio del cliente = id de tarifa del catálogo (1–4 son Precio A–D); un valor vacío se muestra como A.</summary>
     private int CategoriaPrecioEdicion
     {
-        get => _edicion?.Tipoprecio is > 0 and <= 4 ? _edicion.Tipoprecio : 1;
-        set { if (_edicion is not null) _edicion.Tipoprecio = value; }
+        get => _edicion?.Tipoprecio is > 0 ? _edicion.Tipoprecio : 1;
+        set { if (_edicion is not null) _edicion.Tipoprecio = (short)value; }
     }
-    private static string NombreCategoriaPrecio(int t) => t switch { 2 => "B", 3 => "C", 4 => "D", _ => "A" };
+
+    /// <summary>Tarifas activas para elegir; si el cliente ya tiene una inactiva o el catálogo no cargó, se conserva su opción.</summary>
+    private IEnumerable<TarifaPrecioDTO> OpcionesTarifa
+    {
+        get
+        {
+            var lista = _tarifas.Count > 0
+                ? _tarifas.Where(t => t.Activa).ToList()
+                : new[] { 1, 2, 3, 4 }.Select(i => new TarifaPrecioDTO { IdTarifa = (short)i, Nombre = "Precio " + (char)('A' + i - 1), Activa = true }).ToList();
+            var actual = CategoriaPrecioEdicion;
+            if (lista.All(t => t.IdTarifa != actual))
+                lista.Add(_tarifas.FirstOrDefault(t => t.IdTarifa == actual) ?? new TarifaPrecioDTO { IdTarifa = (short)actual, Nombre = $"Tarifa {actual}", Activa = false });
+            return lista.OrderBy(t => t.Orden).ThenBy(t => t.IdTarifa);
+        }
+    }
+
+    private string NombreCategoriaPrecio(int t)
+        => _tarifas.FirstOrDefault(x => x.IdTarifa == t)?.Nombre?.Replace("Precio ", string.Empty)
+           ?? (t switch { 2 => "B", 3 => "C", 4 => "D", > 4 => $"Tarifa {t}", _ => "A" });
     private bool _variasSucursales;
 
     /// <summary>
@@ -858,6 +888,10 @@
                 .Where(p => p.Activo)
                 .OrderBy(p => p.CantidadDias)
                 .ToList();
+
+        // El catálogo de tarifas es de apoyo: si el API todavía no lo tiene, la ficha sigue con A–D.
+        var tarifas = await TarifasApi.Listar(true);
+        if (tarifas.EsCorrecta && tarifas.Responses is not null) _tarifas = tarifas.Responses.ToList();
 
         _rutasComerciales = ((await Respuestas.DatoAsync(await RutasApi.Listar(null), "consultar las rutas comerciales"))
             ?? Array.Empty<SuvesaPosSitioAplicacion.DTOs.Rutas.RutaComercialDTO>())
@@ -1581,7 +1615,7 @@
         if (string.IsNullOrWhiteSpace(_edicion.EMail)) faltantes.Add("Correo cuentas por cobrar");
         if (string.IsNullOrWhiteSpace(_edicion.Direccion)) faltantes.Add("Dirección");
         if (string.IsNullOrWhiteSpace(_edicion.CorreoComprobante)) faltantes.Add("Correo de facturación electrónica");
-        if (_edicion.IdRutaComercial is not > 0) faltantes.Add("Ruta comercial");
+        if (_edicion.TipoCliente != "CONSUMIDOR_FINAL" && _edicion.IdRutaComercial is not > 0) faltantes.Add("Ruta comercial");
         if (faltantes.Count > 0)
         {
             _pestanaEdicion = "generales";
@@ -1690,8 +1724,9 @@
         PlazoCredito = cliente.Plazo_Credito,
         Descuento = cliente.Descuento,
         Empresa = cliente.Empresa,
-        Tipoprecio = cliente.Tipoprecio is > 0 and <= 5 ? cliente.Tipoprecio : 1,
+        Tipoprecio = cliente.Tipoprecio > 0 ? cliente.Tipoprecio : (short)1,
         IdRutaComercial = cliente.IdRutaComercial,
+        TipoCliente = string.IsNullOrWhiteSpace(cliente.TipoCliente) ? "PUNTO_VENTA" : cliente.TipoCliente,
         Sinrestriccion = cliente.Sinrestriccion,
         Agente = cliente.Agente,
         CodMonedaCredito = cliente.CodMonedaCredito,

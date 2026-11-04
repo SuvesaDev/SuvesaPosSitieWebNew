@@ -124,7 +124,7 @@
                     <div class="seepos-form-seccion mb-2">Agregar artículo</div>
                     <div class="row g-2 align-items-end">
                         <div class="col-12 col-md-8">
-                            <label class="form-label" for="pt-art">Código o descripción</label>
+                            <label class="form-label" for="pt-art">Código, descripción, código de proveedor o de barras</label>
                             <input id="pt-art" class="form-control" @bind="_busquedaArticulo" @bind:event="oninput" @onkeydown="BuscarConEnter"
                                    placeholder="Escriba y busque. No carga el catálogo entero." autocomplete="off" />
                         </div>
@@ -140,6 +140,10 @@
                             @if (_sugerencias.Count == 0)
                             {
                                 <div class="list-group-item text-secondary small">Ningún artículo coincide.</div>
+                                @if (_excluidos > 0)
+                                {
+                                    <div class="list-group-item text-warning-emphasis small">@TextoExcluidos</div>
+                                }
                             }
                             else
                             {
@@ -155,6 +159,10 @@
                                 @if (_hayMasArticulos)
                                 {
                                     <div class="list-group-item text-secondary small">Hay más coincidencias. Afine la búsqueda.</div>
+                                }
+                                @if (_excluidos > 0)
+                                {
+                                    <div class="list-group-item text-warning-emphasis small">@TextoExcluidos</div>
                                 }
                             }
                         </div>
@@ -294,6 +302,19 @@
     private string _busquedaArticulo = string.Empty;
     private bool _busco;
     private bool _hayMasArticulos;
+    private int _excluidos;
+    private string TextoExcluidos
+    {
+        get
+        {
+            var otros = _sugerencias.Count > 0;
+            var sujeto = _excluidos == 1
+                ? (otros ? "Otro artículo coincide pero está" : "Un artículo coincide pero está")
+                : (otros ? $"Otros {_excluidos} artículos coinciden pero están" : $"{_excluidos} artículos coinciden pero están");
+            return sujeto + (_excluidos == 1 ? " inactivo o marcado como servicio" : " inactivos o marcados como servicio")
+                + ", y no se pueden contar. Revise la ficha en Inventario.";
+        }
+    }
     private bool _buscandoArticulo, _guardando;
     private string _loteNumero = string.Empty;
     private DateTime? _loteVence;
@@ -494,10 +515,12 @@
         if (r.Status != ResponseStatus._0 || r.Responses is null)
         {
             _sugerencias = new();
+            _excluidos = 0;
             await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo buscar el artículo.");
             return;
         }
         _hayMasArticulos = r.Responses.HayMas;
+        _excluidos = r.Responses.Excluidos;
         _sugerencias = r.Responses.Articulos ?? new();
     }
 
@@ -676,6 +699,7 @@
         _sugerencias = new();
         _busco = false;
         _hayMasArticulos = false;
+        _excluidos = 0;
         _detalle = null;
         _loteNumero = string.Empty;
         _loteVence = null;

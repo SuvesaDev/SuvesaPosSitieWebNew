@@ -249,6 +249,104 @@ public partial class EmisoresFiscal
         }
     }
 
+    // ---- Ubicación del emisor en "Datos públicos" ----------------------------------------------------
+    // El emisor guarda solo el id del distrito; de él salen provincia, cantón y distrito del XML. Se elige en
+    // cascada (como en el alta) para no teclear un número que no corresponda al domicilio fiscal.
+    private int _pubProvincia, _pubCanton;
+    private List<CantonDTO> _pubCantones = new();
+    private List<DistritoDTO> _pubDistritos = new();
+    private string? _textoUbicacionHacienda;
+    private List<ProvinciaFiscalDTO> _geoProvincias = new();
+    private List<CantonFiscalDTO> _geoCantones = new();
+    private List<DistritoFiscalDTO> _geoDistritos = new();
+    private bool _geoCargada;
+
+    /// <summary>Catálogo completo con padres y códigos de Hacienda; sirve para ubicar el distrito guardado y mostrar su código.</summary>
+    private async Task<bool> AsegurarGeografiaAsync()
+    {
+        if (_geoCargada) return true;
+        var provincias = await GeografiaFiscal.Provincias();
+        var cantones = await GeografiaFiscal.Cantones(null);
+        var distritos = await GeografiaFiscal.Distritos(null);
+        if (!provincias.EsCorrecta || !cantones.EsCorrecta || !distritos.EsCorrecta
+            || provincias.Responses is null || cantones.Responses is null || distritos.Responses is null)
+            return false;
+        _geoProvincias = provincias.Responses.ToList();
+        _geoCantones = cantones.Responses.ToList();
+        _geoDistritos = distritos.Responses.ToList();
+        return _geoCargada = true;
+    }
+
+    /// <summary>Al abrir la edición, deja elegidos provincia y cantón del distrito guardado.</summary>
+    private async Task CargarUbicacionPublicaAsync()
+    {
+        _pubProvincia = _pubCanton = 0;
+        _pubCantones = new();
+        _pubDistritos = new();
+        _textoUbicacionHacienda = null;
+        if (_publico is null || _publico.Distrito <= 0) return;
+
+        if (!await AsegurarGeografiaAsync())
+        {
+            // El distrito guardado se conserva; solo no se puede mostrar a qué lugar corresponde.
+            Dialogos.Advertencia("No se pudo consultar el catálogo de ubicaciones. El distrito actual se conserva; si lo cambia, vuelva a abrir esta ventana.");
+            return;
+        }
+
+        var distrito = _geoDistritos.FirstOrDefault(d => d.IdDistrito == _publico.Distrito);
+        var canton = distrito is null ? null : _geoCantones.FirstOrDefault(c => c.IdCanton == distrito.IdCanton);
+        if (distrito is null || canton is null)
+        {
+            _publico.Distrito = 0;   // un id que ya no existe en el catálogo: hay que elegirlo de nuevo
+            return;
+        }
+
+        _pubProvincia = canton.IdProvincia;
+        _pubCanton = canton.IdCanton;
+        _pubCantones = (await Respuestas.DatoAsync(await Empresas.Cantones(_pubProvincia), "consultar los cantones"))?.ToList() ?? new List<CantonDTO>();
+        _pubDistritos = (await Respuestas.DatoAsync(await Empresas.Distritos(_pubCanton), "consultar los distritos"))?.ToList() ?? new List<DistritoDTO>();
+        ActualizarTextoUbicacion();
+    }
+
+    private async Task AlCambiarProvinciaPublica()
+    {
+        _pubCanton = 0;
+        if (_publico is not null) _publico.Distrito = 0;
+        _pubDistritos = new();
+        _pubCantones = _pubProvincia > 0
+            ? (await Respuestas.DatoAsync(await Empresas.Cantones(_pubProvincia), "consultar los cantones"))?.ToList() ?? new List<CantonDTO>()
+            : new List<CantonDTO>();
+        ActualizarTextoUbicacion();
+    }
+
+    private async Task AlCambiarCantonPublico()
+    {
+        if (_publico is not null) _publico.Distrito = 0;
+        _pubDistritos = _pubCanton > 0
+            ? (await Respuestas.DatoAsync(await Empresas.Distritos(_pubCanton), "consultar los distritos"))?.ToList() ?? new List<DistritoDTO>()
+            : new List<DistritoDTO>();
+        ActualizarTextoUbicacion();
+    }
+
+    private Task AlCambiarDistritoPublico()
+    {
+        ActualizarTextoUbicacion();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Lo que viajará a Hacienda en el XML: códigos de provincia, cantón y distrito, con sus nombres.</summary>
+    private void ActualizarTextoUbicacion()
+    {
+        _textoUbicacionHacienda = null;
+        if (!_geoCargada || _publico is null || _publico.Distrito <= 0) return;
+        var distrito = _geoDistritos.FirstOrDefault(d => d.IdDistrito == _publico.Distrito);
+        var canton = distrito is null ? null : _geoCantones.FirstOrDefault(c => c.IdCanton == distrito.IdCanton);
+        var provincia = canton is null ? null : _geoProvincias.FirstOrDefault(p => p.IdProvincia == canton.IdProvincia);
+        if (distrito is null || canton is null || provincia is null) return;
+        _textoUbicacionHacienda = $"Se enviará a Hacienda como {provincia.CodigoFE}-{canton.CodigoFE}-{distrito.CodigoFE} "
+            + $"({provincia.Descripcion} · {canton.Descripcion} · {distrito.Descripcion}).";
+    }
+
     private async Task AlCambiarProvincia()
     {
         _idCanton = 0;

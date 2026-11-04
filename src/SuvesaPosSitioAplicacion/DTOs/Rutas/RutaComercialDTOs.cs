@@ -7,6 +7,8 @@ public sealed class RutaComercialDTO
     public string? Observaciones { get; set; }
     public int? IdSucursal { get; set; }
     public bool Activo { get; set; } = true;
+    /// <summary>Ruta de sistema «Consumidor Final» (sin agente titular, no se borra ni se asigna a mano).</summary>
+    public bool EsConsumidorFinal { get; set; }
     /// <summary>Especificacion_Funcional_Comisiones_TI §2.3: precedencia absoluta sobre
     /// el % del artículo cuando no es null. Aplica al agente titular de la ruta.</summary>
     public decimal? PorcentajeComisionAgente { get; set; }

@@ -5,13 +5,14 @@
 @inject IDesbloqueoCredito Api
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
+@implements IDisposable
 
 @* REQ-01: el cliente tiene el crédito bloqueado por morosidad. Quien factura pide aquí la autorización
    de un administrador (que la resuelve desde Cobranza → Autorizaciones de crédito, esté donde esté).
    La aprobación sirve para UNA factura a crédito de este cliente. A contado sí se puede facturar. *@
 
 <AppModal @ref="_modal" Titulo="Crédito bloqueado" Subtitulo="@($"{_nombre} · {_idCliente}")" Tamano="ModalSize.Regular"
-          MostrarCancelar="true" TextoCancelar="Cerrar" Pie="@_pie">
+          MostrarCancelar="true" TextoCancelar="Cerrar" Pie="@_pie" AlCerrar="Cerrado">
     <ChildContent>
         <div class="alert alert-warning" role="alert">
             <strong>@_motivoBloqueo</strong>
@@ -20,13 +21,13 @@
 
         @if (_cargando)
         {
-            <p class="text-secondary">Consultando…</p>
+            <p class="text-secondary"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Consultando…</p>
         }
         else if (_solicitud is { Estado: "Pendiente" })
         {
             <div class="alert alert-info" role="status">
                 Ya hay una solicitud pendiente de <strong>@_solicitud.Solicitante</strong> (@HoraCr(_solicitud.FechaSolicitudUtc)).
-                Un administrador debe aprobarla; cuando lo haga, vuelva a facturar.
+                Un administrador debe aprobarla. Esta ventana se actualiza sola cada pocos segundos; cuando la aprueben, cierre y vuelva a facturar.
             </div>
         }
         else if (_solicitud is { Estado: "Aprobada" })
@@ -79,21 +80,93 @@
         _motivo = string.Empty;
         _error = null;
         _solicitud = null;
+        _cargando = true;
         _pie = Pie;
         await _modal.MostrarAsync();
         await Refrescar();
+        IniciarSondeo();
     }
 
-    private async Task Refrescar()
+    /// <summary>
+    /// Consulta la última solicitud del cliente. Quien llama a <see cref="AbrirAsync"/> es Facturación, no un evento de
+    /// este componente: Blazor no lo redibuja solo al terminar, así que se pide el redibujo a mano (sin esto la ventana
+    /// se quedaba en «Consultando…»). El sondeo en segundo plano es silencioso: no vuelve a mostrar el indicador.
+    /// </summary>
+    private async Task Refrescar(bool silencioso = false)
     {
-        _cargando = true;
-        StateHasChanged();
-        var r = await Api.UltimaDelCliente(_idCliente);
-        var falla = await Respuestas.MensajeSiFallaAsync(r, "consultar la autorización de crédito");
-        _error = string.IsNullOrEmpty(falla) ? null : falla;
-        _solicitud = falla is null ? r.Responses : null;
-        _cargando = false;
+        if (!silencioso)
+        {
+            _cargando = true;
+            await InvokeAsync(StateHasChanged);
+        }
+        try
+        {
+            var r = await Api.UltimaDelCliente(_idCliente);
+            var falla = await Respuestas.MensajeSiFallaAsync(r, "consultar la autorización de crédito");
+            if (falla is null)
+            {
+                _solicitud = r.Responses;
+                if (!silencioso) _error = null;
+            }
+            else if (!silencioso)
+            {
+                _solicitud = null;
+                _error = falla.Length > 0 ? falla : null;
+            }
+            else
+            {
+                DetenerSondeo();   // sesión caducada o API caído: no insistir cada pocos segundos
+            }
+        }
+        finally
+        {
+            _cargando = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
+
+    // ---- Sondeo mientras haya una solicitud pendiente --------------------------------------------------------------
+    private CancellationTokenSource? _sondeo;
+    private static readonly TimeSpan IntervaloSondeo = TimeSpan.FromSeconds(10);
+
+    private void IniciarSondeo()
+    {
+        DetenerSondeo();
+        var cts = _sondeo = new CancellationTokenSource();
+        _ = SondearAsync(cts.Token);
+    }
+
+    private void DetenerSondeo()
+    {
+        var cts = _sondeo;
+        _sondeo = null;
+        if (cts is null) return;
+        cts.Cancel();
+        cts.Dispose();
+    }
+
+    private async Task SondearAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var temporizador = new PeriodicTimer(IntervaloSondeo);
+            while (await temporizador.WaitForNextTickAsync(ct))
+            {
+                // Solo hay algo que esperar si la solicitud sigue pendiente; la consulta no se hace en otro caso.
+                if (_solicitud is not { Estado: "Pendiente" } || _cargando || _enviando) continue;
+                await Refrescar(silencioso: true);
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private Task Cerrado()
+    {
+        DetenerSondeo();
+        return Task.CompletedTask;
+    }
+
+    public void Dispose() => DetenerSondeo();
 
     private async Task Solicitar()
     {
@@ -110,13 +183,14 @@
             return;
         }
         _solicitud = r.Responses;
+        IniciarSondeo();
     }
 
     private bool PuedeSolicitar => !_cargando && _solicitud is not { Estado: "Pendiente" or "Aprobada" };
 
     private RenderFragment Pie => __builder =>
     {
-        <button type="button" class="btn btn-outline-secondary" @onclick="Refrescar" disabled="@(_cargando || _enviando)">Actualizar estado</button>
+        <button type="button" class="btn btn-outline-secondary" @onclick="() => Refrescar()" disabled="@(_cargando || _enviando)">Actualizar estado</button>
         @if (PuedeSolicitar)
         {
             <button type="button" class="btn btn-primary" @onclick="Solicitar" disabled="@_enviando">

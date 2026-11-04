@@ -5,6 +5,7 @@
 @using SuvesaPosSitioAplicacion.ApiConexion
 @using SuvesaPosSitioAplicacion.DTOs.Lotes
 @using SuvesaPosSitioAplicacion.DTOs.Fiscal
+@using SuvesaPosSitioAplicacion.DTOs.Tarifas
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @using System.Text.Json
 @inject IInventarioConsulta Api
@@ -21,6 +22,7 @@
 @inject IMonedasFiscales MonedasApi
 @inject IArticuloBonificacion ArticuloBonificacion
 @inject IRelojEquipo RelojEquipo
+@inject ITarifasPrecio TarifasApi
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -230,6 +232,9 @@
 
                 <dt class="col-5 fw-normal text-secondary">Precio D</dt>
                 <dd class="col-7 seepos-importe">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_D))</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Descuento máx.</dt>
+                <dd class="col-7 seepos-importe">@Formato.Cantidad(_elegido.Max_Descuento)%</dd>
 
                 @if (_elegido.Promo_Activa)
                 {
@@ -531,11 +536,44 @@
                                 }
                             </select>
                         </div>
-                        <div class="col-12 col-md-4"><label class="form-label">Tarifa</label><select class="form-select" @bind="_tarifaPrecio"><option value="A">Precio A</option><option value="B">Precio B</option><option value="C">Precio C</option><option value="D">Precio D</option><option value="P">Promoción</option></select></div>
-                        <div class="col-12 col-md-4"><label class="form-label">Utilidad (%)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_utilidadPrecio" /></div>
-                        <div class="col-12 col-md-4 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="CalcularPrecio">Calcular precio</button></div>
-                        <div class="col-12 col-md-6"><label class="form-label">Precio sin impuesto</label><input type="number" min="0" step="0.01" class="form-control" @bind="PrecioTarifaActual" @bind:after="RecalcularUtilidadDesdePrecio" /></div>
-                        <div class="col-12 col-md-6"><label class="form-label">Precio con impuesto</label><input type="text" readonly class="form-control" value="@PrecioConImpuestoTexto" /></div>
+                        <div class="col-12 seepos-form-seccion">Precios de venta</div>
+                        <div class="col-12">
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-1">
+                                    <thead>
+                                        <tr>
+                                            <th>Tarifa</th>
+                                            <th style="width:9rem">Utilidad (%)</th>
+                                            <th style="width:12rem">Precio sin impuesto</th>
+                                            <th class="text-end" style="width:12rem">Precio con impuesto</th>
+                                            @if (MuestraPrecioFinalColones) { <th class="text-end" style="width:12rem">Final en colones</th> }
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var f in FilasPrecio)
+                                        {
+                                            <tr>
+                                                <td>@f.Nombre</td>
+                                                <td><input type="number" step="0.01" class="form-control form-control-sm" aria-label="@($"Utilidad {f.Nombre}")"
+                                                           value="@EntradaNumerica.Texto(UtilidadDe(f))" @onchange="e => CambiarUtilidad(f, e.Value?.ToString())" /></td>
+                                                <td><input type="number" min="0" step="0.01" class="form-control form-control-sm" aria-label="@($"Precio sin impuesto {f.Nombre}")"
+                                                           value="@EntradaNumerica.Texto(PrecioDe(f))" @onchange="e => CambiarPrecio(f, e.Value?.ToString())" /></td>
+                                                <td class="text-end seepos-importe">@Formato.Importe(ConImpuesto(PrecioDe(f)))</td>
+                                                @if (MuestraPrecioFinalColones) { <td class="text-end seepos-importe">@Formato.Importe(FinalEnColones(PrecioDe(f)))</td> }
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="form-text mb-0">Escriba la utilidad para calcular el precio, o el precio para ver su utilidad. @(_extras.Count > 0 ? "Las tarifas nuevas se guardan por artículo." : "Las tarifas nuevas se crean en Catálogos → Tarifas.")</p>
+                        </div>
+
+                        <div class="col-12 seepos-form-seccion">Descuento</div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="articulo-max-descuento">Descuento máximo</label>
+                            <div class="input-group"><input id="articulo-max-descuento" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.Max_Descuento" /><span class="input-group-text">%</span></div>
+                            <p class="form-text mb-0">Tope que se puede dar por línea al facturar. En 0 no se permite descuento, salvo que un administrador quite el tope en esa línea.</p>
+                        </div>
 
                         <div class="col-12 seepos-form-seccion">Último costo</div>
                         <div class="col-12 col-md-4">
@@ -565,8 +603,6 @@
                                     <button type="button" class="btn btn-outline-secondary" @onclick="TomarTipoCambio">Actualizar</button>
                                 </div>
                             </div>
-                            <div class="col-12 col-md-4"><label class="form-label">Precio final colones</label><input type="text" readonly class="form-control" value="@PrecioFinalColonesTexto" /></div>
-                            <div class="col-12 col-md-4"><label class="form-label">Precio final colones con impuesto</label><input type="text" readonly class="form-control" value="@PrecioFinalColonesConImpuestoTexto" /></div>
                         }
                         <div class="col-12 col-md-4">
                             <label class="form-label">Costo (base + fletes + otros)</label>
@@ -1123,8 +1159,6 @@
     private string _nuevoCodigoBarras = string.Empty;
     private string _tarifaCodigoBarras = string.Empty;
     private string _pestanaInventario = "generales";
-    private string _tarifaPrecio = "A";
-    private float _utilidadPrecio;
     private int _tipoArticulo = 1;
     private List<SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente> _formula = new();
     private long _codigoFormula;
@@ -1364,6 +1398,7 @@
         ReiniciarEditorProduccion();
         ReiniciarImagenEditor();
         await CargarCatalogosInventario();
+        await CargarTarifasEdicion(0);
         _ultimoCodigoArticulo = (await Respuestas.DatoAsync(await Api.UltimoCodigo(), "consultar el último código"))?.Codigo ?? string.Empty;
         _edicion = new InventarioDTO
         {
@@ -1392,6 +1427,7 @@
         ReiniciarEditorProduccion();
         ReiniciarImagenEditor();
         await CargarCatalogosInventario();
+        await CargarTarifasEdicion(_edicion.Codigo);
         // §3 lotes — el tipo lo trae el DTO (1=Normal, 2=MP, 3=PT). Compat: si el
         // artículo aún no tiene tipo migrado, se infiere de EsPadre.
         _tipoArticulo = _edicion.TipoArticulo is 1 or 2 or 3
@@ -1477,10 +1513,12 @@
             var codigoArticulo = respuesta.Responses?.Codigo > 0 ? respuesta.Responses.Codigo : _edicion.Codigo;
             var imagenGuardada = !_imagenEditorModificada
                 || (codigoArticulo > 0 && await GuardarCambiosImagen(codigoArticulo));
+            var preciosGuardados = await GuardarPreciosExtras(codigoArticulo);
             await _modal.HideAsync();
-            Dialogos.Exito(imagenGuardada
-                ? (_esNuevo ? "Artículo creado." : "Artículo actualizado.")
-                : (_esNuevo ? "Artículo creado, pero no se pudo guardar la imagen." : "Artículo actualizado, pero no se pudo guardar la imagen."));
+            var aviso = (imagenGuardada ? string.Empty : ", pero no se pudo guardar la imagen")
+                + (preciosGuardados ? string.Empty : (imagenGuardada ? ", pero" : " ni") + " no se pudieron guardar los precios de las tarifas nuevas");
+            var baseMensaje = _esNuevo ? "Artículo creado" : "Artículo actualizado";
+            Dialogos.Exito(baseMensaje + aviso + ".");
             await RecargarDesdeApi();
         }
         else if (_edicion is not null)
@@ -1910,60 +1948,183 @@
         }
     }
 
-    private float PrecioTarifaActual
+    // ---- Precios por tarifa ------------------------------------------------------
+    // A–D y Promoción viven en el propio artículo; las tarifas nuevas (id 5 o mayor) en _extras.
+
+    private sealed class FilaPrecio
     {
-        get => _edicion is null ? 0 : _tarifaPrecio switch
+        public string Clave { get; init; } = "A";
+        public string Nombre { get; init; } = string.Empty;
+    }
+
+    private sealed class PrecioExtraEdicion
+    {
+        public short IdTarifa { get; init; }
+        public string Nombre { get; init; } = string.Empty;
+        public decimal Precio { get; set; }
+        public decimal? Utilidad { get; set; }
+    }
+
+    private List<TarifaPrecioDTO> _catalogoTarifas = new();
+    private List<PrecioExtraEdicion> _extras = new();
+    private bool _extrasModificados;
+
+    private IEnumerable<FilaPrecio> FilasPrecio
+    {
+        get
         {
+            var legado = new[] { ("A", (short)1), ("B", (short)2), ("C", (short)3), ("D", (short)4) };
+            foreach (var (clave, id) in legado)
+            {
+                var tarifa = _catalogoTarifas.FirstOrDefault(t => t.IdTarifa == id);
+                if (_catalogoTarifas.Count > 0 && (tarifa is null || !tarifa.Activa)) continue;
+                yield return new FilaPrecio { Clave = clave, Nombre = tarifa?.Nombre ?? $"Precio {clave}" };
+            }
+            foreach (var extra in _extras) yield return new FilaPrecio { Clave = "T" + extra.IdTarifa, Nombre = extra.Nombre };
+            yield return new FilaPrecio { Clave = "P", Nombre = "Promoción" };
+        }
+    }
+
+    private PrecioExtraEdicion? Extra(FilaPrecio f)
+        => f.Clave.StartsWith('T') ? _extras.FirstOrDefault(e => "T" + e.IdTarifa == f.Clave) : null;
+
+    private double PrecioDe(FilaPrecio f)
+    {
+        if (_edicion is null) return 0;
+        return f.Clave switch
+        {
+            "A" => _edicion.Precio_A,
             "B" => _edicion.Precio_B,
             "C" => _edicion.Precio_C,
             "D" => _edicion.Precio_D,
             "P" => _edicion.Precio_Promo,
-            _ => _edicion.Precio_A
+            _ => (double)(Extra(f)?.Precio ?? 0)
         };
-        set
+    }
+
+    private double? UtilidadDe(FilaPrecio f)
+    {
+        if (_edicion is null) return null;
+        return f.Clave switch
         {
-            if (_edicion is null) return;
-            switch (_tarifaPrecio)
-            {
-                case "B": _edicion.Precio_B = value; break;
-                case "C": _edicion.Precio_C = value; break;
-                case "D": _edicion.Precio_D = value; break;
-                case "P": _edicion.Precio_Promo = value; break;
-                default: _edicion.Precio_A = value; break;
-            }
+            "A" => _edicion.Utilidad_A,
+            "B" => _edicion.Utilidad_B,
+            "C" => _edicion.Utilidad_C,
+            "D" => _edicion.Utilidad_D,
+            "P" => _edicion.Utilidad_Promo,
+            _ => (double?)Extra(f)?.Utilidad
+        };
+    }
+
+    private void PonerPrecio(FilaPrecio f, decimal precio)
+    {
+        if (_edicion is null) return;
+        precio = Math.Round(precio, 2);
+        switch (f.Clave)
+        {
+            case "A": _edicion.Precio_A = (float)precio; break;
+            case "B": _edicion.Precio_B = (float)precio; break;
+            case "C": _edicion.Precio_C = (float)precio; break;
+            case "D": _edicion.Precio_D = (float)precio; break;
+            case "P": _edicion.Precio_Promo = (float)precio; break;
+            default:
+                if (Extra(f) is { } extra) { extra.Precio = precio; _extrasModificados = true; }
+                break;
         }
     }
 
-    private decimal PrecioConImpuesto
-        => Math.Round((decimal)PrecioTarifaActual * (1 + (decimal)(_edicion?.IVenta ?? 0) / 100), 2);
-
-    private string PrecioConImpuestoTexto => PrecioConImpuesto.ToString("N2");
-
-    /// <summary>Replica el cálculo de utilidad del inventario anterior sin usar float para operar.</summary>
-    private async Task CalcularPrecio()
+    private void PonerUtilidad(FilaPrecio f, decimal? utilidad)
     {
         if (_edicion is null) return;
-        var basePrecio = (decimal)_edicion.PrecioBase;
-        var utilidad = (decimal)_utilidadPrecio / 100;
+        var valor = utilidad is null ? (float?)null : (float)Math.Round(utilidad.Value, 2);
+        switch (f.Clave)
+        {
+            case "A": _edicion.Utilidad_A = valor; break;
+            case "B": _edicion.Utilidad_B = valor; break;
+            case "C": _edicion.Utilidad_C = valor; break;
+            case "D": _edicion.Utilidad_D = valor; break;
+            case "P": _edicion.Utilidad_Promo = valor; break;
+            default:
+                if (Extra(f) is { } extra) { extra.Utilidad = utilidad is null ? null : Math.Round(utilidad.Value, 2); _extrasModificados = true; }
+                break;
+        }
+    }
+
+    private decimal ConImpuesto(double precio)
+        => Math.Round((decimal)precio * (1 + (decimal)(_edicion?.IVenta ?? 0) / 100), 2);
+
+    private decimal FinalEnColones(double precio)
+        => ConImpuesto((double)PrecioVenta.EnColones(_edicion, (float)precio));
+
+    /// <summary>Al escribir la utilidad se calcula el precio (regla del inventario anterior; CostaPets: sobre el precio).</summary>
+    private async Task CambiarUtilidad(FilaPrecio f, string? texto)
+    {
+        if (_edicion is null) return;
+        if (string.IsNullOrWhiteSpace(texto)) { PonerUtilidad(f, null); return; }
+        if (!EntradaNumerica.TryLeer(texto, out var pct)) return;
+        var utilidad = (decimal)pct / 100;
         if (Sesion.EsCostaPets && utilidad >= 1)
         {
             await Dialogos.ErrorAsync("La utilidad debe ser menor al 100 % para calcular el precio CostaPets.");
             return;
         }
+        var basePrecio = (decimal)_edicion.PrecioBase;
         var precio = Sesion.EsCostaPets
             ? basePrecio / (1 - utilidad)
             : basePrecio * (1 + utilidad) + (decimal)_edicion.Fletes + (decimal)_edicion.OtrosCargos;
-        PrecioTarifaActual = (float)Math.Round(precio, 2);
+        PonerUtilidad(f, (decimal)pct);
+        PonerPrecio(f, precio);
         if (MuestraPrecioFinalColones) await TomarTipoCambio();
+    }
+
+    /// <summary>Al escribir el precio se recalcula su utilidad a partir del costo (inverso de <see cref="CambiarUtilidad"/>).</summary>
+    private void CambiarPrecio(FilaPrecio f, string? texto)
+    {
+        if (_edicion is null) return;
+        if (!EntradaNumerica.TryLeer(texto, out var valor)) return;
+        var precio = (decimal)Math.Max(0, valor);
+        PonerPrecio(f, precio);
+        var basePrecio = (decimal)_edicion.PrecioBase;
+        if (basePrecio <= 0 || precio <= 0) return;
+        var utilidad = Sesion.EsCostaPets
+            ? 1 - basePrecio / precio
+            : (precio - (decimal)_edicion.Fletes - (decimal)_edicion.OtrosCargos) / basePrecio - 1;
+        PonerUtilidad(f, Math.Max(0, utilidad) * 100);
+    }
+
+    /// <summary>Carga el catálogo de tarifas y los precios del artículo en las nuevas. Si el API aún no las tiene, la ficha sigue con A–D.</summary>
+    private async Task CargarTarifasEdicion(long codigoArticulo)
+    {
+        _catalogoTarifas = new();
+        _extras = new();
+        _extrasModificados = false;
+        var catalogo = await TarifasApi.Listar(false);
+        if (!catalogo.EsCorrecta || catalogo.Responses is null) return;
+        _catalogoTarifas = catalogo.Responses.OrderBy(t => t.Orden).ThenBy(t => t.IdTarifa).ToList();
+
+        var guardados = new List<PrecioTarifaArticuloDTO>();
+        if (codigoArticulo > 0)
+        {
+            var precios = await TarifasApi.PreciosDeArticulo(codigoArticulo);
+            if (precios.EsCorrecta && precios.Responses is not null) guardados = precios.Responses.ToList();
+        }
+        _extras = _catalogoTarifas.Where(t => t.IdTarifa > 4).Select(t =>
+        {
+            var g = guardados.FirstOrDefault(x => x.IdTarifa == t.IdTarifa);
+            return new PrecioExtraEdicion { IdTarifa = t.IdTarifa, Nombre = t.Nombre, Precio = g?.Precio ?? 0, Utilidad = g?.Utilidad };
+        }).ToList();
+    }
+
+    private async Task<bool> GuardarPreciosExtras(long codigoArticulo)
+    {
+        if (!_extrasModificados || _extras.Count == 0 || codigoArticulo <= 0) return true;
+        var r = await TarifasApi.GuardarPreciosDeArticulo(codigoArticulo,
+            _extras.Select(e => new PrecioTarifaArticuloDTO { IdTarifa = e.IdTarifa, Precio = e.Precio, Utilidad = e.Utilidad }).ToList());
+        return await Respuestas.CorrectaAsync(r, "guardar los precios de las tarifas nuevas");
     }
 
     private bool MuestraPrecioFinalColones
         => _edicion is { MonedaCosto: > 1, ConviertePrecioColones: true };
-
-    private string PrecioFinalColonesTexto => PrecioVenta.EnColones(_edicion, PrecioTarifaActual).ToString("N2");
-
-    private string PrecioFinalColonesConImpuestoTexto
-        => (PrecioVenta.EnColones(_edicion, PrecioTarifaActual) * (1 + (decimal)(_edicion?.IVenta ?? 0) / 100)).ToString("N2");
 
     private async Task AlCambiarMonedaCosto()
     {
@@ -2009,29 +2170,11 @@
         _monedas = (await Respuestas.DatoAsync(await MonedasApi.Obtener(), "consultar las monedas"))?.ToList() ?? new();
     }
 
-    /// <summary>
-    /// Inverso de <see cref="CalcularPrecio"/>: al escribir el precio de venta se
-    /// recalcula la Utilidad (%) a partir del costo, para no tener que pulsar el botón.
-    /// </summary>
-    private void RecalcularUtilidadDesdePrecio()
-    {
-        if (_edicion is null) return;
-        var basePrecio = (decimal)_edicion.PrecioBase;
-        var precio = (decimal)PrecioTarifaActual;
-        if (basePrecio <= 0 || precio <= 0) return;
-
-        decimal utilidad = Sesion.EsCostaPets
-            ? 1 - basePrecio / precio
-            : (precio - (decimal)_edicion.Fletes - (decimal)_edicion.OtrosCargos) / basePrecio - 1;
-
-        _utilidadPrecio = (float)Math.Round(Math.Max(0, utilidad) * 100, 2);
-    }
-
     private void ReiniciarEditorProduccion()
     {
         _pestanaInventario = "generales";
-        _tarifaPrecio = "A";
-        _utilidadPrecio = 0;
+        _extras = new();
+        _extrasModificados = false;
         _tipoArticulo = 1;
         _formula = new();
         _codigoFormula = 0;
