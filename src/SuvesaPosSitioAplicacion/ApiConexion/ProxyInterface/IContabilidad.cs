@@ -43,6 +43,17 @@ public interface IContabilidad
     // ---- W3: bandeja, pólizas manuales, reverso y reproceso ----
     Task<ResponseGeneric<ICollection<EventoContableDTO>>> ListarEventos(long? idLibroContable, string? estado, string? tipoEvento, string? origenModulo, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina);
     Task<ResponseGeneric<bool>> ReintentarEvento(long idEvento);
+
+    // ---- Controles de integridad (documentos sin evento, plantillas, reencolado) ----
+
+    /// <summary>Ventas, compras y notas de crédito que debieron contabilizarse y no tienen evento contable.</summary>
+    Task<ResponseGeneric<DTOs.Contabilidad.DocumentosSinEventoDTO>> DocumentosSinEvento(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null);
+    /// <summary>Crea los eventos que faltan por la misma vía que la aceptación fiscal; no duplica.</summary>
+    Task<ResponseGeneric<DTOs.Contabilidad.RegularizacionDocumentosDTO>> RegularizarDocumentos(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null);
+    /// <summary>Revisa que cada plantilla esté activa y cubra las fechas por contabilizar.</summary>
+    Task<ResponseGeneric<DTOs.Contabilidad.DiagnosticoPlantillasDTO>> DiagnosticarPlantillas(long idLibroContable);
+    /// <summary>Devuelve a la cola los eventos en error de configuración (todos o de un tipo).</summary>
+    Task<ResponseGeneric<DTOs.Contabilidad.ResultadoReencoladoDTO>> ReencolarErroresConfiguracion(long idLibroContable, string? tipoEvento = null);
     Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina, long? idCliente = null, long? idProveedor = null, string? origenModulo = null, int? idSucursal = null);
     Task<ResponseGeneric<AsientoContableDTO>> CrearAsientoManual(CrearAsientoManualDTO comando);
     Task<ResponseGeneric<AsientoContableDTO>> ReversarAsiento(long idAsiento, string? contrasena, string motivo);

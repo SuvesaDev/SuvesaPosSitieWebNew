@@ -61,6 +61,7 @@
             <ul class="nav nav-tabs mb-3">
                 <li class="nav-item"><button class="nav-link @(_tab == 0 ? "active" : "")" @onclick="() => CambiarTab(0)">Eventos</button></li>
                 <li class="nav-item"><button class="nav-link @(_tab == 1 ? "active" : "")" @onclick="() => CambiarTab(1)">Pólizas</button></li>
+                <li class="nav-item"><button class="nav-link @(_tab == 2 ? "active" : "")" @onclick="() => CambiarTab(2)">Integridad</button></li>
             </ul>
 
             @if (_tab == 0)
@@ -136,7 +137,7 @@
                     </div>
                 }
             }
-            else
+            else if (_tab == 1)
             {
                 @if (_cargando)
                 {
@@ -170,6 +171,84 @@
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-outline-secondary" disabled="@(_paginaAsientos <= 1)" @onclick="() => CambiarPaginaAsientos(-1)">Anterior</button>
                             <button class="btn btn-outline-secondary" disabled="@(_asientos.Count < TamanoPagina)" @onclick="() => CambiarPaginaAsientos(1)">Siguiente</button>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                @if (_cargando)
+                {
+                    <div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>
+                }
+                else
+                {
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Documentos sin contabilizar</h6>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-secondary" @onclick="CargarIntegridad">Revisar</button>
+                                    @if (_sinEvento is { Total: > 0 } && Sesion.Puede("CONTABILIDAD.REPROCESO", AccionPantalla.Editar))
+                                    {
+                                        <button class="btn btn-primary" disabled="@_guardando" @onclick="Regularizar">Regularizar @_sinEvento.Total</button>
+                                    }
+                                </div>
+                            </div>
+                            <p class="small text-secondary">Ventas, compras y notas de crédito que ya debieron llegar al mayor y no tienen evento contable, desde el inicio del primer período.</p>
+                            @if (_sinEvento is null || _sinEvento.Total == 0)
+                            {
+                                <p class="mb-0"><span class="badge text-bg-success">Todo contabilizado</span></p>
+                            }
+                            else
+                            {
+                                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                                    <thead><tr><th>Tipo</th><th>Número</th><th>Fecha</th><th class="text-end">Total</th><th>Motivo</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var d in _sinEvento.Documentos)
+                                        {
+                                            <tr><td>@d.Tipo</td><td>@d.Numero</td><td>@d.Fecha.ToString("yyyy-MM-dd")</td><td class="text-end">@d.Total.ToString("N2")</td><td class="small text-secondary">@d.Motivo</td></tr>
+                                        }
+                                    </tbody>
+                                </table></div>
+                                @if (_sinEvento.Total > _sinEvento.Documentos.Count)
+                                {
+                                    <p class="small text-secondary mt-2 mb-0">Se muestran los primeros @_sinEvento.Documentos.Count de @_sinEvento.Total.</p>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Plantillas y eventos en error</h6>
+                                @if (_diagnostico is { EventosEnErrorConfiguracion: > 0 } && Sesion.Puede("CONTABILIDAD.REPROCESO", AccionPantalla.Editar))
+                                {
+                                    <button class="btn btn-sm btn-primary" disabled="@_guardando" @onclick="ReencolarErrores">Reencolar @_diagnostico.EventosEnErrorConfiguracion en error de configuración</button>
+                                }
+                            </div>
+                            <p class="small text-secondary">Cada plantilla debe estar activa y cubrir las fechas por contabilizar. Corrija lo que se indica y reencole.</p>
+                            @if (_diagnostico is null)
+                            {
+                                <p class="text-secondary mb-0">Sin datos.</p>
+                            }
+                            else if (_diagnostico.Problemas.Count == 0)
+                            {
+                                <p class="mb-0"><span class="badge text-bg-success">Plantillas completas</span></p>
+                            }
+                            else
+                            {
+                                <ul class="list-group list-group-flush">
+                                    @foreach (var p in _diagnostico.Problemas)
+                                    {
+                                        <li class="list-group-item px-0">
+                                            <span class="badge @(p.Gravedad == "Error" ? "text-bg-danger" : "text-bg-warning") me-2">@p.Gravedad</span><code>@p.TipoEvento</code>
+                                            <div class="small text-secondary">@p.Detalle</div>
+                                        </li>
+                                    }
+                                </ul>
+                            }
                         </div>
                     </div>
                 }
@@ -357,7 +436,53 @@
     {
         _tab = tab;
         if (tab == 0) await BuscarEventos();
-        else await CargarAsientos();
+        else if (tab == 1) await CargarAsientos();
+        else await CargarIntegridad();
+    }
+
+    private DTOs.Contabilidad.DocumentosSinEventoDTO? _sinEvento;
+    private DTOs.Contabilidad.DiagnosticoPlantillasDTO? _diagnostico;
+
+    private async Task CargarIntegridad()
+    {
+        _cargando = true;
+        try
+        {
+            _sinEvento = await Respuestas.DatoAsync(await Contabilidad.DocumentosSinEvento(_idLibroContable), "consultar los documentos sin contabilizar");
+            _diagnostico = await Respuestas.DatoAsync(await Contabilidad.DiagnosticarPlantillas(_idLibroContable), "diagnosticar las plantillas contables");
+        }
+        finally { _cargando = false; }
+    }
+
+    private async Task Regularizar()
+    {
+        if (_sinEvento is null || _sinEvento.Total == 0) return;
+        if (!await Dialogos.ConfirmarAsync($"¿Crear el evento contable de {_sinEvento.Total} documento(s)? Entran a la cola y se contabilizan con la plantilla vigente; si ya existe el evento no se duplica.", "Regularizar")) return;
+        _guardando = true;
+        try
+        {
+            var resultado = await Respuestas.DatoAsync(await Contabilidad.RegularizarDocumentos(_idLibroContable), "regularizar los documentos");
+            if (resultado is null) return;
+            if (resultado.Errores.Count > 0)
+                Dialogos.Advertencia($"Se regularizaron {resultado.Regularizados}; {resultado.Errores.Count} fallaron: {resultado.Errores[0]}");
+            else
+                Dialogos.Exito($"Se crearon {resultado.Regularizados} evento(s).");
+            await CargarIntegridad();
+        }
+        finally { _guardando = false; }
+    }
+
+    private async Task ReencolarErrores()
+    {
+        _guardando = true;
+        try
+        {
+            var resultado = await Respuestas.DatoAsync(await Contabilidad.ReencolarErroresConfiguracion(_idLibroContable), "reencolar los eventos");
+            if (resultado is null) return;
+            Dialogos.Exito($"{resultado.Reencolados} evento(s) reencolados.");
+            await CargarIntegridad();
+        }
+        finally { _guardando = false; }
     }
 
     private async Task BuscarEventos()

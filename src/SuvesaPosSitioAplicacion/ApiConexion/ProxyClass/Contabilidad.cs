@@ -215,6 +215,34 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "reintentar el evento contable");
 
+    public Task<ResponseGeneric<DocumentosSinEventoDTO>> DocumentosSinEvento(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.DocumentosSinEventoAsync(idLibroContable, desde, hasta);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar los documentos sin contabilizar");
+
+    public Task<ResponseGeneric<RegularizacionDocumentosDTO>> RegularizarDocumentos(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.RegularizarDocumentosAsync(new RangoIntegridadContableDTO { IdLibroContable = idLibroContable, Desde = desde, Hasta = hasta });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "regularizar los documentos sin contabilizar");
+
+    public Task<ResponseGeneric<DiagnosticoPlantillasDTO>> DiagnosticarPlantillas(long idLibroContable)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.DiagnosticarPlantillasAsync(idLibroContable);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "diagnosticar las plantillas contables");
+
+    public Task<ResponseGeneric<ResultadoReencoladoDTO>> ReencolarErroresConfiguracion(long idLibroContable, string? tipoEvento = null)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ReintentarErroresConfiguracionAsync(new ReencolarErroresDTO { IdLibroContable = idLibroContable, TipoEvento = tipoEvento });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "reencolar los eventos en error de configuración");
+
     public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina, long? idCliente = null, long? idProveedor = null, string? origenModulo = null, int? idSucursal = null)
         => Ejecutar(async () =>
         {

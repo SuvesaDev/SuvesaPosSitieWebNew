@@ -55,6 +55,10 @@ public class ContextoContabilidadTests
 
         public Task<ResponseGeneric<ICollection<EventoContableDTO>>> ListarEventos(long? idLibroContable, string? estado, string? tipoEvento, string? origenModulo, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina) => throw new NotImplementedException();
         public Task<ResponseGeneric<bool>> ReintentarEvento(long idEvento) => throw new NotImplementedException();
+        public Task<ResponseGeneric<DTOs.Contabilidad.DocumentosSinEventoDTO>> DocumentosSinEvento(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null) => throw new NotImplementedException();
+        public Task<ResponseGeneric<DTOs.Contabilidad.RegularizacionDocumentosDTO>> RegularizarDocumentos(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null) => throw new NotImplementedException();
+        public Task<ResponseGeneric<DTOs.Contabilidad.DiagnosticoPlantillasDTO>> DiagnosticarPlantillas(long idLibroContable) => throw new NotImplementedException();
+        public Task<ResponseGeneric<DTOs.Contabilidad.ResultadoReencoladoDTO>> ReencolarErroresConfiguracion(long idLibroContable, string? tipoEvento = null) => throw new NotImplementedException();
         public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina, long? idCliente = null, long? idProveedor = null, string? origenModulo = null, int? idSucursal = null) => throw new NotImplementedException();
         public Task<ResponseGeneric<AsientoContableDTO>> CrearAsientoManual(CrearAsientoManualDTO comando) => throw new NotImplementedException();
         public Task<ResponseGeneric<AsientoContableDTO>> ReversarAsiento(long idAsiento, string? contrasena, string motivo) => throw new NotImplementedException();
