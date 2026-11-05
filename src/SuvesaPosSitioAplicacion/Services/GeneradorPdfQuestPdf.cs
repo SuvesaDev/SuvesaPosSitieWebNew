@@ -276,7 +276,9 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
     {
         container.Column(col =>
         {
-            col.Item().Text("FACTURAS CON SALDO PENDIENTE").SemiBold().FontSize(8.5f).FontColor(Azul);
+            col.Item().Text(reporte.SucursalFiltro is { Length: > 0 }
+                ? $"FACTURAS CON SALDO PENDIENTE — SUCURSAL: {reporte.SucursalFiltro.ToUpperInvariant()}"
+                : "FACTURAS CON SALDO PENDIENTE").SemiBold().FontSize(8.5f).FontColor(Azul);
             col.Item().PaddingTop(4).Table(tabla =>
             {
                 tabla.ColumnsDefinition(def =>
@@ -320,7 +322,13 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                         // El consecutivo fiscal completo se conserva en el CSV y
                         // consulta de pantalla. En un estado de cuenta ocuparía
                         // varias líneas y ocultaría el importe que se debe cobrar.
-                        CeldaEstadoCuenta(tabla.Cell(), fondo, "izquierda").Text(linea.Factura).SemiBold();
+                        CeldaEstadoCuenta(tabla.Cell(), fondo, "izquierda").Text(t =>
+                        {
+                            t.Line(linea.Factura).SemiBold();
+                            // Sucursal del cliente a la que pertenece la factura (si tiene).
+                            if (!string.IsNullOrWhiteSpace(linea.Sucursal))
+                                t.Line(linea.Sucursal).FontSize(6.5f).FontColor(Colors.Grey.Darken1);
+                        });
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "centro").Text(linea.Fecha.ToString("dd/MM/yyyy"));
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "centro").Text(linea.Vence?.ToString("dd/MM/yyyy") ?? "—");
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "centro").Text(linea.DiasMora > 0 ? linea.DiasMora.ToString() : "—")
@@ -339,8 +347,8 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
             // una banda propia para que un importe grande nunca se parta.
             col.Item().Background(FondoSuave).BorderTop(1).BorderColor(Azul).Padding(6).Row(row =>
             {
-                row.RelativeItem().AlignRight().Text("SALDO TOTAL").SemiBold().FontColor(AzulOscuro);
-                row.ConstantItem(130).AlignRight().Text(FormatearMonto(reporte.SaldoAbierto, reporte.Moneda))
+                row.RelativeItem().AlignRight().Text(reporte.SucursalFiltro is { Length: > 0 } ? "SALDO DE LA SUCURSAL" : "SALDO TOTAL").SemiBold().FontColor(AzulOscuro);
+                row.ConstantItem(130).AlignRight().Text(FormatearMonto(reporte.SucursalFiltro is { Length: > 0 } ? reporte.Detalle.Sum(l => l.Saldo) : reporte.SaldoAbierto, reporte.Moneda))
                     .SemiBold().FontSize(11).FontColor(AzulOscuro);
             });
         });

@@ -58,7 +58,7 @@
                 @if (Sesion.Puede("VENTAS.ABONO_COBRAR", AccionPantalla.Imprimir))
                 {
                     <a class="btn btn-sm btn-outline-primary" target="_blank"
-                       href="@($"/reportes/estado-cuenta?idCliente={_cliente!.Identificacion}&corte={_corte:yyyy-MM-dd}")">
+                       href="@($"/reportes/estado-cuenta?idCliente={_cliente!.Identificacion}&corte={_corte:yyyy-MM-dd}{(_idSucursalFiltro > 0 ? $"&idClienteSucursal={_idSucursalFiltro}" : "")}")">
                         <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Descargar PDF
                     </a>
                 }
@@ -105,20 +105,33 @@
                 </div>
             </div>
 
-            <div class="card"><div class="card-header"><strong>Facturas con saldo</strong></div><div class="card-body">
+            <div class="card"><div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <strong>Facturas con saldo</strong>
+                @if (_sucursales.Count > 0)
+                {
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="small text-secondary mb-0" for="estado-sucursal">Sucursal del cliente</label>
+                        <select id="estado-sucursal" class="form-select form-select-sm w-auto" @bind="_idSucursalFiltro">
+                            <option value="0">Todas</option>
+                            @foreach (var s in _sucursales) { <option value="@s.Id">@s.Nombre</option> }
+                        </select>
+                    </div>
+                }
+            </div><div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-sm align-middle">
                         <thead><tr>
-                            <th>Factura</th><th>Fecha</th><th>Vence</th><th class="text-center">Días mora</th>
+                            <th>Factura</th><th>Sucursal</th><th>Fecha</th><th>Vence</th><th class="text-center">Días mora</th>
                             <th class="text-end">Original</th><th class="text-end">NC</th>
                             <th class="text-end">Pagado</th><th class="text-end">Saldo</th><th>Estado MH</th>
                         </tr></thead>
                         <tbody>
-                            @if (_estado.Detalle.Count == 0) { <tr><td colspan="9" class="text-center text-secondary py-3">Sin facturas con saldo.</td></tr> }
-                            @foreach (var f in _estado.Detalle.OrderBy(d => d.Vence ?? d.Fecha))
+                            @if (_estado.Detalle.Count == 0) { <tr><td colspan="10" class="text-center text-secondary py-3">Sin facturas con saldo.</td></tr> }
+                            @foreach (var f in DetalleVisible)
                             {
                                 <tr class="@(EsVencida(f) ? "table-warning" : null)">
                                     <td>@f.NumFactura.ToString("0")@if (!string.IsNullOrWhiteSpace(f.ConsecutivoMh)) { <div class="small text-secondary">@f.ConsecutivoMh</div> }</td>
+                                    <td>@(string.IsNullOrWhiteSpace(f.SucursalCliente) ? "—" : f.SucursalCliente)</td>
                                     <td>@f.Fecha.ToString("dd/MM/yyyy")</td>
                                     <td>@(f.Vence?.ToString("dd/MM/yyyy") ?? "—")</td>
                                     <td class="text-center @(DiasMora(f) > 0 ? "text-danger fw-semibold" : "text-secondary")">@(DiasMora(f) > 0 ? DiasMora(f).ToString() : "—")</td>
@@ -146,6 +159,16 @@
     private DateTime _corte = DateTime.Today;
     private bool _cargando;
     private SuvesaPosSitioAplicacion.DTOs.Fiscal.EstadoCuentaClienteDTO? _estado;
+    private long _idSucursalFiltro;
+
+    /// <summary>Sucursales del cliente que aparecen en sus facturas con saldo (el filtro solo sale si hay alguna).</summary>
+    private List<(long Id, string Nombre)> _sucursales =>
+        _estado?.Detalle.Where(d => d.IdClienteSucursal is > 0 && !string.IsNullOrWhiteSpace(d.SucursalCliente))
+            .Select(d => (Id: d.IdClienteSucursal!.Value, Nombre: d.SucursalCliente!)).Distinct().OrderBy(s => s.Nombre).ToList()
+        ?? new();
+
+    private IEnumerable<SuvesaPosSitioAplicacion.DTOs.Fiscal.FacturaCreditoConSaldoDTO> DetalleVisible =>
+        (_estado?.Detalle ?? new()).Where(d => _idSucursalFiltro <= 0 || d.IdClienteSucursal == _idSucursalFiltro).OrderBy(d => d.Vence ?? d.Fecha);
 
     protected override async Task OnInitializedAsync()
     {
@@ -172,6 +195,7 @@
     {
         if (_cliente is null) return;
         _cargando = true;
+        _idSucursalFiltro = 0;
         _estado = await Respuestas.DatoAsync(
             await Comandos.EstadoCuenta(_cliente.Identificacion, _corte), "consultar el estado de cuenta");
         _cargando = false;
@@ -187,11 +211,12 @@
     {
         if (_estado is null) return;
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("Factura;Fecha;Vence;DiasMora;Original;NC;Pagado;Saldo;EstadoMH");
-        foreach (var d in _estado.Detalle.OrderBy(x => x.Vence ?? x.Fecha))
+        sb.AppendLine("Factura;Sucursal;Fecha;Vence;DiasMora;Original;NC;Pagado;Saldo;EstadoMH");
+        foreach (var d in DetalleVisible)
             sb.AppendLine(string.Join(';', new[]
             {
                 d.NumFactura.ToString("0"),
+                d.SucursalCliente ?? "",
                 d.Fecha.ToString("yyyy-MM-dd"),
                 d.Vence?.ToString("yyyy-MM-dd") ?? "",
                 DiasMora(d).ToString(),

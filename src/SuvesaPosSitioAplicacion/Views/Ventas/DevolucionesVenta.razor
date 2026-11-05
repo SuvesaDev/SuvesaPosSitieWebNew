@@ -102,9 +102,9 @@
                                     @if (_lotesVendidos.Count > 0)
                                     {
                                         <div class="col-12 col-md-3">
-                                            <label class="form-label">Lote vendido</label>
+                                            <label class="form-label">Lote vendido <span class="text-danger" aria-hidden="true">*</span></label>
                                             <select class="form-select" @bind="_idLoteSeleccionado">
-                                                @if (_lotesVendidos.Count > 1) { <option value="0">Seleccione...</option> }
+                                                <option value="0">Seleccione el lote...</option>
                                                 @foreach (var lote in _lotesVendidos)
                                                 {
                                                     var pendiente = Math.Max(0, lote.Cantidad - lote.CantidadDevuelta);
@@ -389,7 +389,7 @@
                 (decimal)g.Sum(x => x.Cantidad),
                 (decimal)g.Sum(x => x.CantidadDevuelta)))
             .ToList();
-        if (_lotesVendidos.Count == 1) _idLoteSeleccionado = _lotesVendidos[0].Id;
+        // El lote se confirma siempre, aunque la venta tuviera uno solo: la devolución vuelve a ese lote.
     }
 
     // Lo que aún se puede devolver de una línea de la factura: lo vendido menos lo

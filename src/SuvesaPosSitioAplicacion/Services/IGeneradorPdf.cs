@@ -72,6 +72,8 @@ public sealed record EstadoCuentaPdf(
     string Moneda = "CRC",
     string? GeneradoPor = null)
 {
+    /// <summary>Si el estado se limitó a una sucursal del cliente, su nombre (el saldo total pasa a ser el de esa sucursal).</summary>
+    public string? SucursalFiltro { get; init; }
     /// <summary>Membrete corporativo (logo, razón social, identificación y contacto). Si falta, el PDF no lo lleva.</summary>
     public EncabezadoEmpresaPdf? Empresa { get; init; }
 }
@@ -87,4 +89,5 @@ public sealed record LineaEstadoCuentaPdf(
     decimal Pagado,
     decimal Saldo,
     string? EstadoMh,
-    int DiasMora = 0);
+    int DiasMora = 0,
+    string? Sucursal = null);

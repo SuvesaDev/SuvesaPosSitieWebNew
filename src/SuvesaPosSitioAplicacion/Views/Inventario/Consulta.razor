@@ -520,12 +520,18 @@
                 {
                     <div class="row g-3">
                         <div class="col-12"><p class="text-secondary mb-0">Calcule el precio de venta a partir del costo y la utilidad. El cálculo usa la regla CostaPets cuando corresponde.</p></div>
-                        <div class="col-12 col-md-4"><label class="form-label">Precio base</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.PrecioBase" /></div>
+                        <div class="col-12 seepos-form-seccion">Costo del artículo</div>
+                        <div class="col-12 col-md-3"><label class="form-label" for="articulo-costo-base">Costo base (precio de compra)</label><input id="articulo-costo-base" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.PrecioBase" /></div>
                         @if (!Sesion.EsCostaPets)
                         {
-                            <div class="col-12 col-md-4"><label class="form-label">Fletes</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Fletes" /></div>
-                            <div class="col-12 col-md-4"><label class="form-label">Otros cargos</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.OtrosCargos" /></div>
+                            <div class="col-12 col-md-3"><label class="form-label">Fletes</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Fletes" /></div>
+                            <div class="col-12 col-md-3"><label class="form-label">Otros cargos</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.OtrosCargos" /></div>
                         }
+                        <div class="col-12 col-md-3">
+                            <label class="form-label">Costo total</label>
+                            <input type="text" readonly class="form-control fw-semibold" value="@Formato.Importe(CostoCalculado)" />
+                        </div>
+                        <div class="col-12"><p class="form-text mb-0">Sobre este costo se calculan las utilidades y los precios de la tabla de abajo. @(_edicion.Costo <= 0 ? "El artículo no tiene costo registrado: al guardar se toma el costo total." : "Costo registrado del artículo (el que dejan las compras): " + Formato.Importe((decimal)_edicion.Costo) + ".")</p></div>
                         <div class="col-12 col-md-4">
                             <label class="form-label">Impuesto *</label>
                             <select class="form-select" @bind="_edicion.Id_Impuesto" @bind:after="AlCambiarImpuesto">

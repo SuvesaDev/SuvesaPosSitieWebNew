@@ -48,6 +48,9 @@ public sealed class FacturaCreditoConSaldoDTO
     public double PagosAplicados { get; set; }
     public double SaldoActual { get; set; }
     public string? EstadoMh { get; set; }
+    /// <summary>Sucursal del cliente a la que pertenece la factura; null si no tiene.</summary>
+    public long? IdClienteSucursal { get; set; }
+    public string? SucursalCliente { get; set; }
 }
 
 // ---- W5: cobrar + facturar una preventa de contado existente en una sola llamada ----

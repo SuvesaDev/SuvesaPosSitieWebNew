@@ -73,14 +73,48 @@
    </div></div>
 
    <div class="card mb-3"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
-     <thead><tr><th>Código</th><th>Descripción</th><th>Lote</th><th>Bodega</th><th class="text-end">Devuelto</th><th class="text-end" style="min-width:9rem">Recibido</th></tr></thead>
+     <thead><tr><th>Código</th><th>Descripción</th><th style="min-width:15rem">Lote</th><th>Bodega</th><th class="text-end">Devuelto</th><th class="text-end" style="min-width:9rem">Recibido</th></tr></thead>
      <tbody>
        @foreach (var l in _orden.Lineas)
        {
          <tr>
            <td><code>@l.CodArticulo</code></td>
            <td>@l.Descripcion</td>
-           <td>@(string.IsNullOrWhiteSpace(l.NumeroLote) ? "—" : l.NumeroLote)</td>
+           <td>
+             @if (pendiente && l.ManejaLote)
+             {
+               var e = EstadoLote(l);
+               <select class="form-select form-select-sm" aria-label="Lote en que se recibe @l.Descripcion" @bind="e.Seleccion">
+                 <option value="0">Seleccione el lote...</option>
+                 @foreach (var o in l.LotesDisponibles)
+                 {
+                   <option value="@o.Id">@o.Numero@(o.FechaVencimiento is { } fv ? $" · vence {fv:dd/MM/yyyy}" : "")@(o.Id == l.IdStockLote ? " (devuelto)" : "")</option>
+                 }
+                 <option value="-1">➕ Lote nuevo...</option>
+               </select>
+               @if (e.Seleccion == -1)
+               {
+                 <div class="d-flex gap-1 mt-1">
+                   <input class="form-control form-control-sm" maxlength="50" placeholder="N.º de lote" aria-label="Número del lote nuevo" @bind="e.NuevoNumero" @bind:event="onchange" />
+                   <input type="date" class="form-control form-control-sm" aria-label="Vencimiento del lote nuevo" value="@(e.NuevoVence?.ToString("yyyy-MM-dd"))" @onchange="ev => e.NuevoVence = DateTime.TryParse(ev.Value?.ToString(), out var d) ? d : null" />
+                 </div>
+                 <div class="form-text">El lote nuevo necesita fecha de vencimiento (puede ser una ya pasada).</div>
+               }
+               @if (CambiaLote(l, e))
+               {
+                 <input class="form-control form-control-sm mt-1" maxlength="250" placeholder="Motivo del cambio de lote *" aria-label="Motivo del cambio de lote" @bind="e.Motivo" @bind:event="onchange" />
+               }
+             }
+             else if (!pendiente && l.ManejaLote && !string.IsNullOrWhiteSpace(l.NumeroLoteRecibido))
+             {
+               <span>@l.NumeroLoteRecibido</span>
+               @if (l.IdStockLoteRecibido != l.IdStockLote && l.IdStockLote is > 0)
+               {
+                 <div class="small text-secondary">Devuelto: @l.NumeroLote@(string.IsNullOrWhiteSpace(l.MotivoCambioLote) ? "" : $" · Motivo: {l.MotivoCambioLote}")</div>
+               }
+             }
+             else { @(string.IsNullOrWhiteSpace(l.NumeroLote) ? "—" : l.NumeroLote) }
+           </td>
            <td>@l.NombreBodega</td>
            <td class="text-end">@l.CantidadDevuelta.ToString("N2")</td>
            <td class="text-end">
@@ -134,6 +168,49 @@
  private int _estado;
  private bool _guardando;
 
+ /// <summary>Elección de lote por línea: 0 sin elegir, -1 lote nuevo, otro valor = id de un lote existente.</summary>
+ private sealed class SeleccionLote { public long Seleccion { get; set; } public string? NuevoNumero { get; set; } public DateTime? NuevoVence { get; set; } public string? Motivo { get; set; } }
+ private readonly Dictionary<long, SeleccionLote> _lotes = new();
+
+ private SeleccionLote EstadoLote(ReciboLinea l)
+ {
+     if (!_lotes.TryGetValue(l.Id, out var e))
+         _lotes[l.Id] = e = new SeleccionLote { Seleccion = l.IdStockLote is > 0 && l.LotesDisponibles.Any(o => o.Id == l.IdStockLote) ? l.IdStockLote.Value : 0 };
+     return e;
+ }
+
+ /// <summary>El lote elegido es distinto al devuelto (o es uno nuevo): hay que dar el motivo.</summary>
+ private static bool CambiaLote(ReciboLinea l, SeleccionLote e) => l.IdStockLote is > 0 && e.Seleccion != 0 && e.Seleccion != l.IdStockLote;
+
+ /// <summary>Primer problema con los lotes de las líneas que se reciben, o null.</summary>
+ private string? ErrorDeLotes()
+ {
+     if (_orden is null) return null;
+     foreach (var l in _orden.Lineas.Where(x => x.ManejaLote && CantidadDe(x) > 0))
+     {
+         var e = EstadoLote(l);
+         if (e.Seleccion == 0) return $"Indique el lote en el que recibe «{l.Descripcion}».";
+         if (e.Seleccion == -1)
+         {
+             if (string.IsNullOrWhiteSpace(e.NuevoNumero)) return $"Escriba el número del lote nuevo de «{l.Descripcion}».";
+             if (e.NuevoVence is null) return $"El lote nuevo «{e.NuevoNumero.Trim()}» necesita fecha de vencimiento.";
+         }
+         if (CambiaLote(l, e) && (e.Motivo ?? "").Trim().Length < 5) return $"«{l.Descripcion}» se recibe en un lote distinto al devuelto: escriba el motivo del cambio (mínimo 5 caracteres).";
+     }
+     return null;
+ }
+
+ private ReciboLineaRecibida ALineaRecibida(ReciboLinea l)
+ {
+     var r = new ReciboLineaRecibida { IdLinea = l.Id, CantidadRecibida = CantidadDe(l) };
+     if (!l.ManejaLote || r.CantidadRecibida <= 0) return r;
+     var e = EstadoLote(l);
+     if (e.Seleccion == -1) { r.NuevoLoteNumero = e.NuevoNumero?.Trim(); r.NuevoLoteVencimiento = e.NuevoVence; }
+     else if (e.Seleccion > 0) r.IdStockLoteRecibido = e.Seleccion;
+     if (CambiaLote(l, e)) r.MotivoCambioLote = e.Motivo?.Trim();
+     return r;
+ }
+
  private bool HayFaltante => _orden is not null && _orden.Lineas.Any(l => CantidadDe(l) < l.CantidadDevuelta);
 
  protected override async Task OnInitializedAsync() => await Cargar();
@@ -161,6 +238,7 @@
      if (r.Status != ResponseStatus._0 || r.Responses is null) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo abrir la orden."); return; }
      _orden = r.Responses;
      _recibidas.Clear();
+     _lotes.Clear();
      _observaciones = _motivoAnulacion = "";
  }
 
@@ -173,13 +251,14 @@
  private async Task Confirmar()
  {
      if (_orden is null) return;
+     if (ErrorDeLotes() is { } errorLote) { await Dialogos.ErrorAsync(errorLote); return; }
      var mensaje = HayFaltante
          ? "Se recibe menos de lo devuelto. ¿Confirmar el recibo y subir al inventario solo lo recibido?"
          : "¿Confirmar el recibo y subir la mercadería al inventario?";
      if (!await Dialogos.ConfirmarAsync(mensaje, "Recibo de mercadería")) return;
      _guardando = true;
      var r = await Api.RecibirAsync(_orden.Id,
-         _orden.Lineas.Select(l => new ReciboLineaRecibida { IdLinea = l.Id, CantidadRecibida = CantidadDe(l) }).ToList(),
+         _orden.Lineas.Select(ALineaRecibida).ToList(),
          string.IsNullOrWhiteSpace(_observaciones) ? null : _observaciones.Trim());
      _guardando = false;
      if (r.Status != ResponseStatus._0 || r.Responses is null) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo registrar el recibo."); return; }

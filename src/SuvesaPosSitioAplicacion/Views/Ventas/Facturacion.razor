@@ -2191,17 +2191,65 @@
         linea.Recalcular();
         RecalcularTodo();
 
-        // Si la línea ya tenía lote(s) asignado(s) y la cantidad cambió, lo repartido
-        // queda desactualizado (de ahí "el artículo maneja lotes; indique los lotes" al
-        // emitir, sin forma de corregirlo). Se reabre el reparto con la cantidad nueva.
+        // Si la línea maneja lotes y la cantidad cambió, el reparto se recalcula: el lote elegido
+        // aporta lo que tenga y el resto sale de los siguientes lotes por vencimiento más próximo.
+        // Si no alcanza entre todos, la cantidad vuelve a lo que sí hay. (Antes, una línea con un solo
+        // lote no se revisaba y salía con más unidades de las que ese lote tenía.)
         if (!linea.EsDeGrupo && linea.Articulo.Lote)
         {
-            var repartido = linea.Lotes?.Sum(l => l.Cantidad) ?? (linea.IdLote > 0 ? (double)linea.Cantidad : 0);
-            if (Math.Abs(repartido - (double)linea.Cantidad) > 0.0001)
-            {
-                await AbrirRepartoParaEditar(linea);
-            }
+            var tieneLotes = linea.IdLote > 0 || linea.Lotes is { Count: > 0 };
+            if (tieneLotes) await RepartirLineaAutomaticoAsync(linea);
+            else await AbrirRepartoParaEditar(linea);
         }
+    }
+
+    /// <summary>
+    /// Reparte la cantidad de la línea entre lotes sin dejar ninguno negativo: primero los lotes que ya
+    /// tenía elegidos (hasta su existencia) y el resto en los siguientes por vencimiento más próximo
+    /// (sin vencidos ni inactivos). Si entre todos no alcanza, la cantidad baja a lo disponible.
+    /// </summary>
+    private async Task RepartirLineaAutomaticoAsync(LineaVenta linea)
+    {
+        var lotes = await LotesDisponiblesEnBodega(linea.Articulo.Codigo);
+        var usables = lotes.Where(l => l.Activo != false && l.Cantidad > 0
+            && (l.Vencimiento is null || l.Vencimiento.Value.Date >= _hoyEquipo)).ToList();
+
+        var elegidos = (linea.Lotes?.Select(l => l.IdStockLote) ?? (linea.IdLote > 0 ? new[] { linea.IdLote } : Array.Empty<long>())).ToList();
+        var orden = usables.Where(l => elegidos.Contains(l.Id)).OrderBy(l => elegidos.IndexOf(l.Id))
+            .Concat(usables.Where(l => !elegidos.Contains(l.Id))
+                .OrderBy(l => l.Vencimiento.HasValue ? 0 : 1).ThenBy(l => l.Vencimiento).ThenBy(l => l.Id))
+            .ToList();
+
+        var falta = (double)linea.Cantidad;
+        var consumos = new List<DTOs.Lotes.LoteConsumoVenta>();
+        foreach (var l in orden)
+        {
+            if (falta <= 0.0001) break;
+            var toma = Math.Min(falta, (double)l.Cantidad);
+            consumos.Add(new DTOs.Lotes.LoteConsumoVenta { IdStockLote = l.Id, Cantidad = toma });
+            falta -= toma;
+        }
+
+        if (falta > 0.0001)
+        {
+            var disponible = consumos.Sum(c => c.Cantidad);
+            Dialogos.Advertencia($"'{linea.Articulo.Descripcion}': entre todos los lotes disponibles solo hay {Formato.Cantidad((decimal)disponible)} unidad(es). Se ajustó la cantidad.");
+            linea.Cantidad = disponible > 0 ? (decimal)disponible : 1;
+            if (disponible <= 0) { linea.Recalcular(); RecalcularTodo(); await AbrirRepartoParaEditar(linea); return; }
+        }
+        else if (consumos.Count > 1 && consumos.Select(c => c.IdStockLote).Except(elegidos).Any())
+        {
+            var detalle = string.Join(", ", consumos.Select(c => $"{usables.First(u => u.Id == c.IdStockLote).Lote} ×{Formato.Cantidad((decimal)c.Cantidad)}"));
+            Dialogos.Advertencia($"La cantidad supera el lote elegido de '{linea.Articulo.Descripcion}'. Se completó con el siguiente lote que vence primero: {detalle}.");
+        }
+
+        _lotesPendientes = usables;
+        ActualizarLotesDeLinea(linea, consumos);
+        // Con varios lotes la línea muestra cuáles y cuántas unidades; con uno, solo su número.
+        if (consumos.Count > 1)
+            linea.Lote = string.Join(", ", consumos.Select(c => $"{usables.First(u => u.Id == c.IdStockLote).Lote} ×{Formato.Cantidad((decimal)c.Cantidad)}"));
+        linea.Recalcular();
+        RecalcularTodo();
     }
 
     private void QuitarLinea(LineaVenta linea)

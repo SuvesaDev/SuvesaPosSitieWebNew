@@ -857,6 +857,27 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    // Fase 1 de IVA por emisor (Ley del IVA): IVA cobrado en ventas, por tarifa. Soportado y Prorrata siguen.
+                    Titulo = "IVA Repercutido",
+                    Codigo = "MODULO_REPORTES.IVA_REPERCUTIDO",
+                    Ruta = "/moduloReportes/iva-repercutido",
+                },
+                new ItemMenu
+                {
+                    // Fase 2 de IVA por emisor: crédito fiscal de compras, gastos e importaciones.
+                    Titulo = "IVA Soportado",
+                    Codigo = "MODULO_REPORTES.IVA_SOPORTADO",
+                    Ruta = "/moduloReportes/iva-soportado",
+                },
+                new ItemMenu
+                {
+                    // Fase 3 de IVA por emisor: prorrata (proporcionalidad del crédito fiscal) y su regularización anual.
+                    Titulo = "Prorrata",
+                    Codigo = "MODULO_REPORTES.PRORRATA",
+                    Ruta = "/moduloReportes/prorrata",
+                },
+                new ItemMenu
+                {
                     // Catálogo N°3 ("Reportes de Gastos"). Complementario de "Compras":
                     // misma tabla, filtrado por Compras.Gasto = true.
                     Titulo = "Gastos",

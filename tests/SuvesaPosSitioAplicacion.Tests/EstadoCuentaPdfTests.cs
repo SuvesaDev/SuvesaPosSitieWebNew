@@ -111,4 +111,22 @@ public sealed class EstadoCuentaPdfTests
         Assert.True(pdf.Length > 800);
         Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
     }
+
+    [Fact]
+    public void EstadoCuenta_ConSucursalDelCliente_GeneraPdfValido()
+    {
+        var reporte = new EstadoCuentaPdf("GUANAVET S.A.", "3101999999", new DateTime(2026, 11, 4), 2000000m, 585544.70m, 0m, 1414455.30m,
+            88951.34m, 496593.36m, 0m, 0m, 0m,
+            Detalle:
+            [
+                new LineaEstadoCuentaPdf("1308", null, new DateTime(2026, 9, 19), new DateTime(2026, 10, 19), 496593.36m, 0m, 0m, 496593.36m, "Aceptado", DiasMora: 16, Sucursal: "Heredia — Guanavet Heredia"),
+                new LineaEstadoCuentaPdf("1356", null, new DateTime(2026, 10, 7), new DateTime(2026, 11, 6), 28341.53m, 0m, 0m, 28341.53m, "Aceptado"),
+            ])
+        { SucursalFiltro = "Heredia — Guanavet Heredia" };
+
+        var pdf = new GeneradorPdfQuestPdf().EstadoCuenta(reporte);
+
+        Assert.True(pdf.Length > 800);
+        Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
+    }
 }

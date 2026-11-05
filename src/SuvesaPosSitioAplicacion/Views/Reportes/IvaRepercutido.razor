@@ -1,0 +1,131 @@
+@page "/moduloReportes/iva-repercutido"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Reportes
+@using SuvesaPosSitioAplicacion.Services
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IIvaReportes Api
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IFacturacion Facturacion
+@inject IManejadorRespuestas Respuestas
+@inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
+@inject IJSRuntime JS
+
+<AppPantalla Pantalla="IVA Repercutido" Codigo="MODULO_REPORTES.IVA_REPERCUTIDO" Icono="bi-receipt"
+             Subtitulo="IVA cobrado en ventas del período, por tarifa y emisor (comprobantes aceptados por Hacienda, en colones)" Nivel="NivelPantalla.Escritorio">
+    <ChildContent>
+        <div class="card mb-3"><div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small" for="iva-emisor">Emisor (cédula que declara) *</label>
+                    <select id="iva-emisor" class="form-select form-select-sm" @bind="_idEmpresa">
+                        <option value="0">Seleccione...</option>
+                        @foreach (var e in _empresas) { <option value="@e.Id">@e.Nombre</option> }
+                    </select>
+                </div>
+                <div class="col-6 col-md-2"><label class="form-label small" for="iva-desde">Desde</label><input id="iva-desde" type="date" class="form-control form-control-sm" @bind="_desde" /></div>
+                <div class="col-6 col-md-2"><label class="form-label small" for="iva-hasta">Hasta</label><input id="iva-hasta" type="date" class="form-control form-control-sm" @bind="_hasta" /></div>
+                <div class="col-12 col-md-4 d-flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-primary" @onclick="Consultar" disabled="@(_cargando || _idEmpresa <= 0)">@(_cargando ? "Consultando..." : "Consultar")</button>
+                    @if (_r is not null && Sesion.Puede("MODULO_REPORTES.IVA_REPERCUTIDO", AccionPantalla.Exportar))
+                    {
+                        <a class="btn btn-sm btn-outline-success" target="_blank" href="@($"/reportes/iva-repercutido.xlsx?idEmpresa={_r.IdEmpresa}&desde={_r.Desde:yyyy-MM-dd}&hasta={_r.Hasta:yyyy-MM-dd}")"><i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>Excel</a>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="ExportarCsv"><i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>CSV</button>
+                    }
+                </div>
+            </div>
+        </div></div>
+
+        @if (_r is not null)
+        {
+            @foreach (var a in _r.Advertencias) { <div class="alert alert-warning py-2 small mb-2">@a</div> }
+
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body"><div class="text-secondary small">IVA repercutido neto</div><div class="h4 mb-0 seepos-importe">@Formato.Importe(_r.TotalIvaNeto)</div></div></div></div>
+                <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body"><div class="text-secondary small">Base imponible neta</div><div class="h4 mb-0 seepos-importe">@Formato.Importe(_r.TotalBaseNeta)</div></div></div></div>
+                <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body"><div class="text-secondary small">IVA según encabezados</div><div class="h5 mb-0 seepos-importe">@Formato.Importe(_r.IvaSegunEncabezados)</div></div></div></div>
+                <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body"><div class="text-secondary small">IVA bonificaciones (aparte)</div><div class="h5 mb-0 seepos-importe">@Formato.Importe(_r.IvaBonificacionesAsumido)</div></div></div></div>
+            </div>
+
+            <div class="card mb-3"><div class="card-header"><strong>Por tarifa</strong> <span class="text-secondary small">@_r.Emisor · @_r.Identificacion · @_r.Desde.ToString("dd/MM/yyyy") al @_r.Hasta.ToString("dd/MM/yyyy")</span></div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Tarifa</th><th>Tipo de operación</th><th class="text-end">%</th><th class="text-end">Base ventas</th><th class="text-end">IVA ventas</th><th class="text-end">Base N/C</th><th class="text-end">IVA N/C</th><th class="text-end">Base neta</th><th class="text-end">IVA neto</th></tr></thead>
+                    <tbody>
+                        @if (_r.Tarifas.Count == 0) { <tr><td colspan="9" class="text-center text-secondary py-3">No hay comprobantes aceptados en el período.</td></tr> }
+                        @foreach (var t in _r.Tarifas)
+                        {
+                            <tr>
+                                <td>@(string.IsNullOrWhiteSpace(t.CodigoTarifa) ? "" : t.CodigoTarifa + " · ")@t.Descripcion</td>
+                                <td>@GeneradorIvaExcel.Tipo(t.TipoOperacion)</td>
+                                <td class="text-end">@t.Porcentaje.ToString("0.##")</td>
+                                <td class="text-end">@Formato.Importe(t.BaseVentas)</td><td class="text-end">@Formato.Importe(t.IvaVentas)</td>
+                                <td class="text-end">@Formato.Importe(t.BaseNotasCredito)</td><td class="text-end">@Formato.Importe(t.IvaNotasCredito)</td>
+                                <td class="text-end">@Formato.Importe(t.BaseNeta)</td><td class="text-end fw-semibold">@Formato.Importe(t.IvaNeto)</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot><tr class="fw-semibold"><td colspan="7">Total</td><td class="text-end">@Formato.Importe(_r.TotalBaseNeta)</td><td class="text-end">@Formato.Importe(_r.TotalIvaNeto)</td></tr></tfoot>
+                </table></div></div>
+
+            <div class="card mb-3"><div class="card-header"><strong>Bases por tipo de operación</strong> <span class="text-secondary small">insumo de la prorrata</span></div><div class="card-body">
+                <dl class="row small mb-0">
+                    <dt class="col-8 fw-normal">Gravadas</dt><dd class="col-4 text-end">@Formato.Importe(_r.Operaciones.BaseGravada)</dd>
+                    <dt class="col-8 fw-normal">Exentas con derecho a crédito</dt><dd class="col-4 text-end">@Formato.Importe(_r.Operaciones.BaseExentaConDerecho)</dd>
+                    <dt class="col-8 fw-normal">Exentas sin derecho a crédito</dt><dd class="col-4 text-end">@Formato.Importe(_r.Operaciones.BaseExentaSinDerecho)</dd>
+                    <dt class="col-8 fw-normal">No sujetas</dt><dd class="col-4 text-end">@Formato.Importe(_r.Operaciones.BaseNoSujeta)</dd>
+                    <dt class="col-8 fw-normal">Sin clasificar</dt><dd class="col-4 text-end">@Formato.Importe(_r.Operaciones.BaseSinClasificar)</dd>
+                    <dt class="col-8 fw-normal text-secondary">Informativo: base exonerada</dt><dd class="col-4 text-end text-secondary">@Formato.Importe(_r.Operaciones.BaseExonerada)</dd>
+                </dl>
+            </div></div>
+
+            <div class="card"><div class="card-header"><strong>Detalle por documento</strong> <span class="text-secondary small">@_r.Detalle.Count fila(s)@(_r.Detalle.Count > MaxFilasPantalla ? $" · se muestran las primeras {MaxFilasPantalla}; Excel y CSV traen todas" : "")</span></div>
+                <div class="table-responsive" style="max-height:28rem"><table class="table table-sm align-middle mb-0">
+                    <thead class="sticky-top"><tr><th>Fecha</th><th>Tipo</th><th>Documento</th><th>Cliente</th><th>Tarifa</th><th class="text-end">Base</th><th class="text-end">IVA</th></tr></thead>
+                    <tbody>
+                        @foreach (var d in _r.Detalle.Take(MaxFilasPantalla))
+                        {
+                            <tr class="@(d.Tipo == "Nota de crédito" ? "table-warning" : null)">
+                                <td>@d.Fecha.ToString("dd/MM/yyyy")</td><td>@d.Tipo</td><td><code>@d.Documento</code></td><td>@d.Cliente</td>
+                                <td>@d.CodigoTarifa @d.Porcentaje.ToString("0.##")%</td>
+                                <td class="text-end">@Formato.Importe(d.Base)</td><td class="text-end">@Formato.Importe(d.Iva)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table></div></div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const int MaxFilasPantalla = 300;
+    private List<DTOs.Generated.EmpresaDTO> _empresas = new();
+    private int _idEmpresa;
+    private DateTime _desde, _hasta;
+    private bool _cargando;
+    private IvaRepercutidoResultado? _r;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Mes anterior completo: el que normalmente se declara.
+        var hoy = await RelojEquipo.HoyAsync();
+        var primero = new DateTime(hoy.Year, hoy.Month, 1).AddMonths(-1);
+        _desde = primero;
+        _hasta = primero.AddMonths(1).AddDays(-1);
+        var r = await Facturacion.Empresas();
+        _empresas = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Nombre).ToList() : new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+    }
+
+    private async Task Consultar()
+    {
+        if (_idEmpresa <= 0) return;
+        _cargando = true;
+        _r = await Respuestas.DatoAsync(await Api.Repercutido(_idEmpresa, _desde, _hasta), "consultar el IVA repercutido");
+        _cargando = false;
+    }
+
+    private async Task ExportarCsv()
+    {
+        if (_r is null) return;
+        await JS.InvokeVoidAsync("seepos.descargarTexto", $"iva-repercutido-{_r.IdEmpresa}-{_r.Desde:yyyyMMdd}-{_r.Hasta:yyyyMMdd}.csv",
+            GeneradorIvaExcel.IvaRepercutidoCsv(_r), "text/csv;charset=utf-8");
+    }
+}
