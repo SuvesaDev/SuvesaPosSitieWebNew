@@ -1,0 +1,115 @@
+@page "/moduloReportes/iva-soportado"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Reportes
+@using SuvesaPosSitioAplicacion.Services
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IIvaReportes Api
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IFacturacion Facturacion
+@inject IManejadorRespuestas Respuestas
+@inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
+@inject IJSRuntime JS
+
+<AppPantalla Pantalla="IVA Soportado" Codigo="MODULO_REPORTES.IVA_SOPORTADO" Icono="bi-receipt-cutoff"
+             Subtitulo="Crédito fiscal del período por emisor: compras, gastos e importaciones (crédito solo con Mensaje Receptor aceptado, en colones)" Nivel="NivelPantalla.Escritorio">
+    <ChildContent>
+        <div class="card mb-3"><div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small" for="ivas-emisor">Emisor (cédula que declara) *</label>
+                    <select id="ivas-emisor" class="form-select form-select-sm" @bind="_idEmpresa">
+                        <option value="0">Seleccione...</option>
+                        @foreach (var e in _empresas) { <option value="@e.Id">@e.Nombre</option> }
+                    </select>
+                </div>
+                <div class="col-6 col-md-2"><label class="form-label small" for="ivas-desde">Desde</label><input id="ivas-desde" type="date" class="form-control form-control-sm" @bind="_desde" /></div>
+                <div class="col-6 col-md-2"><label class="form-label small" for="ivas-hasta">Hasta</label><input id="ivas-hasta" type="date" class="form-control form-control-sm" @bind="_hasta" /></div>
+                <div class="col-12 col-md-4 d-flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-primary" @onclick="Consultar" disabled="@(_cargando || _idEmpresa <= 0)">@(_cargando ? "Consultando..." : "Consultar")</button>
+                    @if (_r is not null && Sesion.Puede("MODULO_REPORTES.IVA_SOPORTADO", AccionPantalla.Exportar))
+                    {
+                        <a class="btn btn-sm btn-outline-success" target="_blank" href="@($"/reportes/iva-soportado.xlsx?idEmpresa={_r.IdEmpresa}&desde={_r.Desde:yyyy-MM-dd}&hasta={_r.Hasta:yyyy-MM-dd}")"><i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>Excel</a>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="ExportarCsv"><i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>CSV</button>
+                    }
+                </div>
+            </div>
+        </div></div>
+
+        @if (_r is not null)
+        {
+            @foreach (var a in _r.Advertencias) { <div class="alert alert-warning py-2 small mb-2">@a</div> }
+
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body"><div class="text-secondary small">IVA acreditable neto</div><div class="h4 mb-0 seepos-importe">@Formato.Importe(_r.IvaAcreditableNeto)</div><div class="small text-secondary">de ello, bienes de capital @Formato.Importe(_r.IvaBienesCapital)</div></div></div></div>
+                <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body"><div class="text-secondary small">IVA soportado total</div><div class="h5 mb-0 seepos-importe">@Formato.Importe(_r.IvaTotal)</div></div></div></div>
+                <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body"><div class="text-secondary small">Sujeto a prorrata (cond. 05)</div><div class="h5 mb-0 seepos-importe">@Formato.Importe(_r.IvaSujetoProrrata)</div></div></div></div>
+                <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body"><div class="text-secondary small">Pendiente de Mensaje Receptor</div><div class="h5 mb-0 seepos-importe @(_r.IvaPendiente > 0 ? "text-warning" : null)">@Formato.Importe(_r.IvaPendiente)</div></div></div></div>
+            </div>
+
+            <div class="card mb-3"><div class="card-header"><strong>Por origen</strong> <span class="text-secondary small">@_r.Emisor · @_r.Identificacion · @_r.Desde.ToString("dd/MM/yyyy") al @_r.Hasta.ToString("dd/MM/yyyy")</span></div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Origen</th><th class="text-end">Docs.</th><th class="text-end">IVA total</th><th class="text-end">Acreditable</th><th class="text-end">Sujeto a prorrata</th><th class="text-end">No acreditable</th><th class="text-end">Pendiente</th></tr></thead>
+                    <tbody>
+                        @if (_r.PorOrigen.Count == 0) { <tr><td colspan="7" class="text-center text-secondary py-3">No hay IVA soportado en el período.</td></tr> }
+                        @foreach (var o in _r.PorOrigen)
+                        {
+                            <tr><td>@o.Origen</td><td class="text-end">@o.Documentos</td><td class="text-end">@Formato.Importe(o.IvaTotal)</td><td class="text-end fw-semibold">@Formato.Importe(o.IvaAcreditable)</td>
+                                <td class="text-end">@Formato.Importe(o.IvaSujetoProrrata)</td><td class="text-end">@Formato.Importe(o.IvaNoAcreditable)</td><td class="text-end">@Formato.Importe(o.IvaPendiente)</td></tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr><td colspan="3" class="text-end text-secondary">Menos: devoluciones de compra</td><td class="text-end">@Formato.Importe(_r.IvaDevolucionesCompra)</td><td colspan="3"></td></tr>
+                        <tr class="fw-semibold"><td colspan="3" class="text-end">Acreditable neto</td><td class="text-end">@Formato.Importe(_r.IvaAcreditableNeto)</td><td colspan="3"></td></tr>
+                    </tfoot>
+                </table></div></div>
+
+            <div class="card"><div class="card-header"><strong>Detalle por documento</strong> <span class="text-secondary small">@_r.Detalle.Count fila(s)@(_r.Detalle.Count > MaxFilasPantalla ? $" · se muestran las primeras {MaxFilasPantalla}; Excel y CSV traen todas" : "")</span></div>
+                <div class="table-responsive" style="max-height:28rem"><table class="table table-sm align-middle mb-0">
+                    <thead class="sticky-top"><tr><th>Fecha</th><th>Origen</th><th>Documento</th><th>Proveedor</th><th>Cond.</th><th>Estado</th><th class="text-end">IVA total</th><th class="text-end">Acreditable</th></tr></thead>
+                    <tbody>
+                        @foreach (var d in _r.Detalle.Take(MaxFilasPantalla))
+                        {
+                            <tr class="@(d.IvaPendiente != 0 ? "table-warning" : d.Origen == "Devolución de compra" ? "table-light" : null)">
+                                <td>@d.Fecha.ToString("dd/MM/yyyy")</td><td>@d.Origen</td><td><code>@d.Documento</code></td><td>@d.Proveedor</td><td>@d.Condicion</td><td>@d.Estado</td>
+                                <td class="text-end">@Formato.Importe(d.IvaTotal)</td><td class="text-end">@Formato.Importe(d.IvaAcreditable)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table></div></div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const int MaxFilasPantalla = 300;
+    private List<DTOs.Generated.EmpresaDTO> _empresas = new();
+    private int _idEmpresa;
+    private DateTime _desde, _hasta;
+    private bool _cargando;
+    private IvaSoportadoResultado? _r;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var hoy = await RelojEquipo.HoyAsync();
+        var primero = new DateTime(hoy.Year, hoy.Month, 1).AddMonths(-1);
+        _desde = primero;
+        _hasta = primero.AddMonths(1).AddDays(-1);
+        var r = await Facturacion.Empresas();
+        _empresas = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Nombre).ToList() : new();
+        if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
+    }
+
+    private async Task Consultar()
+    {
+        if (_idEmpresa <= 0) return;
+        _cargando = true;
+        _r = await Respuestas.DatoAsync(await Api.Soportado(_idEmpresa, _desde, _hasta), "consultar el IVA soportado");
+        _cargando = false;
+    }
+
+    private async Task ExportarCsv()
+    {
+        if (_r is null) return;
+        await JS.InvokeVoidAsync("seepos.descargarTexto", $"iva-soportado-{_r.IdEmpresa}-{_r.Desde:yyyyMMdd}-{_r.Hasta:yyyyMMdd}.csv",
+            GeneradorIvaExcel.IvaSoportadoCsv(_r), "text/csv;charset=utf-8");
+    }
+}

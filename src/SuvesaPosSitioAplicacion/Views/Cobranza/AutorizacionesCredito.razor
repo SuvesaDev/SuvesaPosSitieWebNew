@@ -1,0 +1,186 @@
+@page "/collections/credit-authorizations"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Cobranza
+@using SuvesaPosSitioAplicacion.Security
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@using Havit.Blazor.Components.Web.Bootstrap
+@inject IDesbloqueoCredito Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@* REQ-01: un cliente con una factura vencida no factura a crédito. Quien factura pide la autorización
+   desde Facturación y el administrador la aprueba o rechaza aquí, aunque esté en otra sede. Una
+   aprobación sirve para UNA factura a crédito de ese cliente y vence si no se usa. *@
+
+<AppPantalla Pantalla="Autorizaciones de crédito" Codigo="COBRANZA.AUTORIZACIONES_DE_CREDITO" Icono="bi-shield-check"
+             Subtitulo="Solicitudes para facturar a crédito a clientes con facturas vencidas">
+    <ChildContent>
+        <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+            <div class="form-check mb-0">
+                <input id="aut-pendientes" class="form-check-input" type="checkbox" @bind="_soloPendientes" @bind:after="Cargar" />
+                <label class="form-check-label" for="aut-pendientes">Solo pendientes</label>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="Cargar" disabled="@_cargando">
+                <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Actualizar
+            </button>
+            <span class="text-secondary small">Una aprobación sirve para una sola factura a crédito y vence si no se usa.</span>
+        </div>
+
+        @if (_error is not null)
+        {
+            <div class="alert alert-danger" role="alert">@_error</div>
+        }
+
+        <div class="card"><div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr>
+                    <th>Solicitada</th><th>Cliente</th><th>Solicitó</th><th>Motivo</th>
+                    <th class="text-end">Venta</th><th class="text-end">Vencido</th><th>Estado</th><th></th>
+                </tr></thead>
+                <tbody>
+                    @if (_cargando)
+                    {
+                        <tr><td colspan="8" class="text-secondary py-3">Cargando…</td></tr>
+                    }
+                    else if (_filas.Count == 0)
+                    {
+                        <tr><td colspan="8" class="text-secondary py-3">@(_soloPendientes ? "No hay solicitudes pendientes." : "No hay solicitudes en los últimos 7 días.")</td></tr>
+                    }
+                    @foreach (var s in _filas)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@HoraCr(s.FechaSolicitudUtc)</td>
+                            <td><code>@s.IdCliente</code> @s.NombreCliente</td>
+                            <td>@s.Solicitante</td>
+                            <td style="min-width:14rem">@s.Motivo</td>
+                            <td class="text-end">@(s.MontoEstimado is { } m ? Formato.Importe(m) : "—")</td>
+                            <td class="text-end">
+                                @s.FacturasVencidas fact. · @s.DiasMoraMaximo d
+                                <div class="small text-secondary">@Formato.Importe(s.SaldoVencido)</div>
+                            </td>
+                            <td>
+                                <span class="badge @Clase(s.Estado)">@s.Estado</span>
+                                @if (s.Estado == "Aprobada" && s.FechaVencimientoUtc is { } v) { <div class="small text-secondary">hasta @HoraCr(v)</div> }
+                                @if (!string.IsNullOrWhiteSpace(s.Resolutor)) { <div class="small text-secondary">@s.Resolutor</div> }
+                                @if (!string.IsNullOrWhiteSpace(s.ComentarioResolucion)) { <div class="small text-secondary">@s.ComentarioResolucion</div> }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                @if (s.Estado == "Pendiente" && PuedeResolver)
+                                {
+                                    <button type="button" class="btn btn-sm btn-success me-1" @onclick="() => Abrir(s, true)">Aprobar</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => Abrir(s, false)">Rechazar</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div></div>
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modal" Titulo="@(_aprobar ? "Aprobar autorización" : "Rechazar solicitud")"
+          Subtitulo="@(_actual is null ? null : $"{_actual.NombreCliente} · {_actual.IdCliente}")"
+          Tamano="ModalSize.Regular" AlGuardar="Resolver" Guardando="_guardando" Peligro="@(!_aprobar)"
+          TextoGuardar="@(_aprobar ? "Aprobar" : "Rechazar")">
+    <ChildContent>
+        @if (_actual is not null)
+        {
+            <dl class="row small mb-3">
+                <dt class="col-4 fw-normal text-secondary">Pidió</dt><dd class="col-8">@_actual.Solicitante</dd>
+                <dt class="col-4 fw-normal text-secondary">Motivo</dt><dd class="col-8">@_actual.Motivo</dd>
+                <dt class="col-4 fw-normal text-secondary">Facturas vencidas</dt><dd class="col-8">@_actual.FacturasVencidas (la de más atraso, @_actual.DiasMoraMaximo días) · @Formato.Importe(_actual.SaldoVencido)</dd>
+                <dt class="col-4 fw-normal text-secondary">Crédito</dt><dd class="col-8">Límite @Formato.Importe(_actual.LimiteAprobado) · disponible @Formato.Importe(_actual.Disponible)</dd>
+                <dt class="col-4 fw-normal text-secondary">Venta</dt><dd class="col-8">@(_actual.MontoEstimado is { } m ? Formato.Importe(m) : "—")</dd>
+            </dl>
+            <label class="form-label" for="aut-comentario">@(_aprobar ? "Comentario (opcional)" : "Motivo del rechazo")</label>
+            <textarea id="aut-comentario" class="form-control" rows="3" maxlength="300" @bind="_comentario"></textarea>
+            @if (_aprobar)
+            {
+                <div class="form-text">Sirve para una sola factura a crédito de este cliente. El límite de crédito se sigue exigiendo. Vence en 12 horas si no se usa.</div>
+            }
+            @if (_errorModal is not null)
+            {
+                <div class="alert alert-danger mt-3 mb-0" role="alert">@_errorModal</div>
+            }
+        }
+    </ChildContent>
+</AppModal>
+
+@code {
+    private AppModal _modal = default!;
+    private List<SolicitudDesbloqueoWebDTO> _filas = new();
+    private bool _soloPendientes = true;
+    private bool _cargando;
+    private bool _guardando;
+    private string? _error;
+    private string? _errorModal;
+    private SolicitudDesbloqueoWebDTO? _actual;
+    private bool _aprobar;
+    private string _comentario = string.Empty;
+
+    private bool PuedeResolver => Sesion.Puede("COBRANZA.AUTORIZACIONES_DE_CREDITO", AccionPantalla.Editar);
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        _error = null;
+        var r = await Api.Listar(_soloPendientes);
+        _error = await Respuestas.MensajeSiFallaAsync(r, "consultar las solicitudes");
+        if (string.IsNullOrEmpty(_error)) _filas = r.Responses?.ToList() ?? new();
+        _error = string.IsNullOrEmpty(_error) ? null : _error;
+        _cargando = false;
+    }
+
+    private async Task Abrir(SolicitudDesbloqueoWebDTO s, bool aprobar)
+    {
+        _actual = s;
+        _aprobar = aprobar;
+        _comentario = string.Empty;
+        _errorModal = null;
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Resolver()
+    {
+        if (_actual is null) return;
+        if (!_aprobar && string.IsNullOrWhiteSpace(_comentario))
+        {
+            _errorModal = "Indique el motivo del rechazo.";
+            return;
+        }
+
+        _guardando = true;
+        _errorModal = null;
+        var r = _aprobar ? await Api.Aprobar(_actual.Id, _comentario) : await Api.Rechazar(_actual.Id, _comentario);
+        var falla = await Respuestas.MensajeSiFallaAsync(r, _aprobar ? "aprobar la solicitud" : "rechazar la solicitud");
+        _guardando = false;
+        if (falla is not null)
+        {
+            // Dentro del modal el error va en línea: un cuadro encima cerraría la ficha.
+            _errorModal = falla.Length > 0 ? falla : null;
+            return;
+        }
+
+        await _modal.OcultarAsync();
+        Dialogos.Exito(_aprobar ? "Autorización aprobada." : "Solicitud rechazada.");
+        await Cargar();
+    }
+
+    /// <summary>La hora se muestra en Costa Rica (UTC−6, sin horario de verano), no en la zona del servidor.</summary>
+    private static string HoraCr(DateTime utc) => DateTime.SpecifyKind(utc, DateTimeKind.Utc).AddHours(-6).ToString("dd/MM/yyyy HH:mm");
+
+    private static string Clase(string estado) => estado switch
+    {
+        "Pendiente" => "text-bg-warning",
+        "Aprobada" => "text-bg-success",
+        "Rechazada" => "text-bg-danger",
+        "Consumida" => "text-bg-secondary",
+        _ => "text-bg-light text-secondary border",
+    };
+}

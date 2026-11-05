@@ -31,6 +31,8 @@ public sealed class AlistamientoResumen
     public bool HaciendaAceptada { get; set; }
     public string? AvisoDespacho { get; set; }
     public bool EsTiquete { get; set; }
+    /// <summary>Saldo pendiente de una entrega parcial: la orden de la que salió.</summary>
+    public long? IdOrdenOrigen { get; set; }
     public DateTime? FechaAceptacion { get; set; }
     public string? UsuarioAlistamiento { get; set; }
     public int Lineas { get; set; }
@@ -59,9 +61,15 @@ public sealed class AlistamientoOrden
     public bool EsElectronica { get; set; }
     public bool HaciendaAceptada { get; set; }
     public string? AvisoDespacho { get; set; }
+    /// <summary>La venta de origen es un tiquete (no una factura); decide qué documento se imprime.</summary>
+    public bool EsTiquete { get; set; }
     public string? UsuarioAlistamiento { get; set; }
     public string? Observaciones { get; set; }
     public string? MotivoFaltante { get; set; }
+    /// <summary>Si esta orden es el saldo pendiente de una entrega parcial: la orden de la que salió.</summary>
+    public long? IdOrdenOrigen { get; set; }
+    /// <summary>Si esta orden se entregó parcialmente: la orden que quedó con el saldo pendiente.</summary>
+    public long? IdOrdenSaldo { get; set; }
     public string? RecibidoPor { get; set; }
     public string? FirmaPng { get; set; }
     public int? DiasMinimosCaducidad { get; set; }

@@ -716,6 +716,14 @@ public static partial class MenuSeePos
                     Codigo = "COBRANZA.GERENCIAL",
                     Ruta = "/collections/management",
                 },
+                new ItemMenu
+                {
+                    // El administrador aprueba o rechaza las solicitudes de facturar a crédito a un
+                    // cliente bloqueado por morosidad (una factura por autorización).
+                    Titulo = "Autorizaciones de crédito",
+                    Codigo = "COBRANZA.AUTORIZACIONES_DE_CREDITO",
+                    Ruta = "/collections/credit-authorizations",
+                },
             }
         },
         new ItemMenu
@@ -846,6 +854,27 @@ public static partial class MenuSeePos
                     Titulo = "Importaciones",
                     Codigo = "MODULO_REPORTES.IMPORTACIONES",
                     Ruta = "/moduloReportes/importaciones",
+                },
+                new ItemMenu
+                {
+                    // Fase 1 de IVA por emisor (Ley del IVA): IVA cobrado en ventas, por tarifa. Soportado y Prorrata siguen.
+                    Titulo = "IVA Repercutido",
+                    Codigo = "MODULO_REPORTES.IVA_REPERCUTIDO",
+                    Ruta = "/moduloReportes/iva-repercutido",
+                },
+                new ItemMenu
+                {
+                    // Fase 2 de IVA por emisor: crédito fiscal de compras, gastos e importaciones.
+                    Titulo = "IVA Soportado",
+                    Codigo = "MODULO_REPORTES.IVA_SOPORTADO",
+                    Ruta = "/moduloReportes/iva-soportado",
+                },
+                new ItemMenu
+                {
+                    // Fase 3 de IVA por emisor: prorrata (proporcionalidad del crédito fiscal) y su regularización anual.
+                    Titulo = "Prorrata",
+                    Codigo = "MODULO_REPORTES.PRORRATA",
+                    Ruta = "/moduloReportes/prorrata",
                 },
                 new ItemMenu
                 {

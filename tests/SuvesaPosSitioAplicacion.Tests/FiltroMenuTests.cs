@@ -151,8 +151,9 @@ public class FiltroMenuTests
         // Cierre anual, Balanza, Estado de resultados, Balance general, Flujo de
         // efectivo, W5) + 1 (Pretoma) + 1 (Boletas de Consignación) + 6 (módulo Bodega:
         // raíz + Cola, Empaque, Despacho, Ubicaciones, Rutas) + 1 (Recibo de mercadería) + 4
-        // (módulo Cobranza: Cobranza, Seguimiento, Dashboard, Gerencial).
-        Assert.Equal(159, Contar(MenuSeePos.Items));   // develop suma "Consulta de Arqueos" y quita "Bodega → Ubicaciones" (ya está en Catálogos)
+        // (módulo Cobranza: Cobranza, Seguimiento, Dashboard, Gerencial) + 1 (Cobranza →
+        // Autorizaciones de crédito) + 3 (IVA Repercutido, Soportado y Prorrata).
+        Assert.Equal(163, Contar(MenuSeePos.Items));   // develop suma "Consulta de Arqueos" y quita "Bodega → Ubicaciones" (ya está en Catálogos)
     }
 
     private sealed class ContabilidadFalsa : IContextoContabilidad

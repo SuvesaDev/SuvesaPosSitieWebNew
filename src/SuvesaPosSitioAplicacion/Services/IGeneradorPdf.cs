@@ -70,7 +70,13 @@ public sealed record EstadoCuentaPdf(
     decimal Vencido91oMas,
     IReadOnlyList<LineaEstadoCuentaPdf> Detalle,
     string Moneda = "CRC",
-    string? GeneradoPor = null);
+    string? GeneradoPor = null)
+{
+    /// <summary>Si el estado se limitó a una sucursal del cliente, su nombre (el saldo total pasa a ser el de esa sucursal).</summary>
+    public string? SucursalFiltro { get; init; }
+    /// <summary>Membrete corporativo (logo, razón social, identificación y contacto). Si falta, el PDF no lo lleva.</summary>
+    public EncabezadoEmpresaPdf? Empresa { get; init; }
+}
 
 /// <summary>Una factura con saldo pendiente dentro de un estado de cuenta.</summary>
 public sealed record LineaEstadoCuentaPdf(
@@ -82,4 +88,6 @@ public sealed record LineaEstadoCuentaPdf(
     decimal NotasCredito,
     decimal Pagado,
     decimal Saldo,
-    string? EstadoMh);
+    string? EstadoMh,
+    int DiasMora = 0,
+    string? Sucursal = null);

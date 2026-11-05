@@ -42,6 +42,34 @@ public sealed class ManejadorRespuestas : IManejadorRespuestas
         return false;
     }
 
+    public async Task<string?> MensajeSiFallaAsync(Response respuesta, string? queSeIntentaba = null)
+    {
+        if (respuesta.EsCorrecta)
+        {
+            return null;
+        }
+
+        var detalle = respuesta.Excepcion ?? "El servidor no explico el motivo.";
+
+        // La sesion caducada sigue su camino de siempre: aviso y salida.
+        if (EsSesionCaducada(detalle))
+        {
+            await AvisarAsync(respuesta, queSeIntentaba);
+            return string.Empty;
+        }
+
+        _log.LogWarning("Fallo del API al {Intento}: {Detalle}",
+            queSeIntentaba ?? "consultar", detalle);
+
+        var motivo = EsPermisoDenegado(detalle)
+            ? "No tiene permiso para esta acción. El menú solo muestra lo que su rol permite."
+            : respuesta.ErroresValidacion.Count > 0
+                ? string.Join("\n", respuesta.ErroresValidacion)
+                : detalle;
+
+        return queSeIntentaba is null ? motivo : $"No se pudo {queSeIntentaba}. {motivo}";
+    }
+
     private async Task AvisarAsync(Response respuesta, string? queSeIntentaba)
     {
         var detalle = respuesta.Excepcion ?? "El servidor no explico el motivo.";

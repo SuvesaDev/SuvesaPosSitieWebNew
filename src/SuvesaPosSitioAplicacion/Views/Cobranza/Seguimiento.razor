@@ -90,7 +90,7 @@
                     }
                     @if (Sesion.Puede("COBRANZA.SEGUIMIENTO", AccionPantalla.Crear))
                     {
-                        <button class="btn btn-sm btn-primary ms-auto" disabled="@(!PuedeAbrir)" @onclick="AbrirModal">
+                        <button class="btn btn-sm btn-primary ms-auto" disabled="@(!PuedeAbrir || _guardando)" @onclick="Abrir">
                             <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Abrir seguimiento
                         </button>
                     }
@@ -202,12 +202,6 @@
             }
         }
 
-        <AppModal @ref="_modal" Titulo="Abrir seguimiento" Subtitulo="@ResumenSeleccion" AlGuardar="Abrir"
-                  Guardando="_guardando" PuedeGuardar="PresentacionCobranza.ObservacionValida(_observacion)">
-            <label class="form-label" for="obs-apertura">Observación (lo conversado con el cliente)</label>
-            <textarea id="obs-apertura" class="form-control" rows="4" maxlength="2000" @bind="_observacion" @bind:event="oninput"></textarea>
-            <div class="form-text">Mínimo @PresentacionCobranza.MinimoObservacion caracteres.</div>
-        </AppModal>
     </ChildContent>
 </AppPantalla>
 
@@ -217,8 +211,6 @@
     private bool _guardando;
     private bool _soloMios = true;
     private string _estadoLista = string.Empty;
-    private string _observacion = string.Empty;
-    private AppModal _modal = default!;
     private readonly FiltroFacturasVencidasWeb _filtro = new();
     private PaginaFacturasVencidasWeb? _pagina;
     private List<SeguimientoResumenWebDTO>? _seguimientos;
@@ -232,10 +224,6 @@
 
     private int TotalPaginas => _pagina is null ? 1 : Math.Max(1, (int)Math.Ceiling(_pagina.Total / (double)_pagina.Tamano));
     private decimal SaldoSeleccion => _datosSeleccion.Values.Sum(f => f.Saldo);
-
-    private string ResumenSeleccion => _datosSeleccion.Count == 0
-        ? string.Empty
-        : $"{_datosSeleccion.Count} factura(s) de {_datosSeleccion.Values.First().NombreCliente} · {Formato.Importe(SaldoSeleccion)}";
 
     /// <summary>Reglas que el API también exige: mismo cliente y misma moneda.</summary>
     private string? _motivoNoAbrir => _datosSeleccion.Values.Select(f => f.IdCliente).Distinct().Count() > 1
@@ -313,28 +301,20 @@
         else { _seleccionadas.Remove(f.IdVenta); _datosSeleccion.Remove(f.IdVenta); }
     }
 
-    private async Task AbrirModal()
-    {
-        _observacion = string.Empty;
-        await _modal.MostrarAsync();
-    }
-
     private async Task Abrir()
     {
-        if (!PuedeAbrir || !PresentacionCobranza.ObservacionValida(_observacion)) return;
+        if (!PuedeAbrir || _guardando) return;
         _guardando = true;
         var id = await Respuestas.DatoAsync(
-            await Api.Abrir(new AbrirSeguimientoWebComando { IdsVenta = _seleccionadas.ToList(), Observacion = _observacion.Trim() }),
+            await Api.Abrir(new AbrirSeguimientoWebComando { IdsVenta = _seleccionadas.ToList(), Observacion = string.Empty }),
             "abrir el seguimiento");
         _guardando = false;
         if (id == 0)
         {
             // El manejador ya mostró el motivo (p. ej. factura tomada por otro cobrador): se refresca el listado.
-            await _modal.OcultarAsync();
             await BuscarVencidas(_filtro.Pagina);
             return;
         }
-        await _modal.OcultarAsync();
         Dialogos.Exito("Seguimiento abierto.");
         Navegacion.NavigateTo($"/collections/follow-up/{id}");
     }

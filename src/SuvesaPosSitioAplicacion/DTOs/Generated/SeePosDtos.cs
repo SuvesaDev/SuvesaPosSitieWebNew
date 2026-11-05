@@ -2068,6 +2068,12 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("tipoprecio")]
         public int Tipoprecio { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("idRutaComercial")]
+        public int? IdRutaComercial { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoCliente")]
+        public string? TipoCliente { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("descuentoEspecial")]
         public double DescuentoEspecial { get; set; } = default!;
 
@@ -3318,6 +3324,12 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("tipoprecio")]
         [System.ComponentModel.DataAnnotations.Range(1, 5)]
         public int Tipoprecio { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idRutaComercial")]
+        public int? IdRutaComercial { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoCliente")]
+        public string? TipoCliente { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("sinrestriccion")]
         public bool Sinrestriccion { get; set; } = default!;
@@ -7456,6 +7468,12 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("tipoprecio")]
         public int Tipoprecio { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("idRutaComercial")]
+        public int? IdRutaComercial { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoCliente")]
+        public string? TipoCliente { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("sinrestriccion")]
         public bool Sinrestriccion { get; set; } = default!;
 
@@ -8431,6 +8449,21 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("precio_Promo")]
         public float Precio_Promo { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("utilidad_A")]
+        public float? Utilidad_A { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("utilidad_B")]
+        public float? Utilidad_B { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("utilidad_C")]
+        public float? Utilidad_C { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("utilidad_D")]
+        public float? Utilidad_D { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("utilidad_Promo")]
+        public float? Utilidad_Promo { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("promo_Activa")]
         public bool Promo_Activa { get; set; } = default!;

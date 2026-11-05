@@ -144,6 +144,7 @@ builder.Services.AddHttpClient<IReciboApiCliente, ReciboApiCliente>(c => c.BaseA
 // ReportesOperacion recibe IHttpClientFactory y toma el cliente nombrado SeePosApi
 // ya configurado arriba. No es un cliente HTTP tipado (que exige HttpClient directo).
 builder.Services.AddScoped<IReportesOperacion, ReportesOperacion>();
+builder.Services.AddScoped<SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IIvaReportes, SuvesaPosSitioAplicacion.ApiConexion.ProxyClass.IvaReportes>();
 builder.Services.AddScoped<IAuditoria, Auditoria>();
 ClienteApi<ICentrosApiCliente, CentrosApiCliente>();
 ClienteApi<IBancosApiCliente, BancosApiCliente>();
@@ -213,6 +214,7 @@ builder.Services.AddScoped<IContabilidad, Contabilidad>();
 builder.Services.AddScoped<IContextoContabilidad, ContextoContabilidad>();
 builder.Services.AddScoped<IFacturacion, Facturacion>();
 builder.Services.AddScoped<IRutasComerciales, RutasComerciales>();
+builder.Services.AddScoped<ITarifasPrecio, TarifasPrecio>();
 builder.Services.AddScoped<IComisiones, Comisiones>();
 builder.Services.AddScoped<ICompras, Compras>();
 builder.Services.AddScoped<IBandejaDocumentos, BandejaDocumentos>();
@@ -262,6 +264,8 @@ builder.Services.AddScoped<IEnviosCorreo, EnviosCorreo>();
 builder.Services.AddScoped<IAlertasAdministrador, AlertasAdministrador>();
 builder.Services.AddScoped<ICertificadosRegistro, CertificadosRegistro>();
 builder.Services.AddScoped<ICobranza, Cobranza>();
+builder.Services.AddScoped<IDesbloqueoCredito, DesbloqueoCredito>();
+builder.Services.AddScoped<IClienteUnificacion, ClienteUnificacion>();
 builder.Services.AddScoped<IAvisadorAlertas, AvisadorAlertas>();
 builder.Services.AddScoped<ITipoCambio, TipoCambio>();
 
@@ -551,8 +555,10 @@ app.MapGet("/reportes/cuentas-por-pagar", async (
 app.MapGet("/reportes/estado-cuenta", async (
     [Microsoft.AspNetCore.Mvc.FromQuery] long idCliente,
     [Microsoft.AspNetCore.Mvc.FromQuery] DateTime? corte,
+    [Microsoft.AspNetCore.Mvc.FromQuery] long? idClienteSucursal,
     SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IComandosFacturacion api,
     IGeneradorPdf pdf,
+    MembreteReporte membrete,
     HttpContext http) =>
 {
     var generadoPor = http.User?.FindFirst(ClaimsSeePos.NombreUsuario)?.Value
@@ -563,6 +569,11 @@ app.MapGet("/reportes/estado-cuenta", async (
         return Results.Problem(r.Excepcion ?? "No se pudo consultar el estado de cuenta.");
 
     var e = r.Responses;
+    // Filtro opcional por sucursal del cliente: el detalle se limita a esa sucursal.
+    var detalleFiltrado = idClienteSucursal is > 0
+        ? e.Detalle.Where(d => d.IdClienteSucursal == idClienteSucursal).ToList()
+        : e.Detalle;
+    var nombreSucursal = idClienteSucursal is > 0 ? detalleFiltrado.Select(d => d.SucursalCliente).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? $"#{idClienteSucursal}" : null;
     var bytes = pdf.EstadoCuenta(new EstadoCuentaPdf(
         NombreCliente: e.Nombre ?? $"Cliente {idCliente}",
         IdentificacionCliente: idCliente.ToString(),
@@ -576,7 +587,7 @@ app.MapGet("/reportes/estado-cuenta", async (
         Vencido31a60: (decimal)e.Vencido31a60,
         Vencido61a90: (decimal)e.Vencido61a90,
         Vencido91oMas: (decimal)e.Vencido91oMas,
-        Detalle: e.Detalle.Select(d => new LineaEstadoCuentaPdf(
+        Detalle: detalleFiltrado.Select(d => new LineaEstadoCuentaPdf(
             Factura: d.NumFactura.ToString("0"),
             Consecutivo: d.ConsecutivoMh,
             Fecha: d.Fecha,
@@ -585,8 +596,14 @@ app.MapGet("/reportes/estado-cuenta", async (
             NotasCredito: (decimal)d.NotasCreditoAplicadas,
             Pagado: (decimal)d.PagosAplicados,
             Saldo: (decimal)d.SaldoActual,
-            EstadoMh: d.EstadoMh)).ToList(),
-        GeneradoPor: generadoPor));
+            EstadoMh: d.EstadoMh,
+            DiasMora: Math.Max(0, (e.FechaCorte.Date - (d.Vence ?? d.Fecha).Date).Days),
+            Sucursal: d.SucursalCliente)).ToList(),
+        GeneradoPor: generadoPor)
+    {
+        SucursalFiltro = nombreSucursal,
+        Empresa = await membrete.ResolverAsync()
+    });
 
     return Results.File(bytes, "application/pdf", $"estado-cuenta-{idCliente}.pdf");
 });
@@ -646,6 +663,53 @@ app.MapGet("/reportes/evidencia-uat/{idEvidencia:long}", async (
     {
         ContextoLlamada.Token = null;
     }
+});
+
+// IVA repercutido en Excel (resumen por tarifa + detalle), mismo período que la pantalla.
+app.MapGet("/reportes/iva-repercutido.xlsx", async (
+    [Microsoft.AspNetCore.Mvc.FromQuery] int idEmpresa,
+    [Microsoft.AspNetCore.Mvc.FromQuery] DateTime desde,
+    [Microsoft.AspNetCore.Mvc.FromQuery] DateTime hasta,
+    SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IIvaReportes api) =>
+{
+    if (idEmpresa <= 0) return Results.BadRequest("Indique el emisor.");
+    var r = await api.Repercutido(idEmpresa, desde, hasta);
+    if (!r.EsCorrecta || r.Responses is null)
+        return Results.Problem(r.Excepcion ?? "No se pudo consultar el IVA repercutido.");
+    var bytes = SuvesaPosSitioAplicacion.Services.GeneradorIvaExcel.IvaRepercutido(r.Responses, DateTime.Now);
+    return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        $"iva-repercutido-{idEmpresa}-{desde:yyyyMMdd}-{hasta:yyyyMMdd}.xlsx");
+});
+
+// IVA soportado en Excel (resumen por origen + detalle), mismo período que la pantalla.
+app.MapGet("/reportes/iva-soportado.xlsx", async (
+    [Microsoft.AspNetCore.Mvc.FromQuery] int idEmpresa,
+    [Microsoft.AspNetCore.Mvc.FromQuery] DateTime desde,
+    [Microsoft.AspNetCore.Mvc.FromQuery] DateTime hasta,
+    SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IIvaReportes api) =>
+{
+    if (idEmpresa <= 0) return Results.BadRequest("Indique el emisor.");
+    var r = await api.Soportado(idEmpresa, desde, hasta);
+    if (!r.EsCorrecta || r.Responses is null)
+        return Results.Problem(r.Excepcion ?? "No se pudo consultar el IVA soportado.");
+    var bytes = SuvesaPosSitioAplicacion.Services.GeneradorIvaExcel.IvaSoportado(r.Responses, DateTime.Now);
+    return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        $"iva-soportado-{idEmpresa}-{desde:yyyyMMdd}-{hasta:yyyyMMdd}.xlsx");
+});
+
+// Prorrata del IVA en Excel (por mes + resumen y regularización).
+app.MapGet("/reportes/prorrata.xlsx", async (
+    [Microsoft.AspNetCore.Mvc.FromQuery] int idEmpresa,
+    [Microsoft.AspNetCore.Mvc.FromQuery] int anio,
+    [Microsoft.AspNetCore.Mvc.FromQuery] int hastaMes,
+    SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IIvaReportes api) =>
+{
+    if (idEmpresa <= 0) return Results.BadRequest("Indique el emisor.");
+    var r = await api.Prorrata(idEmpresa, anio, hastaMes <= 0 ? 12 : hastaMes);
+    if (!r.EsCorrecta || r.Responses is null)
+        return Results.Problem(r.Excepcion ?? "No se pudo consultar la prorrata.");
+    var bytes = SuvesaPosSitioAplicacion.Services.GeneradorIvaExcel.Prorrata(r.Responses, DateTime.Now);
+    return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"prorrata-{idEmpresa}-{anio}-{r.Responses.HastaMes:00}.xlsx");
 });
 
 app.MapGet("/healthz", () => Results.Ok(new { estado = "ok", ola = 0 })).AllowAnonymous();

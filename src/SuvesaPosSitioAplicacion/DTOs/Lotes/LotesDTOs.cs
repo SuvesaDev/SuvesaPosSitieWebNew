@@ -291,6 +291,8 @@ public sealed class PretomaArticulo
 public sealed class PretomaBusqueda
 {
     [JsonPropertyName("hayMas")] public bool HayMas { get; set; }
+    /// <summary>Artículos que coinciden pero no se cuentan: inactivos o de servicio.</summary>
+    [JsonPropertyName("excluidos")] public int Excluidos { get; set; }
     [JsonPropertyName("articulos")] public List<PretomaArticulo> Articulos { get; set; } = new();
 }
 

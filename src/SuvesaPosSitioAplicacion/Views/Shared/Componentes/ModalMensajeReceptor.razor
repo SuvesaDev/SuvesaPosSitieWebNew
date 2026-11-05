@@ -1,6 +1,7 @@
 @using SuvesaPosSitioAplicacion.DTOs.Compras
 @using SuvesaPosSitioAplicacion.Services
 @inject ICompras Api
+@inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IIvaReportes IvaApi
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 
@@ -22,12 +23,16 @@
             {
                 <div class="col-6"><label class="form-label">Monto total del impuesto</label><input class="form-control" disabled value="@Formato.Importe(_montoImpuesto)" /></div>
                 <div class="col-6"><label class="form-label">Monto total de la factura</label><input class="form-control" disabled value="@Formato.Importe(_totalFactura)" /></div>
-                <div class="col-12"><label class="form-label">Condición del impuesto</label><select class="form-select" @bind="_condicionImpuesto" @bind:after="Recalcular"><option value="">Seleccione...</option><option value="01">Genera crédito IVA</option><option value="02">Genera crédito parcial del IVA</option><option value="03">Bienes de capital</option><option value="04">Gasto corriente, no genera IVA</option><option value="05">Proporcionalidad</option></select></div>
+                <div class="col-12"><label class="form-label">Condición del impuesto</label><select class="form-select" @bind="_condicionImpuesto" @bind:after="RecalcularAsync"><option value="">Seleccione...</option><option value="01">Genera crédito IVA</option><option value="02">Genera crédito parcial del IVA</option><option value="03">Bienes de capital</option><option value="04">Gasto corriente, no genera IVA</option><option value="05">Proporcionalidad</option></select></div>
+                @if (_condicionImpuesto == "05")
+                {
+                    <div class="col-12"><div class="form-text">Proporcionalidad: el crédito sugerido aplica la prorrata provisional de @_porcentajeProrrata.ToString("0.##")% (@_origenProrrata). Puede ajustarlo si su contador lo indica.</div></div>
+                }
                 @if (_condicionImpuesto == "02")
                 {
                     <div class="col-12">
                         <label class="form-label">Tarifa de venta aplicada (%)</label>
-                        <input type="number" min="0" max="100" step="0.01" class="form-control" @bind="_tarifaVenta" @bind:after="Recalcular" />
+                        <input type="number" min="0" max="100" step="0.01" class="form-control" @bind="_tarifaVenta" @bind:after="RecalcularAsync" />
                         <div class="form-text">A qué tarifa de IVA se vende este artículo — determina cuánto del impuesto pagado se puede acreditar.</div>
                     </div>
                 }
@@ -65,6 +70,8 @@
     private decimal _montoAcreditar;
     private decimal _montoGastoAplicable;
     private decimal _tarifaVenta;
+    private decimal _porcentajeProrrata = 100m;
+    private string _origenProrrata = "";
     private bool _enviando;
 
     /// <summary>Abre el modal para una compra concreta. montoImpuesto/totalFactura solo
@@ -79,6 +86,8 @@
         _condicionImpuesto = string.Empty;
         _montoImpuesto = montoImpuesto;
         _tarifaVenta = 0;
+        _porcentajeProrrata = 100m;
+        _origenProrrata = "";
         // Sin condición del impuesto elegida todavía no hay fórmula que aplicar — se
         // llenan al elegirla (Recalcular), no antes.
         _montoAcreditar = 0;
@@ -98,18 +107,37 @@
 
     /// <summary>Aplica las fórmulas fijas de Hacienda para cada condición del impuesto del
     /// Mensaje Receptor. MN = subtotal neto (factura menos su propio impuesto); IT = monto
-    /// total del impuesto. 01/03/05 acreditan el 100% del IT y dejan MN como gasto; 04 no
+    /// total del impuesto. 01/03 acreditan el 100% del IT y dejan MN como gasto; 05 (proporcionalidad)
+    /// acredita IT × la prorrata provisional del año (100% si no aplica) y el resto es gasto; 04 no
     /// acredita nada y el gasto es la factura completa; 02 depende de a qué tarifa se
     /// revende el artículo (Tv), que el usuario debe indicar aparte.</summary>
+    private async Task RecalcularAsync()
+    {
+        // Condición 05 (proporcionalidad): el crédito sugerido es el IVA × la prorrata provisional del año de la compra.
+        // Si el cálculo no está disponible se queda en 100% (la fórmula de siempre) y el usuario puede ajustarlo.
+        if (_condicionImpuesto == "05")
+        {
+            _porcentajeProrrata = 100m; _origenProrrata = "no disponible: se asume 100%";
+            var p = await IvaApi.PorcentajeProrrataDeCompra(_idCompra);
+            if (p.EsCorrecta && p.Responses is { } pr) { _porcentajeProrrata = pr.Porcentaje; _origenProrrata = pr.Origen; }
+        }
+        Recalcular();
+    }
+
     private void Recalcular()
     {
         var it = _montoImpuesto;
         var mn = _totalFactura - it;
         switch (_condicionImpuesto)
         {
-            case "01" or "03" or "05":
+            case "01" or "03":
                 _montoAcreditar = it;
                 _montoGastoAplicable = mn;
+                break;
+            case "05":
+                var proporcional = CalculoDocumento.Redondear(it * (_porcentajeProrrata / 100m));
+                _montoAcreditar = proporcional;
+                _montoGastoAplicable = mn + (it - proporcional);
                 break;
             case "04":
                 _montoAcreditar = 0;

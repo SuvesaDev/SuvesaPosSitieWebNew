@@ -407,7 +407,7 @@
  private async Task CargarRutasComerciales()
  {
      _rutasComerciales = ((await Respuestas.DatoAsync(await RutasApi.Listar(Sesion.IdSucursal), "consultar las rutas")) ?? Array.Empty<RutaComercialDTO>())
-         .Where(r => r.Activo).ToList();
+         .Where(r => r.Activo && !r.EsConsumidorFinal).ToList();
      _rutaEsSeleccionManual = false;
      var usuarioValidado = _desbloqueo.UsuarioValidado?.IdUsuario;
      if (string.IsNullOrWhiteSpace(usuarioValidado))
@@ -421,9 +421,18 @@
 
      if (capacidad?.EsAgente == true)
      {
+         var todas = _rutasComerciales;
          _rutasComerciales = _rutasComerciales
              .Where(r => r.Agentes.Any(a => a.IdUsuario == usuarioValidado))
              .ToList();
+         if (_rutasComerciales.Count == 0)
+         {
+             // Agente (o dual) sin rutas propias en la sucursal: actúa como Servicio al Cliente y elige ruta.
+             _rutasComerciales = todas;
+             _rutaEsSeleccionManual = true;
+             _idRutaComercial = 0;
+             return;
+         }
          _idRutaComercial = _rutasComerciales.FirstOrDefault(r => r.Agentes
              .Any(a => a.IdUsuario == usuarioValidado && a.EsRutaPredeterminada))?.IdRuta ?? 0;
          if (_idRutaComercial > 0) await AlCambiarRuta();

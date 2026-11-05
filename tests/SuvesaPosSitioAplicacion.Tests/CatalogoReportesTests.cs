@@ -6,12 +6,12 @@ namespace SuvesaPosSitioAplicacion.Tests;
 public sealed class CatalogoReportesTests
 {
     [Fact]
-    public void Catalogo_Tiene29ReportesUnicosEn8Dominios()
+    public void Catalogo_Tiene32ReportesUnicosEn9Dominios()
     {
-        Assert.Equal(8, CatalogoReportes.Grupos.Length);
-        Assert.Equal(29, CatalogoReportes.Todos.Count);
-        Assert.Equal(29, CatalogoReportes.Todos.Select(x => x.Tipo).Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Equal(29, CatalogoReportes.Todos.Select(x => x.Ruta).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(9, CatalogoReportes.Grupos.Length);
+        Assert.Equal(32, CatalogoReportes.Todos.Count);
+        Assert.Equal(32, CatalogoReportes.Todos.Select(x => x.Tipo).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(32, CatalogoReportes.Todos.Select(x => x.Ruta).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
     [Fact]

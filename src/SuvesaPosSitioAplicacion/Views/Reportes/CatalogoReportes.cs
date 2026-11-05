@@ -186,6 +186,18 @@ public static class CatalogoReportes
                 "Cambios registrados por usuario, acción y documento.", "bi-shield-check",
                 Periodo | Texto, Periodo),
         ]),
+        new("fiscal", "IVA y fiscal", "bi-percent",
+        [
+            R("iva-repercutido", "IVA Repercutido", "MODULO_REPORTES.IVA_REPERCUTIDO",
+                "IVA cobrado en ventas por tarifa y emisor: comprobantes aceptados menos notas de crédito.", "bi-receipt",
+                Periodo | Empresa, Periodo | Empresa, false),
+            R("iva-soportado", "IVA Soportado", "MODULO_REPORTES.IVA_SOPORTADO",
+                "Crédito fiscal por emisor: compras, gastos e importaciones según su Mensaje Receptor.", "bi-receipt-cutoff",
+                Periodo | Empresa, Periodo | Empresa, false),
+            R("prorrata", "Prorrata", "MODULO_REPORTES.PRORRATA",
+                "Proporción del crédito fiscal por emisor y año: provisional mes a mes y regularización.", "bi-percent",
+                Empresa, Empresa, false),
+        ]),
     ];
 
     public static IReadOnlyList<ReporteCatalogo> Todos { get; } =

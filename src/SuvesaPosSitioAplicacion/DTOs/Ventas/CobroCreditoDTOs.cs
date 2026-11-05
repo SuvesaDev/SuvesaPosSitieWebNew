@@ -12,6 +12,12 @@ public sealed class CreditoClienteWebDTO
     public decimal Disponible { get; set; }
     public bool Bloqueado { get; set; }
     public string? MotivoBloqueo { get; set; }
+    /// <summary>0 ninguna, 1 cliente inactivo (nada lo habilita), 2 marca de moroso, 3 facturas vencidas.</summary>
+    public int CausaBloqueo { get; set; }
+    public int FacturasVencidas { get; set; }
+    public int DiasMoraMaximo { get; set; }
+    public decimal SaldoVencido { get; set; }
+    public bool DesbloqueadoPorAutorizacion { get; set; }
 }
 
 /// <summary>Factura de crédito con saldo abierto.</summary>
