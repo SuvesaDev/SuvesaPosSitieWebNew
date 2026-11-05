@@ -57,6 +57,15 @@
                                     <td>@s.Tipo</td>
                                     <td>
                                         <div>@s.Motivo</div>
+                                        @if (s.Tipo == "AjusteProrrataIva" && s.Asiento is not null)
+                                        {
+                                            <ul class="small text-secondary mb-0 ps-3">
+                                                @foreach (var l in s.Asiento.Lineas)
+                                                {
+                                                    <li>@l.TipoMovimiento @l.Monto.ToString("N2") — @l.Descripcion</li>
+                                                }
+                                            </ul>
+                                        }
                                         @if (!string.IsNullOrEmpty(s.PeriodoAfectado)) { <div class="small text-secondary">Período @s.PeriodoAfectado</div> }
                                         @if (s.MontoImpacto is not null)
                                         {

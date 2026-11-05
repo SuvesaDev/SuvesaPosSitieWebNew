@@ -10,6 +10,8 @@ public partial interface IContabilidadApiCliente
     System.Threading.Tasks.Task<RespuestaIntegridad<RegularizacionDocumentosDTO>> RegularizarDocumentosAsync(RangoIntegridadContableDTO cuerpo, System.Threading.CancellationToken cancellationToken = default);
     System.Threading.Tasks.Task<RespuestaIntegridad<DiagnosticoPlantillasDTO>> DiagnosticarPlantillasAsync(long idLibroContable, System.Threading.CancellationToken cancellationToken = default);
     System.Threading.Tasks.Task<RespuestaIntegridad<ResultadoReencoladoDTO>> ReintentarErroresConfiguracionAsync(ReencolarErroresDTO cuerpo, System.Threading.CancellationToken cancellationToken = default);
+    System.Threading.Tasks.Task<RespuestaIntegridad<PropuestaProrrataIvaDTO>> ProrrataIvaAsync(long idLibroContable, int ejercicio, int mes, System.Threading.CancellationToken cancellationToken = default);
+    System.Threading.Tasks.Task<RespuestaIntegridad<SolicitudAprobacionDTO>> SolicitarProrrataIvaAsync(SolicitarProrrataIvaDTO cuerpo, System.Threading.CancellationToken cancellationToken = default);
 }
 
 public partial class ContabilidadApiCliente
@@ -30,6 +32,12 @@ public partial class ContabilidadApiCliente
 
     public virtual System.Threading.Tasks.Task<RespuestaIntegridad<ResultadoReencoladoDTO>> ReintentarErroresConfiguracionAsync(ReencolarErroresDTO cuerpo, System.Threading.CancellationToken cancellationToken = default)
         => EnviarIntegridadAsync<ResultadoReencoladoDTO>(HttpMethod.Post, "api/contabilidad/eventos/reintentar-configuracion", cuerpo, cancellationToken);
+
+    public virtual System.Threading.Tasks.Task<RespuestaIntegridad<PropuestaProrrataIvaDTO>> ProrrataIvaAsync(long idLibroContable, int ejercicio, int mes, System.Threading.CancellationToken cancellationToken = default)
+        => EnviarIntegridadAsync<PropuestaProrrataIvaDTO>(HttpMethod.Get, $"api/contabilidad/integridad/prorrata-iva?idLibroContable={idLibroContable}&ejercicio={ejercicio}&mes={mes}", null, cancellationToken);
+
+    public virtual System.Threading.Tasks.Task<RespuestaIntegridad<SolicitudAprobacionDTO>> SolicitarProrrataIvaAsync(SolicitarProrrataIvaDTO cuerpo, System.Threading.CancellationToken cancellationToken = default)
+        => EnviarIntegridadAsync<SolicitudAprobacionDTO>(HttpMethod.Post, "api/contabilidad/integridad/prorrata-iva/solicitar", cuerpo, cancellationToken);
 
     private async System.Threading.Tasks.Task<RespuestaIntegridad<T>> EnviarIntegridadAsync<T>(HttpMethod metodo, string url_, object? cuerpo, System.Threading.CancellationToken cancellationToken) where T : class
     {

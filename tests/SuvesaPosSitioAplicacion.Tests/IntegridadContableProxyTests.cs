@@ -94,6 +94,40 @@ public sealed class IntegridadContableProxyTests
         Assert.Equal(3, r.Responses!.Reencolados);
     }
 
+    [Fact]
+    public async Task PropuestaProrrataIva_PideElPeriodoYLeeLasLineasDeLaPoliza()
+    {
+        var (proxy, handler) = Nuevo("""
+            {"status":0,"responses":{"idLibroContable":7,"ejercicio":2026,"mes":10,"tipo":"Mensual","fechaContable":"2026-10-31","ivaSujetoProrrata":180.0,
+             "porcentajeAplicado":60.0,"origenPorcentaje":"Fijado manualmente para 2026","creditoAcreditable":108.0,"gastoNoAcreditable":72.0,"periodoCompleto":true,
+             "idSolicitud":null,"estadoSolicitud":null,
+             "lineas":[{"orden":1,"tipoMovimiento":"Debito","codigoCuenta":"1.1.7.1","cuenta":"IVA soportado","monto":108.0,"descripcion":"Prorrata IVA 2026-10"},
+                       {"orden":2,"tipoMovimiento":"Credito","codigoCuenta":"1.1.7.3","cuenta":"IVA soportado sujeto a proporcionalidad","monto":180.0,"descripcion":"Traslado"}],
+             "advertencias":["Confirme con el contador."]}}
+            """);
+
+        var r = await proxy.PropuestaProrrataIva(7, 2026, 10);
+
+        Assert.True(r.EsCorrecta);
+        Assert.Equal("/api/contabilidad/integridad/prorrata-iva?idLibroContable=7&ejercicio=2026&mes=10", handler.Ruta);
+        Assert.Equal((180m, 60m, 2), (r.Responses!.IvaSujetoProrrata, r.Responses.PorcentajeAplicado, r.Responses.Lineas.Count));
+        Assert.Equal(("Debito", "1.1.7.1", 108m), (r.Responses.Lineas[0].TipoMovimiento, r.Responses.Lineas[0].CodigoCuenta, r.Responses.Lineas[0].Monto));
+        Assert.Null(r.Responses.EstadoSolicitud);
+    }
+
+    [Fact]
+    public async Task SolicitarProrrataIva_EnviaElPeriodoPorPostYDevuelveLaSolicitud()
+    {
+        var (proxy, handler) = Nuevo("""{"status":0,"responses":{"id":42,"idLibroContable":7,"tipo":"AjusteProrrataIva","estado":"Pendiente","motivo":"Prorrata IVA 2026-10","solicitadoPor":"asistente","fechaSolicitudUtc":"2026-11-05T12:00:00Z"}}""");
+
+        var r = await proxy.SolicitarProrrataIva(7, 2026, 13);
+
+        Assert.Equal(HttpMethod.Post, handler.Metodo);
+        Assert.Equal("/api/contabilidad/integridad/prorrata-iva/solicitar", handler.Ruta);
+        Assert.Contains("\"mes\":13", handler.Cuerpo);
+        Assert.Equal((42L, "Pendiente"), (r.Responses!.Id, r.Responses.Estado));
+    }
+
     private sealed class SesionFalsa : IContextoSesion
     {
         public bool Autenticado => true;

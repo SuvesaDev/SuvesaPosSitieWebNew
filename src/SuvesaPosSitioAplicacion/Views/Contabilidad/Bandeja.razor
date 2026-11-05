@@ -251,6 +251,63 @@
                             }
                         </div>
                     </div>
+
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="mb-1">Prorrata del IVA (condición 05)</h6>
+                            <p class="small text-secondary">El IVA de las compras con proporcionalidad espera en 1.1.7.3. Cada mes se traslada a crédito con el porcentaje provisional y el resto va a gasto; en diciembre se regulariza con el definitivo. La póliza la aprueba otra persona en Aprobaciones.</p>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-6 col-md-2">
+                                    <label class="form-label small" for="pr-anio">Año</label>
+                                    <input id="pr-anio" type="number" class="form-control form-control-sm" min="2019" max="2100" @bind="_prorrataAnio" />
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <label class="form-label small" for="pr-mes">Período</label>
+                                    <select id="pr-mes" class="form-select form-select-sm" @bind="_prorrataMes">
+                                        @for (var m = 1; m <= 12; m++)
+                                        {
+                                            <option value="@m">Mes @m (traslado mensual)</option>
+                                        }
+                                        <option value="13">Regularización anual (porcentaje definitivo)</option>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-md-3">
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="CalcularProrrata">Calcular propuesta</button>
+                                </div>
+                            </div>
+                            @if (_prorrata is not null)
+                            {
+                                <div class="mt-3">
+                                    <div class="small">IVA sujeto a proporcionalidad en el mayor: <strong>@_prorrata.IvaSujetoProrrata.ToString("N2")</strong>
+                                        · porcentaje <strong>@_prorrata.PorcentajeAplicado.ToString("0.##")%</strong> <span class="text-secondary">(@_prorrata.OrigenPorcentaje)</span></div>
+                                    @if (_prorrata.Lineas.Count > 0)
+                                    {
+                                        <div class="table-responsive mt-2"><table class="table table-sm align-middle mb-0">
+                                            <thead><tr><th>Cuenta</th><th>Movimiento</th><th class="text-end">Monto</th><th>Descripción</th></tr></thead>
+                                            <tbody>
+                                                @foreach (var l in _prorrata.Lineas)
+                                                {
+                                                    <tr><td><code>@l.CodigoCuenta</code> @l.Cuenta</td><td>@l.TipoMovimiento</td><td class="text-end">@l.Monto.ToString("N2")</td><td class="small text-secondary">@l.Descripcion</td></tr>
+                                                }
+                                            </tbody>
+                                        </table></div>
+                                    }
+                                    @foreach (var a in _prorrata.Advertencias)
+                                    {
+                                        <div class="small text-secondary mt-1"><i class="bi bi-info-circle me-1"></i>@a</div>
+                                    }
+                                    @if (_prorrata.EstadoSolicitud is not null)
+                                    {
+                                        <div class="mt-2"><span class="badge text-bg-info">Solicitud #@_prorrata.IdSolicitud: @_prorrata.EstadoSolicitud</span></div>
+                                    }
+                                    else if (_prorrata.Lineas.Count > 0 && Sesion.Puede("CONTABILIDAD.CIERRE", AccionPantalla.Editar))
+                                    {
+                                        <button class="btn btn-sm btn-primary mt-2" disabled="@_guardando" @onclick="EnviarProrrata">Enviar a aprobación</button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
                 }
             }
         }
@@ -468,6 +525,27 @@
             else
                 Dialogos.Exito($"Se crearon {resultado.Regularizados} evento(s).");
             await CargarIntegridad();
+        }
+        finally { _guardando = false; }
+    }
+
+    private int _prorrataAnio = DateTime.Today.Year;
+    private int _prorrataMes = Math.Max(1, DateTime.Today.Month - 1);
+    private DTOs.Contabilidad.PropuestaProrrataIvaDTO? _prorrata;
+
+    private async Task CalcularProrrata()
+        => _prorrata = await Respuestas.DatoAsync(await Contabilidad.PropuestaProrrataIva(_idLibroContable, _prorrataAnio, _prorrataMes), "calcular la prorrata del IVA");
+
+    private async Task EnviarProrrata()
+    {
+        if (_prorrata is null || _prorrata.Lineas.Count == 0) return;
+        _guardando = true;
+        try
+        {
+            var solicitud = await Respuestas.DatoAsync(await Contabilidad.SolicitarProrrataIva(_idLibroContable, _prorrataAnio, _prorrataMes), "enviar la prorrata del IVA a aprobación");
+            if (solicitud is null) return;
+            Dialogos.Exito($"Solicitud #{solicitud.Id} enviada: otra persona con rol de aprobador debe aprobarla en Aprobaciones.");
+            await CalcularProrrata();
         }
         finally { _guardando = false; }
     }

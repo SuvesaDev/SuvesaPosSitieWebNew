@@ -54,6 +54,10 @@ public interface IContabilidad
     Task<ResponseGeneric<DTOs.Contabilidad.DiagnosticoPlantillasDTO>> DiagnosticarPlantillas(long idLibroContable);
     /// <summary>Devuelve a la cola los eventos en error de configuración (todos o de un tipo).</summary>
     Task<ResponseGeneric<DTOs.Contabilidad.ResultadoReencoladoDTO>> ReencolarErroresConfiguracion(long idLibroContable, string? tipoEvento = null);
+    /// <summary>Póliza que el sistema propone para trasladar el IVA sujeto a proporcionalidad (condición 05): mes 1 a 12 con el porcentaje provisional, 13 para la regularización anual.</summary>
+    Task<ResponseGeneric<DTOs.Contabilidad.PropuestaProrrataIvaDTO>> PropuestaProrrataIva(long idLibroContable, int ejercicio, int mes);
+    /// <summary>Envía la propuesta a Aprobaciones: se contabiliza cuando otra persona con rol de aprobador la aprueba.</summary>
+    Task<ResponseGeneric<DTOs.Contabilidad.SolicitudAprobacionDTO>> SolicitarProrrataIva(long idLibroContable, int ejercicio, int mes);
     Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina, long? idCliente = null, long? idProveedor = null, string? origenModulo = null, int? idSucursal = null);
     Task<ResponseGeneric<AsientoContableDTO>> CrearAsientoManual(CrearAsientoManualDTO comando);
     Task<ResponseGeneric<AsientoContableDTO>> ReversarAsiento(long idAsiento, string? contrasena, string motivo);

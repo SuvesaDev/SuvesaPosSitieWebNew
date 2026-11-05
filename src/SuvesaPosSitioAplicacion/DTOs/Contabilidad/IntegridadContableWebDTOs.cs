@@ -68,6 +68,44 @@ public sealed class ResultadoReencoladoDTO
     [JsonPropertyName("reencolados")] public int Reencolados { get; set; }
 }
 
+public sealed class LineaPropuestaProrrataDTO
+{
+    [JsonPropertyName("orden")] public int Orden { get; set; }
+    [JsonPropertyName("tipoMovimiento")] public string TipoMovimiento { get; set; } = "";
+    [JsonPropertyName("codigoCuenta")] public string CodigoCuenta { get; set; } = "";
+    [JsonPropertyName("cuenta")] public string Cuenta { get; set; } = "";
+    [JsonPropertyName("monto")] public decimal Monto { get; set; }
+    [JsonPropertyName("descripcion")] public string Descripcion { get; set; } = "";
+}
+
+/// <summary>La póliza que el sistema propone para trasladar el IVA sujeto a proporcionalidad (condición 05) a crédito y a gasto.</summary>
+public sealed class PropuestaProrrataIvaDTO
+{
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("ejercicio")] public int Ejercicio { get; set; }
+    /// <summary>1 a 12: traslado mensual con el porcentaje provisional. 13: regularización anual con el definitivo.</summary>
+    [JsonPropertyName("mes")] public int Mes { get; set; }
+    [JsonPropertyName("tipo")] public string Tipo { get; set; } = "";
+    [JsonPropertyName("fechaContable")] public DateOnly FechaContable { get; set; }
+    [JsonPropertyName("ivaSujetoProrrata")] public decimal IvaSujetoProrrata { get; set; }
+    [JsonPropertyName("porcentajeAplicado")] public decimal PorcentajeAplicado { get; set; }
+    [JsonPropertyName("origenPorcentaje")] public string OrigenPorcentaje { get; set; } = "";
+    [JsonPropertyName("creditoAcreditable")] public decimal CreditoAcreditable { get; set; }
+    [JsonPropertyName("gastoNoAcreditable")] public decimal GastoNoAcreditable { get; set; }
+    [JsonPropertyName("periodoCompleto")] public bool PeriodoCompleto { get; set; }
+    [JsonPropertyName("idSolicitud")] public long? IdSolicitud { get; set; }
+    [JsonPropertyName("estadoSolicitud")] public string? EstadoSolicitud { get; set; }
+    [JsonPropertyName("lineas")] public List<LineaPropuestaProrrataDTO> Lineas { get; set; } = new();
+    [JsonPropertyName("advertencias")] public List<string> Advertencias { get; set; } = new();
+}
+
+public sealed class SolicitarProrrataIvaDTO
+{
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("ejercicio")] public int Ejercicio { get; set; }
+    [JsonPropertyName("mes")] public int Mes { get; set; }
+}
+
 /// <summary>Envoltorio <c>ResponseGeneric&lt;T&gt;</c> del API para los clientes escritos a mano.</summary>
 public sealed class RespuestaIntegridad<T> where T : class
 {

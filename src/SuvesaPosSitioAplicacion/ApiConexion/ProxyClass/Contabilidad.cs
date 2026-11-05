@@ -243,6 +243,20 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "reencolar los eventos en error de configuración");
 
+    public Task<ResponseGeneric<PropuestaProrrataIvaDTO>> PropuestaProrrataIva(long idLibroContable, int ejercicio, int mes)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ProrrataIvaAsync(idLibroContable, ejercicio, mes);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "calcular la prorrata del IVA");
+
+    public Task<ResponseGeneric<SolicitudAprobacionDTO>> SolicitarProrrataIva(long idLibroContable, int ejercicio, int mes)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.SolicitarProrrataIvaAsync(new SolicitarProrrataIvaDTO { IdLibroContable = idLibroContable, Ejercicio = ejercicio, Mes = mes });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "enviar la prorrata del IVA a aprobación");
+
     public Task<ResponseGeneric<ICollection<AsientoContableDTO>>> ListarAsientos(long? idLibroContable, int pagina, int tamanoPagina, long? idCliente = null, long? idProveedor = null, string? origenModulo = null, int? idSucursal = null)
         => Ejecutar(async () =>
         {
