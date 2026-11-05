@@ -243,6 +243,20 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "reencolar los eventos en error de configuración");
 
+    public Task<ResponseGeneric<DocumentosSinEventoDTO>> ComprasRechazadas(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ComprasRechazadasAsync(idLibroContable, desde, hasta);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "consultar las compras con Mensaje Receptor rechazado");
+
+    public Task<ResponseGeneric<bool>> ForzarCompra(long idLibroContable, long idCompra, string motivo)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.ForzarCompraAsync(idCompra, new ForzarCompraDTO { IdLibroContable = idLibroContable, Motivo = motivo });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "contabilizar la compra con Mensaje Receptor rechazado");
+
     public Task<ResponseGeneric<PropuestaProrrataIvaDTO>> PropuestaProrrataIva(long idLibroContable, int ejercicio, int mes)
         => Ejecutar(async () =>
         {

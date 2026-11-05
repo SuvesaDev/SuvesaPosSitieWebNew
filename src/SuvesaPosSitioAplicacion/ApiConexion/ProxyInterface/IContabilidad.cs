@@ -54,6 +54,10 @@ public interface IContabilidad
     Task<ResponseGeneric<DTOs.Contabilidad.DiagnosticoPlantillasDTO>> DiagnosticarPlantillas(long idLibroContable);
     /// <summary>Devuelve a la cola los eventos en error de configuración (todos o de un tipo).</summary>
     Task<ResponseGeneric<DTOs.Contabilidad.ResultadoReencoladoDTO>> ReencolarErroresConfiguracion(long idLibroContable, string? tipoEvento = null);
+    /// <summary>Compras con Mensaje Receptor rechazado por Hacienda que no están en el mayor.</summary>
+    Task<ResponseGeneric<DTOs.Contabilidad.DocumentosSinEventoDTO>> ComprasRechazadas(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null);
+    /// <summary>Lleva al mayor una compra con Mensaje Receptor rechazado; exige motivo y deja constancia. Su IVA queda como no acreditable.</summary>
+    Task<ResponseGeneric<bool>> ForzarCompra(long idLibroContable, long idCompra, string motivo);
     /// <summary>Póliza que el sistema propone para trasladar el IVA sujeto a proporcionalidad (condición 05): mes 1 a 12 con el porcentaje provisional, 13 para la regularización anual.</summary>
     Task<ResponseGeneric<DTOs.Contabilidad.PropuestaProrrataIvaDTO>> PropuestaProrrataIva(long idLibroContable, int ejercicio, int mes);
     /// <summary>Envía la propuesta a Aprobaciones: se contabiliza cuando otra persona con rol de aprobador la aprueba.</summary>

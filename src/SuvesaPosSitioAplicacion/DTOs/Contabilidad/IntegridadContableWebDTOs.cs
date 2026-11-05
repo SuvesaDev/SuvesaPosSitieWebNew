@@ -63,6 +63,12 @@ public sealed class ReencolarErroresDTO
     [JsonPropertyName("tipoEvento")] public string? TipoEvento { get; set; }
 }
 
+public sealed class ForzarCompraDTO
+{
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("motivo")] public string Motivo { get; set; } = "";
+}
+
 public sealed class ResultadoReencoladoDTO
 {
     [JsonPropertyName("reencolados")] public int Reencolados { get; set; }
@@ -107,7 +113,7 @@ public sealed class SolicitarProrrataIvaDTO
 }
 
 /// <summary>Envoltorio <c>ResponseGeneric&lt;T&gt;</c> del API para los clientes escritos a mano.</summary>
-public sealed class RespuestaIntegridad<T> where T : class
+public sealed class RespuestaIntegridad<T>
 {
     [JsonPropertyName("status")] public ResponseStatus Status { get; set; }
     [JsonPropertyName("currentException")] public string? CurrentException { get; set; }

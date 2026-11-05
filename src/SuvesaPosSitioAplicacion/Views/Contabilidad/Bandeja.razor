@@ -222,6 +222,42 @@
                     <div class="card mb-3">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Compras con Mensaje Receptor rechazado</h6>
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="CargarIntegridad">Revisar</button>
+                            </div>
+                            <p class="small text-secondary">Hacienda rechazó el Mensaje Receptor y la compra no está en el mayor, aunque la mercadería haya entrado y la deuda exista. Puede contabilizarla de todos modos: su IVA queda como no acreditable y la acción queda en la bitácora con su motivo.</p>
+                            @if (_comprasRechazadas is null || _comprasRechazadas.Total == 0)
+                            {
+                                <p class="mb-0"><span class="badge text-bg-success">Ninguna pendiente</span></p>
+                            }
+                            else
+                            {
+                                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                                    <thead><tr><th>Factura</th><th>Fecha</th><th class="text-end">Total</th><th></th></tr></thead>
+                                    <tbody>
+                                        @foreach (var c in _comprasRechazadas.Documentos)
+                                        {
+                                            <tr>
+                                                <td>@c.Numero</td>
+                                                <td>@c.Fecha.ToString("yyyy-MM-dd")</td>
+                                                <td class="text-end">@c.Total.ToString("N2")</td>
+                                                <td class="text-end">
+                                                    @if (Sesion.Puede("CONTABILIDAD.REPROCESO", AccionPantalla.Editar))
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => AbrirForzarCompra(c)">Contabilizar de todos modos</button>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table></div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
                                 <h6 class="mb-0">Plantillas y eventos en error</h6>
                                 @if (_diagnostico is { EventosEnErrorConfiguracion: > 0 } && Sesion.Puede("CONTABILIDAD.REPROCESO", AccionPantalla.Editar))
                                 {
@@ -332,6 +368,18 @@
                 }
             </tbody>
         </table></div>
+    }
+</AppModal>
+
+<AppModal @ref="_modalForzarCompra" Titulo="Contabilizar compra con Mensaje Receptor rechazado" AlGuardar="ConfirmarForzarCompra" Guardando="_guardando"
+          PuedeGuardar="!string.IsNullOrWhiteSpace(_motivoForzarCompra)" TextoGuardar="Contabilizar">
+    @if (_compraAForzar is not null)
+    {
+        <p>La compra <strong>@_compraAForzar.Numero</strong> por <strong>@_compraAForzar.Total.ToString("N2")</strong> entra al mayor ahora. Su IVA se registra como no acreditable (gasto), porque sin Mensaje Receptor aceptado no hay crédito fiscal.</p>
+        <div class="mb-2">
+            <label class="form-label" for="bj-motivo-compra">Motivo</label>
+            <textarea id="bj-motivo-compra" class="form-control" rows="3" maxlength="500" @bind="_motivoForzarCompra"></textarea>
+        </div>
     }
 </AppModal>
 
@@ -507,6 +555,7 @@
         {
             _sinEvento = await Respuestas.DatoAsync(await Contabilidad.DocumentosSinEvento(_idLibroContable), "consultar los documentos sin contabilizar");
             _diagnostico = await Respuestas.DatoAsync(await Contabilidad.DiagnosticarPlantillas(_idLibroContable), "diagnosticar las plantillas contables");
+            _comprasRechazadas = await Respuestas.DatoAsync(await Contabilidad.ComprasRechazadas(_idLibroContable), "consultar las compras con Mensaje Receptor rechazado");
         }
         finally { _cargando = false; }
     }
@@ -524,6 +573,33 @@
                 Dialogos.Advertencia($"Se regularizaron {resultado.Regularizados}; {resultado.Errores.Count} fallaron: {resultado.Errores[0]}");
             else
                 Dialogos.Exito($"Se crearon {resultado.Regularizados} evento(s).");
+            await CargarIntegridad();
+        }
+        finally { _guardando = false; }
+    }
+
+    private DTOs.Contabilidad.DocumentosSinEventoDTO? _comprasRechazadas;
+    private AppModal _modalForzarCompra = default!;
+    private DTOs.Contabilidad.DocumentoSinEventoDTO? _compraAForzar;
+    private string _motivoForzarCompra = "";
+
+    private async Task AbrirForzarCompra(DTOs.Contabilidad.DocumentoSinEventoDTO compra)
+    {
+        _compraAForzar = compra;
+        _motivoForzarCompra = "";
+        await _modalForzarCompra.MostrarAsync();
+    }
+
+    private async Task ConfirmarForzarCompra()
+    {
+        if (_compraAForzar is null || string.IsNullOrWhiteSpace(_motivoForzarCompra)) return;
+        _guardando = true;
+        try
+        {
+            var respuesta = await Contabilidad.ForzarCompra(_idLibroContable, _compraAForzar.IdDocumento, _motivoForzarCompra.Trim());
+            if (!await Respuestas.CorrectaAsync(respuesta, "contabilizar la compra")) return;
+            await _modalForzarCompra.OcultarAsync();
+            Dialogos.Exito("La compra entró a la cola contable; se contabiliza en unos segundos.");
             await CargarIntegridad();
         }
         finally { _guardando = false; }

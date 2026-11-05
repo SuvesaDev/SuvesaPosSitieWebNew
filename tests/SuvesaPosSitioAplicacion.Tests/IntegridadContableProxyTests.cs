@@ -95,6 +95,36 @@ public sealed class IntegridadContableProxyTests
     }
 
     [Fact]
+    public async Task ComprasRechazadas_PideElLibroYLeeLaLista()
+    {
+        var (proxy, handler) = Nuevo("""
+            {"status":0,"responses":{"idLibroContable":7,"desde":"2026-09-01","hasta":"2026-11-05","total":1,
+             "documentos":[{"tipo":"Compra","idDocumento":14,"numero":"F-14","fecha":"2026-11-02T00:00:00","total":1130.0,"idSucursal":3,"motivo":"Hacienda rechazó el Mensaje Receptor: la compra no está en el mayor."}]}}
+            """);
+
+        var r = await proxy.ComprasRechazadas(7);
+
+        Assert.Equal("/api/contabilidad/integridad/compras-rechazadas?idLibroContable=7", handler.Ruta);
+        var compra = Assert.Single(r.Responses!.Documentos);
+        Assert.Equal(("Compra", 14L, 1130m), (compra.Tipo, compra.IdDocumento, compra.Total));
+    }
+
+    [Fact]
+    public async Task ForzarCompra_EnviaElMotivoPorPostALaRutaDeLaCompra()
+    {
+        var (proxy, handler) = Nuevo("""{"status":0,"responses":true}""");
+
+        var r = await proxy.ForzarCompra(7, 14, "La mercaderia entro.");
+
+        Assert.True(r.EsCorrecta);
+        Assert.True(r.Responses);
+        Assert.Equal(HttpMethod.Post, handler.Metodo);
+        Assert.Equal("/api/contabilidad/integridad/compras/14/forzar", handler.Ruta);
+        Assert.Contains("\"motivo\":\"La mercaderia entro.\"", handler.Cuerpo);
+        Assert.Contains("\"idLibroContable\":7", handler.Cuerpo);
+    }
+
+    [Fact]
     public async Task PropuestaProrrataIva_PideElPeriodoYLeeLasLineasDeLaPoliza()
     {
         var (proxy, handler) = Nuevo("""
