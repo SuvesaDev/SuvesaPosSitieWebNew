@@ -30,6 +30,11 @@ Estos flujos generaron el documento operativo y la póliza. No repetirlos.
 | Comisión agente, SAC y dual | Corte #2, 4 movimientos, ₡559,78 | Comisiones #2 `ComisionLiquidada` | D `6.1.1.2` / C `2.1.2.5` 559,78 |
 | Caja, faltante bajo el tope | Apertura #7, abierta desde el 4/9/2026. Esperado ₡148.966,80, contado ₡148.460,21 | Cajas #1 `DiferenciaCaja` | D `6.1.6.9` 506,59 / C `1.1.1.2` 506,59 |
 | Caja, sobrante | Apertura #14, fondo ₡10.000, contado ₡10.200 | Cajas #2 `DiferenciaCaja` | D `1.1.1.2` 200 / C `4.2.1.1` 200 |
+| Caja, cuadre (2026-11-06) | Apertura #15, fondo y conteo ₡10.000 | Ninguno. Cierre #3 | Correcto: diferencia 0 no publica póliza |
+| Caja, faltante bajo el tope (2026-11-06) | Apertura #16, esperado ₡10.000, contado ₡9.500 | Cajas #4 `DiferenciaCaja` | D `6.1.6.9` 500 / C `1.1.1.2` 500 |
+| Caja, sobrante (2026-11-06) | Apertura #17, contado ₡10.200 | Cajas #5 `DiferenciaCaja` | D `1.1.1.2` 200 / C `4.2.1.1` 200 |
+| Caja, faltante sobre el tope y rebajo | Apertura #18, contado ₡4.000, faltante ₡6.000. Rebajo por planilla | Cajas #6 `DiferenciaCaja` y `FaltanteRebajadoPlanilla` | D `1.1.5.1` / C `1.1.1.2` 6.000, luego D `2.1.2.1` / C `1.1.5.1` 6.000 |
+| Caja, faltante sobre el tope y castigo | Apertura #19, contado ₡3.000, faltante ₡7.000. Castigo | Cajas #7 `DiferenciaCaja` y `FaltanteCastigado` | D `1.1.5.1` / C `1.1.1.2` 7.000, luego D `6.1.6.9` / C `1.1.5.1` 7.000 |
 
 La plantilla `AjusteInventario` del libro quedó en versión 2, Activa, vigencia 2026-11-01. La versión 1 regía desde 2026-12-01 y no cubría documentos de noviembre.
 
@@ -69,7 +74,21 @@ La #7 llevaba abierta desde el 4/9/2026, fondo ₡40.000, efectivo neto ₡31.35
 
 La #14 se abrió con ₡10.000 en esta prueba (la pantalla avisó «Apertura #0»; el número real es 14) y se cerró con sobrante de ₡200. Ese asiento debita la caja y acredita `4.2.1.1`. El fondo de ₡10.000 no quedó en el libro.
 
-Quedó abierta la **#15**, caja 1, fondo ₡10.000, sin arqueo, para poder seguir facturando. Un faltante mayor a ₡5.000 iría a `1.1.5.1` (cobrar al cajero); no se provocó.
+Esa pasada dejó abierta la #15. La segunda pasada del 2026-11-06 la cerró y recorrió el resto de escenarios.
+
+### Caja — segunda pasada, 2026-11-06
+
+Cada caja nueva salió con fondo ₡10.000 (un billete de 10.000), caja 1, cajero Costa PetsAdmin. El aviso volvió a decir «Apertura #0»; el número real se leyó en el arqueo. Ninguna tenía movimientos, así que el esperado fue el fondo. Cheques y depósitos siguieron fuera de la fórmula.
+
+| Apertura | Conteo | Cierre | Póliza, todas Contabilizado |
+|---|---|---|---|
+| #15 | ₡10.000 | #3, diferencia 0 | Sin evento |
+| #16 | ₡9.500 | #4, faltante ₡500 | Cajas #4: D `6.1.6.9` Faltantes de caja / C `1.1.1.2` Caja cobro ruta |
+| #17 | ₡10.200 | #5, sobrante ₡200 | Cajas #5: D `1.1.1.2` / C `4.2.1.1` Sobrantes de caja y valores |
+| #18 | ₡4.000 | #6, faltante ₡6.000, luego rebajo por planilla | Cajas #6 `DiferenciaCaja`: D `1.1.5.1` Cuentas por cobrar a empleados / C `1.1.1.2`. `FaltanteRebajadoPlanilla`: D `2.1.2.1` Salarios por pagar / C `1.1.5.1` |
+| #19 | ₡3.000 | #7, faltante ₡7.000, luego castigo | Cajas #7 `DiferenciaCaja`: D `1.1.5.1` / C `1.1.1.2`. `FaltanteCastigado`: D `6.1.6.9` / C `1.1.5.1` |
+
+Quedó abierta la **#20**, caja 1, fondo ₡10.000, observaciones «Fondo despues del UAT de caja», sin arqueo, para poder seguir facturando.
 
 ## Correcciones ya en el código de trabajo
 
@@ -85,6 +104,8 @@ Están en el árbol del API y en el proceso que escucha en el puerto 5000. Todav
 `Anular` de la toma ya reversa con `AjusteInventarioAnulado`. Eso no se ejerció en vivo.
 
 ## Mejoras pendientes
+
+El plan, con el criterio de cierre de cada punto, está en `docs/PLAN_MEJORAS_UAT_CONTABILIDAD.md` (la misma copia en los dos repos). Lo de abajo es el hallazgo.
 
 ### API — contabilidad
 
@@ -165,15 +186,15 @@ El diálogo confirma el total de sistema (₡148.966,80 en la #7) y no el faltan
 Mejora: el texto debe incluir contado, esperado y diferencia, y si cae a gasto o al cajero.
 
 **20. La apertura responde número 0.**  
-`CrearAperturaCaja` guarda el id real y devuelve el `request`, que nunca recibió `Napertura`. El aviso dijo «Apertura #0» para la #14 y para la #15.  
+`CrearAperturaCaja` guarda el id real y devuelve el `request`, que nunca recibió `Napertura`. El aviso dijo «Apertura #0» para la #14, la #15 y, en la segunda pasada, para la #16, #17, #18, #19 y #20.  
 Mejora: devolver el id asignado.
 
 **21. El fondo de la caja no entra al libro.**  
 Abrir no publica evento. Al cerrar solo se contabiliza la diferencia. Los ₡40.000 de la #7 y los ₡10.000 de la #14 no están en `1.1.1.2`.  
 Mejora a decidir con el contador: asentar el fondo al abrir (caja contra el origen del fondo) o dejarlo fuera y documentarlo. Hoy el libro solo ve cobros, depósitos de caja y la diferencia del cierre.
 
-**22. Faltante sobre ₡5.000, rebajo y castigo no se recorrieron.**  
-`DiferenciaCajaService` manda el faltante mayor al tope a `1.1.5.1` (por cobrar al cajero). Rebajo de planilla y castigo tienen plantilla (`FaltanteRebajadoPlanilla`, `FaltanteCastigado`) y no se ejecutaron, para no dejar una cuenta por cobrar al cajero de esta prueba.
+**22. Faltante sobre ₡5.000, rebajo y castigo — ejecutados el 2026-11-06.**  
+La #18 (faltante ₡6.000) cargó `1.1.5.1` y el rebajo por planilla la pasó a `2.1.2.1`. La #19 (faltante ₡7.000) hizo el mismo cargo al cajero y el castigo la pasó a `6.1.6.9`. Las dos cuentas por cobrar quedaron saldadas en el mismo día. El cuadre de la #15 confirmó que diferencia 0 no publica evento.
 
 ## Datos dejados en el entorno
 
@@ -187,5 +208,5 @@ No borrarlos desde aquí y no volver a registrarlos.
 - Toma **00000006** (sobrante, póliza vacía) y **00000007** (faltante, contabilizada). Lote Test1 quedó en 39 en la bodega de facturación antes de los tiquetes de comisión; esos tiquetes y la consignación consumieron más unidades.
 - Depósitos ya confirmados de otros días (5675676, 43534543, 4534543534, 1231231) no se tocaron.
 - Lote **12312321** (existencia 1) no se usó.
-- Caja **#7** cerrada (faltante ₡506,59, Cajas #1). Caja **#14** cerrada (sobrante ₡200, Cajas #2). Caja **#15** abierta, fondo ₡10.000, sin arqueo.
+- Cajas cerradas: **#7** (faltante ₡506,59, Cajas #1), **#14** (sobrante ₡200, Cajas #2), **#15** (cuadre, cierre #3, sin póliza), **#16** (faltante ₡500, Cajas #4), **#17** (sobrante ₡200, Cajas #5), **#18** (faltante ₡6.000 rebajado por planilla, Cajas #6), **#19** (faltante ₡7.000 castigado, Cajas #7). Caja **#20** abierta, fondo ₡10.000, sin arqueo.
 - El cliente Rafael no puede factura nueva de crédito mientras tenga la factura vencida (aviso de 16 días). Las pruebas de comisión y consignación se hicieron de contado con Marco.
