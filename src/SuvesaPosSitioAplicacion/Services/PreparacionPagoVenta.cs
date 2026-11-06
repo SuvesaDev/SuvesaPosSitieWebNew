@@ -11,6 +11,9 @@ namespace SuvesaPosSitioAplicacion.Services;
 /// </summary>
 public static class PreparacionPagoVenta
 {
+    /// <summary>Máximo de líneas (depósitos o cheques) que una misma forma de pago admite en un cobro.</summary>
+    public const int MaxLineasPorForma = 5;
+
     /// <summary>Una forma de pago y lo que el cajero digitó como recibido.</summary>
     public readonly record struct LineaPago(
         string Codigo,
@@ -78,14 +81,44 @@ public static class PreparacionPagoVenta
         var errores = new List<string>();
         if (activas.Count == 0)
             errores.Add("Indique al menos una forma de pago.");
-        foreach (var l in activas.Where(l => l.RequiereReferencia && string.IsNullOrWhiteSpace(l.Referencia)))
-            errores.Add($"La forma de pago {l.Codigo} requiere número de referencia.");
-        foreach (var l in activas.Where(l => l.RequiereBanco && l.IdBanco is null))
-            errores.Add($"La forma de pago {l.Codigo} requiere seleccionar el banco.");
+        errores.AddRange(ValidarInstrumentos(activas));
         if (recibidoNoEfectivo - total > 0.005m)
             errores.Add("El monto en tarjeta/transferencia supera el total; no se puede dar vuelto de un medio que no es efectivo.");
 
         return new Reparto(total, recibidoTotal, aplicadoTotal, vuelto, faltante, formas, errores);
+    }
+
+    /// <summary>
+    /// Validación de los instrumentos (tarjeta, depósito, cheque) de un cobro: referencia y banco por línea
+    /// (el aviso dice cuál línea falla cuando hay varias de la misma forma), duplicados de banco + referencia y
+    /// el tope de <see cref="MaxLineasPorForma"/> líneas por forma. Las usa también la pantalla Cobrar.
+    /// </summary>
+    public static List<string> ValidarInstrumentos(IReadOnlyList<LineaPago> activas)
+    {
+        var errores = new List<string>();
+        // Con varias líneas de la misma forma (varios depósitos/cheques) el aviso dice cuál es.
+        string Nombre(int i)
+        {
+            var codigo = activas[i].Codigo;
+            if (activas.Count(x => x.Codigo == codigo) < 2) return codigo;
+            return $"{codigo} (línea {activas.Take(i + 1).Count(x => x.Codigo == codigo)})";
+        }
+        for (var i = 0; i < activas.Count; i++)
+        {
+            var l = activas[i];
+            if (l.RequiereReferencia && string.IsNullOrWhiteSpace(l.Referencia))
+                errores.Add($"La forma de pago {Nombre(i)} requiere número de referencia.");
+            if (l.RequiereBanco && l.IdBanco is null)
+                errores.Add($"La forma de pago {Nombre(i)} requiere seleccionar el banco.");
+        }
+        foreach (var g in activas
+                     .Where(l => l.IdBanco is not null && !string.IsNullOrWhiteSpace(l.Referencia))
+                     .GroupBy(l => (l.IdBanco, Ref: l.Referencia!.Trim().ToUpperInvariant()))
+                     .Where(g => g.Count() > 1))
+            errores.Add($"Hay {g.Count()} pagos con el mismo banco y la misma referencia ({g.First().Referencia!.Trim()}): un depósito o cheque no puede registrarse dos veces.");
+        foreach (var g in activas.GroupBy(l => l.Codigo).Where(g => g.Count() > MaxLineasPorForma))
+            errores.Add($"La forma de pago {g.Key} admite como máximo {MaxLineasPorForma} líneas.");
+        return errores;
     }
 
     private static decimal Redondear(decimal v) => Math.Round(v, 2, MidpointRounding.AwayFromZero);

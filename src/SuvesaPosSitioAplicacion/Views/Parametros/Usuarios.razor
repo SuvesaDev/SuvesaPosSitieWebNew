@@ -182,6 +182,14 @@
 
                     <div class="col-12">
                         <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="cambiar-precio" @bind="_edicion.CambiarPrecio" />
+                            <label class="form-check-label" for="cambiar-precio">Puede modificar el precio al facturar</label>
+                        </div>
+                        <div class="form-text">Permiso de este usuario, independiente de su perfil y rol. Sin él, el precio de las líneas de factura y proforma queda bloqueado. Un Super Administración siempre puede. Aplica en el próximo inicio de sesión del usuario.</div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="activo" @bind="_edicion.Activo" />
                             <label class="form-check-label" for="activo">Activo</label>
                         </div>
@@ -316,6 +324,13 @@
         public string? Email { get; set; }
         public string? Observaciones { get; set; }
         public bool Activo { get; set; } = true;
+        /// <summary>Permiso por usuario: puede modificar el precio al facturar.</summary>
+        public bool CambiarPrecio { get; set; }
+        // Se conservan tal cual vienen del API; ModificarUsuario los sobrescribe siempre.
+        public double PorcPrecio { get; set; }
+        public bool AplicarDesc { get; set; }
+        public double PorcDesc { get; set; }
+        public bool ExistNegativa { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -401,7 +416,12 @@
             Nombre = completo.Nombre,
             Email = completo.Email,
             Observaciones = completo.Observaciones,
-            Activo = completo.Activo
+            Activo = completo.Activo,
+            CambiarPrecio = completo.CambiarPrecio,
+            PorcPrecio = completo.PorcPrecio,
+            AplicarDesc = completo.AplicarDesc,
+            PorcDesc = completo.PorcDesc,
+            ExistNegativa = completo.ExistNegativa
         };
 
         await _modal.ShowAsync();
@@ -581,6 +601,7 @@
             Email = _edicion.Email,
             Observaciones = _edicion.Observaciones,
             Activo = _edicion.Activo,
+            CambiarPrecio = _edicion.CambiarPrecio,
             ClaveEntrada = _clave,
             ClaveInterna = _clave,
             IdRol = PerfilElegidoEsSuper() ? null : _idRolNuevo
@@ -598,7 +619,12 @@
             Nombre = _edicion.Nombre,
             Email = _edicion.Email,
             Observaciones = _edicion.Observaciones,
-            Activo = _edicion.Activo
+            Activo = _edicion.Activo,
+            CambiarPrecio = _edicion.CambiarPrecio,
+            PorcPrecio = _edicion.PorcPrecio,
+            AplicarDesc = _edicion.AplicarDesc,
+            PorcDesc = _edicion.PorcDesc,
+            ExistNegativa = _edicion.ExistNegativa
         };
 
         return await Respuestas.CorrectaAsync(await Api.Editar(_idActual, dto), "editar el usuario");

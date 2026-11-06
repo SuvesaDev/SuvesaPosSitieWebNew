@@ -139,6 +139,10 @@
                             @if (_edicion.Formato == 1)
                             {
                                 <div class="form-check mt-2"><input id="dos-columnas" class="form-check-input" type="checkbox" @bind="_cfg.Layout.EncabezadoDosColumnas" /><label class="form-check-label" for="dos-columnas">Cabecera en dos columnas</label></div>
+                                @if (_cfg.Layout.EncabezadoDosColumnas)
+                                {
+                                    <div class="form-check"><input id="emisor-derecha" class="form-check-input" type="checkbox" @bind="_cfg.Layout.EmisorEnColumnaDerecha" /><label class="form-check-label" for="emisor-derecha">Datos del emisor junto al documento (logo solo a la izquierda)</label></div>
+                                }
                                 <div class="form-check"><input id="total-destacado" class="form-check-input" type="checkbox" @bind="_cfg.Layout.TotalesDestacados" /><label class="form-check-label" for="total-destacado">Destacar total</label></div>
                             }
                         </ZonaAccordion>

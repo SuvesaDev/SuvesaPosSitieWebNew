@@ -1,11 +1,17 @@
 @page "/sales/budgets/proforma"
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Ventas.Componentes
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject ICotizaciones Api
 @inject IManejadorRespuestas Respuestas
 @inject IServicioDialogos Dialogos
 @inject IContextoSesion Sesion
+@inject NavigationManager Navegacion
+@inject ITarifasPrecio TarifasApi
+@inject IInventarioConsulta Inventario
+@inject ICatalogoBonificacion CatalogoBonificacion
+@inject IClienteBonificacion ClienteBonificacion
 @inject IRelojEquipo RelojEquipo
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IClientesConsulta ClientesApi
 
@@ -62,8 +68,8 @@
                                           HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
                             <HxGridColumn TItem="CotizacionesDTO" HeaderText="Estado">
                                 <ItemTemplate Context="c">
-                                    <span class="badge @(c.Anulado ? "text-bg-secondary" : "text-bg-success")">
-                                        @(c.Anulado ? "Anulada" : "Vigente")
+                                    <span class="badge @(c.Venta ? "text-bg-primary" : c.Anulado ? "text-bg-secondary" : "text-bg-success")">
+                                        @(c.Venta ? "Facturada" : c.Anulado ? "Anulada" : string.IsNullOrWhiteSpace(c.EstadoActual) ? "Vigente" : c.EstadoActual)
                                     </span>
                                 </ItemTemplate>
                             </HxGridColumn>
@@ -71,6 +77,10 @@
                                           HeaderCssClass="text-end" ItemCssClass="text-end">
                                 <ItemTemplate Context="c">
                                     <button class="btn btn-sm btn-outline-primary" title="Abrir proforma" aria-label="Abrir proforma" @onclick="() => Abrir(c)"><i class="bi bi-eye"></i></button>
+                                    @if (PuedeFacturar(c))
+                                    {
+                                        <button class="btn btn-sm btn-success" title="Facturar esta proforma" aria-label="Facturar proforma" @onclick="() => Facturar(c)"><i class="bi bi-receipt"></i></button>
+                                    }
                                     @if (c.Cotizacion1 > 0 && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
                                     {
                                         <BotonImprimir Tipo="presupuesto" Id="c.Cotizacion1" SoloIcono="true" Clase="btn-sm btn-outline-secondary" Titulo="Imprimir proforma" />
@@ -91,6 +101,10 @@
                         @if (_documento.Cotizacion1 > 0 && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
                         {
                             <BotonImprimir Tipo="presupuesto" Id="_documento.Cotizacion1" Texto="Imprimir" />
+                        }
+                        @if (PuedeFacturar(_documento))
+                        {
+                            <button class="btn btn-sm btn-success" @onclick="() => Facturar(_documento)"><i class="bi bi-receipt me-1" aria-hidden="true"></i>Facturar</button>
                         }
                         <button class="btn btn-sm btn-outline-secondary" @onclick="Cerrar">Volver</button>
                     </span>
@@ -115,6 +129,10 @@
                         </div>
                         <div class="col-12 col-md-3">
                             <AppCampoTexto Etiqueta="Cedula" @bind-Valor="_documento.CedulaCliente" />
+                            @if (_ficha is not null)
+                            {
+                                <div class="form-text">Precio del cliente: <strong>@NombreTarifa</strong>@(_ficha.DescuentoEspecial > 0 ? $" · descuento {Formato.Cantidad(_ficha.DescuentoEspecial)}%" : "")</div>
+                            }
                         </div>
                         <div class="col-12 col-md-3">
                             <AppCampoNumero Etiqueta="Validez (dias)" @bind-Valor="_validez" />
@@ -161,29 +179,38 @@
                                     {
                                         <tr>
                                             <td><code class="small">@l.CodArticulo</code></td>
-                                            <td class="small">@l.Descripcion</td>
+                                            <td class="small">@l.Descripcion
+                                                @if (l.EsDeGrupo) { <span class="badge text-bg-success ms-1">@(l.EsBonificacion ? "Regalo" : "Bonificación")</span> }
+                                            </td>
                                             <td>
                                                 <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end"
+                                                       disabled="@l.EsDeGrupo"
                                                        value="@l.Cantidad"
                                                        @onchange="e => CambiarCantidad(l, e)" />
                                             </td>
                                             <td>
                                                 <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end"
+                                                       disabled="@(!Sesion.PuedeCambiarPrecio || l.EsDeGrupo)"
+                                                       title="@(Sesion.PuedeCambiarPrecio ? null : "No tiene permiso para modificar el precio")"
                                                        value="@l.PrecioUnitario"
                                                        @onchange="e => CambiarPrecio(l, e)" />
                                             </td>
                                             <td>
                                                 <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end"
+                                                       disabled="@l.EsDeGrupo"
                                                        value="@l.Descuento"
                                                        @onchange="e => CambiarDescuento(l, e)" />
                                             </td>
                                             <td class="seepos-importe">@Formato.Importe(l.Calculo.MontoImpuesto)</td>
                                             <td class="seepos-importe">@Formato.Importe(l.Calculo.Total)</td>
                                             <td class="text-end">
-                                                <button class="btn btn-sm btn-link text-danger p-0"
-                                                        aria-label="Quitar" @onclick="() => Quitar(l)">
-                                                    <i class="bi bi-x-lg" aria-hidden="true"></i>
-                                                </button>
+                                                @if (!l.EsDeGrupo || l.EsLineaPrincipal)
+                                                {
+                                                    <button class="btn btn-sm btn-link text-danger p-0"
+                                                            aria-label="Quitar" @onclick="() => Quitar(l)">
+                                                        <i class="bi bi-x-lg" aria-hidden="true"></i>
+                                                    </button>
+                                                }
                                             </td>
                                         </tr>
                                     }
@@ -226,7 +253,11 @@
     </ChildContent>
 </AppPantalla>
 
-<AppBuscadorArticulo @ref="_buscador" AlElegir="AgregarLinea" TiposPermitidos="TiposVendibles" />
+<AppBuscadorArticulo @ref="_buscador" AlElegir="AgregarLinea" TiposPermitidos="TiposVendibles" PrecioDe="PrecioCliente" />
+
+<FlujoBonificacion @ref="_flujoBonificacion" Configs="_configsBonificacion" BonificacionesCliente="_bonificacionesCliente"
+                   PrecioDe="PrecioCliente" AsegurarPrecios="AsegurarPreciosTarifa"
+                   AlAplicar="AplicarGrupoBonificacion" AlOmitir="AgregarSinBonificacion" />
 
 @code {
     private const string Titulo = "Proformas o Cotización";
@@ -247,7 +278,7 @@
         public decimal PrecioFlete { get; init; }
         public decimal PrecioOtros { get; init; }
         public string? SubFamilia { get; init; }
-        public decimal MaxDescuento { get; init; }
+        public decimal MaxDescuento { get; set; }
         public decimal TipoCambioValorCompra { get; init; }
         public int CodMonedaVenta { get; init; }
         public decimal Cantidad { get; set; } = 1;
@@ -255,13 +286,39 @@
         public decimal Descuento { get; set; }
         public decimal Impuesto { get; set; }
 
+        // Bonificación (mismas marcas que en Facturación): las líneas de un grupo no se editan; solo la principal se quita.
+        public int? IdGrupoBonificacion { get; set; }
+        public int? IdConfiguracionBonificacion { get; set; }
+        public bool EsBonificacion { get; set; }          // línea de regalo (precio 0, impuesto sobre el precio de lista)
+        public bool EsLineaPrincipal { get; set; }
+        public decimal PrecioReferencia { get; set; }      // precio de lista de la línea de regalo
+        public bool EsDeGrupo => IdGrupoBonificacion is not null;
+
         public CalculoDocumento.LineaCalculada Calculo { get; private set; }
 
         public void Recalcular()
-            => Calculo = CalculoDocumento.Linea(Cantidad, PrecioUnitario, Descuento, Impuesto);
+            => Calculo = EsBonificacion
+                ? CalculoDocumento.LineaBonificada(Cantidad, PrecioReferencia, Impuesto)
+                : CalculoDocumento.Linea(Cantidad, PrecioUnitario, Descuento, Impuesto);
     }
 
     private AppBuscadorArticulo _buscador = default!;
+    private FlujoBonificacion _flujoBonificacion = default!;
+    private List<ConfiguracionBonificacion> _configsBonificacion = new();
+    private List<ClienteBonificacionConfiguracionDTO> _bonificacionesCliente = new();
+    private int _siguienteIdGrupo = 1;
+
+    protected override async Task OnInitializedAsync()
+        => _configsBonificacion = (await Respuestas.DatoAsync(await CatalogoBonificacion.Disponibles(), "consultar los tipos de bonificación"))?.ToList() ?? new();
+
+    /// <summary>Asignaciones de bonificación del cliente (mandan sobre las del artículo). Solo si el cliente las tiene.</summary>
+    private async Task CargarBonificacionesCliente()
+    {
+        _bonificacionesCliente = new();
+        if (_ficha is { TieneBonificacion: true } f)
+            _bonificacionesCliente = (await Respuestas.DatoAsync(await ClienteBonificacion.ObtenerPorCliente(f.Cedula, f.Identificacion), "consultar la bonificación del cliente"))
+                ?.ToList() ?? new();
+    }
 
     private List<CotizacionesDTO> _proformas = new();
     private bool _cargado;
@@ -294,13 +351,81 @@
             await Dialogos.ErrorAsync($"Ningún cliente coincide con «{t}».");
     }
 
-    private void ElegirCliente(DTOs.Generated.FiltranClienteDTO c)
+    // --- Precio y descuento del cliente: MISMAS reglas que Facturación (Services/ReglasPrecioCliente) ---
+    private DTOs.Generated.FiltranClienteDTO? _ficha;
+    private DateTime _hoy = DateTime.Today;
+    private readonly Dictionary<(int Tarifa, long Articulo), decimal> _preciosTarifaNueva = new();
+
+    private int Tarifa => ReglasPrecioCliente.TarifaDelCliente(_ficha?.Tipoprecio ?? 0);
+    private string NombreTarifa => Tarifa switch { 1 => "Precio A", 2 => "Precio B", 3 => "Precio C", 4 => "Precio D", _ => $"Tarifa {Tarifa}" };
+
+    private decimal? PrecioTarifaNueva(long articulo)
+        => Tarifa > 4 && _preciosTarifaNueva.TryGetValue((Tarifa, articulo), out var precio) && precio > 0 ? precio : null;
+
+    private decimal PrecioCliente(InventarioDTO articulo)
+        => ReglasPrecioCliente.PrecioLista(articulo, Tarifa, PrecioTarifaNueva(articulo.Codigo), _hoy);
+
+    /// <summary>Si la tarifa del cliente es una de las nuevas (5 o más), trae el precio de esos artículos en ella.</summary>
+    private async Task AsegurarPreciosTarifa(IEnumerable<long> ids)
+    {
+        var tarifa = Tarifa;
+        if (tarifa <= 4) return;
+        var faltan = ids.Distinct().Where(id => !_preciosTarifaNueva.ContainsKey((tarifa, id))).ToList();
+        if (faltan.Count == 0) return;
+        var r = await TarifasApi.PreciosEnTarifa((short)tarifa, faltan);
+        if (!r.EsCorrecta || r.Responses is null)
+        {
+            Dialogos.Advertencia($"No se pudo consultar el precio de la tarifa del cliente. Se usará el Precio A; revise los precios de la proforma.");
+            return;
+        }
+        foreach (var id in faltan) _preciosTarifaNueva[(tarifa, id)] = 0m;
+        foreach (var p in r.Responses) _preciosTarifaNueva[(tarifa, p.IdArticulo)] = p.Precio;
+    }
+
+    private async Task CargarFichaCliente()
+    {
+        _ficha = null;
+        if (_documento is null || string.IsNullOrWhiteSpace(_documento.CodCliente)) return;
+        var texto = !string.IsNullOrWhiteSpace(_documento.CedulaCliente) ? _documento.CedulaCliente : _documento.NombreCliente;
+        if (string.IsNullOrWhiteSpace(texto)) return;
+        var r = await ClientesApi.Buscar(texto!);
+        _ficha = r.EsCorrecta ? (r.Responses ?? Array.Empty<DTOs.Generated.FiltranClienteDTO>())
+            .FirstOrDefault(c => c.Identificacion.ToString() == _documento.CodCliente) : null;
+    }
+
+    private async Task ElegirCliente(DTOs.Generated.FiltranClienteDTO c)
     {
         if (_documento is null) return;
+        var habiaLineas = _lineas.Count > 0;
+        if (habiaLineas && !await Dialogos.ConfirmarAsync(
+                "Cambiar el cliente recalcula el precio y el descuento de las líneas según su tarifa. ¿Continuar?", "Cambiar cliente"))
+            return;
+
         _documento.NombreCliente = c.Nombre;
         _documento.CedulaCliente = c.Cedula;
         _documento.CodCliente = c.Identificacion.ToString();
+        _ficha = c;
         _clientesEncontrados = new();
+        await CargarBonificacionesCliente();
+        if (habiaLineas) await RecalcularPreciosSegunCliente();
+    }
+
+    /// <summary>Con otro cliente, cada línea vuelve al precio y al descuento que le corresponden por su tarifa.</summary>
+    private async Task RecalcularPreciosSegunCliente()
+    {
+        await AsegurarPreciosTarifa(_lineas.Where(l => !l.EsDeGrupo).Select(l => l.Codigo));
+        if (_lineas.Any(l => l.EsDeGrupo))
+            Dialogos.Advertencia("Las líneas de bonificación conservan su precio; vuelva a aplicar la bonificación si el nuevo cliente tiene otra tarifa.");
+        foreach (var linea in _lineas.Where(l => !l.EsDeGrupo))
+        {
+            var r = await Inventario.Uno(linea.Codigo);
+            if (!r.EsCorrecta || r.Responses is null) continue;
+            linea.PrecioUnitario = PrecioCliente(r.Responses);
+            linea.MaxDescuento = Formato.AImporte(r.Responses.Max_Descuento);
+            linea.Descuento = ReglasPrecioCliente.DescuentoInicial(_ficha?.DescuentoEspecial, r.Responses.Max_Descuento);
+            linea.Recalcular();
+        }
+        Recalcular();
     }
 
     private async Task<GridDataProviderResult<CotizacionesDTO>> Cargar(
@@ -318,7 +443,10 @@
 
     private async Task Nueva()
     {
-        _documento = new CotizacionesDTO { Fecha = await RelojEquipo.HoyAsync(), IdSucursal = Sesion.IdSucursal };
+        _hoy = await RelojEquipo.HoyAsync();
+        _ficha = null;
+        _bonificacionesCliente = new();
+        _documento = new CotizacionesDTO { Fecha = _hoy, IdSucursal = Sesion.IdSucursal };
         _lineas.Clear();
         Recalcular();
     }
@@ -335,6 +463,9 @@
 
         _documento = completa;
         _validez = completa.Validez;
+        _hoy = await RelojEquipo.HoyAsync();
+        await CargarFichaCliente();
+        await CargarBonificacionesCliente();
         _lineas.Clear();
 
         foreach (var d in completa.Detalle ?? new List<DetalleCotizacionDTO>())
@@ -359,7 +490,12 @@
                 Cantidad = Formato.AImporte(d.Cantidad),
                 PrecioUnitario = Formato.AImporte(d.PrecioUnit),
                 Descuento = Formato.AImporte(d.Descuento),
-                Impuesto = Formato.AImporte(d.Impuesto)
+                Impuesto = Formato.AImporte(d.Impuesto),
+                IdGrupoBonificacion = d.IdGrupoBonificacion,
+                IdConfiguracionBonificacion = d.IdConfiguracionBonificacion,
+                EsBonificacion = d.EsBonificacion,
+                EsLineaPrincipal = d.EsLineaPrincipalBonificacion == true,
+                PrecioReferencia = Formato.AImporte(d.PrecioReferenciaBonificacion)
             };
 
             linea.Recalcular();
@@ -369,6 +505,15 @@
         Recalcular();
     }
 
+    /// <summary>Solo una proforma ACEPTADA, sin facturar y no anulada, y solo quien puede facturar.</summary>
+    private bool PuedeFacturar(CotizacionesDTO c)
+        => c.Cotizacion1 > 0 && !c.Anulado && !c.Venta
+           && string.Equals(c.EstadoActual?.Trim(), "Aceptada", StringComparison.OrdinalIgnoreCase)
+           && Sesion.Puede("Facturación", AccionPantalla.Crear);
+
+    /// <summary>Abre Facturación con la proforma cargada (mismo proceso, mismas reglas: no se duplica nada).</summary>
+    private void Facturar(CotizacionesDTO c) => Navegacion.NavigateTo($"/sales/billing/from-proforma/{c.Cotizacion1}");
+
     private void Cerrar()
     {
         _documento = null;
@@ -377,18 +522,27 @@
 
     private Task BuscarArticulo() => _buscador.AbrirAsync();
 
-    private void AgregarLinea(InventarioDTO articulo)
+    private async Task AgregarLinea(InventarioDTO articulo)
     {
+        await AsegurarPreciosTarifa(new[] { articulo.Codigo });
+        // Artículo bonificable: si el cliente o el artículo tienen una bonificación, el flujo toma el control.
+        if (articulo.Bonificado && await _flujoBonificacion.IniciarAsync(articulo, 1)) return;
+        AgregarSinBonificacion((articulo, 1m));
+    }
+
+    private Task AgregarSinBonificacion((InventarioDTO Articulo, decimal Cantidad) pedido)
+    {
+        var articulo = pedido.Articulo;
         var existente = _lineas.FirstOrDefault(l => l.Codigo == articulo.Codigo);
 
         if (existente is not null)
         {
             // Repetir un articulo suma cantidad en vez de crear otra linea, que es
             // como se comporta el sistema actual.
-            existente.Cantidad += 1;
+            existente.Cantidad += pedido.Cantidad;
             existente.Recalcular();
             Recalcular();
-            return;
+            return Task.CompletedTask;
         }
 
         var linea = new Linea
@@ -405,19 +559,70 @@
             MaxDescuento = Formato.AImporte(articulo.Max_Descuento),
             TipoCambioValorCompra = Formato.AImporte(_documento?.TipoCambio ?? 0),
             CodMonedaVenta = articulo.MonedaVenta,
-            Cantidad = 1,
-            PrecioUnitario = PrecioVenta.EnColones(articulo, articulo.Precio_A),
+            Cantidad = pedido.Cantidad,
+            PrecioUnitario = PrecioCliente(articulo),
+            Descuento = ReglasPrecioCliente.DescuentoInicial(_ficha?.DescuentoEspecial, articulo.Max_Descuento),
             Impuesto = Formato.AImporte(articulo.IVenta)
         };
 
         linea.Recalcular();
         _lineas.Add(linea);
         Recalcular();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>El grupo de bonificación ya está resuelto (mismas reglas que Facturación): se agregan sus líneas.</summary>
+    private Task AplicarGrupoBonificacion(FlujoBonificacion.GrupoBonificado grupo)
+    {
+        var idGrupo = Math.Max(_siguienteIdGrupo, _lineas.Select(l => l.IdGrupoBonificacion ?? 0).DefaultIfEmpty(0).Max() + 1);
+        _siguienteIdGrupo = idGrupo + 1;
+
+        foreach (var lg in grupo.Lineas)
+        {
+            var a = lg.Articulo;
+            var linea = new Linea
+            {
+                CodArticulo = a.Cod_Articulo,
+                Codigo = a.Codigo,
+                Cabys = a.Codcabys,
+                Descripcion = a.Descripcion,
+                PrecioCosto = Formato.AImporte(a.Costo),
+                PrecioBase = Formato.AImporte(a.Costo),
+                PrecioFlete = Formato.AImporte(a.Costo),
+                PrecioOtros = Formato.AImporte(a.OtrosCargos),
+                SubFamilia = a.SubFamilia.ToString(),
+                MaxDescuento = 0m,
+                TipoCambioValorCompra = Formato.AImporte(_documento?.TipoCambio ?? 0),
+                CodMonedaVenta = a.MonedaVenta,
+                Cantidad = lg.Cantidad,
+                PrecioUnitario = lg.EsBonificacion ? 0m : lg.PrecioUnit,
+                Descuento = 0m,
+                Impuesto = lg.PorcentajeImpuesto,
+                IdGrupoBonificacion = idGrupo,
+                IdConfiguracionBonificacion = grupo.IdConfiguracion,
+                EsBonificacion = lg.EsBonificacion,
+                PrecioReferencia = lg.PrecioUnit,
+                EsLineaPrincipal = lg.EsPrincipal,
+            };
+            linea.Recalcular();
+            _lineas.Add(linea);
+        }
+        Recalcular();
+        return Task.CompletedTask;
     }
 
     private void Quitar(Linea linea)
     {
-        _lineas.Remove(linea);
+        // Solo la línea principal de un grupo de bonificación se puede quitar; borra el grupo completo.
+        if (linea.EsDeGrupo)
+        {
+            if (!linea.EsLineaPrincipal) return;
+            _lineas.RemoveAll(l => l.IdGrupoBonificacion == linea.IdGrupoBonificacion);
+        }
+        else
+        {
+            _lineas.Remove(linea);
+        }
         Recalcular();
     }
 
@@ -430,6 +635,7 @@
 
     private void CambiarPrecio(Linea l, ChangeEventArgs e)
     {
+        if (!Sesion.PuedeCambiarPrecio) return;
         l.PrecioUnitario = Leer(e, l.PrecioUnitario);
         l.Recalcular();
         Recalcular();
@@ -437,7 +643,13 @@
 
     private void CambiarDescuento(Linea l, ChangeEventArgs e)
     {
-        l.Descuento = Leer(e, l.Descuento);
+        var pedido = Leer(e, l.Descuento);
+        if (pedido > l.MaxDescuento)
+        {
+            Dialogos.ErrorBreve($"El descuento máximo de este artículo es {Formato.Cantidad(l.MaxDescuento)}%.");
+            pedido = l.MaxDescuento;
+        }
+        l.Descuento = pedido;
         l.Recalcular();
         Recalcular();
     }
@@ -499,7 +711,12 @@
                 SubFamilia = l.SubFamilia,
                 MaxDescuento = (double)l.MaxDescuento,
                 TipoCambioValorCompra = (double)l.TipoCambioValorCompra,
-                CodMonedaVenta = l.CodMonedaVenta
+                CodMonedaVenta = l.CodMonedaVenta,
+                EsBonificacion = l.EsBonificacion,
+                IdGrupoBonificacion = l.IdGrupoBonificacion,
+                IdConfiguracionBonificacion = l.IdConfiguracionBonificacion,
+                EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : null,
+                PrecioReferenciaBonificacion = (double)l.PrecioReferencia
             }).ToList();
 
             var r = _documento.Cotizacion1 > 0

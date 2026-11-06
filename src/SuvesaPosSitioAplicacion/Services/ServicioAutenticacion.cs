@@ -153,6 +153,7 @@ public sealed class ServicioAutenticacion : IServicioAutenticacion
             new(ClaimsSeePos.AceptaConsignacion, (auth.Perfil?.AceptaConsignacion ?? auth.AceptaConsignacion).ToString()),
             new(ClaimsSeePos.PermiteExistenciaNegativa, (auth.Perfil?.PermiteExistenciaNegativa ?? auth.PermiteExistenciaNegativa).ToString())
             ,new(ClaimsSeePos.HabilitaImportaciones, (auth.Perfil?.HabilitaImportaciones ?? auth.HabilitaImportaciones).ToString())
+            ,new(ClaimsSeePos.CambiarPrecio, (esSuper || auth.CambiarPrecio).ToString())
         };
 
         // Rol (informativo). auth.Rol es el contrato viejo; los campos planos IdRol /

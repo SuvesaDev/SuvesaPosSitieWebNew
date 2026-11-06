@@ -1,0 +1,234 @@
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@using Havit.Blazor.Components.Web.Bootstrap
+@inject IArticuloBonificacion ArticuloBonificacion
+@inject IArticulosRelacionados Relacionados
+@inject IInventarioConsulta Inventario
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+@* Flujo de bonificación reutilizable (tipo de bonificación + mezcla de artículos) para pantallas SIN control de lotes,
+   como la proforma. Usa las MISMAS reglas que Facturación: la asignación del cliente manda sobre la del artículo, y el
+   reparto sale de BonificacionCalculo.ResolverGrupo (el de menor precio es el que sale gratis).
+   La pantalla llama a IniciarAsync al agregar un artículo bonificable; si devuelve true, el flujo tomó el control y
+   avisa por AlAplicar (o AlOmitir si el usuario prefiere agregarlo sin bonificación). *@
+
+<HxModal @ref="_modalTipo" Title="Bonificación del artículo" Size="ModalSize.Regular">
+    <BodyTemplate>
+        @if (_principal is not null)
+        {
+            <p class="text-secondary">@_principal.Descripcion es un artículo bonificable. ¿Desea aplicar una bonificación?</p>
+        }
+        <label class="form-label" for="flujo-bonif-tipo">Tipo de bonificación</label>
+        <select id="flujo-bonif-tipo" class="form-select" @bind="_tipoElegido">
+            <option value="0">Seleccione...</option>
+            @foreach (var c in _tiposDelArticulo)
+            {
+                <option value="@c.IdConfiguracionBonificacion">@c.Descripcion (@c.CantidadVenta lleva @c.CantidadBonificable)</option>
+            }
+        </select>
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-outline-secondary" @onclick="OmitirAsync">Agregar sin bonificación</button>
+        <button type="button" class="btn btn-primary" @onclick="ConfirmarTipoAsync">Continuar</button>
+    </FooterTemplate>
+</HxModal>
+
+<HxModal @ref="_modalMezcla" Title="Bonificación — completar la cantidad" Size="ModalSize.Large">
+    <BodyTemplate>
+        @if (_config is not null)
+        {
+            <p class="text-secondary">
+                <strong>@_config.Descripcion</strong>: por cada @_config.CantidadVenta se regalan @_config.CantidadBonificable.
+                @if (_origenCliente) { <span>(tipo elegido por el cliente)</span> }
+            </p>
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Artículo</th><th class="text-end">Precio</th><th class="text-end" style="width:9rem">Cantidad</th></tr></thead>
+                <tbody>
+                    @foreach (var item in _items)
+                    {
+                        <tr>
+                            <td>@item.Descripcion</td>
+                            <td class="text-end">@Formato.Importe(item.PrecioUnit)</td>
+                            <td><input type="number" min="0" step="1" class="form-control form-control-sm text-end" @bind="item.Cantidad" /></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="2" class="text-end">Total</th>
+                        <th class="text-end @(TotalMezcla > _config.CantidadTotalGrupo ? "text-danger" : null)">@TotalMezcla / @_config.CantidadTotalGrupo</th>
+                    </tr>
+                </tfoot>
+            </table>
+            <p class="text-secondary small mb-0"><i class="bi bi-info-circle me-1" aria-hidden="true"></i>El artículo de menor precio entre los usados sale gratis (hasta @_config.CantidadBonificable unidades).</p>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-outline-secondary" @onclick="CancelarAsync">Cancelar</button>
+        <button type="button" class="btn btn-primary" disabled="@(_aplicando || _config is null || TotalMezcla == 0 || TotalMezcla > _config.CantidadTotalGrupo)" @onclick="AplicarAsync">@(_aplicando ? "Aplicando..." : "Aplicar bonificación")</button>
+    </FooterTemplate>
+</HxModal>
+
+@code {
+    /// <summary>Tipos de bonificación disponibles (catálogo).</summary>
+    [Parameter] public List<ConfiguracionBonificacion> Configs { get; set; } = new();
+
+    /// <summary>Asignaciones del cliente (artículo + tipo): mandan sobre lo configurado en el artículo.</summary>
+    [Parameter] public List<ClienteBonificacionConfiguracionDTO> BonificacionesCliente { get; set; } = new();
+
+    /// <summary>Precio del cliente para un artículo (misma regla que Facturación).</summary>
+    [Parameter, EditorRequired] public Func<InventarioDTO, decimal> PrecioDe { get; set; } = _ => 0m;
+
+    /// <summary>Opcional: trae antes los precios de una tarifa nueva para los artículos dados.</summary>
+    [Parameter] public Func<IEnumerable<long>, Task>? AsegurarPrecios { get; set; }
+
+    /// <summary>El grupo ya está resuelto: la pantalla agrega sus líneas.</summary>
+    [Parameter] public EventCallback<GrupoBonificado> AlAplicar { get; set; }
+
+    /// <summary>El usuario eligió agregar el artículo sin bonificación: la pantalla lo agrega normal.</summary>
+    [Parameter] public EventCallback<(InventarioDTO Articulo, decimal Cantidad)> AlOmitir { get; set; }
+
+    /// <summary>Una línea del grupo resuelto.</summary>
+    public sealed record LineaGrupoBonificado(InventarioDTO Articulo, decimal Cantidad, decimal PrecioUnit, decimal PorcentajeImpuesto, bool EsBonificacion, bool EsPrincipal);
+
+    /// <summary>Resultado: tipo aplicado y sus líneas (la primera es la principal).</summary>
+    public sealed record GrupoBonificado(int IdConfiguracion, IReadOnlyList<LineaGrupoBonificado> Lineas);
+
+    private sealed class ItemMezcla
+    {
+        public required long Codigo { get; init; }
+        public required string Descripcion { get; init; }
+        public required decimal PrecioUnit { get; init; }
+        public int Cantidad { get; set; }
+    }
+
+    private HxModal _modalTipo = default!;
+    private HxModal _modalMezcla = default!;
+    private InventarioDTO? _principal;
+    private decimal _cantidadPendiente;
+    private List<ConfiguracionBonificacion> _tiposDelArticulo = new();
+    private int _tipoElegido;
+    private ConfiguracionBonificacion? _config;
+    private bool _origenCliente;
+    private List<ItemMezcla> _items = new();
+    private bool _aplicando;
+
+    private int TotalMezcla => _items.Sum(i => Math.Max(0, i.Cantidad));
+    private ConfiguracionBonificacion? Config(int id) => Configs.FirstOrDefault(c => c.IdConfiguracionBonificacion == id);
+
+    /// <returns>true si tomó el control (abrió un modal); false si no aplica y la pantalla debe agregar el artículo normal.</returns>
+    public async Task<bool> IniciarAsync(InventarioDTO articulo, decimal cantidad)
+    {
+        // El tipo que el cliente tenga asignado para JUSTO este artículo manda sobre el del artículo.
+        var asignacion = BonificacionesCliente.FirstOrDefault(b => b.IdArticulo == articulo.Codigo);
+        if (asignacion is not null && Config(asignacion.IdConfiguracionBonificacion) is { } cfgCliente)
+        {
+            await AbrirMezclaAsync(articulo, cfgCliente, origenCliente: true, (int)Math.Max(1, cantidad));
+            return true;
+        }
+
+        var tipos = (await Respuestas.DatoAsync(await ArticuloBonificacion.ObtenerPorArticulo(articulo.Codigo), "consultar la bonificación del artículo"))?.ToList()
+                    ?? new List<ArticuloBonificacionConfiguracion>();
+        _tiposDelArticulo = tipos.Select(t => Config(t.IdConfiguracionBonificacion)).Where(c => c is not null).Select(c => c!).ToList();
+        if (_tiposDelArticulo.Count == 0) return false;   // marcado bonificable pero sin tipos: línea normal
+
+        _principal = articulo;
+        _cantidadPendiente = cantidad;
+        _tipoElegido = _tiposDelArticulo.Count == 1 ? _tiposDelArticulo[0].IdConfiguracionBonificacion : 0;
+        await _modalTipo.ShowAsync();
+        return true;
+    }
+
+    private async Task ConfirmarTipoAsync()
+    {
+        if (_tipoElegido <= 0) { await Dialogos.ErrorAsync("Seleccione el tipo de bonificación."); return; }
+        if (Config(_tipoElegido) is not { } cfg || _principal is null) return;
+        await _modalTipo.HideAsync();
+        await AbrirMezclaAsync(_principal, cfg, origenCliente: false, (int)Math.Max(1, _cantidadPendiente));
+    }
+
+    private async Task OmitirAsync()
+    {
+        await _modalTipo.HideAsync();
+        var art = _principal;
+        var cantidad = _cantidadPendiente;
+        _principal = null;
+        if (art is not null) await AlOmitir.InvokeAsync((art, cantidad));
+    }
+
+    private async Task AbrirMezclaAsync(InventarioDTO principal, ConfiguracionBonificacion cfg, bool origenCliente, int cantidadInicial)
+    {
+        _config = cfg;
+        _origenCliente = origenCliente;
+        _principal = principal;
+
+        var relacionados = (await Respuestas.DatoAsync(await Relacionados.BuscarBonificacion(principal.Codigo), "consultar los productos de bonificación"))?.ToList()
+                           ?? new List<ArticulosRelacionadosDTO>();
+
+        _items = new List<ItemMezcla> { ItemDe(principal, Math.Min(cantidadInicial, cfg.CantidadTotalGrupo)) };
+        foreach (var r in relacionados.Where(r => r.Codigo != principal.Codigo))
+        {
+            var art = await UnoAsync(r.Codigo, "consultar el artículo de la mezcla");
+            if (art is not null) _items.Add(ItemDe(art, 0));
+        }
+        await _modalMezcla.ShowAsync();
+    }
+
+    private ItemMezcla ItemDe(InventarioDTO articulo, int cantidad) => new()
+    {
+        Codigo = articulo.Codigo,
+        Descripcion = articulo.Descripcion ?? articulo.Codigo.ToString(),
+        PrecioUnit = PrecioDe(articulo),
+        Cantidad = cantidad,
+    };
+
+    private async Task<InventarioDTO?> UnoAsync(long codigo, string queSeIntentaba)
+    {
+        var r = await Inventario.Uno(codigo);
+        if (r.EsCorrecta && AsegurarPrecios is not null) await AsegurarPrecios(new[] { codigo });
+        return await Respuestas.DatoAsync(r, queSeIntentaba);
+    }
+
+    private async Task AplicarAsync()
+    {
+        if (_config is null || _principal is null || _aplicando) return;
+        _aplicando = true;
+        try
+        {
+            // El InventarioDTO completo de cada artículo usado: precio vigente, no el cacheado de la lista de relacionados.
+            var cache = new Dictionary<long, InventarioDTO> { [_principal.Codigo] = _principal };
+            var usados = new List<BonificacionCalculo.ArticuloUsado>();
+            foreach (var i in _items.Where(i => i.Cantidad > 0))
+            {
+                if (!cache.TryGetValue(i.Codigo, out var art))
+                {
+                    var uno = await UnoAsync(i.Codigo, "consultar el artículo de la mezcla");
+                    if (uno is null) { await Dialogos.ErrorAsync($"No se pudo cargar el artículo {i.Codigo}."); return; }
+                    cache[i.Codigo] = art = uno;
+                }
+                usados.Add(new BonificacionCalculo.ArticuloUsado(i.Codigo, art.Descripcion ?? i.Descripcion, PrecioDe(art), Formato.AImporte(art.IVenta), i.Cantidad));
+            }
+
+            var resultado = BonificacionCalculo.ResolverGrupo(_config.CantidadVenta, _config.CantidadBonificable, usados);
+            if (!resultado.Ok) { await Dialogos.ErrorAsync(resultado.Error!); return; }
+
+            var lineas = resultado.Lineas
+                .Select((lg, indice) => new LineaGrupoBonificado(cache[lg.Codigo], lg.Cantidad, lg.PrecioUnit, lg.PorcentajeImpuesto, lg.EsBonificacion, EsPrincipal: indice == 0))
+                .ToList();
+            var idConfiguracion = _config.IdConfiguracionBonificacion;
+
+            _principal = null; _config = null; _items = new();
+            await _modalMezcla.HideAsync();
+            await AlAplicar.InvokeAsync(new GrupoBonificado(idConfiguracion, lineas));
+        }
+        finally { _aplicando = false; }
+    }
+
+    private async Task CancelarAsync()
+    {
+        _principal = null; _config = null; _items = new();
+        await _modalMezcla.HideAsync();
+    }
+}

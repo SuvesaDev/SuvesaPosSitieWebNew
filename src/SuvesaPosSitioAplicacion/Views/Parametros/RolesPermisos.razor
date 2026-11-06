@@ -643,7 +643,7 @@
                 <div class="col-12">
                     <label class="form-label">Acciones que expone</label>
                     <div class="d-flex flex-wrap gap-3">
-                        @foreach (var acc in TodasLasAcciones)
+                        @foreach (var acc in AccionesEditablesDelCatalogo)
                         {
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="fa_@acc"
@@ -699,6 +699,9 @@
 
     private static readonly string[] TodasLasAcciones =
         { "VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "EXPORTAR", "IMPRIMIR" };
+
+    /// <summary>Las del catálogo general más REEMITIR, que solo expone la Bandeja de documentos (no es una acción por defecto).</summary>
+    private static readonly string[] AccionesEditablesDelCatalogo = TodasLasAcciones.Append("REEMITIR").ToArray();
 
     private enum Tab { Roles, Perfiles, Catalogo, Acciones }
     private Tab _tab = Tab.Roles;
@@ -813,7 +816,7 @@
 
     // ---- matriz del modal ----
     private static readonly string[] OrdenAcciones =
-        { "VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "IMPRIMIR", "EXPORTAR" };
+        { "VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "IMPRIMIR", "EXPORTAR", "REEMITIR" };
 
     private static string Etiqueta(string accion) => accion switch
     {

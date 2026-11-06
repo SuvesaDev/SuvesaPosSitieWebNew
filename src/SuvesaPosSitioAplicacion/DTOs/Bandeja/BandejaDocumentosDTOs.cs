@@ -24,6 +24,8 @@ public class DocumentoBandeja
     public string Clase { get; set; } = string.Empty;
     public DateTime Fecha { get; set; }
     public string Consecutivo { get; set; } = string.Empty;
+    /// <summary>Descripción de la serie de facturación con la que se emitió el documento.</summary>
+    public string? Serie { get; set; }
     public string? Cliente { get; set; }
     public string? Sucursal { get; set; }
     public decimal Subtotal { get; set; }

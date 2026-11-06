@@ -23,6 +23,7 @@
 @inject IArticuloBonificacion ArticuloBonificacion
 @inject IRelojEquipo RelojEquipo
 @inject ITarifasPrecio TarifasApi
+@inject IAuditoriaCabys AuditoriaCabys
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -60,6 +61,9 @@
         {
             <button class="btn btn-sm btn-outline-secondary" title="Genera la miniatura liviana para las imágenes de artículo subidas antes de esta mejora — el catálogo visual de Facturación abre más rápido. Las imágenes nuevas ya la generan solas." disabled="@_recatalogando" @onclick="RecatalogarImagenes">
                 <i class="bi bi-images me-1" aria-hidden="true"></i>@(_recatalogando ? "Recatalogando..." : "Recatalogar imágenes")
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="AbrirRevisionCabys" title="Lista los artículos cuyo CABYS no coincide con su marca de servicio/mercancía (causa de rechazos de Hacienda)">
+                <i class="bi bi-patch-check me-1" aria-hidden="true"></i>Revisar CABYS
             </button>
             <button class="btn btn-sm btn-primary" @onclick="Agregar">
                 <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
@@ -336,6 +340,59 @@
     </BodyTemplate>
 </HxOffcanvas>
 
+@* ---------- Revisión de CABYS (solo lectura) ---------- *@
+<HxModal @ref="_modalRevisionCabys" Title="Revisar CABYS" Size="ModalSize.ExtraLarge" Scrollable="true">
+    <BodyTemplate>
+        <p class="text-secondary small mb-2">
+            Hacienda clasifica cada línea por su CABYS: los códigos que empiezan en 0–4 son <strong>mercancías</strong> y los
+            que empiezan en 5–9 son <strong>servicios</strong>. Si el artículo está marcado distinto, la factura electrónica se
+            rechaza (-110 / -111). Esta lista no cambia nada: corrija cada artículo con «Abrir».
+        </p>
+        <div class="form-check mb-3">
+            <input id="cabys-solo-activos" class="form-check-input" type="checkbox" @bind="_cabysSoloActivos" @bind:after="CargarRevisionCabys" />
+            <label class="form-check-label" for="cabys-solo-activos">Solo artículos activos</label>
+        </div>
+        @if (_cabysCargando)
+        {
+            <p class="text-secondary">Revisando artículos...</p>
+        }
+        else if (_cabysResultado is null)
+        {
+            <p class="text-secondary">No se pudo obtener la revisión.</p>
+        }
+        else if (_cabysResultado.Inconsistentes.Count == 0)
+        {
+            <div class="alert alert-success mb-0">Los @_cabysResultado.ArticulosRevisados artículos revisados tienen un CABYS coherente.</div>
+        }
+        else
+        {
+            <p class="mb-2"><strong>@_cabysResultado.Inconsistentes.Count</strong> de @_cabysResultado.ArticulosRevisados artículos con problema.</p>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Código</th><th>Descripción</th><th>CABYS</th><th>Marcado como</th><th>Según CABYS</th><th>Problema</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var a in _cabysResultado.Inconsistentes)
+                        {
+                            <tr>
+                                <td><code>@a.CodArticulo</code></td>
+                                <td>@a.Descripcion</td>
+                                <td><code>@a.Cabys</code></td>
+                                <td>@(a.EsServicioMarcado ? "Servicio" : "Mercancía")</td>
+                                <td>@(a.EsServicioSegunCabys is null ? "—" : a.EsServicioSegunCabys == true ? "Servicio" : "Mercancía")</td>
+                                <td class="small">@a.Problema</td>
+                                <td class="text-end"><button class="btn btn-sm btn-outline-primary" @onclick="() => EditarDesdeRevisionCabys(a)">Abrir</button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modalRevisionCabys.HideAsync()">Cerrar</button>
+    </FooterTemplate>
+</HxModal>
+
 <HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo artículo" : "Editar artículo")" Size="ModalSize.Large" Scrollable="true">
     <BodyTemplate>
         @if (_edicion is not null)
@@ -521,11 +578,11 @@
                     <div class="row g-3">
                         <div class="col-12"><p class="text-secondary mb-0">Calcule el precio de venta a partir del costo y la utilidad. El cálculo usa la regla CostaPets cuando corresponde.</p></div>
                         <div class="col-12 seepos-form-seccion">Costo del artículo</div>
-                        <div class="col-12 col-md-3"><label class="form-label" for="articulo-costo-base">Costo base (precio de compra)</label><input id="articulo-costo-base" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.PrecioBase" /></div>
+                        <div class="col-12 col-md-3"><label class="form-label" for="articulo-costo-base">Costo base (precio de compra)</label><input id="articulo-costo-base" type="number" min="0" step="0.01" class="form-control" value="@EntradaNumerica.Importe(_edicion.PrecioBase)" @onchange="e => CambiarCosto(c => _edicion!.PrecioBase = c, e.Value?.ToString(), 'b')" @key="ClaveCosto('b')" /></div>
                         @if (!Sesion.EsCostaPets)
                         {
-                            <div class="col-12 col-md-3"><label class="form-label">Fletes</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Fletes" /></div>
-                            <div class="col-12 col-md-3"><label class="form-label">Otros cargos</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.OtrosCargos" /></div>
+                            <div class="col-12 col-md-3"><label class="form-label">Fletes</label><input type="number" min="0" step="0.01" class="form-control" value="@EntradaNumerica.Importe(_edicion.Fletes)" @onchange="e => CambiarCosto(c => _edicion!.Fletes = c, e.Value?.ToString(), 'f')" @key="ClaveCosto('f')" /></div>
+                            <div class="col-12 col-md-3"><label class="form-label">Otros cargos</label><input type="number" min="0" step="0.01" class="form-control" value="@EntradaNumerica.Importe(_edicion.OtrosCargos)" @onchange="e => CambiarCosto(c => _edicion!.OtrosCargos = c, e.Value?.ToString(), 'o')" @key="ClaveCosto('o')" /></div>
                         }
                         <div class="col-12 col-md-3">
                             <label class="form-label">Costo total</label>
@@ -560,10 +617,10 @@
                                         {
                                             <tr>
                                                 <td>@f.Nombre</td>
-                                                <td><input type="number" step="0.01" class="form-control form-control-sm" aria-label="@($"Utilidad {f.Nombre}")"
-                                                           value="@EntradaNumerica.Texto(UtilidadDe(f))" @onchange="e => CambiarUtilidad(f, e.Value?.ToString())" /></td>
-                                                <td><input type="number" min="0" step="0.01" class="form-control form-control-sm" aria-label="@($"Precio sin impuesto {f.Nombre}")"
-                                                           value="@EntradaNumerica.Texto(PrecioDe(f))" @onchange="e => CambiarPrecio(f, e.Value?.ToString())" /></td>
+                                                <td><input @key="ClaveCampo('u', f)" type="number" step="0.01" class="form-control form-control-sm" aria-label="@($"Utilidad {f.Nombre}")" disabled="@(!Sesion.PuedeCambiarPrecio)"
+                                                           value="@EntradaNumerica.Importe(UtilidadDe(f))" @onchange="e => CambiarUtilidad(f, e.Value?.ToString())" /></td>
+                                                <td><input @key="ClaveCampo('p', f)" type="number" min="0" step="0.01" class="form-control form-control-sm" aria-label="@($"Precio sin impuesto {f.Nombre}")" disabled="@(!Sesion.PuedeCambiarPrecio)"
+                                                           value="@EntradaNumerica.Importe(PrecioDe(f))" @onchange="e => CambiarPrecio(f, e.Value?.ToString())" /></td>
                                                 <td class="text-end seepos-importe">@Formato.Importe(ConImpuesto(PrecioDe(f)))</td>
                                                 @if (MuestraPrecioFinalColones) { <td class="text-end seepos-importe">@Formato.Importe(FinalEnColones(PrecioDe(f)))</td> }
                                             </tr>
@@ -571,6 +628,7 @@
                                     </tbody>
                                 </table>
                             </div>
+                            @if (!Sesion.PuedeCambiarPrecio) { <p class="form-text text-warning-emphasis mb-1"><i class="bi bi-lock-fill me-1" aria-hidden="true"></i>No tiene permiso para modificar precios ni utilidades.</p> }
                             <p class="form-text mb-0">Escriba la utilidad para calcular el precio, o el precio para ver su utilidad. @(_extras.Count > 0 ? "Las tarifas nuevas se guardan por artículo." : "Las tarifas nuevas se crean en Catálogos → Tarifas.")</p>
                         </div>
 
@@ -1127,6 +1185,30 @@
     private HxOffcanvas _detalle = default!;
     private HxModal _modal = default!;
     private HxModal _modalCabys = default!;
+    private HxModal _modalRevisionCabys = default!;
+    private DTOs.Inventario.ResultadoAuditoriaCabysWeb? _cabysResultado;
+    private bool _cabysCargando;
+    private bool _cabysSoloActivos = true;
+
+    private async Task AbrirRevisionCabys()
+    {
+        _cabysResultado = null;
+        await _modalRevisionCabys.ShowAsync();
+        await CargarRevisionCabys();
+    }
+
+    private async Task CargarRevisionCabys()
+    {
+        _cabysCargando = true;
+        _cabysResultado = await Respuestas.DatoAsync(await AuditoriaCabys.Obtener(_cabysSoloActivos), "revisar los CABYS");
+        _cabysCargando = false;
+    }
+
+    private async Task EditarDesdeRevisionCabys(DTOs.Inventario.ArticuloCabysInconsistenteWeb a)
+    {
+        await _modalRevisionCabys.HideAsync();
+        await Editar(new InventarioDTO { Codigo = a.Codigo, Descripcion = a.Descripcion });
+    }
 
     private string _ultimoCodigoArticulo = string.Empty;
     private string _texto = string.Empty;
@@ -2022,6 +2104,30 @@
         };
     }
 
+    // Blazor compara contra lo ultimo que pinto, no contra lo que hay en el campo: si el
+    // usuario escribe 10.555 y el modelo ya valia 10.56, el campo se quedaria en 10.555.
+    // Un @key distinto recrea solo ese campo con el valor redondeado.
+    private readonly Dictionary<string, int> _refrescoCampos = new();
+
+    private (string, int) ClaveCampo(char campo, FilaPrecio f) => ClaveCosto(campo + f.Clave);
+
+    private (string, int) ClaveCosto(string clave) => (clave, _refrescoCampos.GetValueOrDefault(clave));
+
+    private (string, int) ClaveCosto(char clave) => ClaveCosto(clave.ToString());
+
+    private void ForzarRefresco(string clave) => _refrescoCampos[clave] = _refrescoCampos.GetValueOrDefault(clave) + 1;
+
+    private static bool TieneMasDeDosDecimales(double v) => Math.Round((decimal)v, 2) != (decimal)v;
+
+    /// <summary>Costo base, fletes y otros cargos: se guardan con 2 decimales.</summary>
+    private void CambiarCosto(Action<float> poner, string? texto, char campo)
+    {
+        if (_edicion is null) return;
+        if (!EntradaNumerica.TryLeer(texto, out var v)) return;
+        poner(EntradaNumerica.Redondear(Math.Max(0, v)));
+        if (v < 0 || TieneMasDeDosDecimales(v)) ForzarRefresco(campo.ToString());
+    }
+
     private void PonerPrecio(FilaPrecio f, decimal precio)
     {
         if (_edicion is null) return;
@@ -2065,7 +2171,7 @@
     /// <summary>Al escribir la utilidad se calcula el precio (regla del inventario anterior; CostaPets: sobre el precio).</summary>
     private async Task CambiarUtilidad(FilaPrecio f, string? texto)
     {
-        if (_edicion is null) return;
+        if (_edicion is null || !Sesion.PuedeCambiarPrecio) return;
         if (string.IsNullOrWhiteSpace(texto)) { PonerUtilidad(f, null); return; }
         if (!EntradaNumerica.TryLeer(texto, out var pct)) return;
         var utilidad = (decimal)pct / 100;
@@ -2080,16 +2186,18 @@
             : basePrecio * (1 + utilidad) + (decimal)_edicion.Fletes + (decimal)_edicion.OtrosCargos;
         PonerUtilidad(f, (decimal)pct);
         PonerPrecio(f, precio);
+        if (TieneMasDeDosDecimales(pct)) ForzarRefresco("u" + f.Clave);
         if (MuestraPrecioFinalColones) await TomarTipoCambio();
     }
 
     /// <summary>Al escribir el precio se recalcula su utilidad a partir del costo (inverso de <see cref="CambiarUtilidad"/>).</summary>
     private void CambiarPrecio(FilaPrecio f, string? texto)
     {
-        if (_edicion is null) return;
+        if (_edicion is null || !Sesion.PuedeCambiarPrecio) return;
         if (!EntradaNumerica.TryLeer(texto, out var valor)) return;
         var precio = (decimal)Math.Max(0, valor);
         PonerPrecio(f, precio);
+        if (valor < 0 || TieneMasDeDosDecimales(valor)) ForzarRefresco("p" + f.Clave);
         var basePrecio = (decimal)_edicion.PrecioBase;
         if (basePrecio <= 0 || precio <= 0) return;
         var utilidad = Sesion.EsCostaPets

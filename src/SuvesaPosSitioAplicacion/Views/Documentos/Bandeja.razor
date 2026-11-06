@@ -74,13 +74,14 @@
                         <Columns>
                             <PropertyColumn Property="d => d.Fecha" Title="Fecha"><CellTemplate>@context.Item.Fecha.ToString("dd/MM/yyyy HH:mm")</CellTemplate></PropertyColumn>
                             <PropertyColumn Property="d => d.Consecutivo" Title="Consecutivo" />
+                            <PropertyColumn Property="d => d.Serie" Title="Serie" />
                             <PropertyColumn Property="d => d.Cliente" Title="Cliente" />
                             <PropertyColumn Property="d => d.Sucursal" Title="Sucursal" />
                             <PropertyColumn Property="d => d.Subtotal" Title="Subtotal" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Subtotal)</CellTemplate></PropertyColumn>
                             <PropertyColumn Property="d => d.Impuesto" Title="Impuesto" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Impuesto)</CellTemplate></PropertyColumn>
                             <PropertyColumn Property="d => d.Total" Title="Total" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Total)</CellTemplate></PropertyColumn>
                             <TemplateColumn Title="Estado"><CellTemplate>@if (context.Item is DocumentoFiscalBandeja f && !string.IsNullOrWhiteSpace(f.EstadoHacienda)) { <span class="badge @ClaseEstado(f.EstadoHacienda)">@f.EstadoHacienda</span> } else { @context.Item.EstadoDescripcion }</CellTemplate></TemplateColumn>
-                            <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate Context="context"><div class="d-flex gap-1"><button class="btn btn-sm btn-success" title="Ver detalle" @onclick="() => VerDetalle(context.Item)"><i class="bi bi-eye"></i></button>@if (_tab == 1) { <button class="btn btn-sm btn-outline-danger" title="Devolución" @onclick="() => Devolucion(context.Item)"><i class="bi bi-arrow-return-left"></i></button> }@if (EsFiscal && context.Item is DocumentoFiscalBandeja fa && !string.IsNullOrWhiteSpace(fa.ClaveFacturaElectronica)) { <button class="btn btn-sm btn-outline-primary" title="Opciones fiscales" @onclick="() => AccionFiscal(fa.ClaveFacturaElectronica!)"><i class="bi bi-file-earmark-text"></i></button> }@if (EsFiscal && Sesion.Puede(Titulo, AccionPantalla.Imprimir)) { <BotonImprimir Tipo="@SlugDocumento(context.Item)" Id="context.Item.Id" Clase="btn-sm btn-outline-secondary" SoloIcono="true" Titulo="Descargar PDF (A4)" /> }</div></CellTemplate></TemplateColumn>
+                            <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate Context="context"><div class="d-flex gap-1"><button class="btn btn-sm btn-success" title="Ver detalle" @onclick="() => VerDetalle(context.Item)"><i class="bi bi-eye"></i></button>@if (_tab == 1) { <button class="btn btn-sm btn-outline-danger" title="Devolución" @onclick="() => Devolucion(context.Item)"><i class="bi bi-arrow-return-left"></i></button> }@if (EsFiscal && context.Item is DocumentoFiscalBandeja fa && !string.IsNullOrWhiteSpace(fa.ClaveFacturaElectronica)) { <button class="btn btn-sm btn-outline-primary" title="Opciones fiscales" @onclick="() => AccionFiscal(fa.ClaveFacturaElectronica!, fa)"><i class="bi bi-file-earmark-text"></i></button> }@if (EsFiscal && Sesion.Puede(Titulo, AccionPantalla.Imprimir)) { <BotonImprimir Tipo="@SlugDocumento(context.Item)" Id="context.Item.Id" Clase="btn-sm btn-outline-secondary" SoloIcono="true" Titulo="Descargar PDF (A4)" /> }</div></CellTemplate></TemplateColumn>
                         </Columns>
                     </MudDataGrid>
                     </MudIsla>
@@ -92,6 +93,7 @@
                                 <tr>
                                     <th>Fecha</th>
                                     <th>Consecutivo</th>
+                                    <th>Serie</th>
                                     <th>Cliente</th>
                                     <th>Sucursal</th>
                                     <th class="text-end">Subtotal</th>
@@ -114,6 +116,7 @@
                                     <tr class="@(d.Anulado ? "text-decoration-line-through text-secondary" : null)">
                                         <td>@d.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
                                         <td><code>@d.Consecutivo</code></td>
+                                        <td>@d.Serie</td>
                                         <td>@d.Cliente</td>
                                         <td>@d.Sucursal</td>
                                         <td class="text-end seepos-importe">@Formato.Importe(d.Subtotal)</td>
@@ -135,7 +138,7 @@
                                             }
                                             @if (EsFiscal && d is DocumentoFiscalBandeja fa && !string.IsNullOrWhiteSpace(fa.ClaveFacturaElectronica))
                                             {
-                                                <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => AccionFiscal(fa.ClaveFacturaElectronica!)">Fiscal</button>
+                                                <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => AccionFiscal(fa.ClaveFacturaElectronica!, fa)">Fiscal</button>
                                             }
                                             @if (EsFiscal && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
                                             {
@@ -218,7 +221,17 @@
                 <button class="btn btn-sm btn-outline-primary" @onclick="VerRespuesta">Ver respuesta Hacienda</button>
                 <button class="btn btn-sm btn-outline-secondary" @onclick="ConsultarEstadoHacienda">Consultar estado</button>
                 <button class="btn btn-sm btn-outline-danger" @onclick="ReintentarEmision">Reintentar emisión</button>
+                @if (PuedeReemitir)
+                {
+                    <button class="btn btn-sm btn-warning" disabled="@_reemitiendo" title="Emite un comprobante NUEVO para esta venta, sin tocar inventario ni cuentas por cobrar" @onclick="ReemitirComprobante">
+                        <i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>@(_reemitiendo ? "Reemitiendo..." : "Reemitir comprobante")
+                    </button>
+                }
             </div>
+            @if (PuedeReemitir)
+            {
+                <p class="form-text">Hacienda rechazó este comprobante. Corrija primero la causa (revise la respuesta de Hacienda) y luego reemítalo: se genera una clave y un consecutivo nuevos para la misma venta, con la hora real de ahora. No rebaja inventario ni crea deuda.</p>
+            }
             @if (!string.IsNullOrWhiteSpace(_contenidoFiscal))
             {
                 <pre class="p-2 bg-light text-break" style="max-height:340px;overflow:auto">@_contenidoFiscal</pre>
@@ -246,7 +259,7 @@
             <div>
                 <div class="seepos-documento-kicker">DOCUMENTO ELECTRÓNICO</div>
                 <h5 class="seepos-documento-titulo">@(string.IsNullOrWhiteSpace(e.TipoDescripcion) ? "Documento" : e.TipoDescripcion)</h5>
-                <div class="seepos-documento-consecutivo">Consecutivo <strong>#@e.Consecutivo</strong></div>
+                <div class="seepos-documento-consecutivo">Consecutivo <strong>#@e.Consecutivo</strong>@if (!string.IsNullOrWhiteSpace(e.Serie)) { <span class="text-secondary"> · Serie @e.Serie</span> }</div>
             </div>
             <div class="seepos-documento-total"><span>Total</span><strong>@Formato.Importe(e.Total)</strong></div>
         </div>
