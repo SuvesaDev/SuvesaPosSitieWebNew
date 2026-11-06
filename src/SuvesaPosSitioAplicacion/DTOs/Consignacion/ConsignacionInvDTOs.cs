@@ -89,6 +89,8 @@ public sealed class BoletaConsignacionResumen
     public long? NumeroInterno { get; set; }
     public string? Motivo { get; set; }
     public double CostoTotal { get; set; }
+    /// <summary>true = los importes son el precio de la tarifa del cliente; false = costo del artículo (boletas anteriores).</summary>
+    public bool ValoradaAPrecio { get; set; }
     public bool Anulada { get; set; }
 }
 
@@ -121,6 +123,8 @@ public sealed class BoletaConsignacion
     public bool CierreTotal { get; set; }
     public string? Observaciones { get; set; }
     public double CostoTotal { get; set; }
+    /// <summary>true = los importes son el precio de la tarifa del cliente; false = costo del artículo (boletas anteriores).</summary>
+    public bool ValoradaAPrecio { get; set; }
     public bool Anulada { get; set; }
     public DateTime? FechaAnulacion { get; set; }
     public string? UsuarioAnulacion { get; set; }

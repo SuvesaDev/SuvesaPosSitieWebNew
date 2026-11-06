@@ -36,6 +36,11 @@
       "codigo": "IMPRIMIR",
       "nombre": "Imprimir",
       "orden": 7
+    },
+    {
+      "codigo": "REEMITIR",
+      "nombre": "Reemitir",
+      "orden": 8
     }
   ],
   "perfiles": [
@@ -1319,7 +1324,8 @@
             "BORRAR",
             "ACTIVAR",
             "EXPORTAR",
-            "IMPRIMIR"
+            "IMPRIMIR",
+            "REEMITIR"
           ]
         },
         {

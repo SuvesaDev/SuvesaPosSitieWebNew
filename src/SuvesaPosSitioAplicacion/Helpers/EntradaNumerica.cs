@@ -19,4 +19,19 @@ public static class EntradaNumerica
 
     /// <summary>Escribe un valor para un campo numerico del navegador (punto decimal).</summary>
     public static string Texto(double? valor) => valor?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+
+    /// <summary>
+    /// Escribe un importe o porcentaje (2 decimales) para un campo numerico con
+    /// <c>step="0.01"</c>. Los DTO guardan <c>float</c>, y <c>12.35f</c> convertido a
+    /// <c>double</c> es <c>12.350000381469727</c>: el navegador lo rechaza por no ser
+    /// multiplo de 0.01. Se redondea en <c>decimal</c> antes de escribir.
+    /// </summary>
+    public static string Importe(double? valor) =>
+        valor is { } v && double.IsFinite(v)
+            ? Math.Round((decimal)v, 2).ToString(CultureInfo.InvariantCulture)
+            : string.Empty;
+
+    /// <summary>Redondea a 2 decimales (en decimal, sin la basura del float).</summary>
+    public static float Redondear(double valor) =>
+        double.IsFinite(valor) ? (float)Math.Round((decimal)valor, 2) : 0f;
 }

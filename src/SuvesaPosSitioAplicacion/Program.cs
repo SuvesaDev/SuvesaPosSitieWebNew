@@ -264,6 +264,7 @@ builder.Services.AddScoped<IEnviosCorreo, EnviosCorreo>();
 builder.Services.AddScoped<IAlertasAdministrador, AlertasAdministrador>();
 builder.Services.AddScoped<ICertificadosRegistro, CertificadosRegistro>();
 builder.Services.AddScoped<ICobranza, Cobranza>();
+builder.Services.AddScoped<IAuditoriaCabys, AuditoriaCabys>();
 builder.Services.AddScoped<IDesbloqueoCredito, DesbloqueoCredito>();
 builder.Services.AddScoped<IClienteUnificacion, ClienteUnificacion>();
 builder.Services.AddScoped<IAvisadorAlertas, AvisadorAlertas>();

@@ -68,6 +68,17 @@ public sealed class CircuitoServiciosHandler(AccesorServiciosCircuito accesor, I
 /// <summary>Última hora local leída del navegador, visible para el cliente HTTP del circuito.</summary>
 public static class MarcaEquipo
 {
+    private static readonly System.Threading.AsyncLocal<DateTimeOffset?> _actualUtc = new();
+    /// <summary>
+    /// Instante real (UTC) que el navegador del usuario leyó de su reloj. A diferencia de la hora de pared,
+    /// no depende de la zona horaria de nadie; el API lo convierte a hora de Costa Rica.
+    /// </summary>
+    public static DateTimeOffset? ActualUtc
+    {
+        get => _actualUtc.Value;
+        set => _actualUtc.Value = value;
+    }
+
     private static readonly System.Threading.AsyncLocal<DateTime?> _actual = new();
     public static DateTime? Actual
     {

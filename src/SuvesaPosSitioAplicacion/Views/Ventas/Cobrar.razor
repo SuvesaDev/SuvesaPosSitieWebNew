@@ -153,7 +153,7 @@
                         <div class="card-header"><strong>Formas de pago</strong></div>
                         <div class="card-body">
                             <table class="table table-sm align-middle mb-3">
-                                <thead><tr><th>Forma de pago</th><th class="text-end">Monto</th><th></th></tr></thead>
+                                <thead><tr><th>Forma de pago</th><th class="text-end">Monto</th><th></th><th></th></tr></thead>
                                 <tbody>
                                     @foreach (var forma in _formasPago)
                                     {
@@ -194,7 +194,47 @@
                                                 </td>
                                             }
                                             else { <td></td> }
+                                            <td class="text-end" style="width:2.5rem">
+                                                @if ((forma.Cheque || forma.Deposito) && LineasDe(forma.Codigo!) < PreparacionPagoVenta.MaxLineasPorForma)
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                                            title="Agregar otro @(forma.Cheque ? "cheque" : "depósito")"
+                                                            aria-label="Agregar otra línea de @forma.Descripcion" @onclick="() => AgregarExtra(forma.Codigo!)">+</button>
+                                                }
+                                            </td>
                                         </tr>
+                                        @if (forma.Cheque || forma.Deposito)
+                                        {
+                                            var extras = ExtrasDe(forma.Codigo!);
+                                            @for (var i = 0; i < extras.Count; i++)
+                                            {
+                                                var x = extras[i];
+                                                <tr @key="x.Id">
+                                                    <td class="ps-4 text-secondary">@forma.Descripcion @(i + 2)</td>
+                                                    <td style="min-width:8rem">
+                                                        <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end"
+                                                               aria-label="Monto @forma.Descripcion @(i + 2)"
+                                                               value="@(x.Monto > 0 ? x.Monto.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")"
+                                                               @onchange="e => SetExtraMonto(x, e.Value)" />
+                                                    </td>
+                                                    <td style="min-width:8rem">
+                                                        <input type="text" class="form-control form-control-sm mb-1" placeholder="@(forma.Cheque ? "N° cheque" : "Referencia")"
+                                                               aria-label="@(forma.Cheque ? "Número de cheque" : "Referencia") @forma.Descripcion @(i + 2)"
+                                                               value="@(forma.Cheque ? x.NumeroCheque : x.Referencia)"
+                                                               @onchange="e => SetExtraReferencia(x, e.Value?.ToString(), forma.Cheque)" />
+                                                        <select class="form-select form-select-sm" aria-label="Banco @forma.Descripcion @(i + 2)"
+                                                                value="@(x.IdBanco?.ToString() ?? "")" @onchange="e => SetExtraBanco(x, e.Value?.ToString())">
+                                                            <option value="">Banco...</option>
+                                                            @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
+                                                        </select>
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" title="Quitar esta línea"
+                                                                aria-label="Quitar @forma.Descripcion @(i + 2)" @onclick="() => QuitarExtra(x)">−</button>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
                                     }
                                 </tbody>
                             </table>
@@ -243,6 +283,53 @@
     private readonly Dictionary<string, string?> _numerosChequePorForma = new();
     private readonly Dictionary<string, int?> _idsBancoPorForma = new();
     private List<EntidadesBancariasDTO> _bancos = new();
+    /// <summary>Depósitos/cheques adicionales: el cliente paga con más de uno.</summary>
+    private readonly List<PagoExtra> _extras = new();
+
+    private List<PagoExtra> ExtrasDe(string cod) => _extras.Where(e => e.Codigo == cod).ToList();
+    private int LineasDe(string cod) => 1 + _extras.Count(e => e.Codigo == cod);
+    private decimal SumaExtras() => _extras.Where(x => x.Monto > 0).Sum(x => x.Monto);
+    private bool EsCheque(string cod) => _formasPago.Any(f => f.Codigo == cod && f.Cheque);
+
+    private void AgregarExtra(string cod)
+    {
+        if (LineasDe(cod) >= PreparacionPagoVenta.MaxLineasPorForma) return;
+        _extras.Add(new PagoExtra { Codigo = cod });
+        Recalcular();
+    }
+
+    private void QuitarExtra(PagoExtra x) { _extras.Remove(x); Recalcular(); }
+
+    private void SetExtraMonto(PagoExtra x, object? valor)
+    {
+        x.Monto = decimal.TryParse(Convert.ToString(valor), System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var m) && m > 0 ? m : 0m;
+        Recalcular();
+    }
+
+    private void SetExtraReferencia(PagoExtra x, string? valor, bool esCheque)
+    {
+        var texto = string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+        if (esCheque) x.NumeroCheque = texto; else x.Referencia = texto;
+    }
+
+    private void SetExtraBanco(PagoExtra x, string? valor) => x.IdBanco = int.TryParse(valor, out var id) ? id : null;
+
+    /// <summary>Referencia, banco, duplicados y tope de las líneas de depósito/cheque (principales y adicionales).</summary>
+    private List<string> ErroresInstrumentos()
+    {
+        var lineas = new List<PreparacionPagoVenta.LineaPago>();
+        foreach (var f in _formasPago.Where(f => f.Codigo is not null && (f.Cheque || f.Deposito)))
+        {
+            var cod = f.Codigo!;
+            if (MontoDe(cod) > 0)
+                lineas.Add(new(cod, MontoDe(cod), false, true, f.Cheque ? NumeroChequeDe(cod) : ReferenciaDe(cod), true,
+                    _idsBancoPorForma.TryGetValue(cod, out var b) ? b : null));
+            foreach (var x in _extras.Where(e => e.Codigo == cod && e.Monto > 0))
+                lineas.Add(new(cod, x.Monto, false, true, f.Cheque ? x.NumeroCheque : x.Referencia, true, x.IdBanco));
+        }
+        return PreparacionPagoVenta.ValidarInstrumentos(lineas);
+    }
     private decimal _aCobrar, _entregado, _cambio;
     private bool _guardando;
     private string? _claveIdempotencia;
@@ -415,6 +502,7 @@
         _referenciasPorForma.Clear();
         _numerosChequePorForma.Clear();
         _idsBancoPorForma.Clear();
+        _extras.Clear();
         foreach (var forma in _formasPago)
         {
             if (forma.Codigo is not null) _montosPorForma[forma.Codigo] = 0;
@@ -447,7 +535,7 @@
     {
         if (_preventa is null) return;
         var total = Formato.AImporte(_preventa.Total);
-        var nuevoTotal = _montosPorForma.Values.Sum();
+        var nuevoTotal = _montosPorForma.Values.Sum() + SumaExtras();
         var totalEfectivo = MontoDe(CodigoEfectivo);
 
         _entregado = nuevoTotal;
@@ -458,6 +546,8 @@
     private async Task Confirmar()
     {
         if (_preventa is null || _entregado <= 0 || _guardando) return;
+        var errores = ErroresInstrumentos();
+        if (errores.Count > 0) { await Dialogos.ErrorAsync(string.Join("\n", errores)); return; }
         if (!await Dialogos.ConfirmarAsync("¿Desea generar el cobro?")) return;
 
         _guardando = true;
@@ -487,7 +577,14 @@
                         Referencia = ReferenciaDe(f.Codigo!),
                         NumeroCheque = NumeroChequeDe(f.Codigo!),
                         IdBanco = _idsBancoPorForma.TryGetValue(f.Codigo!, out var idb) ? idb : null,
-                    }).ToList(),
+                    }).Concat(_extras.Where(x => x.Monto > 0).Select(x => new SuvesaPosSitioAplicacion.DTOs.Fiscal.PagoPreventaContadoDTO
+                    {
+                        FormaPago = x.Codigo,
+                        Monto = x.Monto,
+                        Referencia = EsCheque(x.Codigo) ? (x.NumeroCheque ?? x.Referencia) : x.Referencia,
+                        NumeroCheque = x.NumeroCheque,
+                        IdBanco = x.IdBanco,
+                    })).ToList(),
             };
             var res = await Respuestas.DatoAsync(await Comandos.FacturarPreventaContado(cmd), "cobrar y facturar la preventa");
             _guardando = false;
@@ -533,6 +630,29 @@
                 IdBanco = _idsBancoPorForma.TryGetValue(f.Codigo!, out var idb2) ? idb2 : null,
             })
             .ToList();
+        // Depósitos/cheques adicionales: una entrada más por cada uno, sobre el mismo documento.
+        var plantilla = cobros.FirstOrDefault();
+        if (plantilla is not null)
+            cobros.AddRange(_extras.Where(x => x.Monto > 0).Select(x => new CobroDocumentosDTO
+            {
+                Documento = plantilla.Documento,
+                TipoDocumento = plantilla.TipoDocumento,
+                MontoPago = (double)x.Monto,
+                FormaPago = x.Codigo,
+                Usuario = plantilla.Usuario,
+                Nombre = plantilla.Nombre,
+                CodMoneda = plantilla.CodMoneda,
+                Nombremoneda = plantilla.Nombremoneda,
+                TipoCambio = 0,
+                Fecha = plantilla.Fecha,
+                Numapertura = plantilla.Numapertura,
+                Vuelto = 0,
+                IdDocumento = plantilla.IdDocumento,
+                IdSucursal = plantilla.IdSucursal,
+                NumeroDocumento = EsCheque(x.Codigo) ? (x.NumeroCheque ?? x.Referencia) : x.Referencia,
+                NumeroCheque = x.NumeroCheque,
+                IdBanco = x.IdBanco,
+            }));
 
         var r = await Api.Cobrar(cobros);
         if (!await Respuestas.CorrectaAsync(r, "registrar el cobro"))
@@ -567,6 +687,7 @@
         _referenciasPorForma.Clear();
         _numerosChequePorForma.Clear();
         _idsBancoPorForma.Clear();
+        _extras.Clear();
         _aCobrar = _entregado = _cambio = 0;
         _claveIdempotencia = null;
     }

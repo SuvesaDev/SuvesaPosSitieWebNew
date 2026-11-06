@@ -29,6 +29,8 @@ public static class ClaimsSeePos
     public const string EsServicioAlCliente = "seepos:esServicioAlCliente";
     public const string AceptaConsignacion = "seepos:aceptaConsignacion";
     /// <summary>El perfil deja facturar / mover stock aunque quede en negativo.</summary>
+    /// <summary>Permiso por usuario: puede modificar el precio de una linea al facturar.</summary>
+    public const string CambiarPrecio = "seepos:cambiarPrecio";
     public const string PermiteExistenciaNegativa = "seepos:permiteExistenciaNegativa";
     public const string HabilitaImportaciones = "seepos:habilitaImportaciones";
 

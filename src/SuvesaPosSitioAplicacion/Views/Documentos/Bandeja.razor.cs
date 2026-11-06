@@ -179,8 +179,36 @@ public partial class Bandeja
     private void DevolucionPorVentaId(long idVenta)
         => Navegacion.NavigateTo($"/sales/repayment?ventaId={idVenta}");
 
-    private async Task AccionFiscal(string clave)
+    private DocumentoFiscalBandeja? _docFiscal;
+    private bool _reemitiendo;
+
+    /// <summary>Solo una factura/tiquete (venta) RECHAZADA, y solo con el permiso Reemitir (Super Administración siempre).</summary>
+    private bool PuedeReemitir => _docFiscal is { Clase: "Factura" } d
+        && string.Equals(d.EstadoHacienda, "Rechazado", StringComparison.OrdinalIgnoreCase)
+        && Sesion.Puede(Titulo, SuvesaPosSitioAplicacion.Class.AccionPantalla.Reemitir);
+
+    private async Task ReemitirComprobante()
     {
+        if (_docFiscal is null || _reemitiendo) return;
+        var ok = await Dialogos.ConfirmarAsync(
+            $"Se emitirá un comprobante NUEVO para la factura {_docFiscal.Consecutivo}, con clave y consecutivo nuevos y la hora de ahora. " +
+            "El comprobante rechazado queda en el historial. No se rebaja inventario ni se crea deuda. ¿Reemitir?",
+            "Reemitir comprobante", "Reemitir");
+        if (!ok) return;
+
+        _reemitiendo = true;
+        var r = await Respuestas.DatoAsync(await Fiscal.Reemitir(_docFiscal.Id), "reemitir el comprobante");
+        _reemitiendo = false;
+        if (r is null) return;
+
+        Dialogos.Exito($"Comprobante reemitido (factura N° {r.NumFactura:0}). En unos instantes se envía a Hacienda; consulte el estado desde esta bandeja.");
+        await _modalFiscal.HideAsync();
+        await Cargar();
+    }
+
+    private async Task AccionFiscal(string clave, DocumentoFiscalBandeja? documento = null)
+    {
+        _docFiscal = documento;
         _claveFiscal = clave;
         _contenidoFiscal = null;
         await _modalFiscal.ShowAsync();

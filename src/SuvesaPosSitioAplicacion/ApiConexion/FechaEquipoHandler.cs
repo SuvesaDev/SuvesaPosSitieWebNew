@@ -10,6 +10,8 @@ public sealed class FechaEquipoHandler : DelegatingHandler
     {
         if (MarcaEquipo.Actual is { } marca)
             solicitud.Headers.TryAddWithoutValidation("X-Fecha-Equipo", marca.ToString("yyyy-MM-ddTHH:mm:ss"));
+        if (MarcaEquipo.ActualUtc is { } instante)
+            solicitud.Headers.TryAddWithoutValidation("X-Fecha-Equipo-Utc", instante.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture));
         if (!string.IsNullOrWhiteSpace(OrigenEquipo.DireccionIp))
             solicitud.Headers.TryAddWithoutValidation("X-Forwarded-For", OrigenEquipo.DireccionIp);
         if (!string.IsNullOrWhiteSpace(OrigenEquipo.Agente))

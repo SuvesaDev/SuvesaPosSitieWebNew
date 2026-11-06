@@ -41,6 +41,10 @@ public partial class CuentasPorCobrar
     private Dictionary<string, string?> _referencias = new();
     private Dictionary<string, string?> _numerosCheque = new();
     private Dictionary<string, int?> _idsBanco = new();
+    /// <summary>Líneas adicionales de depósito/cheque (el cliente paga con más de uno).</summary>
+    private List<PagoExtra> _extras = new();
+    private decimal SumaExtras() => _extras.Where(x => x.Monto > 0).Sum(x => x.Monto);
+    private bool EsCheque(string codigo) => _formasPago.Any(f => f.Codigo == codigo && f.Cheque);
     private decimal _aCobrar, _entregado, _cambio;
     private string? _claveLote;
     private bool _procesando;
@@ -72,7 +76,7 @@ public partial class CuentasPorCobrar
     private void RecalcularCredito()
     {
         _aCobrarCredito = _facturasCredito.Where(f => _selCredito.Contains(f.IdVenta)).Sum(f => f.SaldoActual);
-        _entregadoCredito = _montos.Values.Sum();
+        _entregadoCredito = _montos.Values.Sum() + SumaExtras();
     }
 
     private async Task CobrarCredito()
@@ -85,11 +89,23 @@ public partial class CuentasPorCobrar
             {
                 CodigoFormaPago = f.Codigo!,
                 MontoRecibido = _montos[f.Codigo!],
-                Referencia = _referencias.TryGetValue(f.Codigo!, out var rf) ? rf : null,
+                // En un cheque la referencia es su número (el panel de pago lo captura solo en NumeroCheque).
+                Referencia = f.Cheque && _numerosCheque.TryGetValue(f.Codigo!, out var ncRef) && !string.IsNullOrWhiteSpace(ncRef)
+                    ? ncRef
+                    : (_referencias.TryGetValue(f.Codigo!, out var rf) ? rf : null),
                 NumeroCheque = _numerosCheque.TryGetValue(f.Codigo!, out var nc) ? nc : null,
                 IdBanco = _idsBanco.TryGetValue(f.Codigo!, out var ib) ? ib : null,
             })
             .ToList();
+        // Depósitos/cheques adicionales: cada uno es una línea más del cobro, con su referencia y su banco.
+        formas.AddRange(_extras.Where(x => x.Monto > 0).Select(x => new CobroCreditoFormaPagoWebDTO
+        {
+            CodigoFormaPago = x.Codigo,
+            MontoRecibido = x.Monto,
+            Referencia = EsCheque(x.Codigo) ? (x.NumeroCheque ?? x.Referencia) : x.Referencia,
+            NumeroCheque = x.NumeroCheque,
+            IdBanco = x.IdBanco,
+        }));
         if (formas.Count == 0) { await Dialogos.ErrorAsync("Indique el monto de al menos una forma de pago."); return; }
 
         if (!await Dialogos.ConfirmarAsync(
@@ -126,9 +142,20 @@ public partial class CuentasPorCobrar
 
             _selCredito.Clear();
             foreach (var k in _montos.Keys.ToList()) _montos[k] = 0;
+            _extras.Clear();
             await Buscar();
         }
         finally { _procesando = false; }
+    }
+
+    /// <summary>Un depósito, cheque u otro pago recibido, con lo que queda por repartir entre las preventas.</summary>
+    private sealed class FuentePago(string codigo, decimal restante, string? referencia, string? numeroCheque, int? idBanco)
+    {
+        public string Codigo { get; } = codigo;
+        public decimal Restante { get; set; } = restante;
+        public string? Referencia { get; } = referencia;
+        public string? NumeroCheque { get; } = numeroCheque;
+        public int? IdBanco { get; } = idBanco;
     }
 
     private sealed class FilaResultado
@@ -244,6 +271,7 @@ public partial class CuentasPorCobrar
         _referencias.Clear();
         _numerosCheque.Clear();
         _idsBanco.Clear();
+        _extras.Clear();
         foreach (var f in _formasPago) if (f.Codigo is not null) _montos[f.Codigo] = 0;
 
         _buscando = false;
@@ -275,7 +303,7 @@ public partial class CuentasPorCobrar
     private void Recalcular()
     {
         _aCobrar = CalculoDocumento.Redondear(_preventas.Where(p => _seleccion.Contains(p.Id)).Sum(p => (decimal)p.Total));
-        _entregado = _montos.Values.Sum();
+        _entregado = _montos.Values.Sum() + SumaExtras();
         var efectivo = _montos.TryGetValue(CodigoEfectivo, out var e) ? e : 0m;
         _cambio = efectivo > 0 && _entregado > _aCobrar ? _entregado - _aCobrar : 0m;
     }
@@ -302,9 +330,23 @@ public partial class CuentasPorCobrar
 
         // Reparto en cascada: cada forma de pago cubre las preventas por orden
         // de fecha hasta agotarse; la última preventa se lleva el remanente (y su vuelto).
-        var restantePorForma = _formasPago
-            .Where(f => f.Codigo is not null)
-            .ToDictionary(f => f.Codigo!, f => _montos.TryGetValue(f.Codigo!, out var m) ? m : 0m);
+        // Fuentes de pago en orden: por cada forma, su línea principal y luego sus líneas adicionales
+        // (varios depósitos o cheques). Cada fuente conserva su propia referencia, número de cheque y banco.
+        var fuentes = new List<FuentePago>();
+        foreach (var f in _formasPago.Where(x => x.Codigo is not null))
+        {
+            var cod = f.Codigo!;
+            if (_montos.TryGetValue(cod, out var principal) && principal > 0)
+            {
+                _numerosCheque.TryGetValue(cod, out var numPrincipal);
+                _referencias.TryGetValue(cod, out var refPrincipal);
+                _idsBanco.TryGetValue(cod, out var bancoPrincipal);
+                fuentes.Add(new FuentePago(cod, principal,
+                    f.Cheque && !string.IsNullOrWhiteSpace(numPrincipal) ? numPrincipal : refPrincipal, numPrincipal, bancoPrincipal));
+            }
+            foreach (var x in _extras.Where(e => e.Codigo == cod && e.Monto > 0))
+                fuentes.Add(new FuentePago(cod, x.Monto, f.Cheque ? (x.NumeroCheque ?? x.Referencia) : x.Referencia, x.NumeroCheque, x.IdBanco));
+        }
 
         for (var i = 0; i < seleccionadas.Count; i++)
         {
@@ -317,24 +359,24 @@ public partial class CuentasPorCobrar
             // Reparto de lo recibido para ESTA preventa; la última se lleva todo lo que quede.
             var pagos = new List<SuvesaPosSitioAplicacion.DTOs.Fiscal.PagoPreventaContadoDTO>();
             var cubierto = 0m;
-            foreach (var f in _formasPago.Where(x => x.Codigo is not null))
+            foreach (var s in fuentes)
             {
-                var disponible = restantePorForma[f.Codigo!];
+                var disponible = s.Restante;
                 if (disponible <= 0) continue;
 
                 var falta = totalDoc - cubierto;
                 var aplica = esUltima ? disponible : Math.Min(disponible, falta);
                 if (aplica <= 0) continue;
 
-                restantePorForma[f.Codigo!] -= aplica;
+                s.Restante -= aplica;
                 cubierto += aplica;
                 pagos.Add(new()
                 {
-                    FormaPago = f.Codigo!,
+                    FormaPago = s.Codigo,
                     Monto = aplica,
-                    Referencia = _referencias.TryGetValue(f.Codigo!, out var rf) ? rf : null,
-                    NumeroCheque = _numerosCheque.TryGetValue(f.Codigo!, out var nc) ? nc : null,
-                    IdBanco = _idsBanco.TryGetValue(f.Codigo!, out var ib) ? ib : null,
+                    Referencia = s.Referencia,
+                    NumeroCheque = s.NumeroCheque,
+                    IdBanco = s.IdBanco,
                 });
 
                 if (!esUltima && cubierto >= totalDoc) break;
@@ -403,6 +445,7 @@ public partial class CuentasPorCobrar
         _referencias.Clear();
         _numerosCheque.Clear();
         _idsBanco.Clear();
+        _extras.Clear();
         _resultados.Clear();
         _aCobrar = _entregado = _cambio = 0;
         _claveLote = null;

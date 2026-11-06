@@ -69,7 +69,51 @@
                             </td>
                         }
                         else { <td colspan="2"></td> }
+                        @if (PermiteVarias)
+                        {
+                            <td class="text-end" style="width:2.5rem">
+                                @if ((f.Deposito || f.Cheque) && LineasDe(cod) < PreparacionPagoVenta.MaxLineasPorForma)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                            title="Agregar otro @(f.Cheque ? "cheque" : "depósito")"
+                                            aria-label="Agregar otra línea de @f.Descripcion" @onclick="() => AgregarExtra(cod)">+</button>
+                                }
+                            </td>
+                        }
                     </tr>
+                    @if (PermiteVarias)
+                    {
+                        var extras = ExtrasDe(cod);
+                        @for (var i = 0; i < extras.Count; i++)
+                        {
+                            var x = extras[i];
+                            <tr @key="x.Id">
+                                <td class="fw-normal text-secondary ps-4">@f.Descripcion @(i + 2)</td>
+                                <td style="min-width:7rem">
+                                    <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end"
+                                           aria-label="Monto @f.Descripcion @(i + 2)"
+                                           value="@MontoTexto(x)" @onchange="e => SetExtraMonto(x, e.Value)" />
+                                </td>
+                                <td style="min-width:8rem">
+                                    <input type="text" class="form-control form-control-sm" placeholder="@(f.Cheque ? "N° cheque" : "Referencia")"
+                                           aria-label="@(f.Cheque ? "Número de cheque" : "Referencia") @f.Descripcion @(i + 2)"
+                                           value="@(f.Cheque ? x.NumeroCheque : x.Referencia)"
+                                           @onchange="e => SetExtraReferencia(x, e.Value?.ToString(), f.Cheque)" />
+                                </td>
+                                <td style="min-width:9rem">
+                                    <select class="form-select form-select-sm" aria-label="Banco @f.Descripcion @(i + 2)"
+                                            value="@(x.IdBanco?.ToString() ?? "")" @onchange="e => SetExtraBanco(x, e.Value?.ToString())">
+                                        <option value="">Banco...</option>
+                                        @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
+                                    </select>
+                                </td>
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" title="Quitar esta línea"
+                                            aria-label="Quitar @f.Descripcion @(i + 2)" @onclick="() => QuitarExtra(x)">−</button>
+                                </td>
+                            </tr>
+                        }
+                    }
                 }
             </tbody>
         </table>
@@ -117,6 +161,16 @@
     [Parameter] public Dictionary<string, int?> IdsBanco { get; set; } = new();
     [Parameter] public EventCallback<Dictionary<string, int?>> IdsBancoChanged { get; set; }
 
+    /// <summary>
+    /// Permite pagar con más de un depósito o cheque (botón «+»). Solo debe activarla una pantalla que, además de
+    /// los diccionarios, lea <see cref="Extras"/> al armar el cobro: si no, esos montos no viajarían.
+    /// </summary>
+    [Parameter] public bool PermiteVarias { get; set; }
+
+    /// <summary>Líneas adicionales de depósito/cheque (two-way). Solo se usan con <see cref="PermiteVarias"/>.</summary>
+    [Parameter] public List<PagoExtra> Extras { get; set; } = new();
+    [Parameter] public EventCallback<List<PagoExtra>> ExtrasChanged { get; set; }
+
     /// <summary>Se dispara cada vez que cambia el reparto (el padre lee <see cref="Reparto"/>).</summary>
     [Parameter] public EventCallback<PreparacionPagoVenta.Reparto> RepartoChanged { get; set; }
 
@@ -147,6 +201,52 @@
     {
         var m = MontoDe(cod);
         return m > 0 ? m.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
+    }
+
+    private List<PagoExtra> ExtrasDe(string cod) => Extras.Where(e => e.Codigo == cod).ToList();
+    private int LineasDe(string cod) => 1 + Extras.Count(e => e.Codigo == cod);
+
+    private static string MontoTexto(PagoExtra x)
+        => x.Monto > 0 ? x.Monto.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
+
+    private async Task NotificarExtras()
+    {
+        await ExtrasChanged.InvokeAsync(Extras);
+        Recalcular();
+        await RepartoChanged.InvokeAsync(_reparto);
+    }
+
+    private async Task AgregarExtra(string cod)
+    {
+        if (LineasDe(cod) >= PreparacionPagoVenta.MaxLineasPorForma) return;
+        Extras.Add(new PagoExtra { Codigo = cod });
+        await NotificarExtras();
+    }
+
+    private async Task QuitarExtra(PagoExtra x)
+    {
+        Extras.Remove(x);
+        await NotificarExtras();
+    }
+
+    private async Task SetExtraMonto(PagoExtra x, object? valor)
+    {
+        x.Monto = decimal.TryParse(Convert.ToString(valor), System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var m) && m > 0 ? m : 0m;
+        await NotificarExtras();
+    }
+
+    private async Task SetExtraReferencia(PagoExtra x, string? valor, bool esCheque)
+    {
+        var texto = string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+        if (esCheque) x.NumeroCheque = texto; else x.Referencia = texto;
+        await NotificarExtras();
+    }
+
+    private async Task SetExtraBanco(PagoExtra x, string? valor)
+    {
+        x.IdBanco = int.TryParse(valor, out var id) ? id : null;
+        await NotificarExtras();
     }
 
     private async Task SetMonto(string cod, object? valor)
@@ -190,14 +290,23 @@
 
     private void Recalcular()
     {
-        _reparto = PreparacionPagoVenta.Calcular(Total, Formas
-            .Where(f => f.Codigo is not null && MontoDe(f.Codigo!) > 0)
-            .Select(f => new PreparacionPagoVenta.LineaPago(
-                f.Codigo!, MontoDe(f.Codigo!),
-                EsEfectivo: EsEfectivo(f),
-                RequiereReferencia: f.Tarjeta || f.Deposito || f.Cheque,
-                Referencia: f.Cheque ? NumeroChequeDe(f.Codigo!) : RefDe(f.Codigo!),
-                RequiereBanco: f.Cheque || f.Deposito,
-                IdBanco: BancoDe(f.Codigo!))));
+        // Por cada forma: su línea principal y, si se permiten varias, sus líneas adicionales (depósitos/cheques).
+        var lineas = new List<PreparacionPagoVenta.LineaPago>();
+        foreach (var f in Formas.Where(f => f.Codigo is not null))
+        {
+            var cod = f.Codigo!;
+            if (MontoDe(cod) > 0)
+                lineas.Add(new(cod, MontoDe(cod),
+                    EsEfectivo: EsEfectivo(f),
+                    RequiereReferencia: f.Tarjeta || f.Deposito || f.Cheque,
+                    Referencia: f.Cheque ? NumeroChequeDe(cod) : RefDe(cod),
+                    RequiereBanco: f.Cheque || f.Deposito,
+                    IdBanco: BancoDe(cod)));
+            if (PermiteVarias)
+                foreach (var x in Extras.Where(e => e.Codigo == cod && e.Monto > 0))
+                    lineas.Add(new(cod, x.Monto, EsEfectivo: false, RequiereReferencia: true,
+                        Referencia: f.Cheque ? x.NumeroCheque : x.Referencia, RequiereBanco: true, IdBanco: x.IdBanco));
+        }
+        _reparto = PreparacionPagoVenta.Calcular(Total, lineas);
     }
 }
