@@ -116,6 +116,7 @@
                                 <span class="badge text-bg-light text-secondary">@cuenta.Tipo</span>
                                 @if (cuenta.EsControl == true) { <span class="badge text-bg-warning">Control</span> }
                                 @if (cuenta.EsEfectivo == true) { <span class="badge text-bg-info">Efectivo</span> }
+                                @if (!cuenta.EsDeducible) { <span class="badge text-bg-warning-subtle text-warning-emphasis" title="El gasto de esta cuenta no se deduce de renta">No deducible</span> }
                                 @if (cuenta.Activo != true) { <span class="badge text-bg-secondary">Inactiva</span> }
                                 @if (cuenta.PermiteMovimiento != true && Sesion.Puede("CONTABILIDAD.CATALOGO_CUENTAS", AccionPantalla.Crear))
                                 {
@@ -266,6 +267,10 @@
                     <label class="form-check-label" for="ec-monetaria">Cuenta monetaria (se revalúa en moneda extranjera)</label>
                 </div>
                 <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="ec-deducible" checked="@_deducibleEdicion" @onchange="e => _deducibleEdicion = (bool)(e.Value ?? false)" />
+                    <label class="form-check-label" for="ec-deducible">Deducible de renta <span class="text-secondary small">(si se desmarca, el reporte de deducibilidad toma sus gastos como no deducibles)</span></label>
+                </div>
+                <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="ec-activo" @bind="_edicion.Activo" />
                     <label class="form-check-label" for="ec-activo">Activa</label>
                 </div>
@@ -299,6 +304,7 @@
     private long _idCuentaEditando;
     private string _padreEdicion = "";
     private bool _permiteMovimientoEdicion;
+    private bool _deducibleEdicion = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -430,6 +436,7 @@
             IdCuentaPadre = cuenta.IdCuentaPadre,
         };
         _permiteMovimientoEdicion = cuenta.PermiteMovimiento == true;
+        _deducibleEdicion = cuenta.EsDeducible;
         _padreEdicion = cuenta.IdCuentaPadre?.ToString() ?? "";
         await _modalEditar.MostrarAsync();
     }
@@ -444,6 +451,7 @@
         }
 
         _edicion.PermiteMovimiento = _permiteMovimientoEdicion;
+        _edicion.EsDeducible = _deducibleEdicion;
         _edicion.ActualizarPadre = true;
         _edicion.IdCuentaPadre = long.TryParse(_padreEdicion, out var idPadre) ? idPadre : null;
 

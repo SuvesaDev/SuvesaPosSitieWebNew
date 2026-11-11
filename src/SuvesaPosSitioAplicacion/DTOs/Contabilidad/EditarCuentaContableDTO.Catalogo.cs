@@ -27,3 +27,26 @@ public partial class EditarCuentaContableDTO
     [JsonPropertyName("actualizarPadre")]
     public bool ActualizarPadre { get; set; }
 }
+
+/// <summary>
+/// El API ya manda y recibe «esDeducible» (la marca que el reporte de deducibilidad contrasta con la renta); los
+/// contratos generados son anteriores. Estos parciales lo agregan hasta que se corra ./tools/actualizar-contratos.sh.
+/// </summary>
+public partial class CuentaContableDTO
+{
+    [JsonPropertyName("esDeducible")]
+    public bool EsDeducible { get; set; } = true;
+}
+
+public partial class CrearCuentaContableDTO
+{
+    [JsonPropertyName("esDeducible")]
+    public bool EsDeducible { get; set; } = true;
+}
+
+public partial class EditarCuentaContableDTO
+{
+    /// <summary>Null deja la marca como está.</summary>
+    [JsonPropertyName("esDeducible")]
+    public bool? EsDeducible { get; set; }
+}
