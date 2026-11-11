@@ -150,3 +150,40 @@ Siguen vigentes los de la sección «Datos dejados en el entorno» del UAT: no b
 ### Decisión que desbloquea lo demás
 
 ¿Desde qué fecha cuenta la contabilidad de este libro? Si es **2026-11-01** (el UAT), no hay que crear 16 versiones de plantilla ni regularizar septiembre: bastan las mejoras 2.5 y 2.6, saldos iniciales al 2026-10-31 y revisar el auxiliar negativo de CxC. Si es **2026-09-30**, hay que cubrir septiembre y octubre con versiones de plantilla (la mejora «Duplicar versión con otra vigencia» pasa a ser la primera de la fase 2).
+
+---
+
+## 9. Resultados de las Fases 1 y 3 (2026-11-11)
+
+### Mejoras de la Fase 0 (hechas)
+
+| Id | Qué quedó |
+|---|---|
+| 2.4 | `POST api/contabilidad/eventos/{id}/regenerar-desde-documento` y botón «Regenerar» en la Bandeja: rearma el contenido del evento en error con los datos actuales del documento y lo reencola; la auditoría guarda el contenido anterior |
+| 2.5 | `ContabilidadConfiguracionEmisor.FechaPuestaEnMarcha` (migración `ContabilidadFechaPuestaEnMarcha`) y `PUT api/contabilidad/integridad/puesta-en-marcha`: límite inferior de documentos sin contabilizar, compras rechazadas y diagnóstico de plantillas. **Falta fijarla en 2026-09-30 y no hay pantalla** |
+| 2.6 | «Regularizar» acepta rango de fechas o documentos marcados (la selección manda sobre el rango) |
+
+### Fase 1
+
+| Id | Qué quedó | Pendiente |
+|---|---|---|
+| 1.1 | El depósito de caja confirmado toma la sucursal de `PreDeposito.NumApertura` → apertura; sin sucursal queda en `ErrorConfiguracion` visible | Re-probar confirmando un pre-depósito |
+| 1.2 | La consignación facturada publica el mismo `VentaEmitida` que una venta normal (`PayloadsVentaContable`), y en contado el `CobroAplicado`; `ServicioFacturarPreventaCredito` tenía el mismo payload incompleto y también se corrigió; `Facturado` casa con el lote real | **Sin prueba de punta a punta**: re-probar prefactura de contado y de crédito |
+| 1.3 | — | Espera la decisión 5.1 (cuenta del sobrante) |
+| 1.4 | Una póliza con todas las líneas en cero no se publica: el evento queda `NoAplicable` con su motivo | |
+| 1.5 | El alta del abono a proveedor es idempotente por proveedor + recibo + facturas; la pantalla ignora un segundo clic | Un recibo sin número no se deduplica |
+| 1.6 | — | Espera el mapeo cuenta bancaria → cuenta contable |
+
+### Fase 3
+
+| Id | Qué quedó |
+|---|---|
+| 13, 14 | Importes, porcentajes y fecha con el formato dentro de la expresión Razor (27 casos); `Formato.Numero/Porcentaje`; `ExpresionesRazorTests` busca los dos patrones en todas las vistas |
+| 15 | La prefactura de consignación y las comisiones muestran código de artículo y número de lote (las comisiones ya registradas conservan lo que se guardó) |
+| 16 | La pantalla de depósitos explica qué evento genera cada instrumento |
+| 17 | `POST Caja/ObtenerAperturasDeCajaActivas` (A y M); la conciliación las lista y no deja cerrar sin arqueo, con el motivo en pantalla. Cliente Web escrito a mano (`CajaApiCliente.Activas.cs`) hasta regenerar contratos |
+| 18 | La referencia del arqueo trae `FondoInicial` y `EfectivoEsperado`; el arqueo los muestra junto al efectivo declarado |
+| 19 | El diálogo de cierre dice contado, esperado, diferencia y a dónde va (gasto, cobro al cajero o ingreso) |
+| 20 | `CrearAperturaCaja` devuelve el número real |
+| 8 | El catálogo muestra «No deducible» y la edición permite cambiar la marca (DTOs a mano hasta regenerar contratos) |
+| 9 | Al sincronizar el catálogo, una cuenta con subcuentas y sin movimiento pasa sola a agrupadora; con movimiento solo se avisa |
