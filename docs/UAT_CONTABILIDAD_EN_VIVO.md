@@ -8,13 +8,36 @@ Documento de trabajo de la rama `feature/modulo-contabilidad`. La misma copia vi
 Se actualiza al cerrar cada prueba. Lo que ya está en «Cerrado en esta pasada» no se vuelve a ejecutar. Lo abierto se sigue desde «Mejoras pendientes».
 
 **Fecha de la pasada inicial:** 2026-11-05 (caja 2026-11-06)  
-**Última re-prueba:** 2026-11-11 (tarde, post-mejoras Fase 1–5)  
+**Última re-prueba:** 2026-11-11 (noche, re-validación post-#26)  
 **Entorno:** Blazor `http://localhost:5199`, API `http://localhost:5000`  
 **Libro:** emisor Rafael Alberto Martinez Quesada, sucursal CostaPets, contabilidad encendida  
 **Usuario de la prueba:** AdminCosta26  
 **Caja abierta al cierre de la re-prueba:** #21 (fondo ₡10.000) — #20 cerrada en esta pasada
 
 El diseño de activación por sucursal y de libro por emisor sigue en `docs/MEJORAS_CONTABILIDAD_API_Y_WEB.md`. Este archivo es la evidencia de lo que el sistema hizo con documentos reales y lo que hay que corregir.
+
+## Re-prueba 2026-11-11 noche (post-#26)
+
+Prefijo `UAT-*-1111N`. Navegador integrado a **1440×900** (sin eso, nivel C oculta el contenido y la bandeja parece vacía).
+
+| Flujo | Documento | Evento | Resultado |
+|---|---|---|---|
+| Apertura caja | #21 (ya abierta) | Aperturas #21 `AperturaCaja` | Contabilizado |
+| Venta crédito | FE Marco 002/Test1 | Ventas **#70** y **#71** `VentaEmitida` | Contabilizado |
+| Venta contado | Preventa **#29** Factura Contado Marco 002/Test1 ₡2.425,32 → Cobrar efectivo | Ventas **#72** `VentaEmitida` | Contabilizado (apareció tras FE en proceso) |
+| Anulación NC | (pasada tarde) | DevolucionesVenta #19 | Contabilizado (no re-emitida) |
+| Compra | (pasada tarde) `UAT-CR-1111R` | Compras #17 | Contabilizado |
+| Depósito confirmado | (pasada tarde) `UAT-DEP-1111R` | Instrumentos #11 | Contabilizado |
+| Toma física | (pasada tarde) 00000008 | Inventario #8 | Contabilizado |
+| Presupuesto | (pasada tarde) | — | Sin evento (esperado) |
+| Póliza planilla | Manual D `6.1.1.1` / C `2.1.2.1` | AsientoManual Contabilidad #3078… | Contabilizado — **#26 resuelto** |
+| Póliza fiscal | D `6.5.1` / C `1.1.2.1` | — | No re-ejecutada en esta noche |
+| Comisiones | Liquidada 05/11 (4 mov.) | Comisiones #2 `ComisionLiquidada` | Sigue Contabilizado |
+| Consignación | Kardex/ledger | — | Pantalla OK; sin movimiento nuevo esta noche |
+| Pre-cierre 09/2026 | Período Abierto | Botón «Ejecutar pre-cierre» disponible | **Cierre efectivo sigue bloqueado** (docs sin evento + diffs auxiliares) |
+| Abrir mes | 09/10/11 Abierto | — | «Abrir período» habilitado |
+
+**Nota operativa:** el navegador integrado arranca bajo 1280px y muestra solo el aviso «Pantalla de escritorio»; hay que forzar viewport ≥1280 o la UAT parece fallar cuando en realidad el grid está oculto.
 
 ## Re-prueba 2026-11-11 tarde (post-mejoras)
 
@@ -72,9 +95,10 @@ La v1 quedó Activa solo desde 2026-12-01 (corte de inventario del catálogo). S
 **25. Pre-cierre 11/2026 bloqueado.**  
 Tras corregir NC #18 queda al menos Compras #14 en error de configuración + documentos sin evento + 15 diferencias de conciliación (auxiliar CxC vs mayor desfasado). No cerrar el mes hasta limpiar eso. Septiembre sigue igual: 70 docs sin evento + 15 diffs.
 
-**26. Póliza manual no inserta asiento (FK a evento).**  
-Desde Bandeja → Pólizas → «Nueva póliza manual», con sucursal CostaPets, D `6.1.1.1` / C `2.1.2.1` ₡50.000 y concepto `UAT planilla 1111R`, el API responde: conflicto con `FK_AsientosContables_EventosContables_IdEventoContable` (el asiento manual exige/manda `IdEventoContable` inexistente). Misma falla esperable para el asiento fiscal D `6.5.1` / C `1.1.2.1`.  
-Mejora: crear evento sintético de origen manual o permitir asiento sin evento / con evento opcional.
+**26. Póliza manual no inserta asiento (FK a evento) — causa hallada y corregida 2026-11-11.**  
+Desde Bandeja → Pólizas → «Nueva póliza manual» (CostaPets, D `6.1.1.1` / C `2.1.2.1` ₡50.000) el API respondía: `The INSERT statement conflicted with the FOREIGN KEY constraint "FK_AsientosContables_EventosContables_IdEventoContable"` (tabla `dbo.EventosContables`, columna `Id`).  
+Causa: `RegistrarEventoAsync` solo hace `Add` y `GeneralLedgerService.ContabilizarManualAsync` copiaba `evento.Id` al asiento antes de guardar el evento; el INSERT del asiento iba contra un evento inexistente. El mismo patrón estaba en `ReversarAsync`. No hacía falta un «evento sintético»: el método ya crea el suyo.  
+Arreglo: `SaveChangesAsync` del evento dentro de la transacción, antes de armar el asiento (manual y reverso). Las pruebas de humo usan InMemory, que no valida llaves foráneas, y por eso no lo veían. **Pendiente: reiniciar el API y repetir la póliza manual y el asiento fiscal D `6.5.1` / C `1.1.2.1`.**
 
 ## Cerrado en pasadas anteriores
 
