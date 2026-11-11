@@ -66,6 +66,19 @@ public sealed class IntegridadContableProxyTests
     }
 
     [Fact]
+    public async Task RegularizarDocumentos_EnviaLaSeleccionYElRango()
+    {
+        var (proxy, handler) = Nuevo("""{"status":0,"responses":{"regularizados":1,"sinCambio":0,"errores":[]}}""");
+
+        var r = await proxy.RegularizarDocumentos(7, new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 30),
+            new[] { new SuvesaPosSitioAplicacion.DTOs.Contabilidad.DocumentoSinEventoDTO { Tipo = "Venta", IdDocumento = 71 } });
+
+        Assert.True(r.EsCorrecta);
+        Assert.Contains("\"desde\":\"2026-11-01\"", handler.Cuerpo);
+        Assert.Contains("\"documentos\":[{\"tipo\":\"Venta\",\"idDocumento\":71}]", handler.Cuerpo);
+    }
+
+    [Fact]
     public async Task DiagnosticarPlantillas_LeeLosProblemasConSuGravedad()
     {
         var (proxy, handler) = Nuevo("""

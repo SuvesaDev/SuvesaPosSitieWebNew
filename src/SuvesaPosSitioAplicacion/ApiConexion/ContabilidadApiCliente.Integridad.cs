@@ -7,7 +7,7 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.Generated;
 public partial interface IContabilidadApiCliente
 {
     System.Threading.Tasks.Task<RespuestaIntegridad<DocumentosSinEventoDTO>> DocumentosSinEventoAsync(long idLibroContable, DateOnly? desde, DateOnly? hasta, System.Threading.CancellationToken cancellationToken = default);
-    System.Threading.Tasks.Task<RespuestaIntegridad<RegularizacionDocumentosDTO>> RegularizarDocumentosAsync(RangoIntegridadContableDTO cuerpo, System.Threading.CancellationToken cancellationToken = default);
+    System.Threading.Tasks.Task<RespuestaIntegridad<RegularizacionDocumentosDTO>> RegularizarDocumentosAsync(RegularizarDocumentosDTO cuerpo, System.Threading.CancellationToken cancellationToken = default);
     System.Threading.Tasks.Task<RespuestaIntegridad<DiagnosticoPlantillasDTO>> DiagnosticarPlantillasAsync(long idLibroContable, System.Threading.CancellationToken cancellationToken = default);
     System.Threading.Tasks.Task<RespuestaIntegridad<ResultadoReencoladoDTO>> ReintentarErroresConfiguracionAsync(ReencolarErroresDTO cuerpo, System.Threading.CancellationToken cancellationToken = default);
     System.Threading.Tasks.Task<RespuestaIntegridad<DocumentosSinEventoDTO>> ComprasRechazadasAsync(long idLibroContable, DateOnly? desde, DateOnly? hasta, System.Threading.CancellationToken cancellationToken = default);
@@ -28,7 +28,7 @@ public partial class ContabilidadApiCliente
         return EnviarIntegridadAsync<DocumentosSinEventoDTO>(HttpMethod.Get, "api/contabilidad/integridad/documentos-sin-evento" + consulta, null, cancellationToken);
     }
 
-    public virtual System.Threading.Tasks.Task<RespuestaIntegridad<RegularizacionDocumentosDTO>> RegularizarDocumentosAsync(RangoIntegridadContableDTO cuerpo, System.Threading.CancellationToken cancellationToken = default)
+    public virtual System.Threading.Tasks.Task<RespuestaIntegridad<RegularizacionDocumentosDTO>> RegularizarDocumentosAsync(RegularizarDocumentosDTO cuerpo, System.Threading.CancellationToken cancellationToken = default)
         => EnviarIntegridadAsync<RegularizacionDocumentosDTO>(HttpMethod.Post, "api/contabilidad/integridad/regularizar-documentos", cuerpo, cancellationToken);
 
     public virtual System.Threading.Tasks.Task<RespuestaIntegridad<DiagnosticoPlantillasDTO>> DiagnosticarPlantillasAsync(long idLibroContable, System.Threading.CancellationToken cancellationToken = default)

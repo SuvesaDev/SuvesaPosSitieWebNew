@@ -49,7 +49,7 @@ public interface IContabilidad
     /// <summary>Ventas, compras y notas de crédito que debieron contabilizarse y no tienen evento contable.</summary>
     Task<ResponseGeneric<DTOs.Contabilidad.DocumentosSinEventoDTO>> DocumentosSinEvento(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null);
     /// <summary>Crea los eventos que faltan por la misma vía que la aceptación fiscal; no duplica.</summary>
-    Task<ResponseGeneric<DTOs.Contabilidad.RegularizacionDocumentosDTO>> RegularizarDocumentos(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null);
+    Task<ResponseGeneric<DTOs.Contabilidad.RegularizacionDocumentosDTO>> RegularizarDocumentos(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null, IEnumerable<DTOs.Contabilidad.DocumentoSinEventoDTO>? seleccion = null);
     /// <summary>Revisa que cada plantilla esté activa y cubra las fechas por contabilizar.</summary>
     Task<ResponseGeneric<DTOs.Contabilidad.DiagnosticoPlantillasDTO>> DiagnosticarPlantillas(long idLibroContable);
     /// <summary>Devuelve a la cola los eventos en error de configuración (todos o de un tipo).</summary>

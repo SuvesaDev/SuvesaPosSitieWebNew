@@ -222,10 +222,10 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar los documentos sin contabilizar");
 
-    public Task<ResponseGeneric<RegularizacionDocumentosDTO>> RegularizarDocumentos(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null)
+    public Task<ResponseGeneric<RegularizacionDocumentosDTO>> RegularizarDocumentos(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null, IEnumerable<DocumentoSinEventoDTO>? seleccion = null)
         => Ejecutar(async () =>
         {
-            var r = await _api.RegularizarDocumentosAsync(new RangoIntegridadContableDTO { IdLibroContable = idLibroContable, Desde = desde, Hasta = hasta });
+            var r = await _api.RegularizarDocumentosAsync(new RegularizarDocumentosDTO { IdLibroContable = idLibroContable, Desde = desde, Hasta = hasta, Documentos = seleccion?.Select(d => new DocumentoReferenciaDTO { Tipo = d.Tipo, IdDocumento = d.IdDocumento }).ToList() });
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "regularizar los documentos sin contabilizar");
 

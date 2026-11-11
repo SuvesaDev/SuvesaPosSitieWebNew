@@ -191,11 +191,15 @@
                                     <button class="btn btn-outline-secondary" @onclick="CargarIntegridad">Revisar</button>
                                     @if (_sinEvento is { Total: > 0 } && Sesion.Puede("CONTABILIDAD.REPROCESO", AccionPantalla.Editar))
                                     {
-                                        <button class="btn btn-primary" disabled="@_guardando" @onclick="Regularizar">Regularizar @_sinEvento.Total</button>
+                                        <button class="btn btn-primary" disabled="@_guardando" @onclick="Regularizar">@TextoRegularizar()</button>
                                     }
                                 </div>
                             </div>
-                            <p class="small text-secondary">Ventas, compras y notas de crédito que ya debieron llegar al mayor y no tienen evento contable, desde el inicio del primer período.</p>
+                            <p class="small text-secondary">Ventas, compras y notas de crédito que ya debieron llegar al mayor y no tienen evento contable, desde el inicio del primer período (o la fecha de puesta en marcha, si se fijó@(_sinEvento?.FechaPuestaEnMarcha is DateOnly pm ? $": {pm:yyyy-MM-dd}" : "")). Para regularizar solo una parte, acote las fechas o marque los documentos.</p>
+                            <div class="row g-2 mb-2">
+                                <div class="col-auto"><label class="form-label small mb-0">Desde</label><input type="date" class="form-control form-control-sm" @bind="_regDesde" /></div>
+                                <div class="col-auto"><label class="form-label small mb-0">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_regHasta" /></div>
+                            </div>
                             @if (_sinEvento is null || _sinEvento.Total == 0)
                             {
                                 <p class="mb-0"><span class="badge text-bg-success">Todo contabilizado</span></p>
@@ -203,11 +207,12 @@
                             else
                             {
                                 <div class="table-responsive"><table class="table table-sm align-middle mb-0">
-                                    <thead><tr><th>Tipo</th><th>Número</th><th>Fecha</th><th class="text-end">Total</th><th>Motivo</th></tr></thead>
+                                    <thead><tr><th></th><th>Tipo</th><th>Número</th><th>Fecha</th><th class="text-end">Total</th><th>Motivo</th></tr></thead>
                                     <tbody>
                                         @foreach (var d in _sinEvento.Documentos)
                                         {
-                                            <tr><td>@d.Tipo</td><td>@d.Numero</td><td>@d.Fecha.ToString("yyyy-MM-dd")</td><td class="text-end">@d.Total.ToString("N2")</td><td class="small text-secondary">@d.Motivo</td></tr>
+                                            var clave = (d.Tipo, d.IdDocumento);
+                                            <tr><td><input type="checkbox" class="form-check-input" checked="@_seleccion.Contains(clave)" @onchange="e => Marcar(clave, (bool)(e.Value ?? false))" /></td><td>@d.Tipo</td><td>@d.Numero</td><td>@d.Fecha.ToString("yyyy-MM-dd")</td><td class="text-end">@d.Total.ToString("N2")</td><td class="small text-secondary">@d.Motivo</td></tr>
                                         }
                                     </tbody>
                                 </table></div>
@@ -560,19 +565,38 @@
         finally { _cargando = false; }
     }
 
+    private DateTime? _regDesde, _regHasta;
+    private readonly HashSet<(string Tipo, long Id)> _seleccion = new();
+
+    private void Marcar((string, long) clave, bool marcado)
+    {
+        if (marcado) _seleccion.Add(clave); else _seleccion.Remove(clave);
+    }
+
+    private static DateOnly? Dia(DateTime? f) => f is DateTime d ? DateOnly.FromDateTime(d) : null;
+
+    private string TextoRegularizar()
+        => _seleccion.Count > 0 ? $"Regularizar {_seleccion.Count} marcado(s)"
+         : _regDesde is not null || _regHasta is not null ? "Regularizar el rango"
+         : $"Regularizar {_sinEvento?.Total}";
+
     private async Task Regularizar()
     {
         if (_sinEvento is null || _sinEvento.Total == 0) return;
-        if (!await Dialogos.ConfirmarAsync($"¿Crear el evento contable de {_sinEvento.Total} documento(s)? Entran a la cola y se contabilizan con la plantilla vigente; si ya existe el evento no se duplica.", "Regularizar")) return;
+        var elegidos = _sinEvento.Documentos.Where(d => _seleccion.Contains((d.Tipo, d.IdDocumento))).ToList();
+        var alcance = elegidos.Count > 0 ? $"{elegidos.Count} documento(s) marcado(s)"
+            : _regDesde is not null || _regHasta is not null ? "los documentos del rango de fechas" : $"{_sinEvento.Total} documento(s)";
+        if (!await Dialogos.ConfirmarAsync($"¿Crear el evento contable de {alcance}? Entran a la cola y se contabilizan con la plantilla vigente; si ya existe el evento no se duplica.", "Regularizar")) return;
         _guardando = true;
         try
         {
-            var resultado = await Respuestas.DatoAsync(await Contabilidad.RegularizarDocumentos(_idLibroContable), "regularizar los documentos");
+            var resultado = await Respuestas.DatoAsync(await Contabilidad.RegularizarDocumentos(_idLibroContable, Dia(_regDesde), Dia(_regHasta), elegidos.Count > 0 ? elegidos : null), "regularizar los documentos");
             if (resultado is null) return;
             if (resultado.Errores.Count > 0)
                 Dialogos.Advertencia($"Se regularizaron {resultado.Regularizados}; {resultado.Errores.Count} fallaron: {resultado.Errores[0]}");
             else
                 Dialogos.Exito($"Se crearon {resultado.Regularizados} evento(s).");
+            _seleccion.Clear();
             await CargarIntegridad();
         }
         finally { _guardando = false; }

@@ -56,7 +56,7 @@ public class ContextoContabilidadTests
         public Task<ResponseGeneric<ICollection<EventoContableDTO>>> ListarEventos(long? idLibroContable, string? estado, string? tipoEvento, string? origenModulo, DateOnly? desde, DateOnly? hasta, int pagina, int tamanoPagina) => throw new NotImplementedException();
         public Task<ResponseGeneric<bool>> ReintentarEvento(long idEvento) => throw new NotImplementedException();
         public Task<ResponseGeneric<DTOs.Contabilidad.DocumentosSinEventoDTO>> DocumentosSinEvento(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null) => throw new NotImplementedException();
-        public Task<ResponseGeneric<DTOs.Contabilidad.RegularizacionDocumentosDTO>> RegularizarDocumentos(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null) => throw new NotImplementedException();
+        public Task<ResponseGeneric<DTOs.Contabilidad.RegularizacionDocumentosDTO>> RegularizarDocumentos(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null, IEnumerable<DTOs.Contabilidad.DocumentoSinEventoDTO>? seleccion = null) => throw new NotImplementedException();
         public Task<ResponseGeneric<DTOs.Contabilidad.DiagnosticoPlantillasDTO>> DiagnosticarPlantillas(long idLibroContable) => throw new NotImplementedException();
         public Task<ResponseGeneric<DTOs.Contabilidad.ResultadoReencoladoDTO>> ReencolarErroresConfiguracion(long idLibroContable, string? tipoEvento = null) => throw new NotImplementedException();
         public Task<ResponseGeneric<bool>> FijarPuestaEnMarcha(long idLibroContable, DateOnly? fecha) => throw new NotImplementedException();

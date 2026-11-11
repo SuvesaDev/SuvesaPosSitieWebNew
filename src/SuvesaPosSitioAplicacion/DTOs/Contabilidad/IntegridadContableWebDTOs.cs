@@ -70,6 +70,20 @@ public sealed class DuplicarVersionPlantillaDTO
     [JsonPropertyName("efectivaHasta")] public DateOnly? EfectivaHasta { get; set; }
 }
 
+public sealed class DocumentoReferenciaDTO
+{
+    [JsonPropertyName("tipo")] public string Tipo { get; set; } = string.Empty;
+    [JsonPropertyName("idDocumento")] public long IdDocumento { get; set; }
+}
+
+public sealed class RegularizarDocumentosDTO
+{
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("desde")] public DateOnly? Desde { get; set; }
+    [JsonPropertyName("hasta")] public DateOnly? Hasta { get; set; }
+    [JsonPropertyName("documentos")] public List<DocumentoReferenciaDTO>? Documentos { get; set; }
+}
+
 public sealed class FijarPuestaEnMarchaDTO
 {
     [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
