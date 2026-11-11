@@ -126,3 +126,27 @@ No repetir lo ya cerrado en el UAT. Re-probar solo el caso que se arregló:
 ## 7. Datos que el UAT dejó en el entorno
 
 Siguen vigentes los de la sección «Datos dejados en el entorno» del UAT: no borrarlos ni volver a registrarlos.
+
+---
+
+## 8. Resultados de la Fase 0 (ejecutada 2026-11-11 en la pantalla, solo lo que no necesitaba código)
+
+| Paso | Resultado |
+|---|---|
+| 0.1 Plantillas | **16 plantillas con vacío de vigencia** (Integridad → Plantillas): rigen desde 2026-11-01 (venta, nota de crédito, ajuste de inventario), 2026-11-02 (cobros, pagos, depósitos, diferencias de caja, comisiones, liquidación, USD) o 2026-12-01 (corte de entrega, importación, producción), y el primer período abierto es 2026-09-01. Solo `CompraRegistrada` está bien |
+| 0.2 Reintentar Compras #14 | **No se arregla reintentando.** El evento se creó antes del cambio de plantilla: trae el payload viejo y la plantilla activa pide `ImpuestoAcreditable`. Falla con «la fórmula referencia el campo 'ImpuestoAcreditable' que no está en el payload». Queda en error. Hace falta la mejora 2.4 (abajo) |
+| 0.3 Abono duplicado | **No se hizo.** Pendiente de confirmar con quien lleva las cuentas por pagar: deshace un recibo real |
+| 0.4 Documentos sin contabilizar | **No se regularizó, a propósito.** Son 51: 46 de septiembre (anteriores a encender la contabilidad el 30 de septiembre), 2 notas de crédito de septiembre, 1 compra de septiembre y 2 de noviembre. El botón regulariza **todos**, sin elegir rango: crearía 49 eventos de septiembre que fallarían por el vacío de vigencia. Los 2 de noviembre sí son reales: la Venta con consecutivo 7 del 2026-11-02 (₡36.379,79, aceptada) y el documento 0 del 2026-11-05 (₡2.425,32), que es la prefactura de consignación #63 (hallazgo 2) |
+| 0.5 Diferencias de conciliación | **Causa estructural: el libro no tiene saldos iniciales.** CxC: auxiliar −148.471,36 contra mayor 27.630,73. CxP: auxiliar 1.434.790,76 contra mayor 0,00. Inventario: auxiliar 451.592,66 contra mayor −13.832,05. El auxiliar suma toda la historia y el mayor empieza en cero. Además, el auxiliar de CxC es **negativo**, lo que es raro y hay que investigar por cliente |
+
+### Mejoras nuevas que salieron de la Fase 0
+
+| Id | Mejora | Esfuerzo |
+|---|---|---|
+| 2.4 | **Regenerar el evento desde el documento** cuando está en error por un payload anterior a un cambio de plantilla (hoy solo se puede reencolar o descartar) | M |
+| 2.5 | **Fecha de puesta en marcha** del libro como límite inferior del control de documentos sin evento, del diagnóstico de plantillas y de «Regularizar». Hoy usa el inicio del primer período (2026-09-01) y marca como pendientes documentos anteriores a encender la contabilidad | S |
+| 2.6 | **Regularizar con rango o por selección**, no todo de una vez | S |
+
+### Decisión que desbloquea lo demás
+
+¿Desde qué fecha cuenta la contabilidad de este libro? Si es **2026-11-01** (el UAT), no hay que crear 16 versiones de plantilla ni regularizar septiembre: bastan las mejoras 2.5 y 2.6, saldos iniciales al 2026-10-31 y revisar el auxiliar negativo de CxC. Si es **2026-09-30**, hay que cubrir septiembre y octubre con versiones de plantilla (la mejora «Duplicar versión con otra vigencia» pasa a ser la primera de la fase 2).
