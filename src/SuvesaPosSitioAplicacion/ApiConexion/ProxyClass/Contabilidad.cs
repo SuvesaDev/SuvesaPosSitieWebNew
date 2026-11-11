@@ -243,6 +243,13 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "reencolar los eventos en error de configuración");
 
+    public Task<ResponseGeneric<bool>> RegenerarEventoDesdeDocumento(long idEvento)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.RegenerarEventoDesdeDocumentoAsync(idEvento);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "regenerar el evento desde el documento");
+
     public Task<ResponseGeneric<bool>> FijarPuestaEnMarcha(long idLibroContable, DateOnly? fecha)
         => Ejecutar(async () =>
         {

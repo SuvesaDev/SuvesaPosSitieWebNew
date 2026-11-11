@@ -120,6 +120,7 @@
                                         @if (evento.Estado == "ErrorConfiguracion" && Sesion.Puede("CONTABILIDAD.BANDEJA", AccionPantalla.Editar))
                                         {
                                             <button class="btn btn-sm btn-link p-0" @onclick="() => Reintentar(evento)">Reintentar</button>
+                                            <button class="btn btn-sm btn-link p-0 ms-2" title="Vuelve a armar el contenido del evento con los datos actuales del documento (para eventos viejos)" @onclick="() => Regenerar(evento)">Regenerar</button>
                                             <button class="btn btn-sm btn-link text-secondary p-0 ms-2" @onclick="() => DescartarEvento(evento)">No aplica</button>
                                         }
                                     </td>
@@ -704,6 +705,17 @@
         var respuesta = await AprobacionesApi.DescartarEvento(evento.Id, "NoAplicable", "Sin efecto contable, descartado desde la bandeja.");
         if (await Respuestas.CorrectaAsync(respuesta, "descartar el evento"))
             await CambiarTab(_tab);
+    }
+
+    private async Task Regenerar(EventoContableDTO evento)
+    {
+        if (!await Dialogos.ConfirmarAsync("¿Volver a armar el contenido de este evento con los datos actuales de su documento? Queda de nuevo en cola; el contenido anterior se guarda en la auditoría.", "Regenerar")) return;
+        var respuesta = await Contabilidad.RegenerarEventoDesdeDocumento(evento.Id);
+        if (await Respuestas.CorrectaAsync(respuesta, "regenerar el evento"))
+        {
+            Dialogos.Exito(respuesta.Responses ? "Evento regenerado y reencolado." : "El documento no cambió el contenido; el evento volvió a la cola.");
+            await CargarEventos();
+        }
     }
 
     private async Task Reintentar(EventoContableDTO evento)

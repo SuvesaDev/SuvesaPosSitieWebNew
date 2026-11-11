@@ -55,6 +55,8 @@ public interface IContabilidad
     /// <summary>Devuelve a la cola los eventos en error de configuración (todos o de un tipo).</summary>
     Task<ResponseGeneric<DTOs.Contabilidad.ResultadoReencoladoDTO>> ReencolarErroresConfiguracion(long idLibroContable, string? tipoEvento = null);
     /// <summary>Copia las líneas de una versión a una versión nueva en borrador con otra vigencia, para simularla y activarla.</summary>
+    /// <summary>Vuelve a armar el contenido de un evento en error con los datos actuales de su documento. True si cambió.</summary>
+    Task<ResponseGeneric<bool>> RegenerarEventoDesdeDocumento(long idEvento);
     Task<ResponseGeneric<bool>> FijarPuestaEnMarcha(long idLibroContable, DateOnly? fecha);
     Task<ResponseGeneric<VersionPlantillaDTO>> DuplicarVersionPlantilla(long idVersion, DateOnly desde, DateOnly? hasta = null);
     /// <summary>Compras con Mensaje Receptor rechazado por Hacienda que no están en el mayor.</summary>

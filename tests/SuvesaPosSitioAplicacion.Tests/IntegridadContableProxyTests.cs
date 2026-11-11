@@ -122,6 +122,18 @@ public sealed class IntegridadContableProxyTests
     }
 
     [Fact]
+    public async Task RegenerarEventoDesdeDocumento_PostALaRutaDelEvento()
+    {
+        var (proxy, handler) = Nuevo("""{"status":0,"responses":true}""");
+
+        var r = await proxy.RegenerarEventoDesdeDocumento(14);
+
+        Assert.True(r.EsCorrecta);
+        Assert.Equal(HttpMethod.Post, handler.Metodo);
+        Assert.Equal("/api/contabilidad/eventos/14/regenerar-desde-documento", handler.Ruta);
+    }
+
+    [Fact]
     public async Task FijarPuestaEnMarcha_EnviaLaFechaPorPutALaRutaDeIntegridad()
     {
         var (proxy, handler) = Nuevo("""{"status":0,"responses":true}""");
