@@ -38,6 +38,28 @@ public static class Formato
 
     public static string Importe(decimal? valor) => valor.HasValue ? Importe(valor.Value) : "—";
 
+    /// <summary>Número con los decimales indicados y el separador de miles de la aplicación.</summary>
+    public static string Numero(decimal valor, int decimales) => valor.ToString("N" + decimales, Cultura);
+
+    public static string Numero(double valor, int decimales) => Numero(AImporte(valor), decimales);
+
+    public static string Numero(float valor, int decimales) => Numero(AImporte(valor), decimales);
+
+    public static string Numero(decimal? valor, int decimales) => valor.HasValue ? Numero(valor.Value, decimales) : "—";
+
+    public static string Numero(double? valor, int decimales) => valor.HasValue ? Numero(valor.Value, decimales) : "—";
+
+    /// <summary>Porcentaje con dos decimales y el signo: 13,00%.</summary>
+    public static string Porcentaje(decimal valor) => valor.ToString("N2", Cultura) + "%";
+
+    public static string Porcentaje(double valor) => Porcentaje(AImporte(valor));
+
+    public static string Porcentaje(float valor) => Porcentaje(AImporte(valor));
+
+    public static string Porcentaje(decimal? valor) => valor.HasValue ? Porcentaje(valor.Value) : "—";
+
+    public static string Porcentaje(double? valor) => valor.HasValue ? Porcentaje(valor.Value) : "—";
+
     /// <summary>Cantidad. Sin decimales si es entera, con dos si no.</summary>
     public static string Cantidad(decimal valor)
         => valor == decimal.Truncate(valor)

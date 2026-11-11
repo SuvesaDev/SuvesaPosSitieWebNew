@@ -48,7 +48,7 @@
                                 <td>@(item.Dua ?? "pendiente")</td>
                                 <td>@NombreEstado(item.Estado)</td>
                                 <td class="text-end">@item.Unidades</td>
-                                <td class="text-end">₡@item.CostoNacionalizadoCrc:N2</td>
+                                <td class="text-end">₡@Formato.Importe(item.CostoNacionalizadoCrc)</td>
                                 <td><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => Abrir(item.IdImportacion)">Abrir</button></td>
                             </tr>
                         }

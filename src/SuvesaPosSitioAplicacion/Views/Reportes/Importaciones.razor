@@ -25,16 +25,16 @@
                 @if (_reporte is not null)
                 {
                     <dl class="row small mt-3 mb-0">
-                        <dt class="col-7 fw-normal text-secondary">Costo nacionalizado</dt><dd class="col-5 text-end">₡@_reporte.CostoNacionalizado:N2</dd>
-                        <dt class="col-7 fw-normal text-secondary">Logística</dt><dd class="col-5 text-end">@_reporte.PorcentajeLogistico:N2%</dd>
-                        <dt class="col-7 fw-normal text-secondary">Días nacionalización</dt><dd class="col-5 text-end">@_reporte.DiasPromedioNacionalizacion:N1</dd>
+                        <dt class="col-7 fw-normal text-secondary">Costo nacionalizado</dt><dd class="col-5 text-end">₡@Formato.Importe(_reporte.CostoNacionalizado)</dd>
+                        <dt class="col-7 fw-normal text-secondary">Logística</dt><dd class="col-5 text-end">@Formato.Porcentaje(_reporte.PorcentajeLogistico)</dd>
+                        <dt class="col-7 fw-normal text-secondary">Días nacionalización</dt><dd class="col-5 text-end">@Formato.Numero(_reporte.DiasPromedioNacionalizacion, 1)</dd>
                         <dt class="col-7 fw-normal text-secondary">Docs. pendientes</dt><dd class="col-5 text-end">@_reporte.DocumentosPendientes</dd>
-                        <dt class="col-7 fw-normal text-secondary">Margen esperado</dt><dd class="col-5 text-end">@_reporte.MargenEsperado:N2%</dd>
+                        <dt class="col-7 fw-normal text-secondary">Margen esperado</dt><dd class="col-5 text-end">@Formato.Porcentaje(_reporte.MargenEsperado)</dd>
                     </dl>
                     <div class="table-responsive mt-3">
                         <table class="table table-sm small">
                             <thead><tr><th>DUA</th><th class="text-end">Costo</th><th class="text-end">Docs.</th></tr></thead>
-                            <tbody>@foreach (var fila in _reporte.Filas) { <tr><td>@(fila.Dua ?? fila.FacturaExtranjera)</td><td class="text-end">₡@fila.CostoNacionalizado:N2</td><td class="text-end">@fila.DocumentosPendientes</td></tr> }</tbody>
+                            <tbody>@foreach (var fila in _reporte.Filas) { <tr><td>@(fila.Dua ?? fila.FacturaExtranjera)</td><td class="text-end">₡@Formato.Importe(fila.CostoNacionalizado)</td><td class="text-end">@fila.DocumentosPendientes</td></tr> }</tbody>
                         </table>
                     </div>
                 }

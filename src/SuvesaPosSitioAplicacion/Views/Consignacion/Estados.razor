@@ -29,7 +29,7 @@
       <thead><tr><th>Estado</th><th>Cliente</th><th>Fecha</th><th>Factura</th><th class="text-end">Saldo final</th><th></th></tr></thead>
       <tbody>@foreach (var x in _lista)
       {
-        <tr class="@(_liquidacion?.IdConteo == x.IdConteo ? "table-primary" : null)"><td>#@x.NumeroLiquidacion</td><td>@x.NombreCliente</td><td>@(x.FechaLiquidacion ?? x.FechaConteo).ToString("dd/MM/yyyy")</td><td>@(x.NumeroFactura?.ToString("0") ?? "—")</td><td class="text-end">@x.SaldoFinalTotal.ToString("N3")</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" @onclick="() => Abrir(x.IdConteo)">Abrir</button></td></tr>
+        <tr class="@(_liquidacion?.IdConteo == x.IdConteo ? "table-primary" : null)"><td>#@x.NumeroLiquidacion</td><td>@x.NombreCliente</td><td>@((x.FechaLiquidacion ?? x.FechaConteo).ToString("dd/MM/yyyy"))</td><td>@(x.NumeroFactura?.ToString("0") ?? "—")</td><td class="text-end">@x.SaldoFinalTotal.ToString("N3")</td><td class="text-end"><button class="btn btn-sm btn-outline-primary" @onclick="() => Abrir(x.IdConteo)">Abrir</button></td></tr>
       }
       @if (!_lista.Any()) { <tr><td colspan="6" class="text-secondary">No hay liquidaciones facturadas para el período.</td></tr> }
       </tbody>
