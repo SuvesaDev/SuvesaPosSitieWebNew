@@ -1,6 +1,6 @@
-# Decisiones pendientes del contador — módulo de contabilidad
+# Decisiones del contador — módulo de contabilidad (resueltas)
 
-Salen del UAT en vivo (2026-11-05/06) y del plan de mejoras (`PLAN_MEJORAS_UAT_ANALISIS.md`, Fase 4). El sistema ya funciona con la opción marcada como **«hoy»**; cada punto dice qué cambiaría si se elige otra. Ninguna requiere una migración.
+Salen del UAT en vivo (2026-11-05/06) y del plan de mejoras (`PLAN_MEJORAS_UAT_ANALISIS.md`, Fase 4). El sistema ya funciona con la opción marcada como **«hoy»**; cada punto dice qué cambiaría si se elige otra. Ninguna requiere una migración. **El contador las resolvió el 2026-11-11: la resolución está en la sección siguiente y ninguna exige cambios de código.**
 
 | # | Decisión | Qué hace hoy el sistema | Opciones | Qué cambia en el código |
 |---|---|---|---|---|
@@ -12,6 +12,26 @@ Salen del UAT en vivo (2026-11-05/06) y del plan de mejoras (`PLAN_MEJORAS_UAT_A
 | 6 | **Saldos iniciales del libro** | El libro empieza en cero el 2026-09-30 y las conciliaciones muestran diferencias estructurales: cuentas por cobrar −148.471,36 contra 27.630,73; por pagar 1.434.790,76 contra 0; inventario 451.592,66 contra −13.832,05 | Cargar los saldos al 2026-09-30 con el asiento de apertura o el importador de día cero | Ninguno: se hace con las herramientas existentes |
 | 7 | **Auxiliar de cuentas por cobrar negativo** | El auxiliar suma −148.471,36 (hay clientes con saldo a favor o cobros sin factura) | Investigar por cliente antes de cargar saldos | Ninguno hasta saber la causa |
 | 8 | **Recibo de abono duplicado (Compras #2)** | Existe en el entorno de pruebas; la idempotencia nueva evita que se repita | Anularlo (deshace un recibo real) o dejarlo documentado | Ninguno |
+
+## Resolución del contador (2026-11-11)
+
+| # | Decisión | Qué hacer | Quién |
+|---|---|---|---|
+| 1 | Cuenta del sobrante de inventario | **Opción A.** Se queda `4.2.1.2 Sobrantes de inventario` (puede renombrarse a «Ajustes por sobrantes de inventario»). No se netea contra la merma `6.1.6.8`, para no ocultar ineficiencias ni robos (NIC 2). Validar la cuenta en el catálogo | Contador |
+| 2 | IVA de compra sin comprobante electrónico | **Opción A.** Va a `6.1.6.12` como gasto no acreditable; no se deja como activo pendiente. Si el XML llega meses después, asiento manual de reclasificación de `6.1.6.12` a `1.1.7.1` | Contador (procedimiento) |
+| 3 | Traslado entre bodegas de la misma sucursal | **Opción A.** Es solo operativo: la bodega vive en el auxiliar de inventario y el mayor refleja el saldo total de `1.1.6.1.x` de la sucursal. Documentarlo en el manual de usuario | Documentación |
+| 4 | Tipo del artículo `002` y del catálogo Costa Pets | Corregir el tipo en el maestro de artículos y luego ejecutar la herramienta de reclasificación de inventario (Caso 17 del UAT) para mover `1.1.6.1.3` a `1.1.6.1.4` | Equipo de datos, luego contador |
+| 5 | Fondo de caja al abrir | **Opción A.** Asentar el fondo con un asiento manual de apertura o la carga de Día Cero: débito `1.1.1.2`, crédito a la cuenta de origen (`1.1.2.1` o aportes de socios). El evento automático `AperturaCaja` queda como mejora futura (Fase 5) | Contador |
+| 6 | Saldos iniciales | Cargar el balance de comprobación al **2026-09-30** con la herramienta de importación de saldos iniciales, ya | Contador |
+| 7 | Auxiliar de cuentas por cobrar negativo | Antes del Día Cero: sacar la antigüedad de saldos, identificar los clientes con saldo a favor o pagos sin aplicar y reclasificar esos montos a `2.1.3.4` (ingresos diferidos y anticipos de clientes) | Equipo de cartera |
+| 8 | Recibo de abono duplicado (Compras #2) | Anularlo en el entorno de pruebas y dejar en el acta del UAT: «Caso de prueba de idempotencia exitoso. Registro duplicado de prueba anulado para limpiar el entorno» | QA |
+
+### Orden sugerido
+1. Datos: corregir el tipo de artículo (4) y cartera: reclasificar los saldos a favor (7).
+2. Contador: cargar los saldos iniciales (6) y el asiento de apertura del fondo (5).
+3. Correr el pre-cierre de septiembre-noviembre y revisar la lista de «documentos sin contabilizar».
+
+Esta tabla es lo que el contador indicó; el sistema no ejecutó ninguna de estas acciones (en particular, no se anuló el abono duplicado ni se cargaron saldos).
 
 ## Qué ya quedó resuelto por defecto y conviene confirmar
 
