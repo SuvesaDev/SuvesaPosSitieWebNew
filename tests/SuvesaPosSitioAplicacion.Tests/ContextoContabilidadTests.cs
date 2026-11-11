@@ -59,6 +59,7 @@ public class ContextoContabilidadTests
         public Task<ResponseGeneric<DTOs.Contabilidad.RegularizacionDocumentosDTO>> RegularizarDocumentos(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null) => throw new NotImplementedException();
         public Task<ResponseGeneric<DTOs.Contabilidad.DiagnosticoPlantillasDTO>> DiagnosticarPlantillas(long idLibroContable) => throw new NotImplementedException();
         public Task<ResponseGeneric<DTOs.Contabilidad.ResultadoReencoladoDTO>> ReencolarErroresConfiguracion(long idLibroContable, string? tipoEvento = null) => throw new NotImplementedException();
+        public Task<ResponseGeneric<VersionPlantillaDTO>> DuplicarVersionPlantilla(long idVersion, DateOnly desde, DateOnly? hasta = null) => throw new NotImplementedException();
         public Task<ResponseGeneric<DTOs.Contabilidad.DocumentosSinEventoDTO>> ComprasRechazadas(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null) => throw new NotImplementedException();
         public Task<ResponseGeneric<bool>> ForzarCompra(long idLibroContable, long idCompra, string motivo) => throw new NotImplementedException();
         public Task<ResponseGeneric<DTOs.Contabilidad.PropuestaProrrataIvaDTO>> PropuestaProrrataIva(long idLibroContable, int ejercicio, int mes) => throw new NotImplementedException();

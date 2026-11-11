@@ -54,6 +54,8 @@ public interface IContabilidad
     Task<ResponseGeneric<DTOs.Contabilidad.DiagnosticoPlantillasDTO>> DiagnosticarPlantillas(long idLibroContable);
     /// <summary>Devuelve a la cola los eventos en error de configuración (todos o de un tipo).</summary>
     Task<ResponseGeneric<DTOs.Contabilidad.ResultadoReencoladoDTO>> ReencolarErroresConfiguracion(long idLibroContable, string? tipoEvento = null);
+    /// <summary>Copia las líneas de una versión a una versión nueva en borrador con otra vigencia, para simularla y activarla.</summary>
+    Task<ResponseGeneric<VersionPlantillaDTO>> DuplicarVersionPlantilla(long idVersion, DateOnly desde, DateOnly? hasta = null);
     /// <summary>Compras con Mensaje Receptor rechazado por Hacienda que no están en el mayor.</summary>
     Task<ResponseGeneric<DTOs.Contabilidad.DocumentosSinEventoDTO>> ComprasRechazadas(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null);
     /// <summary>Lleva al mayor una compra con Mensaje Receptor rechazado; exige motivo y deja constancia. Su IVA queda como no acreditable.</summary>

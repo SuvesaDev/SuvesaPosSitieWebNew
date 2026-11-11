@@ -63,6 +63,12 @@ public sealed class ReencolarErroresDTO
     [JsonPropertyName("tipoEvento")] public string? TipoEvento { get; set; }
 }
 
+public sealed class DuplicarVersionPlantillaDTO
+{
+    [JsonPropertyName("efectivaDesde")] public DateOnly EfectivaDesde { get; set; }
+    [JsonPropertyName("efectivaHasta")] public DateOnly? EfectivaHasta { get; set; }
+}
+
 public sealed class ForzarCompraDTO
 {
     [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }

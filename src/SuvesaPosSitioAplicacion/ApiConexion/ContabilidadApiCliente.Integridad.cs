@@ -11,6 +11,7 @@ public partial interface IContabilidadApiCliente
     System.Threading.Tasks.Task<RespuestaIntegridad<DiagnosticoPlantillasDTO>> DiagnosticarPlantillasAsync(long idLibroContable, System.Threading.CancellationToken cancellationToken = default);
     System.Threading.Tasks.Task<RespuestaIntegridad<ResultadoReencoladoDTO>> ReintentarErroresConfiguracionAsync(ReencolarErroresDTO cuerpo, System.Threading.CancellationToken cancellationToken = default);
     System.Threading.Tasks.Task<RespuestaIntegridad<DocumentosSinEventoDTO>> ComprasRechazadasAsync(long idLibroContable, DateOnly? desde, DateOnly? hasta, System.Threading.CancellationToken cancellationToken = default);
+    System.Threading.Tasks.Task<RespuestaIntegridad<SuvesaPosSitioAplicacion.DTOs.Generated.VersionPlantillaDTO>> DuplicarVersionPlantillaAsync(long idVersion, DuplicarVersionPlantillaDTO cuerpo, System.Threading.CancellationToken cancellationToken = default);
     System.Threading.Tasks.Task<RespuestaIntegridad<bool>> ForzarCompraAsync(long idCompra, ForzarCompraDTO cuerpo, System.Threading.CancellationToken cancellationToken = default);
     System.Threading.Tasks.Task<RespuestaIntegridad<PropuestaProrrataIvaDTO>> ProrrataIvaAsync(long idLibroContable, int ejercicio, int mes, System.Threading.CancellationToken cancellationToken = default);
     System.Threading.Tasks.Task<RespuestaIntegridad<SolicitudAprobacionDTO>> SolicitarProrrataIvaAsync(SolicitarProrrataIvaDTO cuerpo, System.Threading.CancellationToken cancellationToken = default);
@@ -42,6 +43,9 @@ public partial class ContabilidadApiCliente
             + (hasta is DateOnly h ? "&hasta=" + h.ToString("yyyy-MM-dd") : "");
         return EnviarIntegridadAsync<DocumentosSinEventoDTO>(HttpMethod.Get, "api/contabilidad/integridad/compras-rechazadas" + consulta, null, cancellationToken);
     }
+
+    public virtual System.Threading.Tasks.Task<RespuestaIntegridad<SuvesaPosSitioAplicacion.DTOs.Generated.VersionPlantillaDTO>> DuplicarVersionPlantillaAsync(long idVersion, DuplicarVersionPlantillaDTO cuerpo, System.Threading.CancellationToken cancellationToken = default)
+        => EnviarIntegridadAsync<SuvesaPosSitioAplicacion.DTOs.Generated.VersionPlantillaDTO>(HttpMethod.Post, $"api/contabilidad/plantillas/versiones/{idVersion}/duplicar", cuerpo, cancellationToken);
 
     public virtual System.Threading.Tasks.Task<RespuestaIntegridad<bool>> ForzarCompraAsync(long idCompra, ForzarCompraDTO cuerpo, System.Threading.CancellationToken cancellationToken = default)
         => EnviarIntegridadAsync<bool>(HttpMethod.Post, $"api/contabilidad/integridad/compras/{idCompra}/forzar", cuerpo, cancellationToken);

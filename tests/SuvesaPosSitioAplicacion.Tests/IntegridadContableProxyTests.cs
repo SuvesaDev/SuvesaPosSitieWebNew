@@ -95,6 +95,20 @@ public sealed class IntegridadContableProxyTests
     }
 
     [Fact]
+    public async Task DuplicarVersionPlantilla_EnviaLaVigenciaPorPostALaRutaDeLaVersion()
+    {
+        var (proxy, handler) = Nuevo("""{"status":0,"responses":{"id":9,"idPlantillaContable":3,"version":3,"prioridad":1,"estado":"Borrador","efectivaDesde":"2026-09-30T00:00:00+00:00"}}""");
+
+        var r = await proxy.DuplicarVersionPlantilla(5, new DateOnly(2026, 9, 30));
+
+        Assert.True(r.EsCorrecta);
+        Assert.Equal(HttpMethod.Post, handler.Metodo);
+        Assert.Equal("/api/contabilidad/plantillas/versiones/5/duplicar", handler.Ruta);
+        Assert.Contains("\"efectivaDesde\":\"2026-09-30\"", handler.Cuerpo);
+        Assert.Equal((3, "Borrador"), (r.Responses!.Version, r.Responses.Estado.ToString()));
+    }
+
+    [Fact]
     public async Task ComprasRechazadas_PideElLibroYLeeLaLista()
     {
         var (proxy, handler) = Nuevo("""

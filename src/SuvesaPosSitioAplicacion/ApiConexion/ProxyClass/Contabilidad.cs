@@ -243,6 +243,13 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "reencolar los eventos en error de configuración");
 
+    public Task<ResponseGeneric<VersionPlantillaDTO>> DuplicarVersionPlantilla(long idVersion, DateOnly desde, DateOnly? hasta = null)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.DuplicarVersionPlantillaAsync(idVersion, new DuplicarVersionPlantillaDTO { EfectivaDesde = desde, EfectivaHasta = hasta });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "duplicar la versión de la plantilla");
+
     public Task<ResponseGeneric<DocumentosSinEventoDTO>> ComprasRechazadas(long idLibroContable, DateOnly? desde = null, DateOnly? hasta = null)
         => Ejecutar(async () =>
         {

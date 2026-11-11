@@ -107,6 +107,10 @@
                                             <td class="text-end text-nowrap">
                                                 <button class="btn btn-sm btn-link p-0" @onclick="() => VerDetalle(version)">Detalle</button>
                                                 <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => AbrirSimulacion(version)">Simular</button>
+                                                @if (Sesion.Puede("CONTABILIDAD.PLANTILLAS", AccionPantalla.Crear))
+                                                {
+                                                    <button class="btn btn-sm btn-link p-0 ms-2" title="Copia las líneas a una versión nueva en borrador con otra vigencia" @onclick="() => AbrirDuplicar(version)">Duplicar</button>
+                                                }
                                                 @if (version.Estado == "Borrador" && Sesion.Puede("CONTABILIDAD.PLANTILLAS", AccionPantalla.Activar))
                                                 {
                                                     <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => ActivarVersion(version)">Activar</button>
@@ -216,6 +220,23 @@
                 }
             </tbody>
         </table></div>
+    }
+</AppModal>
+
+<AppModal @ref="_modalDuplicar" Titulo="Duplicar versión con otra vigencia" AlGuardar="ConfirmarDuplicar" Guardando="_guardando" TextoGuardar="Duplicar">
+    @if (_versionADuplicar is not null)
+    {
+        <p>Se copian las líneas de la versión <strong>@_versionADuplicar.Version</strong> a una versión nueva en <strong>borrador</strong>. Después hay que simularla y activarla. Si la nueva rige desde antes que la versión activa, al activarla la reemplaza.</p>
+        <div class="row g-2">
+            <div class="col-6">
+                <label class="form-label" for="dup-desde">Efectiva desde</label>
+                <input id="dup-desde" type="date" class="form-control" @bind="_duplicarDesde" />
+            </div>
+            <div class="col-6">
+                <label class="form-label" for="dup-hasta">Efectiva hasta (opcional)</label>
+                <input id="dup-hasta" type="date" class="form-control" @bind="_duplicarHasta" />
+            </div>
+        </div>
     }
 </AppModal>
 
@@ -387,6 +408,34 @@
             await _modalVersion.OcultarAsync();
             await RecargarVersiones();
         }
+    }
+
+    private AppModal _modalDuplicar = default!;
+    private VersionPlantillaDTO? _versionADuplicar;
+    private DateOnly _duplicarDesde = DateOnly.FromDateTime(DateTime.Today);
+    private DateOnly? _duplicarHasta;
+
+    private async Task AbrirDuplicar(VersionPlantillaDTO version)
+    {
+        _versionADuplicar = version;
+        _duplicarDesde = DateOnly.FromDateTime(version.EfectivaDesde.DateTime);
+        _duplicarHasta = null;
+        await _modalDuplicar.MostrarAsync();
+    }
+
+    private async Task ConfirmarDuplicar()
+    {
+        if (_versionADuplicar is null) return;
+        _guardando = true;
+        try
+        {
+            var respuesta = await Contabilidad.DuplicarVersionPlantilla(_versionADuplicar.Id, _duplicarDesde, _duplicarHasta);
+            if (!await Respuestas.CorrectaAsync(respuesta, "duplicar la versión")) return;
+            await _modalDuplicar.OcultarAsync();
+            Dialogos.Exito("Versión creada en borrador: simúlela y actívela.");
+            await RecargarVersiones();
+        }
+        finally { _guardando = false; }
     }
 
     private async Task VerDetalle(VersionPlantillaDTO version)
