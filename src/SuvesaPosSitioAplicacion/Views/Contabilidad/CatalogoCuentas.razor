@@ -103,6 +103,29 @@
                                 </tbody>
                             </table></div>
                         </details>
+                        <details class="mt-2">
+                            <summary class="small">Cuentas por banco (a qué cuenta entra cada cobro y sale cada pago)</summary>
+                            <p class="small text-secondary mt-2 mb-2">Un cobro por depósito, transferencia o cheque debita la cuenta del banco que se eligió, y un pago a proveedor acredita la de la cuenta bancaria desde la que se pagó.
+                                Si no se indica banco, rige la cuenta por omisión («Banco en colones» o «en dólares»); si el banco no tiene cuenta aquí, el evento queda en error de configuración hasta que la asigne y lo reencole.</p>
+                            <div class="table-responsive" style="max-height: 22rem; overflow-y: auto;"><table class="table table-sm align-middle mb-0">
+                                <thead class="sticky-top bg-body"><tr><th>Banco o cuenta bancaria</th><th>Cuenta contable</th></tr></thead>
+                                <tbody>
+                                    @foreach (var b in _cuentasBanco)
+                                    {
+                                        <tr>
+                                            <td>@b.Nombre<div class="small text-secondary">@(b.Variable == "IdBanco" ? "banco de cobros" : "cuenta propia de pagos")</div></td>
+                                            <td>
+                                                <select class="form-select form-select-sm" aria-label="Cuenta para @b.Nombre" value="@(b.IdCuentaContable ?? 0)" @onchange="e => AsignarCuentaBanco(b, e.Value)">
+                                                    <option value="0">Cuenta por omisión</option>
+                                                    @foreach (var c in _cuentas.Where(c => c.PermiteMovimiento == true)) { <option value="@c.Id">@c.Codigo — @c.Descripcion</option> }
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    }
+                                    @if (_cuentasBanco.Count == 0) { <tr><td colspan="2" class="text-secondary">No hay bancos registrados.</td></tr> }
+                                </tbody>
+                            </table></div>
+                        </details>
                     </div>
                 </div>
             }
@@ -287,6 +310,7 @@
     private long _idLibroContable;
     private DTOs.Contabilidad.ResultadoSincronizacionCatalogoDTO? _sincronizacion;
     private List<DTOs.Contabilidad.UsoCuentaContableDTO> _usos = new();
+    private List<DTOs.Contabilidad.CuentaPorBancoDTO> _cuentasBanco = new();
     private bool _cargando;
     private bool _guardando;
 
@@ -335,6 +359,7 @@
         _cuentas = (await Respuestas.DatoAsync(await Contabilidad.ListarCuentas(_idLibroContable), "consultar el catálogo de cuentas"))?.ToList() ?? new();
         ArmarArbol();
         await CargarUsos();
+        await CargarCuentasBanco();
     }
 
     private void ArmarArbol()
@@ -383,6 +408,16 @@
     private async Task CargarUsos()
         => _usos = _idLibroContable == 0 ? new() : (await Respuestas.DatoAsync(await AprobacionesApi.UsosCuenta(_idLibroContable), "consultar las cuentas de uso"))?.ToList() ?? new();
 
+    private async Task CargarCuentasBanco()
+        => _cuentasBanco = _idLibroContable == 0 ? new() : (await Respuestas.DatoAsync(await AprobacionesApi.CuentasPorBanco(_idLibroContable), "consultar las cuentas por banco"))?.ToList() ?? new();
+
+    private async Task AsignarCuentaBanco(DTOs.Contabilidad.CuentaPorBancoDTO banco, object? valor)
+    {
+        long? idCuenta = long.TryParse(valor?.ToString(), out var id) && id > 0 ? id : null;
+        var respuesta = await AprobacionesApi.AsignarCuentaPorBanco(_idLibroContable, banco.Variable, banco.Id, idCuenta);
+        if (await Respuestas.CorrectaAsync(respuesta, "asignar la cuenta del banco")) await CargarCuentasBanco();
+    }
+
     private async Task Sincronizar()
     {
         _guardando = true;
@@ -392,6 +427,7 @@
         _sincronizacion = respuesta.Responses;
         await CargarCuentas();
         await CargarUsos();
+        await CargarCuentasBanco();
     }
 
     private async Task AsignarUso(DTOs.Contabilidad.UsoCuentaContableDTO uso, object? valor)

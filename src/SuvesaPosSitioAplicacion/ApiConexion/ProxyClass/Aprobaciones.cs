@@ -78,6 +78,12 @@ public sealed class Aprobaciones : ProxyBase, IAprobaciones
     public Task<ResponseGeneric<bool>> AsignarUsoCuenta(long idLibro, string uso, long idCuenta)
         => Ejecutar(async () => Traducir(await _api.AsignarUsoCuentaAsync(new AsignarUsoCuentaDTO { IdLibroContable = idLibro, Uso = uso, IdCuentaContable = idCuenta })), "asignar la cuenta de uso");
 
+    public Task<ResponseGeneric<ICollection<CuentaPorBancoDTO>>> CuentasPorBanco(long idLibro)
+        => Ejecutar<ICollection<CuentaPorBancoDTO>>(async () => TraducirLista(await _api.CuentasPorBancoAsync(idLibro)), "consultar las cuentas por banco");
+
+    public Task<ResponseGeneric<bool>> AsignarCuentaPorBanco(long idLibro, string variable, long id, long? idCuenta)
+        => Ejecutar(async () => Traducir(await _api.AsignarCuentaPorBancoAsync(new AsignarCuentaPorBancoDTO { IdLibroContable = idLibro, Variable = variable, Id = id, IdCuentaContable = idCuenta })), "asignar la cuenta del banco");
+
     public Task<ResponseGeneric<ResumenProcesadoresDTO>> ResumenProcesadores(long idLibro)
         => Ejecutar(async () => Traducir(await _api.ResumenProcesadoresAsync(idLibro)), "consultar los procesadores de pago");
 

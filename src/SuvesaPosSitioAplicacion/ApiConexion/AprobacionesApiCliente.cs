@@ -32,6 +32,8 @@ public interface IAprobacionesApiCliente
     Task<SeguridadEnvelope<ResultadoSincronizacionCatalogoDTO>> SincronizarCatalogoAsync(long idLibro);
     Task<SeguridadEnvelope<List<UsoCuentaContableDTO>>> UsosCuentaAsync(long idLibro);
     Task<SeguridadEnvelope<bool>> AsignarUsoCuentaAsync(AsignarUsoCuentaDTO dto);
+    Task<SeguridadEnvelope<List<CuentaPorBancoDTO>>> CuentasPorBancoAsync(long idLibro);
+    Task<SeguridadEnvelope<bool>> AsignarCuentaPorBancoAsync(AsignarCuentaPorBancoDTO dto);
     Task<SeguridadEnvelope<ResumenProcesadoresDTO>> ResumenProcesadoresAsync(long idLibro);
     Task<SeguridadEnvelope<LiquidacionProcesadorDTO>> RegistrarLiquidacionAsync(RegistrarLiquidacionProcesadorDTO dto);
     Task<SeguridadEnvelope<List<CorteEntregaDTO>>> CortesEntregaAsync(long idLibro);
@@ -185,6 +187,12 @@ public sealed class AprobacionesApiCliente : IAprobacionesApiCliente
 
     public Task<SeguridadEnvelope<bool>> AsignarUsoCuentaAsync(AsignarUsoCuentaDTO dto)
         => EnviarAsync<bool>(HttpMethod.Put, "usos-cuenta", dto);
+
+    public Task<SeguridadEnvelope<List<CuentaPorBancoDTO>>> CuentasPorBancoAsync(long idLibro)
+        => EnviarAsync<List<CuentaPorBancoDTO>>(HttpMethod.Get, $"libros/{idLibro}/cuentas-por-banco");
+
+    public Task<SeguridadEnvelope<bool>> AsignarCuentaPorBancoAsync(AsignarCuentaPorBancoDTO dto)
+        => EnviarAsync<bool>(HttpMethod.Put, "cuentas-por-banco", dto);
 
     public Task<SeguridadEnvelope<ResumenProcesadoresDTO>> ResumenProcesadoresAsync(long idLibro)
         => EnviarAsync<ResumenProcesadoresDTO>(HttpMethod.Get, $"procesadores/resumen?idLibroContable={idLibro}");

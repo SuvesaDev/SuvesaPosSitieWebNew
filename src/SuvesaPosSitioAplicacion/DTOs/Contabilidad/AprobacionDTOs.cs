@@ -208,6 +208,23 @@ public sealed class AsignarUsoCuentaDTO
     [JsonPropertyName("idCuentaContable")] public long IdCuentaContable { get; set; }
 }
 
+public sealed class CuentaPorBancoDTO
+{
+    [JsonPropertyName("variable")] public string Variable { get; set; } = string.Empty;
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("nombre")] public string Nombre { get; set; } = string.Empty;
+    [JsonPropertyName("idCuentaContable")] public long? IdCuentaContable { get; set; }
+    [JsonPropertyName("codigoCuenta")] public string? CodigoCuenta { get; set; }
+}
+
+public sealed class AsignarCuentaPorBancoDTO
+{
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("variable")] public string Variable { get; set; } = string.Empty;
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("idCuentaContable")] public long? IdCuentaContable { get; set; }
+}
+
 public sealed class RegistrarLiquidacionProcesadorDTO
 {
     [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }

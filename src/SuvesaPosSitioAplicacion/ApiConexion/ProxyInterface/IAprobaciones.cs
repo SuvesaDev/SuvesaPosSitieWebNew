@@ -30,6 +30,10 @@ public interface IAprobaciones
     Task<ResponseGeneric<ResultadoSincronizacionCatalogoDTO>> SincronizarCatalogo(long idLibro);
     Task<ResponseGeneric<ICollection<UsoCuentaContableDTO>>> UsosCuenta(long idLibro);
     Task<ResponseGeneric<bool>> AsignarUsoCuenta(long idLibro, string uso, long idCuenta);
+    /// <summary>Cada banco (y cuenta bancaria propia) con la cuenta contable a la que el libro lo lleva.</summary>
+    Task<ResponseGeneric<ICollection<CuentaPorBancoDTO>>> CuentasPorBanco(long idLibro);
+    /// <summary>Asigna la cuenta de un banco; <paramref name="idCuenta"/> null quita el mapeo.</summary>
+    Task<ResponseGeneric<bool>> AsignarCuentaPorBanco(long idLibro, string variable, long id, long? idCuenta);
     Task<ResponseGeneric<ResumenProcesadoresDTO>> ResumenProcesadores(long idLibro);
     Task<ResponseGeneric<LiquidacionProcesadorDTO>> RegistrarLiquidacion(RegistrarLiquidacionProcesadorDTO comando);
     Task<ResponseGeneric<ICollection<CorteEntregaDTO>>> CortesEntrega(long idLibro);
