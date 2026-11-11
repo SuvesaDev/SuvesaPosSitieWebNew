@@ -195,6 +195,20 @@ Están en el árbol del API y en el proceso que escucha en el puerto 5000. Todav
 
 El plan, con el criterio de cierre de cada punto, está en `docs/PLAN_MEJORAS_UAT_CONTABILIDAD.md` (la misma copia en los dos repos). Lo de abajo es el hallazgo.
 
+### Estado a 2026-11-11 noche
+
+El código de casi todos los puntos ya está hecho (detalle en `docs/PLAN_MEJORAS_UAT_ANALISIS.md`, secciones 8 y 9). Lo de abajo es el hallazgo original; esta tabla dice dónde está cada uno.
+
+| Estado | Puntos |
+|---|---|
+| **Cerrado y verificado en vivo** | 2 (consignación facturada: Ventas #73 + Cobros #28), 7 (Compras #14 regenerada), 24, 26 |
+| **Corregido en código, falta verlo en vivo** | 1 (sobrante de toma en `4.2.1.2`), 3 (banco por pago, «Cuentas por banco»), 4 (abono idempotente), 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 |
+| **Resuelto por decisión del contador, sin código** | 5 (traslado entre bodegas de la misma sucursal: solo operativo; falta decirlo en el manual), 6 (corregir el tipo del artículo 002 y reclasificar), 21 (fondo de caja: se entrega al abrir y se devuelve al cerrar; Fase 5) |
+| **Ya ejecutado en vivo antes** | 22 |
+| **Abierto, es del equipo** | Cierre de septiembre: cargar saldos iniciales al 2026-09-30 (explican las 15 diferencias) y regularizar los 70 documentos sin evento; anular el recibo duplicado de UAT-AB-0511 |
+| **Falta ejercer** | Cierre de la caja #21 (prueba `DevolucionFondoCaja`); bancos distintos por pago; sobrante de toma física; póliza de IVA de compra sin XML |
+
+
 ### API — contabilidad
 
 **1. Sobrante de toma física no tiene asiento.**  
@@ -292,7 +306,7 @@ No borrarlos desde aquí y no volver a registrarlos.
 - Corte de comisiones **#2** confirmado. No se puede repetir el mismo rango.
 - Recibos de abono **Compras #1 y #2** (UAT-AB-0511). El segundo está de más.
 - Compra **UAT-CO-0511** sigue con saldo. **UAT-CR-0511** quedó saldada de más por el abono duplicado.
-- **Compras #14** en error por fecha 2026-11-11 (reintentar desde bandeja; el reloj local ya es 2026-11-11).
+- **Compras #14**: regenerada desde la bandeja, Contabilizado (cerrado 2026-11-11 noche).
 - Toma **00000006** (sobrante, póliza vacía) y **00000007** (faltante, contabilizada). Lote Test1: no usar **12312321**.
 - Depósitos: `UAT-DEP-1111A` Confirmado (2026-11-11); `UAT-DEP-NO-0511` No confirmado; `UAT-DEP-OK-0511` Confirmado. Otros (5675676, …) no se tocaron.
 - **DevolucionesVenta #18** / NC #18 y **#19** / NC #19: Contabilizado.
@@ -300,3 +314,4 @@ No borrarlos desde aquí y no volver a registrarlos.
 - Cajas: **#20** cerrada (DiferenciaCaja #8). Caja **#21** abierta (AperturaCaja Contabilizado), fondo ₡10.000.
 - Marco (112940871) quedó con **crédito activo**, ruta UAT Comisiones, límite ₡500.000.
 - El cliente Rafael no puede factura nueva de crédito mientras tenga la factura vencida.
+- Noche 2026-11-11: Ventas **#70**, **#71** (crédito), **#72** (preventa #29 de contado) y **#74** (contado doc 30, cobro con error transitorio de SQL: verificar que `CobroAplicado` exista), todas Contabilizado. Consignación: conteo **#6** → prefactura **#73** → Ventas #73 + Cobros #28. Pólizas manuales (planilla y fiscal) creadas con éxito tras el arreglo del #26.
