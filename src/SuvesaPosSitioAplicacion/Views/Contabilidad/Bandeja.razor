@@ -196,7 +196,15 @@
                                     }
                                 </div>
                             </div>
-                            <p class="small text-secondary">Ventas, compras, notas de crédito, cobros, depósitos de caja, tomas físicas y pagos a proveedor que ya debieron llegar al mayor y no tienen evento contable (bloquean el cierre del período). «Regularizar» crea solo los de venta, compra y nota de crédito; los demás se corrigen desde su pantalla, desde el inicio del primer período (o la fecha de puesta en marcha, si se fijó@(_sinEvento?.FechaPuestaEnMarcha is DateOnly pm ? $": {pm:yyyy-MM-dd}" : "")). Para regularizar solo una parte, acote las fechas o marque los documentos.</p>
+                            <p class="small text-secondary">Ventas, compras, notas de crédito, cobros, abonos de clientes, depósitos de caja, fondo de caja, tomas físicas y pagos a proveedor que ya debieron llegar al mayor y no tienen evento contable (bloquean el cierre del período). «Regularizar» crea solo los de venta, compra y nota de crédito; los demás se corrigen desde su pantalla, desde el inicio del primer período (o la fecha de puesta en marcha, si se fijó@(_sinEvento?.FechaPuestaEnMarcha is DateOnly pm ? $": {pm:yyyy-MM-dd}" : "")). Para regularizar solo una parte, acote las fechas o marque los documentos.</p>
+                            @if (Sesion.Puede("CONTABILIDAD.CONFIGURACION_EMISOR", AccionPantalla.Activar))
+                            {
+                                <div class="row g-2 mb-2 align-items-end">
+                                    <div class="col-auto"><label class="form-label small mb-0">Fecha de puesta en marcha</label><input type="date" class="form-control form-control-sm" @bind="_puestaEnMarcha" /></div>
+                                    <div class="col-auto"><button class="btn btn-sm btn-outline-primary" disabled="@_guardando" @onclick="GuardarPuestaEnMarcha">Guardar fecha</button></div>
+                                    <div class="col-auto small text-secondary">Los documentos anteriores a esta fecha no se piden contabilizados. Vacía = desde el primer período.</div>
+                                </div>
+                            }
                             <div class="row g-2 mb-2">
                                 <div class="col-auto"><label class="form-label small mb-0">Desde</label><input type="date" class="form-control form-control-sm" @bind="_regDesde" /></div>
                                 <div class="col-auto"><label class="form-label small mb-0">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_regHasta" /></div>
@@ -560,6 +568,7 @@
         try
         {
             _sinEvento = await Respuestas.DatoAsync(await Contabilidad.DocumentosSinEvento(_idLibroContable), "consultar los documentos sin contabilizar");
+            _puestaEnMarcha = _sinEvento?.FechaPuestaEnMarcha is DateOnly pm ? pm.ToDateTime(TimeOnly.MinValue) : null;
             _diagnostico = await Respuestas.DatoAsync(await Contabilidad.DiagnosticarPlantillas(_idLibroContable), "diagnosticar las plantillas contables");
             _comprasRechazadas = await Respuestas.DatoAsync(await Contabilidad.ComprasRechazadas(_idLibroContable), "consultar las compras con Mensaje Receptor rechazado");
         }
@@ -567,6 +576,22 @@
     }
 
     private DateTime? _regDesde, _regHasta;
+    private DateTime? _puestaEnMarcha;
+
+    private async Task GuardarPuestaEnMarcha()
+    {
+        var fecha = Dia(_puestaEnMarcha);
+        var texto = fecha is DateOnly f ? $"¿Fijar la puesta en marcha en {f:yyyy-MM-dd}? Los documentos anteriores dejan de contarse como pendientes." : "¿Quitar la fecha de puesta en marcha? Vuelven a contarse todos los documentos desde el primer período.";
+        if (!await Dialogos.ConfirmarAsync(texto, "Puesta en marcha")) return;
+        _guardando = true;
+        try
+        {
+            if (!await Respuestas.CorrectaAsync(await Contabilidad.FijarPuestaEnMarcha(_idLibroContable, fecha), "fijar la fecha de puesta en marcha")) return;
+            Dialogos.Exito("Fecha de puesta en marcha guardada.");
+            await CargarIntegridad();
+        }
+        finally { _guardando = false; }
+    }
     private readonly HashSet<(string Tipo, long Id)> _seleccion = new();
 
     private void Marcar((string, long) clave, bool marcado)
@@ -587,6 +612,9 @@
         "DepositoCaja" => "Depósito de caja",
         "TomaFisica" => "Toma física",
         "PagoProveedor" => "Pago a proveedor",
+        "AbonoLegado" => "Abono de cliente (recibo)",
+        "FondoCaja" => "Fondo de caja (entrega)",
+        "DevolucionFondoCaja" => "Fondo de caja (devolución)",
         _ => tipo,
     };
 

@@ -207,3 +207,14 @@ Siguen vigentes los de la sección «Datos dejados en el entorno» del UAT: no b
 ### Fase 5 (2026-11-11) — fondo de caja
 
 El contador eligió que el fondo **se entrega al abrir y se devuelve al cerrar**. `FondoCajaContableService` publica `AperturaCaja` (débito `1.1.1.2`, crédito al uso `OrigenFondoCaja`, por omisión `1.1.2.1`) al crear la apertura, y `DevolucionFondoCaja` en los dos cierres (el conciliado y el legado) por el mismo monto entregado, no por lo que hoy digan las denominaciones. Anular el cierre cancela o reversa la devolución (y un nuevo cierre publica otra con clave `:2`); anular la apertura hace lo mismo con la entrega. Contabilidad nunca impide abrir ni cerrar. Límites: solo el fondo en colones; las cajas abiertas antes de activar las plantillas no se regularizan solas; «documentos sin contabilizar» todavía no vigila estos dos eventos.
+
+### Pendientes de código, primera tanda (2026-11-11 noche)
+
+| Trabajo | Qué quedó |
+|---|---|
+| Pantalla de la fecha de puesta en marcha | En la Bandeja, pestaña de integridad, tarjeta «Documentos sin contabilizar»: campo «Fecha de puesta en marcha» y «Guardar fecha» (vacía la quita). Pide confirmar, exige el permiso `CONTABILIDAD.CONFIGURACION_EMISOR` con la acción Activar y recarga el control. Usa el cliente que ya existía; la acción queda en la bitácora del API |
+| «Documentos sin contabilizar» ve el fondo de caja | Aperturas con fondo en colones sin `AperturaCaja` (tipo `FondoCaja`) y cajas cerradas cuya apertura entregó fondo y no tienen `DevolucionFondoCaja` (tipo `DevolucionFondoCaja`, por el monto entregado). No se regularizan desde ahí: una caja abierta antes de activar las plantillas no se puede regularizar, porque la entrega sin su devolución descuadraría `1.1.1.2` |
+| «Documentos sin contabilizar» ve el abono legado | Líneas de `OpcionesDePagos` de recibo de abono (tipo de cobro 4) sin `CobroAplicado`/`CobroAplicadoUsd` del módulo `AbonoCobrarLegado` (tipo `AbonoLegado`). Las que esperan la confirmación de un cheque o depósito no cuentan: el evento nace al confirmarse |
+| Sigue sin cubrirse | Los cobros sin recibo (venta de contado con el flag `Ventas:ExigirCobroContado` apagado): no hay un evento contable esperado definido para ellos, hay que decidir con el contador qué debe publicar ese camino antes de vigilarlo |
+
+Pruebas: `DocumentosSinContabilizar_VeElFondoDeCajaYElAbonoLegado_YNoPideLoQueEsperaConfirmacion`. Suite del API: 1684 verdes y la que ya fallaba; Web: 240 verdes.
