@@ -7,16 +7,47 @@ Documento de trabajo de la rama `feature/modulo-contabilidad`. La misma copia vi
 
 Se actualiza al cerrar cada prueba. Lo que ya está en «Cerrado en esta pasada» no se vuelve a ejecutar. Lo abierto se sigue desde «Mejoras pendientes».
 
-**Fecha de la pasada:** 2026-11-05  
+**Fecha de la pasada inicial:** 2026-11-05 (caja 2026-11-06)  
+**Última re-prueba:** 2026-11-11  
 **Entorno:** Blazor `http://localhost:5199`, API `http://localhost:5000`  
 **Libro:** emisor Rafael Alberto Martinez Quesada, sucursal CostaPets, contabilidad encendida  
 **Usuario de la prueba:** AdminCosta26  
+**Caja abierta al cierre de la re-prueba:** #20 (fondo ₡10.000)
 
 El diseño de activación por sucursal y de libro por emisor sigue en `docs/MEJORAS_CONTABILIDAD_API_Y_WEB.md`. Este archivo es la evidencia de lo que el sistema hizo con documentos reales y lo que hay que corregir.
 
-## Cerrado en esta pasada
+## Re-prueba 2026-11-11
 
-Estos flujos generaron el documento operativo y la póliza. No repetirlos.
+Casos simulados nuevos del día. La caja #20 ya estaba abierta; no se abrió otra.
+
+| Flujo | Documento | Evento | Resultado |
+|---|---|---|---|
+| Crédito en Marco (antes sin crédito) | Se activó crédito + ruta UAT Comisiones + límite ₡500.000 | — | Listo para facturar a crédito |
+| Venta crédito | Factura electrónica #9, Marco, art. 002 lote Test1, ₡2.425,32 | Ventas #66 `VentaEmitida` | Contabilizado |
+| Venta contado (tiquete) | Tiquete #20, mismo cliente/artículo, efectivo ₡2.425,32 | Ventas #67 `VentaEmitida` + Cobros #26 `CobroAplicado` | Contabilizado |
+| Anulación vía devolución | NC #18 sobre tiquete #20 (completa), RecibidoPorHacienda | DevolucionesVenta #18 `NotaCreditoEmitida` | Contabilizado (tras activar v2 vigente desde 2026-11-01 y Reintentar) |
+| Pre-depósito + depósito caja | Pre-depósito ₡1.000 apertura #20 → depósito `UAT-DEP-1111A` → Confirmado | Esperado `DepositoConfirmado` | UI Confirmado; **no aparece evento** en bandeja (nov) |
+| Depósito no confirmado | `UAT-DEP-NO-0511` (pasada anterior) | Ninguno | Sigue No confirmado (correcto para cobro de factura; este es de caja) |
+| Pre-cierre mes 11/2026 | Período Abierto | Checklist | **No se puede cerrar:** 2 eventos bloqueantes, 15 diferencias de conciliación |
+| Apertura de mes | 09/2026, 10/2026, 11/2026 | — | Los tres en estado Abierto; «Abrir período» disponible para crear otros |
+
+No se re-ejecutaron en esta sesión (siguen vigentes las filas de «Cerrado en esta pasada»): compra #15/#16, abonos, toma 00000007, consignación, comisiones corte #2, escenarios de caja #15–#19. Presupuesto/proforma: sin evento contable esperado (solo preventa). Póliza manual (planilla/fiscal): el modal «Nueva póliza manual» abre y lista cuentas; el bind de montos vía automatización CDP no actualizó el estado Blazor — falta confirmar a mano D `6.1.1.1` / C `2.1.2.1` y D `6.5.1` / C `1.1.2.1`.
+
+### Hallazgos nuevos 2026-11-11
+
+**23. `NotaCreditoEmitida` sin plantilla vigente — corregido 2026-11-11.**  
+La v1 quedó Activa solo desde 2026-12-01 (corte de inventario del catálogo). Se creó, simuló y activó la **v2** con vigencia desde **2026-11-01**; v1 pasó a Reemplazada. Tras Reintentar, DevolucionesVenta #18 quedó **Contabilizado**.
+
+**24. Depósito de caja confirmado no publica `DepositoConfirmado`.**  
+`UAT-DEP-1111A` quedó Confirmado en Consulta Depósitos. La bandeja del 2026-11-01..11 no muestra `DepositoConfirmado`. En `InstrumentosConfirmacionManager`, `SucursalDelInstrumentoAsync` para un depósito puro de caja (solo `IdDeposito`) puede devolver null si no hay cobro/venta; el resolutor del libro puede no registrar.  
+Mejora: resolver sucursal desde la apertura/depósito de caja y verificar el evento tras confirmar.
+
+**25. Pre-cierre 11/2026 bloqueado.**  
+Tras corregir NC #18 queda al menos Compras #14 en error de configuración + documentos sin evento + 15 diferencias de conciliación (auxiliar CxC vs mayor desfasado). No cerrar el mes hasta limpiar eso.
+
+## Cerrado en pasadas anteriores
+
+Estos flujos generaron el documento operativo y la póliza. No repetirlos salvo re-prueba puntual.
 
 | Flujo | Documento | Evento | Póliza |
 |---|---|---|---|
@@ -204,9 +235,11 @@ No borrarlos desde aquí y no volver a registrarlos.
 - Corte de comisiones **#2** confirmado. No se puede repetir el mismo rango.
 - Recibos de abono **Compras #1 y #2** (UAT-AB-0511). El segundo está de más.
 - Compra **UAT-CO-0511** sigue con saldo. **UAT-CR-0511** quedó saldada de más por el abono duplicado.
-- **Compras #14** en error por fecha 2026-11-11.
-- Toma **00000006** (sobrante, póliza vacía) y **00000007** (faltante, contabilizada). Lote Test1 quedó en 39 en la bodega de facturación antes de los tiquetes de comisión; esos tiquetes y la consignación consumieron más unidades.
-- Depósitos ya confirmados de otros días (5675676, 43534543, 4534543534, 1231231) no se tocaron.
-- Lote **12312321** (existencia 1) no se usó.
-- Cajas cerradas: **#7** (faltante ₡506,59, Cajas #1), **#14** (sobrante ₡200, Cajas #2), **#15** (cuadre, cierre #3, sin póliza), **#16** (faltante ₡500, Cajas #4), **#17** (sobrante ₡200, Cajas #5), **#18** (faltante ₡6.000 rebajado por planilla, Cajas #6), **#19** (faltante ₡7.000 castigado, Cajas #7). Caja **#20** abierta, fondo ₡10.000, sin arqueo.
-- El cliente Rafael no puede factura nueva de crédito mientras tenga la factura vencida (aviso de 16 días). Las pruebas de comisión y consignación se hicieron de contado con Marco.
+- **Compras #14** en error por fecha 2026-11-11 (reintentar desde bandeja; el reloj local ya es 2026-11-11).
+- Toma **00000006** (sobrante, póliza vacía) y **00000007** (faltante, contabilizada). Lote Test1: no usar **12312321**.
+- Depósitos: `UAT-DEP-1111A` Confirmado (2026-11-11); `UAT-DEP-NO-0511` No confirmado; `UAT-DEP-OK-0511` Confirmado. Otros (5675676, …) no se tocaron.
+- **DevolucionesVenta #18** / NC #18: Contabilizado (plantilla `NotaCreditoEmitida` v2 activa desde 2026-11-01).
+- Ventas del 2026-11-11: factura crédito **#9** (Ventas #66), tiquete **#20** anulado vía NC (Ventas #67 + Cobros #26).
+- Cajas cerradas: **#7**, **#14**–**#19** (ver tabla). Caja **#20** sigue abierta, fondo ₡10.000, con pre-depósito/depósito de ₡1.000 ya confirmado.
+- Marco (112940871) quedó con **crédito activo**, ruta UAT Comisiones, límite ₡500.000.
+- El cliente Rafael no puede factura nueva de crédito mientras tenga la factura vencida.

@@ -9,7 +9,7 @@ Sale de las pruebas del 2026-11-05 y del 2026-11-06 en CostaPets (contabilidad e
 
 No sustituye a `docs/PLAN_MEJORAS_PENDIENTES.md` (impresión, facturación e importaciones, 29 sep 2026) ni a `docs/MEJORAS_CONTABILIDAD_API_Y_WEB.md` (activación por sucursal y libro por emisor).
 
-**Fecha:** 2026-11-06.
+**Fecha:** 2026-11-06 (ampliado con hallazgos 2026-11-11).
 
 ## Ya está en el código de trabajo, sin commit
 
@@ -50,7 +50,9 @@ Si el contador decide que el fondo sí debe asentarse al abrir, eso es el punto 
 | 4 | El abono se puede confirmar dos veces. UAT-AB-0511 generó Compras #1 y Compras #2, ambos Contabilizado, y CxP quedó debitada ₡22.600 contra una factura de ₡11.300. El alta debe ser idempotente por referencia y factura, o la pantalla debe impedir el segundo guardado. El recibo duplicado se anula en el entorno; no se reintenta. | Un segundo guardado del mismo abono no crea otro recibo ni otra póliza. |
 | 5 | El traslado a la bodega de consignación de la misma sucursal no deja rastro. `PolizaTrasladoIntrasucursal` sale si las sucursales son iguales o el costo es 0. Decidir con el contador: documentar que es solo operativo, o agregar dimensión de bodega para ver central contra consignado sin cambiar el saldo de la cuenta. | Queda escrito en la pantalla y en este plan cuál de las dos vías se eligió, y el código hace esa vía. |
 | 6 | El artículo 002 (tipo 3) se fue a producto terminado `1.1.6.1.3`, no a mercadería `1.1.6.1.4`. `InventarioPorTipo` manda el tipo 3 a terminado. Revisar el tipo del 002 y del resto del catálogo Costa Pets antes de cerrar un período. | El tipo de cada artículo de la sucursal coincide con la subcuenta que el contador espera. |
-| 7 | Compras #14, `CompraRegistrada`, fecha 2026-11-11, sigue en error porque la fecha era posterior al reloj del sistema (2026-11-05). No volver a registrar esa compra. Cuando el reloj pase esa fecha, reintentar desde la bandeja. | El evento #14 pasa a Contabilizado con un reintento, sin un alta nueva. |
+| 7 | Compras #14, `CompraRegistrada`, fecha 2026-11-11, sigue en error porque la fecha era posterior al reloj del sistema (2026-11-05). No volver a registrar esa compra. El reloj local ya es 2026-11-11: reintentar desde la bandeja. | El evento #14 pasa a Contabilizado con un reintento, sin un alta nueva. |
+| 22 | ~~`NotaCreditoEmitida` sin versión vigente~~ **Hecho 2026-11-11:** se activó v2 desde 2026-11-01 (v1 era solo desde 2026-12-01); Reintentar → DevolucionesVenta #18 Contabilizado. | Una NC aceptada pasa a Contabilizado sin error de plantilla. |
+| 23 | Depósito de caja confirmado (`UAT-DEP-1111A`) no publicó `DepositoConfirmado`. Revisar `SucursalDelInstrumentoAsync` cuando solo hay `IdDeposito` (sin cobro/venta) y el resolutor del libro. | Confirmar un depósito de apertura deja evento Contabilizado en la bandeja. |
 | 8 | `EsDeducible` existe en la semilla y en el API. El modal de editar cuenta no la muestra. Hace falta verla y editarla con permiso. | La ficha de la cuenta muestra la marca y, con permiso, la guarda. |
 | 9 | La cuenta `1.1.6.1` admite movimiento y tiene subcuentas. El sync del catálogo ya lo avisó. Solo las hojas `1.1.6.1.1` a `1.1.6.1.4` deben moverse. | Un asiento contra `1.1.6.1` se rechaza. |
 
