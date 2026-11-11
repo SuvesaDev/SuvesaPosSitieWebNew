@@ -109,6 +109,19 @@ public sealed class IntegridadContableProxyTests
     }
 
     [Fact]
+    public async Task FijarPuestaEnMarcha_EnviaLaFechaPorPutALaRutaDeIntegridad()
+    {
+        var (proxy, handler) = Nuevo("""{"status":0,"responses":true}""");
+
+        var r = await proxy.FijarPuestaEnMarcha(7, new DateOnly(2026, 9, 30));
+
+        Assert.True(r.EsCorrecta);
+        Assert.Equal(HttpMethod.Put, handler.Metodo);
+        Assert.Equal("/api/contabilidad/integridad/puesta-en-marcha", handler.Ruta);
+        Assert.Contains("\"fecha\":\"2026-09-30\"", handler.Cuerpo);
+    }
+
+    [Fact]
     public async Task ComprasRechazadas_PideElLibroYLeeLaLista()
     {
         var (proxy, handler) = Nuevo("""

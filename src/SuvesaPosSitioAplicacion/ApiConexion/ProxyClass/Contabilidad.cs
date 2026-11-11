@@ -243,6 +243,13 @@ public sealed class Contabilidad : ProxyBase, IContabilidad
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "reencolar los eventos en error de configuración");
 
+    public Task<ResponseGeneric<bool>> FijarPuestaEnMarcha(long idLibroContable, DateOnly? fecha)
+        => Ejecutar(async () =>
+        {
+            var r = await _api.FijarPuestaEnMarchaAsync(new FijarPuestaEnMarchaDTO { IdLibroContable = idLibroContable, Fecha = fecha });
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "fijar la fecha de puesta en marcha");
+
     public Task<ResponseGeneric<VersionPlantillaDTO>> DuplicarVersionPlantilla(long idVersion, DateOnly desde, DateOnly? hasta = null)
         => Ejecutar(async () =>
         {

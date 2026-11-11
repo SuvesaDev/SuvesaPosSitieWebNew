@@ -22,6 +22,7 @@ public sealed class DocumentosSinEventoDTO
     [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
     [JsonPropertyName("desde")] public DateOnly Desde { get; set; }
     [JsonPropertyName("hasta")] public DateOnly Hasta { get; set; }
+    [JsonPropertyName("fechaPuestaEnMarcha")] public DateOnly? FechaPuestaEnMarcha { get; set; }
     [JsonPropertyName("total")] public int Total { get; set; }
     [JsonPropertyName("documentos")] public List<DocumentoSinEventoDTO> Documentos { get; set; } = new();
 }
@@ -67,6 +68,12 @@ public sealed class DuplicarVersionPlantillaDTO
 {
     [JsonPropertyName("efectivaDesde")] public DateOnly EfectivaDesde { get; set; }
     [JsonPropertyName("efectivaHasta")] public DateOnly? EfectivaHasta { get; set; }
+}
+
+public sealed class FijarPuestaEnMarchaDTO
+{
+    [JsonPropertyName("idLibroContable")] public long IdLibroContable { get; set; }
+    [JsonPropertyName("fecha")] public DateOnly? Fecha { get; set; }
 }
 
 public sealed class ForzarCompraDTO
