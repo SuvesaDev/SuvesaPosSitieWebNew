@@ -169,10 +169,10 @@ Siguen vigentes los de la sección «Datos dejados en el entorno» del UAT: no b
 |---|---|---|
 | 1.1 | El depósito de caja confirmado toma la sucursal de `PreDeposito.NumApertura` → apertura; sin sucursal queda en `ErrorConfiguracion` visible | Re-probar confirmando un pre-depósito |
 | 1.2 | La consignación facturada publica el mismo `VentaEmitida` que una venta normal (`PayloadsVentaContable`), y en contado el `CobroAplicado`; `ServicioFacturarPreventaCredito` tenía el mismo payload incompleto y también se corrigió; `Facturado` casa con el lote real | **Sin prueba de punta a punta**: re-probar prefactura de contado y de crédito |
-| 1.3 | — | Espera la decisión 5.1 (cuenta del sobrante) |
+| 1.3 | Cuenta nueva `4.2.1.2 Sobrantes de inventario` (supuesto: el contador puede cambiarla) y la plantilla `AjusteInventario` debita inventario por tipo (`InvGanado…`) contra `CostoSobrante`; la toma, el aumento manual y el alistamiento publican siempre esas variables. Una toma mixta parte faltante y sobrante en una póliza | **Decisión 5.1 tomada por defecto, confirmar con el contador.** Hay que correr «Actualizar catálogo» (agrega la cuenta y actualiza el borrador de la plantilla) y simular y activar la nueva versión; un evento viejo falla por faltar las variables |
 | 1.4 | Una póliza con todas las líneas en cero no se publica: el evento queda `NoAplicable` con su motivo | |
 | 1.5 | El alta del abono a proveedor es idempotente por proveedor + recibo + facturas; la pantalla ignora un segundo clic | Un recibo sin número no se deduplica |
-| 1.6 | — | Espera el mapeo cuenta bancaria → cuenta contable |
+| 1.6 | El cobro (`CobroAplicado`/`Usd`) lleva `IdBanco` y el pago a proveedor `IdCuentaBancaria`; las plantillas usan roles `BancoColones@IdBanco`, `BancoDolares@IdBanco` y `…@IdCuentaBancaria`. El libro mapea cada banco a su cuenta («Cuentas por banco» en el catálogo, sin migración: `CuentasUsoContables` con uso `IdBanco:N`). Sin banco indicado rige la cuenta por omisión; banco sin cuenta o varios bancos en un documento: `ErrorConfiguracion` con aviso | Actualizar catálogo y activar las versiones nuevas de `CobroAplicado`, `CobroAplicadoUsd`, `PagoProveedorAplicado` y `PagoProveedorAplicadoUsd`; mapear los bancos; el abono legado de cobros (`CobroAbonoLegadoContable`) y la liquidación de procesadores siguen con la cuenta por omisión |
 
 ### Fase 3
 
