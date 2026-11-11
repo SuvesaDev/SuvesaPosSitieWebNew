@@ -8,15 +8,43 @@ Documento de trabajo de la rama `feature/modulo-contabilidad`. La misma copia vi
 Se actualiza al cerrar cada prueba. Lo que ya está en «Cerrado en esta pasada» no se vuelve a ejecutar. Lo abierto se sigue desde «Mejoras pendientes».
 
 **Fecha de la pasada inicial:** 2026-11-05 (caja 2026-11-06)  
-**Última re-prueba:** 2026-11-11  
+**Última re-prueba:** 2026-11-11 (tarde, post-mejoras Fase 1–5)  
 **Entorno:** Blazor `http://localhost:5199`, API `http://localhost:5000`  
 **Libro:** emisor Rafael Alberto Martinez Quesada, sucursal CostaPets, contabilidad encendida  
 **Usuario de la prueba:** AdminCosta26  
-**Caja abierta al cierre de la re-prueba:** #20 (fondo ₡10.000)
+**Caja abierta al cierre de la re-prueba:** #21 (fondo ₡10.000) — #20 cerrada en esta pasada
 
 El diseño de activación por sucursal y de libro por emisor sigue en `docs/MEJORAS_CONTABILIDAD_API_Y_WEB.md`. Este archivo es la evidencia de lo que el sistema hizo con documentos reales y lo que hay que corregir.
 
-## Re-prueba 2026-11-11
+## Re-prueba 2026-11-11 tarde (post-mejoras)
+
+Casos nuevos tras sync de catálogo y activación de `AperturaCaja` / `DevolucionFondoCaja`. Prefijo `UAT-*-1111R`.
+
+| Flujo | Documento | Evento | Resultado |
+|---|---|---|---|
+| Sync catálogo | Plantillas nuevas + cuenta `4.2.1.2` | — | `AperturaCaja` y `DevolucionFondoCaja` creadas como borrador; varias plantillas con versión borrador nueva |
+| Activar fondo de caja | v1 desde 2026-09-01 | — | Ambas plantillas **Activa** (simuladas con `{"Fondo":40000}`) |
+| Cierre caja #20 | Arqueo ₡11.425,00 vs esperado ₡11.425,32 | Cajas #8 `DiferenciaCaja` | Contabilizado (faltante ₡0,32 a gasto) |
+| Devolución fondo #20 | Cierre de apertura previa a la plantilla | `DevolucionFondoCaja` | **No** (esperado: cajas abiertas antes de activar no se regularizan) |
+| Apertura caja #21 | Fondo ₡10.000, Caja 1 | Aperturas #21 `AperturaCaja` | Contabilizado |
+| Venta crédito | FE #10, Marco, 002/Test1, ₡2.425,32 | Ventas #68 `VentaEmitida` | Contabilizado |
+| Venta contado | Tiquete #21, efectivo ₡2.425,32 | Ventas #69 + Cobros #27 | Contabilizado |
+| Anulación NC | NC #19 sobre tiquete #21 | DevolucionesVenta #19 `NotaCreditoEmitida` | Contabilizado |
+| Compra crédito | `UAT-CR-1111R`, proveedor TEST, 002/Test1, ₡1.697,72 | Compras #17 `CompraRegistrada` | Contabilizado |
+| Depósito caja confirmado | Pre-dep ₡1.000 → `UAT-DEP-1111R` → Confirmado | Instrumentos #11 `DepositoConfirmado` | Contabilizado (**#24 corregido**) |
+| Depósito caja no confirmado | Pre-dep ₡500 → `UAT-DEP-1111B` (Pendiente / resolución No confirmado) | Ninguno | Correcto: sin `DepositoConfirmado` |
+| Toma física faltante | Pretoma #5 → toma **00000008** parcial (−1 und. Test1, ₡1.502,41) | Inventario #8 `AjusteInventario` | Contabilizado |
+| Presupuesto / proforma | Proforma nueva Marco + 002, total ₡2.425,32 | — | Guardada; **sin evento** (esperado) |
+| Póliza manual planilla | D `6.1.1.1` / C `2.1.2.1` ₡50.000, concepto `UAT planilla 1111R` | — | **Falla API** FK `FK_AsientosContables_EventosContables_IdEventoContable` (ver #26) |
+| Comisiones (re-verificación) | Corte previo #2 | Comisiones #2 `ComisionLiquidada` | Sigue Contabilizado |
+| Consignación (re-verificación) | Casos previos Marco / conteo | Ventas/Cobros de consignación | Siguen Contabilizado; hallazgos #2/#5 de salida/traslado intactos |
+| Pre-cierre 09/2026 | Período Abierto | Checklist | **No se puede cerrar:** 0 eventos bloqueantes; **70** docs sin evento; **15** diferencias de conciliación (CxC/CxP/Inventario vs mayor en 0 — saldos iniciales) |
+| Pre-cierre / abrir mes | 09/2026, 10/2026, 11/2026 | — | Los tres **Abierto**; «Abrir período» listo. Cierre efectivo de septiembre **bloqueado** hasta regularizar docs/saldos |
+| Compras #14 | Error viejo | `CompraRegistrada` | Sigue Error: falta campo `ImpuestoAcreditable` (hace falta Regenerar / plantilla nueva) |
+
+**Caja abierta al cierre de esta re-prueba:** #21. **Pendiente real:** cierre efectivo de septiembre (limpiar 70 docs sin evento + 15 diffs), regenerar/reintentar Compras #14, arreglar póliza manual (#26), y opcionalmente un corte nuevo de comisiones / consignación facturada si se quiere re-ejercer esos flujos end-to-end.
+
+## Re-prueba 2026-11-11 (mañana)
 
 Casos simulados nuevos del día. La caja #20 ya estaba abierta; no se abrió otra.
 
@@ -38,12 +66,15 @@ No se re-ejecutaron en esta sesión (siguen vigentes las filas de «Cerrado en e
 **23. `NotaCreditoEmitida` sin plantilla vigente — corregido 2026-11-11.**  
 La v1 quedó Activa solo desde 2026-12-01 (corte de inventario del catálogo). Se creó, simuló y activó la **v2** con vigencia desde **2026-11-01**; v1 pasó a Reemplazada. Tras Reintentar, DevolucionesVenta #18 quedó **Contabilizado**.
 
-**24. Depósito de caja confirmado no publica `DepositoConfirmado`.**  
-`UAT-DEP-1111A` quedó Confirmado en Consulta Depósitos. La bandeja del 2026-11-01..11 no muestra `DepositoConfirmado`. En `InstrumentosConfirmacionManager`, `SucursalDelInstrumentoAsync` para un depósito puro de caja (solo `IdDeposito`) puede devolver null si no hay cobro/venta; el resolutor del libro puede no registrar.  
-Mejora: resolver sucursal desde la apertura/depósito de caja y verificar el evento tras confirmar.
+**24. Depósito de caja confirmado no publica `DepositoConfirmado` — corregido en re-prueba tarde.**  
+`UAT-DEP-1111A` (mañana) no dejó evento. En la tarde, `UAT-DEP-1111R` confirmado publicó **Instrumentos #11 `DepositoConfirmado` Contabilizado**. El caso no confirmado (`UAT-DEP-1111B`) no genera evento (correcto).
 
 **25. Pre-cierre 11/2026 bloqueado.**  
-Tras corregir NC #18 queda al menos Compras #14 en error de configuración + documentos sin evento + 15 diferencias de conciliación (auxiliar CxC vs mayor desfasado). No cerrar el mes hasta limpiar eso.
+Tras corregir NC #18 queda al menos Compras #14 en error de configuración + documentos sin evento + 15 diferencias de conciliación (auxiliar CxC vs mayor desfasado). No cerrar el mes hasta limpiar eso. Septiembre sigue igual: 70 docs sin evento + 15 diffs.
+
+**26. Póliza manual no inserta asiento (FK a evento).**  
+Desde Bandeja → Pólizas → «Nueva póliza manual», con sucursal CostaPets, D `6.1.1.1` / C `2.1.2.1` ₡50.000 y concepto `UAT planilla 1111R`, el API responde: conflicto con `FK_AsientosContables_EventosContables_IdEventoContable` (el asiento manual exige/manda `IdEventoContable` inexistente). Misma falla esperable para el asiento fiscal D `6.5.1` / C `1.1.2.1`.  
+Mejora: crear evento sintético de origen manual o permitir asiento sin evento / con evento opcional.
 
 ## Cerrado en pasadas anteriores
 
@@ -238,8 +269,8 @@ No borrarlos desde aquí y no volver a registrarlos.
 - **Compras #14** en error por fecha 2026-11-11 (reintentar desde bandeja; el reloj local ya es 2026-11-11).
 - Toma **00000006** (sobrante, póliza vacía) y **00000007** (faltante, contabilizada). Lote Test1: no usar **12312321**.
 - Depósitos: `UAT-DEP-1111A` Confirmado (2026-11-11); `UAT-DEP-NO-0511` No confirmado; `UAT-DEP-OK-0511` Confirmado. Otros (5675676, …) no se tocaron.
-- **DevolucionesVenta #18** / NC #18: Contabilizado (plantilla `NotaCreditoEmitida` v2 activa desde 2026-11-01).
-- Ventas del 2026-11-11: factura crédito **#9** (Ventas #66), tiquete **#20** anulado vía NC (Ventas #67 + Cobros #26).
-- Cajas cerradas: **#7**, **#14**–**#19** (ver tabla). Caja **#20** sigue abierta, fondo ₡10.000, con pre-depósito/depósito de ₡1.000 ya confirmado.
+- **DevolucionesVenta #18** / NC #18 y **#19** / NC #19: Contabilizado.
+- Ventas 2026-11-11 tarde: FE crédito **#10** (Ventas #68), tiquete **#21** + NC **#19** (Ventas #69 + Cobros #27).
+- Cajas: **#20** cerrada (DiferenciaCaja #8). Caja **#21** abierta (AperturaCaja Contabilizado), fondo ₡10.000.
 - Marco (112940871) quedó con **crédito activo**, ruta UAT Comisiones, límite ₡500.000.
 - El cliente Rafael no puede factura nueva de crédito mientras tenga la factura vencida.
