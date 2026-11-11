@@ -51,8 +51,12 @@
                     @foreach (var linea in _efectivo) { <tr><td>@linea.Moneda</td><td>@linea.Tipo</td><td class="text-end">@Formato.Importe(linea.Monto)</td><td><InputNumber class="form-control form-control-sm text-end" min="0" @bind-Value="linea.Cantidad" /></td><td class="text-end fw-semibold">@Formato.Importe(linea.Total)</td></tr> }
                 </tbody></table></div></div></div>
                 <div class="col-12 col-xl-5"><div class="card h-100"><div class="card-header"><strong>Totales declarados</strong></div><div class="card-body"><div class="row g-3">
-                    <div class="col-6"><label class="form-label">Efectivo colones</label><input class="form-control text-end" value="@Formato.Importe(EfectivoColones)" disabled /></div>
-                    <div class="col-6"><label class="form-label">Efectivo dólares</label><input class="form-control text-end" value="@Formato.Importe(EfectivoDolares)" disabled /></div>
+                    <div class="col-6"><label class="form-label">Efectivo colones</label><input class="form-control text-end" value="@Formato.Importe(EfectivoColones)" disabled />
+                        @if (_referencia is not null) { <div class="form-text">Sistema espera: <strong>@Formato.Importe(_referencia.Colones.EfectivoEsperado)</strong> (fondo @Formato.Importe(_referencia.Colones.FondoInicial) + efectivo @Formato.Importe(_referencia.Colones.EfectivoNeto))</div> }
+                    </div>
+                    <div class="col-6"><label class="form-label">Efectivo dólares</label><input class="form-control text-end" value="@Formato.Importe(EfectivoDolares)" disabled />
+                        @if (_referencia is not null) { <div class="form-text">Sistema espera: <strong>@Formato.Importe(_referencia.Dolares.EfectivoEsperado)</strong> (fondo @Formato.Importe(_referencia.Dolares.FondoInicial) + efectivo @Formato.Importe(_referencia.Dolares.EfectivoNeto))</div> }
+                    </div>
                     <div class="col-6">
                         <label class="form-label" for="tarjetaCol">Tarjetas colones</label><InputNumber id="tarjetaCol" class="form-control text-end" min="0" @bind-Value="_tarjetaCol" />
                         @if (_referencia is not null) { <div class="form-text">Sistema: @Formato.Importe(_referencia.Colones.Tarjetas)</div> }

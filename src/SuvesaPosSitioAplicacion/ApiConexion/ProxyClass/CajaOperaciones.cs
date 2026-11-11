@@ -98,6 +98,12 @@ public sealed class CajaOperaciones : ProxyBase, ICajaOperaciones
         return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
     }, "consultar las aperturas sin cerrar");
 
+    public Task<ResponseGeneric<ICollection<AperturaCajaDTO>>> AperturasActivas() => Ejecutar(async () =>
+    {
+        var r = await _caja.ObtenerAperturasDeCajaActivasAsync();
+        return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+    }, "consultar las aperturas de caja");
+
     public Task<ResponseGeneric<ICollection<ObtenerAperturaCajaDTO>>> AperturasSinArqueo(string? claveInterna) => Ejecutar(async () =>
     {
         var r = await _arqueo.ObtenerAperturasDeCajaSinArqueoAsync();

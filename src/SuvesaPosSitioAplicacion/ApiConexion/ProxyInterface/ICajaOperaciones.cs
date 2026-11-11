@@ -20,6 +20,8 @@ public interface ICajaOperaciones
     Task<ResponseGeneric<ICollection<DenominacionMonedum>>> Denominaciones();
     Task<ResponseGeneric<ICollection<User>>> CajerosConCajaAbierta();
     Task<ResponseGeneric<ICollection<AperturaCajaDTO>>> AperturasSinCerrar();
+    /// <summary>Cajas abiertas (A) y arqueadas (M): lo que la conciliación puede cerrar.</summary>
+    Task<ResponseGeneric<ICollection<AperturaCajaDTO>>> AperturasActivas();
     /// <summary>Apertura abierta del cajero dueño de la clave interna. El API no devuelve las de otros usuarios.</summary>
     Task<ResponseGeneric<ICollection<ObtenerAperturaCajaDTO>>> AperturasSinArqueo(string? claveInterna);
     Task<ResponseGeneric<AperturaCajaDTO>> CrearApertura(AperturaCajaDTO apertura);

@@ -23,11 +23,11 @@
                         @foreach (var a in _aperturas)
                         {
                             <option value="@a.Napertura">
-                                N.º @a.Napertura — @a.Nombre (caja @a.NumCaja) @a.Fecha
+                                N.º @a.Napertura — @a.Nombre (caja @a.NumCaja) @a.Fecha · @EstadoTexto(a.Estado)
                             </option>
                         }
                     </select>
-                    <div class="form-text">Sólo aperturas sin cerrar.</div>
+                    <div class="form-text">Cajas abiertas y arqueadas, todavía sin cerrar.</div>
                 </div>
                 <div class="col-auto">
                     <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" disabled="@(_napertura <= 0 || _cargando)">
@@ -108,12 +108,20 @@
                 }
                 @if (_datos.Estado is "A" or "M")
                 {
-                    <button class="btn btn-danger" @onclick="Cerrar" disabled="@_cerrando">
+                    <button class="btn btn-danger" @onclick="Cerrar" disabled="@(_cerrando || MotivoNoSePuedeCerrar is not null)">
                         <i class="bi bi-lock-fill me-1"></i>@(_cerrando ? "Cerrando..." : "Cerrar caja con este total")
                     </button>
-                    <span class="form-text mb-0">
-                        Registra el cierre operativo con <strong>@Money(_datos.TotalEsperado)</strong> como total de sistema. Idempotente.
-                    </span>
+                    @if (MotivoNoSePuedeCerrar is { } motivo)
+                    {
+                        <span class="form-text text-danger mb-0">@motivo</span>
+                    }
+                    else
+                    {
+                        <span class="form-text mb-0">
+                            Cierra con <strong>@Money(_datos.TotalEsperado)</strong> de sistema; el cajero contó <strong>@Money(_datos.TotalCajero ?? 0m)</strong>,
+                            diferencia <strong>@Money(_datos.Diferencia ?? 0m)</strong> (@DescripcionDiferencia(_datos.Diferencia ?? 0m)).
+                        </span>
+                    }
                 }
                 else
                 {

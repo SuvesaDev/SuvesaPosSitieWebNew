@@ -18,6 +18,7 @@ public sealed class ArqueoReferenciaSistemaWebDTO
     {
         CodMoneda = 2,
         EfectivoNeto = Monedas.Where(m => m.CodMoneda != 1).Sum(m => m.EfectivoNeto),
+        FondoInicial = Monedas.Where(m => m.CodMoneda != 1).Sum(m => m.FondoInicial),
         Tarjetas = Monedas.Where(m => m.CodMoneda != 1).Sum(m => m.Tarjetas),
         ChequesConfirmados = Monedas.Where(m => m.CodMoneda != 1).Sum(m => m.ChequesConfirmados),
         ChequesPendientes = Monedas.Where(m => m.CodMoneda != 1).Sum(m => m.ChequesPendientes),
@@ -31,6 +32,12 @@ public sealed class ArqueoReferenciaMonedaWebDTO
 {
     public int CodMoneda { get; init; }
     public decimal EfectivoNeto { get; init; }
+
+    /// <summary>Fondo con el que se abrió la caja en esta moneda.</summary>
+    public decimal FondoInicial { get; init; }
+
+    /// <summary>Lo que debería haber en la gaveta: fondo más efectivo neto.</summary>
+    public decimal EfectivoEsperado => FondoInicial + EfectivoNeto;
     public decimal Tarjetas { get; init; }
     public decimal ChequesConfirmados { get; init; }
     public decimal ChequesPendientes { get; init; }
