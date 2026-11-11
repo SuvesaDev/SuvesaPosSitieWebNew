@@ -54,6 +54,22 @@ public sealed class CrearCorteComisionesDTO
     public int? IdSucursal { get; set; }
 }
 
+public sealed class PrevisualizacionCorteComisionesDTO
+{
+    public int Movimientos { get; set; }
+    public decimal Total { get; set; }
+    public bool YaExisteCorte { get; set; }
+    public List<ResumenBeneficiarioCorteDTO> Beneficiarios { get; set; } = new();
+}
+
+public sealed class ResumenBeneficiarioCorteDTO
+{
+    public string Beneficiario { get; set; } = "";
+    public string TipoBeneficiario { get; set; } = "";
+    public int Movimientos { get; set; }
+    public decimal Importe { get; set; }
+}
+
 public sealed class CorteComisionesDTO
 {
     public long IdCorte { get; set; }

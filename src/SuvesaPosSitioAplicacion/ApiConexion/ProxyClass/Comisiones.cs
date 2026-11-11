@@ -29,6 +29,9 @@ public sealed class Comisiones : ProxyBase, IComisiones
         var url = "api/comisiones" + (q.Count == 0 ? string.Empty : "?" + string.Join("&", q));
         return Ejecutar(async () => await LecturaEnvelope.Leer<ComisionConsultaDTO>(await _api.GetAsync(url)), "consultar las comisiones");
     }
+    public Task<ResponseGeneric<PrevisualizacionCorteComisionesDTO>> PrevisualizarCorte(CrearCorteComisionesDTO corte)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<PrevisualizacionCorteComisionesDTO>(await _api.PostAsJsonAsync("api/comisiones/cortes/previsualizar", corte, LecturaEnvelope.Json)), "consultar lo que liquidaría el corte");
+
     public Task<ResponseGeneric<CorteComisionesDTO>> CrearCorte(CrearCorteComisionesDTO corte)
         => Ejecutar(async () => await LecturaEnvelope.Leer<CorteComisionesDTO>(await _api.PostAsJsonAsync("api/comisiones/cortes", corte, LecturaEnvelope.Json)), "cerrar el período de comisiones");
 

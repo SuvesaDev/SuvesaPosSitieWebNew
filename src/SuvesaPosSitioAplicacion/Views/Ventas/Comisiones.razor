@@ -105,8 +105,18 @@
     private async Task Cerrar()
     {
         if (!_desde.HasValue || !_hasta.HasValue) { await Dialogos.ErrorAsync("Indique el período que desea cerrar."); return; }
-        if (!await Dialogos.ConfirmarPeligroAsync("Las comisiones pendientes del período quedarán liquidadas y no podrán modificarse.", "Cerrar período")) return;
-        var corte = await Respuestas.DatoAsync(await Api.CrearCorte(new CrearCorteComisionesDTO { Desde = _desde.Value, Hasta = _hasta.Value, IdSucursal = Sesion.IdSucursal }), "cerrar el período de comisiones");
+        var rango = new CrearCorteComisionesDTO { Desde = _desde.Value, Hasta = _hasta.Value, IdSucursal = Sesion.IdSucursal };
+        // El corte toma todo lo cobrado y pendiente de la sucursal en el rango: se dice qué entra antes de confirmar.
+        var previa = await Respuestas.DatoAsync(await Api.PrevisualizarCorte(rango), "consultar lo que liquidaría el corte");
+        if (previa is null) return;
+        if (previa.YaExisteCorte) { await Dialogos.ErrorAsync("Ya existe un corte confirmado para ese período y sucursal."); return; }
+        if (previa.Movimientos == 0) { await Dialogos.InformarAsync("No hay comisiones cobradas y pendientes de liquidar en ese período."); return; }
+        var detalle = string.Join("; ", previa.Beneficiarios.Take(8).Select(b => $"{b.Beneficiario} ({b.TipoBeneficiario}): {b.Movimientos} mov. por {Formato.Importe(b.Importe)}"))
+            + (previa.Beneficiarios.Count > 8 ? $"; y {previa.Beneficiarios.Count - 8} más" : "");
+        if (!await Dialogos.ConfirmarPeligroAsync(
+                $"El corte liquidará {previa.Movimientos} movimiento(s) por {Formato.Importe(previa.Total)}, de {previa.Beneficiarios.Count} beneficiario(s): {detalle}. " +
+                "Entra todo lo cobrado y pendiente de la sucursal entre esas fechas, aunque no lo haya visto en pantalla; una vez liquidadas no podrán modificarse.", "Cerrar período")) return;
+        var corte = await Respuestas.DatoAsync(await Api.CrearCorte(rango), "cerrar el período de comisiones");
         if (corte is not null) { Dialogos.Exito($"Corte #{corte.IdCorte} creado: {corte.Movimientos} movimiento(s)."); await Cargar(); }
     }
     private async Task Exportar()

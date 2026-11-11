@@ -195,3 +195,11 @@ Siguen vigentes los de la sección «Datos dejados en el entorno» del UAT: no b
 | Ampliar «documentos sin contabilizar» | Ahora ve también **cobros confirmados** (`CobroAplicado`), **depósitos de caja confirmados** (`DepositoConfirmado`), **tomas físicas con diferencia** (`AjusteInventario`) y **pagos a proveedor** (`PagoProveedorAplicado`/`Usd`), además de ventas, compras y notas de crédito. La prefactura de consignación facturada ya estaba cubierta porque es una venta. Todos bloquean el pre-cierre. «Regularizar» solo crea los de venta, compra y nota de crédito (`Regularizable`); los demás se ven y se corrigen desde su pantalla. No cubre los abonos legados de clientes (`CobroAbonoLegado`) ni los cobros sin recibo (`OpcionesDePagos` con el flag de cobro de contado apagado) |
 | Prueba de contrato | `FlujosContablesContratoTests`: toda plantilla del catálogo tiene un publicador en el código, todo evento publicado tiene plantilla o está declarado sin ella, y cada flujo de dinero o inventario sigue publicando su evento. Es una prueba sobre el código fuente: avisa si un publicador se pierde, no ejecuta cada flujo de punta a punta |
 | Duplicar versión de plantilla | Ya hecho en la Fase 0 (botón «Duplicar» en Plantillas) |
+
+### Fase 4 (2026-11-11)
+
+| Id | Qué quedó |
+|---|---|
+| 11 | `POST api/comisiones/cortes/previsualizar` y el diálogo «Cerrar período» dice cuántos movimientos entran, de qué beneficiarios y por cuánto antes de confirmar; avisa si ya existe un corte confirmado |
+| 12 | La preparación de la instantánea de comisiones salta los movimientos que ya existen en vez de chocar con el índice único (queda solo la carrera de dos preparaciones simultáneas, que se captura sin escalar) |
+| 5, 5.2, 6, 21 | Son decisiones del contador: quedaron en `DECISIONES_PENDIENTES_CONTADOR.md` con lo que hace hoy el sistema, las opciones y lo que cambiaría |
