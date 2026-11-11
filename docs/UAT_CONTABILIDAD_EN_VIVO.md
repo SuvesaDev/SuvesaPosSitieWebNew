@@ -31,13 +31,15 @@ Prefijo `UAT-*-1111N`. Navegador integrado a **1440×900** (sin eso, nivel C ocu
 | Toma física | (pasada tarde) 00000008 | Inventario #8 | Contabilizado |
 | Presupuesto | (pasada tarde) | — | Sin evento (esperado) |
 | Póliza planilla | Manual D `6.1.1.1` / C `2.1.2.1` | AsientoManual Contabilidad #3078… | Contabilizado — **#26 resuelto** |
-| Póliza fiscal | D `6.5.1` / C `1.1.2.1` | — | No re-ejecutada en esta noche |
-| Comisiones | Liquidada 05/11 (4 mov.) | Comisiones #2 `ComisionLiquidada` | Sigue Contabilizado |
-| Consignación | Kardex/ledger | — | Pantalla OK; sin movimiento nuevo esta noche |
-| Pre-cierre 09/2026 | Período Abierto | Botón «Ejecutar pre-cierre» disponible | **Cierre efectivo sigue bloqueado** (docs sin evento + diffs auxiliares) |
+| Póliza fiscal | Nueva póliza (tab Pólizas) | AsientoManual Contabilizado | **OK** |
+| Compras #14 | Regenerar desde bandeja (`ImpuestoAcreditable`) | CompraRegistrada Contabilizado | **OK** (cerrado) |
+| Comisiones | 4 mov. Liquidada (0 Pendiente 10–11/11); corte #2 | Comisiones #2 `ComisionLiquidada` | Contabilizado (re-verificado) |
+| Comisión E2E nueva | Contado Marco consecutivo **30** / doc **#74** Aceptado ₡2.425,32 (16:03); cobro con SQL transient pero factura emitida | Ventas **#74** `VentaEmitida` Contabilizado; **0 comisión Pendiente** (sin ruta comercial) | Parcial |
+| Consignación | Conteo #6 → Prefactura #73 → Factura doc 1 contado/EFE (Marco 002/Test1) | Ventas **#73** `VentaEmitida` + Cobros **#28** `CobroAplicado` | Contabilizado |
+| Pre-cierre 09/2026 | Re-ejecutado | «No se puede cerrar todavía.» 0 eventos bloqueantes; **70** docs sin evento; **15** diffs (CxC −118.840,63 / CxP 1.421.793,04 / Inv 477.638,44 vs mayor 0) | **Cierre bloqueado** |
 | Abrir mes | 09/10/11 Abierto | — | «Abrir período» habilitado |
 
-**Nota operativa:** el navegador integrado arranca bajo 1280px y muestra solo el aviso «Pantalla de escritorio»; hay que forzar viewport ≥1280 o la UAT parece fallar cuando en realidad el grid está oculto.
+**Nota operativa:** el navegador integrado arranca bajo 1280px / a veces en `seepos-nivel-b` aunque el ancho sea 1440; hay que forzar viewport ≥1280 **y** `seepos-nivel-c` (o CSS override) o la UAT parece fallar cuando el grid está oculto.
 
 ## Re-prueba 2026-11-11 tarde (post-mejoras)
 
