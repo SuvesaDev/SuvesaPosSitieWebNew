@@ -59,6 +59,12 @@
         <div class="card mb-3">
             <div class="card-header d-flex flex-wrap justify-content-between gap-2 align-items-center"><strong>Confirmación bancaria y cheques</strong><button type="button" class="btn btn-sm btn-outline-primary" @onclick="CargarInstrumentos" disabled="@_cargandoInstrumentos"><i class="bi bi-arrow-clockwise me-1"></i>Actualizar</button></div>
             <div class="card-body">
+                <div class="alert alert-light border small py-2 mb-3">
+                    <strong>Qué evento contable genera cada uno.</strong>
+                    Un <em>depósito de un cliente</em> (pago de una factura) entra al mayor como <code>CobroAplicado</code> cuando el banco lo confirma; si no se confirma queda «No confirmado».
+                    Un <em>cheque</em> hace lo mismo al confirmarse y, si el banco lo devuelve, queda «Rechazado».
+                    El evento <code>DepositoConfirmado</code> es otra cosa: el traslado del efectivo de la caja al banco (el depósito que se genera desde los pre-depósitos); búsquelo en la bandeja contable con ese nombre.
+                </div>
                 <div class="row g-2 align-items-end mb-3"><div class="col-12 col-md-4"><label class="form-label small">Estado</label><InputSelect class="form-select form-select-sm" @bind-Value="_estadoInstrumento"><option value="">Todos</option><option value="PendienteConfirmacion">Pendiente de confirmación</option><option value="Confirmado">Confirmado</option><option value="NoConfirmado">No confirmado</option><option value="Recuperacion">Recuperación</option><option value="Cobrado">Cobrado</option><option value="Rechazado">Rechazado</option></InputSelect></div><div class="col-12 col-md-3"><label class="form-label small">Tipo</label><InputSelect class="form-select form-select-sm" @bind-Value="_tipoInstrumento"><option value="">Todos</option><option value="Deposito">Depósito</option><option value="Cheque">Cheque</option></InputSelect></div><div class="col-12 col-md-2 d-grid"><button class="btn btn-sm btn-primary" @onclick="CargarInstrumentos">Consultar</button></div></div>
                 @if (_instrumentos.Count == 0) { <p class="text-secondary small mb-0">No hay instrumentos de confirmación para los criterios seleccionados.</p> }
                 else
