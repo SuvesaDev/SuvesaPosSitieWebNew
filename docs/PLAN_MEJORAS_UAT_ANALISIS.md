@@ -187,3 +187,11 @@ Siguen vigentes los de la sección «Datos dejados en el entorno» del UAT: no b
 | 20 | `CrearAperturaCaja` devuelve el número real |
 | 8 | El catálogo muestra «No deducible» y la edición permite cambiar la marca (DTOs a mano hasta regenerar contratos) |
 | 9 | Al sincronizar el catálogo, una cuenta con subcuentas y sin movimiento pasa sola a agrupadora; con movimiento solo se avisa |
+
+### Fase 2 (2026-11-11)
+
+| Trabajo | Qué quedó |
+|---|---|
+| Ampliar «documentos sin contabilizar» | Ahora ve también **cobros confirmados** (`CobroAplicado`), **depósitos de caja confirmados** (`DepositoConfirmado`), **tomas físicas con diferencia** (`AjusteInventario`) y **pagos a proveedor** (`PagoProveedorAplicado`/`Usd`), además de ventas, compras y notas de crédito. La prefactura de consignación facturada ya estaba cubierta porque es una venta. Todos bloquean el pre-cierre. «Regularizar» solo crea los de venta, compra y nota de crédito (`Regularizable`); los demás se ven y se corrigen desde su pantalla. No cubre los abonos legados de clientes (`CobroAbonoLegado`) ni los cobros sin recibo (`OpcionesDePagos` con el flag de cobro de contado apagado) |
+| Prueba de contrato | `FlujosContablesContratoTests`: toda plantilla del catálogo tiene un publicador en el código, todo evento publicado tiene plantilla o está declarado sin ella, y cada flujo de dinero o inventario sigue publicando su evento. Es una prueba sobre el código fuente: avisa si un publicador se pierde, no ejecuta cada flujo de punta a punta |
+| Duplicar versión de plantilla | Ya hecho en la Fase 0 (botón «Duplicar» en Plantillas) |
