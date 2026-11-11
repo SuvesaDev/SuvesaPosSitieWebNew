@@ -15,6 +15,8 @@ public sealed class DocumentoSinEventoDTO
     [JsonPropertyName("total")] public decimal Total { get; set; }
     [JsonPropertyName("idSucursal")] public int? IdSucursal { get; set; }
     [JsonPropertyName("motivo")] public string Motivo { get; set; } = "";
+    /// <summary>Si «Regularizar» puede crear su evento (venta, compra, nota de crédito). Los demás se resuelven desde su pantalla.</summary>
+    [JsonPropertyName("regularizable")] public bool Regularizable { get; set; }
 }
 
 public sealed class DocumentosSinEventoDTO
@@ -24,6 +26,7 @@ public sealed class DocumentosSinEventoDTO
     [JsonPropertyName("hasta")] public DateOnly Hasta { get; set; }
     [JsonPropertyName("fechaPuestaEnMarcha")] public DateOnly? FechaPuestaEnMarcha { get; set; }
     [JsonPropertyName("total")] public int Total { get; set; }
+    [JsonPropertyName("totalRegularizables")] public int TotalRegularizables { get; set; }
     [JsonPropertyName("documentos")] public List<DocumentoSinEventoDTO> Documentos { get; set; } = new();
 }
 
