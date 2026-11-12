@@ -129,6 +129,7 @@
                                         <div class="form-text">Cliente de contado: no requiere identificación. Solo tiquete, sin crédito.</div>
                                     </div>
                                 }
+                                <SelectorSucursalCliente Sucursales="_sucursalesCliente" @bind-Valor="_idClienteSucursal" Clase="mt-2 pt-2 border-top" />
                                 <div class="mt-2 pt-2 border-top">
                                     <label class="form-label small mb-1">Actividad económica del cliente</label>
                                     @if (_buscandoActsCliente)
@@ -1254,6 +1255,7 @@
                 Dialogos.Advertencia($"La proforma venció el {cot.Fecha.Date.AddDays(cot.Validez):dd/MM/yyyy}. Se recalculan los precios con las reglas de hoy.");
 
             await ElegirCliente(cliente);
+            _idClienteSucursal = SucursalClienteVenta.Predeterminada(_sucursalesCliente, cot.IdClienteSucursal);
             if (cot.CodMoneda > 0 && _monedas.Any(m => m.CodMoneda == cot.CodMoneda)) _moneda = cot.CodMoneda;
             if (string.IsNullOrWhiteSpace(_observaciones)) _observaciones = $"Proforma {ProformaId}";
 
@@ -1665,6 +1667,7 @@
         _clientesEncontrados.Clear();
         RecalcularTodo();
         await CargarActividadesCliente(cliente);
+        await CargarSucursalesClienteAsync(cliente.Identificacion);
         await CargarCobroContadoAsync();
         await AplicarRutaDelCliente();
         await PrecargarPreciosCatalogo();
@@ -1681,7 +1684,25 @@
         }
     }
 
-    private void QuitarCliente() { _rutaDelCliente = false; _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); _actividadesCliente = new(); _codActividadCliente = string.Empty; _actividadesClienteHaciendaSugeridas = new(); _correoComprobanteConsultado = false; _tieneCorreoComprobante = false; _correos.Clear(); }
+    // Sucursal del cliente a la que se factura. Solo es obligatoria si el cliente tiene varias (SucursalClienteVenta).
+    private List<ClienteDatosSucursalDTO> _sucursalesCliente = new();
+    private long? _idClienteSucursal;
+
+    private async Task CargarSucursalesClienteAsync(long idCliente)
+    {
+        _sucursalesCliente = new();
+        _idClienteSucursal = null;
+        var r = await Clientes.DatosSucursal(idCliente);
+        if (r.EsCorrecta && r.Responses is not null)
+            _sucursalesCliente = r.Responses.ToList();
+        _idClienteSucursal = SucursalClienteVenta.Predeterminada(_sucursalesCliente, null);
+    }
+
+    /// <summary>La consignación no la exige (su documento no sale por esta validación); lo demás, solo si el cliente tiene varias.</summary>
+    private string? MotivoSucursalCliente()
+        => EsConsignacion ? null : SucursalClienteVenta.Validar(_sucursalesCliente, _idClienteSucursal);
+
+    private void QuitarCliente() { _sucursalesCliente = new(); _idClienteSucursal = null; _rutaDelCliente = false; _cliente = null; _tipoFactura = 0; _bonificacionesCliente.Clear(); _actividadesCliente = new(); _codActividadCliente = string.Empty; _actividadesClienteHaciendaSugeridas = new(); _correoComprobanteConsultado = false; _tieneCorreoComprobante = false; _correos.Clear(); }
 
     // Al elegir cliente se consultan sus actividades económicas en Hacienda (por
     // cédula) para escoger bajo cuál se factura; se preselecciona la que el
@@ -2444,6 +2465,7 @@
     private string? MotivoCabeceraIncompleta()
     {
         if (_cliente is null) return "Seleccione el cliente.";
+        if (MotivoSucursalCliente() is { } motivoSucursal) return motivoSucursal;
         if (_lineas.Count == 0) return "Agregue al menos un artículo.";
         if (_moneda == 0) return "Seleccione la moneda.";
         if (_idPerfil == 0 || (!EsPrefacturaConsignacion && _tipoFactura == 0))
@@ -2525,7 +2547,7 @@
         _guardando = true;
         var empresa = _empresas.FirstOrDefault(e => e.Id == _idEmpresa);
         var perfil = _perfiles.FirstOrDefault(x => x.IdSerie == _idPerfil);
-        var factura = new FacturaDTO { IdCotizacion = EsDesdeProforma ? ProformaId : null, Tipo = _tipoFactura, NumCaja = (perfil?.NumeroTerminal ?? 0).ToString(), Fecha = string.Empty, CodCliente = _cliente.Identificacion.ToString(), NumeroCedula = _cliente.Cedula, NombreCliente = EsClienteContado && !string.IsNullOrWhiteSpace(_nombreGenerico) && MostrarCobroContado ? _nombreGenerico.Trim() : _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), TipoCambio = _moneda == 2 ? (double?)(_tipoCambio ?? 1m) : null, IdRutaComercial = _idRutaComercial > 0 ? _idRutaComercial : null, IdUsuarioAgente = string.IsNullOrWhiteSpace(_idUsuarioAgente) ? null : _idUsuarioAgente, IdUsuarioValidado = _usuarioVenta?.IdUsuario, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = _idEmpresa, Empresa = empresa?.Nombre, CodigoActividadEmisor = string.IsNullOrWhiteSpace(_codActividad) ? null : _codActividad, CodigoActividadReceptor = string.IsNullOrWhiteSpace(_codActividadCliente) ? null : _codActividadCliente, Preventa = EsPrefacturaConsignacion || _ruta.Ruta == PoliticaRutaFacturacion.Ruta.GuardarPreventaContado, EsConsignacion = EsConsignacion, EsCredito = _esCredito, RequiereDespacho = MostrarCobroContado ? false : null, IdSerie = _idPerfil > 0 ? _idPerfil : null, NumApertura = !EsPrefacturaConsignacion && !EsConsignacion ? NumAperturaVenta : null, Pagos = MostrarCobroContado ? PagosContado() : new(), SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = EsConsignacion ? 0 : _bodega, Lote = l.IdLote, NumeroLote = l.Lote, Lotes = l.Lotes, EsBonificacion = l.EsBonificacion, IdGrupoBonificacion = l.IdGrupoBonificacion, IdConfiguracionBonificacion = l.IdConfiguracionBonificacion, EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null }).ToList() };
+        var factura = new FacturaDTO { IdCotizacion = EsDesdeProforma ? ProformaId : null, IdClienteSucursal = _idClienteSucursal > 0 ? _idClienteSucursal : null, Tipo = _tipoFactura, NumCaja = (perfil?.NumeroTerminal ?? 0).ToString(), Fecha = string.Empty, CodCliente = _cliente.Identificacion.ToString(), NumeroCedula = _cliente.Cedula, NombreCliente = EsClienteContado && !string.IsNullOrWhiteSpace(_nombreGenerico) && MostrarCobroContado ? _nombreGenerico.Trim() : _cliente.Nombre, Telefono = _cliente.Telefono_01, EmailCliente = _cliente.CorreoComprobante ?? _cliente.E_Mail, Observaciones = _observaciones, Orden = _ordenCompra, CodMoneda = _moneda.ToString(), TipoCambio = _moneda == 2 ? (double?)(_tipoCambio ?? 1m) : null, IdRutaComercial = _idRutaComercial > 0 ? _idRutaComercial : null, IdUsuarioAgente = string.IsNullOrWhiteSpace(_idUsuarioAgente) ? null : _idUsuarioAgente, IdUsuarioValidado = _usuarioVenta?.IdUsuario, Cajero = _usuarioVenta?.Nombre ?? Sesion.Usuario, IdSucursal = Sesion.IdSucursal, IdEmpresa = _idEmpresa, Empresa = empresa?.Nombre, CodigoActividadEmisor = string.IsNullOrWhiteSpace(_codActividad) ? null : _codActividad, CodigoActividadReceptor = string.IsNullOrWhiteSpace(_codActividadCliente) ? null : _codActividadCliente, Preventa = EsPrefacturaConsignacion || _ruta.Ruta == PoliticaRutaFacturacion.Ruta.GuardarPreventaContado, EsConsignacion = EsConsignacion, EsCredito = _esCredito, RequiereDespacho = MostrarCobroContado ? false : null, IdSerie = _idPerfil > 0 ? _idPerfil : null, NumApertura = !EsPrefacturaConsignacion && !EsConsignacion ? NumAperturaVenta : null, Pagos = MostrarCobroContado ? PagosContado() : new(), SubTotal = (float)_totales.SubTotal, Descuento = (float)_totales.Descuento, ImpVenta = (float)_totales.Impuesto, Total = (float)_totales.Total, Detalle = _lineas.Select(l => new FacturaDetallesDTO { CodArticulo = l.Articulo.Codigo, CodFxArticulo = l.Articulo.Codigo, Descripcion = l.Articulo.Descripcion, Cantidad = (float)l.Cantidad, PrecioUnit = (float)l.Precio, Descuento = (float)l.Descuento, MontoDescuento = (float)l.Calculo.MontoDescuento, Impuesto = (long)l.Impuesto, MontoImpuesto = (float)l.Calculo.MontoImpuesto, SubtotalGravado = l.Impuesto > 0 ? (float)l.Calculo.SubtotalGravado : 0, SubTotalExcento = l.Impuesto == 0 ? (float)l.Calculo.SubTotal : 0, SubTotal = (float)l.Calculo.SubTotal, IdBodega = EsConsignacion ? 0 : _bodega, Lote = l.IdLote, NumeroLote = l.Lote, Lotes = l.Lotes, EsBonificacion = l.EsBonificacion, IdGrupoBonificacion = l.IdGrupoBonificacion, IdConfiguracionBonificacion = l.IdConfiguracionBonificacion, EsLineaPrincipalBonificacion = l.EsDeGrupo ? l.EsLineaPrincipal : (bool?)null }).ToList() };
         factura.Fecha = (await RelojEquipo.AhoraAsync()).ToString("yyyy-MM-dd HH:mm:ss");
         if (EsPrefacturaConsignacion)
         {
@@ -2618,5 +2640,5 @@
         if (r.FueReintento) lineas.Add("(Se recuperó el resultado de un envío anterior; no se cobró ni emitió dos veces.)");
         _avisoResultado = string.Join(" ", lineas);
     }
-    private async Task Limpiar() { _cliente = null; _tarifa = 0; _nombreGenerico = string.Empty; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _esCredito = false; _creditoAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _tipoCambio = null; _rutaDelCliente = false; _idRutaComercial = 0; _idUsuarioAgente = string.Empty; _agentesRuta.Clear(); _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; _formasPagoContado = new(); _montosContado.Clear(); _referenciasContado.Clear(); _numerosChequeContado.Clear(); _idsBancoContado.Clear(); _numAperturaContado = null; _avisoCajaContado = null; _claveIdempotencia = null; _correoComprobanteConsultado = false; _tieneCorreoComprobante = false; _correos.Clear(); _ruta = new(PoliticaRutaFacturacion.Ruta.ConfiguracionInvalida, null); await CargarRutasComerciales(); await CargarPerfiles(); RecalcularTodo(); if (EsDesdeProforma) { _proforma = null; _proformaCargadaId = 0; _descuentosProforma.Clear(); Navegacion.NavigateTo("/initial/billing"); } }
+    private async Task Limpiar() { _sucursalesCliente = new(); _idClienteSucursal = null; _cliente = null; _tarifa = 0; _nombreGenerico = string.Empty; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _esCredito = false; _creditoAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _tipoCambio = null; _rutaDelCliente = false; _idRutaComercial = 0; _idUsuarioAgente = string.Empty; _agentesRuta.Clear(); _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; _formasPagoContado = new(); _montosContado.Clear(); _referenciasContado.Clear(); _numerosChequeContado.Clear(); _idsBancoContado.Clear(); _numAperturaContado = null; _avisoCajaContado = null; _claveIdempotencia = null; _correoComprobanteConsultado = false; _tieneCorreoComprobante = false; _correos.Clear(); _ruta = new(PoliticaRutaFacturacion.Ruta.ConfiguracionInvalida, null); await CargarRutasComerciales(); await CargarPerfiles(); RecalcularTodo(); if (EsDesdeProforma) { _proforma = null; _proformaCargadaId = 0; _descuentosProforma.Clear(); Navegacion.NavigateTo("/initial/billing"); } }
 }

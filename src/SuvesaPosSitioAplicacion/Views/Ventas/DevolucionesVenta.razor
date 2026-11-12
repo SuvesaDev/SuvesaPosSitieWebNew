@@ -116,7 +116,7 @@
                                     <div class="col-6 col-md-2">
                                         <label class="form-label">Cantidad a devolver</label>
                                         <input type="number" min="0" max="@MaximoDevolucionSeleccionada" step="0.001" class="form-control" disabled="@(_lineaSeleccionada.IdGrupoBonificacion is not null)" @bind="_cantidadDevolver" @onkeydown="AgregarConEnter" />
-                                        @if (_lineaSeleccionada.IdGrupoBonificacion is not null) { <small class="text-secondary">El grupo de bonificación se devuelve completo.</small> }
+                                        @if (_lineaSeleccionada.IdGrupoBonificacion is int grupoSel) { <small class="text-secondary">Se devuelve el grupo de bonificación completo (@LineasDelGrupo(grupoSel) líneas) con los lotes con que se vendió.</small> }
                                     </div>
                                     <div class="col-6 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="Agregar">Agregar</button></div>
                                     <div class="col-6 col-md-2 d-grid"><button type="button" class="btn btn-outline-secondary" @onclick="AgregarTodos">Agregar todos</button></div>
@@ -371,6 +371,8 @@
         _lotesVendidos = new();
         _cantidadDevolver = 1;
         if (_lineaSeleccionada is null) return;
+        // Un grupo de bonificación se devuelve completo y con los lotes con que se vendió: no hay lote que elegir.
+        if (_lineaSeleccionada.IdGrupoBonificacion is not null) return;
 
         var consumos = _lineaSeleccionada.Lotes?.Where(l => l.IdStockLote > 0).ToList() ?? new List<LoteConsumoVenta>();
         if (consumos.Count == 0 && _lineaSeleccionada.Lote > 0)
@@ -433,7 +435,16 @@
             await Dialogos.ErrorAsync("Seleccione el lote que el cliente está devolviendo.");
             return;
         }
-        if (_cantidadDevolver <= 0 || _cantidadDevolver > MaximoDevolucionSeleccionada)
+        if (_lineaSeleccionada.IdGrupoBonificacion is int grupoAgregar)
+        {
+            // La cantidad del grupo no se edita: solo se verifica que no se haya devuelto ya.
+            if (_factura?.Detalle is { } det && det.Where(d => d.IdGrupoBonificacion == grupoAgregar).Any(d => RestanteLinea(d) <= 0))
+            {
+                await Dialogos.ErrorAsync("Este grupo de bonificación ya fue devuelto (contando devoluciones anteriores).");
+                return;
+            }
+        }
+        else if (_cantidadDevolver <= 0 || _cantidadDevolver > MaximoDevolucionSeleccionada)
         {
             await Dialogos.ErrorAsync(MaximoDevolucionSeleccionada <= 0
                 ? "Este artículo ya fue devuelto por completo (contando devoluciones anteriores)."
@@ -515,16 +526,45 @@
         RecalcularTotales();
     }
 
-    // Devuelve una línea de bonificación con los valores exactos de la factura
-    // (la de regalo va a precio 0 con su impuesto real, tal como se emitió).
+    private int LineasDelGrupo(int grupo) => _factura?.Detalle?.Count(d => d.IdGrupoBonificacion == grupo) ?? 0;
+
+    // Lotes con que se vendió la línea: el reparto (Lotes) o, si fue uno solo, el campo Lote.
+    private static List<(long IdLote, decimal Cantidad)> LotesDeLaLinea(FacturaDetallesDTO linea)
+    {
+        var lotes = linea.Lotes?.Where(l => l.IdStockLote > 0).Select(l => (l.IdStockLote, (decimal)l.Cantidad)).ToList()
+                    ?? new List<(long, decimal)>();
+        if (lotes.Count == 0 && linea.Lote > 0) lotes.Add((linea.Lote, Formato.AImporte(linea.Cantidad)));
+        return lotes;
+    }
+
+    // Devuelve una línea de bonificación con los valores exactos de la factura (la de regalo va a precio 0 con su
+    // impuesto real, tal como se emitió), una por cada lote con que se vendió.
     private void AgregarLineaBonificacion(FacturaDetallesDTO linea)
+    {
+        var total = Formato.AImporte(linea.Cantidad);
+        var calculoLinea = new CalculoDocumento.LineaCalculada(
+            SubTotal: Formato.AImporte(linea.SubTotal),
+            MontoDescuento: Formato.AImporte(linea.MontoDescuento),
+            MontoImpuesto: Formato.AImporte(linea.MontoImpuesto),
+            SubtotalGravado: Formato.AImporte(linea.SubtotalGravado),
+            Total: linea.EsBonificacion
+                ? 0m
+                : Formato.AImporte(linea.SubTotal) + Formato.AImporte(linea.MontoImpuesto));
+
+        // Cada lote con que se vendió es una línea de devolución (la devolución interna exige el lote de cada línea).
+        foreach (var parte in RepartoLotesDevolucion.Partir(total, calculoLinea, LotesDeLaLinea(linea)))
+            _lineas.Add(NuevaLineaBonificacion(linea, parte.Cantidad, parte.IdStockLote, parte.Calculo));
+    }
+
+    private static LineaDevolucion NuevaLineaBonificacion(FacturaDetallesDTO linea, decimal cantidad, long? idStockLote, CalculoDocumento.LineaCalculada calculo)
     {
         var nueva = new LineaDevolucion
         {
             IdVentaDetalle = linea.IdVentaDetalle ?? 0,
             Codigo = linea.CodFxArticulo,
             Descripcion = linea.Descripcion ?? string.Empty,
-            Cantidad = Formato.AImporte(linea.Cantidad),
+            Cantidad = cantidad,
+            IdStockLote = idStockLote,
             CantVet = Formato.AImporte(linea.CantVen),
             CantBod = Formato.AImporte(linea.CantBod),
             PrecioUnit = Formato.AImporte(linea.PrecioUnit),
@@ -535,21 +575,12 @@
             IdGrupoBonificacion = linea.IdGrupoBonificacion,
             IdConfiguracionBonificacion = linea.IdConfiguracionBonificacion,
             EsLineaPrincipal = linea.EsLineaPrincipalBonificacion == true,
-            // Se conservan SubTotal / MontoImpuesto reales (el mapeador V4.4 necesita el
-            // impuesto bruto de la línea de REGALO para absorberlo como código "03" /
-            // ImpuestoAsumidoEmisorFábrica). Pero su MontoTotalLinea fiscal es 0, así que
-            // el Total que suma _totales.Total (y llega como Monto) debe ser 0 también,
-            // o falla "los totales de la devolución no coinciden con sus líneas".
-            Calculo = new CalculoDocumento.LineaCalculada(
-                SubTotal: Formato.AImporte(linea.SubTotal),
-                MontoDescuento: Formato.AImporte(linea.MontoDescuento),
-                MontoImpuesto: Formato.AImporte(linea.MontoImpuesto),
-                SubtotalGravado: Formato.AImporte(linea.SubtotalGravado),
-                Total: linea.EsBonificacion
-                    ? 0m
-                    : Formato.AImporte(linea.SubTotal) + Formato.AImporte(linea.MontoImpuesto))
+            // Se conservan SubTotal / MontoImpuesto reales (el mapeador V4.4 necesita el impuesto bruto de la línea de
+            // REGALO para absorberlo como código "03"), pero su MontoTotalLinea fiscal es 0: el Total de la línea
+            // (calculado arriba) ya es 0 para el regalo, o falla "los totales de la devolución no coinciden".
+            Calculo = calculo
         };
-        _lineas.Add(nueva);
+        return nueva;
     }
 
     private void QuitarLinea(LineaDevolucion linea)
@@ -560,6 +591,7 @@
             _lineas.Remove(linea);
         RecalcularTotales();
     }
+
     private void RecalcularTotales()
     {
         _totales = CalculoDocumento.Totales(_lineas.Select(l => l.Calculo));

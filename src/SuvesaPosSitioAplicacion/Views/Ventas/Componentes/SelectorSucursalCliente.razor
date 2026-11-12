@@ -1,0 +1,35 @@
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+
+@* Sucursal del cliente a la que se factura o cotiza. Solo se dibuja cuando el cliente tiene varias (y entonces es
+   obligatoria, lo valida la pantalla con SucursalClienteVenta.Validar). Con una sola o ninguna, no ocupa espacio. *@
+
+@if (SucursalClienteVenta.MostrarSelector(Sucursales))
+{
+    <div class="@Clase">
+        <label class="form-label" for="@_id">Sucursal del cliente <span class="text-danger" aria-hidden="true">*</span></label>
+        <select id="@_id" class="form-select @(Valor is > 0 ? "" : "is-invalid")" required value="@(Valor?.ToString() ?? "")" @onchange="Cambiar">
+            <option value="">Seleccione la sucursal...</option>
+            @foreach (var s in Sucursales)
+            {
+                <option value="@s.Id">@SucursalClienteVenta.Etiqueta(s)</option>
+            }
+        </select>
+        @if (Valor is not > 0)
+        {
+            <div class="invalid-feedback d-block">El cliente tiene varias sucursales: elija a cuál va este documento.</div>
+        }
+    </div>
+}
+
+@code {
+    private readonly string _id = "sel-suc-cliente-" + Guid.NewGuid().ToString("N")[..6];
+
+    [Parameter] public IReadOnlyList<ClienteDatosSucursalDTO> Sucursales { get; set; } = Array.Empty<ClienteDatosSucursalDTO>();
+    [Parameter] public long? Valor { get; set; }
+    [Parameter] public EventCallback<long?> ValorChanged { get; set; }
+    [Parameter] public string Clase { get; set; } = "mt-3";
+
+    private Task Cambiar(ChangeEventArgs e)
+        => ValorChanged.InvokeAsync(long.TryParse(e.Value?.ToString(), out var id) && id > 0 ? id : null);
+}
