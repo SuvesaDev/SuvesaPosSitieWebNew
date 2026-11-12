@@ -87,6 +87,71 @@
                 </div></div></div>
             </div>
 
+            @if (_r.VentasPorClase.Count > 0)
+            {
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-lg-6"><div class="card h-100"><div class="card-header"><strong>Ventas por clase de crédito</strong> <span class="text-secondary small">@(_r.Metodo == "TARIFAS_DIFERENCIADAS" ? "prorrata por tarifas diferenciadas" : "prorrata simple")</span></div>
+                        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Clase</th><th class="text-end">Tarifa de venta</th><th class="text-end">Base</th><th class="text-end">Participación</th></tr></thead>
+                            <tbody>@foreach (var v in _r.VentasPorClase)
+                            {
+                                <tr><td>@ClaseTexto(v.Clase)</td><td class="text-end">@(v.Clase == "PARCIAL" ? v.PorcentajeTarifa.ToString("0.##") + "%" : "—")</td><td class="text-end">@Formato.Importe(v.Base)</td><td class="text-end">@v.Participacion.ToString("0.##")%</td></tr>
+                            }</tbody>
+                        </table></div></div></div>
+                    <div class="col-12 col-lg-6"><div class="card h-100"><div class="card-header"><strong>Crédito de las compras con condición 05</strong> <span class="text-secondary small">por tarifa de compra</span></div>
+                        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Tarifa de compra</th><th class="text-end">IVA</th><th class="text-end">% con crédito</th><th class="text-end">Crédito</th></tr></thead>
+                            <tbody>
+                                @foreach (var c in _r.ComprasPorTarifa)
+                                {
+                                    <tr><td>@c.PorcentajeTarifa.ToString("0.##")%@(c.Supuesta ? " (supuesta)" : "")</td><td class="text-end">@Formato.Importe(c.Iva)</td><td class="text-end">@c.PorcentajeCredito.ToString("0.##")%</td><td class="text-end">@Formato.Importe(c.Credito)</td></tr>
+                                }
+                                @if (_r.ComprasPorTarifa.Count == 0) { <tr><td colspan="4" class="text-secondary small">Sin IVA con condición 05: se pondera con la tarifa general del 13%.</td></tr> }
+                            </tbody>
+                            <tfoot><tr class="fw-semibold"><td colspan="3">IVA que va al costo o gasto (renta)</td><td class="text-end">@Formato.Importe(_r.IvaAlCostoGasto)</td></tr></tfoot>
+                        </table></div></div></div>
+                </div>
+            }
+
+            <div class="card mb-3"><div class="card-header"><strong>Cierre del año @_r.Anio</strong> <span class="text-secondary small">comparación contra lo declarado (D-104)</span></div><div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-3"><div class="text-secondary small">A. Crédito anual sobre el que se aplica</div><div class="h5 mb-0 seepos-importe">@Formato.Importe(_r.IvaSujetoProrrataAcumulado)</div></div>
+                    <div class="col-12 col-md-3"><div class="text-secondary small">B. Generado por el % definitivo</div><div class="h5 mb-0 seepos-importe">@(_r.CreditoDefinitivo is { } cd ? Formato.Importe(cd) : "Pendiente")</div></div>
+                    <div class="col-12 col-md-3"><div class="text-secondary small">C. Aplicado en las declaraciones</div><div class="h5 mb-0 seepos-importe">@Formato.Importe(_r.CreditoAplicado)</div><div class="small text-secondary">@(_r.AplicadoEsDeclarado ? "lo declarado" : "provisional calculado (capture lo declarado)")</div></div>
+                    <div class="col-12 col-md-3"><div class="text-secondary small">B − C a regularizar en diciembre</div>
+                        @if (_r.Regularizacion is { } regCierre) { <div class="h5 mb-0 seepos-importe @(regCierre < 0 ? "text-danger" : "text-success")">@Formato.Importe(regCierre)</div> } else { <div class="h5 mb-0 text-secondary">Pendiente</div> }</div>
+                </div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-2">
+                    <thead><tr><th>Mes</th><th class="text-end">Crédito directo declarado</th><th class="text-end">Crédito prorrata declarado</th></tr></thead>
+                    <tbody>@foreach (var d in _declarados)
+                    {
+                        var dd = d;
+                        <tr><td>@GeneradorIvaExcel.NombreMes(dd.Mes)</td>
+                            <td class="text-end"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" aria-label="@($"Crédito directo de {GeneradorIvaExcel.NombreMes(dd.Mes)}")" value="@EntradaNumerica.Texto((double?)dd.CreditoDirecto)" @onchange="e => dd.CreditoDirecto = LeerMonto(e.Value)" disabled="@(!PuedeEditar)" /></td>
+                            <td class="text-end"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" aria-label="@($"Crédito de prorrata de {GeneradorIvaExcel.NombreMes(dd.Mes)}")" value="@EntradaNumerica.Texto((double?)dd.CreditoIndirecto)" @onchange="e => dd.CreditoIndirecto = LeerMonto(e.Value)" disabled="@(!PuedeEditar)" /></td></tr>
+                    }</tbody>
+                </table></div>
+                @if (PuedeEditar)
+                {
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-sm btn-outline-primary" @onclick="GuardarDeclarados" disabled="@_guardando">Guardar lo declarado</button>
+                        <button class="btn btn-sm btn-primary" @onclick="Congelar" disabled="@(_guardando || _r.PorcentajeDefinitivo is null || _r.HastaMes != 12)">Congelar liquidación del año</button>
+                    </div>
+                    @if (_r.HastaMes != 12) { <div class="form-text">Para congelar la liquidación calcule hasta diciembre.</div> }
+                }
+                @if (_liquidaciones.Count > 0)
+                {
+                    <h3 class="h6 mt-3">Liquidaciones congeladas</h3>
+                    <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Versión</th><th>Fecha</th><th>Usuario</th><th class="text-end">%</th><th class="text-end">A</th><th class="text-end">B</th><th class="text-end">C</th><th class="text-end">B − C</th><th>Nota</th></tr></thead>
+                        <tbody>@foreach (var l in _liquidaciones)
+                        {
+                            <tr><td>v@(l.Version)</td><td>@l.FechaUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td>@l.Usuario</td><td class="text-end">@l.PorcentajeDefinitivo.ToString("0.##")%</td><td class="text-end">@Formato.Importe(l.IvaSujetoProrrata)</td><td class="text-end">@Formato.Importe(l.CreditoDefinitivo)</td><td class="text-end">@Formato.Importe(l.CreditoAplicado)</td><td class="text-end">@Formato.Importe(l.Diferencia)</td><td>@l.Observaciones</td></tr>
+                        }</tbody>
+                    </table></div>
+                }
+            </div></div>
+
             <div class="card"><div class="card-header"><strong>Por mes</strong> <span class="text-secondary small">@_r.Emisor · @_r.Identificacion · @_r.Anio</span></div>
                 <div class="table-responsive"><table class="table table-sm align-middle mb-0">
                     <thead><tr><th>Mes</th><th class="text-end">Base con derecho</th><th class="text-end">Base sin derecho</th><th class="text-end">Base no sujeta</th><th class="text-end">IVA cond. 05</th><th class="text-end">Crédito provisional</th></tr></thead>
@@ -108,6 +173,8 @@
     private bool _cargando, _guardando;
     private IvaProrrataResultado? _r;
     private IvaProrrataParametro? _p;
+    private List<IvaProrrataDeclarado> _declarados = new();
+    private List<IvaProrrataLiquidacion> _liquidaciones = new();
     private bool PuedeEditar => Sesion.Puede("MODULO_REPORTES.PRORRATA", AccionPantalla.Editar);
 
     protected override async Task OnInitializedAsync()
@@ -120,6 +187,15 @@
         if (_empresas.Count == 1) _idEmpresa = _empresas[0].Id;
     }
 
+    private static string ClaseTexto(string clase) => clase switch
+    {
+        "PLENO" => "Crédito pleno (13%, 1%, exportación, exoneradas con derecho)",
+        "PARCIAL" => "Tarifa reducida (crédito limitado a la tarifa)",
+        "SIN_DERECHO" => "Sin derecho a crédito",
+        "NO_SUJETA" => "No sujeta",
+        _ => clase,
+    };
+
     private static decimal? Leer(object? valor)
         => EntradaNumerica.TryLeer(valor?.ToString(), out var v) ? Math.Clamp((decimal)v, 0m, 100m) : null;
 
@@ -129,7 +205,40 @@
         _cargando = true;
         _p = await Respuestas.DatoAsync(await Api.ParametrosProrrata(_idEmpresa, _anio), "consultar los parámetros de la prorrata");
         _r = await Respuestas.DatoAsync(await Api.Prorrata(_idEmpresa, _anio, _hastaMes), "calcular la prorrata");
+        var guardados = await Respuestas.DatoAsync(await Api.DeclaradosProrrata(_idEmpresa, _anio), "consultar lo declarado");
+        _declarados = Enumerable.Range(1, 12).Select(m => guardados?.Meses.FirstOrDefault(x => x.Mes == m) ?? new IvaProrrataDeclarado { Mes = m }).ToList();
+        _liquidaciones = await Respuestas.DatoAsync(await Api.LiquidacionesProrrata(_idEmpresa, _anio), "consultar las liquidaciones") ?? new();
         _cargando = false;
+    }
+
+    private static decimal LeerMonto(object? valor)
+        => EntradaNumerica.TryLeer(valor?.ToString(), out var v) ? Math.Max(0m, (decimal)v) : 0m;
+
+    private async Task GuardarDeclarados()
+    {
+        _guardando = true;
+        // Solo se guardan los meses con algún monto; el resto queda sin declarar.
+        var datos = new IvaProrrataDeclarados { IdEmpresa = _idEmpresa, Anio = _anio, Meses = _declarados.Where(d => d.CreditoDirecto != 0 || d.CreditoIndirecto != 0).ToList() };
+        var r = await Api.GuardarDeclaradosProrrata(datos);
+        _guardando = false;
+        if (await Respuestas.CorrectaAsync(r, "guardar lo declarado"))
+        {
+            Dialogos.Exito("Lo declarado se guardó.");
+            await Consultar();
+        }
+    }
+
+    private async Task Congelar()
+    {
+        if (!await Dialogos.ConfirmarAsync($"Se guardará una copia inalterable de la liquidación de {_anio} con las cifras de hoy. Las versiones anteriores se conservan.", "Congelar liquidación", "Congelar")) return;
+        _guardando = true;
+        var r = await Api.CongelarLiquidacionProrrata(new CongelarLiquidacion { IdEmpresa = _idEmpresa, Anio = _anio, Observaciones = _p?.Observaciones });
+        _guardando = false;
+        if (await Respuestas.CorrectaAsync(r, "congelar la liquidación"))
+        {
+            Dialogos.Exito($"Liquidación v{r.Responses?.Version} congelada.");
+            await Consultar();
+        }
     }
 
     private async Task GuardarParametros()

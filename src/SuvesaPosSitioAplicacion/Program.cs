@@ -612,7 +612,9 @@ app.MapGet("/reportes/iva-repercutido.xlsx", async (
     var r = await api.Repercutido(idEmpresa, desde, hasta);
     if (!r.EsCorrecta || r.Responses is null)
         return Results.Problem(r.Excepcion ?? "No se pudo consultar el IVA repercutido.");
-    var bytes = SuvesaPosSitioAplicacion.Services.GeneradorIvaExcel.IvaRepercutido(r.Responses, DateTime.Now);
+    // Hoja «Líneas»: si no se pueden traer los artículos, el Excel sale igual (resumen y detalle) sin esa hoja.
+    var lineas = await api.LineasRepercutido(idEmpresa, desde, hasta);
+    var bytes = SuvesaPosSitioAplicacion.Services.GeneradorIvaExcel.IvaRepercutido(r.Responses, DateTime.Now, lineas.EsCorrecta ? lineas.Responses : null);
     return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         $"iva-repercutido-{idEmpresa}-{desde:yyyyMMdd}-{hasta:yyyyMMdd}.xlsx");
 });
@@ -628,7 +630,8 @@ app.MapGet("/reportes/iva-soportado.xlsx", async (
     var r = await api.Soportado(idEmpresa, desde, hasta);
     if (!r.EsCorrecta || r.Responses is null)
         return Results.Problem(r.Excepcion ?? "No se pudo consultar el IVA soportado.");
-    var bytes = SuvesaPosSitioAplicacion.Services.GeneradorIvaExcel.IvaSoportado(r.Responses, DateTime.Now);
+    var lineas = await api.LineasSoportado(idEmpresa, desde, hasta);
+    var bytes = SuvesaPosSitioAplicacion.Services.GeneradorIvaExcel.IvaSoportado(r.Responses, DateTime.Now, lineas.EsCorrecta ? lineas.Responses : null);
     return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         $"iva-soportado-{idEmpresa}-{desde:yyyyMMdd}-{hasta:yyyyMMdd}.xlsx");
 });
