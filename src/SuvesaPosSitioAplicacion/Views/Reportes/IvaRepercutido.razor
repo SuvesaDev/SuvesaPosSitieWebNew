@@ -78,19 +78,75 @@
 
             <div class="card"><div class="card-header"><strong>Detalle por documento</strong> <span class="text-secondary small">@_r.Detalle.Count fila(s)@(_r.Detalle.Count > MaxFilasPantalla ? $" · se muestran las primeras {MaxFilasPantalla}; Excel y CSV traen todas" : "")</span></div>
                 <div class="table-responsive" style="max-height:28rem"><table class="table table-sm align-middle mb-0">
-                    <thead class="sticky-top"><tr><th>Fecha</th><th>Tipo</th><th>Documento</th><th>Cliente</th><th>Tarifa</th><th class="text-end">Base</th><th class="text-end">IVA</th></tr></thead>
+                    <thead class="sticky-top"><tr><th>Fecha</th><th>Tipo</th><th>Documento</th><th>Cliente</th><th>Tarifa</th><th class="text-end">Base</th><th class="text-end">IVA</th><th class="text-end">Artículos</th></tr></thead>
                     <tbody>
                         @foreach (var d in _r.Detalle.Take(MaxFilasPantalla))
                         {
                             <tr class="@(d.Tipo == "Nota de crédito" ? "table-warning" : null)">
-                                <td>@d.Fecha.ToString("dd/MM/yyyy")</td><td>@d.Tipo</td><td><code>@d.Documento</code></td><td>@d.Cliente</td>
+                                <td>@d.Fecha.ToString("dd/MM/yyyy")</td><td>@d.Tipo</td><td><code>@d.Documento</code></td>
+                                <td>
+                                    @d.Cliente@if (!string.IsNullOrWhiteSpace(d.NombreFantasia)) { <span class="text-secondary"> · @d.NombreFantasia</span> }
+                                    @if (!string.IsNullOrWhiteSpace(d.Cedula) || !string.IsNullOrWhiteSpace(d.Ubicacion))
+                                    {
+                                        <div class="small text-secondary">@d.Cedula@(!string.IsNullOrWhiteSpace(d.Cedula) && !string.IsNullOrWhiteSpace(d.Ubicacion) ? " · " : "")@d.Ubicacion</div>
+                                    }
+                                </td>
                                 <td>@d.CodigoTarifa @d.Porcentaje.ToString("0.##")%</td>
                                 <td class="text-end">@Formato.Importe(d.Base)</td><td class="text-end">@Formato.Importe(d.Iva)</td>
+                                <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary py-0" title="Ver los artículos del documento" @onclick="() => VerArticulos(d)"><i class="bi bi-list-ul me-1" aria-hidden="true"></i>Ver</button></td>
                             </tr>
                         }
                     </tbody>
                 </table></div></div>
         }
+
+        <AppModal @ref="_modalDocumento" Titulo="@(_doc is null ? "Artículos del documento" : $"{_doc.Tipo} {_doc.Documento}")"
+                  Subtitulo="@(_doc is null ? null : $"{_doc.Fecha:dd/MM/yyyy} · montos en colones")" MostrarCancelar="true" TextoCancelar="Cerrar" Tamano="ModalSize.ExtraLarge">
+            @if (_cargandoDoc)
+            {
+                <div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Cargando...</span></div></div>
+            }
+            else if (_doc is not null)
+            {
+                <div class="mb-3">
+                    <div><strong>@_doc.Cliente</strong>@if (!string.IsNullOrWhiteSpace(_doc.NombreFantasia)) { <span class="text-secondary"> · @_doc.NombreFantasia</span> }</div>
+                    <div class="small text-secondary">
+                        @if (!string.IsNullOrWhiteSpace(_doc.Cedula)) { <span>Cédula @_doc.Cedula</span> }
+                        @if (!string.IsNullOrWhiteSpace(_doc.Ubicacion)) { <span> · @_doc.Ubicacion</span> }
+                    </div>
+                    @if (_doc.MonedaExtranjera) { <div class="small text-warning">Documento en otra moneda: convertido a colones con su tipo de cambio (el costo ya está en colones).</div> }
+                </div>
+                <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                    <thead><tr>
+                        <th>Artículo</th><th class="text-end">Cant.</th><th class="text-end">Precio venta</th><th class="text-end">Descuento</th>
+                        <th class="text-end">Subtotal</th><th class="text-end">Impuesto</th><th class="text-end">Total venta</th>
+                        @if (_doc.IncluyeCosto) { <th class="text-end">Costo</th><th class="text-end">Utilidad</th> }
+                    </tr></thead>
+                    <tbody>
+                        @foreach (var l in _doc.Lineas)
+                        {
+                            <tr class="@(l.EsBonificacion ? "table-success" : null)">
+                                <td>@l.Descripcion @if (l.EsBonificacion) { <span class="badge text-bg-success ms-1">Regalo</span> }<div class="small text-secondary">@l.CodArticulo</div></td>
+                                <td class="text-end">@Formato.Cantidad((float)l.Cantidad)</td>
+                                <td class="text-end">@Formato.Importe(l.PrecioUnitario)</td>
+                                <td class="text-end">@Formato.Importe(l.Descuento)</td>
+                                <td class="text-end">@Formato.Importe(l.Subtotal)</td>
+                                <td class="text-end">@Formato.Importe(l.Impuesto)<div class="small text-secondary">@l.PorcentajeImpuesto.ToString("0.##")%</div></td>
+                                <td class="text-end fw-semibold">@Formato.Importe(l.Total)</td>
+                                @if (_doc.IncluyeCosto) { <td class="text-end">@Formato.Importe(l.Costo ?? 0)</td><td class="text-end @((l.Utilidad ?? 0) < 0 ? "text-danger" : null)">@Formato.Importe(l.Utilidad ?? 0)</td> }
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot><tr class="fw-semibold">
+                        <td colspan="3">Total del documento</td>
+                        <td class="text-end">@Formato.Importe(_doc.TotalDescuento)</td><td class="text-end">@Formato.Importe(_doc.TotalSubtotal)</td>
+                        <td class="text-end">@Formato.Importe(_doc.TotalImpuesto)</td><td class="text-end">@Formato.Importe(_doc.TotalVenta)</td>
+                        @if (_doc.IncluyeCosto) { <td class="text-end">@Formato.Importe(_doc.TotalCosto ?? 0)</td><td class="text-end">@Formato.Importe(_doc.TotalUtilidad ?? 0)</td> }
+                    </tr></tfoot>
+                </table></div>
+                @if (!_doc.IncluyeCosto) { <div class="form-text mt-2">El costo y la utilidad solo los ve Super Administración.</div> }
+            }
+        </AppModal>
     </ChildContent>
 </AppPantalla>
 
@@ -120,6 +176,20 @@
         _cargando = true;
         _r = await Respuestas.DatoAsync(await Api.Repercutido(_idEmpresa, _desde, _hasta), "consultar el IVA repercutido");
         _cargando = false;
+    }
+
+    private AppModal _modalDocumento = default!;
+    private IvaDocumentoDetalle? _doc;
+    private bool _cargandoDoc;
+
+    private async Task VerArticulos(IvaDetalleFila fila)
+    {
+        _doc = null;
+        _cargandoDoc = true;
+        await _modalDocumento.MostrarAsync();
+        _doc = await Respuestas.DatoAsync(await Api.DocumentoRepercutido(fila.EsNotaCredito, fila.IdDocumento), "consultar los artículos del documento");
+        _cargandoDoc = false;
+        if (_doc is null) await _modalDocumento.OcultarAsync();
     }
 
     private async Task ExportarCsv()

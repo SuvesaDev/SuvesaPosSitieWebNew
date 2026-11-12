@@ -8,7 +8,7 @@ public static class GeneradorIvaExcel
 {
     private const string Verde = "#2F6B1F";
 
-    public static byte[] IvaRepercutido(IvaRepercutidoResultado r, DateTime generadoEnEquipo)
+    public static byte[] IvaRepercutido(IvaRepercutidoResultado r, DateTime generadoEnEquipo, IvaLineasPeriodo? lineas = null)
     {
         using var libro = new XLWorkbook();
 
@@ -59,7 +59,7 @@ public static class GeneradorIvaExcel
         h.Columns().AdjustToContents(1, 10);
 
         var d = libro.Worksheets.Add("Detalle");
-        string[] cabD = { "Fecha", "Tipo", "Documento", "Clave", "Cliente", "Código tarifa", "%", "Base", "IVA", "Moneda extranjera" };
+        string[] cabD = { "Fecha", "Tipo", "Documento", "Clave", "Cliente", "Cédula", "Nombre fantasía", "Provincia, cantón y distrito", "Código tarifa", "%", "Base", "IVA", "Moneda extranjera" };
         for (var i = 0; i < cabD.Length; i++) d.Cell(1, i + 1).Value = cabD[i];
         EstiloCabecera(d.Range(1, 1, 1, cabD.Length));
         var f = 1;
@@ -67,16 +67,49 @@ public static class GeneradorIvaExcel
         {
             f++;
             d.Cell(f, 1).Value = x.Fecha.ToString("dd/MM/yyyy"); d.Cell(f, 2).Value = x.Tipo; d.Cell(f, 3).Value = x.Documento; d.Cell(f, 4).Value = x.Clave;
-            d.Cell(f, 5).Value = x.Cliente; d.Cell(f, 6).Value = x.CodigoTarifa; d.Cell(f, 7).Value = x.Porcentaje; d.Cell(f, 8).Value = x.Base; d.Cell(f, 9).Value = x.Iva;
-            d.Cell(f, 10).Value = x.MonedaExtranjera ? "Sí" : "";
+            d.Cell(f, 5).Value = x.Cliente; d.Cell(f, 6).Value = x.Cedula; d.Cell(f, 7).Value = x.NombreFantasia; d.Cell(f, 8).Value = x.Ubicacion;
+            d.Cell(f, 9).Value = x.CodigoTarifa; d.Cell(f, 10).Value = x.Porcentaje; d.Cell(f, 11).Value = x.Base; d.Cell(f, 12).Value = x.Iva;
+            d.Cell(f, 13).Value = x.MonedaExtranjera ? "Sí" : "";
         }
-        if (f > 1) d.Range(2, 8, f, 9).Style.NumberFormat.Format = "#,##0.00";
+        if (f > 1) d.Range(2, 11, f, 12).Style.NumberFormat.Format = "#,##0.00";
         d.SheetView.FreezeRows(1);
         d.Columns().AdjustToContents(1, Math.Min(f, 200));
+
+        if (lineas is not null) HojaLineas(libro, lineas);
 
         using var ms = new MemoryStream();
         libro.SaveAs(ms);
         return ms.ToArray();
+    }
+
+    /// <summary>
+    /// Hoja «Líneas»: un renglón por artículo de cada documento (cantidad, precio de venta, descuento, impuesto y total de venta).
+    /// Costo y utilidad se agregan solo cuando el API los trae (Super Administración).
+    /// </summary>
+    private static void HojaLineas(XLWorkbook libro, IvaLineasPeriodo datos)
+    {
+        var l = libro.Worksheets.Add("Líneas");
+        var cab = new List<string> { "Fecha", "Tipo", "Documento", "Cliente", "Cédula", "Código", "Artículo", "Cantidad", "Precio de venta", "Descuento", "Subtotal", "% IVA", "Impuesto", "Total de venta" };
+        if (datos.IncluyeCosto) { cab.Add("Costo"); cab.Add("Utilidad"); }
+        cab.Add("Regalo");
+        for (var i = 0; i < cab.Count; i++) l.Cell(1, i + 1).Value = cab[i];
+        EstiloCabecera(l.Range(1, 1, 1, cab.Count));
+        var f = 1;
+        foreach (var x in datos.Lineas)
+        {
+            f++;
+            var c = 1;
+            l.Cell(f, c++).Value = x.Fecha.ToString("dd/MM/yyyy"); l.Cell(f, c++).Value = x.Tipo; l.Cell(f, c++).Value = x.Documento;
+            l.Cell(f, c++).Value = x.Cliente; l.Cell(f, c++).Value = x.Cedula; l.Cell(f, c++).Value = x.CodArticulo; l.Cell(f, c++).Value = x.Descripcion;
+            l.Cell(f, c++).Value = x.Cantidad; l.Cell(f, c++).Value = x.PrecioUnitario; l.Cell(f, c++).Value = x.Descuento; l.Cell(f, c++).Value = x.Subtotal;
+            l.Cell(f, c++).Value = x.PorcentajeImpuesto; l.Cell(f, c++).Value = x.Impuesto; l.Cell(f, c++).Value = x.Total;
+            if (datos.IncluyeCosto) { l.Cell(f, c++).Value = x.Costo ?? 0; l.Cell(f, c++).Value = x.Utilidad ?? 0; }
+            l.Cell(f, c).Value = x.EsBonificacion ? "Sí" : "";
+        }
+        if (f > 1) l.Range(2, 8, f, cab.Count - 1).Style.NumberFormat.Format = "#,##0.00";
+        if (datos.Truncado) l.Cell(f + 2, 1).Value = "Se muestran las primeras líneas del período; los totales del reporte sí incluyen todo.";
+        l.SheetView.FreezeRows(1);
+        l.Columns().AdjustToContents(1, Math.Min(f, 200));
     }
 
     /// <summary>CSV del detalle (separador coma, importes con punto, texto entre comillas).</summary>
@@ -84,13 +117,13 @@ public static class GeneradorIvaExcel
     {
         static string Q(string? t) => "\"" + (t ?? "").Replace("\"", "\"\"") + "\"";
         static string N(decimal v) => v.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
-        var lineas = new List<string> { "Fecha,Tipo,Documento,Clave,Cliente,Código tarifa,Porcentaje,Base,IVA,Moneda extranjera" };
-        lineas.AddRange(r.Detalle.Select(x => string.Join(',', x.Fecha.ToString("yyyy-MM-dd"), Q(x.Tipo), Q(x.Documento), Q(x.Clave), Q(x.Cliente), Q(x.CodigoTarifa),
+        var lineas = new List<string> { "Fecha,Tipo,Documento,Clave,Cliente,Cédula,Nombre fantasía,Ubicación,Código tarifa,Porcentaje,Base,IVA,Moneda extranjera" };
+        lineas.AddRange(r.Detalle.Select(x => string.Join(',', x.Fecha.ToString("yyyy-MM-dd"), Q(x.Tipo), Q(x.Documento), Q(x.Clave), Q(x.Cliente), Q(x.Cedula), Q(x.NombreFantasia), Q(x.Ubicacion), Q(x.CodigoTarifa),
             x.Porcentaje.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture), N(x.Base), N(x.Iva), x.MonedaExtranjera ? "Sí" : "No")));
         return string.Join("\n", lineas);
     }
 
-    public static byte[] IvaSoportado(IvaSoportadoResultado r, DateTime generadoEnEquipo)
+    public static byte[] IvaSoportado(IvaSoportadoResultado r, DateTime generadoEnEquipo, IvaSoportadoLineasPeriodo? lineas = null)
     {
         using var libro = new XLWorkbook();
         var h = libro.Worksheets.Add("Resumen");
@@ -137,7 +170,7 @@ public static class GeneradorIvaExcel
         h.Columns().AdjustToContents(1, 7);
 
         var d = libro.Worksheets.Add("Detalle");
-        string[] cabD = { "Fecha", "Origen", "Documento", "Proveedor", "Clave", "Condición", "Estado", "IVA total", "Acreditable", "Sujeto a prorrata", "No acreditable", "Pendiente", "Moneda extranjera" };
+        string[] cabD = { "Fecha", "Origen", "Documento", "Proveedor", "Cédula", "Dirección", "Teléfono", "Clave", "Condición", "Estado", "IVA total", "Acreditable", "Sujeto a prorrata", "No acreditable", "Pendiente", "Moneda extranjera" };
         for (var i = 0; i < cabD.Length; i++) d.Cell(1, i + 1).Value = cabD[i];
         EstiloCabecera(d.Range(1, 1, 1, cabD.Length));
         var f = 1;
@@ -145,24 +178,49 @@ public static class GeneradorIvaExcel
         {
             f++;
             d.Cell(f, 1).Value = x.Fecha.ToString("dd/MM/yyyy"); d.Cell(f, 2).Value = x.Origen; d.Cell(f, 3).Value = x.Documento; d.Cell(f, 4).Value = x.Proveedor;
-            d.Cell(f, 5).Value = x.Clave; d.Cell(f, 6).Value = x.Condicion; d.Cell(f, 7).Value = x.Estado; d.Cell(f, 8).Value = x.IvaTotal; d.Cell(f, 9).Value = x.IvaAcreditable;
-            d.Cell(f, 10).Value = x.IvaSujetoProrrata; d.Cell(f, 11).Value = x.IvaNoAcreditable; d.Cell(f, 12).Value = x.IvaPendiente; d.Cell(f, 13).Value = x.MonedaExtranjera ? "Sí" : "";
+            d.Cell(f, 5).Value = x.Cedula; d.Cell(f, 6).Value = x.Direccion; d.Cell(f, 7).Value = x.Telefono;
+            d.Cell(f, 8).Value = x.Clave; d.Cell(f, 9).Value = x.Condicion; d.Cell(f, 10).Value = x.Estado; d.Cell(f, 11).Value = x.IvaTotal; d.Cell(f, 12).Value = x.IvaAcreditable;
+            d.Cell(f, 13).Value = x.IvaSujetoProrrata; d.Cell(f, 14).Value = x.IvaNoAcreditable; d.Cell(f, 15).Value = x.IvaPendiente; d.Cell(f, 16).Value = x.MonedaExtranjera ? "Sí" : "";
         }
-        if (f > 1) d.Range(2, 8, f, 12).Style.NumberFormat.Format = "#,##0.00";
+        if (f > 1) d.Range(2, 11, f, 15).Style.NumberFormat.Format = "#,##0.00";
         d.SheetView.FreezeRows(1);
         d.Columns().AdjustToContents(1, Math.Min(f, 200));
+
+        if (lineas is not null) HojaLineasSoportado(libro, lineas);
 
         using var ms = new MemoryStream();
         libro.SaveAs(ms);
         return ms.ToArray();
     }
 
+    /// <summary>Hoja «Líneas»: un renglón por artículo de cada compra, importación y devolución (cantidad, costo, descuento, impuesto y total).</summary>
+    private static void HojaLineasSoportado(XLWorkbook libro, IvaSoportadoLineasPeriodo datos)
+    {
+        var l = libro.Worksheets.Add("Líneas");
+        string[] cab = { "Fecha", "Origen", "Documento", "Proveedor", "Cédula", "Código", "Artículo", "Cantidad", "Costo unitario", "Descuento", "Subtotal", "% IVA", "Impuesto", "Total" };
+        for (var i = 0; i < cab.Length; i++) l.Cell(1, i + 1).Value = cab[i];
+        EstiloCabecera(l.Range(1, 1, 1, cab.Length));
+        var f = 1;
+        foreach (var x in datos.Lineas)
+        {
+            f++;
+            l.Cell(f, 1).Value = x.Fecha.ToString("dd/MM/yyyy"); l.Cell(f, 2).Value = x.Origen; l.Cell(f, 3).Value = x.Documento; l.Cell(f, 4).Value = x.Proveedor;
+            l.Cell(f, 5).Value = x.Cedula; l.Cell(f, 6).Value = x.Codigo; l.Cell(f, 7).Value = x.Descripcion; l.Cell(f, 8).Value = x.Cantidad;
+            l.Cell(f, 9).Value = x.CostoUnitario; l.Cell(f, 10).Value = x.Descuento; l.Cell(f, 11).Value = x.Subtotal; l.Cell(f, 12).Value = x.PorcentajeImpuesto;
+            l.Cell(f, 13).Value = x.Impuesto; l.Cell(f, 14).Value = x.Total;
+        }
+        if (f > 1) l.Range(2, 8, f, 14).Style.NumberFormat.Format = "#,##0.00";
+        if (datos.Truncado) l.Cell(f + 2, 1).Value = "Se muestran las primeras líneas del período; los totales del reporte sí incluyen todo.";
+        l.SheetView.FreezeRows(1);
+        l.Columns().AdjustToContents(1, Math.Min(f, 200));
+    }
+
     public static string IvaSoportadoCsv(IvaSoportadoResultado r)
     {
         static string Q(string? t) => "\"" + (t ?? "").Replace("\"", "\"\"") + "\"";
         static string N(decimal v) => v.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
-        var lineas = new List<string> { "Fecha,Origen,Documento,Proveedor,Clave,Condición,Estado,IVA total,Acreditable,Sujeto a prorrata,No acreditable,Pendiente,Moneda extranjera" };
-        lineas.AddRange(r.Detalle.Select(x => string.Join(',', x.Fecha.ToString("yyyy-MM-dd"), Q(x.Origen), Q(x.Documento), Q(x.Proveedor), Q(x.Clave), Q(x.Condicion), Q(x.Estado),
+        var lineas = new List<string> { "Fecha,Origen,Documento,Proveedor,Cédula,Dirección,Teléfono,Clave,Condición,Estado,IVA total,Acreditable,Sujeto a prorrata,No acreditable,Pendiente,Moneda extranjera" };
+        lineas.AddRange(r.Detalle.Select(x => string.Join(',', x.Fecha.ToString("yyyy-MM-dd"), Q(x.Origen), Q(x.Documento), Q(x.Proveedor), Q(x.Cedula), Q(x.Direccion), Q(x.Telefono), Q(x.Clave), Q(x.Condicion), Q(x.Estado),
             N(x.IvaTotal), N(x.IvaAcreditable), N(x.IvaSujetoProrrata), N(x.IvaNoAcreditable), N(x.IvaPendiente), x.MonedaExtranjera ? "Sí" : "No")));
         return string.Join("\n", lineas);
     }

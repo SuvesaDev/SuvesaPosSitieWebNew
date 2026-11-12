@@ -137,6 +137,12 @@
                         <div class="col-12 col-md-3">
                             <AppCampoNumero Etiqueta="Validez (dias)" @bind-Valor="_validez" />
                         </div>
+                        @if (SucursalClienteVenta.MostrarSelector(_sucursalesCliente))
+                        {
+                            <div class="col-12 col-md-6">
+                                <SelectorSucursalCliente Sucursales="_sucursalesCliente" @bind-Valor="_documento.IdClienteSucursal" Clase="" />
+                            </div>
+                        }
                         <div class="col-12">
                             <AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_documento.Observaciones" />
                         </div>
@@ -382,6 +388,18 @@
         foreach (var p in r.Responses) _preciosTarifaNueva[(tarifa, p.IdArticulo)] = p.Precio;
     }
 
+    // Sucursal del cliente a la que se cotiza (Facturación la respeta al facturar). Obligatoria solo si el cliente tiene varias.
+    private List<DTOs.Generated.ClienteDatosSucursalDTO> _sucursalesCliente = new();
+
+    private async Task CargarSucursalesCliente(bool conservarActual)
+    {
+        _sucursalesCliente = new();
+        if (_documento is null || !long.TryParse(_documento.CodCliente, out var idCliente) || idCliente <= 0) return;
+        var r = await ClientesApi.DatosSucursal(idCliente);
+        if (r.EsCorrecta && r.Responses is not null) _sucursalesCliente = r.Responses.ToList();
+        _documento.IdClienteSucursal = SucursalClienteVenta.Predeterminada(_sucursalesCliente, conservarActual ? _documento.IdClienteSucursal : null);
+    }
+
     private async Task CargarFichaCliente()
     {
         _ficha = null;
@@ -406,6 +424,8 @@
         _documento.CodCliente = c.Identificacion.ToString();
         _ficha = c;
         _clientesEncontrados = new();
+        _documento.IdClienteSucursal = null;
+        await CargarSucursalesCliente(conservarActual: false);
         await CargarBonificacionesCliente();
         if (habiaLineas) await RecalcularPreciosSegunCliente();
     }
@@ -445,6 +465,7 @@
     {
         _hoy = await RelojEquipo.HoyAsync();
         _ficha = null;
+        _sucursalesCliente = new();
         _bonificacionesCliente = new();
         _documento = new CotizacionesDTO { Fecha = _hoy, IdSucursal = Sesion.IdSucursal };
         _lineas.Clear();
@@ -465,6 +486,7 @@
         _validez = completa.Validez;
         _hoy = await RelojEquipo.HoyAsync();
         await CargarFichaCliente();
+        await CargarSucursalesCliente(conservarActual: true);
         await CargarBonificacionesCliente();
         _lineas.Clear();
 
@@ -674,6 +696,12 @@
         if (string.IsNullOrWhiteSpace(_documento.NombreCliente))
         {
             await Dialogos.ErrorAsync("Indique el cliente.");
+            return;
+        }
+
+        if (SucursalClienteVenta.Validar(_sucursalesCliente, _documento.IdClienteSucursal) is { } errorSucursal)
+        {
+            await Dialogos.ErrorAsync(errorSucursal);
             return;
         }
 

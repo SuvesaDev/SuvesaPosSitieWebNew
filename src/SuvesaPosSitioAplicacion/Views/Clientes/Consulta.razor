@@ -328,6 +328,7 @@
                     <dt class="col-6 fw-normal text-secondary">Documento</dt><dd class="col-6">@_carta.NumeroDocumento</dd>
                     <dt class="col-6 fw-normal text-secondary">Vence</dt><dd class="col-6">@_carta.FechaVence.ToString("dd/MM/yyyy")</dd>
                     <dt class="col-6 fw-normal text-secondary">Exoneración</dt><dd class="col-6">@_carta.PorcentajeCompra.ToString("N2")%</dd>
+                    <dt class="col-6 fw-normal text-secondary">Crédito fiscal</dt><dd class="col-6">@(_carta.ReglaCreditoVenta switch { "CON_DERECHO" => "Da derecho", "SIN_DERECHO" => "No da derecho", _ => "Regla del cliente" })</dd>
                 </dl>
                 @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
                 {
@@ -408,6 +409,15 @@
                     <div class="col-12 col-md-6">
                         <label class="form-label" for="carta-impuesto">Impuesto</label>
                         <input id="carta-impuesto" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_cartaEdicion.Impuesto" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="carta-regla-credito">Crédito fiscal de lo exonerado</label>
+                        <select id="carta-regla-credito" class="form-select" value="@(_cartaEdicion.ReglaCreditoVenta ?? "")" @onchange="e => _cartaEdicion.ReglaCreditoVenta = string.IsNullOrEmpty(e.Value?.ToString()) ? null : e.Value!.ToString()">
+                            <option value="">Usar la regla del cliente</option>
+                            <option value="CON_DERECHO">Da derecho a crédito</option>
+                            <option value="SIN_DERECHO">No da derecho a crédito</option>
+                        </select>
+                        <div class="form-text">Prorrata del IVA: la carta manda sobre la regla del cliente.</div>
                     </div>
                     <div class="col-12"><AppCampoTexto Etiqueta="Nota" @bind-Valor="_cartaEdicion.Nota" /></div>
                 </div>
@@ -504,6 +514,15 @@
                                 }
                             </select>
                             <div class="form-text">Obligatoria: de la ruta sale el agente responsable del cliente y es la ruta de todas sus facturas.</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cliente-regla-credito">Crédito fiscal de sus compras</label>
+                            <select id="cliente-regla-credito" class="form-select" value="@(_edicion.ReglaCreditoVenta ?? "")" @onchange="e => _edicion.ReglaCreditoVenta = string.IsNullOrEmpty(e.Value?.ToString()) ? null : e.Value!.ToString()">
+                                <option value="">Según la tarifa del artículo</option>
+                                <option value="CON_DERECHO">Da derecho a crédito (exportador, zona franca, CCSS, municipalidad...)</option>
+                                <option value="SIN_DERECHO">No da derecho a crédito</option>
+                            </select>
+                            <div class="form-text">Solo cambia las ventas exentas, no sujetas o exoneradas; una venta gravada común siempre da crédito. Se usa en la prorrata del IVA.</div>
                         </div>
 
                         <div class="col-12 seepos-form-seccion">Ubicación</div>
@@ -1727,6 +1746,7 @@
         Tipoprecio = cliente.Tipoprecio > 0 ? cliente.Tipoprecio : (short)1,
         IdRutaComercial = cliente.IdRutaComercial,
         TipoCliente = string.IsNullOrWhiteSpace(cliente.TipoCliente) ? "PUNTO_VENTA" : cliente.TipoCliente,
+        ReglaCreditoVenta = cliente.ReglaCreditoVenta,
         Sinrestriccion = cliente.Sinrestriccion,
         Agente = cliente.Agente,
         CodMonedaCredito = cliente.CodMonedaCredito,
@@ -1981,6 +2001,7 @@
             PorcentajeCompra = _carta.PorcentajeCompra,
             Impuesto = _carta.Impuesto,
             Nota = _carta.Nota,
+            ReglaCreditoVenta = _carta.ReglaCreditoVenta,
             Estado = _carta.Estado,
             IdUsuarioCreacion = _carta.IdUsuarioCreacion,
             IdUsuarioModificacion = Sesion.Usuario
