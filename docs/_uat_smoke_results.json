@@ -1,0 +1,1238 @@
+[
+  {
+    "titulo": "Clientes",
+    "ruta": "/initial/customers",
+    "estado": "Pasa",
+    "h1": "Clientes"
+  },
+  {
+    "titulo": "Inventarios",
+    "ruta": "/initial/inventory",
+    "estado": "Pasa",
+    "h1": "Inventarios"
+  },
+  {
+    "titulo": "Inicio",
+    "ruta": "/initial",
+    "title": "Inicio — SeePOS",
+    "h1": "Inicio",
+    "estado": "Pasa",
+    "len": 770
+  },
+  {
+    "titulo": "Facturación",
+    "ruta": "/initial/billing",
+    "title": "Facturación — SeePOS",
+    "h1": "Facturación",
+    "estado": "Pasa",
+    "len": 1107
+  },
+  {
+    "titulo": "Bandeja de documentos",
+    "ruta": "/initial/documents",
+    "title": "Bandeja de documentos — SeePOS",
+    "h1": "Bandeja de documentos",
+    "estado": "Pasa",
+    "len": 523
+  },
+  {
+    "titulo": "Envíos de correo",
+    "ruta": "/initial/mail-outbox",
+    "title": "Envíos de correo — SeePOS",
+    "h1": "Envíos de correo",
+    "estado": "Pasa",
+    "len": 6648
+  },
+  {
+    "titulo": "Alertas",
+    "ruta": "/initial/alerts",
+    "title": "Alertas — SeePOS",
+    "h1": "Alertas",
+    "estado": "Pasa",
+    "len": 2374
+  },
+  {
+    "titulo": "Caja",
+    "ruta": "/initial/cash/closecash",
+    "title": "Cierre Caja — SeePOS",
+    "h1": "Cierre Caja",
+    "estado": "Pasa",
+    "len": 1642
+  },
+  {
+    "titulo": "Apertura Caja",
+    "ruta": "/initial/cash/opencash",
+    "title": "Apertura Caja — SeePOS",
+    "h1": "Apertura Caja",
+    "estado": "Pasa",
+    "len": 2277
+  },
+  {
+    "titulo": "Arqueo Caja",
+    "ruta": "/initial/cash/arqueocash",
+    "title": "Arqueo Caja — SeePOS",
+    "h1": "Arqueo Caja",
+    "estado": "Pasa",
+    "len": 2431
+  },
+  {
+    "titulo": "Consulta de Arqueos",
+    "ruta": "/initial/cash/arqueoconsulta",
+    "title": "Consulta de Arqueos — SeePOS",
+    "h1": "Consulta de Arqueos",
+    "estado": "Pasa",
+    "len": 1522
+  },
+  {
+    "titulo": "Conciliación de caja",
+    "ruta": "/initial/cash/reconciliation",
+    "title": "Conciliación de caja — SeePOS",
+    "h1": "Conciliación de caja",
+    "estado": "Pasa",
+    "len": 2272
+  },
+  {
+    "titulo": "Cobrar",
+    "ruta": "/initial/charge",
+    "title": "Cobrar — SeePOS",
+    "h1": "Cobrar",
+    "estado": "Pasa",
+    "len": 1794
+  },
+  {
+    "titulo": "Depósitos",
+    "ruta": "/initial/cash/deposits",
+    "title": "Consulta Depósitos — SeePOS",
+    "h1": "Consulta Depósitos",
+    "estado": "Pasa",
+    "len": 2610
+  },
+  {
+    "titulo": "Pre Depósito",
+    "ruta": "/initial/cash/deposits/predeposits",
+    "title": "Pre Depósito — SeePOS",
+    "h1": "Pre Depósito",
+    "estado": "Pasa",
+    "len": 1846
+  },
+  {
+    "titulo": "Generar Depósito",
+    "ruta": "/initial/cash/deposits/generatedeposits",
+    "title": "Generar Depósito — SeePOS",
+    "h1": "Generar Depósito",
+    "estado": "Pasa",
+    "len": 1922
+  },
+  {
+    "titulo": "Consulta Depósitos",
+    "ruta": "/initial/cash/deposits/consultdeposits",
+    "title": "Consulta Depósitos — SeePOS",
+    "h1": "Consulta Depósitos",
+    "estado": "Pasa",
+    "len": 2610
+  },
+  {
+    "titulo": "Compras",
+    "ruta": "/buys",
+    "title": "Pendiente — SeePOS",
+    "h1": "Pantalla pendiente",
+    "estado": "Pendiente",
+    "len": 1705
+  },
+  {
+    "titulo": "Compra",
+    "ruta": "/buys/buy",
+    "title": "Compra — SeePOS",
+    "h1": "Compra",
+    "estado": "Pasa",
+    "len": 2378
+  },
+  {
+    "titulo": "Proveedores",
+    "ruta": "/buys/providers",
+    "title": "Proveedores — SeePOS",
+    "h1": "Proveedores",
+    "estado": "Pasa",
+    "len": 2716
+  },
+  {
+    "titulo": "Documentos aceptados",
+    "ruta": "/buys/received-messages",
+    "title": "Documentos aceptados — SeePOS",
+    "h1": "Documentos aceptados",
+    "estado": "Pasa",
+    "len": 1441
+  },
+  {
+    "titulo": "Cuentas por pagar",
+    "ruta": "/buys/countswihoutpay",
+    "title": "Cuentas por pagar — SeePOS",
+    "h1": "Cuentas por pagar",
+    "estado": "Pasa",
+    "len": 1524
+  },
+  {
+    "titulo": "Pedidos",
+    "ruta": "/buys/orders/warehouseorders",
+    "title": "Pendiente — SeePOS",
+    "h1": "Pantalla pendiente",
+    "estado": "Pendiente",
+    "len": 1728
+  },
+  {
+    "titulo": "Consultar Pedidos",
+    "ruta": "/buys/orders/checkorders",
+    "title": "Seguimiento de órdenes de compra — SeePOS",
+    "h1": "Seguimiento de órdenes de compra",
+    "estado": "Pasa",
+    "len": 1810
+  },
+  {
+    "titulo": "Toma",
+    "ruta": "/buys/physical-count",
+    "title": "Toma física — SeePOS",
+    "h1": "Toma física",
+    "estado": "Pasa",
+    "len": 2061
+  },
+  {
+    "titulo": "Pretoma",
+    "ruta": "/buys/physical-precount",
+    "title": "Pretoma — SeePOS",
+    "h1": "Pretoma",
+    "estado": "Pasa",
+    "len": 1686
+  },
+  {
+    "titulo": "Traslado entre bodegas",
+    "ruta": "/buys/warehouse-transfer",
+    "title": "Traslado entre bodegas — SeePOS",
+    "h1": "Traslado entre bodegas",
+    "estado": "Pasa",
+    "len": 1922
+  },
+  {
+    "titulo": "Orden de compra manual",
+    "ruta": "/buys/purchaseorder",
+    "title": "Orden de compra — SeePOS",
+    "h1": "Orden de compra",
+    "estado": "Pasa",
+    "len": 2086
+  },
+  {
+    "titulo": "Importaciones",
+    "ruta": "/buys/importationsbox",
+    "title": "Importaciones — SeePOS",
+    "h1": "Importaciones",
+    "estado": "Pasa",
+    "len": 2041
+  },
+  {
+    "titulo": "Devoluciones compra",
+    "ruta": "/buys/purchasereturns",
+    "title": "Devoluciones compra — SeePOS",
+    "h1": "Devoluciones compra",
+    "estado": "Pasa",
+    "len": 1691
+  },
+  {
+    "titulo": "Abono Pagar",
+    "ruta": "/buys/pay",
+    "title": "Abono Pagar — SeePOS",
+    "h1": "Abono Pagar",
+    "estado": "Pasa",
+    "len": 1827
+  },
+  {
+    "titulo": "Recibos de pago",
+    "ruta": "/buys/payment-receipts",
+    "title": "Recibos de pago — SeePOS",
+    "h1": "Recibos de pago",
+    "estado": "Pasa",
+    "len": 2048
+  },
+  {
+    "titulo": "Producción",
+    "ruta": "/production/calculator",
+    "title": "Calculadora de Producción — SeePOS",
+    "h1": "Calculadora de Producción",
+    "estado": "Pasa",
+    "len": 1690
+  },
+  {
+    "titulo": "Bitácora",
+    "ruta": "/production/log",
+    "title": "Bitácora de Producción — SeePOS",
+    "h1": "Bitácora de Producción",
+    "estado": "Pasa",
+    "len": 1947
+  },
+  {
+    "titulo": "Bodega",
+    "ruta": "/bodega/cola",
+    "title": "Cola de alistamiento — SeePOS",
+    "h1": "Cola de alistamiento",
+    "estado": "Pasa",
+    "len": 4855
+  },
+  {
+    "titulo": "Recibo de mercadería",
+    "ruta": "/bodega/recibo",
+    "title": "Recibo de mercadería — SeePOS",
+    "h1": "Recibo de mercadería",
+    "estado": "Pasa",
+    "len": 1910
+  },
+  {
+    "titulo": "Empaque",
+    "ruta": "/bodega/empaque",
+    "title": "Empaque — SeePOS",
+    "h1": "Empaque",
+    "estado": "Pasa",
+    "len": 1482
+  },
+  {
+    "titulo": "Despacho",
+    "ruta": "/bodega/despacho",
+    "title": "Despacho — SeePOS",
+    "h1": "Despacho",
+    "estado": "Pasa",
+    "len": 1721
+  },
+  {
+    "titulo": "Rutas de entrega",
+    "ruta": "/bodega/rutas",
+    "title": "Rutas de entrega — SeePOS",
+    "h1": "Rutas de entrega",
+    "estado": "Pasa",
+    "len": 1666
+  },
+  {
+    "titulo": "Consignación",
+    "ruta": "/consignment/dashboard",
+    "title": "Tablero de Consignación — SeePOS",
+    "h1": "Tablero de Consignación",
+    "estado": "Pasa",
+    "len": 1808
+  },
+  {
+    "titulo": "Bodegas de Consignación",
+    "ruta": "/consignment/warehouses",
+    "title": "Bodegas de Consignación — SeePOS",
+    "h1": "Bodegas de Consignación",
+    "estado": "Pasa",
+    "len": 2159
+  },
+  {
+    "titulo": "Ajuste de Bodega de Consignación",
+    "ruta": "/consignment/adjust",
+    "title": "Ajuste de Bodega de Consignación — SeePOS",
+    "h1": "Ajuste de Bodega de Consignación",
+    "estado": "Pasa",
+    "len": 2626
+  },
+  {
+    "titulo": "Boletas de Consignación",
+    "ruta": "/consignment/tickets",
+    "title": "Boletas de Consignación — SeePOS",
+    "h1": "Boletas de Consignación",
+    "estado": "Pasa",
+    "len": 2049
+  },
+  {
+    "titulo": "Inventario Físico de Consignación",
+    "ruta": "/consignment/count",
+    "title": "Inventario Físico de Consignación — SeePOS",
+    "h1": "Inventario Físico de Consignación",
+    "estado": "Pasa",
+    "len": 1797
+  },
+  {
+    "titulo": "Kardex de Consignación",
+    "ruta": "/consignment/ledger",
+    "title": "Kardex de Consignación — SeePOS",
+    "h1": "Kardex de Consignación",
+    "estado": "Pasa",
+    "len": 1484
+  },
+  {
+    "titulo": "Facturacion de Consignaciones",
+    "ruta": "/consignment/prebill",
+    "title": "Facturación de Consignaciones — SeePOS",
+    "h1": "Facturación de Consignaciones",
+    "estado": "Pasa",
+    "len": 2107
+  },
+  {
+    "titulo": "Estados de Consignación",
+    "ruta": "/consignment/settlements",
+    "title": "Estados de Consignación — SeePOS",
+    "h1": "Estados de Consignación",
+    "estado": "Pasa",
+    "len": 1676
+  },
+  {
+    "titulo": "Ventas",
+    "ruta": "/sales",
+    "title": "Pendiente — SeePOS",
+    "h1": "Pantalla pendiente",
+    "estado": "Pendiente",
+    "len": 1706
+  },
+  {
+    "titulo": "Abono Cobrar",
+    "ruta": "/sales/collect",
+    "title": "Abono Cobrar — SeePOS",
+    "h1": "Abono Cobrar",
+    "estado": "Pasa",
+    "len": 1724
+  },
+  {
+    "titulo": "Recibos y fallidas",
+    "ruta": "/sales/receipts",
+    "title": "Recibos y operaciones fallidas — SeePOS",
+    "h1": "Recibos y operaciones fallidas",
+    "estado": "Pasa",
+    "len": 4005
+  },
+  {
+    "titulo": "Perfiles de emisión",
+    "ruta": "/sales/emission-profiles",
+    "title": "Perfiles de emisión — SeePOS",
+    "h1": "Perfiles de emisión",
+    "estado": "Pasa",
+    "len": 1825
+  },
+  {
+    "titulo": "Comisiones",
+    "ruta": "/sales/commissions",
+    "title": "Comisiones — SeePOS",
+    "h1": "Comisiones",
+    "estado": "Pasa",
+    "len": 5622
+  },
+  {
+    "titulo": "Trámite de cobro",
+    "ruta": "/sales/collection-process",
+    "title": "Trámite de cobro — SeePOS",
+    "h1": "Trámite de cobro",
+    "estado": "Pasa",
+    "len": 1504
+  },
+  {
+    "titulo": "Devoluciones",
+    "ruta": "/sales/repayment",
+    "title": "Devoluciones — SeePOS",
+    "h1": "Devoluciones",
+    "estado": "Pasa",
+    "len": 2024
+  },
+  {
+    "titulo": "Presupuestos",
+    "ruta": "/sales/budgets/proforma",
+    "title": "Proformas o Cotización — SeePOS",
+    "h1": "Proformas o Cotización",
+    "estado": "Pasa",
+    "len": 1575
+  },
+  {
+    "titulo": "Seguimiento Cotizaciones",
+    "ruta": "/sales/budgets/seguimiento",
+    "title": "Seguimiento Cotizaciones — SeePOS",
+    "h1": "Seguimiento Cotizaciones",
+    "estado": "Pasa",
+    "len": 3228
+  },
+  {
+    "titulo": "Parametros",
+    "ruta": "/parameters",
+    "title": "Pendiente — SeePOS",
+    "h1": "Pantalla pendiente",
+    "estado": "Pendiente",
+    "len": 1711
+  },
+  {
+    "titulo": "Bancos",
+    "ruta": "/parameters/bank",
+    "title": "Bancos — SeePOS",
+    "h1": "Bancos",
+    "estado": "Pasa",
+    "len": 1399
+  },
+  {
+    "titulo": "Configuración de Plazos",
+    "ruta": "/parameters/payment-terms",
+    "title": "Configuración de Plazos — SeePOS",
+    "h1": "Configuración de Plazos",
+    "estado": "Pasa",
+    "len": 1389
+  },
+  {
+    "titulo": "Denominaciones de Moneda",
+    "ruta": "/parameters/currency-denominations",
+    "title": "Denominaciones de Moneda — SeePOS",
+    "h1": "Denominaciones de Moneda",
+    "estado": "Pasa",
+    "len": 1392
+  },
+  {
+    "titulo": "Familias",
+    "ruta": "/parameters/family",
+    "title": "Familias y Sub-Familias — SeePOS",
+    "h1": "Familias y Sub-Familias",
+    "estado": "Pasa",
+    "len": 1625
+  },
+  {
+    "titulo": "Formas de Pago",
+    "ruta": "/parameters/payment-methods",
+    "title": "Formas de Pago — SeePOS",
+    "h1": "Formas de Pago",
+    "estado": "Pasa",
+    "len": 1353
+  },
+  {
+    "titulo": "Geografía Fiscal",
+    "ruta": "/parameters/fiscal-geography",
+    "title": "Geografía Fiscal — SeePOS",
+    "h1": "Geografía Fiscal",
+    "estado": "Pasa",
+    "len": 1612
+  },
+  {
+    "titulo": "Impuestos",
+    "ruta": "/parameters/taxes",
+    "title": "Impuestos — SeePOS",
+    "h1": "Impuestos",
+    "estado": "Pasa",
+    "len": 1377
+  },
+  {
+    "titulo": "Monedas Fiscales",
+    "ruta": "/parameters/currencies",
+    "title": "Monedas — SeePOS",
+    "h1": "Monedas",
+    "estado": "Pasa",
+    "len": 1360
+  },
+  {
+    "titulo": "Presentaciones",
+    "ruta": "/parameters/presentations",
+    "title": "Presentaciones — SeePOS",
+    "h1": "Presentaciones",
+    "estado": "Pasa",
+    "len": 1493
+  },
+  {
+    "titulo": "Rutas",
+    "ruta": "/parameters/routes",
+    "title": "Rutas — SeePOS",
+    "h1": "Rutas",
+    "estado": "Pasa",
+    "len": 1516
+  },
+  {
+    "titulo": "Tarifas",
+    "ruta": "/parameters/rates",
+    "title": "Tarifas — SeePOS",
+    "h1": "Tarifas",
+    "estado": "Pasa",
+    "len": 1645
+  },
+  {
+    "titulo": "Tipos de Bonificación",
+    "ruta": "/parameters/bonus-types",
+    "title": "Catálogo de Bonificaciones — SeePOS",
+    "h1": "Catálogo de Bonificaciones",
+    "estado": "Pasa",
+    "len": 1617
+  },
+  {
+    "titulo": "Tipos de Cobro",
+    "ruta": "/parameters/collection-types",
+    "title": "Tipos de Cobro — SeePOS",
+    "h1": "Tipos de Cobro",
+    "estado": "Pasa",
+    "len": 1356
+  },
+  {
+    "titulo": "Tipos de Exoneración",
+    "ruta": "/parameters/exemption-types",
+    "title": "Tipos de Exoneración — SeePOS",
+    "h1": "Tipos de Exoneración",
+    "estado": "Pasa",
+    "len": 1361
+  },
+  {
+    "titulo": "Tipos de Factura",
+    "ruta": "/parameters/invoice-types",
+    "title": "Tipos de Factura — SeePOS",
+    "h1": "Tipos de Factura",
+    "estado": "Pasa",
+    "len": 2942
+  },
+  {
+    "titulo": "Tipos de Identificación",
+    "ruta": "/parameters/identification-types",
+    "title": "Tipos de Identificación — SeePOS",
+    "h1": "Tipos de Identificación",
+    "estado": "Pasa",
+    "len": 1415
+  },
+  {
+    "titulo": "Ubicaciones",
+    "ruta": "/parameters/locations",
+    "title": "Pendiente — SeePOS",
+    "h1": "Pantalla pendiente",
+    "estado": "Pendiente",
+    "len": 1721
+  },
+  {
+    "titulo": "Usuarios",
+    "ruta": "/parameters/users",
+    "title": "Usuarios — SeePOS",
+    "h1": "Usuarios",
+    "estado": "Pasa",
+    "len": 1508
+  },
+  {
+    "titulo": "Roles",
+    "ruta": "/parameters/role",
+    "title": "Roles y perfiles — SeePOS",
+    "h1": "Roles y perfiles",
+    "estado": "Pasa",
+    "len": 1567
+  },
+  {
+    "titulo": "Surcursales",
+    "ruta": "/parameters/branch",
+    "title": "Surcursales — SeePOS",
+    "h1": "Surcursales",
+    "estado": "Pasa",
+    "len": 1922
+  },
+  {
+    "titulo": "Series de Facturación",
+    "ruta": "/parameters/invoice-series",
+    "title": "Series de Facturación — SeePOS",
+    "h1": "Series de Facturación",
+    "estado": "Pasa",
+    "len": 5159
+  },
+  {
+    "titulo": "Series operativas",
+    "ruta": "/parameters/operational-series",
+    "title": "Series operativas — SeePOS",
+    "h1": "Series operativas",
+    "estado": "Pasa",
+    "len": 6768
+  },
+  {
+    "titulo": "Propiedades de formas de pago",
+    "ruta": "/parameters/payment-methods-properties",
+    "title": "Propiedades de formas de pago — SeePOS",
+    "h1": "Propiedades de formas de pago",
+    "estado": "Pasa",
+    "len": 4120
+  },
+  {
+    "titulo": "Plantillas de impresión",
+    "ruta": "/parameters/print-templates",
+    "title": "Plantillas de impresión — SeePOS",
+    "h1": "Plantillas de impresión",
+    "estado": "Pasa",
+    "len": 1957
+  },
+  {
+    "titulo": "Configuración de correo",
+    "ruta": "/parameters/mail-settings",
+    "title": "Configuración de correo — SeePOS",
+    "h1": "Configuración de correo",
+    "estado": "Pasa",
+    "len": 1454
+  },
+  {
+    "titulo": "Configuración",
+    "ruta": "/parameters/settings",
+    "title": "Configuración — SeePOS",
+    "h1": "Configuración",
+    "estado": "Pasa",
+    "len": 1518
+  },
+  {
+    "titulo": "Emisores",
+    "ruta": "/parameters/issuers",
+    "title": "Emisores — SeePOS",
+    "h1": "Emisores",
+    "estado": "Pasa",
+    "len": 1408
+  },
+  {
+    "titulo": "Bodegas",
+    "ruta": "/parameters/wineries",
+    "title": "Bodegas — SeePOS",
+    "h1": "Bodegas",
+    "estado": "Pasa",
+    "len": 2022
+  },
+  {
+    "titulo": "Areas",
+    "ruta": "/parameters/areas",
+    "title": "Pendiente — SeePOS",
+    "h1": "Pantalla pendiente",
+    "estado": "Pendiente",
+    "len": 1717
+  },
+  {
+    "titulo": "Cajas",
+    "ruta": "/parameters/cash-registers",
+    "title": "Cajas — SeePOS",
+    "h1": "Cajas",
+    "estado": "Pasa",
+    "len": 1437
+  },
+  {
+    "titulo": "Módulo Inventario",
+    "ruta": "/moduloInventario",
+    "title": "Módulo Inventario — SeePOS",
+    "h1": "Módulo Inventario",
+    "estado": "Pasa",
+    "len": 1543
+  },
+  {
+    "titulo": "Cobranza",
+    "ruta": "/collections",
+    "title": "Pendiente — SeePOS",
+    "h1": "Pantalla pendiente",
+    "estado": "Pendiente",
+    "len": 1712
+  },
+  {
+    "titulo": "Seguimiento",
+    "ruta": "/collections/follow-up",
+    "title": "Seguimiento — SeePOS",
+    "h1": "Seguimiento",
+    "estado": "Pasa",
+    "len": 2146
+  },
+  {
+    "titulo": "Dashboard",
+    "ruta": "/collections/dashboard",
+    "title": "Dashboard — SeePOS",
+    "h1": "Dashboard",
+    "estado": "Pasa",
+    "len": 1927
+  },
+  {
+    "titulo": "Gerencial",
+    "ruta": "/collections/management",
+    "title": "Gerencial — SeePOS",
+    "h1": "Gerencial",
+    "estado": "Pasa",
+    "len": 2051
+  },
+  {
+    "titulo": "Autorizaciones de crédito",
+    "ruta": "/collections/credit-authorizations",
+    "title": "Autorizaciones de crédito — SeePOS",
+    "h1": "Autorizaciones de crédito",
+    "estado": "Pasa",
+    "len": 1712
+  },
+  {
+    "titulo": "Módulo Reportes",
+    "ruta": "/moduloReportes",
+    "title": "Reportes — SeePOS",
+    "h1": "Reportes",
+    "estado": "Pasa",
+    "len": 12174
+  },
+  {
+    "titulo": "Panel ejecutivo",
+    "ruta": "/moduloReportes/panel-ejecutivo",
+    "title": "Panel ejecutivo — SeePOS",
+    "h1": "Panel ejecutivo",
+    "estado": "Pasa",
+    "len": 4037
+  },
+  {
+    "titulo": "Ventas",
+    "ruta": "/moduloReportes/ventas",
+    "title": "Ventas — SeePOS",
+    "h1": "Ventas",
+    "estado": "Pasa",
+    "len": 4035
+  },
+  {
+    "titulo": "Ventas detalle",
+    "ruta": "/moduloReportes/ventas-detalle",
+    "title": "Ventas detalladas — SeePOS",
+    "h1": "Ventas detalladas",
+    "estado": "Pasa",
+    "len": 4088
+  },
+  {
+    "titulo": "Ventas entre horas",
+    "ruta": "/moduloReportes/ventas-horas",
+    "title": "Ventas entre horas — SeePOS",
+    "h1": "Ventas entre horas",
+    "estado": "Pasa",
+    "len": 4035
+  },
+  {
+    "titulo": "Comportamiento de clientes",
+    "ruta": "/moduloReportes/clientes",
+    "title": "Clientes y comportamiento — SeePOS",
+    "h1": "Clientes y comportamiento",
+    "estado": "Pasa",
+    "len": 4080
+  },
+  {
+    "titulo": "Rentabilidad",
+    "ruta": "/moduloReportes/rentabilidad",
+    "title": "Rentabilidad comercial — SeePOS",
+    "h1": "Rentabilidad comercial",
+    "estado": "Pasa",
+    "len": 4071
+  },
+  {
+    "titulo": "Ventas vs compras",
+    "ruta": "/moduloReportes/ventas-compras",
+    "title": "Ventas vs. compras — SeePOS",
+    "h1": "Ventas vs. compras",
+    "estado": "Pasa",
+    "len": 3977
+  },
+  {
+    "titulo": "Recuperación de cartera",
+    "ruta": "/moduloReportes/recuperacion-cxc",
+    "title": "Recuperación de cartera — SeePOS",
+    "h1": "Recuperación de cartera",
+    "estado": "Pasa",
+    "len": 4072
+  },
+  {
+    "titulo": "Cuentas por cobrar",
+    "ruta": "/moduloReportes/cuentas-por-cobrar",
+    "title": "Cuentas por cobrar — SeePOS",
+    "h1": "Cuentas por cobrar",
+    "estado": "Pasa",
+    "len": 4034
+  },
+  {
+    "titulo": "Cumplimiento CABYS",
+    "ruta": "/moduloReportes/cabys",
+    "title": "Cumplimiento CABYS — SeePOS",
+    "h1": "Cumplimiento CABYS",
+    "estado": "Pasa",
+    "len": 1749
+  },
+  {
+    "titulo": "Cuentas por pagar",
+    "ruta": "/moduloReportes/cuentas-por-pagar",
+    "title": "Cuentas por pagar — SeePOS",
+    "h1": "Cuentas por pagar",
+    "estado": "Pasa",
+    "len": 4037
+  },
+  {
+    "titulo": "Apartados y préstamos",
+    "ruta": "/moduloReportes/apartados",
+    "title": "Apartados y préstamos — SeePOS",
+    "h1": "Apartados y préstamos",
+    "estado": "Pasa",
+    "len": 4069
+  },
+  {
+    "titulo": "KPI por ruta comercial",
+    "ruta": "/moduloReportes/kpi-rutas",
+    "title": "KPI por ruta — SeePOS",
+    "h1": "KPI por ruta",
+    "estado": "Pasa",
+    "len": 4024
+  },
+  {
+    "titulo": "Caja",
+    "ruta": "/moduloReportes/caja",
+    "title": "Movimientos de caja — SeePOS",
+    "h1": "Movimientos de caja",
+    "estado": "Pasa",
+    "len": 4038
+  },
+  {
+    "titulo": "Arqueos y cierres",
+    "ruta": "/moduloReportes/arqueos-cierres",
+    "title": "Arqueos y cierres — SeePOS",
+    "h1": "Arqueos y cierres",
+    "estado": "Pasa",
+    "len": 4012
+  },
+  {
+    "titulo": "Depósitos",
+    "ruta": "/moduloReportes/depositos",
+    "title": "Depósitos y cheques — SeePOS",
+    "h1": "Depósitos y cheques",
+    "estado": "Pasa",
+    "len": 4043
+  },
+  {
+    "titulo": "Compras",
+    "ruta": "/moduloReportes/compras",
+    "title": "Compras y devoluciones — SeePOS",
+    "h1": "Compras y devoluciones",
+    "estado": "Pasa",
+    "len": 4043
+  },
+  {
+    "titulo": "Importaciones",
+    "ruta": "/moduloReportes/importaciones",
+    "title": "Importaciones — SeePOS",
+    "h1": "Importaciones",
+    "estado": "Pasa",
+    "len": 1571
+  },
+  {
+    "titulo": "IVA Repercutido",
+    "ruta": "/moduloReportes/iva-repercutido",
+    "title": "IVA Repercutido — SeePOS",
+    "h1": "IVA Repercutido",
+    "estado": "Pasa",
+    "len": 1625
+  },
+  {
+    "titulo": "IVA Soportado",
+    "ruta": "/moduloReportes/iva-soportado",
+    "title": "IVA Soportado — SeePOS",
+    "h1": "IVA Soportado",
+    "estado": "Pasa",
+    "len": 1644
+  },
+  {
+    "titulo": "Prorrata",
+    "ruta": "/moduloReportes/prorrata",
+    "title": "Prorrata — SeePOS",
+    "h1": "Prorrata",
+    "estado": "Pasa",
+    "len": 1720
+  },
+  {
+    "titulo": "Gastos",
+    "ruta": "/moduloReportes/gastos",
+    "title": "Gastos — SeePOS",
+    "h1": "Gastos",
+    "estado": "Pasa",
+    "len": 4013
+  },
+  {
+    "titulo": "Inventario",
+    "ruta": "/moduloReportes/inventario",
+    "title": "Existencias y lotes — SeePOS",
+    "h1": "Existencias y lotes",
+    "estado": "Pasa",
+    "len": 1752
+  },
+  {
+    "titulo": "Inventario ABC",
+    "ruta": "/moduloReportes/inventario-abc",
+    "title": "ABC y Pareto — SeePOS",
+    "h1": "ABC y Pareto",
+    "estado": "Pasa",
+    "len": 3993
+  },
+  {
+    "titulo": "Rotación de inventario",
+    "ruta": "/moduloReportes/rotacion-inventario",
+    "title": "Rotación y reorden — SeePOS",
+    "h1": "Rotación y reorden",
+    "estado": "Pasa",
+    "len": 4042
+  },
+  {
+    "titulo": "Bonificaciones",
+    "ruta": "/moduloReportes/bonificaciones",
+    "title": "Bonificaciones y regalías — SeePOS",
+    "h1": "Bonificaciones y regalías",
+    "estado": "Pasa",
+    "len": 4079
+  },
+  {
+    "titulo": "Lotes y vencimientos",
+    "ruta": "/moduloReportes/lotes",
+    "title": "Vencimiento de lotes — SeePOS",
+    "h1": "Vencimiento de lotes",
+    "estado": "Pasa",
+    "len": 4032
+  },
+  {
+    "titulo": "Trazabilidad",
+    "ruta": "/moduloReportes/trazabilidad",
+    "title": "Trazabilidad por lotes — SeePOS",
+    "h1": "Trazabilidad por lotes",
+    "estado": "Pasa",
+    "len": 4065
+  },
+  {
+    "titulo": "Empaquetado y maquila",
+    "ruta": "/moduloReportes/empaquetado",
+    "title": "Empaquetado y maquila — SeePOS",
+    "h1": "Empaquetado y maquila",
+    "estado": "Pasa",
+    "len": 4010
+  },
+  {
+    "titulo": "Mermas",
+    "ruta": "/moduloReportes/mermas",
+    "title": "Mermas — SeePOS",
+    "h1": "Mermas",
+    "estado": "Pasa",
+    "len": 4028
+  },
+  {
+    "titulo": "Auditoría",
+    "ruta": "/moduloReportes/auditoria",
+    "title": "Bitácora de auditoría — SeePOS",
+    "h1": "Bitácora de auditoría",
+    "estado": "Pasa",
+    "len": 3814
+  },
+  {
+    "titulo": "Contabilidad",
+    "ruta": "/accounting/issuer-setup",
+    "title": "Configuración emisor — SeePOS",
+    "h1": "Configuración emisor",
+    "estado": "Pasa",
+    "len": 15235
+  },
+  {
+    "titulo": "Catálogo cuentas",
+    "ruta": "/accounting/chart-of-accounts",
+    "title": "Catálogo cuentas — SeePOS",
+    "h1": "Catálogo cuentas",
+    "estado": "Pasa",
+    "len": 70124
+  },
+  {
+    "titulo": "Dimensiones",
+    "ruta": "/accounting/dimensions",
+    "title": "Dimensiones — SeePOS",
+    "h1": "Dimensiones",
+    "estado": "Pasa",
+    "len": 1577
+  },
+  {
+    "titulo": "Plantillas",
+    "ruta": "/accounting/templates",
+    "title": "Plantillas — SeePOS",
+    "h1": "Plantillas",
+    "estado": "Pasa",
+    "len": 5730
+  },
+  {
+    "titulo": "Bandeja",
+    "ruta": "/accounting/inbox",
+    "title": "Bandeja — SeePOS",
+    "h1": "Bandeja",
+    "estado": "Pasa",
+    "len": 7098
+  },
+  {
+    "titulo": "Reproceso",
+    "ruta": "/accounting/reprocessing",
+    "title": "Reproceso — SeePOS",
+    "h1": "Reproceso",
+    "estado": "Pasa",
+    "len": 1875
+  },
+  {
+    "titulo": "Diario",
+    "ruta": "/accounting/journal",
+    "title": "Diario — SeePOS",
+    "h1": "Diario",
+    "estado": "Pasa",
+    "len": 1749
+  },
+  {
+    "titulo": "Mayor",
+    "ruta": "/accounting/ledger",
+    "title": "Mayor — SeePOS",
+    "h1": "Mayor",
+    "estado": "Pasa",
+    "len": 5011
+  },
+  {
+    "titulo": "Auxiliar CxC",
+    "ruta": "/accounting/subledger-ar",
+    "title": "Auxiliar CxC — SeePOS",
+    "h1": "Auxiliar CxC",
+    "estado": "Pasa",
+    "len": 1796
+  },
+  {
+    "titulo": "Auxiliar CxP",
+    "ruta": "/accounting/subledger-ap",
+    "title": "Auxiliar CxP — SeePOS",
+    "h1": "Auxiliar CxP",
+    "estado": "Pasa",
+    "len": 1798
+  },
+  {
+    "titulo": "Auxiliar Inventario",
+    "ruta": "/accounting/subledger-inventory",
+    "title": "Auxiliar Inventario — SeePOS",
+    "h1": "Auxiliar Inventario",
+    "estado": "Pasa",
+    "len": 1765
+  },
+  {
+    "titulo": "Bitácora",
+    "ruta": "/accounting/audit-log",
+    "title": "Bitácora — SeePOS",
+    "h1": "Bitácora",
+    "estado": "Pasa",
+    "len": 3568
+  },
+  {
+    "titulo": "Cierre",
+    "ruta": "/accounting/close",
+    "title": "Cierre — SeePOS",
+    "h1": "Cierre",
+    "estado": "Pasa",
+    "len": 1839
+  },
+  {
+    "titulo": "Cierre anual",
+    "ruta": "/accounting/annual-close",
+    "title": "Cierre anual — SeePOS",
+    "h1": "Cierre anual",
+    "estado": "Pasa",
+    "len": 1607
+  },
+  {
+    "titulo": "Aprobaciones",
+    "ruta": "/accounting/approvals",
+    "title": "Aprobaciones — SeePOS",
+    "h1": "Aprobaciones",
+    "estado": "Pasa",
+    "len": 1905
+  },
+  {
+    "titulo": "Tipos de cambio",
+    "ruta": "/accounting/exchange-rates",
+    "title": "Tipos de cambio — SeePOS",
+    "h1": "Tipos de cambio",
+    "estado": "Pasa",
+    "len": 2368
+  },
+  {
+    "titulo": "Revaluación",
+    "ruta": "/accounting/revaluation",
+    "title": "Revaluación — SeePOS",
+    "h1": "Revaluación",
+    "estado": "Pasa",
+    "len": 1780
+  },
+  {
+    "titulo": "Procesadores de pago",
+    "ruta": "/accounting/payment-processors",
+    "title": "Procesadores de pago — SeePOS",
+    "h1": "Procesadores de pago",
+    "estado": "Pasa",
+    "len": 1981
+  },
+  {
+    "titulo": "Gastos",
+    "ruta": "/accounting/expenses",
+    "title": "Gastos — SeePOS",
+    "h1": "Gastos",
+    "estado": "Pasa",
+    "len": 1801
+  },
+  {
+    "titulo": "Diferencias de caja",
+    "ruta": "/accounting/cash-differences",
+    "title": "Diferencias de caja — SeePOS",
+    "h1": "Diferencias de caja",
+    "estado": "Pasa",
+    "len": 1637
+  },
+  {
+    "titulo": "Deducibilidad",
+    "ruta": "/accounting/deductibility",
+    "title": "Deducibilidad — SeePOS",
+    "h1": "Deducibilidad",
+    "estado": "Pasa",
+    "len": 3318
+  },
+  {
+    "titulo": "Reclasificación de inventario",
+    "ruta": "/accounting/inventory-reclassification",
+    "title": "Reclasificación de inventario — SeePOS",
+    "h1": "Reclasificación de inventario",
+    "estado": "Pasa",
+    "len": 1581
+  },
+  {
+    "titulo": "Conciliación contra el mayor",
+    "ruta": "/accounting/ledger-reconciliation",
+    "title": "Conciliación contra el mayor — SeePOS",
+    "h1": "Conciliación contra el mayor",
+    "estado": "Pasa",
+    "len": 1646
+  },
+  {
+    "titulo": "Saldos iniciales",
+    "ruta": "/accounting/opening-balances",
+    "title": "Saldos iniciales — SeePOS",
+    "h1": "Saldos iniciales",
+    "estado": "Pasa",
+    "len": 2176
+  },
+  {
+    "titulo": "Puesta en marcha",
+    "ruta": "/accounting/go-live",
+    "title": "Puesta en marcha — SeePOS",
+    "h1": "Puesta en marcha",
+    "estado": "Pasa",
+    "len": 1832
+  },
+  {
+    "titulo": "Balanza",
+    "ruta": "/accounting/trial-balance",
+    "title": "Balanza — SeePOS",
+    "h1": "Balanza",
+    "estado": "Pasa",
+    "len": 1600
+  },
+  {
+    "titulo": "Estado de resultados",
+    "ruta": "/accounting/income-statement",
+    "title": "Estado de resultados — SeePOS",
+    "h1": "Estado de resultados",
+    "estado": "Pasa",
+    "len": 1668
+  },
+  {
+    "titulo": "Balance general",
+    "ruta": "/accounting/balance-sheet",
+    "title": "Balance general — SeePOS",
+    "h1": "Balance general",
+    "estado": "Pasa",
+    "len": 1616
+  },
+  {
+    "titulo": "Flujo de efectivo",
+    "ruta": "/accounting/cash-flow",
+    "title": "Flujo de efectivo — SeePOS",
+    "h1": "Flujo de efectivo",
+    "estado": "Pasa",
+    "len": 1662
+  },
+  {
+    "titulo": "Estados NIIF PYMES",
+    "ruta": "/accounting/financial-statements",
+    "title": "Estados NIIF PYMES — SeePOS",
+    "h1": "Estados NIIF PYMES",
+    "estado": "Pasa",
+    "len": 1667
+  }
+]

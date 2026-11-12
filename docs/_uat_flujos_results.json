@@ -1,0 +1,98 @@
+[
+  {
+    "id": "F6",
+    "flujo": "Proforma",
+    "resultado": "Parcial",
+    "documento": "lista 6 proformas (incl. #6 Marco 11/11 ₡2.425,32)",
+    "evento": null,
+    "notas": "Abre /sales/budgets/proforma; lista y botón Nueva visibles. Solo nota (sin alta nueva)."
+  },
+  {
+    "id": "F7",
+    "flujo": "Factura Contado",
+    "resultado": "Parcial",
+    "documento": "Factura Contado consecutivo 31 (Marco 002/Test1 ₡2.425,32) — RecibidoPorHacienda",
+    "evento": "Ventas #75 VentaEmitida Contabilizado",
+    "notas": "Caja #21 abierta. Preventa cobrada EFE vía /initial/charge (clave UatCaja2026). Campo ruta comercial no apareció en Facturación (UAT Comisiones existe en Comisiones). Sin CobroAplicado nuevo en bandeja (sigue #28 máx). Comisión Pendiente=0 (sin ruta + FE aún no Aceptado)."
+  },
+  {
+    "id": "F8",
+    "flujo": "Factura Crédito",
+    "resultado": "Pasa",
+    "documento": "Facturas electrónicas consec. 11 y 12 (Marco) Aceptado",
+    "evento": "Ventas #70 y #71 VentaEmitida Contabilizado",
+    "notas": "Verificado en Documentos y bandeja; no se creó crédito nuevo."
+  },
+  {
+    "id": "F9",
+    "flujo": "Devoluciones",
+    "resultado": "Parcial",
+    "documento": null,
+    "evento": null,
+    "notas": "Smoke: /sales/repayment abre (Nueva devolución / Devoluciones anteriores). Sin NC nueva."
+  },
+  {
+    "id": "F10",
+    "flujo": "Cobrar",
+    "resultado": "Pasa",
+    "documento": "Preventa Factura 31 cobrada",
+    "evento": "Cobrado; FE en proceso (mensaje UI)",
+    "notas": "Unlock con UatCaja2026 OK; búsqueda por cédula 112940871; pago EFE 2425.32; confirmación OK."
+  },
+  {
+    "id": "F11",
+    "flujo": "Ciclo de caja",
+    "resultado": "Parcial",
+    "documento": "Apertura #21",
+    "evento": "AperturaCaja Contabilizado (noche previa)",
+    "notas": "Confirmada #21 en Facturación/Cobrar. Arqueo, Pre Depósito y Consulta Depósitos abren. Sin cierre de #21."
+  },
+  {
+    "id": "F13",
+    "flujo": "Comisiones",
+    "resultado": "Parcial",
+    "documento": "Liquidada 4 movs; Pendiente 0",
+    "evento": "Comisiones #2 ComisionLiquidada Contabilizado (noche previa)",
+    "notas": "Consulta Pendiente vacía; Liquidada 4 movimientos. Ruta UAT Comisiones disponible en filtro (no usada en F7)."
+  },
+  {
+    "id": "F15",
+    "flujo": "Consignación",
+    "resultado": "Pasa",
+    "documento": "Prefactura/venta #73 (noche previa)",
+    "evento": "Ventas #73 + Cobros #28 Contabilizado",
+    "notas": "UI /consignment/settlements abre con listado/Abrir. Verificación bandeja #73 Contabilizado."
+  },
+  {
+    "id": "F17",
+    "flujo": "Documentos / Fiscal",
+    "resultado": "Parcial",
+    "documento": "Facturas con estados Hacienda (Aceptado / RecibidoPorHacienda)",
+    "evento": null,
+    "notas": "Lista Facturas OK. Nueva Contado 31 en RecibidoPorHacienda; anteriores Aceptado."
+  },
+  {
+    "id": "C5",
+    "flujo": "Bandeja Contabilidad",
+    "resultado": "Pasa",
+    "documento": null,
+    "evento": "Ventas Contabilizado hoy: 10 (#66–#75); Cobros Contabilizado hoy: 3 (#26–#28)",
+    "notas": "Filtro Ventas+Contabilizado+11/11 y Cobros+hoy OK. #75 Contabilizado sin CobroAplicado nuevo."
+  },
+  {
+    "id": "C10",
+    "flujo": "Auxiliares / conciliación mayor",
+    "resultado": "Parcial",
+    "documento": null,
+    "evento": null,
+    "notas": "CxC: 3 diffs; CxP: 5 diffs; Inventario: 0 diffs; Mayor (corte 2026-10-31): 3 diffs (CxC/CxP/Inventario)."
+  },
+  {
+    "id": "C11",
+    "flujo": "Pre-cierre 09/2026",
+    "resultado": "Bloqueado",
+    "documento": "Período 09/2026 Abierto",
+    "evento": null,
+    "notas": "Pantalla Cierre abre; Ejecutar pre-cierre visible. Ejecución no mostró detalle de bloqueos en UI (botón quedó inerte). Evidencia noche: cierre sept bloqueado (docs sin evento + diffs)."
+  }
+]

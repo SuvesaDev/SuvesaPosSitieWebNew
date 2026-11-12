@@ -1,0 +1,622 @@
+[
+  {
+    "titulo": "Inicio",
+    "ruta": "/initial"
+  },
+  {
+    "titulo": "Clientes",
+    "ruta": "/initial/customers"
+  },
+  {
+    "titulo": "Inventarios",
+    "ruta": "/initial/inventory"
+  },
+  {
+    "titulo": "Facturación",
+    "ruta": "/initial/billing"
+  },
+  {
+    "titulo": "Bandeja de documentos",
+    "ruta": "/initial/documents"
+  },
+  {
+    "titulo": "Envíos de correo",
+    "ruta": "/initial/mail-outbox"
+  },
+  {
+    "titulo": "Alertas",
+    "ruta": "/initial/alerts"
+  },
+  {
+    "titulo": "Caja",
+    "ruta": "/initial/cash/closecash"
+  },
+  {
+    "titulo": "Apertura Caja",
+    "ruta": "/initial/cash/opencash"
+  },
+  {
+    "titulo": "Arqueo Caja",
+    "ruta": "/initial/cash/arqueocash"
+  },
+  {
+    "titulo": "Consulta de Arqueos",
+    "ruta": "/initial/cash/arqueoconsulta"
+  },
+  {
+    "titulo": "Conciliación de caja",
+    "ruta": "/initial/cash/reconciliation"
+  },
+  {
+    "titulo": "Cobrar",
+    "ruta": "/initial/charge"
+  },
+  {
+    "titulo": "Depósitos",
+    "ruta": "/initial/cash/deposits"
+  },
+  {
+    "titulo": "Pre Depósito",
+    "ruta": "/initial/cash/deposits/predeposits"
+  },
+  {
+    "titulo": "Generar Depósito",
+    "ruta": "/initial/cash/deposits/generatedeposits"
+  },
+  {
+    "titulo": "Consulta Depósitos",
+    "ruta": "/initial/cash/deposits/consultdeposits"
+  },
+  {
+    "titulo": "Compras",
+    "ruta": "/buys"
+  },
+  {
+    "titulo": "Compra",
+    "ruta": "/buys/buy"
+  },
+  {
+    "titulo": "Proveedores",
+    "ruta": "/buys/providers"
+  },
+  {
+    "titulo": "Documentos aceptados",
+    "ruta": "/buys/received-messages"
+  },
+  {
+    "titulo": "Cuentas por pagar",
+    "ruta": "/buys/countswihoutpay"
+  },
+  {
+    "titulo": "Pedidos",
+    "ruta": "/buys/orders/warehouseorders"
+  },
+  {
+    "titulo": "Consultar Pedidos",
+    "ruta": "/buys/orders/checkorders"
+  },
+  {
+    "titulo": "Toma",
+    "ruta": "/buys/physical-count"
+  },
+  {
+    "titulo": "Pretoma",
+    "ruta": "/buys/physical-precount"
+  },
+  {
+    "titulo": "Traslado entre bodegas",
+    "ruta": "/buys/warehouse-transfer"
+  },
+  {
+    "titulo": "Orden de compra manual",
+    "ruta": "/buys/purchaseorder"
+  },
+  {
+    "titulo": "Importaciones",
+    "ruta": "/buys/importationsbox"
+  },
+  {
+    "titulo": "Devoluciones compra",
+    "ruta": "/buys/purchasereturns"
+  },
+  {
+    "titulo": "Abono Pagar",
+    "ruta": "/buys/pay"
+  },
+  {
+    "titulo": "Recibos de pago",
+    "ruta": "/buys/payment-receipts"
+  },
+  {
+    "titulo": "Producción",
+    "ruta": "/production/calculator"
+  },
+  {
+    "titulo": "Bitácora",
+    "ruta": "/production/log"
+  },
+  {
+    "titulo": "Bodega",
+    "ruta": "/bodega/cola"
+  },
+  {
+    "titulo": "Recibo de mercadería",
+    "ruta": "/bodega/recibo"
+  },
+  {
+    "titulo": "Empaque",
+    "ruta": "/bodega/empaque"
+  },
+  {
+    "titulo": "Despacho",
+    "ruta": "/bodega/despacho"
+  },
+  {
+    "titulo": "Rutas de entrega",
+    "ruta": "/bodega/rutas"
+  },
+  {
+    "titulo": "Consignación",
+    "ruta": "/consignment/dashboard"
+  },
+  {
+    "titulo": "Bodegas de Consignación",
+    "ruta": "/consignment/warehouses"
+  },
+  {
+    "titulo": "Ajuste de Bodega de Consignación",
+    "ruta": "/consignment/adjust"
+  },
+  {
+    "titulo": "Boletas de Consignación",
+    "ruta": "/consignment/tickets"
+  },
+  {
+    "titulo": "Inventario Físico de Consignación",
+    "ruta": "/consignment/count"
+  },
+  {
+    "titulo": "Kardex de Consignación",
+    "ruta": "/consignment/ledger"
+  },
+  {
+    "titulo": "Facturacion de Consignaciones",
+    "ruta": "/consignment/prebill"
+  },
+  {
+    "titulo": "Estados de Consignación",
+    "ruta": "/consignment/settlements"
+  },
+  {
+    "titulo": "Ventas",
+    "ruta": "/sales"
+  },
+  {
+    "titulo": "Abono Cobrar",
+    "ruta": "/sales/collect"
+  },
+  {
+    "titulo": "Recibos y fallidas",
+    "ruta": "/sales/receipts"
+  },
+  {
+    "titulo": "Perfiles de emisión",
+    "ruta": "/sales/emission-profiles"
+  },
+  {
+    "titulo": "Comisiones",
+    "ruta": "/sales/commissions"
+  },
+  {
+    "titulo": "Trámite de cobro",
+    "ruta": "/sales/collection-process"
+  },
+  {
+    "titulo": "Devoluciones",
+    "ruta": "/sales/repayment"
+  },
+  {
+    "titulo": "Presupuestos",
+    "ruta": "/sales/budgets/proforma"
+  },
+  {
+    "titulo": "Seguimiento Cotizaciones",
+    "ruta": "/sales/budgets/seguimiento"
+  },
+  {
+    "titulo": "Parametros",
+    "ruta": "/parameters"
+  },
+  {
+    "titulo": "Bancos",
+    "ruta": "/parameters/bank"
+  },
+  {
+    "titulo": "Configuración de Plazos",
+    "ruta": "/parameters/payment-terms"
+  },
+  {
+    "titulo": "Denominaciones de Moneda",
+    "ruta": "/parameters/currency-denominations"
+  },
+  {
+    "titulo": "Familias",
+    "ruta": "/parameters/family"
+  },
+  {
+    "titulo": "Formas de Pago",
+    "ruta": "/parameters/payment-methods"
+  },
+  {
+    "titulo": "Geografía Fiscal",
+    "ruta": "/parameters/fiscal-geography"
+  },
+  {
+    "titulo": "Impuestos",
+    "ruta": "/parameters/taxes"
+  },
+  {
+    "titulo": "Monedas Fiscales",
+    "ruta": "/parameters/currencies"
+  },
+  {
+    "titulo": "Presentaciones",
+    "ruta": "/parameters/presentations"
+  },
+  {
+    "titulo": "Rutas",
+    "ruta": "/parameters/routes"
+  },
+  {
+    "titulo": "Tarifas",
+    "ruta": "/parameters/rates"
+  },
+  {
+    "titulo": "Tipos de Bonificación",
+    "ruta": "/parameters/bonus-types"
+  },
+  {
+    "titulo": "Tipos de Cobro",
+    "ruta": "/parameters/collection-types"
+  },
+  {
+    "titulo": "Tipos de Exoneración",
+    "ruta": "/parameters/exemption-types"
+  },
+  {
+    "titulo": "Tipos de Factura",
+    "ruta": "/parameters/invoice-types"
+  },
+  {
+    "titulo": "Tipos de Identificación",
+    "ruta": "/parameters/identification-types"
+  },
+  {
+    "titulo": "Ubicaciones",
+    "ruta": "/parameters/locations"
+  },
+  {
+    "titulo": "Usuarios",
+    "ruta": "/parameters/users"
+  },
+  {
+    "titulo": "Roles",
+    "ruta": "/parameters/role"
+  },
+  {
+    "titulo": "Surcursales",
+    "ruta": "/parameters/branch"
+  },
+  {
+    "titulo": "Series de Facturación",
+    "ruta": "/parameters/invoice-series"
+  },
+  {
+    "titulo": "Series operativas",
+    "ruta": "/parameters/operational-series"
+  },
+  {
+    "titulo": "Propiedades de formas de pago",
+    "ruta": "/parameters/payment-methods-properties"
+  },
+  {
+    "titulo": "Plantillas de impresión",
+    "ruta": "/parameters/print-templates"
+  },
+  {
+    "titulo": "Configuración de correo",
+    "ruta": "/parameters/mail-settings"
+  },
+  {
+    "titulo": "Configuración",
+    "ruta": "/parameters/settings"
+  },
+  {
+    "titulo": "Emisores",
+    "ruta": "/parameters/issuers"
+  },
+  {
+    "titulo": "Bodegas",
+    "ruta": "/parameters/wineries"
+  },
+  {
+    "titulo": "Areas",
+    "ruta": "/parameters/areas"
+  },
+  {
+    "titulo": "Cajas",
+    "ruta": "/parameters/cash-registers"
+  },
+  {
+    "titulo": "Módulo Inventario",
+    "ruta": "/moduloInventario"
+  },
+  {
+    "titulo": "Cobranza",
+    "ruta": "/collections"
+  },
+  {
+    "titulo": "Seguimiento",
+    "ruta": "/collections/follow-up"
+  },
+  {
+    "titulo": "Dashboard",
+    "ruta": "/collections/dashboard"
+  },
+  {
+    "titulo": "Gerencial",
+    "ruta": "/collections/management"
+  },
+  {
+    "titulo": "Autorizaciones de crédito",
+    "ruta": "/collections/credit-authorizations"
+  },
+  {
+    "titulo": "Módulo Reportes",
+    "ruta": "/moduloReportes"
+  },
+  {
+    "titulo": "Panel ejecutivo",
+    "ruta": "/moduloReportes/panel-ejecutivo"
+  },
+  {
+    "titulo": "Ventas",
+    "ruta": "/moduloReportes/ventas"
+  },
+  {
+    "titulo": "Ventas detalle",
+    "ruta": "/moduloReportes/ventas-detalle"
+  },
+  {
+    "titulo": "Ventas entre horas",
+    "ruta": "/moduloReportes/ventas-horas"
+  },
+  {
+    "titulo": "Comportamiento de clientes",
+    "ruta": "/moduloReportes/clientes"
+  },
+  {
+    "titulo": "Rentabilidad",
+    "ruta": "/moduloReportes/rentabilidad"
+  },
+  {
+    "titulo": "Ventas vs compras",
+    "ruta": "/moduloReportes/ventas-compras"
+  },
+  {
+    "titulo": "Recuperación de cartera",
+    "ruta": "/moduloReportes/recuperacion-cxc"
+  },
+  {
+    "titulo": "Cuentas por cobrar",
+    "ruta": "/moduloReportes/cuentas-por-cobrar"
+  },
+  {
+    "titulo": "Cumplimiento CABYS",
+    "ruta": "/moduloReportes/cabys"
+  },
+  {
+    "titulo": "Cuentas por pagar",
+    "ruta": "/moduloReportes/cuentas-por-pagar"
+  },
+  {
+    "titulo": "Apartados y préstamos",
+    "ruta": "/moduloReportes/apartados"
+  },
+  {
+    "titulo": "KPI por ruta comercial",
+    "ruta": "/moduloReportes/kpi-rutas"
+  },
+  {
+    "titulo": "Caja",
+    "ruta": "/moduloReportes/caja"
+  },
+  {
+    "titulo": "Arqueos y cierres",
+    "ruta": "/moduloReportes/arqueos-cierres"
+  },
+  {
+    "titulo": "Depósitos",
+    "ruta": "/moduloReportes/depositos"
+  },
+  {
+    "titulo": "Compras",
+    "ruta": "/moduloReportes/compras"
+  },
+  {
+    "titulo": "Importaciones",
+    "ruta": "/moduloReportes/importaciones"
+  },
+  {
+    "titulo": "IVA Repercutido",
+    "ruta": "/moduloReportes/iva-repercutido"
+  },
+  {
+    "titulo": "IVA Soportado",
+    "ruta": "/moduloReportes/iva-soportado"
+  },
+  {
+    "titulo": "Prorrata",
+    "ruta": "/moduloReportes/prorrata"
+  },
+  {
+    "titulo": "Gastos",
+    "ruta": "/moduloReportes/gastos"
+  },
+  {
+    "titulo": "Inventario",
+    "ruta": "/moduloReportes/inventario"
+  },
+  {
+    "titulo": "Inventario ABC",
+    "ruta": "/moduloReportes/inventario-abc"
+  },
+  {
+    "titulo": "Rotación de inventario",
+    "ruta": "/moduloReportes/rotacion-inventario"
+  },
+  {
+    "titulo": "Bonificaciones",
+    "ruta": "/moduloReportes/bonificaciones"
+  },
+  {
+    "titulo": "Lotes y vencimientos",
+    "ruta": "/moduloReportes/lotes"
+  },
+  {
+    "titulo": "Trazabilidad",
+    "ruta": "/moduloReportes/trazabilidad"
+  },
+  {
+    "titulo": "Empaquetado y maquila",
+    "ruta": "/moduloReportes/empaquetado"
+  },
+  {
+    "titulo": "Mermas",
+    "ruta": "/moduloReportes/mermas"
+  },
+  {
+    "titulo": "Auditoría",
+    "ruta": "/moduloReportes/auditoria"
+  },
+  {
+    "titulo": "Contabilidad",
+    "ruta": "/accounting/issuer-setup"
+  },
+  {
+    "titulo": "Catálogo cuentas",
+    "ruta": "/accounting/chart-of-accounts"
+  },
+  {
+    "titulo": "Dimensiones",
+    "ruta": "/accounting/dimensions"
+  },
+  {
+    "titulo": "Plantillas",
+    "ruta": "/accounting/templates"
+  },
+  {
+    "titulo": "Bandeja",
+    "ruta": "/accounting/inbox"
+  },
+  {
+    "titulo": "Reproceso",
+    "ruta": "/accounting/reprocessing"
+  },
+  {
+    "titulo": "Diario",
+    "ruta": "/accounting/journal"
+  },
+  {
+    "titulo": "Mayor",
+    "ruta": "/accounting/ledger"
+  },
+  {
+    "titulo": "Auxiliar CxC",
+    "ruta": "/accounting/subledger-ar"
+  },
+  {
+    "titulo": "Auxiliar CxP",
+    "ruta": "/accounting/subledger-ap"
+  },
+  {
+    "titulo": "Auxiliar Inventario",
+    "ruta": "/accounting/subledger-inventory"
+  },
+  {
+    "titulo": "Bitácora",
+    "ruta": "/accounting/audit-log"
+  },
+  {
+    "titulo": "Cierre",
+    "ruta": "/accounting/close"
+  },
+  {
+    "titulo": "Cierre anual",
+    "ruta": "/accounting/annual-close"
+  },
+  {
+    "titulo": "Aprobaciones",
+    "ruta": "/accounting/approvals"
+  },
+  {
+    "titulo": "Tipos de cambio",
+    "ruta": "/accounting/exchange-rates"
+  },
+  {
+    "titulo": "Revaluación",
+    "ruta": "/accounting/revaluation"
+  },
+  {
+    "titulo": "Procesadores de pago",
+    "ruta": "/accounting/payment-processors"
+  },
+  {
+    "titulo": "Gastos",
+    "ruta": "/accounting/expenses"
+  },
+  {
+    "titulo": "Diferencias de caja",
+    "ruta": "/accounting/cash-differences"
+  },
+  {
+    "titulo": "Deducibilidad",
+    "ruta": "/accounting/deductibility"
+  },
+  {
+    "titulo": "Reclasificación de inventario",
+    "ruta": "/accounting/inventory-reclassification"
+  },
+  {
+    "titulo": "Conciliación contra el mayor",
+    "ruta": "/accounting/ledger-reconciliation"
+  },
+  {
+    "titulo": "Saldos iniciales",
+    "ruta": "/accounting/opening-balances"
+  },
+  {
+    "titulo": "Puesta en marcha",
+    "ruta": "/accounting/go-live"
+  },
+  {
+    "titulo": "Balanza",
+    "ruta": "/accounting/trial-balance"
+  },
+  {
+    "titulo": "Estado de resultados",
+    "ruta": "/accounting/income-statement"
+  },
+  {
+    "titulo": "Balance general",
+    "ruta": "/accounting/balance-sheet"
+  },
+  {
+    "titulo": "Flujo de efectivo",
+    "ruta": "/accounting/cash-flow"
+  },
+  {
+    "titulo": "Estados NIIF PYMES",
+    "ruta": "/accounting/financial-statements"
+  }
+]
