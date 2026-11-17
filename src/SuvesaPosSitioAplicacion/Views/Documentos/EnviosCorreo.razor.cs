@@ -78,7 +78,10 @@ public partial class EnviosCorreo
 
     private async Task Reenviar(EnvioCorreoDTO e)
     {
-        if (!await Dialogos.ConfirmarAsync($"¿Reencolar el envío del comprobante {e.Clave}?", "Reenviar")) return;
+        var mensaje = e.Estado == "Enviado"
+            ? $"El comprobante {e.Clave} ya se envió{(e.FechaEnvioUtc is { } fecha ? $" el {fecha.ToLocalTime():dd/MM/yyyy HH:mm}" : "")} a {e.Destinatarios}. ¿Reenviarlo de nuevo a los mismos destinatarios?"
+            : $"¿Reencolar el envío del comprobante {e.Clave}?";
+        if (!await Dialogos.ConfirmarAsync(mensaje, "Reenviar")) return;
         if (await Respuestas.CorrectaAsync(await Api.Reenviar(e.Clave), "reencolar el envío"))
         {
             Dialogos.Exito("Envío reencolado.");
@@ -86,7 +89,7 @@ public partial class EnviosCorreo
         }
     }
 
-    private static bool Reenviable(string estado) => estado is "Fallido" or "OmitidoSinDestinatario" or "OmitidoRechazado";
+    private static bool Reenviable(string estado) => estado is "Enviado" or "Fallido" or "OmitidoSinDestinatario" or "OmitidoRechazado";
 
     private static string Color(string estado) => estado switch
     {
