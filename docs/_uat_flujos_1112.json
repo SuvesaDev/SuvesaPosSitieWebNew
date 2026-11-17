@@ -1,0 +1,242 @@
+[
+  {
+    "id": "F1",
+    "flujo": "Compra",
+    "resultado": "Parcial",
+    "documento": "Compras #14/#17 Contabilizado (histórico)",
+    "evento": "CompraRegistrada Compras #17 Contabilizado en bandeja",
+    "notas": "UI /buys/buy desbloquea con UatCaja2026. Mensaje: cajero sin caja abierta para contado (pese a #21 en Cobrar/Facturación). Sin compra nueva UAT-CERT-1112."
+  },
+  {
+    "id": "F2",
+    "flujo": "Pago a proveedor",
+    "resultado": "Parcial",
+    "documento": null,
+    "evento": "DepositoConfirmado Instrumentos #11 Contabilizado (hist.)",
+    "notas": "No corrido completo. Smoke Abono Pagar / recibos en capa C."
+  },
+  {
+    "id": "F3",
+    "flujo": "Toma física",
+    "resultado": "Parcial",
+    "documento": "Inventario #8 Contabilizado (hist.)",
+    "evento": "AjusteInventario Inventario #8 Contabilizado",
+    "notas": "No corrido completo. Smoke pretoma/toma en capa C."
+  },
+  {
+    "id": "F4",
+    "flujo": "Traslado entre bodegas",
+    "resultado": "Parcial",
+    "documento": null,
+    "evento": null,
+    "notas": "No corrido completo. Smoke /buys/warehouse-transfer Pasa en capa C."
+  },
+  {
+    "id": "F5",
+    "flujo": "Pedidos / OC",
+    "resultado": "Parcial",
+    "documento": null,
+    "evento": null,
+    "notas": "No corrido completo. Pedidos = Pantalla pendiente; OC/importaciones abren (capa C)."
+  },
+  {
+    "id": "F6",
+    "flujo": "Proforma",
+    "resultado": "Parcial",
+    "documento": "Lista 6 proformas (incl. #6 Marco 11/11 ₡2.425,32 PENDIENTE)",
+    "evento": null,
+    "notas": "/sales/budgets/proforma lista OK; sin alta/conversión nueva."
+  },
+  {
+    "id": "F7",
+    "flujo": "Factura Contado",
+    "resultado": "Parcial",
+    "documento": "FE Contado consec. 31 Marco Aceptado (₡2.425,32)",
+    "evento": "Ventas #75 VentaEmitida Contabilizado",
+    "notas": "Caja #21 OK. Intentó nueva venta hoy: cliente Marco seleccionado; no se completó emisión nueva (prefijo UAT-CERT-1112). Verificado doc previo + bandeja. Ruta comercial no usada. Sin CobroAplicado nuevo (#28 máx)."
+  },
+  {
+    "id": "F8",
+    "flujo": "Factura Crédito",
+    "resultado": "Pasa",
+    "documento": "FE crédito consec. 11 y 12 Marco Aceptado",
+    "evento": "Ventas #70 y #71 VentaEmitida Contabilizado",
+    "notas": "Marco tiene crédito ₡500.000. Verificado en Documentos; no se emitió crédito nuevo hoy."
+  },
+  {
+    "id": "F9",
+    "flujo": "Devoluciones",
+    "resultado": "Parcial",
+    "documento": "DevolucionesVenta #18/#19 Contabilizado (hist.)",
+    "evento": "NotaCreditoEmitida DevolucionesVenta #19 Contabilizado",
+    "notas": "Smoke /sales/repayment (Nueva devolución / anteriores). Sin NC nueva."
+  },
+  {
+    "id": "F10",
+    "flujo": "Cobrar",
+    "resultado": "Pasa",
+    "documento": null,
+    "evento": null,
+    "notas": "Unlock UatCaja2026 OK → Cajero Costa PetsAdmin · Apertura #21. Búsqueda por cédula/ficha disponible."
+  },
+  {
+    "id": "F11",
+    "flujo": "Ciclo de caja",
+    "resultado": "Parcial",
+    "documento": "Apertura #21",
+    "evento": "Apertura confirmada en Facturación/Cobrar",
+    "notas": "Confirmada #21. Sin arqueo/cierre completo de #21."
+  },
+  {
+    "id": "F12",
+    "flujo": "Cobranza",
+    "resultado": "Parcial",
+    "documento": "1 factura · saldo ₡10.383,70 (mora 23 d, En promesa)",
+    "evento": null,
+    "notas": "/collections/follow-up busca y lista OK. Sin gestión nueva."
+  },
+  {
+    "id": "F13",
+    "flujo": "Comisiones",
+    "resultado": "Parcial",
+    "documento": "Liquidada con movimientos; Pendiente vacío",
+    "evento": "ComisionLiquidada hist. #2",
+    "notas": "Consulta Pendiente=0; Liquidada muestra resumen (Agente/ServicioCliente). Ruta UAT Comisiones en filtro."
+  },
+  {
+    "id": "F14",
+    "flujo": "Bodega",
+    "resultado": "Parcial",
+    "documento": null,
+    "evento": null,
+    "notas": "No corrido completo. Smoke cola/recibo/empaque/despacho/rutas Pasa en capa C."
+  },
+  {
+    "id": "F15",
+    "flujo": "Consignación",
+    "resultado": "Pasa",
+    "documento": "Estados #1/#2 Marco; venta #73 hist.",
+    "evento": "Ventas #73 + Cobros #28 Contabilizado",
+    "notas": "/consignment/settlements lista Abrir. Verificación bandeja Contabilizado."
+  },
+  {
+    "id": "F16",
+    "flujo": "Producción",
+    "resultado": "Parcial",
+    "documento": null,
+    "evento": null,
+    "notas": "No corrido completo. Smoke calculadora/bitácora Pasa en capa C."
+  },
+  {
+    "id": "F17",
+    "flujo": "Documentos / Fiscal",
+    "resultado": "Pasa",
+    "documento": "Facturas Contado 29–31 y FE 11–12 Aceptado",
+    "evento": null,
+    "notas": "Bandeja documentos 05–12/11: estados Hacienda Aceptado para Marco."
+  },
+  {
+    "id": "F18",
+    "flujo": "Reportes",
+    "resultado": "Parcial",
+    "documento": "/moduloReportes/compras → 4 registros tras Consultar",
+    "evento": null,
+    "notas": "Consultar OK. Resto de reportes solo smoke capa C; sin cuadre doc a doc."
+  },
+  {
+    "id": "C1",
+    "flujo": "Sucursal contab. apagada",
+    "resultado": "No corrido",
+    "documento": null,
+    "evento": null,
+    "notas": "Falta 2.ª sucursal apagada en datos."
+  },
+  {
+    "id": "C2",
+    "flujo": "Sin plantilla vigente",
+    "resultado": "Pasa",
+    "documento": "Histórico ErrorConfiguracion + Regenerar",
+    "evento": "Compra #14",
+    "notas": "Evidencia histórica reutilizada."
+  },
+  {
+    "id": "C3",
+    "flujo": "Regenerar tras cambio",
+    "resultado": "Pasa",
+    "documento": "Compra #14",
+    "evento": null,
+    "notas": "Histórico."
+  },
+  {
+    "id": "C4",
+    "flujo": "Anterior a puesta en marcha",
+    "resultado": "No corrido",
+    "documento": null,
+    "evento": null,
+    "notas": ""
+  },
+  {
+    "id": "C5",
+    "flujo": "Bandeja Contabilidad",
+    "resultado": "Pasa",
+    "documento": null,
+    "evento": "Ventas #66–#75 Contabilizado; Cobros #26–#28; Compras #17; NC #19",
+    "notas": "Filtro Contabilizado 11/11 en /accounting/inbox OK. Sin CobroAplicado nuevo post-#28."
+  },
+  {
+    "id": "C6",
+    "flujo": "Período cerrado",
+    "resultado": "No corrido",
+    "documento": null,
+    "evento": null,
+    "notas": "Ningún período cerrado."
+  },
+  {
+    "id": "C7",
+    "flujo": "Abrir mes nuevo",
+    "resultado": "Pasa",
+    "documento": "09/10/11 2026 Abierto",
+    "evento": null,
+    "notas": "UI Abrir período visible; períodos ya abiertos."
+  },
+  {
+    "id": "C8",
+    "flujo": "Moneda extranjera",
+    "resultado": "No corrido",
+    "documento": null,
+    "evento": null,
+    "notas": ""
+  },
+  {
+    "id": "C9",
+    "flujo": "Reverso / aprobaciones",
+    "resultado": "Parcial",
+    "documento": null,
+    "evento": null,
+    "notas": "Pantallas abren (capa C)."
+  },
+  {
+    "id": "C10",
+    "flujo": "Auxiliares / conciliación mayor",
+    "resultado": "Parcial",
+    "documento": null,
+    "evento": null,
+    "notas": "CxC Conciliar: 3 diffs (cli 67/7/48). Inventario: 0 diffs. CxP/Mayor: diffs reportados en pre-cierre (mayor en 0)."
+  },
+  {
+    "id": "C11",
+    "flujo": "Pre-cierre 09/2026",
+    "resultado": "Bloqueado",
+    "documento": "Período 09/2026 Abierto",
+    "evento": null,
+    "notas": "Checklist: 72 docs sin evento; 31 diffs conciliación; CxC/CxP/Inv vs mayor (mayor 0). Período no cerrable."
+  },
+  {
+    "id": "C12",
+    "flujo": "Cierre anual",
+    "resultado": "No corrido",
+    "documento": null,
+    "evento": null,
+    "notas": ""
+  }
+]
