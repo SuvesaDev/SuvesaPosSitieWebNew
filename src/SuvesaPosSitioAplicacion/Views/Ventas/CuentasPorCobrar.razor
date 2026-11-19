@@ -104,6 +104,19 @@
                             <div class="col"><div class="text-secondary small">Crédito a favor</div><div class="h6 mb-0">@Formato.Importe(_credito.CreditoAFavor)</div></div>
                             <div class="col"><div class="text-secondary small">Plazo</div><div class="h6 mb-0">@_credito.PlazoDias d</div></div>
                         </div>
+                        @if (_credito.CreditoAFavor > 0)
+                        {
+                            <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
+                                <button class="btn btn-sm btn-outline-primary" disabled="@(_procesando || _selCredito.Count != 1)" @onclick="AplicarCreditoAFavor"
+                                        title="Seleccione una sola factura de la lista">
+                                    <i class="bi bi-arrow-left-right me-1" aria-hidden="true"></i>Aplicar crédito a la factura seleccionada
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" disabled="@(_procesando || !Desbloqueado)" @onclick="DevolverCreditoAFavor"
+                                        title="Requiere la caja desbloqueada">
+                                    <i class="bi bi-cash-coin me-1" aria-hidden="true"></i>Devolver en efectivo
+                                </button>
+                            </div>
+                        }
                         @if (_credito.Bloqueado)
                         {
                             <div class="alert alert-warning mt-2 mb-0">@_credito.MotivoBloqueo</div>

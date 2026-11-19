@@ -26,6 +26,14 @@ public sealed class CobrosCredito : ProxyBase, ICobrosCredito
         => Ejecutar(async () => await LecturaEnvelope.Leer<CobroCreditoResultadoWebDTO>(
             await _api.PostAsJsonAsync("api/cobros-credito", comando, LecturaEnvelope.Json)), "registrar el cobro de crédito");
 
+    public Task<ResponseGeneric<AplicarCreditoAFavorResultadoWebDTO>> AplicarCreditoAFavor(AplicarCreditoAFavorWebDTO comando)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<AplicarCreditoAFavorResultadoWebDTO>(
+            await _api.PostAsJsonAsync("api/cobros-credito/credito-a-favor/aplicar", comando, LecturaEnvelope.Json)), "aplicar el crédito a favor");
+
+    public Task<ResponseGeneric<DevolverCreditoAFavorResultadoWebDTO>> DevolverCreditoAFavor(DevolverCreditoAFavorWebDTO comando)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<DevolverCreditoAFavorResultadoWebDTO>(
+            await _api.PostAsJsonAsync("api/cobros-credito/credito-a-favor/devolver", comando, LecturaEnvelope.Json)), "devolver el crédito a favor");
+
     public Task<ResponseGeneric<bool>> Anular(long idCobro, string? motivo)
         => Ejecutar(async () => await LecturaEnvelope.Leer<bool>(
             await _api.PostAsJsonAsync($"api/cobros-credito/{idCobro}/anular", new { Motivo = motivo }, LecturaEnvelope.Json)),

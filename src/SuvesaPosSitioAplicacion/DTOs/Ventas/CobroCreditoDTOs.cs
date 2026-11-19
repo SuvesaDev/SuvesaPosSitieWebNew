@@ -37,6 +37,46 @@ public sealed class FacturaCreditoWebDTO
 }
 
 /// <summary>Comando de cobro de facturas de crédito.</summary>
+public sealed class AplicarCreditoAFavorWebDTO
+{
+    public string? ClaveIdempotencia { get; set; }
+    public long IdCliente { get; set; }
+    public long IdVenta { get; set; }
+    /// <summary>null = lo que alcance: el menor entre el crédito disponible y el saldo de la factura.</summary>
+    public decimal? Monto { get; set; }
+    public string Usuario { get; set; } = "";
+}
+
+public sealed class AplicarCreditoAFavorResultadoWebDTO
+{
+    public long IdCobro { get; set; }
+    public long NumeroRecibo { get; set; }
+    public decimal MontoAplicado { get; set; }
+    public decimal SaldoNuevoFactura { get; set; }
+    public decimal CreditoRestante { get; set; }
+}
+
+public sealed class DevolverCreditoAFavorWebDTO
+{
+    public string? ClaveIdempotencia { get; set; }
+    public long IdCliente { get; set; }
+    /// <summary>null = todo el crédito a favor disponible.</summary>
+    public decimal? Monto { get; set; }
+    public long IdApertura { get; set; }
+    public int IdSucursal { get; set; }
+    public long? NumCaja { get; set; }
+    public string? CedulaCajero { get; set; }
+    public string Usuario { get; set; } = "";
+    public string? Motivo { get; set; }
+}
+
+public sealed class DevolverCreditoAFavorResultadoWebDTO
+{
+    public long IdMovimientoCaja { get; set; }
+    public decimal MontoDevuelto { get; set; }
+    public decimal CreditoRestante { get; set; }
+}
+
 public sealed class CobroCreditoComandoWebDTO
 {
     public string? ClaveIdempotencia { get; set; }

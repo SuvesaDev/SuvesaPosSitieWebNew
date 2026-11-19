@@ -16,4 +16,10 @@ public interface ICobrosCredito
     Task<ResponseGeneric<CobroCreditoResultadoWebDTO>> Cobrar(CobroCreditoComandoWebDTO comando);
 
     Task<ResponseGeneric<bool>> Anular(long idCobro, string? motivo);
+
+    /// <summary>Aplica el crédito a favor del cliente a una de sus facturas de crédito (con recibo).</summary>
+    Task<ResponseGeneric<AplicarCreditoAFavorResultadoWebDTO>> AplicarCreditoAFavor(AplicarCreditoAFavorWebDTO comando);
+
+    /// <summary>Devuelve en efectivo el crédito a favor del cliente (salida de caja).</summary>
+    Task<ResponseGeneric<DevolverCreditoAFavorResultadoWebDTO>> DevolverCreditoAFavor(DevolverCreditoAFavorWebDTO comando);
 }

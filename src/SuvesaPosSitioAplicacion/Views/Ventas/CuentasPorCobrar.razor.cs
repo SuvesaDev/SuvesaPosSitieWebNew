@@ -79,6 +79,63 @@ public partial class CuentasPorCobrar
         _entregadoCredito = _montos.Values.Sum() + SumaExtras();
     }
 
+    /// <summary>Aplica el crédito a favor a la única factura seleccionada: el menor entre el crédito y el saldo de esa factura.</summary>
+    private async Task AplicarCreditoAFavor()
+    {
+        if (_procesando || _credito is null || _selCredito.Count != 1) return;
+        var factura = _facturasCredito.FirstOrDefault(f => _selCredito.Contains(f.IdVenta));
+        if (factura is null) return;
+        var monto = Math.Min(_credito.CreditoAFavor, factura.SaldoActual);
+        if (!await Dialogos.ConfirmarAsync($"Aplicar {Formato.Importe(monto)} del crédito a favor a la factura {factura.NumFactura}? Se genera un recibo.", "Aplicar crédito a favor"))
+            return;
+
+        _procesando = true;
+        try
+        {
+            var r = await Credito.AplicarCreditoAFavor(new AplicarCreditoAFavorWebDTO
+            {
+                ClaveIdempotencia = Guid.NewGuid().ToString("N"),
+                IdCliente = _codCliente,
+                IdVenta = factura.IdVenta,
+                Usuario = Sesion.Usuario ?? UsuarioCajero?.Nombre ?? "",
+            });
+            var res = await Respuestas.DatoAsync(r, "aplicar el crédito a favor");
+            if (!r.EsCorrecta || res is null) return;
+            Dialogos.Exito($"Crédito aplicado: {Formato.Importe(res.MontoAplicado)}. Recibo N.º {res.NumeroRecibo}. Saldo de la factura {Formato.Importe(res.SaldoNuevoFactura)}; crédito restante {Formato.Importe(res.CreditoRestante)}.");
+            _selCredito.Clear();
+            await Buscar();
+        }
+        finally { _procesando = false; }
+    }
+
+    /// <summary>Devuelve en efectivo todo el crédito a favor del cliente, con salida de la caja abierta.</summary>
+    private async Task DevolverCreditoAFavor()
+    {
+        if (_procesando || _credito is null || _credito.CreditoAFavor <= 0 || !Desbloqueado) return;
+        if (!await Dialogos.ConfirmarAsync($"Devolver {Formato.Importe(_credito.CreditoAFavor)} en efectivo al cliente? Sale de la caja abierta.", "Devolver crédito a favor"))
+            return;
+
+        _procesando = true;
+        try
+        {
+            var r = await Credito.DevolverCreditoAFavor(new DevolverCreditoAFavorWebDTO
+            {
+                ClaveIdempotencia = Guid.NewGuid().ToString("N"),
+                IdCliente = _codCliente,
+                IdApertura = NumApertura,
+                IdSucursal = Sesion.IdSucursal,
+                CedulaCajero = UsuarioCajero?.Nombre,
+                Usuario = Sesion.Usuario ?? UsuarioCajero?.Nombre ?? "",
+                Motivo = "Devolución desde Abono Cobrar",
+            });
+            var res = await Respuestas.DatoAsync(r, "devolver el crédito a favor");
+            if (!r.EsCorrecta || res is null) return;
+            Dialogos.Exito($"Se devolvieron {Formato.Importe(res.MontoDevuelto)} en efectivo.");
+            await Buscar();
+        }
+        finally { _procesando = false; }
+    }
+
     private async Task CobrarCredito()
     {
         if (_procesando || _selCredito.Count == 0 || _entregadoCredito <= 0) return;
