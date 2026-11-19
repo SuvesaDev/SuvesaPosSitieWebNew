@@ -64,6 +64,13 @@
                     <option value="T">Todos</option>
                 </select>
             </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="fCliProvincia">Provincia</label>
+                <select id="fCliProvincia" class="form-select" @bind="_idProvincia" @bind:after="Refiltrar">
+                    <option value="0">Todas</option>
+                    @foreach (var provincia in _provincias) { <option value="@provincia.Id">@provincia.Nombre</option> }
+                </select>
+            </div>
         </AppFiltros>
 
         @if (_buscando)
@@ -799,16 +806,19 @@
 
     private string _texto = string.Empty;
     private string _estado = "A";   // "A" activos, "I" inactivos, "T" todos
+    private int _idProvincia;       // 0 = todas las provincias
     private List<FiltranClienteDTO> _todos = new();
     private List<FiltranClienteDTO> _resultados = new();
 
     private async Task ExportarCsv()
     {
         static string Q(string? texto) => "\"" + (texto ?? string.Empty).Replace("\"", "\"\"") + "\"";
-        var csv = "Identificación,Cédula,Nombre,Teléfono,Correo,Dirección,Límite de crédito,Plazo de crédito (días),Estado\n"
-            + string.Join("\n", _resultados.Select(c => $"{c.Identificacion},{Q(c.Cedula)},{Q(c.Nombre)},{Q(c.Telefono_01)},{Q(c.E_Mail)},{Q(c.Direccion)},{c.Max_Credito},{c.Plazo_Credito},{(c.Abierto ? "Activo" : "Inactivo")}"));
+        var csv = "Identificación,Cédula,Nombre,Teléfono,Correo,Dirección,Provincia,Límite de crédito,Plazo de crédito (días),Estado\n"
+            + string.Join("\n", _resultados.Select(c => $"{c.Identificacion},{Q(c.Cedula)},{Q(c.Nombre)},{Q(c.Telefono_01)},{Q(c.E_Mail)},{Q(c.Direccion)},{Q(NombreProvincia(c.IdProvincia))},{c.Max_Credito},{c.Plazo_Credito},{(c.Abierto ? "Activo" : "Inactivo")}"));
         await JS.InvokeVoidAsync("seepos.descargarTexto", $"clientes-{DateTime.Today:yyyyMMdd}.csv", csv, "text/csv;charset=utf-8");
     }
+    private string NombreProvincia(int idProvincia) => _provincias.FirstOrDefault(p => p.Id == idProvincia)?.Nombre ?? string.Empty;
+
     private FiltranClienteDTO? _elegido;
     private bool _buscando;
     private ClienteDTO? _edicion;
@@ -901,6 +911,7 @@
     protected override async Task OnInitializedAsync()
     {
         await RecargarDesdeApi();
+        await CargarProvincias();   // alimenta el filtro por provincia y la columna del CSV
         var rp = await Plazos.Obtener();
         if (rp.EsCorrecta && rp.Responses is not null)
             _plazosCredito = rp.Responses
@@ -977,6 +988,7 @@
     {
         _texto = string.Empty;
         _estado = "A";
+        _idProvincia = 0;
         Refiltrar();
     }
 
@@ -987,6 +999,8 @@
 
         if (_estado == "A") q = q.Where(c => !c.Anulado);
         else if (_estado == "I") q = q.Where(c => c.Anulado);
+
+        if (_idProvincia > 0) q = q.Where(c => c.IdProvincia == _idProvincia);
 
         if (t.Length > 0)
             q = q.Where(c => Helpers.Texto.Normalizar(c.Nombre).Contains(t)
