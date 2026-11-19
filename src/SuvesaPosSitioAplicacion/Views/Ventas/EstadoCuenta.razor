@@ -86,6 +86,25 @@
                 }
             </div>
 
+            @if (_estado.FacturasEnTransito.Count > 0)
+            {
+                <div class="card mb-3 border-info"><div class="card-header"><strong>En tránsito / Pendiente de aprobación</strong>
+                    <span class="text-secondary small">@Formato.Importe((decimal)_estado.EnTransito)</span></div>
+                    <div class="card-body">
+                        <p class="small text-secondary mb-2">Estas facturas ya tienen un recibo con depósito, transferencia o cheque en revisión: no cuentan como saldo pendiente
+                            ni se pueden cobrar otra vez. Si el pago se rechaza, vuelven solas al saldo.</p>
+                        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Factura</th><th>Recibo</th><th>Fecha del recibo</th><th class="text-end">Monto en tránsito</th></tr></thead>
+                            <tbody>
+                                @foreach (var t in _estado.FacturasEnTransito)
+                                {
+                                    <tr><td><code>@t.NumFactura.ToString("0")</code></td><td>@t.NumeroRecibo</td><td class="small">@t.FechaReciboUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td class="text-end">@Formato.Importe(t.MontoEnTransito)</td></tr>
+                                }
+                            </tbody>
+                        </table></div>
+                    </div></div>
+            }
+
             <div class="card mb-3"><div class="card-header"><strong>Antigüedad de saldos</strong> <span class="text-secondary small">al @_estado.FechaCorte.ToString("dd/MM/yyyy")</span></div>
                 <div class="card-body">
                     <div class="row g-2 text-center">

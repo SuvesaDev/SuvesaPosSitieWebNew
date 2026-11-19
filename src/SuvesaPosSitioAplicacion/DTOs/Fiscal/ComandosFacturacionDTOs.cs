@@ -110,4 +110,17 @@ public sealed class EstadoCuentaClienteDTO
     public double Vencido61a90 { get; set; }
     public double Vencido91oMas { get; set; }
     public List<FacturaCreditoConSaldoDTO> Detalle { get; set; } = new();
+    /// <summary>Cubierto por recibos con depósito o cheque pendientes de aprobación: fuera del saldo abierto, pero sigue ocupando el límite.</summary>
+    public double EnTransito { get; set; }
+    public List<FacturaEnTransitoDTO> FacturasEnTransito { get; set; } = new();
+}
+
+/// <summary>Factura cubierta por un recibo pendiente de aprobación («En tránsito / Pendiente de aprobación»).</summary>
+public sealed class FacturaEnTransitoDTO
+{
+    public long IdVenta { get; set; }
+    public double NumFactura { get; set; }
+    public decimal MontoEnTransito { get; set; }
+    public long NumeroRecibo { get; set; }
+    public System.DateTime FechaReciboUtc { get; set; }
 }

@@ -8,6 +8,9 @@ public sealed class CreditoClienteWebDTO
     public decimal LimiteAprobado { get; set; }
     public int PlazoDias { get; set; }
     public decimal SaldoAbierto { get; set; }
+    /// <summary>Cubierto por recibos pendientes de aprobación: no es saldo pendiente, pero ocupa el límite hasta que el banco confirme.</summary>
+    public decimal EnTransito { get; set; }
+    public int FacturasEnTransito { get; set; }
     public decimal CreditoAFavor { get; set; }
     public decimal Disponible { get; set; }
     public bool Bloqueado { get; set; }

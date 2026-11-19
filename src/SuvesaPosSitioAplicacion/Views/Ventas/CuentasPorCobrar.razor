@@ -104,6 +104,13 @@
                             <div class="col"><div class="text-secondary small">Crédito a favor</div><div class="h6 mb-0">@Formato.Importe(_credito.CreditoAFavor)</div></div>
                             <div class="col"><div class="text-secondary small">Plazo</div><div class="h6 mb-0">@_credito.PlazoDias d</div></div>
                         </div>
+                        @if (_credito.EnTransito > 0)
+                        {
+                            <div class="alert alert-info py-2 small mt-2 mb-0">
+                                @_credito.FacturasEnTransito factura(s) con un recibo pendiente de aprobación por @Formato.Importe(_credito.EnTransito):
+                                no se muestran como pendientes ni se pueden cobrar otra vez. Si el pago se rechaza, vuelven solas a la lista.
+                            </div>
+                        }
                         @if (_credito.CreditoAFavor > 0)
                         {
                             <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
