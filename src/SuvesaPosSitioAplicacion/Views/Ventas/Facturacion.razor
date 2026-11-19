@@ -765,7 +765,7 @@
         foreach (var x in _extrasContado.Where(x => x.Monto > 0))
         {
             var forma = _formasPagoContado.FirstOrDefault(f => f.Codigo == x.Codigo);
-            var esEfectivo = forma is null || forma.Efectivo || !(forma.Tarjeta || forma.Deposito || forma.Cheque);
+            var esEfectivo = forma is null || PreparacionPagoVenta.EsFormaEfectivo(forma.Efectivo, forma.Tarjeta, forma.Deposito, forma.Cheque, forma.Codigo);
             yield return PreparacionPagoVenta.LineaDeExtra(esEfectivo, forma?.Tarjeta == true, forma?.Deposito == true, forma?.Cheque == true, x, pedirFecha: false);
         }
         foreach (var l in LineasPrincipalesContado()) yield return l;
@@ -775,7 +775,7 @@
         _montosContado.Where(kv => kv.Value > 0).Select(kv =>
         {
             var f = _formasPagoContado.FirstOrDefault(x => x.Codigo == kv.Key);
-            var esEfectivo = f is null || f.Efectivo || !(f.Tarjeta || f.Deposito || f.Cheque);
+            var esEfectivo = f is null || PreparacionPagoVenta.EsFormaEfectivo(f.Efectivo, f.Tarjeta, f.Deposito, f.Cheque, f.Codigo);
             return new PreparacionPagoVenta.LineaPago(
                 kv.Key, kv.Value,
                 EsEfectivo: esEfectivo,

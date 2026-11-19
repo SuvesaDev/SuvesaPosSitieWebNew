@@ -32,7 +32,12 @@
                     var conFecha = MostrarFecha && (f.Deposito || f.Cheque);
                     var colsRelleno = MostrarFecha ? 3 : 2;
                     <tr>
-                        <td class="fw-normal text-secondary" style="min-width:9rem">@f.Descripcion</td>
+                        <td class="fw-normal text-secondary" style="min-width:9rem">@f.Descripcion
+                            @if (PreparacionPagoVenta.EsSaldoAFavor(cod) && f.MontoDisponible is { } disponible)
+                            {
+                                <div class="small text-success">disponible @Formato.Importe((decimal)disponible)</div>
+                            }
+                        </td>
                         <td style="min-width:7rem">
                             <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end"
                                    value="@MontoTexto(cod)" @onchange="e => SetMonto(cod, e.Value)" />
@@ -82,7 +87,7 @@
                         @if (PermiteVarias)
                         {
                             <td class="text-end text-nowrap">
-                                @if (LineasDe(cod) < PreparacionPagoVenta.MaxLineasPorForma)
+                                @if (LineasDe(cod) < PreparacionPagoVenta.MaxLineasPorForma && !PreparacionPagoVenta.EsSaldoAFavor(cod))
                                 {
                                     <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
                                             title="Agregar línea de pago de @f.Descripcion"
@@ -350,7 +355,7 @@
     // tarjeta / depósito / cheque. La bandera Efectivo del catálogo no siempre está
     // puesta; sin este respaldo, pagar en efectivo por encima del total se rechazaba
     // como "sobrepago en un medio que no es efectivo".
-    private static bool EsEfectivo(FormasPagoDTO f) => f.Efectivo || !(f.Tarjeta || f.Deposito || f.Cheque);
+    private static bool EsEfectivo(FormasPagoDTO f) => PreparacionPagoVenta.EsFormaEfectivo(f.Efectivo, f.Tarjeta, f.Deposito, f.Cheque, f.Codigo);
 
     private void Recalcular()
     {
@@ -374,5 +379,13 @@
                     lineas.Add(PreparacionPagoVenta.LineaDeExtra(EsEfectivo(f), f.Tarjeta, f.Deposito, f.Cheque, x, MostrarFecha));
         }
         _reparto = PreparacionPagoVenta.Calcular(Total, lineas);
+
+        // El saldo a favor no puede pasar de lo que el cliente tiene.
+        foreach (var f in Formas.Where(f => PreparacionPagoVenta.EsSaldoAFavor(f.Codigo) && f.MontoDisponible is not null))
+        {
+            var disponible = (decimal)f.MontoDisponible!.Value;
+            if (MontoDe(f.Codigo!) - disponible > 0.005m)
+                _reparto = _reparto with { Errores = _reparto.Errores.Append($"El saldo a favor aplicado excede el disponible ({Formato.Importe(disponible)}).").ToList() };
+        }
     }
 }

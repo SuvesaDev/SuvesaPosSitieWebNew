@@ -42,6 +42,15 @@ public static class PreparacionPagoVenta
             Fecha: x.FechaPago,
             FechaPuedeSerFutura: cheque);
 
+    /// <summary>Código de la forma de pago «Saldo a favor» (el que deja una nota de crédito): no es efectivo, no da vuelto y no pide referencia.</summary>
+    public const string CodigoSaldoAFavor = "SALDOFAV";
+
+    public static bool EsSaldoAFavor(string? codigo) => string.Equals(codigo?.Trim(), CodigoSaldoAFavor, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Una forma es «efectivo» (puede dar vuelto) si viene marcada así o si no es tarjeta, depósito, cheque ni saldo a favor.</summary>
+    public static bool EsFormaEfectivo(bool efectivo, bool tarjeta, bool deposito, bool cheque, string? codigo)
+        => !EsSaldoAFavor(codigo) && (efectivo || !(tarjeta || deposito || cheque));
+
     /// <summary>Hoy en Costa Rica (UTC−6): un depósito no puede tener fecha posterior.</summary>
     public static DateTime HoyCostaRica() => DateTime.UtcNow.AddHours(-6).Date;
 

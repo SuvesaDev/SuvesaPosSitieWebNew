@@ -328,6 +328,8 @@ public partial class CuentasPorCobrar
         }
 
         _formasPago = (await Respuestas.DatoAsync(await Api.FormasPago(_codCliente), "consultar las formas de pago"))?.ToList() ?? new();
+        // El saldo a favor se aplica a las facturas de crédito con su propio botón; como forma de pago es solo para el contado (preventas).
+        if (_modo == "credito") _formasPago.RemoveAll(f => PreparacionPagoVenta.EsSaldoAFavor(f.Codigo));
         _montos.Clear();
         _referencias.Clear();
         _numerosCheque.Clear();

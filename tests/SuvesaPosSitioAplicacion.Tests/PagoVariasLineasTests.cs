@@ -77,4 +77,55 @@ public class PagoVariasLineasTests
         var b = LineaDeExtra(false, false, true, false, Extra("DEP", 50m, referencia: " r ", banco: 1, fecha: Ayer), true);
         Assert.Contains(ValidarInstrumentos(new[] { a, b }), e => e.Contains("mismo banco"));
     }
+
+    // ---- REQ-05: saldo a favor como forma de pago ----
+
+    private static LineaPago SaldoFavor(decimal monto) => new(CodigoSaldoAFavor, monto,
+        EsEfectivo: EsFormaEfectivo(false, false, false, false, CodigoSaldoAFavor), RequiereReferencia: false, Referencia: null);
+
+    [Theory]
+    [InlineData(false, false, false, false, "EFE", true)]
+    [InlineData(true, false, false, false, "OTRA", true)]
+    [InlineData(false, true, false, false, "TAR", false)]
+    [InlineData(false, false, false, false, "SALDOFAV", false)]     // sin marcas pero es el saldo a favor: nunca efectivo
+    [InlineData(true, false, false, false, "saldofav", false)]
+    public void EsFormaEfectivo_ElSaldoAFavorNuncaDaVuelto(bool efectivo, bool tarjeta, bool deposito, bool cheque, string codigo, bool esperado)
+        => Assert.Equal(esperado, EsFormaEfectivo(efectivo, tarjeta, deposito, cheque, codigo));
+
+    [Fact]
+    public void SaldoAFavorParcial_ElRestoEnEfectivo_YElVueltoSoloSaleDelEfectivo()
+    {
+        var r = Calcular(150m, new[] { SaldoFavor(100m), new LineaPago("EFE", 80m, EsEfectivo: true, RequiereReferencia: false, Referencia: null) });
+
+        Assert.True(r.Cubre100);
+        Assert.Equal(30m, r.Vuelto);                 // 100 + 80 − 150: el exceso se devuelve del efectivo
+        Assert.Equal(150m, r.AplicadoTotal);
+    }
+
+    [Fact]
+    public void SaldoAFavorTotal_CubreSinOtraForma()
+    {
+        var r = Calcular(150m, new[] { SaldoFavor(150m) });
+
+        Assert.True(r.Cubre100);
+        Assert.Equal(0m, r.Vuelto);
+    }
+
+    [Fact]
+    public void SaldoAFavorMayorAlTotal_NoGeneraVuelto_SeRechaza()
+    {
+        var r = Calcular(150m, new[] { SaldoFavor(200m) });
+
+        Assert.False(r.Cubre100);
+        Assert.NotEmpty(r.Errores);
+    }
+
+    [Fact]
+    public void SaldoAFavorQueNoCubre_FaltaElRestoPorOtraForma()
+    {
+        var r = Calcular(150m, new[] { SaldoFavor(100m) });
+
+        Assert.False(r.Cubre100);
+        Assert.Equal(50m, r.Faltante);
+    }
 }
