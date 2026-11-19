@@ -106,6 +106,8 @@ public sealed class CobroCreditoFormaPagoWebDTO
     public string? NumeroCheque { get; set; }
     /// <summary>Solo forma de pago Cheque: banco emisor (catálogo EntidadesBancaria.IdBanco).</summary>
     public int? IdBanco { get; set; }
+    /// <summary>Fecha del depósito o cheque de esta línea.</summary>
+    public DateTime? FechaPago { get; set; }
 }
 
 public sealed class CobroCreditoResultadoWebDTO

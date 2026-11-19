@@ -43,6 +43,8 @@ public partial class CuentasPorCobrar
     private Dictionary<string, int?> _idsBanco = new();
     /// <summary>Líneas adicionales de depósito/cheque (el cliente paga con más de uno).</summary>
     private List<PagoExtra> _extras = new();
+    /// <summary>Fecha del depósito o cheque de la línea principal de cada forma (solo el recibo de crédito la pide).</summary>
+    private Dictionary<string, DateTime?> _fechas = new();
     private decimal SumaExtras() => _extras.Where(x => x.Monto > 0).Sum(x => x.Monto);
     private bool EsCheque(string codigo) => _formasPago.Any(f => f.Codigo == codigo && f.Cheque);
     private decimal _aCobrar, _entregado, _cambio;
@@ -152,9 +154,10 @@ public partial class CuentasPorCobrar
                     : (_referencias.TryGetValue(f.Codigo!, out var rf) ? rf : null),
                 NumeroCheque = _numerosCheque.TryGetValue(f.Codigo!, out var nc) ? nc : null,
                 IdBanco = _idsBanco.TryGetValue(f.Codigo!, out var ib) ? ib : null,
+                FechaPago = _fechas.TryGetValue(f.Codigo!, out var fp) ? fp : null,
             })
             .ToList();
-        // Depósitos/cheques adicionales: cada uno es una línea más del cobro, con su referencia y su banco.
+        // Líneas adicionales de cualquier forma de pago: cada uno es una línea más del cobro, con su referencia y su banco.
         formas.AddRange(_extras.Where(x => x.Monto > 0).Select(x => new CobroCreditoFormaPagoWebDTO
         {
             CodigoFormaPago = x.Codigo,
@@ -162,6 +165,7 @@ public partial class CuentasPorCobrar
             Referencia = EsCheque(x.Codigo) ? (x.NumeroCheque ?? x.Referencia) : x.Referencia,
             NumeroCheque = x.NumeroCheque,
             IdBanco = x.IdBanco,
+            FechaPago = x.FechaPago,
         }));
         if (formas.Count == 0) { await Dialogos.ErrorAsync("Indique el monto de al menos una forma de pago."); return; }
 
@@ -199,7 +203,7 @@ public partial class CuentasPorCobrar
 
             _selCredito.Clear();
             foreach (var k in _montos.Keys.ToList()) _montos[k] = 0;
-            _extras.Clear();
+            _extras.Clear(); _fechas.Clear();
             await Buscar();
         }
         finally { _procesando = false; }
@@ -328,7 +332,7 @@ public partial class CuentasPorCobrar
         _referencias.Clear();
         _numerosCheque.Clear();
         _idsBanco.Clear();
-        _extras.Clear();
+        _extras.Clear(); _fechas.Clear();
         foreach (var f in _formasPago) if (f.Codigo is not null) _montos[f.Codigo] = 0;
 
         _buscando = false;
@@ -502,7 +506,7 @@ public partial class CuentasPorCobrar
         _referencias.Clear();
         _numerosCheque.Clear();
         _idsBanco.Clear();
-        _extras.Clear();
+        _extras.Clear(); _fechas.Clear();
         _resultados.Clear();
         _aCobrar = _entregado = _cambio = 0;
         _claveLote = null;

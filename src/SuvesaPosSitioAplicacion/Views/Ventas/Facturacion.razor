@@ -764,9 +764,9 @@
     {
         foreach (var x in _extrasContado.Where(x => x.Monto > 0))
         {
-            var cheque = _formasPagoContado.Any(f => f.Codigo == x.Codigo && f.Cheque);
-            yield return new PreparacionPagoVenta.LineaPago(x.Codigo, x.Monto, EsEfectivo: false, RequiereReferencia: true,
-                Referencia: cheque ? x.NumeroCheque : x.Referencia, RequiereBanco: true, IdBanco: x.IdBanco);
+            var forma = _formasPagoContado.FirstOrDefault(f => f.Codigo == x.Codigo);
+            var esEfectivo = forma is null || forma.Efectivo || !(forma.Tarjeta || forma.Deposito || forma.Cheque);
+            yield return PreparacionPagoVenta.LineaDeExtra(esEfectivo, forma?.Tarjeta == true, forma?.Deposito == true, forma?.Cheque == true, x, pedirFecha: false);
         }
         foreach (var l in LineasPrincipalesContado()) yield return l;
     }
