@@ -65,6 +65,8 @@ public sealed class PagoPreventaContadoDTO
     public string? NumeroCheque { get; set; }
     /// <summary>Solo forma de pago Cheque: banco emisor (catálogo EntidadesBancaria.IdBanco).</summary>
     public int? IdBanco { get; set; }
+    /// <summary>Fecha en que el cliente hizo el depósito, transferencia o cheque (opcional).</summary>
+    public DateTime? FechaPago { get; set; }
 }
 
 public sealed class FacturarPreventaContadoComandoDTO

@@ -232,9 +232,10 @@ public partial class CuentasPorCobrar
     }
 
     /// <summary>Un depósito, cheque u otro pago recibido, con lo que queda por repartir entre las preventas.</summary>
-    private sealed class FuentePago(string codigo, decimal restante, string? referencia, string? numeroCheque, int? idBanco)
+    private sealed class FuentePago(string codigo, decimal restante, string? referencia, string? numeroCheque, int? idBanco, DateTime? fechaPago = null)
     {
         public string Codigo { get; } = codigo;
+        public DateTime? FechaPago { get; } = fechaPago;
         public decimal Restante { get; set; } = restante;
         public string? Referencia { get; } = referencia;
         public string? NumeroCheque { get; } = numeroCheque;
@@ -430,10 +431,11 @@ public partial class CuentasPorCobrar
                 _referencias.TryGetValue(cod, out var refPrincipal);
                 _idsBanco.TryGetValue(cod, out var bancoPrincipal);
                 fuentes.Add(new FuentePago(cod, principal,
-                    f.Cheque && !string.IsNullOrWhiteSpace(numPrincipal) ? numPrincipal : refPrincipal, numPrincipal, bancoPrincipal));
+                    f.Cheque && !string.IsNullOrWhiteSpace(numPrincipal) ? numPrincipal : refPrincipal, numPrincipal, bancoPrincipal,
+                    _fechas.TryGetValue(cod, out var fechaPrincipal) ? fechaPrincipal : null));
             }
             foreach (var x in _extras.Where(e => e.Codigo == cod && e.Monto > 0))
-                fuentes.Add(new FuentePago(cod, x.Monto, f.Cheque ? (x.NumeroCheque ?? x.Referencia) : x.Referencia, x.NumeroCheque, x.IdBanco));
+                fuentes.Add(new FuentePago(cod, x.Monto, f.Cheque ? (x.NumeroCheque ?? x.Referencia) : x.Referencia, x.NumeroCheque, x.IdBanco, x.FechaPago));
         }
 
         for (var i = 0; i < seleccionadas.Count; i++)
@@ -465,6 +467,7 @@ public partial class CuentasPorCobrar
                     Referencia = s.Referencia,
                     NumeroCheque = s.NumeroCheque,
                     IdBanco = s.IdBanco,
+                    FechaPago = s.FechaPago,
                 });
 
                 if (!esUltima && cubierto >= totalDoc) break;

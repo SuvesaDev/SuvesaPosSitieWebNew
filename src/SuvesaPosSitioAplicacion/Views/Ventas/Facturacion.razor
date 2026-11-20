@@ -529,6 +529,7 @@
                         @bind-Referencias="_referenciasContado"
                         @bind-NumerosCheque="_numerosChequeContado"
                         @bind-IdsBanco="_idsBancoContado"
+                        MostrarFecha="true" @bind-Fechas="_fechasContado"
                         PermiteVarias="true" @bind-Extras="_extrasContado"
                         RepartoChanged="_ => RecalcularTodo()" />
     </BodyTemplate>
@@ -720,6 +721,7 @@
     private Dictionary<string, string?> _referenciasContado = new();
     private Dictionary<string, string?> _numerosChequeContado = new();
     private Dictionary<string, int?> _idsBancoContado = new();
+    private Dictionary<string, DateTime?> _fechasContado = new();
     /// <summary>Depósitos/cheques adicionales del cobro del tiquete (el cliente paga con más de uno).</summary>
     private List<PagoExtra> _extrasContado = new();
 
@@ -733,12 +735,12 @@
             _referenciasContado.TryGetValue(kv.Key, out var referencia);
             _numerosChequeContado.TryGetValue(kv.Key, out var numero);
             _idsBancoContado.TryGetValue(kv.Key, out var banco);
-            pagos.Add(new PagoFacturaDTO { FormaPago = kv.Key, Monto = (double)kv.Value, Referencia = cheque && !string.IsNullOrWhiteSpace(numero) ? numero : referencia, NumeroCheque = numero, IdBanco = banco });
+            pagos.Add(new PagoFacturaDTO { FormaPago = kv.Key, Monto = (double)kv.Value, Referencia = cheque && !string.IsNullOrWhiteSpace(numero) ? numero : referencia, NumeroCheque = numero, IdBanco = banco, FechaPago = _fechasContado.TryGetValue(kv.Key, out var fechaPago) ? fechaPago : null });
         }
         foreach (var x in _extrasContado.Where(x => x.Monto > 0))
         {
             var cheque = _formasPagoContado.Any(f => f.Codigo == x.Codigo && f.Cheque);
-            pagos.Add(new PagoFacturaDTO { FormaPago = x.Codigo, Monto = (double)x.Monto, Referencia = cheque ? (x.NumeroCheque ?? x.Referencia) : x.Referencia, NumeroCheque = x.NumeroCheque, IdBanco = x.IdBanco });
+            pagos.Add(new PagoFacturaDTO { FormaPago = x.Codigo, Monto = (double)x.Monto, Referencia = cheque ? (x.NumeroCheque ?? x.Referencia) : x.Referencia, NumeroCheque = x.NumeroCheque, IdBanco = x.IdBanco, FechaPago = x.FechaPago });
         }
         return pagos;
     }
@@ -1180,7 +1182,7 @@
         _montosContado.Clear();
         _referenciasContado.Clear();
         _numerosChequeContado.Clear();
-        _idsBancoContado.Clear();
+        _idsBancoContado.Clear(); _fechasContado.Clear();
         _extrasContado.Clear();
         _numAperturaContado = null;
         _avisoCajaContado = null;
@@ -2640,5 +2642,5 @@
         if (r.FueReintento) lineas.Add("(Se recuperó el resultado de un envío anterior; no se cobró ni emitió dos veces.)");
         _avisoResultado = string.Join(" ", lineas);
     }
-    private async Task Limpiar() { _sucursalesCliente = new(); _idClienteSucursal = null; _cliente = null; _tarifa = 0; _nombreGenerico = string.Empty; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _esCredito = false; _creditoAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _tipoCambio = null; _rutaDelCliente = false; _idRutaComercial = 0; _idUsuarioAgente = string.Empty; _agentesRuta.Clear(); _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; _formasPagoContado = new(); _montosContado.Clear(); _referenciasContado.Clear(); _numerosChequeContado.Clear(); _idsBancoContado.Clear(); _numAperturaContado = null; _avisoCajaContado = null; _claveIdempotencia = null; _correoComprobanteConsultado = false; _tieneCorreoComprobante = false; _correos.Clear(); _ruta = new(PoliticaRutaFacturacion.Ruta.ConfiguracionInvalida, null); await CargarRutasComerciales(); await CargarPerfiles(); RecalcularTodo(); if (EsDesdeProforma) { _proforma = null; _proformaCargadaId = 0; _descuentosProforma.Clear(); Navegacion.NavigateTo("/initial/billing"); } }
+    private async Task Limpiar() { _sucursalesCliente = new(); _idClienteSucursal = null; _cliente = null; _tarifa = 0; _nombreGenerico = string.Empty; _clientesEncontrados.Clear(); _textoCliente = _observaciones = _ordenCompra = string.Empty; _tipoFactura = 0; _esCredito = false; _creditoAviso = null; _moneda = _monedas.FirstOrDefault()?.CodMoneda ?? 0; _tipoCambio = null; _rutaDelCliente = false; _idRutaComercial = 0; _idUsuarioAgente = string.Empty; _agentesRuta.Clear(); _lineas.Clear(); _bonificacionesCliente.Clear(); _siguienteIdGrupo = 1; _formasPagoContado = new(); _montosContado.Clear(); _referenciasContado.Clear(); _numerosChequeContado.Clear(); _idsBancoContado.Clear(); _fechasContado.Clear(); _numAperturaContado = null; _avisoCajaContado = null; _claveIdempotencia = null; _correoComprobanteConsultado = false; _tieneCorreoComprobante = false; _correos.Clear(); _ruta = new(PoliticaRutaFacturacion.Ruta.ConfiguracionInvalida, null); await CargarRutasComerciales(); await CargarPerfiles(); RecalcularTodo(); if (EsDesdeProforma) { _proforma = null; _proformaCargadaId = 0; _descuentosProforma.Clear(); Navegacion.NavigateTo("/initial/billing"); } }
 }
