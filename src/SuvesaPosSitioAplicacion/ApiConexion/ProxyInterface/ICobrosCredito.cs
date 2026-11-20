@@ -17,6 +17,9 @@ public interface ICobrosCredito
 
     Task<ResponseGeneric<bool>> Anular(long idCobro, string? motivo);
 
+    /// <summary>Descuento por pronto pago de cada factura de crédito con saldo del cliente.</summary>
+    Task<ResponseGeneric<ICollection<EvaluacionProntoPagoWebDTO>>> ProntoPago(long idCliente);
+
     /// <summary>Aplica el crédito a favor del cliente a una de sus facturas de crédito (con recibo).</summary>
     Task<ResponseGeneric<AplicarCreditoAFavorResultadoWebDTO>> AplicarCreditoAFavor(AplicarCreditoAFavorWebDTO comando);
 

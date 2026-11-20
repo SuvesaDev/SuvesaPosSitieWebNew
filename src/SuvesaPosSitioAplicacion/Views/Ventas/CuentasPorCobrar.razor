@@ -140,7 +140,7 @@
                             <div class="card-header"><strong>Facturas de crédito con saldo</strong></div>
                             <div class="card-body p-0">
                                 <table class="table table-sm align-middle mb-0">
-                                    <thead><tr><th style="width:2.5rem"></th><th>Factura</th><th>Fecha</th><th>Vence</th><th class="text-end">Original</th><th class="text-end">Saldo</th></tr></thead>
+                                    <thead><tr><th style="width:2.5rem"></th><th>Factura</th><th>Fecha</th><th>Vence</th><th class="text-end">Original</th><th class="text-end">Saldo</th><th>Pronto pago</th></tr></thead>
                                     <tbody>
                                         @foreach (var f in _facturasCredito)
                                         {
@@ -151,6 +151,29 @@
                                                 <td class="small @(f.Vence < HoyEquipo ? "text-danger fw-semibold" : "")">@(f.Vence?.ToString("dd/MM/yy") ?? "—")</td>
                                                 <td class="text-end seepos-importe">@Formato.Importe(f.MontoOriginal)</td>
                                                 <td class="text-end seepos-importe">@Formato.Importe(f.SaldoActual)</td>
+                                                <td class="small">
+                                                    @if (_prontoPago.TryGetValue(f.IdVenta, out var pp))
+                                                    {
+                                                        @if (pp.Elegible)
+                                                        {
+                                                            <div class="form-check mb-0">
+                                                                <input id="@($"pp-{f.IdVenta}")" class="form-check-input" type="checkbox" disabled="@(!_selCredito.Contains(f.IdVenta))"
+                                                                       checked="@_aplicaPronto.Contains(f.IdVenta)" @onchange="() => AlternarProntoPago(f.IdVenta)" />
+                                                                <label class="form-check-label" for="@($"pp-{f.IdVenta}")">
+                                                                    −@Formato.Importe(pp.Descuento) <span class="text-secondary">(@pp.Porcentaje.ToString("0.##")%)</span>
+                                                                </label>
+                                                            </div>
+                                                            @if (_aplicaPronto.Contains(f.IdVenta))
+                                                            {
+                                                                <div class="text-success">Pagar @Formato.Importe(pp.TotalAPagar)</div>
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-secondary" title="@pp.Motivo">@(pp.DiasTranscurridos > pp.DiasMaximos ? "Vencido (" + pp.DiasTranscurridos + " d)" : "No aplica")</span>
+                                                        }
+                                                    }
+                                                </td>
                                             </tr>
                                         }
                                     </tbody>

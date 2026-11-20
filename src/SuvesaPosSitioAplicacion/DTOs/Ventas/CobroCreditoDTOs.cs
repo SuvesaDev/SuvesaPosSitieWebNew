@@ -98,6 +98,22 @@ public sealed class CobroCreditoFacturaWebDTO
 {
     public long IdVenta { get; set; }
     public decimal? Monto { get; set; }
+    /// <summary>Descuento por pronto pago: solo si la factura es elegible; el recibo debe cancelarla completa.</summary>
+    public bool AplicarProntoPago { get; set; }
+}
+
+/// <summary>Si una factura de crédito puede recibir el descuento por pronto pago (hasta 8 días de su emisión, sin abonos ni notas).</summary>
+public sealed class EvaluacionProntoPagoWebDTO
+{
+    public long IdVenta { get; set; }
+    public double NumFactura { get; set; }
+    public bool Elegible { get; set; }
+    public string Motivo { get; set; } = "";
+    public int DiasTranscurridos { get; set; }
+    public int DiasMaximos { get; set; }
+    public decimal Porcentaje { get; set; }
+    public decimal Descuento { get; set; }
+    public decimal TotalAPagar { get; set; }
 }
 
 public sealed class CobroCreditoFormaPagoWebDTO
@@ -121,4 +137,12 @@ public sealed class CobroCreditoResultadoWebDTO
     public decimal Vuelto { get; set; }
     public bool FueReintento { get; set; }
     public bool PendienteConfirmacion { get; set; }
+    public List<DescuentoProntoPagoWebDTO> DescuentosProntoPago { get; set; } = new();
+}
+
+public sealed class DescuentoProntoPagoWebDTO
+{
+    public long IdVenta { get; set; }
+    public decimal Descuento { get; set; }
+    public long IdDevolucion { get; set; }
 }

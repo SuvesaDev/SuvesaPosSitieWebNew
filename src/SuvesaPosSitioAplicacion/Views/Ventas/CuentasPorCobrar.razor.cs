@@ -60,6 +60,9 @@ public partial class CuentasPorCobrar
     private List<FacturaCreditoWebDTO> _facturasCredito = new();
     private readonly HashSet<long> _selCredito = new();
     private decimal _aCobrarCredito, _entregadoCredito;
+    /// <summary>Descuento por pronto pago de cada factura de crédito (si es elegible) y las que el cajero decidió aplicar.</summary>
+    private Dictionary<long, EvaluacionProntoPagoWebDTO> _prontoPago = new();
+    private readonly HashSet<long> _aplicaPronto = new();
 
     private bool TodasSeleccionadas => _preventas.Count > 0 && _preventas.All(p => _seleccion.Contains(p.Id));
 
@@ -71,13 +74,24 @@ public partial class CuentasPorCobrar
 
     private void AlternarCredito(long id)
     {
-        if (!_selCredito.Add(id)) _selCredito.Remove(id);
+        if (!_selCredito.Add(id)) { _selCredito.Remove(id); _aplicaPronto.Remove(id); }
         RecalcularCredito();
     }
 
+    private void AlternarProntoPago(long id)
+    {
+        if (!_selCredito.Contains(id) || !_prontoPago.TryGetValue(id, out var pp) || !pp.Elegible) return;
+        if (!_aplicaPronto.Add(id)) _aplicaPronto.Remove(id);
+        RecalcularCredito();
+    }
+
+    /// <summary>Descuento por pronto pago de las facturas seleccionadas que lo aplican.</summary>
+    private decimal DescuentoProntoPagoSeleccionado => _aplicaPronto.Where(_selCredito.Contains).Sum(id => _prontoPago.TryGetValue(id, out var pp) ? pp.Descuento : 0m);
+
     private void RecalcularCredito()
     {
-        _aCobrarCredito = _facturasCredito.Where(f => _selCredito.Contains(f.IdVenta)).Sum(f => f.SaldoActual);
+        // Con pronto pago, la factura se cancela pagando su saldo menos el descuento.
+        _aCobrarCredito = _facturasCredito.Where(f => _selCredito.Contains(f.IdVenta)).Sum(f => f.SaldoActual) - DescuentoProntoPagoSeleccionado;
         _entregadoCredito = _montos.Values.Sum() + SumaExtras();
     }
 
@@ -169,8 +183,12 @@ public partial class CuentasPorCobrar
         }));
         if (formas.Count == 0) { await Dialogos.ErrorAsync("Indique el monto de al menos una forma de pago."); return; }
 
+        var descuentoPronto = DescuentoProntoPagoSeleccionado;
+        var avisoPronto = descuentoPronto > 0
+            ? $" Se aplica un descuento por pronto pago de {Formato.Importe(descuentoPronto)} y se genera la nota de crédito parcial a Hacienda."
+            : "";
         if (!await Dialogos.ConfirmarAsync(
-                $"Cobrar {Formato.Importe(_entregadoCredito)} y aplicarlo a {_selCredito.Count} factura(s) de crédito?", "Cobrar crédito"))
+                $"Cobrar {Formato.Importe(_entregadoCredito)} y aplicarlo a {_selCredito.Count} factura(s) de crédito?{avisoPronto}", "Cobrar crédito"))
             return;
 
         _procesando = true;
@@ -184,7 +202,7 @@ public partial class CuentasPorCobrar
                 IdSucursal = Sesion.IdSucursal,
                 CedulaCajero = UsuarioCajero?.Nombre,
                 Usuario = Sesion.Usuario ?? UsuarioCajero?.Nombre ?? "",
-                Facturas = _selCredito.Select(id => new CobroCreditoFacturaWebDTO { IdVenta = id }).ToList(),
+                Facturas = _selCredito.Select(id => new CobroCreditoFacturaWebDTO { IdVenta = id, AplicarProntoPago = _aplicaPronto.Contains(id) }).ToList(),
                 FormasPago = formas,
                 PermitirParcial = true,
             };
@@ -201,7 +219,11 @@ public partial class CuentasPorCobrar
             if (await Dialogos.ConfirmarAsync("¿Imprimir el recibo?", "Impresión"))
                 await JS.InvokeVoidAsync("open", $"/documentos/recibo-cobro/{res.IdCobro}/pdf", "_blank");
 
+            if (res.DescuentosProntoPago.Count > 0)
+                Dialogos.Exito($"Descuento por pronto pago aplicado: {Formato.Importe(res.DescuentosProntoPago.Sum(d => d.Descuento))}. Nota de crédito generada: " +
+                               string.Join(", ", res.DescuentosProntoPago.Select(d => "#" + d.IdDevolucion)) + ".");
             _selCredito.Clear();
+            _aplicaPronto.Clear();
             foreach (var k in _montos.Keys.ToList()) _montos[k] = 0;
             _extras.Clear(); _fechas.Clear();
             await Buscar();
@@ -324,6 +346,9 @@ public partial class CuentasPorCobrar
             _credito = await Respuestas.DatoAsync(await Credito.Credito(_codCliente), "consultar el crédito del cliente");
             var facturas = await Respuestas.DatoAsync(await Credito.Facturas(_codCliente), "consultar las facturas de crédito");
             _facturasCredito = (facturas ?? new List<FacturaCreditoWebDTO>()).ToList();
+            _prontoPago = ((await Respuestas.DatoAsync(await Credito.ProntoPago(_codCliente), "consultar el descuento por pronto pago")) ?? new List<EvaluacionProntoPagoWebDTO>())
+                .ToDictionary(x => x.IdVenta);
+            _aplicaPronto.Clear();
             _cliente = nombre ?? _credito?.Nombre ?? $"Cliente {_codCliente}";
         }
 
