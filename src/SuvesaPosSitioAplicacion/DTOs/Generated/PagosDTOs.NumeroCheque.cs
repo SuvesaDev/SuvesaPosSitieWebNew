@@ -18,6 +18,10 @@ public partial class CobroDocumentosDTO
     /// <summary>Solo forma de pago Cheque: banco emisor (catálogo EntidadesBancaria.IdBanco).</summary>
     [JsonPropertyName("idBanco")]
     public int? IdBanco { get; set; }
+
+    /// <summary>Fecha en que el cliente hizo el depósito, transferencia o cheque (opcional; no puede ser futura salvo en cheques).</summary>
+    [JsonPropertyName("fechaPago")]
+    public System.DateTime? FechaPago { get; set; }
 }
 
 public partial class EntregaCuentaDTO

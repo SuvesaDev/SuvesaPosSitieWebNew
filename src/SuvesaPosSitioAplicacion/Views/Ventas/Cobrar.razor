@@ -185,6 +185,9 @@
                                                         <option value="">Banco...</option>
                                                         @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
                                                     </select>
+                                                    <input type="date" class="form-control form-control-sm mt-1" max="@(forma.Cheque ? null : HoyTexto())"
+                                                           aria-label="@(forma.Cheque ? "Fecha del cheque" : "Fecha del depósito")" title="@(forma.Cheque ? "Fecha del cheque" : "Fecha del depósito")"
+                                                           value="@FechaTexto(FechaDe(forma.Codigo!))" @onchange="e => _fechasPorForma[forma.Codigo!] = LeerFecha(e.Value?.ToString())" />
                                                 </td>
                                             }
                                             else if (forma.Deposito)
@@ -196,6 +199,9 @@
                                                         <option value="">Banco...</option>
                                                         @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
                                                     </select>
+                                                    <input type="date" class="form-control form-control-sm mt-1" max="@(forma.Cheque ? null : HoyTexto())"
+                                                           aria-label="@(forma.Cheque ? "Fecha del cheque" : "Fecha del depósito")" title="@(forma.Cheque ? "Fecha del cheque" : "Fecha del depósito")"
+                                                           value="@FechaTexto(FechaDe(forma.Codigo!))" @onchange="e => _fechasPorForma[forma.Codigo!] = LeerFecha(e.Value?.ToString())" />
                                                 </td>
                                             }
                                             else if (forma.Tarjeta)
@@ -239,6 +245,9 @@
                                                             <option value="">Banco...</option>
                                                             @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
                                                         </select>
+                                                        <input type="date" class="form-control form-control-sm mt-1" max="@(forma.Cheque ? null : HoyTexto())"
+                                                               aria-label="@(forma.Cheque ? "Fecha del cheque" : "Fecha del depósito") @(i + 2)"
+                                                               value="@FechaTexto(x.FechaPago)" @onchange="e => x.FechaPago = LeerFecha(e.Value?.ToString())" />
                                                     </td>
                                                     <td class="text-end">
                                                         <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" title="Quitar esta línea"
@@ -290,6 +299,13 @@
     private long _codCliente;
 
     private List<FormasPagoDTO> _formasPago = new();
+    /// <summary>Fecha del depósito o cheque de la línea principal de cada forma, por código (las líneas extra la llevan en <see cref="PagoExtra.FechaPago"/>).</summary>
+    private readonly Dictionary<string, DateTime?> _fechasPorForma = new();
+    private DateTime? FechaDe(string cod) => _fechasPorForma.TryGetValue(cod, out var f) ? f : null;
+    private static string FechaTexto(DateTime? f) => f?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+    private static string HoyTexto() => FechaTexto(PreparacionPagoVenta.HoyCostaRica());
+    private static DateTime? LeerFecha(string? texto)
+        => DateTime.TryParseExact(texto, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var f) ? f : null;
     private readonly Dictionary<string, decimal> _montosPorForma = new();
     private readonly Dictionary<string, string?> _referenciasPorForma = new();
     private readonly Dictionary<string, string?> _numerosChequePorForma = new();
@@ -347,9 +363,9 @@
             var cod = f.Codigo!;
             if (MontoDe(cod) > 0)
                 lineas.Add(new(cod, MontoDe(cod), false, true, f.Cheque ? NumeroChequeDe(cod) : ReferenciaDe(cod), true,
-                    _idsBancoPorForma.TryGetValue(cod, out var b) ? b : null));
+                    _idsBancoPorForma.TryGetValue(cod, out var b) ? b : null, RequiereFecha: true, Fecha: FechaDe(cod), FechaPuedeSerFutura: f.Cheque));
             foreach (var x in _extras.Where(e => e.Codigo == cod && e.Monto > 0))
-                lineas.Add(new(cod, x.Monto, false, true, f.Cheque ? x.NumeroCheque : x.Referencia, true, x.IdBanco));
+                lineas.Add(new(cod, x.Monto, false, true, f.Cheque ? x.NumeroCheque : x.Referencia, true, x.IdBanco, RequiereFecha: true, Fecha: x.FechaPago, FechaPuedeSerFutura: f.Cheque));
         }
         errores.AddRange(PreparacionPagoVenta.ValidarInstrumentos(lineas));
         return errores;
@@ -526,6 +542,7 @@
         _referenciasPorForma.Clear();
         _numerosChequePorForma.Clear();
         _idsBancoPorForma.Clear();
+        _fechasPorForma.Clear();
         _extras.Clear();
         foreach (var forma in _formasPago)
         {
@@ -601,6 +618,7 @@
                         Referencia = ReferenciaDe(f.Codigo!),
                         NumeroCheque = NumeroChequeDe(f.Codigo!),
                         IdBanco = _idsBancoPorForma.TryGetValue(f.Codigo!, out var idb) ? idb : null,
+                        FechaPago = FechaDe(f.Codigo!),
                     }).Concat(_extras.Where(x => x.Monto > 0).Select(x => new SuvesaPosSitioAplicacion.DTOs.Fiscal.PagoPreventaContadoDTO
                     {
                         FormaPago = x.Codigo,
@@ -608,6 +626,7 @@
                         Referencia = EsCheque(x.Codigo) ? (x.NumeroCheque ?? x.Referencia) : x.Referencia,
                         NumeroCheque = x.NumeroCheque,
                         IdBanco = x.IdBanco,
+                        FechaPago = x.FechaPago,
                     })).ToList(),
             };
             var res = await Respuestas.DatoAsync(await Comandos.FacturarPreventaContado(cmd), "cobrar y facturar la preventa");
@@ -652,6 +671,7 @@
                 NumeroDocumento = ReferenciaDe(f.Codigo!),
                 NumeroCheque = NumeroChequeDe(f.Codigo!),
                 IdBanco = _idsBancoPorForma.TryGetValue(f.Codigo!, out var idb2) ? idb2 : null,
+                FechaPago = FechaDe(f.Codigo!),
             })
             .ToList();
         // Depósitos/cheques adicionales: una entrada más por cada uno, sobre el mismo documento.
@@ -676,6 +696,7 @@
                 NumeroDocumento = EsCheque(x.Codigo) ? (x.NumeroCheque ?? x.Referencia) : x.Referencia,
                 NumeroCheque = x.NumeroCheque,
                 IdBanco = x.IdBanco,
+                FechaPago = x.FechaPago,
             }));
 
         var r = await Api.Cobrar(cobros);
@@ -710,7 +731,7 @@
         _montosPorForma.Clear();
         _referenciasPorForma.Clear();
         _numerosChequePorForma.Clear();
-        _idsBancoPorForma.Clear();
+        _idsBancoPorForma.Clear(); _fechasPorForma.Clear();
         _extras.Clear();
         _aCobrar = _entregado = _cambio = 0;
         _claveIdempotencia = null;
