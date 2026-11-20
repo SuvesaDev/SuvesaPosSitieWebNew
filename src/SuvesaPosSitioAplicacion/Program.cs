@@ -595,7 +595,9 @@ app.MapGet("/reportes/estado-cuenta", async (
         GeneradoPor: generadoPor)
     {
         SucursalFiltro = nombreSucursal,
-        Empresa = await membrete.ResolverAsync()
+        Empresa = await membrete.ResolverAsync(),
+        EnTransito = (decimal)e.EnTransito,
+        FacturasEnTransito = e.FacturasEnTransito.Select(t => new LineaEnTransitoPdf(t.NumFactura.ToString("0"), t.NumeroRecibo, t.FechaReciboUtc.ToLocalTime(), (decimal)t.MontoEnTransito)).ToList(),
     });
 
     return Results.File(bytes, "application/pdf", $"estado-cuenta-{idCliente}.pdf");

@@ -42,6 +42,7 @@ public sealed class FacturaVencidaWebDTO
     public int CodMoneda { get; set; }
     public decimal MontoOriginal { get; set; }
     public decimal Saldo { get; set; }
+    public decimal MontoEnTransito { get; set; }
     public long? IdSeguimiento { get; set; }
     public string? Cobrador { get; set; }
     public EstadoSeguimientoWeb? EstadoSeguimiento { get; set; }

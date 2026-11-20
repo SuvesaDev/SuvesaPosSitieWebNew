@@ -167,6 +167,8 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                     col.Item().Element(c => IndicadoresEstadoCuenta(c, reporte));
                     col.Item().PaddingTop(10).Element(c => AntiguedadEstadoCuenta(c, reporte));
                     col.Item().PaddingTop(12).Element(c => TablaEstadoCuenta(c, reporte));
+                    if (reporte.FacturasEnTransito.Count > 0)
+                        col.Item().PaddingTop(12).Element(c => TablaEnTransito(c, reporte));
                 });
                 pagina.Footer().PaddingTop(8).Row(row =>
                 {
@@ -241,6 +243,34 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                         .SemiBold().FontSize(11).FontColor(color);
                 });
             }
+        });
+    }
+
+    private static void TablaEnTransito(IContainer container, EstadoCuentaPdf reporte)
+    {
+        container.Column(col =>
+        {
+            col.Item().Text($"PAGOS PENDIENTES DE CONFIRMAR: {FormatearMonto(reporte.EnTransito, reporte.Moneda)}").SemiBold().FontSize(8.5f).FontColor(Azul);
+            col.Item().PaddingTop(1).Text("Depósitos o cheques por aprobar: ocupan el límite de crédito, pero no bajan el saldo ni cuentan como mora hasta confirmarse.")
+                .FontSize(7).FontColor(Colors.Grey.Darken1);
+            col.Item().PaddingTop(4).Table(tabla =>
+            {
+                tabla.ColumnsDefinition(def => { def.RelativeColumn(1.2f); def.RelativeColumn(1f); def.RelativeColumn(1.4f); def.RelativeColumn(1.2f); });
+                tabla.Header(h =>
+                {
+                    CabeceraEstadoCuenta(h.Cell(), "FACTURA", "izquierda");
+                    CabeceraEstadoCuenta(h.Cell(), "RECIBO", "izquierda");
+                    CabeceraEstadoCuenta(h.Cell(), "FECHA", "izquierda");
+                    CabeceraEstadoCuenta(h.Cell(), "MONTO", "derecha");
+                });
+                foreach (var t in reporte.FacturasEnTransito)
+                {
+                    tabla.Cell().BorderBottom(0.5f).BorderColor("#D4E2E8").Padding(3).Text(t.Factura);
+                    tabla.Cell().BorderBottom(0.5f).BorderColor("#D4E2E8").Padding(3).Text(t.Recibo.ToString("0"));
+                    tabla.Cell().BorderBottom(0.5f).BorderColor("#D4E2E8").Padding(3).Text(t.Fecha.ToString("dd/MM/yyyy HH:mm"));
+                    tabla.Cell().BorderBottom(0.5f).BorderColor("#D4E2E8").Padding(3).AlignRight().Text(FormatearMonto(t.Monto, reporte.Moneda));
+                }
+            });
         });
     }
 
