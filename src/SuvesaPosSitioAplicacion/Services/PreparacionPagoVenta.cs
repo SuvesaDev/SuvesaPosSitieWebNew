@@ -22,7 +22,37 @@ public static class PreparacionPagoVenta
         bool RequiereReferencia,
         string? Referencia,
         bool RequiereBanco = false,
-        int? IdBanco = null);
+        int? IdBanco = null,
+        bool RequiereFecha = false,
+        DateTime? Fecha = null,
+        bool FechaPuedeSerFutura = false);
+
+    /// <summary>
+    /// Línea de una fila adicional (botón «+») según su forma de pago: el efectivo no pide referencia ni banco (y puede dar vuelto),
+    /// la tarjeta pide referencia, el depósito y el cheque piden referencia (o número de cheque), banco y, si el panel lo pide, fecha.
+    /// </summary>
+    public static LineaPago LineaDeExtra(bool esEfectivo, bool tarjeta, bool deposito, bool cheque, PagoExtra x, bool pedirFecha)
+        => new(x.Codigo, x.Monto,
+            EsEfectivo: esEfectivo,
+            RequiereReferencia: tarjeta || deposito || cheque,
+            Referencia: cheque ? x.NumeroCheque : x.Referencia,
+            RequiereBanco: deposito || cheque,
+            IdBanco: x.IdBanco,
+            RequiereFecha: pedirFecha && (deposito || cheque),
+            Fecha: x.FechaPago,
+            FechaPuedeSerFutura: cheque);
+
+    /// <summary>Código de la forma de pago «Saldo a favor» (el que deja una nota de crédito): no es efectivo, no da vuelto y no pide referencia.</summary>
+    public const string CodigoSaldoAFavor = "SALDOFAV";
+
+    public static bool EsSaldoAFavor(string? codigo) => string.Equals(codigo?.Trim(), CodigoSaldoAFavor, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Una forma es «efectivo» (puede dar vuelto) si viene marcada así o si no es tarjeta, depósito, cheque ni saldo a favor.</summary>
+    public static bool EsFormaEfectivo(bool efectivo, bool tarjeta, bool deposito, bool cheque, string? codigo)
+        => !EsSaldoAFavor(codigo) && (efectivo || !(tarjeta || deposito || cheque));
+
+    /// <summary>Hoy en Costa Rica (UTC−6): un depósito no puede tener fecha posterior.</summary>
+    public static DateTime HoyCostaRica() => DateTime.UtcNow.AddHours(-6).Date;
 
     /// <summary>Reparto ya calculado, con los importes por forma y los avisos.</summary>
     public readonly record struct Reparto(
@@ -110,6 +140,10 @@ public static class PreparacionPagoVenta
                 errores.Add($"La forma de pago {Nombre(i)} requiere número de referencia.");
             if (l.RequiereBanco && l.IdBanco is null)
                 errores.Add($"La forma de pago {Nombre(i)} requiere seleccionar el banco.");
+            if (l.RequiereFecha && l.Fecha is null)
+                errores.Add($"La forma de pago {Nombre(i)} requiere la fecha del pago.");
+            else if (l.Fecha is { } fecha && !l.FechaPuedeSerFutura && fecha.Date > HoyCostaRica())
+                errores.Add($"La fecha de la forma de pago {Nombre(i)} no puede ser futura.");
         }
         foreach (var g in activas
                      .Where(l => l.IdBanco is not null && !string.IsNullOrWhiteSpace(l.Referencia))

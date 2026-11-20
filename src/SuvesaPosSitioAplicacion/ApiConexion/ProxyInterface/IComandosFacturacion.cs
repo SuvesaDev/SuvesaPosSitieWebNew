@@ -27,4 +27,7 @@ public interface IComandosFacturacion
 
     /// <summary>Estado de cuenta del cliente a una fecha de corte (null = hoy).</summary>
     Task<ResponseGeneric<EstadoCuentaClienteDTO>> EstadoCuenta(long idCliente, DateTime? corte = null);
+
+    /// <summary>Recibos, notas de crédito y crédito a favor aplicado de una factura.</summary>
+    Task<ResponseGeneric<HistorialFacturaDTO>> HistorialFactura(long idVenta);
 }

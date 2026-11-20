@@ -15,4 +15,6 @@ public sealed class PagoExtra
     public string? Referencia { get; set; }
     public string? NumeroCheque { get; set; }
     public int? IdBanco { get; set; }
+    /// <summary>Fecha del depósito o cheque de esta línea (solo se captura donde el panel lo pide).</summary>
+    public DateTime? FechaPago { get; set; }
 }

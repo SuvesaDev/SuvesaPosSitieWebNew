@@ -150,6 +150,19 @@
                     </select>
                 </div>
                 <div class="col-12 col-md-8"><label class="form-label">Notas</label><input class="form-control" @bind="_notas" /></div>
+                @if (PuedeDejarSaldoAFavor)
+                {
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input id="dev-saldo-favor" class="form-check-input" type="checkbox" @bind="_dejarSaldoAFavor" />
+                            <label class="form-check-label" for="dev-saldo-favor">Cambio de producto: dejar el total como saldo a favor del cliente</label>
+                        </div>
+                        <div class="form-text">
+                            @(_dejarSaldoAFavor
+                                ? "No sale dinero de caja: el monto queda como saldo a favor y se usa como forma de pago en la factura nueva. Requiere un cliente identificado."
+                                : "Sin marcar, lo pagado en efectivo se reintegra de caja y lo pagado con otro medio queda como saldo a favor.")</div>
+                    </div>
+                }
             </div>
         </div>
 
@@ -242,6 +255,9 @@
 
     private int _idPersonalRecibe;
     private string _notas = string.Empty;
+    /// <summary>Cambio de producto: la devolución de una factura de contado queda como saldo a favor en vez de reintegrarse.</summary>
+    private bool _dejarSaldoAFavor;
+    private bool PuedeDejarSaldoAFavor => _factura is not null && _factura.IdPlazo is not > 0 && !_factura.EsCredito;
     private bool _guardando;
 
     private int _filtroTipo;
@@ -649,6 +665,7 @@
                 // Una devolución comercial, incluso si es completa, conserva la venta
                 // origen para su trazabilidad e impresión histórica.
                 AnularOrigen = false,
+                DejarComoSaldoAFavor = _dejarSaldoAFavor && PuedeDejarSaldoAFavor,
                 Lineas = _lineas.Select(l => new DTOs.Cobros.DevolucionInternaLineaWebDTO
                 {
                     IdVentaDetalle = l.IdVentaDetalle,
@@ -686,6 +703,7 @@
             NumApertura = 0,
             UsuarioRecibio = _personal.FirstOrDefault(p => p.IdPersonal == _idPersonalRecibe)?.NombrePersonal,
             NotasDevolucion = _notas,
+            DejarComoSaldoAFavor = _dejarSaldoAFavor && PuedeDejarSaldoAFavor,
             IdSucursal = Sesion.IdSucursal,
             Detalle = _lineas.Select(l => new DevolucionVentaDetalleDTO
             {
@@ -738,6 +756,7 @@
         _lineas.Clear();
         _idPersonalRecibe = 0;
         _notas = string.Empty;
+        _dejarSaldoAFavor = false;
         RecalcularTotales();
     }
 }

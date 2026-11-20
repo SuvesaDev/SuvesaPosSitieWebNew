@@ -123,6 +123,7 @@
                                 <td class="text-end">@f.DiasMora d</td>
                                 <td class="text-end fw-semibold">@Formato.Importe(f.Saldo)</td>
                                 <td>
+                                    @if (f.MontoEnTransito > 0) { <span class="badge text-bg-info me-1" title="Hay un depósito o cheque por confirmar; el saldo sigue completo hasta que se apruebe">En tránsito @Formato.Importe(f.MontoEnTransito)</span> }
                                     @if (f.TienePromesaIncumplida) { <span class="badge text-bg-danger me-1" title="Una promesa de pago sobre esta factura quedó incumplida">Promesa incumplida</span> }
                                     @if (f.IdSeguimiento is { } idSeg)
                                     {

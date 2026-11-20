@@ -86,6 +86,25 @@
                 }
             </div>
 
+            @if (_estado.FacturasEnTransito.Count > 0)
+            {
+                <div class="card mb-3 border-info"><div class="card-header"><strong>En tránsito / Pendiente de aprobación</strong>
+                    <span class="text-secondary small">@Formato.Importe((decimal)_estado.EnTransito)</span></div>
+                    <div class="card-body">
+                        <p class="small text-secondary mb-2">Estas facturas ya tienen un recibo con depósito, transferencia o cheque en revisión: no cuentan como saldo pendiente
+                            ni se pueden cobrar otra vez. Si el pago se rechaza, vuelven solas al saldo.</p>
+                        <div class="table-responsive"><table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Factura</th><th>Recibo</th><th>Fecha del recibo</th><th class="text-end">Monto en tránsito</th></tr></thead>
+                            <tbody>
+                                @foreach (var t in _estado.FacturasEnTransito)
+                                {
+                                    <tr><td><code>@t.NumFactura.ToString("0")</code></td><td>@t.NumeroRecibo</td><td class="small">@t.FechaReciboUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td class="text-end">@Formato.Importe(t.MontoEnTransito)</td></tr>
+                                }
+                            </tbody>
+                        </table></div>
+                    </div></div>
+            }
+
             <div class="card mb-3"><div class="card-header"><strong>Antigüedad de saldos</strong> <span class="text-secondary small">al @_estado.FechaCorte.ToString("dd/MM/yyyy")</span></div>
                 <div class="card-body">
                     <div class="row g-2 text-center">
@@ -123,10 +142,10 @@
                         <thead><tr>
                             <th>Factura</th><th>Sucursal</th><th>Fecha</th><th>Vence</th><th class="text-center">Días mora</th>
                             <th class="text-end">Original</th><th class="text-end">NC</th>
-                            <th class="text-end">Pagado</th><th class="text-end">Saldo</th><th>Estado MH</th>
+                            <th class="text-end">Pagado</th><th class="text-end">Saldo</th><th>Estado MH</th><th></th>
                         </tr></thead>
                         <tbody>
-                            @if (_estado.Detalle.Count == 0) { <tr><td colspan="10" class="text-center text-secondary py-3">Sin facturas con saldo.</td></tr> }
+                            @if (_estado.Detalle.Count == 0) { <tr><td colspan="11" class="text-center text-secondary py-3">Sin facturas con saldo.</td></tr> }
                             @foreach (var f in DetalleVisible)
                             {
                                 <tr class="@(EsVencida(f) ? "table-warning" : null)">
@@ -140,6 +159,7 @@
                                     <td class="text-end">@Formato.Importe((decimal)f.PagosAplicados)</td>
                                     <td class="text-end fw-semibold">@Formato.Importe((decimal)f.SaldoActual)</td>
                                     <td><span class="small text-secondary">@f.EstadoMh</span></td>
+                                    <td class="text-end"><button type="button" class="btn btn-sm btn-outline-secondary py-0" title="Recibos, notas de crédito y crédito a favor de esta factura" @onclick="() => VerHistorial(f.IdVenta)"><i class="bi bi-clock-history" aria-hidden="true"></i> Historial</button></td>
                                 </tr>
                             }
                         </tbody>
@@ -150,7 +170,46 @@
     </ChildContent>
 </AppPantalla>
 
+<AppModal @ref="_modalHistorial" Titulo="@($"Historial de la factura {_historial?.NumFactura.ToString("0")}")" Subtitulo="Recibos, notas de crédito y crédito a favor" Tamano="ModalSize.Large" TextoCancelar="Cerrar">
+    <ChildContent>
+        @if (_historial is not null)
+        {
+            <div class="row g-2 text-center mb-3">
+                <div class="col"><div class="text-secondary small">Total</div><div class="fw-semibold">@Formato.Importe(_historial.Total)</div></div>
+                <div class="col"><div class="text-secondary small">Saldo actual</div><div class="fw-semibold">@Formato.Importe(_historial.SaldoActual)</div></div>
+                <div class="col"><div class="text-secondary small">Crédito a favor del cliente</div><div class="fw-semibold text-success">@Formato.Importe(_historial.CreditoAFavorDisponibleCliente)</div></div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Fecha</th><th>Movimiento</th><th class="text-end">Monto</th><th>Estado</th></tr></thead>
+                    <tbody>
+                        @if (_historial.Movimientos.Count == 0) { <tr><td colspan="4" class="text-center text-secondary py-3">La factura no tiene movimientos.</td></tr> }
+                        @foreach (var m in _historial.Movimientos)
+                        {
+                            <tr class="@(m.Estado == "Anulado" ? "text-decoration-line-through text-secondary" : null)">
+                                <td>@m.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@m.Descripcion</td>
+                                <td class="text-end">@Formato.Importe(m.Monto)</td>
+                                <td>@(m.Estado switch { "PendienteConfirmacion" => "Pendiente de confirmar", "Anulado" => "Anulado", _ => "Aplicado" })</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </ChildContent>
+</AppModal>
+
 @code {
+    private AppModal _modalHistorial = default!;
+    private SuvesaPosSitioAplicacion.DTOs.Fiscal.HistorialFacturaDTO? _historial;
+
+    private async Task VerHistorial(long idVenta)
+    {
+        _historial = await Respuestas.DatoAsync(await Comandos.HistorialFactura(idVenta), "consultar el historial de la factura");
+        if (_historial is not null) await _modalHistorial.MostrarAsync();
+    }
+
     [Parameter] public long? IdClienteRuta { get; set; }
 
     private string _texto = string.Empty;

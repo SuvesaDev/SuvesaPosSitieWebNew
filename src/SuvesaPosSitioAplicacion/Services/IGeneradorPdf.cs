@@ -76,7 +76,13 @@ public sealed record EstadoCuentaPdf(
     public string? SucursalFiltro { get; init; }
     /// <summary>Membrete corporativo (logo, razón social, identificación y contacto). Si falta, el PDF no lo lleva.</summary>
     public EncabezadoEmpresaPdf? Empresa { get; init; }
+    /// <summary>Pagos con depósito/cheque aún pendientes de confirmar: ya ocupan el límite pero no bajan el saldo ni cuentan como mora.</summary>
+    public decimal EnTransito { get; init; }
+    public IReadOnlyList<LineaEnTransitoPdf> FacturasEnTransito { get; init; } = Array.Empty<LineaEnTransitoPdf>();
 }
+
+/// <summary>Un recibo pendiente de aprobación aplicado a una factura.</summary>
+public sealed record LineaEnTransitoPdf(string Factura, long Recibo, DateTime Fecha, decimal Monto);
 
 /// <summary>Una factura con saldo pendiente dentro de un estado de cuenta.</summary>
 public sealed record LineaEstadoCuentaPdf(
