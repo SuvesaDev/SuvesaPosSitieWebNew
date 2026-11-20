@@ -117,6 +117,30 @@ public sealed class EstadoCuentaClienteDTO
     public List<FacturaEnTransitoDTO> FacturasEnTransito { get; set; } = new();
 }
 
+/// <summary>Un movimiento de la vida de una factura (recibo, nota de crédito, descuento por pronto pago o crédito a favor aplicado).</summary>
+public sealed class MovimientoHistorialFacturaDTO
+{
+    public System.DateTime Fecha { get; set; }
+    /// <summary>Recibo | NotaCredito | DescuentoProntoPago | CreditoAFavor</summary>
+    public string Tipo { get; set; } = "";
+    public string Descripcion { get; set; } = "";
+    public decimal Monto { get; set; }
+    /// <summary>Aplicado | PendienteConfirmacion | Anulado</summary>
+    public string Estado { get; set; } = "";
+    public long? IdDocumento { get; set; }
+}
+
+/// <summary>Historial de una factura con su saldo y el crédito a favor que el cliente todavía tiene disponible.</summary>
+public sealed class HistorialFacturaDTO
+{
+    public long IdVenta { get; set; }
+    public double NumFactura { get; set; }
+    public decimal Total { get; set; }
+    public decimal SaldoActual { get; set; }
+    public decimal CreditoAFavorDisponibleCliente { get; set; }
+    public List<MovimientoHistorialFacturaDTO> Movimientos { get; set; } = new();
+}
+
 /// <summary>Factura cubierta por un recibo pendiente de aprobación («En tránsito / Pendiente de aprobación»).</summary>
 public sealed class FacturaEnTransitoDTO
 {
