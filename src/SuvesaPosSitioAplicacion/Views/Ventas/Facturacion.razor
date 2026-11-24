@@ -1,7 +1,6 @@
 @page "/initial/billing"
 @page "/consignment/prebill/from/{ConteoId:long}"
 @page "/sales/billing/from-proforma/{ProformaId:long}"
-@implements IDisposable
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.ApiConexion
@@ -76,17 +75,17 @@
                             </div>
                         }
                         <div class="row g-3">
-                            <div class="col-12 col-md-5">
+                            <div class="col-12 col-md-6">
                                 <label class="form-label">Buscar cliente</label>
                                 <div class="seepos-factura-cliente">
-                                    <div class="input-group"><input class="form-control" placeholder="Cédula o nombre" value="@_textoCliente" @oninput="AlEscribirCliente" @onkeydown="BuscarClienteConEnter" /><button type="button" class="btn btn-outline-primary" @onclick="BuscarClientes">Buscar</button><button type="button" class="btn btn-outline-secondary" title="Venta ocasional (feria, cliente final): tiquete de contado a nombre genérico" @onclick="ElegirClienteContado"><i class="bi bi-person me-1" aria-hidden="true"></i>Cliente de contado</button></div>
+                                    <div class="input-group"><input class="form-control" placeholder="Cédula o nombre" value="@_textoCliente" @oninput="AlEscribirCliente" @onkeydown="BuscarClienteConEnter" /><button type="button" class="btn btn-outline-primary" @onclick="BuscarClientes">Buscar</button><button type="button" class="btn btn-outline-secondary text-nowrap" title="Cliente de contado: venta ocasional (feria, cliente final), tiquete de contado a nombre genérico" @onclick="ElegirClienteContado"><i class="bi bi-person me-1" aria-hidden="true"></i>Contado</button></div>
                                     @if (_clientesEncontrados.Count > 0)
                                     {
                                         <div class="list-group seepos-factura-cliente-lista">@foreach (var cliente in _clientesEncontrados) { <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirCliente(cliente)"><strong>@cliente.Nombre</strong><span class="text-secondary ms-2">@cliente.Cedula</span></button> }</div>
                                     }
                                 </div>
                             </div>
-                            <div class="col-12 col-md-3">
+                            <div class="col-12 col-md-2">
                                 <label class="form-label">Condición de venta</label>
                                 <select class="form-select" @bind="EsCreditoTexto" @bind:after="AlCambiarCondicion">
                                     <option value="false">Contado</option>
@@ -1420,8 +1419,6 @@
         return r2.EsCorrecta ? (r2.Responses ?? new List<FiltranClienteDTO>()).FirstOrDefault(x => x.Identificacion == idCliente) : null;
     }
 
-    public void Dispose() => _pendienteCliente?.Cancel();
-
 
     private string _filtroCatalogo = string.Empty;
     private List<ProductoCatalogo> CatalogoFiltrado
@@ -1628,37 +1625,13 @@
         => _clientesEncontrados = (await Respuestas.DatoAsync(await Clientes.Buscar(_textoCliente), "buscar clientes"))?.Where(c => !c.Anulado && !c.Fallecido).ToList() ?? new();
     private async Task BuscarClienteConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await BuscarClientes(); }
 
-    // Busca sola al escribir, igual que el buscador de articulos: el usuario no
-    // deberia tener que acordarse de apretar "Buscar" para que esto funcione.
-    // Espera a que pare de escribir para no llamar al API en cada tecla.
-    private static readonly TimeSpan EsperaCliente = TimeSpan.FromMilliseconds(400);
-    private CancellationTokenSource? _pendienteCliente;
-
-    private async Task AlEscribirCliente(ChangeEventArgs e)
+    // La busqueda se hace solo con el boton "Buscar" o con Enter. Al escribir solo se guarda el texto
+    // (oninput, no onchange: Enter dispara keydown antes del change y buscaria el texto anterior) y se
+    // limpia la lista, para que no quede una lista que no corresponde a lo escrito.
+    private void AlEscribirCliente(ChangeEventArgs e)
     {
         _textoCliente = e.Value?.ToString() ?? string.Empty;
-
-        _pendienteCliente?.Cancel();
-
-        if (_textoCliente.Trim().Length < 2)
-        {
-            _clientesEncontrados.Clear();
-            return;
-        }
-
-        _pendienteCliente = new CancellationTokenSource();
-        var token = _pendienteCliente.Token;
-
-        try
-        {
-            await Task.Delay(EsperaCliente, token);
-        }
-        catch (TaskCanceledException)
-        {
-            return;
-        }
-
-        await BuscarClientes();
+        _clientesEncontrados.Clear();
     }
     private async Task ElegirCliente(FiltranClienteDTO cliente)
     {
