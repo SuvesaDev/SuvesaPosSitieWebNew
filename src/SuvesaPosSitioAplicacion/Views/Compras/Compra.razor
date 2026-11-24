@@ -528,6 +528,20 @@
             CuentasBancariasProveedors = new List<CuentaBancariaProveedorDTO>()
         }), "crear el proveedor");
         if (creado is null) return;
+        if (creado.CodigoProv <= 0)
+        {
+            // Un API anterior respondía con el proveedor sin su código generado: se busca por cédula en el listado
+            // para no seleccionar uno inválido (la compra lo rechaza con «no tiene un código válido»).
+            var lista = await Respuestas.DatoAsync(await Proveedores.Obtener(), "consultar los proveedores");
+            var real = lista?.FirstOrDefault(p => string.Equals(p.Cedula?.Trim(), creado.Cedula?.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (real is null || real.CodigoProv <= 0)
+            {
+                await _modalNuevaProveedor.HideAsync();
+                await Dialogos.ErrorAsync("El proveedor se creó, pero no se pudo seleccionar. Búsquelo por su cédula.");
+                return;
+            }
+            creado = real;
+        }
         _proveedores.Add(creado); ElegirProveedor(creado); _proveedorXmlNoExiste = false; await _modalNuevaProveedor.HideAsync();
         await RestaurarImportadorXmlAsync();
         Dialogos.Exito("Proveedor creado correctamente.");
