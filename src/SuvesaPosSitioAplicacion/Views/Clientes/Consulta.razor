@@ -706,7 +706,7 @@
                         <div class="col-12 col-md-2 d-grid align-self-end">
                             <button type="button" class="btn btn-outline-primary" @onclick="AgregarDatosSucursal">@(_datosSucursalOriginal is null ? "Agregar" : "Guardar cambios")</button>
                         </div>
-                        <div class="col-12"><AppCampoTexto Etiqueta="Contacto" @bind-Valor="_datosSucursalEdicion.Contacto" /></div>
+                        <div class="col-12"><AppCampoTexto Etiqueta="Contacto" @bind-Valor="_datosSucursalEdicion.Contacto" /><div class="form-text">El correo de la sucursal es al que se envían las facturas emitidas a esa sucursal (varios, separados por «;»). Si queda vacío, se usa el correo de facturación electrónica del cliente.</div></div>
                         @if (_datosSucursalOriginal is not null)
                         {
                             <div class="col-12"><button type="button" class="btn btn-sm btn-link text-secondary p-0" @onclick="CancelarEdicionDatosSucursal">Cancelar edición</button></div>
@@ -1656,6 +1656,20 @@
             return;
         }
 
+        // Lo escrito en el formulario de sucursal sin pulsar «Agregar» se perdía en silencio al guardar:
+        // se agrega solo (si es válido) o se avisa de qué falta.
+        if (_variasSucursales && HayDatosSucursalPendientes)
+        {
+            var errorSucursal = ValidarDatosSucursalEdicion();
+            if (errorSucursal is not null)
+            {
+                _pestanaEdicion = "facturacion";
+                _errorFicha = errorSucursal + " Complete o borre los datos de la sucursal antes de guardar.";
+                return;
+            }
+            AplicarDatosSucursalEdicion();
+        }
+
         if (_variasSucursales && (_edicion.DatosSucursal?.Count ?? 0) == 0)
         {
             _pestanaEdicion = "facturacion";
@@ -1790,15 +1804,45 @@
         NombreFantasia = cliente.NombreFantasia
     };
 
+    private static readonly System.ComponentModel.DataAnnotations.EmailAddressAttribute FormatoCorreo = new();
+
+    /// <summary>Hay algo escrito en el formulario de sucursal que todavía no se agregó a la lista.</summary>
+    private bool HayDatosSucursalPendientes
+        => !string.IsNullOrWhiteSpace(_datosSucursalEdicion.Sucursal) || !string.IsNullOrWhiteSpace(_datosSucursalEdicion.NombreComercial)
+           || !string.IsNullOrWhiteSpace(_datosSucursalEdicion.Telefono) || !string.IsNullOrWhiteSpace(_datosSucursalEdicion.Email)
+           || !string.IsNullOrWhiteSpace(_datosSucursalEdicion.Contacto);
+
+    /// <summary>Valida el formulario de sucursal y normaliza su correo (varios separados por «;»). Devuelve el error o null.</summary>
+    private string? ValidarDatosSucursalEdicion()
+    {
+        if (string.IsNullOrWhiteSpace(_datosSucursalEdicion.Sucursal) || string.IsNullOrWhiteSpace(_datosSucursalEdicion.NombreComercial))
+            return "Indique sucursal y nombre comercial.";
+
+        var correos = (_datosSucursalEdicion.Email ?? string.Empty)
+            .Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var invalido = correos.FirstOrDefault(c => !FormatoCorreo.IsValid(c));
+        if (invalido is not null) return $"El correo «{invalido}» de la sucursal no es válido.";
+
+        _datosSucursalEdicion.Email = correos.Count == 0 ? null : string.Join(";", correos);
+        return null;
+    }
+
     private async Task AgregarDatosSucursal()
     {
-        if (_edicion is null || string.IsNullOrWhiteSpace(_datosSucursalEdicion.Sucursal)
-            || string.IsNullOrWhiteSpace(_datosSucursalEdicion.NombreComercial))
+        if (_edicion is null) return;
+        var error = ValidarDatosSucursalEdicion();
+        if (error is not null)
         {
-            await Dialogos.ErrorAsync("Indique sucursal y nombre comercial.");
+            await Dialogos.ErrorAsync(error);
             return;
         }
+        AplicarDatosSucursalEdicion();
+    }
 
+    private void AplicarDatosSucursalEdicion()
+    {
+        if (_edicion is null) return;
         _datosSucursalEdicion.IdCliente = _edicion.Identificacion;
         _edicion.DatosSucursal ??= new List<ClienteDatosSucursalDTO>();
 
