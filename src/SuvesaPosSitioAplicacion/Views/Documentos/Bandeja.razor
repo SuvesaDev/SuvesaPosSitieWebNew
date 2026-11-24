@@ -80,8 +80,8 @@
                             <PropertyColumn Property="d => d.Subtotal" Title="Subtotal" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Subtotal)</CellTemplate></PropertyColumn>
                             <PropertyColumn Property="d => d.Impuesto" Title="Impuesto" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Impuesto)</CellTemplate></PropertyColumn>
                             <PropertyColumn Property="d => d.Total" Title="Total" CellClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Total)</CellTemplate></PropertyColumn>
-                            <TemplateColumn Title="Estado"><CellTemplate>@if (context.Item is DocumentoFiscalBandeja f && !string.IsNullOrWhiteSpace(f.EstadoHacienda)) { <span class="badge @ClaseEstado(f.EstadoHacienda)">@f.EstadoHacienda</span> } else { @context.Item.EstadoDescripcion }</CellTemplate></TemplateColumn>
-                            <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate Context="context"><div class="d-flex gap-1"><button class="btn btn-sm btn-success" title="Ver detalle" @onclick="() => VerDetalle(context.Item)"><i class="bi bi-eye"></i></button>@if (_tab == 1) { <button class="btn btn-sm btn-outline-danger" title="Devolución" @onclick="() => Devolucion(context.Item)"><i class="bi bi-arrow-return-left"></i></button> }@if (EsFiscal && context.Item is DocumentoFiscalBandeja fa && !string.IsNullOrWhiteSpace(fa.ClaveFacturaElectronica)) { <button class="btn btn-sm btn-outline-primary" title="Opciones fiscales" @onclick="() => AccionFiscal(fa.ClaveFacturaElectronica!, fa)"><i class="bi bi-file-earmark-text"></i></button> }@if (EsFiscal && Sesion.Puede(Titulo, AccionPantalla.Imprimir)) { <BotonImprimir Tipo="@SlugDocumento(context.Item)" Id="context.Item.Id" Clase="btn-sm btn-outline-secondary" SoloIcono="true" Titulo="Descargar PDF (A4)" /> }</div></CellTemplate></TemplateColumn>
+                            <TemplateColumn Title="Estado"><CellTemplate>@if (context.Item is DocumentoFiscalBandeja f && !string.IsNullOrWhiteSpace(f.EstadoHacienda)) { <span class="badge @ClaseEstado(f.EstadoHacienda)">@f.EstadoHacienda</span> } else { @context.Item.EstadoDescripcion }@if (_tab == 1 && context.Item is DocumentoFiscalBandeja fd) { @InsigniaDevolucion(fd.EstadoDevolucion) }</CellTemplate></TemplateColumn>
+                            <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate Context="context"><div class="d-flex gap-1"><button class="btn btn-sm btn-success" title="Ver detalle" @onclick="() => VerDetalle(context.Item)"><i class="bi bi-eye"></i></button>@if (PuedeDevolverFila(context.Item)) { <button class="btn btn-sm btn-outline-danger" title="Devolución" @onclick="() => Devolucion(context.Item)"><i class="bi bi-arrow-return-left"></i></button> }@if (EsFiscal && context.Item is DocumentoFiscalBandeja fa && !string.IsNullOrWhiteSpace(fa.ClaveFacturaElectronica)) { <button class="btn btn-sm btn-outline-primary" title="Opciones fiscales" @onclick="() => AccionFiscal(fa.ClaveFacturaElectronica!, fa)"><i class="bi bi-file-earmark-text"></i></button> }@if (EsFiscal && Sesion.Puede(Titulo, AccionPantalla.Imprimir)) { <BotonImprimir Tipo="@SlugDocumento(context.Item)" Id="context.Item.Id" Clase="btn-sm btn-outline-secondary" SoloIcono="true" Titulo="Descargar PDF (A4)" /> }</div></CellTemplate></TemplateColumn>
                         </Columns>
                     </MudDataGrid>
                     </MudIsla>
@@ -127,12 +127,12 @@
                                         {
                                             <td>@f.NumeroFacturaElectronica</td>
                                             <td class="text-break"><span class="small">@f.ClaveFacturaElectronica</span></td>
-                                            <td>@if (!string.IsNullOrWhiteSpace(f.EstadoHacienda)) { <span class="badge @ClaseEstado(f.EstadoHacienda)">@f.EstadoHacienda</span> }</td>
+                                            <td>@if (!string.IsNullOrWhiteSpace(f.EstadoHacienda)) { <span class="badge @ClaseEstado(f.EstadoHacienda)">@f.EstadoHacienda</span> }@if (_tab == 1) { @InsigniaDevolucion(f.EstadoDevolucion) }</td>
                                             <td>@if (!string.IsNullOrWhiteSpace(f.MensajeRechazoHacienda)) { <span class="text-danger small" title="@f.MensajeRechazoHacienda">@Truncar(f.MensajeRechazoHacienda)</span> }</td>
                                         }
                                         <td class="text-end text-nowrap">
                                             <button class="btn btn-sm btn-link p-0" @onclick="() => VerDetalle(d)">Ver</button>
-                                            @if (_tab == 1)
+                                            @if (PuedeDevolverFila(d))
                                             {
                                                 <button class="btn btn-sm btn-link p-0 ms-2" @onclick="() => Devolucion(d)">Devolución</button>
                                             }
@@ -186,6 +186,10 @@
             @if (_detFactura.PuedeDevolver)
             {
                 <button class="btn btn-outline-danger btn-sm mt-3 w-100" @onclick="() => DevolucionPorVentaId(_detFactura.Encabezado.Id)">Realizar devolución</button>
+            }
+            else if (_detFactura.Encabezado.EstadoDevolucion == 2)
+            {
+                <div class="alert alert-secondary small mt-3 mb-0">Esta factura ya fue devuelta por completo con notas de crédito.</div>
             }
         }
         else if (_detNC is not null)

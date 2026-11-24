@@ -174,6 +174,19 @@ public partial class Bandeja
 
     private void Devolucion(DocumentoBandeja d) => DevolucionPorVentaId(d.Id);
 
+    /// <summary>La devolución solo se ofrece en facturas sin anular y sin devolver por completo (sin devoluciones o con devolución parcial).</summary>
+    private bool PuedeDevolverFila(DocumentoBandeja d)
+        => _tab == 1 && !d.Anulado && !(d is DocumentoFiscalBandeja f && f.EstadoDevolucion == 2);
+
+    private static Microsoft.AspNetCore.Components.RenderFragment InsigniaDevolucion(int estado) => builder =>
+    {
+        if (estado is not (1 or 2)) return;
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", estado == 2 ? "badge text-bg-secondary ms-1" : "badge text-bg-warning ms-1");
+        builder.AddContent(2, estado == 2 ? "Devuelta" : "Devolución parcial");
+        builder.CloseElement();
+    };
+
     // Llevamos el Id exacto de la venta (no el consecutivo, que se repite entre
     // series/tipos) para que la pantalla de devoluciones cargue el documento correcto.
     private void DevolucionPorVentaId(long idVenta)
