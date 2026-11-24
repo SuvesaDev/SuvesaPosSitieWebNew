@@ -3352,6 +3352,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("correoComprobante")]
         public string? CorreoComprobante { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("correoCopiaComprobante")]
+        public string? CorreoCopiaComprobante { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("actualizado")]
         public bool Actualizado { get; set; } = default!;
 
@@ -7488,6 +7491,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("correoComprobante")]
         public string? CorreoComprobante { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("correoCopiaComprobante")]
+        public string? CorreoCopiaComprobante { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("actualizado")]
         public bool Actualizado { get; set; } = default!;

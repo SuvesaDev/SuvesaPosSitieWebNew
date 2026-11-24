@@ -122,6 +122,7 @@
                 <dt class="col-4">Tipo</dt><dd class="col-8">@_sel.TipoComprobante</dd>
                 <dt class="col-4">Estado</dt><dd class="col-8">@Humano(_sel.Estado)</dd>
                 <dt class="col-4">Receptor</dt><dd class="col-8 text-break"><strong>@NombreReceptor(_sel)</strong><small class="d-block text-secondary">@_sel.Destinatarios</small></dd>
+                @if (!string.IsNullOrWhiteSpace(_sel.Copia)) { <dt class="col-4">En copia</dt><dd class="col-8 text-break">@_sel.Copia</dd> }
                 <dt class="col-4">Intentos</dt><dd class="col-8">@_sel.Intentos / @_sel.MaxIntentos</dd>
                 <dt class="col-4">Próximo intento</dt><dd class="col-8">@(_sel.ProximoIntentoUtc?.ToLocalTime().ToString("g") ?? "—")</dd>
                 <dt class="col-4">Enviado</dt><dd class="col-8">@(_sel.FechaEnvioUtc?.ToLocalTime().ToString("g") ?? "—")</dd>

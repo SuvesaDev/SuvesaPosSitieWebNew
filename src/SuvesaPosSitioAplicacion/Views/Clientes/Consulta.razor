@@ -559,6 +559,10 @@
 
                         <div class="col-12 seepos-form-seccion">Facturación electrónica</div>
                         <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo de facturación electrónica" @bind-Valor="_edicion.CorreoComprobante" Requerido="true" /></div>
+                        <div class="col-12 col-md-6">
+                            <AppCampoTexto Etiqueta="Correos en copia de la factura (opcional)" @bind-Valor="_edicion.CorreoCopiaComprobante" />
+                            <div class="form-text">Reciben copia (Cc) de cada factura electrónica del cliente. Separe los correos con <code>;</code> (máximo 5). Aplica también cuando la factura va al correo de una sucursal.</div>
+                        </div>
 
                         <div class="col-12">
                             <label class="form-label mb-1">Actividades económicas</label>
@@ -1782,6 +1786,7 @@
         Anulado = cliente.Anulado,
         OrdenCompra = cliente.OrdenCompra,
         CorreoComprobante = cliente.CorreoComprobante,
+        CorreoCopiaComprobante = cliente.CorreoCopiaComprobante,
         CodigoActividad = cliente.CodigoActividad,
         Actualizado = cliente.Actualizado,
         DescuentoEspecial = cliente.DescuentoEspecial,
