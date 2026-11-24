@@ -122,6 +122,7 @@
                 <dt class="col-4">Tipo</dt><dd class="col-8">@_sel.TipoComprobante</dd>
                 <dt class="col-4">Estado</dt><dd class="col-8">@Humano(_sel.Estado)</dd>
                 <dt class="col-4">Receptor</dt><dd class="col-8 text-break"><strong>@NombreReceptor(_sel)</strong><small class="d-block text-secondary">@_sel.Destinatarios</small></dd>
+                @if (!string.IsNullOrWhiteSpace(_sel.Copia)) { <dt class="col-4">En copia</dt><dd class="col-8 text-break">@_sel.Copia</dd> }
                 <dt class="col-4">Intentos</dt><dd class="col-8">@_sel.Intentos / @_sel.MaxIntentos</dd>
                 <dt class="col-4">Próximo intento</dt><dd class="col-8">@(_sel.ProximoIntentoUtc?.ToLocalTime().ToString("g") ?? "—")</dd>
                 <dt class="col-4">Enviado</dt><dd class="col-8">@(_sel.FechaEnvioUtc?.ToLocalTime().ToString("g") ?? "—")</dd>
@@ -131,3 +132,25 @@
         }
     </BodyTemplate>
 </HxOffcanvas>
+
+<AppModal @ref="_modalReenvio" Titulo="Reenviar comprobante" Subtitulo="@_reenvio?.Clave" Tamano="ModalSize.Regular">
+    <ChildContent>
+        @if (_reenvio is not null)
+        {
+            <p class="small mb-2">
+                <strong>@NombreReceptor(_reenvio)</strong><br />
+                Correo actual: <span class="text-break">@(string.IsNullOrWhiteSpace(_reenvio.Destinatarios) ? "sin destinatario" : _reenvio.Destinatarios)</span>
+            </p>
+            @if (_reenvio.Estado == "Enviado")
+            {
+                <p class="small text-secondary">Ya se envió@(_reenvio.FechaEnvioUtc is { } f ? $" el {f.ToLocalTime():dd/MM/yyyy HH:mm}" : ""). Se enviará de nuevo.</p>
+            }
+            <AppCampoTexto Etiqueta="Correo de destino" @bind-Valor="_correoNuevo" Marcador="correo@ejemplo.com; otro@ejemplo.com" />
+            <div class="form-text">Reemplaza el correo solo en este envío; la ficha del cliente no cambia. Puede indicar hasta 5 separados por «;».</div>
+        }
+    </ChildContent>
+    <Pie>
+        <button type="button" class="btn btn-outline-primary" disabled="@_reenviando" @onclick="ReenviarAlMismo">Reenviar al mismo correo</button>
+        <button type="button" class="btn btn-primary" disabled="@(_reenviando || !CorreoCambiado)" @onclick="ReenviarANuevo">Reenviar a este correo</button>
+    </Pie>
+</AppModal>

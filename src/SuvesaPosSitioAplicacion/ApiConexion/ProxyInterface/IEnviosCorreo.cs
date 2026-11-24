@@ -9,5 +9,6 @@ public interface IEnviosCorreo
     Task<ResponseGeneric<PaginaEnviosCorreoDTO>> Listar(
         string? estado, int? idEmisor, DateTime? desde, DateTime? hasta, string? texto, int pagina, int tamano);
 
-    Task<ResponseGeneric<bool>> Reenviar(string clave);
+    /// <summary>Reencola el envío. Con <paramref name="destinatarios"/> lo reenvía solo esta vez a esos correos (separados por ';'); sin él, a los mismos.</summary>
+    Task<ResponseGeneric<bool>> Reenviar(string clave, string? destinatarios = null);
 }

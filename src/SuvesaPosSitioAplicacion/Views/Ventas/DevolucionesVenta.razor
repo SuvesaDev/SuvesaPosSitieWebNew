@@ -301,7 +301,7 @@
         {
             _prefillPendiente = false;
             var factura = await Respuestas.DatoAsync(await Api.BuscarFacturaPorId(_prefillVentaId), "buscar la factura");
-            CargarFactura(factura);
+            await CargarFactura(factura);
         }
         else if (_prefillPendiente && !string.IsNullOrWhiteSpace(_numeroFactura))
         {
@@ -339,7 +339,7 @@
         {
             var factura = await Respuestas.DatoAsync(
                 await Api.BuscarFacturaPorId((int)lista[0].Id), "buscar la factura");
-            CargarFactura(factura);
+            await CargarFactura(factura);
             return;
         }
 
@@ -365,10 +365,10 @@
     {
         await _modalBuscarFactura.HideAsync();
         var factura = await Respuestas.DatoAsync(await Api.BuscarFacturaPorId((int)encontrada.Id), "buscar la factura");
-        CargarFactura(factura);
+        await CargarFactura(factura);
     }
 
-    private void CargarFactura(FacturaDTO? factura)
+    private async Task CargarFactura(FacturaDTO? factura)
     {
         if (factura is null) return;
         _factura = factura;
@@ -376,6 +376,10 @@
         _lineaSeleccionada = null;
         _lineas.Clear();
         RecalcularTotales();
+
+        // Una factura devuelta por completo ya no admite otra nota de crédito: se avisa al elegirla, no al armar la devolución.
+        if (factura.Detalle is { Count: > 0 } det && det.All(l => RestanteLinea(l) <= 0.001m))
+            await Dialogos.ErrorAsync($"La factura {factura.Consecutivo ?? factura.Id.ToString()} ya fue devuelta por completo con notas de crédito; no queda nada por devolver.");
     }
 
     private sealed record LoteVendido(long Id, string Numero, decimal Cantidad, decimal CantidadDevuelta);
