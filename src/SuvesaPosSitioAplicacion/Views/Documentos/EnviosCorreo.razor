@@ -131,3 +131,25 @@
         }
     </BodyTemplate>
 </HxOffcanvas>
+
+<AppModal @ref="_modalReenvio" Titulo="Reenviar comprobante" Subtitulo="@_reenvio?.Clave" Tamano="ModalSize.Regular">
+    <ChildContent>
+        @if (_reenvio is not null)
+        {
+            <p class="small mb-2">
+                <strong>@NombreReceptor(_reenvio)</strong><br />
+                Correo actual: <span class="text-break">@(string.IsNullOrWhiteSpace(_reenvio.Destinatarios) ? "sin destinatario" : _reenvio.Destinatarios)</span>
+            </p>
+            @if (_reenvio.Estado == "Enviado")
+            {
+                <p class="small text-secondary">Ya se envió@(_reenvio.FechaEnvioUtc is { } f ? $" el {f.ToLocalTime():dd/MM/yyyy HH:mm}" : ""). Se enviará de nuevo.</p>
+            }
+            <AppCampoTexto Etiqueta="Correo de destino" @bind-Valor="_correoNuevo" Marcador="correo@ejemplo.com; otro@ejemplo.com" />
+            <div class="form-text">Reemplaza el correo solo en este envío; la ficha del cliente no cambia. Puede indicar hasta 5 separados por «;».</div>
+        }
+    </ChildContent>
+    <Pie>
+        <button type="button" class="btn btn-outline-primary" disabled="@_reenviando" @onclick="ReenviarAlMismo">Reenviar al mismo correo</button>
+        <button type="button" class="btn btn-primary" disabled="@(_reenviando || !CorreoCambiado)" @onclick="ReenviarANuevo">Reenviar a este correo</button>
+    </Pie>
+</AppModal>

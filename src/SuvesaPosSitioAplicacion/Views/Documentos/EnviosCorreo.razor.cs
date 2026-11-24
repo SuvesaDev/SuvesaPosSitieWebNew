@@ -2,6 +2,7 @@ using Havit.Blazor.Components.Web.Bootstrap;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 using SuvesaPosSitioAplicacion.DTOs.Correo;
 using SuvesaPosSitioAplicacion.DTOs.Generated;
+using SuvesaPosSitioAplicacion.Views.Shared.Componentes;
 
 namespace SuvesaPosSitioAplicacion.Views.Documentos;
 
@@ -56,17 +57,41 @@ public partial class EnviosCorreo
         await _detalle.ShowAsync();
     }
 
+    private AppModal _modalReenvio = default!;
+    private EnvioCorreoDTO? _reenvio;
+    private string? _correoNuevo;
+    private bool _reenviando;
+
+    /// <summary>Abre el modal de reenvío: al mismo correo o a uno nuevo solo para este envío (la ficha del cliente no cambia).</summary>
     private async Task Reenviar(EnvioCorreoDTO e)
     {
-        var mensaje = e.Estado == "Enviado"
-            ? $"El comprobante {e.Clave} ya se envió{(e.FechaEnvioUtc is { } fecha ? $" el {fecha.ToLocalTime():dd/MM/yyyy HH:mm}" : "")} a {e.Destinatarios}. ¿Reenviarlo de nuevo a los mismos destinatarios?"
-            : $"¿Reencolar el envío del comprobante {e.Clave}?";
-        if (!await Dialogos.ConfirmarAsync(mensaje, "Reenviar")) return;
-        if (await Respuestas.CorrectaAsync(await Api.Reenviar(e.Clave), "reencolar el envío"))
+        _reenvio = e;
+        _correoNuevo = e.Destinatarios;
+        await _modalReenvio.MostrarAsync();
+    }
+
+    private bool CorreoCambiado
+        => !string.IsNullOrWhiteSpace(_correoNuevo)
+           && !string.Equals(_correoNuevo.Trim(), _reenvio?.Destinatarios?.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private Task ReenviarAlMismo() => EjecutarReenvio(null);
+
+    private Task ReenviarANuevo() => EjecutarReenvio(_correoNuevo);
+
+    private async Task EjecutarReenvio(string? destinatarios)
+    {
+        if (_reenvio is null || _reenviando) return;
+        _reenviando = true;
+        try
         {
-            Dialogos.Exito("Envío reencolado.");
-            await Cargar();
+            if (await Respuestas.CorrectaAsync(await Api.Reenviar(_reenvio.Clave, destinatarios), "reencolar el envío"))
+            {
+                await _modalReenvio.OcultarAsync();
+                Dialogos.Exito(destinatarios is null ? "Envío reencolado." : "Envío reencolado al correo indicado.");
+                await Cargar();
+            }
         }
+        finally { _reenviando = false; }
     }
 
     private static bool Reenviable(string estado) => estado is "Enviado" or "Fallido" or "OmitidoSinDestinatario" or "OmitidoRechazado";
