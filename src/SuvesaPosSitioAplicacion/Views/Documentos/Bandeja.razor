@@ -248,6 +248,7 @@
     private string SlugDocumento(DocumentoBandeja d)
     {
         if (_tab == 3) return "nota-debito";
+        if (_tab == 5) return "nota-credito-externa";
         if (_tab != 1) return "nota-credito";
         var tipo = d.TipoDescripcion ?? "";
         return tipo.Contains("tiquete", StringComparison.OrdinalIgnoreCase)
