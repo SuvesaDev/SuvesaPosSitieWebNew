@@ -1599,6 +1599,22 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "VENTAS.NOTA_DE_CREDITO_EXTERNA",
+          "nombre": "Nota de crédito externa",
+          "ruta": "/sales/external-credit-note",
+          "padre": null,
+          "orden": 8,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
         }
       ]
     },
