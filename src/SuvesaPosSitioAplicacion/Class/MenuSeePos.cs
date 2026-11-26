@@ -447,6 +447,14 @@ public static partial class MenuSeePos
                     Titulo = "Devoluciones",
                     Codigo = "VENTAS.DEVOLUCIONES",
                     Ruta = "/sales/repayment",
+                },
+                new ItemMenu
+                {
+                    // Nota de crédito electrónica (referencia 09, sin inventario) contra un comprobante del sistema anterior o una venta interna.
+                    // Solo administradores: la función se concede únicamente a roles de administración.
+                    Titulo = "Nota de crédito externa",
+                    Codigo = "VENTAS.NOTA_DE_CREDITO_EXTERNA",
+                    Ruta = "/sales/external-credit-note",
                 }
             }
         },

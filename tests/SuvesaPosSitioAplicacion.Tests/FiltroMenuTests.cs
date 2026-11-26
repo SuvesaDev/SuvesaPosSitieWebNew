@@ -147,6 +147,7 @@ public class FiltroMenuTests
         // Compras → Importaciones) + 1 (Pretoma) + 1 (Boletas de Consignación) + 1 (Recibo de mercadería).
         // + 4 (módulo Cobranza: Cobranza, Seguimiento, Dashboard, Gerencial).
         // + 1 (Cobranza → Autorizaciones de crédito: aprobación de facturas a crédito a clientes morosos).
-        Assert.Equal(132, Contar(MenuSeePos.Items));   // 124 + Cobranza + Autorizaciones + IVA Repercutido, Soportado y Prorrata
+        // + 1 (Ventas → Nota de crédito externa: NC electrónica contra un comprobante del sistema anterior, solo administradores).
+        Assert.Equal(133, Contar(MenuSeePos.Items));   // 124 + Cobranza + Autorizaciones + IVA Repercutido, Soportado y Prorrata + Nota de crédito externa
     }
 }
