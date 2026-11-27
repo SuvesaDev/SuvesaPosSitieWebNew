@@ -114,7 +114,7 @@
             }
             @if (MostrarFiltro(FiltroReporteVisible.RutaVenta))
             {
-                <div class="col-12 col-md-3"><label class="form-label small">Ruta de la venta</label><select class="form-select" @bind="_idRutaVenta"><option value="">Todas las rutas</option>@foreach (var ruta in _rutasComision) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }</select></div>
+                <div class="col-12 col-md-3"><label class="form-label small">@(_tipo == "clientes" ? "Ruta de la cartera" : "Ruta de la venta")</label><select class="form-select" @bind="_idRutaVenta"><option value="">Todas las rutas</option>@foreach (var ruta in _rutasComision) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }</select></div>
             }
             @if (MostrarFiltro(FiltroReporteVisible.RolOrigen))
             {
@@ -393,6 +393,11 @@
     private static readonly Columna ColOrigen = Col("Facturó como", x => x.Origen, x => x.Origen);
     private static readonly Columna ColEjecutor = Col("Quien facturó", x => x.Ejecutor, x => x.Ejecutor);
     private static readonly Columna ColRuta = Col("Ruta", x => x.Ruta, x => x.Ruta);
+    // Columnas comerciales del reporte de Clientes.
+    private static readonly Columna ColCanal = Col("Canal", x => x.Canal, x => x.Canal);
+    private static readonly Columna ColAtiende = Col("Quién atiende", x => x.Atiende, x => x.Atiende);
+    private static readonly Columna ColComportamiento = Col("Comportamiento", x => x.Comportamiento, x => x.Comportamiento);
+    private static readonly Columna ColAlerta = Col("Avisos", x => x.Alerta, x => x.Alerta);
     private static readonly Columna ColSucursalCliente = Col("Sucursal del cliente", x => x.SucursalCliente, x => x.SucursalCliente);
     private static readonly Columna ColVence = Col("Vence", x => x.FechaVencimiento ?? DateTime.MaxValue, x => FVence(x.FechaVencimiento));
 
@@ -401,7 +406,7 @@
         ["ventas"] = [ColFecha, Col("N° factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColSucursalCliente, ColDetalle, Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Pronto pago", x => x.ProntoPago, x => x.ProntoPago > 0m ? FMoneda(x.ProntoPago) : "—", true), Col("Saldo pendiente", x => x.Saldo, x => FMoneda(x.Saldo), true), ColOrigen, ColEjecutor, ColRuta, ColEstado],
         ["ventas-detalle"] = [ColFecha, Col("Factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColSucursalCliente, ColLote, ColDetalle, Col("Cantidad", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Margen bruto", x => x.Saldo, x => FMoneda(x.Saldo), true), ColOrigen, ColEjecutor, ColRuta, ColEstado],
         ["ventas-horas"] = [Col("Franja horaria", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Documentos", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Venta", x => x.Monto, x => FMoneda(x.Monto), true)],
-        ["clientes"] = [ColFecha, Col("Cliente", x => x.Entidad, x => x.Entidad), Col("Nombre fantasía", x => x.NombreFantasia, x => x.NombreFantasia), Col("Identificación", x => x.Identificacion, x => x.Identificacion), Col("Teléfono", x => x.Telefono, x => x.Telefono), Col("Sucursal", x => x.Sucursal, x => x.Sucursal), Col("Código", x => x.Referencia, x => x.Referencia), Col("Pedidos", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Venta total", x => x.Monto, x => FMoneda(x.Monto), true), Col("Ticket promedio", x => x.Saldo, x => FMoneda(x.Saldo), true), ColDetalle, ColEstado],
+        ["clientes"] = [ColFecha, Col("Cliente", x => x.Entidad, x => x.Entidad), Col("Nombre fantasía", x => x.NombreFantasia, x => x.NombreFantasia), Col("Identificación", x => x.Identificacion, x => x.Identificacion), Col("Teléfono", x => x.Telefono, x => x.Telefono), Col("Sucursal", x => x.Sucursal, x => x.Sucursal), Col("Código", x => x.Referencia, x => x.Referencia), Col("Pedidos", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Venta total", x => x.Monto, x => FMoneda(x.Monto), true), Col("Ticket promedio", x => x.Saldo, x => FMoneda(x.Saldo), true), ColDetalle, ColRuta, ColCanal, ColAtiende, ColComportamiento, ColAlerta, ColEstado],
         ["rentabilidad"] = [ColFecha, Col("Factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), Col("Venta", x => x.Monto, x => FMoneda(x.Monto), true), Col("Margen bruto", x => x.Cantidad, x => FMoneda(x.Cantidad), true), Col("Utilidad tras comisión", x => x.Saldo, x => FMoneda(x.Saldo), true), Col("Comisión", x => x.Estado, x => x.Estado)],
         ["ventas-compras"] = [ColFecha, ColDetalle, Col("Ventas", x => x.Monto, x => FMoneda(x.Monto), true), Col("Diferencia", x => x.Saldo, x => FMoneda(x.Saldo), true)],
         ["recuperacion-cxc"] = [ColFecha, Col("Recibo", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Saldo posterior", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],

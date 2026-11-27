@@ -376,11 +376,13 @@ public sealed class ComercialProxyTests
         | FiltroReporteVisible.RolOrigen | FiltroReporteVisible.Marca | FiltroReporteVisible.Especie;
 
     [Fact]
-    public void SoloLosReportesDeVentasOfrecenLosFiltrosComerciales_YComoAvanzados()
+    public void SoloLosReportesDeVentasYClientesOfrecenLosFiltrosComerciales_YComoAvanzados()
     {
         var conFiltros = CatalogoReportes.Todos.Where(r => (r.Filtros & FiltrosComerciales) != 0).Select(r => r.Tipo).OrderBy(t => t).ToArray();
 
-        Assert.Equal(new[] { "ventas", "ventas-detalle", "ventas-horas" }, conFiltros);
+        Assert.Equal(new[] { "clientes", "ventas", "ventas-detalle", "ventas-horas" }, conFiltros);
+        // Clientes solo ofrece la cartera: ruta y canal. Quien facturó y el rol son de ventas.
+        Assert.Equal(FiltroReporteVisible.Canal | FiltroReporteVisible.RutaVenta, CatalogoReportes.Buscar("clientes")!.Filtros & FiltrosComerciales);
         foreach (var r in CatalogoReportes.Todos)
             Assert.Equal(FiltroReporteVisible.Ninguno, r.FiltrosBasicos & FiltrosComerciales);   // ninguno estorba en la vista básica
         // La marca y la especie se miden por línea: solo Ventas detalladas.
@@ -442,6 +444,23 @@ public sealed class ComercialProxyTests
         var fila = Assert.Single(r.Responses!.Filas);
         Assert.Equal(("SAC", "Bea", "Ruta Norte", "Cartago", 30m), (fila.Origen, fila.Ejecutor, fila.Ruta, fila.SucursalCliente, fila.ProntoPago));
         Assert.Equal("Pronto pago concedido", Assert.Single(r.Responses.Indicadores).Etiqueta);
+    }
+
+    [Fact]
+    public async Task LasFilasDeClientesTraenComportamientoCanalQuienAtiendeYAvisos()
+    {
+        var (proxy, handler) = Reportes("""
+            {"status":0,"responses":{"titulo":"Clientes y comportamiento","fuente":"x","indicadores":[{"etiqueta":"Clientes nuevos","valor":2,"formato":"cantidad"}],"totalRegistros":1,"pagina":1,"tamanoPagina":25,"limitado":false,
+             "filas":[{"referencia":"4","entidad":"Cliente Con Baja","ruta":"Ruta Norte","canal":"Clínica","atiende":"Ana · Carlos cubre a Ana hasta 04/12","comportamiento":"En recuperación","alerta":"Compra bajó 70%"}]}}
+            """);
+
+        var r = await proxy.Consultar("clientes", new FiltroReporteOperacionWebDTO { IdRuta = 10, IdCanal = 1, TamanoPagina = 25 });
+
+        Assert.True(r.EsCorrecta, r.Excepcion);
+        Assert.Equal("/api/reportes-operacion/clientes?idCanal=1&idRuta=10&pagina=1&tamanoPagina=25", handler.Ruta);
+        var f = Assert.Single(r.Responses!.Filas);
+        Assert.Equal(("Ruta Norte", "Clínica", "Ana · Carlos cubre a Ana hasta 04/12", "En recuperación", "Compra bajó 70%"), (f.Ruta, f.Canal, f.Atiende, f.Comportamiento, f.Alerta));
+        Assert.Equal("Clientes nuevos", Assert.Single(r.Responses.Indicadores).Etiqueta);
     }
 
     [Fact]

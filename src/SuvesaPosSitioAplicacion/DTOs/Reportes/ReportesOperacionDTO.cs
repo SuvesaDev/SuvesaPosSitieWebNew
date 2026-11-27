@@ -88,4 +88,13 @@ public sealed class FilaReporteOperacionWebDTO
     public string SucursalCliente { get; set; } = string.Empty;
     /// <summary>Descuento por pronto pago concedido a la factura; no está incluido en el monto.</summary>
     public decimal ProntoPago { get; set; }
+
+    // Columnas del reporte de Clientes (módulo comercial).
+    /// <summary>"Nuevo", "Recurrente" o "En recuperación"; vacío si no compró en el periodo.</summary>
+    public string Comportamiento { get; set; } = string.Empty;
+    public string Canal { get; set; } = string.Empty;
+    /// <summary>Titular de la ruta del cliente y, si hay cobertura vigente, quién cubre y hasta cuándo.</summary>
+    public string Atiende { get; set; } = string.Empty;
+    /// <summary>Avisos: sin comprar hace tiempo, baja de compra o nunca ha comprado.</summary>
+    public string Alerta { get; set; } = string.Empty;
 }

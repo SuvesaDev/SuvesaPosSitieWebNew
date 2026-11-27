@@ -114,7 +114,7 @@ public static class CatalogoReportes
                 Periodo | Sucursal | Empresa | Agente | TipoVenta | Canal | RutaVenta | Ejecutor | RolOrigen, Periodo | Sucursal),
             R("clientes", "Clientes y comportamiento", "MODULO_REPORTES.COMPORTAMIENTO_DE_CLIENTES",
                 "Ranking, ticket promedio y clientes sin ventas en el periodo.", "bi-people",
-                Periodo | Sucursal | Cliente | Texto, Periodo | Sucursal | Cliente),
+                Periodo | Sucursal | Cliente | Texto | Canal | RutaVenta, Periodo | Sucursal | Cliente),
             R("kpi-rutas", "KPI por ruta", "MODULO_REPORTES.KPI_POR_RUTA_COMERCIAL",
                 "Ventas, clientes atendidos y comisión generada por ruta.", "bi-signpost-split",
                 Periodo | Sucursal | Texto, Periodo | Sucursal),
