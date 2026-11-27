@@ -91,24 +91,6 @@
                                 @if (v.AcreditadoPrevio > 0) { <div class="small text-secondary">Ya acreditado: @v.AcreditadoPrevio.ToString("N2")</div> }</div>
                             <div class="col-12"><div class="small text-secondary">Clave</div><code class="small">@v.Clave</code></div>
                         </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm align-middle mb-0">
-                                <thead><tr><th>#</th><th>Detalle</th><th class="text-end">Cant.</th><th class="text-end">Subtotal</th><th class="text-end">IVA</th><th class="text-end">Total</th></tr></thead>
-                                <tbody>
-                                    @foreach (var l in v.Lineas)
-                                    {
-                                        <tr>
-                                            <td>@l.NumeroLinea</td>
-                                            <td>@l.Detalle <span class="text-secondary small">(@l.CodigoCabys)</span></td>
-                                            <td class="text-end">@l.Cantidad.ToString("0.##")</td>
-                                            <td class="text-end">@l.SubTotal.ToString("N2")</td>
-                                            <td class="text-end">@l.MontoImpuesto.ToString("N2")</td>
-                                            <td class="text-end">@l.MontoTotalLinea.ToString("N2")</td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
                 </div>
 
@@ -165,16 +147,46 @@
                 <div class="card mb-3">
                     <div class="card-header fw-semibold">4. La nota</div>
                     <div class="card-body">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                            <span class="fw-semibold me-auto">Líneas a acreditar</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="TodasLasLineas">Todo lo que queda</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NingunaLinea">Ninguna</button>
+                        </div>
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr><th>#</th><th>Detalle</th><th class="text-end">Cant. original</th><th class="text-end">Ya acreditada</th><th class="text-end">Queda</th>
+                                        <th class="text-end" style="width: 9rem">Acreditar</th><th class="text-end">Total (con IVA)</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var l in v.Lineas)
+                                    {
+                                        var cantidad = ReglasNotaCreditoExterna.CantidadDe(_borrador, l.NumeroLinea);
+                                        var errorLinea = ReglasNotaCreditoExterna.ErrorDeCantidad(l, cantidad);
+                                        <tr class="@(l.CantidadDisponible <= 0m ? "text-secondary" : null)">
+                                            <td>@l.NumeroLinea</td>
+                                            <td>@l.Detalle <span class="text-secondary small">(@l.CodigoCabys)</span></td>
+                                            <td class="text-end">@l.Cantidad.ToString("0.###")</td>
+                                            <td class="text-end">@l.CantidadAcreditadaPrevia.ToString("0.###")</td>
+                                            <td class="text-end">@l.CantidadDisponible.ToString("0.###")</td>
+                                            <td class="text-end">
+                                                <input type="number" min="0" max="@l.CantidadDisponible.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)" step="0.001"
+                                                       class="form-control form-control-sm text-end @(errorLinea is null ? null : "is-invalid")" disabled="@(l.CantidadDisponible <= 0m)"
+                                                       value="@cantidad.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)" title="@errorLinea"
+                                                       @onchange="e => CambiarCantidad(l, e.Value)" />
+                                            </td>
+                                            <td class="text-end">@ReglasNotaCreditoExterna.MontoLinea(l, cantidad).ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot>
+                                    <tr><th colspan="6" class="text-end">Total de la nota (con IVA)</th><th class="text-end">@MontoEfectivo.ToString("N2")</th></tr>
+                                </tfoot>
+                            </table>
+                        </div>
                         <div class="row g-3">
-                            <div class="col-md-4">
-                                <AppCampoMoneda Etiqueta="Monto a acreditar (con IVA)" @bind-Valor="_borrador.Monto" Minimo="0.01m" />
-                                <div class="form-text">
-                                    Disponible: @v.Disponible.ToString("N2").
-                                    <a href="#" @onclick="TodoDisponible" @onclick:preventDefault="true">Todo lo disponible</a>
-                                </div>
-                            </div>
-                            <div class="col-md-8">
-                                <AppCampoTexto Etiqueta="Motivo (va a Hacienda como razón de la referencia)" Requerido="true" @bind-Valor="_borrador.Razon" Marcador="Ej.: Crédito por factura del sistema anterior" />
+                            <div class="col-12">
+                                <AppCampoTexto Etiqueta="Motivo (va a Hacienda como razón de la referencia)" Requerido="true" @bind-Valor="_borrador.Razon" Marcador="Ej.: Devolución de artículos de la factura del sistema anterior" />
                                 <div class="form-text text-end">@((_borrador.Razon ?? string.Empty).Length)/@ReglasNotaCreditoExterna.MaximoRazon</div>
                             </div>
                             <div class="col-12">
@@ -245,7 +257,7 @@
                                 <td class="text-end">@n.Monto.ToString("N2")</td>
                                 <td>
                                     <span class="badge bg-@Color(n.Estadodgt)">@Humano(n.Estadodgt)</span>
-                                    @if (!string.IsNullOrWhiteSpace(n.MensajeMh) && n.Estadodgt == "Rechazado") { <div class="text-danger small" title="@n.MensajeMh">@Recortar(n.MensajeMh, 60)</div> }
+                                    @if (!string.IsNullOrWhiteSpace(n.MensajeMh) && n.Estadodgt is "Rechazado" or "ErrorTecnico") { <div class="text-danger small" title="@n.MensajeMh">@Recortar(n.MensajeMh, 90)</div> }
                                 </td>
                                 <td>
                                     @if (n.EsSoloFiscal) { <span class="badge bg-secondary" title="@n.MotivoSoloFiscal">Solo fiscal</span> }

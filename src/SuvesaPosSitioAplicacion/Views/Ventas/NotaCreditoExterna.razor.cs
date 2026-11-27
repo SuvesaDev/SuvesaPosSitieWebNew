@@ -95,7 +95,7 @@ public partial class NotaCreditoExterna
             _borrador = new BorradorNotaCreditoExterna
             {
                 IdCliente = ReglasNotaCreditoExterna.ClienteSugerido(r),
-                Monto = r.Disponible,
+                Cantidades = ReglasNotaCreditoExterna.CantidadesPorDefecto(r),
             };
             _claveIdempotencia = Guid.NewGuid().ToString("N");
         }
@@ -120,7 +120,21 @@ public partial class NotaCreditoExterna
         _borrador.SoloFiscal = true;
     }
 
-    private void TodoDisponible() => _borrador.Monto = _validacion?.Disponible;
+    private void TodasLasLineas()
+    {
+        if (_validacion is not null) _borrador.Cantidades = ReglasNotaCreditoExterna.CantidadesPorDefecto(_validacion);
+    }
+
+    private void NingunaLinea() => _borrador.Cantidades = new Dictionary<int, decimal>();
+
+    /// <summary>La cantidad se lee del campo numérico del navegador (siempre con punto decimal). Vacío o ilegible cuenta como cero.</summary>
+    private void CambiarCantidad(LineaNotaCreditoExternaWebDTO linea, object? valor)
+    {
+        var texto = Convert.ToString(valor, System.Globalization.CultureInfo.InvariantCulture);
+        _borrador.Cantidades[linea.NumeroLinea] = decimal.TryParse(texto, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var cantidad)
+            ? cantidad
+            : 0m;
+    }
 
     // ------------------------------------------------------------------ Crear
 
@@ -145,7 +159,7 @@ public partial class NotaCreditoExterna
                 XmlAcuse = _xmlAcuse,
                 IdCliente = _borrador.IdCliente,
                 IdVenta = _borrador.IdVenta,
-                Monto = _borrador.Monto is { } m && m < _validacion.Disponible ? m : null,
+                Lineas = ReglasNotaCreditoExterna.LineasParaEnviar(_validacion, _borrador),
                 Razon = _borrador.Razon?.Trim(),
                 SoloFiscal = soloFiscal,
                 MotivoSoloFiscal = _borrador.SoloFiscal ? _borrador.MotivoSoloFiscal?.Trim() : null,

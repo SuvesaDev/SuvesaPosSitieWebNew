@@ -51,7 +51,7 @@ public sealed class NotasCreditoExternasProxyTests
             {"status":0,"responses":{"valido":true,"errores":[],"bloqueo":null,"clave":"506","tipoDocumento":"01","consecutivo":"00100001010000000725",
               "fechaEmision":"2026-01-16T07:23:22","receptorIdentificacion":"3101054264","receptorNombre":"CLIENTE SA","totalOrigen":2260.00,"totalImpuesto":260.00,
               "acreditadoPrevio":0,"disponible":2260.00,
-              "lineas":[{"numeroLinea":1,"codigoCabys":"2331100000100","detalle":"Alimento","unidadMedida":"Unid","cantidad":2.0,"precioUnitario":1000.00,"subTotal":2000.00,"tarifa":13,"montoImpuesto":260.00,"montoTotalLinea":2260.00}],
+              "lineas":[{"numeroLinea":1,"codigoCabys":"2331100000100","detalle":"Alimento","unidadMedida":"Unid","cantidad":2.0,"precioUnitario":1000.00,"subTotal":2000.00,"tarifa":13,"montoImpuesto":260.00,"montoTotalLinea":2260.00,"cantidadAcreditadaPrevia":0.5,"cantidadDisponible":1.5}],
               "clientesCandidatos":[{"idCliente":172,"nombre":"TRES CIENTO UNO S.A.","cedula":"3101054264","activo":true,"nota":null},
                                     {"idCliente":56,"nombre":"SOCIEDAD ANONIMA","cedula":"3101054264","activo":false,"nota":"Unificado en 52"}],
               "ventasCandidatas":[{"idVenta":500,"numFactura":725,"fecha":"2026-01-16T00:00:00","total":2260.02,"saldo":2260.02,"idCliente":172,"tieneDevolucionInterna":false,"coincidencia":"Alta"}]}}
@@ -73,7 +73,9 @@ public sealed class NotasCreditoExternasProxyTests
         var venta = Assert.Single(v.VentasCandidatas);
         Assert.Equal(500, venta.IdVenta);
         Assert.Equal("Alta", venta.Coincidencia);
-        Assert.Equal(1, v.Lineas.Count);
+        var linea = Assert.Single(v.Lineas);
+        Assert.Equal(0.5m, linea.CantidadAcreditadaPrevia);
+        Assert.Equal(1.5m, linea.CantidadDisponible);
     }
 
     [Fact]
@@ -86,7 +88,8 @@ public sealed class NotasCreditoExternasProxyTests
 
         var r = await proxy.Crear(new CrearNotaCreditoExternaWebComando
         {
-            ClaveIdempotencia = "abc", IdEmisor = 1, IdSucursal = 3, XmlFactura = "<FE/>", XmlAcuse = "<AHC/>", IdCliente = 172, IdVenta = 500, Monto = 1130m, Razon = "Crédito", SoloFiscal = false,
+            ClaveIdempotencia = "abc", IdEmisor = 1, IdSucursal = 3, XmlFactura = "<FE/>", XmlAcuse = "<AHC/>", IdCliente = 172, IdVenta = 500, Razon = "Crédito", SoloFiscal = false,
+            Lineas = new() { new LineaCreditoNotaCreditoExternaWebComando { NumeroLinea = 1, Cantidad = 0.75m } },
         });
 
         Assert.True(r.EsCorrecta, r.Excepcion);
@@ -94,7 +97,8 @@ public sealed class NotasCreditoExternasProxyTests
         Assert.Equal("/api/notas-credito-externas", handler.Ruta);
         Assert.Contains("\"claveIdempotencia\":\"abc\"", handler.Cuerpo);
         Assert.Contains("\"idVenta\":500", handler.Cuerpo);
-        Assert.Contains("\"monto\":1130", handler.Cuerpo);
+        Assert.Contains("\"lineas\":[{\"numeroLinea\":1,\"cantidad\":0.75}]", handler.Cuerpo);
+        Assert.DoesNotContain("\"monto\"", handler.Cuerpo);
         Assert.Equal(9, r.Responses!.Id);
         Assert.Equal(2260.00m, r.Responses.Monto);
         Assert.Null(r.Responses.IdVenta);

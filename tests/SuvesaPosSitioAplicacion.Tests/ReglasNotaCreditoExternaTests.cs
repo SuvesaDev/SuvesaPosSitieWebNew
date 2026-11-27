@@ -15,7 +15,12 @@ public sealed class ReglasNotaCreditoExternaTests
     {
         var v = new ValidacionNotaCreditoExternaWebDTO
         {
-            Valido = true, Clave = new string('5', 50), Consecutivo = "00100001010000000725", TotalOrigen = 2260m, Disponible = 2260m,
+            Valido = true, Clave = new string('5', 50), Consecutivo = "00100001010000000725", TotalOrigen = 7595.72m, Disponible = 7595.72m,
+            Lineas =
+            {
+                new LineaNotaCreditoExternaWebDTO { NumeroLinea = 1, Cantidad = 4m, PrecioUnitario = 1180.47m, SubTotal = 4721.88m, MontoImpuesto = 613.84m, MontoTotalLinea = 5335.72m, CantidadDisponible = 4m },
+                new LineaNotaCreditoExternaWebDTO { NumeroLinea = 2, Cantidad = 2m, PrecioUnitario = 1000m, SubTotal = 2000m, MontoImpuesto = 260m, MontoTotalLinea = 2260m, CantidadDisponible = 2m },
+            },
             ClientesCandidatos =
             {
                 new ClienteCandidatoNotaCreditoExternaWebDTO { IdCliente = ClienteVivo, Nombre = "TRES CIENTO UNO S.A.", Cedula = "3101054264", Activo = true },
@@ -31,7 +36,11 @@ public sealed class ReglasNotaCreditoExternaTests
 
     private static BorradorNotaCreditoExterna Borrador(Action<BorradorNotaCreditoExterna>? ajustar = null)
     {
-        var b = new BorradorNotaCreditoExterna { IdCliente = ClienteVivo, Razon = "Crédito por factura del sistema anterior" };
+        var b = new BorradorNotaCreditoExterna
+        {
+            IdCliente = ClienteVivo, Razon = "Crédito por factura del sistema anterior",
+            Cantidades = new Dictionary<int, decimal> { [1] = 4m, [2] = 2m },   // todo lo que queda, como al validar
+        };
         ajustar?.Invoke(b);
         return b;
     }
@@ -108,27 +117,68 @@ public sealed class ReglasNotaCreditoExternaTests
         Assert.Null(ReglasNotaCreditoExterna.Error(media, Borrador()));                                                        // coincidencia débil: no bloquea
     }
 
-    [Theory]
-    [InlineData(0, true)]
-    [InlineData(-5, true)]
-    [InlineData(2260.01, true)]
-    [InlineData(2260, false)]
-    [InlineData(100, false)]
-    public void ElMontoDebeEstarEntreCeroYLoDisponible(double monto, bool bloquea)
+    [Fact]
+    public void AlValidar_SePropone_TodoLoQueQuedaDeCadaLinea()
     {
-        var error = ReglasNotaCreditoExterna.Error(Validacion(), Borrador(b => b.Monto = (decimal)monto));
+        var v = Validacion(x => x.Lineas[1].CantidadDisponible = 0m);   // la línea 2 ya se acreditó por completo
 
-        Assert.Equal(bloquea, error is not null);
+        var porDefecto = ReglasNotaCreditoExterna.CantidadesPorDefecto(v);
+
+        Assert.Equal(new Dictionary<int, decimal> { [1] = 4m }, porDefecto);
     }
 
     [Fact]
-    public void SinMontoSeUsaTodoLoDisponible()
+    public void ElMontoEsLaSumaDeLasLineasElegidas_Y_LaCantidadCompletaVaigualAlXml()
     {
-        var v = Validacion(x => x.Disponible = 1130m);
+        var v = Validacion();
 
-        Assert.Equal(1130m, ReglasNotaCreditoExterna.MontoEfectivo(v, Borrador()));
-        Assert.Null(ReglasNotaCreditoExterna.Error(v, Borrador()));
+        Assert.Equal(7595.72m, ReglasNotaCreditoExterna.MontoEfectivo(v, Borrador()));                                  // todo: lo que dice el XML
+        Assert.Equal(2260m, ReglasNotaCreditoExterna.MontoEfectivo(v, Borrador(b => b.Cantidades = new() { [2] = 2m })));  // solo la línea 2
+        Assert.Equal(0m, ReglasNotaCreditoExterna.MontoEfectivo(v, Borrador(b => b.Cantidades = new())));
     }
+
+    [Fact]
+    public void UnaCantidadMenor_ConservaElPrecio_YProporcionaElIva_IgualQueElApi()
+    {
+        var v = Validacion();
+
+        // Mismo cálculo que ServicioNotaCreditoExterna.ConstruirLineas: 3 × 1.180,47 = 3.541,41 de base y 613,84 × 3 / 4 = 460,38 de IVA.
+        Assert.Equal(4001.79m, ReglasNotaCreditoExterna.MontoLinea(v.Lineas[0], 3m));
+        Assert.Equal(5335.72m, ReglasNotaCreditoExterna.MontoLinea(v.Lineas[0], 4m));
+        Assert.Equal(0m, ReglasNotaCreditoExterna.MontoLinea(v.Lineas[0], 0m));
+        Assert.Equal(565m, ReglasNotaCreditoExterna.MontoLinea(v.Lineas[1], 0.5m));
+    }
+
+    [Fact]
+    public void LasLineasSinCantidadNoSeEnvian()
+    {
+        var v = Validacion();
+
+        var enviar = ReglasNotaCreditoExterna.LineasParaEnviar(v, Borrador(b => b.Cantidades = new() { [1] = 3m, [2] = 0m }));
+
+        var linea = Assert.Single(enviar);
+        Assert.Equal(1, linea.NumeroLinea);
+        Assert.Equal(3m, linea.Cantidad);
+    }
+
+    [Theory]
+    [InlineData(-1, true)]
+    [InlineData(0, false)]          // cero = esa línea no se acredita
+    [InlineData(0.5, false)]
+    [InlineData(4, false)]
+    [InlineData(4.001, true)]       // más de lo que queda
+    [InlineData(1.2345, true)]      // más de 3 decimales: el esquema de Hacienda no lo admite
+    public void LaCantidadDeUnaLineaDebeEstarEntreCeroYLoQueQueda_ConTresDecimalesComoMaximo(double cantidad, bool bloquea)
+    {
+        var v = Validacion();
+
+        Assert.Equal(bloquea, ReglasNotaCreditoExterna.ErrorDeCantidad(v.Lineas[0], (decimal)cantidad) is not null);
+        Assert.Equal(bloquea, ReglasNotaCreditoExterna.Error(v, Borrador(b => b.Cantidades = new() { [1] = (decimal)cantidad, [2] = 2m })) is not null);
+    }
+
+    [Fact]
+    public void SinNingunaLineaConCantidad_NoSePuedeCrear()
+        => Assert.Contains("al menos una línea", ReglasNotaCreditoExterna.Error(Validacion(), Borrador(b => b.Cantidades = new() { [1] = 0m, [2] = 0m }))!);
 
     [Fact]
     public void ElMotivoEsObligatorioYTieneUnTope()
@@ -162,7 +212,7 @@ public sealed class ReglasNotaCreditoExternaTests
     [Fact]
     public void ConVentaConSaldoSuficiente_SoloBajaElSaldo()
     {
-        var v = Validacion(x => x.VentasCandidatas.Add(Venta(saldo: 2260m)));
+        var v = Validacion(x => x.VentasCandidatas.Add(Venta(saldo: 8000m)));
 
         var texto = ReglasNotaCreditoExterna.EfectoFinanciero(v, Borrador(b => b.IdVenta = 500));
 

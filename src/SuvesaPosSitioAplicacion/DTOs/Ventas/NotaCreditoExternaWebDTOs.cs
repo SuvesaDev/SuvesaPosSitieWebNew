@@ -23,6 +23,10 @@ public sealed class LineaNotaCreditoExternaWebDTO
     public decimal Tarifa { get; set; }
     public decimal MontoImpuesto { get; set; }
     public decimal MontoTotalLinea { get; set; }
+    /// <summary>Cantidad de esta línea que ya se acreditó con otras notas externas de la misma clave.</summary>
+    public decimal CantidadAcreditadaPrevia { get; set; }
+    /// <summary>Lo que todavía se puede acreditar de esta línea.</summary>
+    public decimal CantidadDisponible { get; set; }
 }
 
 public sealed class ClienteCandidatoNotaCreditoExternaWebDTO
@@ -69,6 +73,14 @@ public sealed class ValidacionNotaCreditoExternaWebDTO
     public List<VentaCandidataNotaCreditoExternaWebDTO> VentasCandidatas { get; set; } = new();
 }
 
+/// <summary>Una línea del comprobante original y la cantidad que se acredita de ella.</summary>
+public sealed class LineaCreditoNotaCreditoExternaWebComando
+{
+    /// <summary>Número de la línea en el comprobante original.</summary>
+    public int NumeroLinea { get; set; }
+    public decimal Cantidad { get; set; }
+}
+
 public sealed class CrearNotaCreditoExternaWebComando
 {
     public string? ClaveIdempotencia { get; set; }
@@ -78,8 +90,8 @@ public sealed class CrearNotaCreditoExternaWebComando
     public string? XmlAcuse { get; set; }
     public long IdCliente { get; set; }
     public long? IdVenta { get; set; }
-    /// <summary>null = todo lo disponible del documento.</summary>
-    public decimal? Monto { get; set; }
+    /// <summary>Líneas del comprobante y cantidad a acreditar de cada una (hasta 3 decimales). El monto sale de ellas. Null = todo lo que queda.</summary>
+    public List<LineaCreditoNotaCreditoExternaWebComando>? Lineas { get; set; }
     public string? Razon { get; set; }
     public bool SoloFiscal { get; set; }
     public string? MotivoSoloFiscal { get; set; }
