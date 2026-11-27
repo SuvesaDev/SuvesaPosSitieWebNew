@@ -151,6 +151,6 @@ public class FiltroMenuTests
         // + 10 (módulo Gestión Comercial: el módulo, Parámetros comerciales, Calendario hábil, Catálogos comerciales, las
         // clasificaciones de clientes y de artículos, la Cobertura de vacaciones, las Metas de ventas, el Centro de alertas y
         // su Supervisión).
-        Assert.Equal(143, Contar(MenuSeePos.Items));   // 124 + Cobranza + Autorizaciones + IVA Repercutido, Soportado y Prorrata + Nota de crédito externa + Gestión Comercial
+        Assert.Equal(145, Contar(MenuSeePos.Items));   // 124 + Cobranza + Autorizaciones + IVA Repercutido, Soportado y Prorrata + Nota de crédito externa + Gestión Comercial + Panel de metas + Atribución SAC
     }
 }

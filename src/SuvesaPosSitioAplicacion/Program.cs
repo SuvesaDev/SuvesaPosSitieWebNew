@@ -214,6 +214,7 @@ builder.Services.AddScoped<ICatalogosComerciales, CatalogosComerciales>();
 builder.Services.AddScoped<IClasificacionComercial, ClasificacionComercial>();
 builder.Services.AddScoped<ICoberturasRuta, CoberturasRuta>();
 builder.Services.AddScoped<IMetasVenta, MetasVenta>();
+builder.Services.AddScoped<IPanelMetas, PanelMetas>();
 builder.Services.AddScoped<IAlertasComerciales, AlertasComerciales>();
 builder.Services.AddScoped<IComisiones, Comisiones>();
 builder.Services.AddScoped<ICompras, Compras>();

@@ -788,6 +788,18 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Panel de metas",
+                    Codigo = "COMERCIAL.PANEL_METAS",
+                    Ruta = "/comercial/panel-metas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Atribución de ventas del SAC",
+                    Codigo = "COMERCIAL.ATRIBUCION_SAC",
+                    Ruta = "/comercial/atribucion-sac",
+                },
+                new ItemMenu
+                {
                     Titulo = "Centro de alertas",
                     Codigo = "COMERCIAL.ALERTAS",
                     Ruta = "/comercial/alertas",

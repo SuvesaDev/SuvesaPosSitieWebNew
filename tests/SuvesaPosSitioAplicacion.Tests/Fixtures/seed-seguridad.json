@@ -2240,6 +2240,27 @@
             "VER",
             "EDITAR"
           ]
+        },
+        {
+          "codigo": "COMERCIAL.PANEL_METAS",
+          "nombre": "Panel de metas",
+          "ruta": "/comercial/panel-metas",
+          "padre": null,
+          "orden": 10,
+          "acciones": [
+            "VER"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.ATRIBUCION_SAC",
+          "nombre": "Atribución de ventas del SAC",
+          "ruta": "/comercial/atribucion-sac",
+          "padre": null,
+          "orden": 11,
+          "acciones": [
+            "VER",
+            "EDITAR"
+          ]
         }
       ]
     }

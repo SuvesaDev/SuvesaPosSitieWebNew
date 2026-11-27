@@ -313,6 +313,45 @@ public sealed class ComercialProxyTests
         Assert.Equal("Caninos", r.Responses.Metas[1].NombreDimension);
     }
 
+    private static (PanelMetas Proxy, Captura Handler) Panel(string json)
+        => Nuevo(json, f => new PanelMetas(f, new SesionFalsa(), NullLogger<PanelMetas>.Instance));
+
+    [Fact]
+    public async Task ConsultarPanelDeMetas_EnviaMesYLeeAvanceYCartera()
+    {
+        var (proxy, handler) = Panel("""
+            {"status":0,"responses":{"anio":2026,"mes":11,"corte":"2026-11-12T00:00:00","diasHabilesTotales":21,"diasHabilesTranscurridos":9,"diasHabilesRestantes":12,"proyeccionConfiable":true,"mesFuturo":false,"esSupervision":true,
+              "metas":[{"idMeta":1,"nivel":"Ruta","idRuta":10,"nombreRuta":"Ruta Norte","tipoDimension":"Global","montoMeta":18000,"montoReal":5800,"cumplimientoPct":32.2,"proyeccionMonto":13533.33,"proyeccionPct":75.2}],
+              "carteras":[{"nivel":"Ruta","idRuta":10,"nombreRuta":"Ruta Norte","vencidoAlCorte":1500,"arrastre":1000,"porCobrarMes":1500,"pct":60,"topePct":50,"superaTope":true}]}}
+            """);
+
+        var r = await proxy.Consultar(2026, 11);
+
+        Assert.True(r.EsCorrecta, r.Excepcion);
+        Assert.Equal(HttpMethod.Get, handler.Metodo);
+        Assert.Equal("/api/comercial/panel-metas?anio=2026&mes=11", handler.Ruta);
+        Assert.Equal(9, r.Responses!.DiasHabilesTranscurridos);
+        Assert.Equal(75.2m, Assert.Single(r.Responses.Metas).ProyeccionPct);
+        Assert.True(Assert.Single(r.Responses.Carteras).SuperaTope);
+    }
+
+    [Fact]
+    public async Task AtribucionDelSac_ListaConGetYGuardaConPut()
+    {
+        var (lista, hLista) = Panel("""{"status":0,"responses":[{"idUsuario":"carlos","nombre":"Carlos","esTitular":false,"esServicioAlCliente":true,"sumaAMetaRuta":true}]}""");
+        var l = await lista.ListarAtribucion(10);
+        Assert.True(l.EsCorrecta, l.Excepcion);
+        Assert.Equal("/api/comercial/atribucion-sac/10", hLista.Ruta);
+        Assert.True(Assert.Single(l.Responses!).EsServicioAlCliente);
+
+        var (guarda, hGuarda) = Panel("""{"status":0,"responses":{"idUsuario":"carlos","nombre":"Carlos","esTitular":false,"esServicioAlCliente":true,"sumaAMetaRuta":false}}""");
+        var g = await guarda.GuardarAtribucion(10, "carlos", false);
+        Assert.True(g.EsCorrecta, g.Excepcion);
+        Assert.Equal(HttpMethod.Put, hGuarda.Metodo);
+        Assert.Equal("/api/comercial/atribucion-sac/10/carlos", hGuarda.Ruta);
+        Assert.Contains("\"sumaAMetaRuta\":false", hGuarda.Cuerpo);
+    }
+
     [Fact]
     public async Task CrearYActualizarMeta_UsanPostYPutConElMotivo()
     {
