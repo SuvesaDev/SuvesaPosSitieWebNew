@@ -103,6 +103,8 @@ public sealed class NotaCreditoExternaWebDTO
     public string? NombreCliente { get; set; }
     public string? Razon { get; set; }
     public string? MensajeMh { get; set; }
+    /// <summary>«Aviso» (aceptada con observación) o «Error»; null si no hay mensaje.</summary>
+    public string? MensajeMhGravedad { get; set; }
     public string ClaveOrigen { get; set; } = string.Empty;
     public string Clavedgt { get; set; } = string.Empty;
     public string Consecutivodgt { get; set; } = string.Empty;

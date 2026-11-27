@@ -257,7 +257,7 @@
                                 <td class="text-end">@n.Monto.ToString("N2")</td>
                                 <td>
                                     <span class="badge bg-@Color(n.Estadodgt)">@Humano(n.Estadodgt)</span>
-                                    @if (!string.IsNullOrWhiteSpace(n.MensajeMh) && n.Estadodgt is "Rechazado" or "ErrorTecnico") { <div class="text-danger small" title="@n.MensajeMh">@Recortar(n.MensajeMh, 90)</div> }
+                                    <AppMensajeHacienda Texto="@n.MensajeMh" Gravedad="@n.MensajeMhGravedad" Max="90" />
                                 </td>
                                 <td>
                                     @if (n.EsSoloFiscal) { <span class="badge bg-secondary" title="@n.MotivoSoloFiscal">Solo fiscal</span> }

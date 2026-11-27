@@ -130,12 +130,13 @@ public sealed class NotasCreditoExternasProxyTests
     [Fact]
     public async Task Obtener_PideLaNotaPorId()
     {
-        var (proxy, handler) = Nuevo("""{"status":0,"responses":{"id":9,"monto":2260.00,"estadodgt":"Aceptado"}}""");
+        var (proxy, handler) = Nuevo("""{"status":0,"responses":{"id":9,"monto":2260.00,"estadodgt":"Aceptado","mensajeMh":"Los datos del emisor no concuerdan (código -37)","mensajeMhGravedad":"Aviso"}}""");
 
         var r = await proxy.Obtener(9);
 
         Assert.Equal("/api/notas-credito-externas/9", handler.Ruta);
         Assert.Equal("Aceptado", r.Responses!.Estadodgt);
+        Assert.Equal("Aviso", r.Responses.MensajeMhGravedad);
     }
 
     private sealed class SesionFalsa : IContextoSesion
