@@ -1,0 +1,239 @@
+@page "/comercial/coberturas"
+@using System.Globalization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.DTOs.Rutas
+@using SuvesaPosSitioAplicacion.Services
+@inject ICoberturasRuta Api
+@inject IRutasComerciales ApiRutas
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Cobertura de vacaciones" Codigo="@Codigo" Nivel="NivelPantalla.Tableta" Icono="bi-calendar2-range"
+             Subtitulo="Quién atiende una ruta mientras un colaborador está de vacaciones o ausente, del día X al día Y. Solo informa: no cambia el titular de la ruta, la facturación ni quién cobra comisión.">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary me-1" @onclick="Recargar" title="Actualizar"><i class="bi bi-arrow-clockwise"></i></button>
+        @if (Sesion.Puede(Codigo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Nueva"><i class="bi bi-plus-lg me-1"></i>Agregar cobertura</button>
+        }
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3"><div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small mb-1" for="cob-ruta-filtro">Ruta</label>
+                    <select id="cob-ruta-filtro" class="form-select form-select-sm" @bind="_idRutaFiltro" @bind:after="Recargar">
+                        <option value="0">Todas</option>
+                        @foreach (var r in _rutas) { <option value="@r.IdRuta">@r.Nombre</option> }
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="form-check form-switch">
+                        <input id="cob-vigentes" class="form-check-input" type="checkbox" @bind="_soloVigentes" @bind:after="Recargar" />
+                        <label class="form-check-label small" for="cob-vigentes">Solo vigentes y próximas</label>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="form-check form-switch">
+                        <input id="cob-anuladas" class="form-check-input" type="checkbox" @bind="_incluirAnuladas" @bind:after="Recargar" />
+                        <label class="form-check-label small" for="cob-anuladas">Ver anuladas</label>
+                    </div>
+                </div>
+            </div>
+        </div></div>
+
+        <div class="card"><div class="card-body">
+            <AppRejilla TItem="CoberturaRutaDTO" Datos="Cargar" TextoVacio="No hay coberturas registradas." @ref="_rejilla">
+                <Columnas>
+                    <HxGridColumn TItem="CoberturaRutaDTO" HeaderText="Ruta" SortKeySelector="c => c.NombreRuta" ItemTextSelector="c => c.NombreRuta ?? string.Empty" />
+                    <HxGridColumn TItem="CoberturaRutaDTO" HeaderText="Se ausenta" SortKeySelector="c => c.NombreAusente" ItemTextSelector="c => c.NombreAusente ?? c.IdUsuarioAusente" />
+                    <HxGridColumn TItem="CoberturaRutaDTO" HeaderText="Cubre" SortKeySelector="c => c.NombreCubre" ItemTextSelector="c => c.NombreCubre ?? c.IdUsuarioCubre" />
+                    <HxGridColumn TItem="CoberturaRutaDTO" HeaderText="Desde" SortKeySelector="c => c.Desde" ItemTextSelector="c => Fecha(c.Desde)" />
+                    <HxGridColumn TItem="CoberturaRutaDTO" HeaderText="Hasta" SortKeySelector="c => c.Hasta" ItemTextSelector="c => Fecha(c.Hasta)" />
+                    <HxGridColumn TItem="CoberturaRutaDTO" HeaderText="Motivo" ItemTextSelector="c => c.Motivo ?? string.Empty" />
+                    <HxGridColumn TItem="CoberturaRutaDTO" HeaderText="Estado">
+                        <ItemTemplate Context="c"><span class="badge @ClaseEstado(c)">@TextoEstado(c)</span></ItemTemplate>
+                    </HxGridColumn>
+                    <HxGridColumn TItem="CoberturaRutaDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
+                        <ItemTemplate Context="c">
+                            @if (c.Activo && Sesion.Puede(Codigo, AccionPantalla.Editar))
+                            {
+                                <button class="btn btn-sm btn-outline-primary me-1" title="Editar" @onclick="() => Editar(c)"><i class="bi bi-pencil"></i></button>
+                            }
+                            @if (c.Activo && Sesion.Puede(Codigo, AccionPantalla.Borrar))
+                            {
+                                <button class="btn btn-sm btn-outline-danger" title="Anular la cobertura" @onclick="() => Anular(c)"><i class="bi bi-x-circle"></i></button>
+                            }
+                        </ItemTemplate>
+                    </HxGridColumn>
+                </Columnas>
+            </AppRejilla>
+        </div></div>
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modal" Titulo="@(_edicion?.IdCobertura > 0 ? "Editar cobertura" : "Nueva cobertura")"
+          Subtitulo="Quien cubre ve la ruta y recibe sus alertas en esas fechas. La comisión sigue siendo de quien factura."
+          Tamano="ModalSize.Large" AlGuardar="Guardar" Guardando="_guardando">
+    <ChildContent>
+        @if (_edicion is not null)
+        {
+            @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger py-2">@_error</div> }
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="cob-ruta">Ruta</label>
+                    <select id="cob-ruta" class="form-select" value="@_edicion.IdRuta" @onchange="CambiarRuta">
+                        <option value="0">Seleccione una ruta…</option>
+                        @foreach (var r in _rutas) { <option value="@r.IdRuta">@r.Nombre</option> }
+                    </select>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="cob-ausente">Se ausenta</label>
+                    <select id="cob-ausente" class="form-select" @bind="_edicion.IdUsuarioAusente" disabled="@(_colaboradores.Count == 0)">
+                        <option value="">@(_edicion.IdRuta == 0 ? "Elija primero la ruta" : "Seleccione…")</option>
+                        @foreach (var a in _colaboradores) { <option value="@a.IdUsuario">@(a.Nombre ?? a.IdUsuario)@(a.EsPredeterminado ? " (titular)" : "")</option> }
+                    </select>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="cob-cubre">Quién cubre</label>
+                    <select id="cob-cubre" class="form-select" @bind="_edicion.IdUsuarioCubre">
+                        <option value="">Seleccione…</option>
+                        @foreach (var u in _cubridores.Where(u => u.IdUsuario != _edicion.IdUsuarioAusente))
+                        {
+                            <option value="@u.IdUsuario">@u.Nombre@(Rol(u))</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-6 col-md-3"><AppCampoFecha Etiqueta="Desde" @bind-Valor="_desde" /></div>
+                <div class="col-6 col-md-3"><AppCampoFecha Etiqueta="Hasta (incluido)" @bind-Valor="_hasta" /></div>
+                <div class="col-12"><AppCampoTexto Etiqueta="Motivo (opcional)" @bind-Valor="_motivo" /></div>
+            </div>
+        }
+    </ChildContent>
+</AppModal>
+
+@code {
+    private const string Codigo = "COMERCIAL.COBERTURAS";
+    private static readonly CultureInfo Cultura = new("es-CR");
+
+    private AppRejilla<CoberturaRutaDTO>? _rejilla;
+    private AppModal _modal = default!;
+    private List<CoberturaRutaDTO> _coberturas = new();
+    private List<RutaComercialDTO> _rutas = new();
+    private List<UsuarioCubridorDTO> _cubridores = new();
+    private IReadOnlyList<RutaAgenteDTO> _colaboradores = Array.Empty<RutaAgenteDTO>();
+    private CoberturaRutaDTO? _edicion;
+    private DateTime? _desde, _hasta;
+    private string? _motivo;
+    private int _idRutaFiltro;
+    private bool _soloVigentes = true, _incluirAnuladas, _cargado, _guardando;
+    private string _error = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var rutas = await Respuestas.DatoAsync(await ApiRutas.Listar(), "consultar las rutas");
+        _rutas = (rutas ?? Array.Empty<RutaComercialDTO>()).Where(r => r.Activo && !r.EsConsumidorFinal).OrderBy(r => r.Nombre).ToList();
+        var usuarios = await Respuestas.DatoAsync(await Api.UsuariosElegibles(), "consultar quién puede cubrir");
+        _cubridores = (usuarios ?? Array.Empty<UsuarioCubridorDTO>()).ToList();
+    }
+
+    private async Task<GridDataProviderResult<CoberturaRutaDTO>> Cargar(GridDataProviderRequest<CoberturaRutaDTO> request)
+    {
+        if (!_cargado)
+        {
+            var filtro = new FiltroCoberturasDTO { IdRuta = _idRutaFiltro > 0 ? _idRutaFiltro : null, SoloVigentes = _soloVigentes, IncluirAnuladas = _incluirAnuladas };
+            _coberturas = ((await Respuestas.DatoAsync(await Api.Listar(filtro), "consultar las coberturas")) ?? Array.Empty<CoberturaRutaDTO>()).ToList();
+            _cargado = true;
+        }
+        return request.ApplyTo(_coberturas);
+    }
+
+    private async Task Recargar() { _cargado = false; if (_rejilla is not null) await _rejilla.RefrescarAsync(); }
+
+    private static string Fecha(DateTime f) => f.ToString("ddd d MMM yyyy", Cultura);
+
+    private static string Rol(UsuarioCubridorDTO u) => u.EsAgente && u.EsServicioAlCliente ? " (Agente y SAC)" : u.EsServicioAlCliente ? " (SAC)" : " (Agente)";
+
+    private static string TextoEstado(CoberturaRutaDTO c)
+    {
+        if (!c.Activo) return "Anulada";
+        var hoy = DateTime.Today;
+        return c.Hasta.Date < hoy ? "Finalizada" : c.Desde.Date > hoy ? "Próxima" : "Vigente";
+    }
+
+    private static string ClaseEstado(CoberturaRutaDTO c) => TextoEstado(c) switch
+    {
+        "Vigente" => "text-bg-success",
+        "Próxima" => "text-bg-info",
+        "Anulada" => "text-bg-danger",
+        _ => "text-bg-secondary",
+    };
+
+    private async Task CargarColaboradores(int idRuta)
+    {
+        _colaboradores = idRuta > 0
+            ? await Respuestas.DatoAsync(await ApiRutas.Agentes(idRuta), "consultar los colaboradores de la ruta") ?? Array.Empty<RutaAgenteDTO>()
+            : Array.Empty<RutaAgenteDTO>();
+    }
+
+    private async Task CambiarRuta(ChangeEventArgs e)
+    {
+        if (_edicion is null) return;
+        _edicion.IdRuta = int.TryParse(e.Value?.ToString(), out var id) ? id : 0;
+        _edicion.IdUsuarioAusente = string.Empty;
+        await CargarColaboradores(_edicion.IdRuta);
+    }
+
+    private async Task Nueva()
+    {
+        _error = string.Empty;
+        _edicion = new CoberturaRutaDTO { IdRuta = _idRutaFiltro, Activo = true };
+        _desde = null; _hasta = null; _motivo = null;
+        await CargarColaboradores(_edicion.IdRuta);
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Editar(CoberturaRutaDTO c)
+    {
+        _error = string.Empty;
+        _edicion = new CoberturaRutaDTO
+        {
+            IdCobertura = c.IdCobertura, IdRuta = c.IdRuta, IdUsuarioAusente = c.IdUsuarioAusente, IdUsuarioCubre = c.IdUsuarioCubre, Activo = c.Activo,
+        };
+        _desde = c.Desde; _hasta = c.Hasta; _motivo = c.Motivo;
+        await CargarColaboradores(c.IdRuta);
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null) return;
+        if (_edicion.IdRuta <= 0) { _error = "Seleccione la ruta."; return; }
+        if (string.IsNullOrEmpty(_edicion.IdUsuarioAusente)) { _error = "Seleccione quién se ausenta."; return; }
+        if (string.IsNullOrEmpty(_edicion.IdUsuarioCubre)) { _error = "Seleccione quién cubre."; return; }
+        if (_desde is null || _hasta is null) { _error = "Indique desde y hasta qué fecha dura la cobertura."; return; }
+        _edicion.Desde = _desde.Value.Date;
+        _edicion.Hasta = _hasta.Value.Date;
+        _edicion.Motivo = _motivo;
+        _error = string.Empty;
+        _guardando = true;
+        var r = _edicion.IdCobertura == 0 ? await Api.Crear(_edicion) : await Api.Actualizar(_edicion.IdCobertura, _edicion);
+        _guardando = false;
+        // El motivo de un rechazo (fechas cruzadas, quien cubre sin perfil comercial) se muestra dentro del modal.
+        if (!r.EsCorrecta) { _error = r.Excepcion ?? "No se pudo guardar la cobertura."; return; }
+        await _modal.OcultarAsync();
+        await Recargar();
+        Dialogos.Exito("Cobertura guardada.");
+    }
+
+    private async Task Anular(CoberturaRutaDTO c)
+    {
+        if (!await Dialogos.ConfirmarAsync($"¿Anular la cobertura de {c.NombreCubre} en «{c.NombreRuta}»? Quedará en el historial y dejará de aplicar.", "Anular cobertura")) return;
+        var r = await Api.Anular(c.IdCobertura);
+        if (!await Respuestas.CorrectaAsync(r, "anular la cobertura")) return;
+        await Recargar();
+    }
+}

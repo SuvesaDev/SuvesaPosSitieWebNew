@@ -1,0 +1,363 @@
+@page "/comercial/clasificacion-articulos"
+@using System.Globalization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.Services
+@inject IClasificacionComercial Api
+@inject ICatalogosComerciales Catalogos
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Clasificación de artículos" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio" Icono="bi-capsule"
+             Subtitulo="Especies, función terapéutica y margen mínimo de cada artículo. Un artículo puede tener varias especies; una es la principal y es la que cuenta para las metas por especie.">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar" title="Actualizar"><i class="bi bi-arrow-clockwise"></i></button>
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3"><div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label class="form-label small mb-1" for="ca-texto">Artículo</label>
+                    <input id="ca-texto" class="form-control form-control-sm" placeholder="Código o descripción" @bind="_filtro.Texto" @bind:event="onchange" @onkeydown="TeclaBuscar" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small mb-1" for="ca-marca">Marca</label>
+                    <select id="ca-marca" class="form-select form-select-sm" @bind="_codMarca">
+                        <option value="0">Todas</option>
+                        @foreach (var o in _opciones.Marcas) { <option value="@o.Id">@o.Nombre</option> }
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small mb-1" for="ca-familia">Familia</label>
+                    <select id="ca-familia" class="form-select form-select-sm" @bind="_idFamilia">
+                        <option value="0">Todas</option>
+                        @foreach (var o in _opciones.Familias) { <option value="@o.Id">@o.Nombre</option> }
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small mb-1" for="ca-categoria">Categoría</label>
+                    <select id="ca-categoria" class="form-select form-select-sm" @bind="_idCategoria">
+                        <option value="0">Todas</option>
+                        @foreach (var o in _opciones.Categorias) { <option value="@o.Id">@o.Nombre</option> }
+                    </select>
+                </div>
+                <div class="col-12 d-flex flex-wrap align-items-center gap-3 mt-2">
+                    <div class="form-check form-switch"><input id="ca-sin-esp" class="form-check-input" type="checkbox" @bind="_filtro.SinEspecie" /><label class="form-check-label small" for="ca-sin-esp">Sin especie</label></div>
+                    <div class="form-check form-switch"><input id="ca-sin-fun" class="form-check-input" type="checkbox" @bind="_filtro.SinFuncion" /><label class="form-check-label small" for="ca-sin-fun">Sin función terapéutica</label></div>
+                    <div class="form-check form-switch"><input id="ca-sin-mar" class="form-check-input" type="checkbox" @bind="_filtro.SinMargen" /><label class="form-check-label small" for="ca-sin-mar">Sin margen mínimo</label></div>
+                    <button class="btn btn-sm btn-primary ms-auto" @onclick="Buscar"><i class="bi bi-search me-1"></i>Buscar</button>
+                </div>
+            </div>
+        </div></div>
+
+        @if (PuedeEditar)
+        {
+            <div class="alert alert-primary d-flex flex-wrap align-items-center gap-2 py-2">
+                <span>@(_seleccion.Count > 0 ? $"{_seleccion.Count} seleccionado(s)" : $"{_pagina.Total} artículo(s) en el filtro")</span>
+                <button class="btn btn-sm btn-primary" disabled="@(_pagina.Total == 0)" @onclick="AbrirMasivo"><i class="bi bi-tags me-1"></i>Agregar clasificación…</button>
+                @if (_seleccion.Count > 0) { <button class="btn btn-sm btn-link ms-auto" @onclick="() => _seleccion.Clear()">Limpiar selección</button> }
+            </div>
+        }
+
+        <div class="card"><div class="card-body p-0">
+            <AppCargable Cargando="_cargando" Vacio="@(!_cargando && _pagina.Items.Count == 0)" TextoVacio="No hay artículos con esos filtros.">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:2.5rem"><input class="form-check-input" type="checkbox" checked="@TodosSeleccionados" @onchange="e => SeleccionarTodos((bool)(e.Value ?? false))" aria-label="Seleccionar todos" /></th>
+                                <th>Artículo</th>
+                                <th>Especies</th>
+                                <th>Funciones terapéuticas</th>
+                                <th class="text-end">Margen mín.</th>
+                                <th style="width:3rem"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var a in _pagina.Items)
+                            {
+                                <tr>
+                                    <td><input class="form-check-input" type="checkbox" checked="@_seleccion.Contains(a.IdInventario)" @onchange="e => Alternar(a.IdInventario, (bool)(e.Value ?? false))" aria-label="Seleccionar @a.Descripcion" /></td>
+                                    <td>@a.Descripcion<div class="small text-muted"><code>@a.CodArticulo</code>@(string.IsNullOrEmpty(a.Marca) ? "" : " · " + a.Marca)</div></td>
+                                    <td>
+                                        @if (a.Especies.Count == 0) { <span class="badge text-bg-warning">Sin especie</span> }
+                                        @foreach (var e in a.Especies)
+                                        {
+                                            <span class="badge @(e.EsPrincipal ? "text-bg-primary" : "text-bg-light border") me-1" title="@(e.EsPrincipal ? "Especie principal" : "")">@NombreEspecie(e.IdEspecie)@(e.EsPrincipal ? " ★" : "")</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (a.Funciones.Count == 0) { <span class="badge text-bg-warning">Sin función</span> }
+                                        @foreach (var f in a.Funciones) { <span class="badge text-bg-light border me-1">@NombreFuncion(f)</span> }
+                                    </td>
+                                    <td class="text-end">@(a.MargenMinimoPct is decimal m ? m.ToString("0.##", CultureInfo.CurrentCulture) + " %" : "—")</td>
+                                    <td class="text-end">
+                                        @if (PuedeEditar) { <button class="btn btn-sm btn-outline-primary" title="Editar clasificación" @onclick="() => Editar(a)"><i class="bi bi-pencil"></i></button> }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </AppCargable>
+        </div>
+        <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span class="small text-muted">@Resumen</span>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary" disabled="@(_pagina.Pagina <= 1 || _cargando)" @onclick="() => CambiarPagina(-1)"><i class="bi bi-chevron-left"></i> Anterior</button>
+                <button class="btn btn-outline-secondary" disabled="@(!HaySiguiente || _cargando)" @onclick="() => CambiarPagina(1)">Siguiente <i class="bi bi-chevron-right"></i></button>
+            </div>
+        </div></div>
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modalEdicion" Titulo="Clasificación del artículo" Subtitulo="@(_editando?.Descripcion)"
+          Tamano="ModalSize.Large" AlGuardar="GuardarEdicion" Guardando="_guardando">
+    <ChildContent>
+        @if (_editando is not null)
+        {
+            @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger py-2">@_error</div> }
+            <div class="row g-4">
+                <div class="col-12 col-md-6">
+                    <div class="fw-semibold mb-1">Especies</div>
+                    <p class="form-text mt-0">Marque las que apliquen y elija la principal.</p>
+                    @foreach (var e in EspeciesOfrecidas(_editEspecies))
+                    {
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <div class="form-check flex-grow-1">
+                                <input id="ed-esp-@e.Id" class="form-check-input" type="checkbox" checked="@_editEspecies.Contains(e.Id)" @onchange="x => AlternarEspecieEdicion(e.Id, (bool)(x.Value ?? false))" />
+                                <label class="form-check-label" for="ed-esp-@e.Id">@e.Nombre@(e.Activo ? "" : " (inactiva)")</label>
+                            </div>
+                            @if (_editEspecies.Contains(e.Id))
+                            {
+                                <div class="form-check">
+                                    <input id="ed-pri-@e.Id" class="form-check-input" type="radio" name="ed-principal" checked="@(_editPrincipal == e.Id)" @onchange="() => _editPrincipal = e.Id" />
+                                    <label class="form-check-label small" for="ed-pri-@e.Id">Principal</label>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="fw-semibold mb-1">Funciones terapéuticas</div>
+                    <p class="form-text mt-0">Un artículo puede tener varias.</p>
+                    @if (_funciones.Count == 0) { <p class="text-muted small">No hay funciones cargadas. Agréguelas en «Catálogos comerciales».</p> }
+                    @foreach (var f in FuncionesOfrecidas(_editFunciones))
+                    {
+                        <div class="form-check mb-1">
+                            <input id="ed-fun-@f.Id" class="form-check-input" type="checkbox" checked="@_editFunciones.Contains(f.Id)" @onchange="x => AlternarFuncion(_editFunciones, f.Id, (bool)(x.Value ?? false))" />
+                            <label class="form-check-label" for="ed-fun-@f.Id">@f.Nombre@(f.Activo ? "" : " (inactiva)")</label>
+                        </div>
+                    }
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold" for="ed-margen">Margen mínimo (%)</label>
+                    <input id="ed-margen" type="number" class="form-control" min="0" max="100" step="0.01" @bind="_editMargen" />
+                    <p class="form-text">Déjelo vacío si no aplica. Solo alimenta la alerta de rentabilidad baja; no bloquea ventas.</p>
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppModal>
+
+<AppModal @ref="_modalMasivo" Titulo="Agregar clasificación" Subtitulo="Se agrega a lo que ya tiene cada artículo; no se quita nada."
+          Tamano="ModalSize.Large" AlGuardar="GuardarMasivo" Guardando="_guardando" TextoGuardar="Aplicar">
+    <ChildContent>
+        @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger py-2">@_error</div> }
+        <div class="mb-3">
+            <div class="fw-semibold mb-1">A quién se aplica</div>
+            @if (_seleccion.Count > 0)
+            {
+                <div class="form-check">
+                    <input id="mas-sel" class="form-check-input" type="radio" name="mas-alcance" checked="@(!_masivoPorFiltro)" @onchange="() => _masivoPorFiltro = false" />
+                    <label class="form-check-label" for="mas-sel">Los @_seleccion.Count artículo(s) seleccionados</label>
+                </div>
+            }
+            <div class="form-check">
+                <input id="mas-fil" class="form-check-input" type="radio" name="mas-alcance" checked="@_masivoPorFiltro" @onchange="() => _masivoPorFiltro = true" />
+                <label class="form-check-label" for="mas-fil">Todos los @_pagina.Total artículo(s) que cumplen el filtro actual</label>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-12 col-md-6">
+                <div class="fw-semibold mb-1">Agregar especies</div>
+                <p class="form-text mt-0">Si el artículo no tiene especie, la primera que se agregue será la principal.</p>
+                @foreach (var e in _especies.Where(x => x.Activo))
+                {
+                    <div class="form-check mb-1">
+                        <input id="mas-esp-@e.Id" class="form-check-input" type="checkbox" checked="@_masivoEspecies.Contains(e.Id)" @onchange="x => AlternarFuncion(_masivoEspecies, e.Id, (bool)(x.Value ?? false))" />
+                        <label class="form-check-label" for="mas-esp-@e.Id">@e.Nombre</label>
+                    </div>
+                }
+            </div>
+            <div class="col-12 col-md-6">
+                <div class="fw-semibold mb-1">Agregar funciones terapéuticas</div>
+                @if (_funciones.Count == 0) { <p class="text-muted small">No hay funciones cargadas.</p> }
+                @foreach (var f in _funciones.Where(x => x.Activo))
+                {
+                    <div class="form-check mb-1">
+                        <input id="mas-fun-@f.Id" class="form-check-input" type="checkbox" checked="@_masivoFunciones.Contains(f.Id)" @onchange="x => AlternarFuncion(_masivoFunciones, f.Id, (bool)(x.Value ?? false))" />
+                        <label class="form-check-label" for="mas-fun-@f.Id">@f.Nombre</label>
+                    </div>
+                }
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold" for="mas-margen">Fijar margen mínimo (%)</label>
+                <input id="mas-margen" type="number" class="form-control" min="0" max="100" step="0.01" @bind="_masivoMargen" />
+                <p class="form-text">Déjelo vacío para no tocar el margen.</p>
+            </div>
+        </div>
+    </ChildContent>
+</AppModal>
+
+@code {
+    private const string Codigo = "COMERCIAL.CLASIFICACION_ARTICULOS";
+
+    private readonly FiltroClasificacionArticulosDTO _filtro = new();
+    private PaginaArticulosClasificacionDTO _pagina = new();
+    private OpcionesFiltroArticulosDTO _opciones = new();
+    private List<CatalogoComercialDTO> _especies = new(), _funciones = new();
+    private readonly HashSet<long> _seleccion = new();
+    private int _codMarca, _idFamilia, _idCategoria;
+    private bool _cargando = true, _guardando, _masivoPorFiltro;
+    private string _error = string.Empty;
+
+    private AppModal _modalEdicion = default!, _modalMasivo = default!;
+    private ArticuloClasificacionDTO? _editando;
+    private readonly HashSet<int> _editEspecies = new(), _editFunciones = new();
+    private int _editPrincipal;
+    private decimal? _editMargen;
+
+    private readonly HashSet<int> _masivoEspecies = new(), _masivoFunciones = new();
+    private decimal? _masivoMargen;
+
+    private bool PuedeEditar => Sesion.Puede(Codigo, AccionPantalla.Editar);
+    private bool TodosSeleccionados => _pagina.Items.Count > 0 && _pagina.Items.All(a => _seleccion.Contains(a.IdInventario));
+    private bool HaySiguiente => _pagina.Pagina * _pagina.Tamano < _pagina.Total;
+    private string Resumen => _pagina.Total == 0 ? "Sin resultados" : $"Mostrando {(_pagina.Pagina - 1) * _pagina.Tamano + 1}–{Math.Min(_pagina.Pagina * _pagina.Tamano, _pagina.Total)} de {_pagina.Total}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _opciones = await Respuestas.DatoAsync(await Api.OpcionesFiltroArticulos(), "consultar los filtros") ?? new OpcionesFiltroArticulosDTO();
+        _especies = ((await Respuestas.DatoAsync(await Catalogos.Listar(TipoCatalogoComercial.Especies, true), "consultar las especies")) ?? Array.Empty<CatalogoComercialDTO>()).ToList();
+        _funciones = ((await Respuestas.DatoAsync(await Catalogos.Listar(TipoCatalogoComercial.FuncionesTerapeuticas, true), "consultar las funciones")) ?? Array.Empty<CatalogoComercialDTO>()).ToList();
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        _filtro.CodMarca = _codMarca > 0 ? _codMarca : null;
+        _filtro.IdFamilia = _idFamilia > 0 ? _idFamilia : null;
+        _filtro.IdCategoria = _idCategoria > 0 ? _idCategoria : null;
+        _pagina = await Respuestas.DatoAsync(await Api.ListarArticulos(_filtro), "consultar los artículos") ?? new PaginaArticulosClasificacionDTO();
+        _cargando = false;
+    }
+
+    private async Task Buscar() { _filtro.Pagina = 1; _seleccion.Clear(); await Cargar(); }
+    private async Task Recargar() => await Cargar();
+    private async Task TeclaBuscar(KeyboardEventArgs e) { if (e.Key == "Enter") await Buscar(); }
+    private async Task CambiarPagina(int delta) { _filtro.Pagina = Math.Max(1, _pagina.Pagina + delta); await Cargar(); }
+
+    private string NombreEspecie(int id) => _especies.FirstOrDefault(e => e.Id == id)?.Nombre ?? $"#{id}";
+    private string NombreFuncion(int id) => _funciones.FirstOrDefault(f => f.Id == id)?.Nombre ?? $"#{id}";
+
+    // Se ofrecen los activos y, si el artículo ya los tenía, también los inactivos (para poder conservarlos).
+    private IEnumerable<CatalogoComercialDTO> EspeciesOfrecidas(HashSet<int> marcadas) => _especies.Where(e => e.Activo || marcadas.Contains(e.Id));
+    private IEnumerable<CatalogoComercialDTO> FuncionesOfrecidas(HashSet<int> marcadas) => _funciones.Where(f => f.Activo || marcadas.Contains(f.Id));
+
+    private void Alternar(long id, bool marcado) { if (marcado) _seleccion.Add(id); else _seleccion.Remove(id); }
+    private void SeleccionarTodos(bool marcado) { foreach (var a in _pagina.Items) Alternar(a.IdInventario, marcado); }
+    private static void AlternarFuncion(HashSet<int> conjunto, int id, bool marcado) { if (marcado) conjunto.Add(id); else conjunto.Remove(id); }
+
+    // ---- edición de un artículo ----
+    private async Task Editar(ArticuloClasificacionDTO a)
+    {
+        _error = string.Empty;
+        _editando = a;
+        _editEspecies.Clear();
+        foreach (var e in a.Especies) _editEspecies.Add(e.IdEspecie);
+        _editPrincipal = a.Especies.FirstOrDefault(e => e.EsPrincipal)?.IdEspecie ?? 0;
+        _editFunciones.Clear();
+        foreach (var f in a.Funciones) _editFunciones.Add(f);
+        _editMargen = a.MargenMinimoPct;
+        await _modalEdicion.MostrarAsync();
+    }
+
+    private void AlternarEspecieEdicion(int id, bool marcado)
+    {
+        if (marcado)
+        {
+            _editEspecies.Add(id);
+            if (_editPrincipal == 0) _editPrincipal = id;   // la primera que se marca es la principal
+        }
+        else
+        {
+            _editEspecies.Remove(id);
+            if (_editPrincipal == id) _editPrincipal = _editEspecies.OrderBy(x => x).FirstOrDefault();
+        }
+    }
+
+    private async Task GuardarEdicion()
+    {
+        if (_editando is null) return;
+        if (_editMargen is < 0 or > 100) { _error = "El margen mínimo debe estar entre 0 y 100."; return; }
+        _error = string.Empty;
+        _guardando = true;
+        var principal = _editEspecies.Contains(_editPrincipal) ? _editPrincipal : _editEspecies.OrderBy(x => x).FirstOrDefault();
+        var r = await Api.GuardarArticulo(_editando.IdInventario, new GuardarClasificacionArticuloRequest
+        {
+            Especies = _editEspecies.Select(id => new EspecieArticuloDTO { IdEspecie = id, EsPrincipal = id == principal }).ToList(),
+            Funciones = _editFunciones.ToList(),
+            MargenMinimoPct = _editMargen,
+        });
+        _guardando = false;
+        if (!r.EsCorrecta) { _error = r.Excepcion ?? "No se pudo guardar la clasificación."; return; }
+        await _modalEdicion.OcultarAsync();
+        await Cargar();
+        Dialogos.Exito("Clasificación guardada.");
+    }
+
+    // ---- asignación masiva ----
+    private async Task AbrirMasivo()
+    {
+        _error = string.Empty;
+        _masivoPorFiltro = _seleccion.Count == 0;
+        _masivoEspecies.Clear();
+        _masivoFunciones.Clear();
+        _masivoMargen = null;
+        await _modalMasivo.MostrarAsync();
+    }
+
+    private async Task GuardarMasivo()
+    {
+        if (_masivoEspecies.Count == 0 && _masivoFunciones.Count == 0 && _masivoMargen is null) { _error = "Elija qué agregar: especies, funciones o margen mínimo."; return; }
+        if (_masivoMargen is < 0 or > 100) { _error = "El margen mínimo debe estar entre 0 y 100."; return; }
+        var alcance = _masivoPorFiltro ? $"los {_pagina.Total} artículos del filtro" : $"los {_seleccion.Count} artículos seleccionados";
+        if (!await Dialogos.ConfirmarAsync($"¿Agregar la clasificación elegida a {alcance}?", "Agregar clasificación")) return;
+
+        _error = string.Empty;
+        _guardando = true;
+        var request = new AsignarClasificacionMasivaRequest
+        {
+            IdsInventario = _masivoPorFiltro ? null : _seleccion.ToList(),
+            Filtro = _masivoPorFiltro ? new FiltroClasificacionArticulosDTO
+            {
+                Texto = _filtro.Texto, CodMarca = _filtro.CodMarca, IdFamilia = _filtro.IdFamilia, IdCategoria = _filtro.IdCategoria,
+                SinEspecie = _filtro.SinEspecie, SinFuncion = _filtro.SinFuncion, SinMargen = _filtro.SinMargen,
+            } : null,
+            AgregarEspecies = _masivoEspecies.ToList(),
+            AgregarFunciones = _masivoFunciones.ToList(),
+            MargenMinimoPct = _masivoMargen,
+        };
+        var r = await Api.AsignarMasiva(request);
+        _guardando = false;
+        if (!r.EsCorrecta) { _error = r.Excepcion ?? "No se pudo asignar la clasificación."; return; }
+        await _modalMasivo.OcultarAsync();
+        _seleccion.Clear();
+        await Cargar();
+        Dialogos.Exito($"Se actualizaron {r.Responses?.Actualizados ?? 0} artículo(s).");
+    }
+}

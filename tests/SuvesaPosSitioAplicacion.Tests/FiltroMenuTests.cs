@@ -138,7 +138,7 @@ public class FiltroMenuTests
     public void ElMenuRealSeCargoCompleto()
     {
         static int Contar(IEnumerable<ItemMenu> ns) => ns.Sum(n => 1 + Contar(n.Hijos));
-        Assert.Equal(12, MenuSeePos.Items.Count);
+        Assert.Equal(13, MenuSeePos.Items.Count);
         // 84 originales + 19 (arbol de permisos MODULO_REPORTES.*) + 2 (Gastos,
         // Cumplimiento CABYS) + 4 (Apartados y préstamos, KPI por ruta, Empaquetado y
         // maquila, Mermas) + 1 (Panel ejecutivo) + 1 (Tablero de Consignación, pantalla
@@ -148,6 +148,8 @@ public class FiltroMenuTests
         // + 4 (módulo Cobranza: Cobranza, Seguimiento, Dashboard, Gerencial).
         // + 1 (Cobranza → Autorizaciones de crédito: aprobación de facturas a crédito a clientes morosos).
         // + 1 (Ventas → Nota de crédito externa: NC electrónica contra un comprobante del sistema anterior, solo administradores).
-        Assert.Equal(133, Contar(MenuSeePos.Items));   // 124 + Cobranza + Autorizaciones + IVA Repercutido, Soportado y Prorrata + Nota de crédito externa
+        // + 8 (módulo Gestión Comercial: el módulo, Parámetros comerciales, Calendario hábil, Catálogos comerciales, las
+        // clasificaciones de clientes y de artículos, la Cobertura de vacaciones y las Metas de ventas).
+        Assert.Equal(141, Contar(MenuSeePos.Items));   // 124 + Cobranza + Autorizaciones + IVA Repercutido, Soportado y Prorrata + Nota de crédito externa + Gestión Comercial
     }
 }

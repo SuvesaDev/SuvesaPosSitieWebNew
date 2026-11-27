@@ -1,0 +1,396 @@
+@page "/comercial/metas"
+@using System.Globalization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.DTOs.Rutas
+@using SuvesaPosSitioAplicacion.Services
+@inject IMetasVenta Api
+@inject IRutasComerciales ApiRutas
+@inject ICoberturasRuta ApiPersonas
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Metas de ventas" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio" Icono="bi-bullseye"
+             Subtitulo="Metas de cada mes: la de la ruta (equipo) se fija aparte de las individuales de cada Agente o SAC. Se pueden definir antes de que el mes inicie; desde el día 1 quedan bloqueadas.">
+    <Acciones>
+        <div class="btn-group btn-group-sm me-2" role="group" aria-label="Mes">
+            <button class="btn btn-outline-secondary" title="Mes anterior" @onclick="() => CambiarMes(-1)"><i class="bi bi-chevron-left"></i></button>
+            <span class="btn btn-outline-secondary disabled fw-semibold text-capitalize" style="min-width:10rem">@NombreMes</span>
+            <button class="btn btn-outline-secondary" title="Mes siguiente" @onclick="() => CambiarMes(1)"><i class="bi bi-chevron-right"></i></button>
+        </div>
+        @if (PuedeCrear)
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Nueva"><i class="bi bi-plus-lg me-1"></i>Agregar meta</button>
+        }
+    </Acciones>
+    <ChildContent>
+        @if (_datos.Bloqueado)
+        {
+            <div class="alert alert-warning d-flex align-items-start gap-2 py-2">
+                <i class="bi bi-lock-fill mt-1"></i>
+                <div>
+                    El mes ya inició: sus metas están <strong>bloqueadas</strong>.
+                    @if (Sesion.Puede(Codigo, AccionPantalla.Activar)) { <span>Usted puede cambiarlas indicando el motivo, que queda en el historial.</span> }
+                    else { <span>Solo quien tiene el permiso especial de metas bloqueadas puede cambiarlas.</span> }
+                </div>
+            </div>
+        }
+
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item"><button type="button" class="nav-link @(!_verHistorial ? "active" : "")" @onclick="() => CambiarPestana(false)">Metas</button></li>
+            <li class="nav-item"><button type="button" class="nav-link @(_verHistorial ? "active" : "")" @onclick="() => CambiarPestana(true)">Historial de cambios</button></li>
+        </ul>
+
+        @if (!_verHistorial)
+        {
+            <div class="card"><div class="card-body p-0">
+                <div class="p-3 pb-0 d-flex flex-wrap gap-2 align-items-center">
+                    <label class="small text-muted" for="meta-nivel">Mostrar</label>
+                    <select id="meta-nivel" class="form-select form-select-sm w-auto" @bind="_nivelFiltro" @bind:after="Cargar">
+                        <option value="">Todas</option>
+                        <option value="@NivelMeta.Ruta">Solo metas de ruta</option>
+                        <option value="@NivelMeta.Usuario">Solo metas individuales</option>
+                    </select>
+                </div>
+                <AppCargable Cargando="_cargando" Vacio="@(!_cargando && _datos.Metas.Count == 0)" TextoVacio="No hay metas para este mes. Use «Agregar meta».">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Sobre qué</th>
+                                    <th class="text-end">Monto</th>
+                                    <th class="text-end">Unidades</th>
+                                    <th class="text-end">Clientes nuevos</th>
+                                    <th style="width:6rem"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var grupo in Grupos)
+                                {
+                                    <tr class="table-secondary"><td colspan="5" class="fw-semibold"><i class="bi @(grupo.Key.StartsWith("R") ? "bi-signpost-split" : "bi-person") me-1"></i>@grupo.Value.Titulo</td></tr>
+                                    @foreach (var m in grupo.Value.Metas)
+                                    {
+                                        <tr>
+                                            <td class="ps-4">@Dimension(m)</td>
+                                            <td class="text-end">@Numero(m.MontoMeta)</td>
+                                            <td class="text-end">@Numero(m.UnidadesMeta)</td>
+                                            <td class="text-end">@(m.ClientesNuevosMeta?.ToString("N0", Cultura) ?? "—")</td>
+                                            <td class="text-end">
+                                                @if (PuedeEditarFila(m)) { <button class="btn btn-sm btn-outline-primary me-1" title="Cambiar la meta" @onclick="() => Editar(m)"><i class="bi bi-pencil"></i></button> }
+                                                @if (PuedeBorrarFila(m)) { <button class="btn btn-sm btn-outline-danger" title="Eliminar la meta" @onclick="() => PedirEliminar(m)"><i class="bi bi-trash"></i></button> }
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </AppCargable>
+            </div></div>
+        }
+        else
+        {
+            <div class="card"><div class="card-body p-0">
+                <AppCargable Cargando="_cargando" Vacio="@(!_cargando && _historial.Count == 0)" TextoVacio="Este mes aún no tiene cambios registrados.">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Fecha</th><th>Quién</th><th>Cambio</th><th>Meta</th><th>Antes → Después</th><th>Motivo</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in _historial)
+                                {
+                                    <tr class="@(c.EnMesBloqueado ? "table-warning" : null)">
+                                        <td class="text-nowrap">@c.FechaUtc.ToLocalTime().ToString("g", Cultura)</td>
+                                        <td>@c.Usuario</td>
+                                        <td><span class="badge @(c.Accion == "Eliminar" ? "text-bg-danger" : c.Accion == "Crear" ? "text-bg-success" : "text-bg-primary")">@c.Accion</span>@if (c.EnMesBloqueado) { <i class="bi bi-lock-fill ms-1" title="Con el mes ya iniciado"></i> }</td>
+                                        <td>@(c.NombreRuta is not null ? "Ruta " + c.NombreRuta : c.NombreUsuario)<div class="small text-muted">@DimensionHistorial(c)</div></td>
+                                        <td class="small">@Valores(c)</td>
+                                        <td class="small">@c.Motivo</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </AppCargable>
+            </div></div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modal" Titulo="@(_esNueva ? "Nueva meta" : "Cambiar meta")" Subtitulo="@NombreMes"
+          Tamano="ModalSize.Large" AlGuardar="Guardar" Guardando="_guardando">
+    <ChildContent>
+        @if (_edicion is not null)
+        {
+            @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger py-2">@_error</div> }
+            <div class="row g-3">
+                <div class="col-12">
+                    <div class="form-check form-check-inline">
+                        <input id="meta-n-ruta" class="form-check-input" type="radio" name="meta-nivel-edicion" disabled="@(!_esNueva)" checked="@(_edicion.Nivel == NivelMeta.Ruta)" @onchange="() => CambiarNivel(NivelMeta.Ruta)" />
+                        <label class="form-check-label" for="meta-n-ruta">Meta de una ruta (equipo)</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input id="meta-n-usuario" class="form-check-input" type="radio" name="meta-nivel-edicion" disabled="@(!_esNueva)" checked="@(_edicion.Nivel == NivelMeta.Usuario)" @onchange="() => CambiarNivel(NivelMeta.Usuario)" />
+                        <label class="form-check-label" for="meta-n-usuario">Meta individual (Agente o SAC)</label>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    @if (_edicion.Nivel == NivelMeta.Ruta)
+                    {
+                        <label class="form-label" for="meta-ruta">Ruta</label>
+                        <select id="meta-ruta" class="form-select" disabled="@(!_esNueva)" value="@(_edicion.IdRuta ?? 0)" @onchange="e => _edicion.IdRuta = EnteroONulo(e.Value)">
+                            <option value="0">Seleccione una ruta…</option>
+                            @foreach (var r in _rutas) { <option value="@r.IdRuta">@r.Nombre</option> }
+                        </select>
+                    }
+                    else
+                    {
+                        <label class="form-label" for="meta-persona">Persona</label>
+                        <select id="meta-persona" class="form-select" disabled="@(!_esNueva)" value="@(_edicion.IdUsuario ?? string.Empty)" @onchange="e => _edicion.IdUsuario = e.Value?.ToString()">
+                            <option value="">Seleccione una persona…</option>
+                            @foreach (var p in _personas) { <option value="@p.IdUsuario">@p.Nombre@(RolPersona(p))</option> }
+                        </select>
+                    }
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="meta-dimension">Se mide sobre</label>
+                    <select id="meta-dimension" class="form-select" disabled="@(!_esNueva)" value="@_edicion.TipoDimension" @onchange="CambiarDimension">
+                        @foreach (var d in DimensionMeta.Todas) { <option value="@d.Valor">@d.Texto</option> }
+                    </select>
+                </div>
+                @if (_edicion.TipoDimension != DimensionMeta.Global)
+                {
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="meta-valor">@DimensionMeta.Texto(_edicion.TipoDimension)</label>
+                        <select id="meta-valor" class="form-select" disabled="@(!_esNueva)" value="@(_edicion.IdDimension ?? 0)" @onchange="e => _edicion.IdDimension = EnteroONulo(e.Value)">
+                            <option value="0">Seleccione…</option>
+                            @foreach (var o in _opcionesDimension) { <option value="@o.Id">@o.Nombre</option> }
+                        </select>
+                    </div>
+                }
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="meta-monto">Meta en monto</label>
+                    <input id="meta-monto" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.MontoMeta" />
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="meta-unidades">Meta en unidades</label>
+                    <input id="meta-unidades" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.UnidadesMeta" />
+                </div>
+                @if (_edicion.TipoDimension == DimensionMeta.Global)
+                {
+                    <div class="col-12 col-md-4">
+                        <label class="form-label" for="meta-clientes">Clientes nuevos</label>
+                        <input id="meta-clientes" type="number" min="0" step="1" class="form-control" @bind="_edicion.ClientesNuevosMeta" />
+                    </div>
+                }
+                <div class="col-12"><p class="form-text mb-0">Llene al menos una. Las ventas de un cliente nuevo también suman a la meta total. La venta de una especie cuenta en la especie principal del artículo.</p></div>
+                @if (_datos.Bloqueado)
+                {
+                    <div class="col-12">
+                        <AppCampoTexto Etiqueta="Motivo del cambio" @bind-Valor="_motivo" Requerido="true" />
+                        <p class="form-text mb-0">El mes ya inició: el motivo queda en el historial.</p>
+                    </div>
+                }
+            </div>
+        }
+    </ChildContent>
+</AppModal>
+
+<AppModal @ref="_modalEliminar" Titulo="Eliminar meta" Subtitulo="@(_eliminando is null ? null : Dimension(_eliminando))" Tamano="ModalSize.Regular"
+          AlGuardar="Eliminar" Guardando="_guardando" Peligro="true" TextoGuardar="Eliminar" IconoGuardar="bi-trash">
+    <ChildContent>
+        @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger py-2">@_error</div> }
+        <p>La meta se elimina y el cambio queda en el historial.</p>
+        @if (_datos.Bloqueado)
+        {
+            <AppCampoTexto Etiqueta="Motivo" @bind-Valor="_motivo" Requerido="true" />
+        }
+    </ChildContent>
+</AppModal>
+
+@code {
+    private const string Codigo = "COMERCIAL.METAS";
+    private static readonly CultureInfo Cultura = new("es-CR");
+
+    private sealed record GrupoMetas(string Titulo, List<MetaVentaDTO> Metas);
+
+    private AppModal _modal = default!, _modalEliminar = default!;
+    private MetasMesDTO _datos = new();
+    private List<MetaVentaCambioDTO> _historial = new();
+    private List<RutaComercialDTO> _rutas = new();
+    private List<UsuarioCubridorDTO> _personas = new();
+    private List<OpcionFiltroDTO> _opcionesDimension = new();
+    private MetaVentaDTO? _edicion, _eliminando;
+    private int _anio = DateTime.Today.AddMonths(1).Year, _mes = DateTime.Today.AddMonths(1).Month;
+    private string _nivelFiltro = string.Empty;
+    private string? _motivo;
+    private bool _cargando = true, _guardando, _esNueva, _verHistorial;
+    private string _error = string.Empty;
+
+    private string NombreMes => new DateTime(_anio, _mes, 1).ToString("MMMM 'de' yyyy", Cultura);
+    private bool PuedeCrear => Sesion.Puede(Codigo, AccionPantalla.Crear) && (!_datos.Bloqueado || Sesion.Puede(Codigo, AccionPantalla.Activar));
+    private bool PuedeEditarFila(MetaVentaDTO m) => Sesion.Puede(Codigo, AccionPantalla.Editar) && (!m.Bloqueada || Sesion.Puede(Codigo, AccionPantalla.Activar));
+    private bool PuedeBorrarFila(MetaVentaDTO m) => Sesion.Puede(Codigo, AccionPantalla.Borrar) && (!m.Bloqueada || Sesion.Puede(Codigo, AccionPantalla.Activar));
+
+    // Primero la meta de cada ruta y después las individuales, ordenadas por nombre.
+    private IEnumerable<KeyValuePair<string, GrupoMetas>> Grupos => _datos.Metas
+        .GroupBy(m => m.Nivel == NivelMeta.Ruta ? "R" + m.IdRuta : "U" + m.IdUsuario)
+        .Select(g => new KeyValuePair<string, GrupoMetas>(g.Key,
+            new GrupoMetas(g.First().Nivel == NivelMeta.Ruta ? "Ruta " + (g.First().NombreRuta ?? g.First().IdRuta?.ToString()) : (g.First().NombreUsuario ?? g.First().IdUsuario ?? "—"),
+                g.OrderBy(m => m.TipoDimension != DimensionMeta.Global).ThenBy(m => m.TipoDimension).ThenBy(m => m.NombreDimension).ToList())))
+        .OrderBy(g => g.Key.StartsWith("R") ? 0 : 1).ThenBy(g => g.Value.Titulo);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var rutas = await Respuestas.DatoAsync(await ApiRutas.Listar(), "consultar las rutas");
+        _rutas = (rutas ?? Array.Empty<RutaComercialDTO>()).Where(r => r.Activo && !r.EsConsumidorFinal).OrderBy(r => r.Nombre).ToList();
+        var personas = await Respuestas.DatoAsync(await ApiPersonas.UsuariosElegibles(), "consultar las personas");
+        _personas = (personas ?? Array.Empty<UsuarioCubridorDTO>()).ToList();
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        if (_verHistorial)
+        {
+            var h = await Respuestas.DatoAsync(await Api.Historial(_anio, _mes), "consultar el historial");
+            _historial = (h ?? Array.Empty<MetaVentaCambioDTO>()).ToList();
+        }
+        // También en el historial se lee el mes, para saber si está bloqueado.
+        _datos = await Respuestas.DatoAsync(await Api.ListarMes(new FiltroMetasDTO { Anio = _anio, Mes = _mes, Nivel = string.IsNullOrEmpty(_nivelFiltro) ? null : _nivelFiltro }), "consultar las metas")
+            ?? new MetasMesDTO { Anio = _anio, Mes = _mes };
+        _cargando = false;
+    }
+
+    private async Task CambiarMes(int delta)
+    {
+        var fecha = new DateTime(_anio, _mes, 1).AddMonths(delta);
+        if (fecha.Year < 2000 || fecha.Year > 2100) return;
+        (_anio, _mes) = (fecha.Year, fecha.Month);
+        await Cargar();
+    }
+
+    private async Task CambiarPestana(bool historial) { _verHistorial = historial; await Cargar(); }
+
+    // ---- presentación ----
+    private static string Numero(decimal? v) => v is decimal d ? d.ToString("N2", Cultura) : "—";
+
+    private static string Dimension(MetaVentaDTO m)
+        => m.TipoDimension == DimensionMeta.Global ? "Total" : $"{DimensionMeta.Texto(m.TipoDimension)}: {m.NombreDimension ?? ("#" + m.IdDimension)}";
+
+    private static string DimensionHistorial(MetaVentaCambioDTO c)
+        => c.TipoDimension == DimensionMeta.Global ? "Total" : $"{DimensionMeta.Texto(c.TipoDimension)}: {c.NombreDimension ?? string.Empty}";
+
+    private static string Valores(MetaVentaCambioDTO c)
+    {
+        static string V(decimal? monto, decimal? unidades, int? clientes)
+        {
+            var partes = new List<string>();
+            if (monto is decimal m) partes.Add($"monto {m.ToString("N2", Cultura)}");
+            if (unidades is decimal u) partes.Add($"unid. {u.ToString("N2", Cultura)}");
+            if (clientes is int n) partes.Add($"clientes {n}");
+            return partes.Count == 0 ? "—" : string.Join(", ", partes);
+        }
+        return $"{V(c.MontoAnterior, c.UnidadesAnterior, c.ClientesNuevosAnterior)} → {V(c.MontoNuevo, c.UnidadesNuevo, c.ClientesNuevosNuevo)}";
+    }
+
+    private static string RolPersona(UsuarioCubridorDTO u) => u.EsAgente && u.EsServicioAlCliente ? " (Agente y SAC)" : u.EsServicioAlCliente ? " (SAC)" : " (Agente)";
+
+    private static int? EnteroONulo(object? valor) => int.TryParse(valor?.ToString(), out var id) && id > 0 ? id : null;
+
+    // ---- alta y edición ----
+    private async Task Nueva()
+    {
+        _error = string.Empty;
+        _esNueva = true;
+        _motivo = null;
+        _edicion = new MetaVentaDTO { Anio = _anio, Mes = _mes, Nivel = NivelMeta.Ruta, TipoDimension = DimensionMeta.Global };
+        _opcionesDimension = new();
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Editar(MetaVentaDTO m)
+    {
+        _error = string.Empty;
+        _esNueva = false;
+        _motivo = null;
+        _edicion = new MetaVentaDTO
+        {
+            Id = m.Id, Anio = m.Anio, Mes = m.Mes, Nivel = m.Nivel, IdRuta = m.IdRuta, IdUsuario = m.IdUsuario,
+            TipoDimension = m.TipoDimension, IdDimension = m.IdDimension, MontoMeta = m.MontoMeta, UnidadesMeta = m.UnidadesMeta, ClientesNuevosMeta = m.ClientesNuevosMeta,
+        };
+        await CargarOpcionesDimension(m.TipoDimension);
+        await _modal.MostrarAsync();
+    }
+
+    private void CambiarNivel(string nivel)
+    {
+        if (_edicion is null) return;
+        _edicion.Nivel = nivel;
+        _edicion.IdRuta = null;
+        _edicion.IdUsuario = null;
+    }
+
+    private async Task CambiarDimension(ChangeEventArgs e)
+    {
+        if (_edicion is null) return;
+        _edicion.TipoDimension = e.Value?.ToString() ?? DimensionMeta.Global;
+        _edicion.IdDimension = null;
+        if (_edicion.TipoDimension != DimensionMeta.Global) _edicion.ClientesNuevosMeta = null;
+        await CargarOpcionesDimension(_edicion.TipoDimension);
+    }
+
+    private async Task CargarOpcionesDimension(string tipo)
+    {
+        _opcionesDimension = tipo == DimensionMeta.Global
+            ? new()
+            : ((await Respuestas.DatoAsync(await Api.OpcionesDimension(tipo), "consultar las opciones")) ?? Array.Empty<OpcionFiltroDTO>()).ToList();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null) return;
+        if (_edicion.Nivel == NivelMeta.Ruta && _edicion.IdRuta is null) { _error = "Seleccione la ruta."; return; }
+        if (_edicion.Nivel == NivelMeta.Usuario && string.IsNullOrEmpty(_edicion.IdUsuario)) { _error = "Seleccione la persona."; return; }
+        if (_edicion.TipoDimension != DimensionMeta.Global && _edicion.IdDimension is null) { _error = "Seleccione sobre qué se mide la meta."; return; }
+        if (_edicion.MontoMeta is null && _edicion.UnidadesMeta is null && _edicion.ClientesNuevosMeta is null) { _error = "Llene al menos una meta."; return; }
+        if (_datos.Bloqueado && string.IsNullOrWhiteSpace(_motivo)) { _error = "Indique el motivo del cambio."; return; }
+        _edicion.Motivo = _motivo;
+        _error = string.Empty;
+        _guardando = true;
+        var r = _esNueva ? await Api.Crear(_edicion) : await Api.Actualizar(_edicion.Id, _edicion);
+        _guardando = false;
+        // El motivo de un rechazo (meta repetida, mes bloqueado, valores inválidos) se muestra dentro del modal.
+        if (!r.EsCorrecta) { _error = r.Excepcion ?? "No se pudo guardar la meta."; return; }
+        await _modal.OcultarAsync();
+        await Cargar();
+        Dialogos.Exito("Meta guardada.");
+    }
+
+    // ---- eliminar ----
+    private async Task PedirEliminar(MetaVentaDTO m)
+    {
+        _error = string.Empty;
+        _motivo = null;
+        _eliminando = m;
+        await _modalEliminar.MostrarAsync();
+    }
+
+    private async Task Eliminar()
+    {
+        if (_eliminando is null) return;
+        if (_datos.Bloqueado && string.IsNullOrWhiteSpace(_motivo)) { _error = "Indique el motivo."; return; }
+        _error = string.Empty;
+        _guardando = true;
+        var r = await Api.Eliminar(_eliminando.Id, _motivo);
+        _guardando = false;
+        if (!r.EsCorrecta) { _error = r.Excepcion ?? "No se pudo eliminar la meta."; return; }
+        await _modalEliminar.OcultarAsync();
+        await Cargar();
+        Dialogos.Exito("Meta eliminada.");
+    }
+}

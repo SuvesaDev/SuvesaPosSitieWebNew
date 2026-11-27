@@ -736,6 +736,60 @@ public static partial class MenuSeePos
         },
         new ItemMenu
         {
+            // Parámetros y calendario del módulo comercial (metas, alertas y KPIs). Los códigos casan con el
+            // módulo COMERCIAL de la semilla del API; ningún rol los tiene hasta que administración los active.
+            Titulo = "Gestión Comercial",
+            Codigo = "COMERCIAL",
+            Ruta = "/comercial",
+            Icono = "bi-graph-up-arrow",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Parámetros comerciales",
+                    Codigo = "COMERCIAL.PARAMETROS",
+                    Ruta = "/comercial/parametros",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Calendario hábil",
+                    Codigo = "COMERCIAL.CALENDARIO",
+                    Ruta = "/comercial/calendario",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Catálogos comerciales",
+                    Codigo = "COMERCIAL.CATALOGOS",
+                    Ruta = "/comercial/catalogos",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Clasificación de clientes",
+                    Codigo = "COMERCIAL.CLASIFICACION_CLIENTES",
+                    Ruta = "/comercial/clasificacion-clientes",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Clasificación de artículos",
+                    Codigo = "COMERCIAL.CLASIFICACION_ARTICULOS",
+                    Ruta = "/comercial/clasificacion-articulos",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Cobertura de vacaciones",
+                    Codigo = "COMERCIAL.COBERTURAS",
+                    Ruta = "/comercial/coberturas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Metas de ventas",
+                    Codigo = "COMERCIAL.METAS",
+                    Ruta = "/comercial/metas",
+                },
+            }
+        },
+        new ItemMenu
+        {
             Titulo = "Módulo Reportes",
             Codigo = "MODULO_REPORTES",
             Ruta = "/moduloReportes",

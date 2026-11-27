@@ -1,0 +1,156 @@
+@page "/comercial/catalogos"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.Services
+@inject ICatalogosComerciales Api
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Catálogos comerciales" Codigo="@Codigo" Nivel="NivelPantalla.Tableta" Icono="bi-tags"
+             Subtitulo="Listas que usa el módulo comercial para clasificar clientes y artículos. Un valor inactivo ya no se ofrece, pero lo que lo tenía asignado no se pierde.">
+    <Acciones>
+        <div class="form-check form-switch me-2">
+            <input id="catalogo-inactivos" class="form-check-input" type="checkbox" @bind="_verInactivos" @bind:after="Recargar" />
+            <label class="form-check-label small" for="catalogo-inactivos">Ver inactivos</label>
+        </div>
+        @if (Sesion.Puede(Codigo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Nuevo"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
+        }
+        <button class="btn btn-sm btn-outline-secondary ms-1" @onclick="Recargar" title="Actualizar"><i class="bi bi-arrow-clockwise"></i></button>
+    </Acciones>
+    <ChildContent>
+        <ul class="nav nav-tabs mb-3">
+            @foreach (var t in _pestanas)
+            {
+                <li class="nav-item">
+                    <button type="button" class="nav-link @(t.Tipo == _tipo ? "active" : "")" @onclick="() => CambiarPestana(t.Tipo)">@t.Titulo</button>
+                </li>
+            }
+        </ul>
+        <div class="card"><div class="card-body">
+            <p class="form-text">@Ayuda</p>
+            <AppRejilla TItem="CatalogoComercialDTO" Datos="Cargar" TextoVacio="@TextoVacio" @ref="_rejilla">
+                <Columnas>
+                    <HxGridColumn TItem="CatalogoComercialDTO" HeaderText="Orden" ItemTextSelector="v => v.Orden.ToString()" SortKeySelector="v => v.Orden" />
+                    <HxGridColumn TItem="CatalogoComercialDTO" HeaderText="Nombre" SortKeySelector="v => v.Nombre" ItemTextSelector="v => v.Nombre" />
+                    <HxGridColumn TItem="CatalogoComercialDTO" HeaderText="Estado">
+                        <ItemTemplate Context="v"><span class="badge @(v.Activo ? "text-bg-success" : "text-bg-secondary")">@(v.Activo ? "Activo" : "Inactivo")</span></ItemTemplate>
+                    </HxGridColumn>
+                    <HxGridColumn TItem="CatalogoComercialDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
+                        <ItemTemplate Context="v">
+                            @if (Sesion.Puede(Codigo, AccionPantalla.Editar))
+                            {
+                                <button class="btn btn-sm btn-outline-primary" title="Editar" @onclick="() => Editar(v)"><i class="bi bi-pencil"></i></button>
+                            }
+                        </ItemTemplate>
+                    </HxGridColumn>
+                </Columnas>
+            </AppRejilla>
+        </div></div>
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modal" Titulo="@(_edicion?.Id > 0 ? "Editar valor" : "Nuevo valor")" Subtitulo="@TituloPestana"
+          Tamano="ModalSize.Regular" AlGuardar="Guardar" Guardando="_guardando">
+    <ChildContent>
+        @if (_edicion is not null)
+        {
+            @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger py-2">@_error</div> }
+            <div class="row g-3">
+                <div class="col-12"><AppCampoTexto Etiqueta="Nombre" @bind-Valor="_edicion.Nombre" Requerido="true" /></div>
+                <div class="col-6 col-md-4">
+                    <label class="form-label" for="catalogo-orden">Orden</label>
+                    <input id="catalogo-orden" type="number" min="1" step="1" class="form-control" @bind="_edicion.Orden" />
+                </div>
+                <div class="col-6 col-md-8 d-flex align-items-end">
+                    <div class="form-check form-switch mb-2">
+                        <input id="catalogo-activo" class="form-check-input" type="checkbox" @bind="_edicion.Activo" />
+                        <label class="form-check-label" for="catalogo-activo">Activo</label>
+                    </div>
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppModal>
+
+@code {
+    private const string Codigo = "COMERCIAL.CATALOGOS";
+
+    private sealed record Pestana(TipoCatalogoComercial Tipo, string Titulo, string Ayuda, string Vacio);
+
+    private static readonly Pestana[] _pestanas =
+    {
+        new(TipoCatalogoComercial.Canales, "Canales del cliente",
+            "Clasifica a cada cliente (y a cada una de sus sucursales). Es independiente del tipo de cliente de siempre (punto de venta o consumidor final), que no cambia.",
+            "No hay canales."),
+        new(TipoCatalogoComercial.Especies, "Especies",
+            "Especies a las que se destina un artículo. Un artículo puede tener varias.",
+            "No hay especies."),
+        new(TipoCatalogoComercial.FuncionesTerapeuticas, "Funciones terapéuticas",
+            "Para qué sirve el artículo (analgésico, desinflamatorio, antiparasitario…). Un artículo puede tener varias. Agregue aquí la lista inicial.",
+            "Aún no hay funciones terapéuticas. Use «Agregar» para cargar la lista inicial."),
+    };
+
+    private AppRejilla<CatalogoComercialDTO>? _rejilla;
+    private AppModal _modal = default!;
+    private List<CatalogoComercialDTO> _valores = new();
+    private CatalogoComercialDTO? _edicion;
+    private TipoCatalogoComercial _tipo = TipoCatalogoComercial.Canales;
+    private bool _cargado, _guardando, _verInactivos;
+    private string _error = string.Empty;
+
+    private string TituloPestana => _pestanas.Single(p => p.Tipo == _tipo).Titulo;
+    private string Ayuda => _pestanas.Single(p => p.Tipo == _tipo).Ayuda;
+    private string TextoVacio => _pestanas.Single(p => p.Tipo == _tipo).Vacio;
+
+    private async Task<GridDataProviderResult<CatalogoComercialDTO>> Cargar(GridDataProviderRequest<CatalogoComercialDTO> request)
+    {
+        if (!_cargado)
+        {
+            _valores = ((await Respuestas.DatoAsync(await Api.Listar(_tipo, _verInactivos), "consultar el catálogo")) ?? Array.Empty<CatalogoComercialDTO>()).ToList();
+            _cargado = true;
+        }
+        return request.ApplyTo(_valores);
+    }
+
+    private async Task Recargar() { _cargado = false; if (_rejilla is not null) await _rejilla.RefrescarAsync(); }
+
+    private async Task CambiarPestana(TipoCatalogoComercial tipo)
+    {
+        if (tipo == _tipo) return;
+        _tipo = tipo;
+        await Recargar();
+    }
+
+    private async Task Nuevo()
+    {
+        _error = string.Empty;
+        _edicion = new CatalogoComercialDTO { Activo = true, Orden = (_valores.Count == 0 ? 0 : _valores.Max(v => v.Orden)) + 1 };
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Editar(CatalogoComercialDTO v)
+    {
+        _error = string.Empty;
+        _edicion = new CatalogoComercialDTO { Id = v.Id, Nombre = v.Nombre, Activo = v.Activo, Orden = v.Orden };
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null) return;
+        if (string.IsNullOrWhiteSpace(_edicion.Nombre)) { _error = "Escriba el nombre."; return; }
+        _error = string.Empty;
+        _guardando = true;
+        var r = _edicion.Id == 0 ? await Api.Crear(_tipo, _edicion) : await Api.Actualizar(_tipo, _edicion.Id, _edicion);
+        _guardando = false;
+        // El motivo de un rechazo (nombre repetido, demasiado largo) se muestra dentro del modal.
+        if (!r.EsCorrecta) { _error = r.Excepcion ?? "No se pudo guardar el valor."; return; }
+        await _modal.OcultarAsync();
+        await Recargar();
+        Dialogos.Exito("Valor guardado.");
+    }
+}

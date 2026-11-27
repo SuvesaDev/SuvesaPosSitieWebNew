@@ -1,0 +1,215 @@
+@page "/comercial/calendario"
+@using System.Globalization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.Services
+@inject ICalendarioHabil Api
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Calendario hábil" Codigo="@Codigo" Nivel="NivelPantalla.Tableta" Icono="bi-calendar-check"
+             Subtitulo="Días hábiles de lunes a viernes. Aquí se registran los feriados y cierres que no cuentan; los sábados y domingos nunca cuentan. Lo usan la proyección de cierre y las metas.">
+    <Acciones>
+        <div class="btn-group btn-group-sm me-2" role="group" aria-label="Año">
+            <button class="btn btn-outline-secondary" title="Año anterior" @onclick="() => CambiarAnio(-1)"><i class="bi bi-chevron-left"></i></button>
+            <span class="btn btn-outline-secondary disabled fw-semibold">@_anio</span>
+            <button class="btn btn-outline-secondary" title="Año siguiente" @onclick="() => CambiarAnio(1)"><i class="bi bi-chevron-right"></i></button>
+        </div>
+        @if (Sesion.Puede(Codigo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-outline-primary me-1" @onclick="GenerarFeriados" disabled="@_trabajando">
+                <i class="bi bi-magic me-1"></i>Generar feriados de @_anio
+            </button>
+            <button class="btn btn-sm btn-primary" @onclick="NuevoDia"><i class="bi bi-plus-lg me-1"></i>Agregar día</button>
+        }
+    </Acciones>
+    <ChildContent>
+        <div class="row g-3">
+            <div class="col-12 col-xl-4">
+                <div class="card h-100">
+                    <div class="card-header fw-semibold">Días hábiles por mes, @_anio</div>
+                    <div class="card-body">
+                        <AppCargable Cargando="_cargando">
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Mes</th><th class="text-end">Días hábiles</th></tr></thead>
+                                <tbody>
+                                    @foreach (var m in _calendario.Meses)
+                                    {
+                                        <tr><td>@NombreMes(m.Mes)</td><td class="text-end">@m.DiasHabiles</td></tr>
+                                    }
+                                </tbody>
+                                <tfoot><tr class="fw-semibold"><td>Total del año</td><td class="text-end">@_calendario.Meses.Sum(m => m.DiasHabiles)</td></tr></tfoot>
+                            </table>
+                        </AppCargable>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-xl-8">
+                <div class="card h-100">
+                    <div class="card-header fw-semibold">Feriados y cierres registrados</div>
+                    <div class="card-body">
+                        <p class="form-text">Un feriado inactivo cuenta como día hábil. Los feriados de pago no obligatorio se proponen inactivos: actívelos si la empresa cierra ese día.</p>
+                        <AppRejilla TItem="DiaNoHabilDTO" Datos="CargarDias" TextoVacio="No hay días registrados. Use «Generar feriados» para proponer los del año." @ref="_rejilla">
+                            <Columnas>
+                                <HxGridColumn TItem="DiaNoHabilDTO" HeaderText="Fecha" SortKeySelector="d => d.Fecha">
+                                    <ItemTemplate Context="d">@d.Fecha.ToString("ddd d 'de' MMM", Cultura)</ItemTemplate>
+                                </HxGridColumn>
+                                <HxGridColumn TItem="DiaNoHabilDTO" HeaderText="Descripción" SortKeySelector="d => d.Descripcion" ItemTextSelector="d => d.Descripcion" />
+                                <HxGridColumn TItem="DiaNoHabilDTO" HeaderText="Origen" SortKeySelector="d => d.Origen">
+                                    <ItemTemplate Context="d"><span class="badge text-bg-light border">@d.Origen</span></ItemTemplate>
+                                </HxGridColumn>
+                                <HxGridColumn TItem="DiaNoHabilDTO" HeaderText="Estado">
+                                    <ItemTemplate Context="d"><span class="badge @(d.Activo ? "text-bg-success" : "text-bg-secondary")">@(d.Activo ? "No hábil" : "Hábil (inactivo)")</span></ItemTemplate>
+                                </HxGridColumn>
+                                <HxGridColumn TItem="DiaNoHabilDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
+                                    <ItemTemplate Context="d">
+                                        @if (Sesion.Puede(Codigo, AccionPantalla.Editar))
+                                        {
+                                            <button class="btn btn-sm btn-outline-primary me-1" title="Editar" @onclick="() => EditarDia(d)"><i class="bi bi-pencil"></i></button>
+                                        }
+                                        @if (Sesion.Puede(Codigo, AccionPantalla.Borrar) && (d.Origen == "Manual" || d.Activo))
+                                        {
+                                            <button class="btn btn-sm btn-outline-danger" title="@(d.Origen == "Manual" ? "Borrar el día" : "Desactivar el feriado")" @onclick="() => Quitar(d)"><i class="bi bi-trash"></i></button>
+                                        }
+                                    </ItemTemplate>
+                                </HxGridColumn>
+                            </Columnas>
+                        </AppRejilla>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modal" Titulo="@(_nuevo ? "Agregar día no hábil" : "Editar día")"
+          Subtitulo="@(!_nuevo && _edicion?.Origen == "Feriado" ? "Feriado propuesto: puede cambiar la descripción o desactivarlo." : null)"
+          Tamano="ModalSize.Regular" AlGuardar="Guardar" Guardando="_guardando">
+    <ChildContent>
+        @if (_edicion is not null)
+        {
+            @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger py-2">@_error</div> }
+            <div class="row g-3">
+                <div class="col-12 col-md-5">
+                    <AppCampoFecha Etiqueta="Fecha" @bind-Valor="_fecha" Deshabilitado="!_nuevo" />
+                </div>
+                <div class="col-12 col-md-7">
+                    <AppCampoTexto Etiqueta="Descripción" @bind-Valor="_edicion.Descripcion" Requerido="true" />
+                </div>
+                <div class="col-12">
+                    <div class="form-check form-switch">
+                        <input id="dia-activo" class="form-check-input" type="checkbox" @bind="_edicion.Activo" />
+                        <label class="form-check-label" for="dia-activo">Día no hábil (si se desmarca, cuenta como hábil)</label>
+                    </div>
+                </div>
+            </div>
+        }
+    </ChildContent>
+</AppModal>
+
+@code {
+    private const string Codigo = "COMERCIAL.CALENDARIO";
+    private static readonly CultureInfo Cultura = new("es-CR");
+    private AppRejilla<DiaNoHabilDTO>? _rejilla;
+    private AppModal _modal = default!;
+    private CalendarioHabilAnioDTO _calendario = new();
+    private DiaNoHabilDTO? _edicion;
+    private DateTime? _fecha;
+    private int _anio = DateTime.Today.Year;
+    private bool _cargado, _cargando = true, _guardando, _trabajando, _nuevo;
+    private string _error = string.Empty;
+
+    private static string NombreMes(int mes) => Cultura.TextInfo.ToTitleCase(Cultura.DateTimeFormat.GetMonthName(mes));
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        var datos = await Respuestas.DatoAsync(await Api.ObtenerAnio(_anio), "consultar el calendario hábil");
+        _calendario = datos ?? new CalendarioHabilAnioDTO { Anio = _anio };
+        _cargado = true;
+        _cargando = false;
+    }
+
+    private async Task<GridDataProviderResult<DiaNoHabilDTO>> CargarDias(GridDataProviderRequest<DiaNoHabilDTO> request)
+    {
+        if (!_cargado) await Cargar();
+        return request.ApplyTo(_calendario.Dias);
+    }
+
+    private async Task Recargar()
+    {
+        _cargado = false;
+        await Cargar();
+        if (_rejilla is not null) await _rejilla.RefrescarAsync();
+    }
+
+    private async Task CambiarAnio(int delta)
+    {
+        var nuevo = _anio + delta;
+        if (nuevo < 2000 || nuevo > 2100) return;
+        _anio = nuevo;
+        await Recargar();
+    }
+
+    private async Task GenerarFeriados()
+    {
+        _trabajando = true;
+        var r = await Api.GenerarFeriados(_anio);
+        _trabajando = false;
+        var nuevos = await Respuestas.DatoAsync(r, "generar los feriados");
+        if (nuevos is null) return;
+        await Recargar();
+        if (nuevos.Count == 0) await Dialogos.InformarAsync($"Los feriados de {_anio} ya estaban registrados.");
+        else Dialogos.Exito($"Se propusieron {nuevos.Count} feriado(s). Revise los de pago no obligatorio, que quedan inactivos.");
+    }
+
+    private async Task NuevoDia()
+    {
+        _error = string.Empty;
+        _nuevo = true;
+        _edicion = new DiaNoHabilDTO { Activo = true, Origen = "Manual" };
+        _fecha = null;
+        await _modal.MostrarAsync();
+    }
+
+    private async Task EditarDia(DiaNoHabilDTO d)
+    {
+        _error = string.Empty;
+        _nuevo = false;
+        _edicion = new DiaNoHabilDTO { Fecha = d.Fecha, Descripcion = d.Descripcion, Origen = d.Origen, Activo = d.Activo };
+        _fecha = d.Fecha;
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null) return;
+        if (_fecha is null) { _error = "Indique la fecha."; return; }
+        if (string.IsNullOrWhiteSpace(_edicion.Descripcion)) { _error = "Escriba la descripción."; return; }
+        _edicion.Fecha = _fecha.Value.Date;
+        _error = string.Empty;
+        _guardando = true;
+        var r = await Api.GuardarDia(_edicion);
+        _guardando = false;
+        // El motivo de un rechazo (fin de semana, año fuera de rango) se muestra dentro del modal.
+        if (!r.EsCorrecta) { _error = r.Excepcion ?? "No se pudo guardar el día."; return; }
+        await _modal.OcultarAsync();
+        // Si la fecha cae en otro año, se muestra ese año para que el usuario vea lo que guardó.
+        if (_edicion.Fecha.Year != _anio) _anio = _edicion.Fecha.Year;
+        await Recargar();
+        Dialogos.Exito("Día guardado.");
+    }
+
+    private async Task Quitar(DiaNoHabilDTO d)
+    {
+        var mensaje = d.Origen == "Manual"
+            ? $"¿Borrar «{d.Descripcion}»? Ese día volverá a contar como hábil."
+            : $"¿Desactivar «{d.Descripcion}»? Ese día volverá a contar como hábil; podrá reactivarlo después.";
+        if (!await Dialogos.ConfirmarAsync(mensaje, d.Origen == "Manual" ? "Borrar día" : "Desactivar feriado")) return;
+        var r = await Api.QuitarDia(d.Fecha);
+        if (!await Respuestas.CorrectaAsync(r, "quitar el día")) return;
+        await Recargar();
+    }
+}
