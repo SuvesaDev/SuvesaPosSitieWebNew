@@ -148,8 +148,9 @@ public class FiltroMenuTests
         // + 4 (módulo Cobranza: Cobranza, Seguimiento, Dashboard, Gerencial).
         // + 1 (Cobranza → Autorizaciones de crédito: aprobación de facturas a crédito a clientes morosos).
         // + 1 (Ventas → Nota de crédito externa: NC electrónica contra un comprobante del sistema anterior, solo administradores).
-        // + 8 (módulo Gestión Comercial: el módulo, Parámetros comerciales, Calendario hábil, Catálogos comerciales, las
-        // clasificaciones de clientes y de artículos, la Cobertura de vacaciones y las Metas de ventas).
-        Assert.Equal(141, Contar(MenuSeePos.Items));   // 124 + Cobranza + Autorizaciones + IVA Repercutido, Soportado y Prorrata + Nota de crédito externa + Gestión Comercial
+        // + 10 (módulo Gestión Comercial: el módulo, Parámetros comerciales, Calendario hábil, Catálogos comerciales, las
+        // clasificaciones de clientes y de artículos, la Cobertura de vacaciones, las Metas de ventas, el Centro de alertas y
+        // su Supervisión).
+        Assert.Equal(143, Contar(MenuSeePos.Items));   // 124 + Cobranza + Autorizaciones + IVA Repercutido, Soportado y Prorrata + Nota de crédito externa + Gestión Comercial
     }
 }

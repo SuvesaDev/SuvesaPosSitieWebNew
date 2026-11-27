@@ -786,6 +786,18 @@ public static partial class MenuSeePos
                     Codigo = "COMERCIAL.METAS",
                     Ruta = "/comercial/metas",
                 },
+                new ItemMenu
+                {
+                    Titulo = "Centro de alertas",
+                    Codigo = "COMERCIAL.ALERTAS",
+                    Ruta = "/comercial/alertas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Supervisión de alertas",
+                    Codigo = "COMERCIAL.ALERTAS_SUPERVISION",
+                    Ruta = "/comercial/alertas-supervision",
+                },
             }
         },
         new ItemMenu

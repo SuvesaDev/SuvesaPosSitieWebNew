@@ -476,6 +476,74 @@ public sealed class ComercialProxyTests
         Assert.Equal("Felinos", Assert.Single(r.Responses.Especies).Nombre);
     }
 
+    // ---------------- Fase 3: centro de alertas ----------------
+
+    private static (AlertasComerciales Proxy, Captura Handler) Alertas(string json)
+        => Nuevo(json, f => new AlertasComerciales(f, new SesionFalsa(), NullLogger<AlertasComerciales>.Instance));
+
+    [Fact]
+    public async Task LaBandejaEnviaElFiltroYLeeLasAlertasConSuUnicoEstado()
+    {
+        var (proxy, handler) = Alertas("""
+            {"status":0,"responses":{"total":2,"pagina":1,"tamano":25,"items":[
+              {"id":9,"tipo":"ClienteInactivo","severidad":"Critica","titulo":"Cliente inactivo","detalle":"Cliente 2: 70 días sin comprar.","idCliente":2,"idRuta":10,"nombreRuta":"Ruta Norte",
+               "estado":"Gestionada","fechaCreacionUtc":"2026-11-27T12:00:00Z","gestionadaPor":"Ana","fechaGestionUtc":"2026-11-27T15:00:00Z","notaGestion":"Llamé","destinatarios":[]}]}}
+            """);
+
+        var r = await proxy.Bandeja(new FiltroAlertasComercialesDTO { Estado = "Gestionada", Tipo = TipoAlertaComercial.ClienteInactivo, Pagina = 2, Tamano = 10 });
+
+        Assert.True(r.EsCorrecta, r.Excepcion);
+        Assert.Equal(HttpMethod.Get, handler.Metodo);
+        Assert.Equal("/api/comercial/alertas?Estado=Gestionada&Tipo=ClienteInactivo&Pagina=2&Tamano=10", handler.Ruta);
+        var a = Assert.Single(r.Responses!.Items);
+        Assert.Equal(("Gestionada", "Ana", "Llamé", "Ruta Norte"), (a.Estado, a.GestionadaPor, a.NotaGestion, a.NombreRuta));
+    }
+
+    [Fact]
+    public async Task ElResumenYLaGestionUsanSusRutas()
+    {
+        var (resumen, hResumen) = Alertas("""{"status":0,"responses":{"pendientes":4,"pendientesCriticas":1}}""");
+        var r = await resumen.Resumen();
+        Assert.Equal("/api/comercial/alertas/resumen", hResumen.Ruta);
+        Assert.Equal((4, 1), (r.Responses!.Pendientes, r.Responses.PendientesCriticas));
+
+        var (gestiona, hGestiona) = Alertas("""{"status":0,"responses":{"id":9,"tipo":"ClienteInactivo","severidad":"Critica","titulo":"x","detalle":"y","estado":"Gestionada"}}""");
+        Assert.True((await gestiona.Gestionar(9, "Llame al cliente")).EsCorrecta);
+        Assert.Equal(HttpMethod.Put, hGestiona.Metodo);
+        Assert.Equal("/api/comercial/alertas/9/gestionar", hGestiona.Ruta);
+        Assert.Contains("\"nota\":\"Llame al cliente\"", hGestiona.Cuerpo);
+    }
+
+    [Fact]
+    public async Task LaSupervisionTraeLosDestinatariosYPermiteGestionarYGenerar()
+    {
+        var (sup, hSup) = Alertas("""{"status":0,"responses":{"total":1,"pagina":1,"tamano":25,"items":[{"id":3,"tipo":"FaltaInventario","severidad":"Preventiva","titulo":"Falta de inventario","detalle":"ART-200","estado":"Pendiente","destinatarios":["Sofia","Carlos"]}]}}""");
+        var lista = await sup.Supervision(new FiltroAlertasComercialesDTO { Estado = "Todas" });
+        Assert.Equal("/api/comercial/alertas/supervision?Estado=Todas&Pagina=1&Tamano=25", hSup.Ruta);
+        Assert.Equal(new[] { "Sofia", "Carlos" }, Assert.Single(lista.Responses!.Items).Destinatarios.ToArray());
+
+        var (gestiona, hGestiona) = Alertas("""{"status":0,"responses":{"id":3,"tipo":"x","severidad":"x","titulo":"x","detalle":"x","estado":"Gestionada"}}""");
+        await gestiona.GestionarComoSupervisor(3, null);
+        Assert.Equal("/api/comercial/alertas/supervision/3/gestionar", hGestiona.Ruta);
+
+        var (genera, hGenera) = Alertas("""{"status":0,"responses":{"creadas":3,"actualizadas":0,"cerradas":1}}""");
+        var g = await genera.GenerarAhora();
+        Assert.Equal(HttpMethod.Post, hGenera.Metodo);
+        Assert.Equal("/api/comercial/alertas/supervision/generar", hGenera.Ruta);
+        Assert.Equal((3, 0, 1), (g.Responses!.Creadas, g.Responses.Actualizadas, g.Responses.Cerradas));
+    }
+
+    [Fact]
+    public async Task UnaAlertaQueYaNoAplicaLlegaComoErrorSinExcepcion()
+    {
+        var (proxy, _) = Alertas("""{"status":1,"currentException":"La alerta ya no aplica: se cerró sola porque la situación se resolvió."}""");
+
+        var r = await proxy.Gestionar(9, null);
+
+        Assert.False(r.EsCorrecta);
+        Assert.Contains("ya no aplica", r.Excepcion);
+    }
+
     [Fact]
     public async Task ListarParametros_LeeLaListaDelEnvelope()
     {
@@ -627,6 +695,8 @@ public sealed class ComercialProxyTests
         Assert.Equal("/comercial/clasificacion-articulos", grupo.Hijos.Single(h => h.Codigo == "COMERCIAL.CLASIFICACION_ARTICULOS").Ruta);
         Assert.Equal("/comercial/coberturas", grupo.Hijos.Single(h => h.Codigo == "COMERCIAL.COBERTURAS").Ruta);
         Assert.Equal("/comercial/metas", grupo.Hijos.Single(h => h.Codigo == "COMERCIAL.METAS").Ruta);
+        Assert.Equal("/comercial/alertas", grupo.Hijos.Single(h => h.Codigo == "COMERCIAL.ALERTAS").Ruta);
+        Assert.Equal("/comercial/alertas-supervision", grupo.Hijos.Single(h => h.Codigo == "COMERCIAL.ALERTAS_SUPERVISION").Ruta);
     }
 
     private sealed class SesionFalsa : IContextoSesion

@@ -2218,6 +2218,28 @@
             "BORRAR",
             "ACTIVAR"
           ]
+        },
+        {
+          "codigo": "COMERCIAL.ALERTAS",
+          "nombre": "Centro de alertas",
+          "ruta": "/comercial/alertas",
+          "padre": null,
+          "orden": 8,
+          "acciones": [
+            "VER",
+            "EDITAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.ALERTAS_SUPERVISION",
+          "nombre": "Supervisión de alertas",
+          "ruta": "/comercial/alertas-supervision",
+          "padre": null,
+          "orden": 9,
+          "acciones": [
+            "VER",
+            "EDITAR"
+          ]
         }
       ]
     }
