@@ -21,6 +21,14 @@ public enum FiltroReporteVisible
     RutaComercial = 1 << 14,
     BeneficiarioComision = 1 << 15,
     Corte = 1 << 16,
+    // Filtros comerciales de los reportes de ventas (módulo comercial, fase 1). Son filtros avanzados: solo se muestran en
+    // los reportes que los listan, y no cambian nada en los demás.
+    Canal = 1 << 17,
+    RutaVenta = 1 << 18,
+    Ejecutor = 1 << 19,
+    RolOrigen = 1 << 20,
+    Marca = 1 << 21,
+    Especie = 1 << 22,
 }
 
 /// <summary>
@@ -52,6 +60,13 @@ public sealed record GrupoReportes(string Id, string Nombre, string Icono, Repor
 /// </summary>
 public static class CatalogoReportes
 {
+    // Filtros comerciales de ventas (fase 1 del módulo comercial).
+    private const FiltroReporteVisible Canal = FiltroReporteVisible.Canal;
+    private const FiltroReporteVisible RutaVenta = FiltroReporteVisible.RutaVenta;
+    private const FiltroReporteVisible Ejecutor = FiltroReporteVisible.Ejecutor;
+    private const FiltroReporteVisible RolOrigen = FiltroReporteVisible.RolOrigen;
+    private const FiltroReporteVisible Marca = FiltroReporteVisible.Marca;
+    private const FiltroReporteVisible Especie = FiltroReporteVisible.Especie;
     private const FiltroReporteVisible Periodo = FiltroReporteVisible.Periodo;
     private const FiltroReporteVisible Texto = FiltroReporteVisible.Texto;
     private const FiltroReporteVisible Sucursal = FiltroReporteVisible.Sucursal;
@@ -88,15 +103,15 @@ public static class CatalogoReportes
         [
             R("ventas", "Ventas", "MODULO_REPORTES.VENTAS",
                 "Facturación neta, devoluciones y saldos por documento.", "bi-receipt",
-                Periodo | Sucursal | Empresa | Cliente | Agente | TipoVenta | Anuladas | Texto,
+                Periodo | Sucursal | Empresa | Cliente | Agente | TipoVenta | Anuladas | Texto | Canal | RutaVenta | Ejecutor | RolOrigen,
                 Periodo | Sucursal | Cliente),
             R("ventas-detalle", "Ventas detalladas", "MODULO_REPORTES.VENTAS_DETALLE",
                 "Artículos vendidos, cantidades, descuentos y margen bruto.", "bi-list-columns-reverse",
-                Periodo | Sucursal | Cliente | Articulo | Agente | Familia | TipoVenta | Anuladas | Texto,
+                Periodo | Sucursal | Cliente | Articulo | Agente | Familia | TipoVenta | Anuladas | Texto | Canal | RutaVenta | Ejecutor | RolOrigen | Marca | Especie,
                 Periodo | Sucursal | Cliente | Articulo),
             R("ventas-horas", "Ventas entre horas", "MODULO_REPORTES.VENTAS_ENTRE_HORAS",
                 "Distribución de documentos y montos por franja horaria.", "bi-clock-history",
-                Periodo | Sucursal | Empresa | Agente | TipoVenta, Periodo | Sucursal),
+                Periodo | Sucursal | Empresa | Agente | TipoVenta | Canal | RutaVenta | Ejecutor | RolOrigen, Periodo | Sucursal),
             R("clientes", "Clientes y comportamiento", "MODULO_REPORTES.COMPORTAMIENTO_DE_CLIENTES",
                 "Ranking, ticket promedio y clientes sin ventas en el periodo.", "bi-people",
                 Periodo | Sucursal | Cliente | Texto, Periodo | Sucursal | Cliente),

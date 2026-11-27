@@ -2,6 +2,7 @@
 @using SuvesaPosSitioAplicacion.DTOs.Reportes
 @using SuvesaPosSitioAplicacion.DTOs.Comisiones
 @using SuvesaPosSitioAplicacion.DTOs.Rutas
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
 @using SuvesaPosSitioAplicacion.Services
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IReportesOperacion Api
@@ -14,6 +15,7 @@
 @inject ICompras ComprasApi
 @inject IFamilias FamiliasApi
 @inject IRutasComerciales RutasApi
+@inject ICatalogosComerciales CatalogosComercialesApi
 @inject IManejadorRespuestas Respuestas
 @inject IRelojEquipo RelojEquipo
 @inject IJSRuntime JS
@@ -109,6 +111,30 @@
             @if (MostrarFiltro(FiltroReporteVisible.Familia))
             {
                 <div class="col-12 col-md-3"><label class="form-label small">Familia</label><select class="form-select" @bind="_idFamilia"><option value="">Todas las familias</option>@foreach (var familia in _familias) { <option value="@familia.Codigo">@familia.Descripcion</option> }</select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.RutaVenta))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Ruta de la venta</label><select class="form-select" @bind="_idRutaVenta"><option value="">Todas las rutas</option>@foreach (var ruta in _rutasComision) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }</select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.RolOrigen))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Facturó como</label><select class="form-select" @bind="_rolOrigen"><option value="">Agente y SAC</option><option value="Agente">Agente</option><option value="SAC">Servicio al Cliente</option></select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.Ejecutor))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Quien facturó (login)</label><input class="form-control" @bind="_idEjecutor" @bind:event="onchange" placeholder="Ej. mlopez" /></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.Canal))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Canal del cliente</label><select class="form-select" @bind="_idCanal"><option value="">Todos los canales</option>@foreach (var canal in _opcionesComerciales.Canales) { <option value="@canal.Id">@canal.Nombre</option> }</select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.Marca))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Laboratorio o marca</label><select class="form-select" @bind="_codMarca"><option value="">Todas</option>@foreach (var marca in _opcionesComerciales.Marcas) { <option value="@marca.Id">@marca.Nombre</option> }</select></div>
+            }
+            @if (MostrarFiltro(FiltroReporteVisible.Especie))
+            {
+                <div class="col-12 col-md-3"><label class="form-label small">Especie</label><select class="form-select" @bind="_idEspecie"><option value="">Todas las especies</option>@foreach (var especie in _opcionesComerciales.Especies) { <option value="@especie.Id">@especie.Nombre</option> }</select></div>
             }
             @if (MostrarFiltro(FiltroReporteVisible.EstadoLiquidacion))
             {
@@ -321,6 +347,14 @@
     private List<InventarioDTO> _articulos => _estado.Articulos;
     private List<Bodega> _bodegas => _estado.Bodegas;
     private List<FamiliaDTO> _familias => _estado.Familias;
+    // Filtros comerciales de los reportes de ventas: solo se ven en los reportes cuyo catálogo los lista.
+    private int? _idCanal { get => _estado.IdCanal; set => _estado.IdCanal = value; }
+    private int? _idRutaVenta { get => _estado.IdRutaVenta; set => _estado.IdRutaVenta = value; }
+    private string _idEjecutor { get => _estado.IdEjecutor; set => _estado.IdEjecutor = value; }
+    private string _rolOrigen { get => _estado.RolOrigen; set => _estado.RolOrigen = value; }
+    private int? _codMarca { get => _estado.CodMarca; set => _estado.CodMarca = value; }
+    private int? _idEspecie { get => _estado.IdEspecie; set => _estado.IdEspecie = value; }
+    private OpcionesReportesDTO _opcionesComerciales => _estado.OpcionesComerciales;
     private bool _cargando;
     private string? _errorFiltros;
     private AppRejilla<FilaReporteOperacionWebDTO>? _rejilla;
@@ -355,12 +389,17 @@
     private static readonly Columna ColEstado = Col("Estado", x => x.Estado, x => x.Estado);
     private static readonly Columna ColDetalle = Col("Detalle", x => x.Descripcion, x => x.Descripcion);
     private static readonly Columna ColLote = Col("Lote", x => x.Lote, x => x.Lote);
+    // Columnas comerciales de Ventas y Ventas detalladas (vacías si la venta no las tiene).
+    private static readonly Columna ColOrigen = Col("Facturó como", x => x.Origen, x => x.Origen);
+    private static readonly Columna ColEjecutor = Col("Quien facturó", x => x.Ejecutor, x => x.Ejecutor);
+    private static readonly Columna ColRuta = Col("Ruta", x => x.Ruta, x => x.Ruta);
+    private static readonly Columna ColSucursalCliente = Col("Sucursal del cliente", x => x.SucursalCliente, x => x.SucursalCliente);
     private static readonly Columna ColVence = Col("Vence", x => x.FechaVencimiento ?? DateTime.MaxValue, x => FVence(x.FechaVencimiento));
 
     private static readonly Dictionary<string, Columna[]> ColumnasPorTipo = new()
     {
-        ["ventas"] = [ColFecha, Col("N° factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Saldo pendiente", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
-        ["ventas-detalle"] = [ColFecha, Col("Factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColLote, ColDetalle, Col("Cantidad", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Margen bruto", x => x.Saldo, x => FMoneda(x.Saldo), true), ColEstado],
+        ["ventas"] = [ColFecha, Col("N° factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColSucursalCliente, ColDetalle, Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Pronto pago", x => x.ProntoPago, x => x.ProntoPago > 0m ? FMoneda(x.ProntoPago) : "—", true), Col("Saldo pendiente", x => x.Saldo, x => FMoneda(x.Saldo), true), ColOrigen, ColEjecutor, ColRuta, ColEstado],
+        ["ventas-detalle"] = [ColFecha, Col("Factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), ColSucursalCliente, ColLote, ColDetalle, Col("Cantidad", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Monto", x => x.Monto, x => FMoneda(x.Monto), true), Col("Margen bruto", x => x.Saldo, x => FMoneda(x.Saldo), true), ColOrigen, ColEjecutor, ColRuta, ColEstado],
         ["ventas-horas"] = [Col("Franja horaria", x => x.Entidad, x => x.Entidad), ColDetalle, Col("Documentos", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Venta", x => x.Monto, x => FMoneda(x.Monto), true)],
         ["clientes"] = [ColFecha, Col("Cliente", x => x.Entidad, x => x.Entidad), Col("Nombre fantasía", x => x.NombreFantasia, x => x.NombreFantasia), Col("Identificación", x => x.Identificacion, x => x.Identificacion), Col("Teléfono", x => x.Telefono, x => x.Telefono), Col("Sucursal", x => x.Sucursal, x => x.Sucursal), Col("Código", x => x.Referencia, x => x.Referencia), Col("Pedidos", x => x.Cantidad, x => FCantidad(x.Cantidad), true), Col("Venta total", x => x.Monto, x => FMoneda(x.Monto), true), Col("Ticket promedio", x => x.Saldo, x => FMoneda(x.Saldo), true), ColDetalle, ColEstado],
         ["rentabilidad"] = [ColFecha, Col("Factura", x => x.Referencia, x => x.Referencia), Col("Cliente", x => x.Entidad, x => x.Entidad), Col("Venta", x => x.Monto, x => FMoneda(x.Monto), true), Col("Margen bruto", x => x.Cantidad, x => FMoneda(x.Cantidad), true), Col("Utilidad tras comisión", x => x.Saldo, x => FMoneda(x.Saldo), true), Col("Comisión", x => x.Estado, x => x.Estado)],
@@ -521,6 +560,12 @@
         _idFamilia = null;
         _tipoVenta = string.Empty;
         _incluirAnuladas = false;
+        _idCanal = null;
+        _idRutaVenta = null;
+        _idEjecutor = string.Empty;
+        _rolOrigen = string.Empty;
+        _codMarca = null;
+        _idEspecie = null;
         _reporte = null;
         _comisiones = new();
         _estado.ConsultadoEn = null;
@@ -542,7 +587,8 @@
         if (Definicion.Tiene(FiltroReporteVisible.Articulo)) tareas.Add(CargarArticulosAsync());
         if (Definicion.Tiene(FiltroReporteVisible.Bodega)) tareas.Add(CargarBodegasAsync());
         if (Definicion.Tiene(FiltroReporteVisible.Familia)) tareas.Add(CargarFamiliasAsync());
-        if (Definicion.Tiene(FiltroReporteVisible.RutaComercial)) tareas.Add(CargarRutasComercialesAsync());
+        if (Definicion.Tiene(FiltroReporteVisible.RutaComercial) || Definicion.Tiene(FiltroReporteVisible.RutaVenta)) tareas.Add(CargarRutasComercialesAsync());
+        if (Definicion.Tiene(FiltroReporteVisible.Canal) || Definicion.Tiene(FiltroReporteVisible.Marca) || Definicion.Tiene(FiltroReporteVisible.Especie)) tareas.Add(CargarOpcionesComercialesAsync());
         await Task.WhenAll(tareas);
         _estado.CatalogosCargados = true;
     }
@@ -560,6 +606,11 @@
     private async Task CargarProveedoresAsync() { var r = await Proveedores.Obtener(); _estado.Proveedores = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Nombre).ToList() : []; }
     private async Task CargarArticulosAsync() { var r = await Inventarios.Listar(); _estado.Articulos = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Descripcion).ToList() : []; }
     private async Task CargarBodegasAsync() { var r = await ComprasApi.Bodegas(false); _estado.Bodegas = r.EsCorrecta ? (r.Responses ?? []).Where(x => x.Estado).OrderBy(x => x.NombreBodega).ToList() : []; }
+    private async Task CargarOpcionesComercialesAsync()
+    {
+        var r = await CatalogosComercialesApi.OpcionesParaReportes();
+        _estado.OpcionesComerciales = r.EsCorrecta && r.Responses is not null ? r.Responses : new OpcionesReportesDTO();
+    }
     private async Task CargarFamiliasAsync() { var r = await FamiliasApi.Obtener(); _estado.Familias = r.EsCorrecta ? (r.Responses ?? []).OrderBy(x => x.Descripcion).ToList() : []; }
     private async Task CargarRutasComercialesAsync() { var r = await RutasApi.Listar(Sesion.IdSucursal); _estado.RutasComerciales = r.EsCorrecta ? (r.Responses ?? []).Where(x => x.Activo).OrderBy(x => x.Nombre).ToList() : []; }
 
@@ -592,6 +643,12 @@
         IdFamilia = _idFamilia,
         TipoVenta = string.IsNullOrWhiteSpace(_tipoVenta) ? null : _tipoVenta,
         IncluirAnuladas = _incluirAnuladas,
+        IdCanal = _idCanal,
+        IdRuta = _idRutaVenta,
+        IdEjecutor = string.IsNullOrWhiteSpace(_idEjecutor) ? null : _idEjecutor.Trim(),
+        RolOrigen = string.IsNullOrWhiteSpace(_rolOrigen) ? null : _rolOrigen,
+        CodMarca = _codMarca,
+        IdEspecie = _idEspecie,
         Pagina = 1,
         TamanoPagina = 2000,
         Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim()
@@ -622,6 +679,16 @@
         if (aplicado.IdFamilia.HasValue)
             filtros.Add($"Familia: {_familias.FirstOrDefault(x => x.Codigo == aplicado.IdFamilia)?.Descripcion ?? aplicado.IdFamilia.ToString()}");
         if (!string.IsNullOrWhiteSpace(aplicado.TipoVenta)) filtros.Add($"Tipo: {(aplicado.TipoVenta == "01" ? "Contado" : "Crédito")}");
+        if (aplicado.IdRuta.HasValue)
+            filtros.Add($"Ruta: {_rutasComision.FirstOrDefault(x => x.IdRuta == aplicado.IdRuta)?.Nombre ?? aplicado.IdRuta.ToString()}");
+        if (!string.IsNullOrWhiteSpace(aplicado.RolOrigen)) filtros.Add($"Facturó como: {(aplicado.RolOrigen == "SAC" ? "Servicio al Cliente" : "Agente")}");
+        if (!string.IsNullOrWhiteSpace(aplicado.IdEjecutor)) filtros.Add($"Facturó: {aplicado.IdEjecutor}");
+        if (aplicado.IdCanal.HasValue)
+            filtros.Add($"Canal: {_opcionesComerciales.Canales.FirstOrDefault(x => x.Id == aplicado.IdCanal)?.Nombre ?? aplicado.IdCanal.ToString()}");
+        if (aplicado.CodMarca.HasValue)
+            filtros.Add($"Marca: {_opcionesComerciales.Marcas.FirstOrDefault(x => x.Id == aplicado.CodMarca)?.Nombre ?? aplicado.CodMarca.ToString()}");
+        if (aplicado.IdEspecie.HasValue)
+            filtros.Add($"Especie: {_opcionesComerciales.Especies.FirstOrDefault(x => x.Id == aplicado.IdEspecie)?.Nombre ?? aplicado.IdEspecie.ToString()}");
         if (!string.IsNullOrWhiteSpace(_estado.EstadoLiquidacionAplicado)) filtros.Add($"Liquidación: {_estado.EstadoLiquidacionAplicado}");
         if (aplicado.IncluirAnuladas) filtros.Add("Incluye anuladas");
         if (!string.IsNullOrWhiteSpace(aplicado.Texto)) filtros.Add($"Búsqueda: {aplicado.Texto}");
@@ -694,6 +761,12 @@
         if (filtro.IdFamilia.HasValue) parametros.Add($"idFamilia={filtro.IdFamilia}");
         if (!string.IsNullOrWhiteSpace(filtro.TipoVenta)) parametros.Add($"tipoVenta={Uri.EscapeDataString(filtro.TipoVenta)}");
         if (filtro.IncluirAnuladas) parametros.Add("incluirAnuladas=true");
+        if (filtro.IdCanal.HasValue) parametros.Add($"idCanal={filtro.IdCanal}");
+        if (filtro.IdRuta.HasValue) parametros.Add($"idRuta={filtro.IdRuta}");
+        if (!string.IsNullOrWhiteSpace(filtro.IdEjecutor)) parametros.Add($"idEjecutor={Uri.EscapeDataString(filtro.IdEjecutor)}");
+        if (!string.IsNullOrWhiteSpace(filtro.RolOrigen)) parametros.Add($"rolOrigen={Uri.EscapeDataString(filtro.RolOrigen)}");
+        if (filtro.CodMarca.HasValue) parametros.Add($"codMarca={filtro.CodMarca}");
+        if (filtro.IdEspecie.HasValue) parametros.Add($"idEspecie={filtro.IdEspecie}");
         await JS.InvokeVoidAsync("seepos.descargarUrl", $"/reportes/operacion/{Uri.EscapeDataString(_tipo)}/{formato}?{string.Join("&", parametros)}");
     }
 

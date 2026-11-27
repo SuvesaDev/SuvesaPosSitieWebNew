@@ -21,6 +21,14 @@ public static class CatalogoComercialRutas
     };
 }
 
+/// <summary>Canales, marcas y especies para los filtros comerciales de los reportes de ventas.</summary>
+public sealed class OpcionesReportesDTO
+{
+    public List<OpcionFiltroDTO> Canales { get; set; } = new();
+    public List<OpcionFiltroDTO> Marcas { get; set; } = new();
+    public List<OpcionFiltroDTO> Especies { get; set; } = new();
+}
+
 /// <summary>Un valor de un catálogo comercial.</summary>
 public sealed class CatalogoComercialDTO
 {

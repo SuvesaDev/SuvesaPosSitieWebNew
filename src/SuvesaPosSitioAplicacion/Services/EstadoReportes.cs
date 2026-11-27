@@ -37,6 +37,15 @@ public sealed class EstadoReportePestana
     public string TipoVenta { get; set; } = string.Empty;
     public bool IncluirAnuladas { get; set; }
 
+    // Filtros comerciales de los reportes de ventas.
+    public int? IdCanal { get; set; }
+    public int? IdRutaVenta { get; set; }
+    public string IdEjecutor { get; set; } = string.Empty;
+    public string RolOrigen { get; set; } = string.Empty;
+    public int? CodMarca { get; set; }
+    public int? IdEspecie { get; set; }
+    public DTOs.Comercial.OpcionesReportesDTO OpcionesComerciales { get; set; } = new();
+
     public ReporteOperacionWebDTO? Reporte { get; set; }
     public ComisionConsultaDTO Comisiones { get; set; } = new();
     public DateTime? ConsultadoEn { get; set; }
@@ -93,6 +102,12 @@ public sealed class EstadoReportePestana
         if (!reporte.Tiene(FiltroReporteVisible.RutaComercial)) IdRutaComercialComision = null;
         if (!reporte.Tiene(FiltroReporteVisible.BeneficiarioComision)) IdUsuarioBeneficiarioComision = string.Empty;
         if (!reporte.Tiene(FiltroReporteVisible.Corte)) IdCorteComision = null;
+        if (!reporte.Tiene(FiltroReporteVisible.Canal)) IdCanal = null;
+        if (!reporte.Tiene(FiltroReporteVisible.RutaVenta)) IdRutaVenta = null;
+        if (!reporte.Tiene(FiltroReporteVisible.Ejecutor)) IdEjecutor = string.Empty;
+        if (!reporte.Tiene(FiltroReporteVisible.RolOrigen)) RolOrigen = string.Empty;
+        if (!reporte.Tiene(FiltroReporteVisible.Marca)) CodMarca = null;
+        if (!reporte.Tiene(FiltroReporteVisible.Especie)) IdEspecie = null;
     }
 }
 

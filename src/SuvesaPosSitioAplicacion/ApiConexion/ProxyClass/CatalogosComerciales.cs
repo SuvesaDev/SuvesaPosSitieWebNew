@@ -12,6 +12,10 @@ public sealed class CatalogosComerciales : ProxyBase, ICatalogosComerciales
     public CatalogosComerciales(IHttpClientFactory factory, IContextoSesion sesion, ILogger<CatalogosComerciales> log) : base(sesion, log)
         => _api = factory.CreateClient("SeePosApi");
 
+    public Task<ResponseGeneric<OpcionesReportesDTO>> OpcionesParaReportes()
+        => Ejecutar(async () => await LecturaEnvelope.Leer<OpcionesReportesDTO>(
+            await _api.GetAsync("api/comercial/catalogos/opciones-reportes")), "consultar los filtros comerciales");
+
     public Task<ResponseGeneric<IReadOnlyList<CatalogoComercialDTO>>> Listar(TipoCatalogoComercial tipo, bool incluirInactivos = false)
         => Ejecutar(async () => await LecturaEnvelope.Leer<IReadOnlyList<CatalogoComercialDTO>>(
             await _api.GetAsync($"api/comercial/catalogos/{CatalogoComercialRutas.Segmento(tipo)}?incluirInactivos={(incluirInactivos ? "true" : "false")}")),

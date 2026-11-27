@@ -47,6 +47,12 @@ public sealed class ReportesOperacion : ProxyBase, IReportesOperacion
             if (f.IdFamilia.HasValue) q.Add($"idFamilia={f.IdFamilia}");
             if (!string.IsNullOrWhiteSpace(f.TipoVenta)) q.Add($"tipoVenta={Uri.EscapeDataString(f.TipoVenta)}");
             if (f.IncluirAnuladas) q.Add("incluirAnuladas=true");
+            if (f.IdCanal.HasValue) q.Add($"idCanal={f.IdCanal}");
+            if (f.IdRuta.HasValue) q.Add($"idRuta={f.IdRuta}");
+            if (!string.IsNullOrWhiteSpace(f.IdEjecutor)) q.Add($"idEjecutor={Uri.EscapeDataString(f.IdEjecutor)}");
+            if (!string.IsNullOrWhiteSpace(f.RolOrigen)) q.Add($"rolOrigen={Uri.EscapeDataString(f.RolOrigen)}");
+            if (f.CodMarca.HasValue) q.Add($"codMarca={f.CodMarca}");
+            if (f.IdEspecie.HasValue) q.Add($"idEspecie={f.IdEspecie}");
             q.Add($"pagina={Math.Max(1, f.Pagina)}");
             q.Add($"tamanoPagina={Math.Clamp(f.TamanoPagina, 1, 2000)}");
             var url = $"api/reportes-operacion/{Uri.EscapeDataString(reporteApi)}{(q.Count == 0 ? string.Empty : "?" + string.Join("&", q))}";

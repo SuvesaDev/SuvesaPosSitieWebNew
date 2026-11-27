@@ -85,7 +85,17 @@
         {
             @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger py-2">@_error</div> }
             <label class="form-label" for="param-valor">Valor (@Unidad(_parametro))</label>
-            <input id="param-valor" type="number" class="form-control" step="@(_parametro.Unidad == "porcentaje" ? "0.01" : "1")" min="0" @bind="_valor" />
+            @if (_parametro.Unidad == "bandera")
+            {
+                <select id="param-valor" class="form-select" value="@ValorBandera" @onchange="CambiarBandera">
+                    <option value="0">No</option>
+                    <option value="1">Sí</option>
+                </select>
+            }
+            else
+            {
+                <input id="param-valor" type="number" class="form-control" step="@(_parametro.Unidad == "porcentaje" ? "0.01" : "1")" min="0" @bind="_valor" />
+            }
             @if (_parametro.PermiteVacio)
             {
                 <p class="form-text mb-0">Déjelo vacío para apagar la alerta que usa este valor.</p>
@@ -163,12 +173,19 @@
 
     private static string TextoTope(TopeCarteraRutaDTO t) => $"{t.Porcentaje.ToString("0.##", CultureInfo.CurrentCulture)} %";
 
-    private static string Unidad(ParametroComercialDTO p) => p.Unidad switch { "dias" => "días", "meses" => "meses", "porcentaje" => "%", _ => p.Unidad };
+    private string ValorBandera => _valor == 1m ? "1" : "0";
+
+    private void CambiarBandera(ChangeEventArgs e) => _valor = e.Value?.ToString() == "1" ? 1m : 0m;
+
+    private static string Unidad(ParametroComercialDTO p) => p.Unidad switch { "dias" => "días", "meses" => "meses", "porcentaje" => "%", "bandera" => "sí o no", _ => p.Unidad };
 
     private static string Formatear(ParametroComercialDTO p)
-        => p.Unidad == "porcentaje"
-            ? $"{p.Valor!.Value.ToString("0.##", CultureInfo.CurrentCulture)} %"
-            : $"{p.Valor!.Value.ToString("0", CultureInfo.CurrentCulture)} {Unidad(p)}";
+        => p.Unidad switch
+        {
+            "bandera" => p.Valor == 1m ? "Sí" : "No",
+            "porcentaje" => $"{p.Valor!.Value.ToString("0.##", CultureInfo.CurrentCulture)} %",
+            _ => $"{p.Valor!.Value.ToString("0", CultureInfo.CurrentCulture)} {Unidad(p)}",
+        };
 
     private async Task EditarParametro(ParametroComercialDTO p)
     {

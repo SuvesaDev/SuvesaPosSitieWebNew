@@ -4,7 +4,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 using SuvesaPosSitioAplicacion.Class;
 using SuvesaPosSitioAplicacion.DTOs.Comercial;
+using SuvesaPosSitioAplicacion.DTOs.Reportes;
 using SuvesaPosSitioAplicacion.Security;
+using SuvesaPosSitioAplicacion.Services;
+using SuvesaPosSitioAplicacion.Views.Reportes;
 
 namespace SuvesaPosSitioAplicacion.Tests;
 
@@ -364,6 +367,94 @@ public sealed class ComercialProxyTests
         var c = Assert.Single(h.Responses!);
         Assert.True(c.EnMesBloqueado);
         Assert.Equal(2_000_000m, c.MontoNuevo);
+    }
+
+    // ---------------- Fase 1: filtros y columnas comerciales en los reportes de ventas ----------------
+
+    private static readonly FiltroReporteVisible FiltrosComerciales =
+        FiltroReporteVisible.Canal | FiltroReporteVisible.RutaVenta | FiltroReporteVisible.Ejecutor
+        | FiltroReporteVisible.RolOrigen | FiltroReporteVisible.Marca | FiltroReporteVisible.Especie;
+
+    [Fact]
+    public void SoloLosReportesDeVentasOfrecenLosFiltrosComerciales_YComoAvanzados()
+    {
+        var conFiltros = CatalogoReportes.Todos.Where(r => (r.Filtros & FiltrosComerciales) != 0).Select(r => r.Tipo).OrderBy(t => t).ToArray();
+
+        Assert.Equal(new[] { "ventas", "ventas-detalle", "ventas-horas" }, conFiltros);
+        foreach (var r in CatalogoReportes.Todos)
+            Assert.Equal(FiltroReporteVisible.Ninguno, r.FiltrosBasicos & FiltrosComerciales);   // ninguno estorba en la vista básica
+        // La marca y la especie se miden por línea: solo Ventas detalladas.
+        var marcaEspecie = FiltroReporteVisible.Marca | FiltroReporteVisible.Especie;
+        Assert.Equal(new[] { "ventas-detalle" }, CatalogoReportes.Todos.Where(r => (r.Filtros & marcaEspecie) != 0).Select(r => r.Tipo).ToArray());
+    }
+
+    [Fact]
+    public void UnReporteSinFiltrosComercialesLimpiaLosQueQuedaronDeOtro()
+    {
+        var estado = new EstadoReportePestana { Tipo = "caja", IdCanal = 2, IdRutaVenta = 10, IdEjecutor = "bea", RolOrigen = "SAC", CodMarca = 1, IdEspecie = 3 };
+
+        estado.LimpiarFiltrosNoAplicables(CatalogoReportes.Buscar("caja")!);
+
+        Assert.Equal((null, null, string.Empty, string.Empty, null, null), (estado.IdCanal, estado.IdRutaVenta, estado.IdEjecutor, estado.RolOrigen, estado.CodMarca, estado.IdEspecie));
+
+        var ventas = new EstadoReportePestana { Tipo = "ventas-detalle", IdCanal = 2, IdRutaVenta = 10, IdEjecutor = "bea", RolOrigen = "SAC", CodMarca = 1, IdEspecie = 3 };
+        ventas.LimpiarFiltrosNoAplicables(CatalogoReportes.Buscar("ventas-detalle")!);
+        Assert.Equal((2, 10, "bea", "SAC", 1, 3), (ventas.IdCanal, ventas.IdRutaVenta, ventas.IdEjecutor, ventas.RolOrigen, ventas.CodMarca, ventas.IdEspecie));
+    }
+
+    private static (ReportesOperacion Proxy, Captura Handler) Reportes(string json)
+        => Nuevo(json, f => new ReportesOperacion(f, new SesionFalsa(), NullLogger<ReportesOperacion>.Instance));
+
+    [Fact]
+    public async Task LaConsultaDeVentasEnviaLosFiltrosComercialesPresentes()
+    {
+        var (proxy, handler) = Reportes("""{"status":0,"responses":{"titulo":"Ventas","fuente":"x","indicadores":[],"filas":[],"totalRegistros":0,"pagina":1,"tamanoPagina":25,"limitado":false}}""");
+
+        var r = await proxy.Consultar("ventas-detalle", new FiltroReporteOperacionWebDTO
+        {
+            IdCanal = 2, IdRuta = 10, IdEjecutor = "bea", RolOrigen = "SAC", CodMarca = 1, IdEspecie = 3, TamanoPagina = 25,
+        });
+
+        Assert.True(r.EsCorrecta, r.Excepcion);
+        Assert.Equal("/api/reportes-operacion/ventas-detalle?idCanal=2&idRuta=10&idEjecutor=bea&rolOrigen=SAC&codMarca=1&idEspecie=3&pagina=1&tamanoPagina=25", handler.Ruta);
+    }
+
+    [Fact]
+    public async Task SinFiltrosComercialesLaConsultaEsLaDeSiempre()
+    {
+        var (proxy, handler) = Reportes("""{"status":0,"responses":{"titulo":"Ventas","fuente":"x","indicadores":[],"filas":[],"totalRegistros":0,"pagina":1,"tamanoPagina":25,"limitado":false}}""");
+
+        await proxy.Consultar("ventas", new FiltroReporteOperacionWebDTO { IdAgente = "ana", TamanoPagina = 25 });
+
+        Assert.Equal("/api/reportes-operacion/ventas?idAgente=ana&pagina=1&tamanoPagina=25", handler.Ruta);
+    }
+
+    [Fact]
+    public async Task LasFilasTraenLasColumnasComerciales()
+    {
+        var (proxy, _) = Reportes("""
+            {"status":0,"responses":{"titulo":"Ventas","fuente":"x","indicadores":[{"etiqueta":"Pronto pago concedido","valor":30}],"totalRegistros":1,"pagina":1,"tamanoPagina":25,"limitado":false,
+             "filas":[{"referencia":"2","entidad":"Mundo Mascotas","monto":2000,"origen":"SAC","ejecutor":"Bea","ruta":"Ruta Norte","sucursalCliente":"Cartago","prontoPago":30}]}}
+            """);
+
+        var r = await proxy.Consultar("ventas", new FiltroReporteOperacionWebDTO());
+
+        var fila = Assert.Single(r.Responses!.Filas);
+        Assert.Equal(("SAC", "Bea", "Ruta Norte", "Cartago", 30m), (fila.Origen, fila.Ejecutor, fila.Ruta, fila.SucursalCliente, fila.ProntoPago));
+        Assert.Equal("Pronto pago concedido", Assert.Single(r.Responses.Indicadores).Etiqueta);
+    }
+
+    [Fact]
+    public async Task LasOpcionesComercialesParaReportesSeLeenSinPermisoDeAdministracion()
+    {
+        var (proxy, handler) = Catalogos("""{"status":0,"responses":{"canales":[{"id":1,"nombre":"Clínica"}],"marcas":[{"id":2,"nombre":"Lab Uno"}],"especies":[{"id":3,"nombre":"Felinos"}]}}""");
+
+        var r = await proxy.OpcionesParaReportes();
+
+        Assert.Equal("/api/comercial/catalogos/opciones-reportes", handler.Ruta);
+        Assert.Equal("Clínica", Assert.Single(r.Responses!.Canales).Nombre);
+        Assert.Equal("Lab Uno", Assert.Single(r.Responses.Marcas).Nombre);
+        Assert.Equal("Felinos", Assert.Single(r.Responses.Especies).Nombre);
     }
 
     [Fact]
