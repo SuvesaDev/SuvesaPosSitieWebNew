@@ -2294,6 +2294,29 @@
           "acciones": [
             "VER"
           ]
+        },
+        {
+          "codigo": "COMERCIAL.VENTA_CRUZADA",
+          "nombre": "Reglas de venta cruzada",
+          "ruta": "/comercial/venta-cruzada",
+          "padre": null,
+          "orden": 15,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.OPORTUNIDADES_CRUZADA",
+          "nombre": "Oportunidades de venta cruzada",
+          "ruta": "/comercial/oportunidades-cruzada",
+          "padre": null,
+          "orden": 16,
+          "acciones": [
+            "VER"
+          ]
         }
       ]
     }

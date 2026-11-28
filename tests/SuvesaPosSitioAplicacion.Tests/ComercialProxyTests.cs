@@ -408,6 +408,45 @@ public sealed class ComercialProxyTests
         Assert.Contains("\"numeroOrdenCompra\":\"OC-1\"", hLiga.Cuerpo);
     }
 
+    private static (VentaCruzada Proxy, Captura Handler) Cruzada(string json)
+        => Nuevo(json, f => new VentaCruzada(f, new SesionFalsa(), NullLogger<VentaCruzada>.Instance));
+
+    [Fact]
+    public async Task VentaCruzada_ListaReglasYCreaConPost()
+    {
+        var (lista, hLista) = Cruzada("""{"status":0,"responses":[{"id":1,"origenTipo":"Familia","origenId":1,"origenNombre":"Antiparasitarios","complementoTipo":"Articulo","complementoId":200,"complementoNombre":"Collar","activo":true,"esRelacionExistente":false}]}""");
+        var r = await lista.Reglas();
+        Assert.True(r.EsCorrecta, r.Excepcion);
+        Assert.Equal("/api/comercial/venta-cruzada/reglas", hLista.Ruta);
+        Assert.Equal(("Antiparasitarios", "Collar"), (r.Responses![0].OrigenNombre, r.Responses[0].ComplementoNombre));
+
+        var (crea, hCrea) = Cruzada("""{"status":0,"responses":{"id":2,"origenTipo":"Articulo","origenId":1,"origenNombre":"A","complementoTipo":"Categoria","complementoId":5,"complementoNombre":"Premium","activo":true}}""");
+        Assert.True((await crea.Crear(new GuardarReglaVentaCruzadaRequest { OrigenTipo = TipoComplemento.Articulo, OrigenId = 1, ComplementoTipo = TipoComplemento.Categoria, ComplementoId = 5 })).EsCorrecta);
+        Assert.Equal((HttpMethod.Post, "/api/comercial/venta-cruzada/reglas"), (hCrea.Metodo, hCrea.Ruta));
+        Assert.Contains("\"complementoTipo\":\"Categoria\"", hCrea.Cuerpo);
+    }
+
+    [Fact]
+    public async Task VentaCruzada_ActivarEliminarYConsultarOportunidades()
+    {
+        var (activa, hActiva) = Cruzada("""{"status":0,"responses":{"id":2,"activo":false}}""");
+        Assert.True((await activa.CambiarActivo(2, false)).EsCorrecta);
+        Assert.Equal((HttpMethod.Put, "/api/comercial/venta-cruzada/reglas/2/activo"), (hActiva.Metodo, hActiva.Ruta));
+        Assert.Contains("\"activo\":false", hActiva.Cuerpo);
+
+        var (borra, hBorra) = Cruzada("""{"status":0,"responses":true}""");
+        Assert.True((await borra.Eliminar(2)).Responses);
+        Assert.Equal((HttpMethod.Delete, "/api/comercial/venta-cruzada/reglas/2"), (hBorra.Metodo, hBorra.Ruta));
+
+        var (op, hOp) = Cruzada("""{"status":0,"responses":{"diasVentana":180,"esSupervision":true,"oportunidades":[{"idCliente":1,"nombreCliente":"Cliente 1","idRuta":10,"compro":["A"],"ofrecer":["B","C"]}]}}""");
+        var o = await op.Oportunidades(10);
+        Assert.Equal("/api/comercial/venta-cruzada/oportunidades?idRuta=10", hOp.Ruta);
+        Assert.Equal(new[] { "B", "C" }, o.Responses!.Oportunidades[0].Ofrecer);
+        var (sin, hSin) = Cruzada("""{"status":0,"responses":{"diasVentana":180,"oportunidades":[]}}""");
+        await sin.Oportunidades();
+        Assert.Equal("/api/comercial/venta-cruzada/oportunidades", hSin.Ruta);
+    }
+
     [Fact]
     public async Task CrearYActualizarMeta_UsanPostYPutConElMotivo()
     {

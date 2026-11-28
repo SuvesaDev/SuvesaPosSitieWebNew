@@ -818,6 +818,18 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Reglas de venta cruzada",
+                    Codigo = "COMERCIAL.VENTA_CRUZADA",
+                    Ruta = "/comercial/venta-cruzada",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Oportunidades de venta cruzada",
+                    Codigo = "COMERCIAL.OPORTUNIDADES_CRUZADA",
+                    Ruta = "/comercial/oportunidades-cruzada",
+                },
+                new ItemMenu
+                {
                     Titulo = "Centro de alertas",
                     Codigo = "COMERCIAL.ALERTAS",
                     Ruta = "/comercial/alertas",

@@ -9,6 +9,10 @@ public static class TipoAlertaComercial
     public const string DisminucionCompra = "DisminucionCompra";
     public const string RentabilidadBaja = "RentabilidadBaja";
     public const string FaltaInventario = "FaltaInventario";
+    public const string VentaBajoMeta = "VentaBajoMeta";
+    public const string CarteraVencida = "CarteraVencida";
+    public const string FaltanteAbastecido = "FaltanteAbastecido";
+    public const string VentaCruzada = "VentaCruzada";
 
     public static readonly (string Valor, string Texto)[] Todos =
     {
@@ -17,6 +21,10 @@ public static class TipoAlertaComercial
         (DisminucionCompra, "Disminución de compra"),
         (RentabilidadBaja, "Rentabilidad baja"),
         (FaltaInventario, "Falta de inventario"),
+        (VentaBajoMeta, "Venta por debajo de la meta"),
+        (CarteraVencida, "Cartera vencida"),
+        (FaltanteAbastecido, "Producto faltante abastecido"),
+        (VentaCruzada, "Oportunidad de venta cruzada"),
     };
 }
 
