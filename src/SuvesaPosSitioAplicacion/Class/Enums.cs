@@ -17,7 +17,9 @@ public enum AccionPantalla
     Borrar = 3,
     Activar = 4,
     Exportar = 5,
-    Imprimir = 6
+    Imprimir = 6,
+    /// <summary>Reemitir un comprobante electrónico rechazado por Hacienda (solo la Bandeja de documentos lo expone).</summary>
+    Reemitir = 7
 }
 
 /// <summary>

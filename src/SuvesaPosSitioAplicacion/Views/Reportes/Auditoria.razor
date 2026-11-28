@@ -1,8 +1,287 @@
 @page "/moduloReportes/auditoria"
+@using System.Text
+@using System.Text.Json
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Reportes
+@using SuvesaPosSitioAplicacion.Services
+@inject IReportesOperacion Api
+@inject IManejadorRespuestas Respuestas
+@inject IRelojEquipo RelojEquipo
+@inject IJSRuntime JS
 
-@* Pagina propia del reporte "auditoria": ruta y componente distintos de cualquier
-   otro reporte, asi que el sistema de pestanas (EstadoEspacioTrabajo) y
-   Blazor Router la tratan como una ventana genuinamente independiente, no
-   como un estado compartido dentro de un unico hub. El contenido real vive
-   en ReporteOperacionPanel (filtros, catalogos, consulta, rejilla). *@
-<ReporteOperacionPanel TipoInicial="auditoria" />
+<AppPantalla Pantalla="Bitácora de auditoría" Codigo="MODULO_REPORTES.AUDITORIA" Nivel="NivelPantalla.Escritorio"
+             Icono="bi-shield-check" Subtitulo="Quién cambió qué, y desde dónde.">
+    <Acciones>
+        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="ExportarCsv" disabled="@(!_visibles.Any())"><i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>Exportar CSV</button>
+        <a class="btn btn-sm btn-outline-secondary" href="/moduloReportes"><i class="bi bi-grid me-1" aria-hidden="true"></i>Catálogo</a>
+    </Acciones>
+    <ChildContent>
+        <AppFiltros AlBuscar="Consultar" Buscando="_cargando" TextoBuscar="Consultar">
+            <div class="col-6 col-md-2"><AppCampoFecha Etiqueta="Desde" @bind-Valor="_desde" /></div>
+            <div class="col-6 col-md-2"><AppCampoFecha Etiqueta="Hasta" @bind-Valor="_hasta" /></div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small">Entidad</label>
+                <select class="form-select" @bind="_entidad" @bind:after="ReiniciarPagina">
+                    <option value="">Todas</option>
+                    @foreach (var nombre in _filas.Select(f => f.Lote).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().OrderBy(n => n))
+                    {
+                        <option value="@nombre">@nombre</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small">Acción</label>
+                <select class="form-select" @bind="_accion" @bind:after="ReiniciarPagina">
+                    <option value="">Todas</option>
+                    <option>Crear</option>
+                    <option>Modificar</option>
+                    <option>Eliminar</option>
+                    <option>Ingreso</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-4"><label class="form-label small">Usuario o documento</label><input class="form-control" @bind="_texto" @bind:event="onchange" placeholder="Nombre, id o entidad" /></div>
+        </AppFiltros>
+
+        @if (_consultado is null && !_cargando)
+        {
+            <section class="card"><div class="card-body text-center py-5 text-secondary">Indique el periodo y pulse Consultar.</div></section>
+        }
+        else if (!_visibles.Any() && !_cargando)
+        {
+            <p class="text-secondary mb-0">No hay registros para esos filtros.</p>
+        }
+        else
+        {
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small text-secondary">@_visibles.Count() registros · hora del equipo</span>
+                <span class="small text-secondary">Página @_pagina de @TotalPaginas</span>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Usuario</th>
+                                <th>Entidad</th>
+                                <th>Acción</th>
+                                <th>IP / dispositivo</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var fila in Pagina)
+                            {
+                                <tr>
+                                    <td class="text-nowrap small">@fila.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td>@fila.Entidad</td>
+                                    <td>
+                                        <div class="fw-semibold">@fila.Lote</div>
+                                        <div class="small text-secondary text-break">@Acortar(fila.Referencia)</div>
+                                    </td>
+                                    <td><span class="badge seepos-audit-accion @ClaseAccion(fila.Estado)">@fila.Estado</span></td>
+                                    <td class="small">
+                                        <div>@(string.IsNullOrWhiteSpace(fila.Identificacion) ? "—" : fila.Identificacion)</div>
+                                        <div class="text-secondary">@Dispositivo(fila.Telefono)</div>
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" @onclick="() => Abrir(fila)">Ver cambios</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary" disabled="@(_pagina <= 1)" @onclick="Anterior">Anterior</button>
+                        <button type="button" class="btn btn-outline-secondary" disabled="@(_pagina >= TotalPaginas)" @onclick="Siguiente">Siguiente</button>
+                    </div>
+                    <label class="small text-secondary mb-0">
+                        Por página
+                        <select class="form-select form-select-sm d-inline-block w-auto ms-1" @bind="_tamano" @bind:after="ReiniciarPagina">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+        }
+
+        <HxModal @ref="_modal" Title="@TituloDetalle" Size="ModalSize.Large">
+            <BodyTemplate>
+                @if (_seleccion is not null)
+                {
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+                        <div class="row small flex-grow-1">
+                            <div class="col-md-6"><span class="text-secondary">Usuario</span><div class="fw-semibold">@_seleccion.Entidad</div></div>
+                            <div class="col-md-6"><span class="text-secondary">Fecha del equipo</span><div>@_seleccion.Fecha.ToString("dd/MM/yyyy HH:mm:ss")</div></div>
+                            <div class="col-md-6 mt-2"><span class="text-secondary">IP</span><div>@(string.IsNullOrWhiteSpace(_seleccion.Identificacion) ? "—" : _seleccion.Identificacion)</div></div>
+                            <div class="col-md-6 mt-2"><span class="text-secondary">Dispositivo</span><div>@Dispositivo(_seleccion.Telefono)</div></div>
+                        </div>
+                        <span class="badge seepos-audit-accion @ClaseAccion(_seleccion.Estado)">@_seleccion.Estado</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light"><tr><th>Campo</th><th>Valor anterior</th><th>Valor nuevo</th></tr></thead>
+                            <tbody>
+                                @foreach (var cambio in _cambios)
+                                {
+                                    <tr>
+                                        <td class="fw-semibold">@cambio.Campo</td>
+                                        <td>@if (string.IsNullOrWhiteSpace(cambio.Antes)) { <span class="text-secondary">—</span> } else { <span class="seepos-diff-antes">@cambio.Antes</span> }</td>
+                                        <td>@if (string.IsNullOrWhiteSpace(cambio.Despues)) { <span class="text-secondary">—</span> } else { <span class="seepos-diff-despues">@cambio.Despues</span> }</td>
+                                    </tr>
+                                }
+                                @if (_cambios.Count == 0)
+                                {
+                                    <tr><td colspan="3" class="text-secondary">@_seleccion.Descripcion</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </BodyTemplate>
+            <FooterTemplate>
+                <button type="button" class="btn btn-outline-secondary" @onclick="Cerrar">Cerrar</button>
+            </FooterTemplate>
+        </HxModal>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private DateTime? _desde;
+    private DateTime? _hasta;
+    private string _texto = string.Empty;
+    private string _entidad = string.Empty;
+    private string _accion = string.Empty;
+    private bool _cargando;
+    private DateTime? _consultado;
+    private int _pagina = 1;
+    private int _tamano = 10;
+    private List<FilaReporteOperacionWebDTO> _filas = new();
+    private FilaReporteOperacionWebDTO? _seleccion;
+    private List<Cambio> _cambios = new();
+    private HxModal _modal = default!;
+    private IJSObjectReference? _tema;
+
+    private IEnumerable<FilaReporteOperacionWebDTO> _visibles => _filas.Where(f =>
+        (string.IsNullOrWhiteSpace(_entidad) || f.Lote == _entidad)
+        && (string.IsNullOrWhiteSpace(_accion) || f.Estado == _accion));
+
+    private int TotalPaginas => Math.Max(1, (int)Math.Ceiling(_visibles.Count() / (double)_tamano));
+    private IEnumerable<FilaReporteOperacionWebDTO> Pagina => _visibles.Skip((_pagina - 1) * _tamano).Take(_tamano);
+    private string TituloDetalle => _seleccion is null ? "Detalle de cambios" : $"Detalle de cambios: {_seleccion.Lote}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var hoy = await RelojEquipo.HoyAsync();
+        _desde = hoy.AddDays(-7);
+        _hasta = hoy;
+    }
+
+    private async Task Consultar()
+    {
+        _cargando = true;
+        ReiniciarPagina();
+        var dato = await Respuestas.DatoAsync(await Api.Consultar("auditoria", new FiltroReporteOperacionWebDTO
+        {
+            Desde = _desde,
+            Hasta = _hasta,
+            Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim(),
+            Pagina = 1,
+            TamanoPagina = 500,
+        }), "consultar la bitácora");
+        _cargando = false;
+        _filas = dato?.Filas ?? new();
+        _consultado = DateTime.Now;
+    }
+
+    private void ReiniciarPagina() => _pagina = 1;
+    private void Anterior() { if (_pagina > 1) _pagina--; }
+    private void Siguiente() { if (_pagina < TotalPaginas) _pagina++; }
+
+    private async Task Abrir(FilaReporteOperacionWebDTO fila)
+    {
+        _seleccion = fila;
+        _cambios = LeerCambios(fila.ClaveHacienda);
+        await _modal.ShowAsync();
+    }
+
+    private async Task Cerrar() => await _modal.HideAsync();
+
+    private async Task ExportarCsv()
+    {
+        var csv = new StringBuilder();
+        csv.AppendLine("Fecha;Usuario;Entidad;Id;Accion;IP;Detalle");
+        foreach (var fila in _visibles)
+            csv.AppendLine($"{fila.Fecha:dd/MM/yyyy HH:mm};{Limpiar(fila.Entidad)};{Limpiar(fila.Lote)};{Limpiar(fila.Referencia)};{Limpiar(fila.Estado)};{Limpiar(fila.Identificacion)};{Limpiar(fila.Descripcion)}");
+        _tema ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/tema.js");
+        await _tema.InvokeVoidAsync("descargarTexto", $"bitacora-{DateTime.Now:yyyyMMdd-HHmm}.csv", csv.ToString());
+    }
+
+    private static string Limpiar(string? valor) => (valor ?? "").Replace(';', ',').Replace('\n', ' ');
+
+    private static string Acortar(string? valor)
+    {
+        if (string.IsNullOrWhiteSpace(valor)) return "—";
+        var texto = valor.Replace("Id=", "", StringComparison.Ordinal);
+        return texto.Length <= 24 ? texto : texto[..21] + "…";
+    }
+
+    private static string Dispositivo(string? agente)
+    {
+        if (string.IsNullOrWhiteSpace(agente)) return "—";
+        var navegador = agente.Contains("Edg/", StringComparison.Ordinal) ? "Edge"
+            : agente.Contains("Chrome/", StringComparison.Ordinal) ? "Chrome"
+            : agente.Contains("Firefox/", StringComparison.Ordinal) ? "Firefox"
+            : agente.Contains("Safari/", StringComparison.Ordinal) ? "Safari"
+            : "Navegador";
+        var sistema = agente.Contains("Windows", StringComparison.Ordinal) ? "Windows"
+            : agente.Contains("Android", StringComparison.Ordinal) ? "Android"
+            : agente.Contains("iPhone", StringComparison.Ordinal) ? "iPhone"
+            : agente.Contains("Mac OS", StringComparison.Ordinal) ? "Mac"
+            : "";
+        return string.IsNullOrEmpty(sistema) ? navegador : $"{navegador} / {sistema}";
+    }
+
+    private static string ClaseAccion(string accion) => accion switch
+    {
+        "Crear" or "Ingreso" => "text-bg-success",
+        "Modificar" => "text-bg-warning",
+        "Eliminar" or "Anular" => "text-bg-danger",
+        _ => "text-bg-primary",
+    };
+
+    private static List<Cambio> LeerCambios(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || !json.TrimStart().StartsWith('{')) return new();
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.EnumerateObject().Select(campo => new Cambio(
+                campo.Name,
+                Enmascarar(campo.Name, Leer(campo.Value, "Antes")),
+                Enmascarar(campo.Name, Leer(campo.Value, "Despues")))).ToList();
+        }
+        catch (JsonException)
+        {
+            return new();
+        }
+    }
+
+    private static string Leer(JsonElement valor, string nombre)
+        => valor.TryGetProperty(nombre, out var dato) ? dato.ToString() : "";
+
+    private static string Enmascarar(string campo, string valor)
+        => campo.Contains("ClaveEntrada", StringComparison.OrdinalIgnoreCase)
+           || campo.Contains("ClaveInterna", StringComparison.OrdinalIgnoreCase)
+           || campo.Contains("Password", StringComparison.OrdinalIgnoreCase)
+           || campo.Contains("Token", StringComparison.OrdinalIgnoreCase)
+           || campo.Contains("Certificado", StringComparison.OrdinalIgnoreCase)
+            ? "••••••••"
+            : valor;
+
+    private sealed record Cambio(string Campo, string Antes, string Despues);
+}

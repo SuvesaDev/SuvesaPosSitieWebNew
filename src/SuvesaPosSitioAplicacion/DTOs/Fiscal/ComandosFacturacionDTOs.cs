@@ -48,6 +48,9 @@ public sealed class FacturaCreditoConSaldoDTO
     public double PagosAplicados { get; set; }
     public double SaldoActual { get; set; }
     public string? EstadoMh { get; set; }
+    /// <summary>Sucursal del cliente a la que pertenece la factura; null si no tiene.</summary>
+    public long? IdClienteSucursal { get; set; }
+    public string? SucursalCliente { get; set; }
 }
 
 // ---- W5: cobrar + facturar una preventa de contado existente en una sola llamada ----
@@ -62,6 +65,8 @@ public sealed class PagoPreventaContadoDTO
     public string? NumeroCheque { get; set; }
     /// <summary>Solo forma de pago Cheque: banco emisor (catálogo EntidadesBancaria.IdBanco).</summary>
     public int? IdBanco { get; set; }
+    /// <summary>Fecha en que el cliente hizo el depósito, transferencia o cheque (opcional).</summary>
+    public DateTime? FechaPago { get; set; }
 }
 
 public sealed class FacturarPreventaContadoComandoDTO
@@ -72,6 +77,9 @@ public sealed class FacturarPreventaContadoComandoDTO
     public long? IdApertura { get; set; }
     public int? IdSucursal { get; set; }
     public string? CedulaCajero { get; set; }
+    /// <summary>Ruta comercial a acreditar cuando quien cobra/factura es un Funcionario de
+    /// Servicio al Cliente. Ignorado si quien factura es un Agente.</summary>
+    public int? IdRutaComercial { get; set; }
     public List<PagoPreventaContadoDTO> Pagos { get; set; } = new();
 }
 
@@ -104,4 +112,41 @@ public sealed class EstadoCuentaClienteDTO
     public double Vencido61a90 { get; set; }
     public double Vencido91oMas { get; set; }
     public List<FacturaCreditoConSaldoDTO> Detalle { get; set; } = new();
+    /// <summary>Cubierto por recibos con depósito o cheque pendientes de aprobación: fuera del saldo abierto, pero sigue ocupando el límite.</summary>
+    public double EnTransito { get; set; }
+    public List<FacturaEnTransitoDTO> FacturasEnTransito { get; set; } = new();
+}
+
+/// <summary>Un movimiento de la vida de una factura (recibo, nota de crédito, descuento por pronto pago o crédito a favor aplicado).</summary>
+public sealed class MovimientoHistorialFacturaDTO
+{
+    public System.DateTime Fecha { get; set; }
+    /// <summary>Recibo | NotaCredito | DescuentoProntoPago | CreditoAFavor</summary>
+    public string Tipo { get; set; } = "";
+    public string Descripcion { get; set; } = "";
+    public decimal Monto { get; set; }
+    /// <summary>Aplicado | PendienteConfirmacion | Anulado</summary>
+    public string Estado { get; set; } = "";
+    public long? IdDocumento { get; set; }
+}
+
+/// <summary>Historial de una factura con su saldo y el crédito a favor que el cliente todavía tiene disponible.</summary>
+public sealed class HistorialFacturaDTO
+{
+    public long IdVenta { get; set; }
+    public double NumFactura { get; set; }
+    public decimal Total { get; set; }
+    public decimal SaldoActual { get; set; }
+    public decimal CreditoAFavorDisponibleCliente { get; set; }
+    public List<MovimientoHistorialFacturaDTO> Movimientos { get; set; } = new();
+}
+
+/// <summary>Factura cubierta por un recibo pendiente de aprobación («En tránsito / Pendiente de aprobación»).</summary>
+public sealed class FacturaEnTransitoDTO
+{
+    public long IdVenta { get; set; }
+    public double NumFactura { get; set; }
+    public decimal MontoEnTransito { get; set; }
+    public long NumeroRecibo { get; set; }
+    public System.DateTime FechaReciboUtc { get; set; }
 }

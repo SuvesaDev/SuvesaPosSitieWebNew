@@ -1,0 +1,77 @@
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.Services
+@using Havit.Blazor.Components.Web.Bootstrap
+@inject ICajaOperaciones Api
+@inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
+@inject IServicioDialogos Dialogos
+@inject IManejadorRespuestas Respuestas
+
+@* Registro rápido de un pre-depósito desde el arqueo, sin salir de la pantalla. La apertura y el cajero ya
+   se conocen (clave interna validada); el API vuelve a comprobar que la caja sea del cajero de esa clave. *@
+
+<AppModal @ref="_modal" Titulo="Agregar pre-depósito" Subtitulo="@(Apertura is null ? null : $"Apertura #{Apertura.Napertura} · {Apertura.Nombre}")"
+          Tamano="ModalSize.Regular" AlGuardar="Guardar" Guardando="_guardando" PuedeGuardar="@(Apertura is not null)"
+          TextoGuardar="Registrar pre-depósito" IconoGuardar="bi-safe2">
+    <p class="small text-secondary">Es el efectivo que saca de la caja para enviarlo al banco. Cuente el efectivo del arqueo <strong>después</strong> de registrarlo.</p>
+    <div class="row g-3">
+        <div class="col-12 col-md-6"><label class="form-label" for="pdEmpresa">Empresa</label><InputSelect id="pdEmpresa" class="form-select" @bind-Value="_empresa"><option value="0">Seleccione...</option>@foreach (var e in _empresas) { <option value="@e.Id">@e.Nombre</option> }</InputSelect></div>
+        <div class="col-12 col-md-6"><label class="form-label" for="pdFecha">Fecha</label><InputDate id="pdFecha" class="form-control" @bind-Value="_fecha" /></div>
+        <div class="col-6"><label class="form-label" for="pdMoneda">Moneda</label><InputSelect id="pdMoneda" class="form-select" @bind-Value="_codMoneda"><option value="1">Colones</option><option value="2">Dólares</option></InputSelect></div>
+        <div class="col-6"><label class="form-label" for="pdMonto">Monto</label><InputNumber id="pdMonto" class="form-control text-end" min="0" @bind-Value="_monto" /></div>
+        <div class="col-12"><label class="form-label" for="pdObs">Observaciones</label><InputText id="pdObs" class="form-control" @bind-Value="_observaciones" /></div>
+        <div class="col-12"><span class="small text-secondary">Depositante: <strong>@Sesion.Usuario</strong></span></div>
+    </div>
+</AppModal>
+
+@code {
+    private AppModal _modal = default!;
+    private readonly List<EmpresaDTO> _empresas = new();
+    private int _empresa, _codMoneda = 1;
+    private float _monto;
+    private string? _observaciones;
+    private DateTime _fecha = DateTime.Today;
+    private bool _guardando;
+
+    /// <summary>Apertura abierta del cajero que desbloqueó la pantalla.</summary>
+    [Parameter] public ObtenerAperturaCajaDTO? Apertura { get; set; }
+
+    /// <summary>Clave interna del cajero: el API solo deja sacar efectivo de su propia caja.</summary>
+    [Parameter] public string? ClaveInterna { get; set; }
+
+    /// <summary>Se dispara tras registrar el pre-depósito.</summary>
+    [Parameter] public EventCallback AlRegistrado { get; set; }
+
+    public async Task AbrirAsync()
+    {
+        _monto = 0; _observaciones = null; _codMoneda = 1;
+        _fecha = await RelojEquipo.HoyAsync();
+        if (_empresas.Count == 0)
+        {
+            var empresas = await Respuestas.DatoAsync(await Api.Empresas(), "consultar las empresas");
+            _empresas.AddRange(empresas ?? Array.Empty<EmpresaDTO>());
+        }
+        if (_empresas.Count == 1) _empresa = _empresas[0].Id;
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (Apertura is null) return;
+        if (_empresa == 0 || _monto <= 0) { await Dialogos.InformarAsync("Seleccione la empresa e indique un monto válido."); return; }
+        if (!await Dialogos.ConfirmarAsync("¿Desea registrar este pre-depósito?", "Registrar pre-depósito", "Registrar")) return;
+        _guardando = true;
+        _fecha = await RelojEquipo.HoyAsync();
+        var pre = new PreDepositosDTO
+        {
+            Fecha = _fecha, Cajero = Apertura.Nombre, Cedula = Apertura.Cedula, Depositante = Sesion.Usuario, IdEmpresa = _empresa,
+            NumApertura = (int)Apertura.Napertura, Monto = _monto, CodMoneda = _codMoneda, Observaciones = _observaciones,
+        };
+        var creado = await Respuestas.DatoAsync(await Api.CrearPreDeposito(pre, ClaveInterna), "registrar el pre-depósito");
+        _guardando = false;
+        if (creado is null) return;
+        Dialogos.Exito("Pre-depósito registrado correctamente.");
+        await _modal.OcultarAsync();
+        await AlRegistrado.InvokeAsync();
+    }
+}

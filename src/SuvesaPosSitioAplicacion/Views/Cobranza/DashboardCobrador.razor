@@ -1,0 +1,110 @@
+@page "/collections/dashboard"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Cobranza
+@using SuvesaPosSitioAplicacion.Services
+@inject ICobranza Api
+@inject IManejadorRespuestas Respuestas
+
+@* Tablero del cobrador: tareas del día, promesas pendientes e incumplidas (en rojo). El API recalcula
+   como máximo cada 5 minutos, así que "Actualizar" no sobrecarga la base. *@
+
+<AppPantalla Pantalla="Dashboard" Codigo="COBRANZA.DASHBOARD" Icono="bi-speedometer2" Subtitulo="Mi cartera en gestión">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" disabled="@_cargando" @onclick="Cargar">
+            <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Actualizar
+        </button>
+    </Acciones>
+    <ChildContent>
+        @if (_dash is null)
+        {
+            <div class="text-secondary">@(_cargando ? "Cargando..." : "Sin datos.")</div>
+        }
+        else
+        {
+            <div class="row g-3 mb-3">
+                @foreach (var (titulo, valor, alerta) in new[] {
+                    ("Seguimientos activos", _dash.SeguimientosActivos.ToString(), false),
+                    ("Saldo asignado", Formato.Importe(_dash.SaldoAsignado), false),
+                    ("Promesas pendientes", _dash.PromesasPendientes.Count.ToString(), false),
+                    ("Promesas incumplidas", _dash.PromesasIncumplidas.Count.ToString(), _dash.PromesasIncumplidas.Count > 0) })
+                {
+                    <div class="col-6 col-lg-3"><div class="card h-100 @(alerta ? "border-danger" : null)"><div class="card-body py-2">
+                        <div class="text-secondary small">@titulo</div>
+                        <div class="fs-4 @(alerta ? "text-danger" : null)">@valor</div>
+                    </div></div></div>
+                }
+            </div>
+
+            <div class="row g-3">
+                <div class="col-12 col-xl-5">
+                    <div class="card h-100"><div class="card-header"><strong>Tareas del día</strong></div>
+                        <ul class="list-group list-group-flush">
+                            @if (_dash.TareasDelDia.Count == 0) { <li class="list-group-item text-secondary">Nada pendiente para hoy.</li> }
+                            @foreach (var t in _dash.TareasDelDia)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="badge @(t.Tipo == "PROMESA_VENCE_HOY" ? "text-bg-warning" : "text-bg-light") me-1">@Rotulo(t.Tipo)</span>
+                                        <strong>@t.NombreCliente</strong>
+                                        <div class="small text-secondary">@t.Descripcion</div>
+                                    </div>
+                                    <a class="btn btn-sm btn-outline-primary" href="/collections/follow-up/@t.IdSeguimiento">Gestionar</a>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-12 col-xl-7">
+                    <div class="card mb-3"><div class="card-header"><strong>Promesas pendientes</strong></div>
+                        @Tabla(_dash.PromesasPendientes, "Sin promesas pendientes.")
+                    </div>
+                    <div class="card border-danger"><div class="card-header text-bg-danger"><strong>Promesas incumplidas</strong></div>
+                        @Tabla(_dash.PromesasIncumplidas, "Sin promesas incumplidas.")
+                    </div>
+                </div>
+            </div>
+            <div class="small text-secondary mt-2">Calculado el @PresentacionCobranza.Fecha(_dash.GeneradoUtc)</div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private DashboardCobradorWebDTO? _dash;
+    private bool _cargando;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        _dash = await Respuestas.DatoAsync(await Api.DashboardCobrador(), "consultar el tablero del cobrador");
+        _cargando = false;
+    }
+
+    private static string Rotulo(string tipo) => tipo switch
+    {
+        "PROMESA_VENCE_HOY" => "Vence hoy",
+        "PROMESA_VENCE_MANANA" => "Vence mañana",
+        _ => "Sin gestión",
+    };
+
+    private RenderFragment Tabla(List<PromesaPagoWebDTO> promesas, string vacio) => @<div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Seguimiento</th><th>Fecha</th><th class="text-end">Acordado</th><th class="text-end">Abonado</th><th></th></tr></thead>
+            <tbody>
+                @if (promesas.Count == 0) { <tr><td colspan="5" class="text-center text-secondary py-3">@vacio</td></tr> }
+                @foreach (var p in promesas)
+                {
+                    <tr class="@(p.Estado == EstadoPromesaWeb.Incumplida ? "table-danger" : null)">
+                        <td>#@p.IdSeguimiento</td>
+                        <td>@p.FechaPrometida.ToString("dd/MM/yyyy")</td>
+                        <td class="text-end">@Formato.Importe(p.MontoAcordado)</td>
+                        <td class="text-end">@Formato.Importe(p.MontoAbonado)</td>
+                        <td><a class="btn btn-sm btn-outline-primary" href="/collections/follow-up/@p.IdSeguimiento">Abrir</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>;
+}

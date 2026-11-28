@@ -126,6 +126,7 @@
         <div class="col-md-4"><strong>Lote:</strong> @_reporte.NumeroLoteProducido</div>
         <div class="col-md-4"><strong>Cantidad:</strong> @_reporte.CantidadProducida</div>
         <div class="col-md-4"><strong>Costo total:</strong> @_reporte.CostoTotalInsumos.ToString("N2")</div>
+        <div class="col-md-4"><strong>Costo del artículo:</strong> @_reporte.CostoUnitarioTerminado.ToString("N2")</div>
       </div>
       <table class="table table-sm"><thead><tr><th>Insumo</th><th>Lote</th><th class="text-end">Cantidad</th><th class="text-end">Costo línea</th></tr></thead>
         <tbody>@foreach (var l in _reporte.Lineas){<tr><td><code>@l.CodArticuloInsumo</code> @l.DescripcionInsumo</td><td>@l.NumeroLote</td>

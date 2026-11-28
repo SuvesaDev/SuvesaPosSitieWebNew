@@ -28,6 +28,14 @@ public sealed class BandejaDocumentos : ProxyBase, IBandejaDocumentos
         => Ejecutar(async () => await Leer<BandejaDocumentosResultado<DocumentoFiscalBandeja>>(
             await _api.PostAsJsonAsync("BandejaDocumentos/NotasCredito", filtro, Json)), "consultar las notas de crédito");
 
+    public Task<ResponseGeneric<BandejaDocumentosResultado<DocumentoFiscalBandeja>>> NotasCreditoExternas(BandejaDocumentosFiltro filtro)
+        => Ejecutar(async () => await Leer<BandejaDocumentosResultado<DocumentoFiscalBandeja>>(
+            await _api.PostAsJsonAsync("BandejaDocumentos/NotasCreditoExternas", filtro, Json)), "consultar las notas de crédito externas");
+
+    public Task<ResponseGeneric<BandejaDocumentosResultado<DocumentoFiscalBandeja>>> NotasDebito(BandejaDocumentosFiltro filtro)
+        => Ejecutar(async () => await Leer<BandejaDocumentosResultado<DocumentoFiscalBandeja>>(
+            await _api.PostAsJsonAsync("BandejaDocumentos/NotasDebito", filtro, Json)), "consultar las notas de débito");
+
     public Task<ResponseGeneric<BandejaDocumentosResultado<DocumentoBandeja>>> Consignaciones(BandejaDocumentosFiltro filtro)
         => Ejecutar(async () => await Leer<BandejaDocumentosResultado<DocumentoBandeja>>(
             await _api.PostAsJsonAsync("BandejaDocumentos/Consignaciones", filtro, Json)), "consultar las consignaciones");
@@ -39,6 +47,10 @@ public sealed class BandejaDocumentos : ProxyBase, IBandejaDocumentos
     public Task<ResponseGeneric<NotaCreditoBandejaDetalle>> DetalleNotaCredito(long id)
         => Ejecutar(async () => await Leer<NotaCreditoBandejaDetalle>(
             await _api.GetAsync($"BandejaDocumentos/DetalleNotaCredito/{id}")), "consultar el detalle de la nota de crédito");
+
+    public Task<ResponseGeneric<NotaCreditoBandejaDetalle>> DetalleNotaDebito(long id)
+        => Ejecutar(async () => await Leer<NotaCreditoBandejaDetalle>(
+            await _api.GetAsync($"BandejaDocumentos/DetalleNotaDebito/{id}")), "consultar el detalle de la nota de débito");
 
     private static async Task<ResponseGeneric<T>> Leer<T>(HttpResponseMessage respuesta)
     {

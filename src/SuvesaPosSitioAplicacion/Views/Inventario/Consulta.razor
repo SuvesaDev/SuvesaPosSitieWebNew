@@ -5,6 +5,7 @@
 @using SuvesaPosSitioAplicacion.ApiConexion
 @using SuvesaPosSitioAplicacion.DTOs.Lotes
 @using SuvesaPosSitioAplicacion.DTOs.Fiscal
+@using SuvesaPosSitioAplicacion.DTOs.Tarifas
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @using System.Text.Json
 @inject IInventarioConsulta Api
@@ -18,8 +19,11 @@
 @inject ICatalogosInventario Catalogos
 @inject ICatalogoBonificacion CatalogoBonificacion
 @inject IImpuestosFiscales ImpuestosApi
+@inject IMonedasFiscales MonedasApi
 @inject IArticuloBonificacion ArticuloBonificacion
 @inject IRelojEquipo RelojEquipo
+@inject ITarifasPrecio TarifasApi
+@inject IAuditoriaCabys AuditoriaCabys
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -57,6 +61,9 @@
         {
             <button class="btn btn-sm btn-outline-secondary" title="Genera la miniatura liviana para las imágenes de artículo subidas antes de esta mejora — el catálogo visual de Facturación abre más rápido. Las imágenes nuevas ya la generan solas." disabled="@_recatalogando" @onclick="RecatalogarImagenes">
                 <i class="bi bi-images me-1" aria-hidden="true"></i>@(_recatalogando ? "Recatalogando..." : "Recatalogar imágenes")
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="AbrirRevisionCabys" title="Lista los artículos cuyo CABYS no coincide con su marca de servicio/mercancía (causa de rechazos de Hacienda)">
+                <i class="bi bi-patch-check me-1" aria-hidden="true"></i>Revisar CABYS
             </button>
             <button class="btn btn-sm btn-primary" @onclick="Agregar">
                 <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
@@ -129,7 +136,7 @@
                         <div class="card-body py-2 px-3">
                             <div class="d-flex justify-content-between align-items-start gap-2">
                                 <span class="fw-semibold small">@a.Descripcion</span>
-                                <span class="seepos-importe small">@Formato.Importe(a.Precio_A)</span>
+                                <span class="seepos-importe small">@Formato.Importe(PrecioVenta.EnColones(a, a.Precio_A))</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
                                 <code class="small text-secondary">@a.Cod_Articulo</code>
@@ -164,7 +171,7 @@
                             </PropertyColumn>
                             <PropertyColumn Property="a => a.Precio_A" Title="Precio"
                                             CellClass="justify-end" HeaderClass="justify-end">
-                                <CellTemplate>@Formato.Importe(context.Item.Precio_A)</CellTemplate>
+                                <CellTemplate>@Formato.Importe(PrecioVenta.EnColones(context.Item, context.Item.Precio_A))</CellTemplate>
                             </PropertyColumn>
                             <TemplateColumn Title="Acciones" Sortable="false" Filterable="false">
                                 <CellTemplate>
@@ -219,21 +226,24 @@
             <h3 class="seepos-detalle-seccion">Precios de venta</h3>
             <dl class="row small mb-0">
                 <dt class="col-5 fw-normal text-secondary">Precio A</dt>
-                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_A)</dd>
+                <dd class="col-7 seepos-importe">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_A))</dd>
 
                 <dt class="col-5 fw-normal text-secondary">Precio B</dt>
-                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_B)</dd>
+                <dd class="col-7 seepos-importe">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_B))</dd>
 
                 <dt class="col-5 fw-normal text-secondary">Precio C</dt>
-                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_C)</dd>
+                <dd class="col-7 seepos-importe">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_C))</dd>
 
                 <dt class="col-5 fw-normal text-secondary">Precio D</dt>
-                <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Precio_D)</dd>
+                <dd class="col-7 seepos-importe">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_D))</dd>
+
+                <dt class="col-5 fw-normal text-secondary">Descuento máx.</dt>
+                <dd class="col-7 seepos-importe">@Formato.Cantidad(_elegido.Max_Descuento)%</dd>
 
                 @if (_elegido.Promo_Activa)
                 {
                     <dt class="col-5 fw-normal text-secondary">Promocion</dt>
-                    <dd class="col-7 seepos-importe text-success">@Formato.Importe(_elegido.Precio_Promo)</dd>
+                    <dd class="col-7 seepos-importe text-success">@Formato.Importe(PrecioVenta.EnColones(_elegido, _elegido.Precio_Promo))</dd>
                 }
             </dl>
 
@@ -330,12 +340,64 @@
     </BodyTemplate>
 </HxOffcanvas>
 
+@* ---------- Revisión de CABYS (solo lectura) ---------- *@
+<HxModal @ref="_modalRevisionCabys" Title="Revisar CABYS" Size="ModalSize.ExtraLarge" Scrollable="true">
+    <BodyTemplate>
+        <p class="text-secondary small mb-2">
+            Hacienda clasifica cada línea por su CABYS: los códigos que empiezan en 0–4 son <strong>mercancías</strong> y los
+            que empiezan en 5–9 son <strong>servicios</strong>. Si el artículo está marcado distinto, la factura electrónica se
+            rechaza (-110 / -111). Esta lista no cambia nada: corrija cada artículo con «Abrir».
+        </p>
+        <div class="form-check mb-3">
+            <input id="cabys-solo-activos" class="form-check-input" type="checkbox" @bind="_cabysSoloActivos" @bind:after="CargarRevisionCabys" />
+            <label class="form-check-label" for="cabys-solo-activos">Solo artículos activos</label>
+        </div>
+        @if (_cabysCargando)
+        {
+            <p class="text-secondary">Revisando artículos...</p>
+        }
+        else if (_cabysResultado is null)
+        {
+            <p class="text-secondary">No se pudo obtener la revisión.</p>
+        }
+        else if (_cabysResultado.Inconsistentes.Count == 0)
+        {
+            <div class="alert alert-success mb-0">Los @_cabysResultado.ArticulosRevisados artículos revisados tienen un CABYS coherente.</div>
+        }
+        else
+        {
+            <p class="mb-2"><strong>@_cabysResultado.Inconsistentes.Count</strong> de @_cabysResultado.ArticulosRevisados artículos con problema.</p>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Código</th><th>Descripción</th><th>CABYS</th><th>Marcado como</th><th>Según CABYS</th><th>Problema</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var a in _cabysResultado.Inconsistentes)
+                        {
+                            <tr>
+                                <td><code>@a.CodArticulo</code></td>
+                                <td>@a.Descripcion</td>
+                                <td><code>@a.Cabys</code></td>
+                                <td>@(a.EsServicioMarcado ? "Servicio" : "Mercancía")</td>
+                                <td>@(a.EsServicioSegunCabys is null ? "—" : a.EsServicioSegunCabys == true ? "Servicio" : "Mercancía")</td>
+                                <td class="small">@a.Problema</td>
+                                <td class="text-end"><button class="btn btn-sm btn-outline-primary" @onclick="() => EditarDesdeRevisionCabys(a)">Abrir</button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-outline-secondary" @onclick="() => _modalRevisionCabys.HideAsync()">Cerrar</button>
+    </FooterTemplate>
+</HxModal>
+
 <HxModal @ref="_modal" Title="@(_esNuevo ? "Nuevo artículo" : "Editar artículo")" Size="ModalSize.Large" Scrollable="true">
     <BodyTemplate>
         @if (_edicion is not null)
         {
-            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formArticulo" class="seepos-articulo-editor">
-                <DataAnnotationsValidator />
+            <EditForm Model="_edicion" OnSubmit="GuardarDesdeFormulario" id="formArticulo" class="seepos-articulo-editor">
                 <nav class="nav nav-pills gap-2 mb-4 seepos-editor-tabs" aria-label="Secciones del artículo">
                     <button type="button" class="btn btn-sm @ClasePestanaGenerales" @onclick="MostrarGenerales">Datos generales</button>
                     <button type="button" class="btn btn-sm @ClasePestanaPrecios" @onclick="MostrarPrecios">Precios</button>
@@ -362,10 +424,11 @@
                     {
                         <button type="button" class="btn btn-sm @ClasePestanaBonificacion" @onclick="MostrarBonificacion">Bonificación</button>
                     }
-                    @if (!Sesion.EsCostaPets)
+                    @if (!_esNuevo)
                     {
-                        <button type="button" class="btn btn-sm @ClasePestanaOtros" @onclick="MostrarOtros">Otros datos</button>
+                        <button type="button" class="btn btn-sm @ClasePestanaRegistro" @onclick="MostrarRegistro">Registro</button>
                     }
+                    <button type="button" class="btn btn-sm @ClasePestanaOtros" @onclick="MostrarOtros">Otros datos</button>
                 </nav>
 
                 @if (_pestanaInventario == "generales")
@@ -397,7 +460,7 @@
                     </div>
                     <div class="col-12 col-md-4"><label class="form-label" for="articulo-cantidad-presentacion">Cantidad</label><input id="articulo-cantidad-presentacion" type="number" min="0" step="0.001" class="form-control" @bind="_edicion.PresentaCant" /></div>
                     <div class="col-12 col-md-4">
-                        <label class="form-label" for="articulo-familia">Familia</label>
+                        <label class="form-label" for="articulo-familia">Familia *</label>
                         <select id="articulo-familia" class="form-select" @bind="_edicion.SubFamilia">
                             <option value="0">Seleccione...</option>
                             @foreach (var familia in _familias)
@@ -464,10 +527,14 @@
                         </div>
                         <div class="form-check">
                             <input id="articulo-lote" class="form-check-input" type="checkbox" @bind="_edicion.Lote" @bind:after="AlCambiarLotes"
-                                   disabled="@(_tipoArticulo is 2 or 3 || _edicion.LoteUnicoFijado)" />
-                            <label class="form-check-label" for="articulo-lote">Maneja lotes @(_tipoArticulo is 2 or 3 ? "(obligatorio)" : "")</label>
+                                   disabled="@(_tipoArticulo == 3 || _edicion.LoteUnicoFijado)" />
+                            <label class="form-check-label" for="articulo-lote">Maneja lotes @(_tipoArticulo == 3 ? "(obligatorio)" : "")</label>
+                            @if (_tipoArticulo == 2 && !_edicion.Lote)
+                            {
+                                <div class="form-text">Sin lote: no se pedirá lote en entradas ni movimientos. Un artículo sin lote no puede formar parte de una fórmula de producción.</div>
+                            }
                         </div>
-                        @if (_tipoArticulo == 2)
+                        @if (_tipoArticulo == 2 && _edicion.Lote)
                         {
                             <div class="form-check">
                                 <input id="articulo-lote-unico" class="form-check-input" type="checkbox" @bind="_edicion.LoteUnico"
@@ -510,14 +577,20 @@
                 {
                     <div class="row g-3">
                         <div class="col-12"><p class="text-secondary mb-0">Calcule el precio de venta a partir del costo y la utilidad. El cálculo usa la regla CostaPets cuando corresponde.</p></div>
-                        <div class="col-12 col-md-4"><label class="form-label">Precio base</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.PrecioBase" /></div>
+                        <div class="col-12 seepos-form-seccion">Costo del artículo</div>
+                        <div class="col-12 col-md-3"><label class="form-label" for="articulo-costo-base">Costo base (precio de compra)</label><input id="articulo-costo-base" type="number" min="0" step="0.01" class="form-control" value="@EntradaNumerica.Importe(_edicion.PrecioBase)" @onchange="e => CambiarCosto(c => _edicion!.PrecioBase = c, e.Value?.ToString(), 'b')" @key="ClaveCosto('b')" /></div>
                         @if (!Sesion.EsCostaPets)
                         {
-                            <div class="col-12 col-md-4"><label class="form-label">Fletes</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.Fletes" /></div>
-                            <div class="col-12 col-md-4"><label class="form-label">Otros cargos</label><input type="number" min="0" step="0.01" class="form-control" @bind="_edicion.OtrosCargos" /></div>
+                            <div class="col-12 col-md-3"><label class="form-label">Fletes</label><input type="number" min="0" step="0.01" class="form-control" value="@EntradaNumerica.Importe(_edicion.Fletes)" @onchange="e => CambiarCosto(c => _edicion!.Fletes = c, e.Value?.ToString(), 'f')" @key="ClaveCosto('f')" /></div>
+                            <div class="col-12 col-md-3"><label class="form-label">Otros cargos</label><input type="number" min="0" step="0.01" class="form-control" value="@EntradaNumerica.Importe(_edicion.OtrosCargos)" @onchange="e => CambiarCosto(c => _edicion!.OtrosCargos = c, e.Value?.ToString(), 'o')" @key="ClaveCosto('o')" /></div>
                         }
+                        <div class="col-12 col-md-3">
+                            <label class="form-label">Costo total</label>
+                            <input type="text" readonly class="form-control fw-semibold" value="@Formato.Importe(CostoCalculado)" />
+                        </div>
+                        <div class="col-12"><p class="form-text mb-0">Sobre este costo se calculan las utilidades y los precios de la tabla de abajo. @(_edicion.Costo <= 0 ? "El artículo no tiene costo registrado: al guardar se toma el costo total." : "Costo registrado del artículo (el que dejan las compras): " + Formato.Importe((decimal)_edicion.Costo) + ".")</p></div>
                         <div class="col-12 col-md-4">
-                            <label class="form-label">Impuesto</label>
+                            <label class="form-label">Impuesto *</label>
                             <select class="form-select" @bind="_edicion.Id_Impuesto" @bind:after="AlCambiarImpuesto">
                                 <option value="0">Seleccione...</option>
                                 @foreach (var i in _impuestos)
@@ -526,20 +599,75 @@
                                 }
                             </select>
                         </div>
-                        <div class="col-12 col-md-4"><label class="form-label">Tarifa</label><select class="form-select" @bind="_tarifaPrecio"><option value="A">Precio A</option><option value="B">Precio B</option><option value="C">Precio C</option><option value="D">Precio D</option><option value="P">Promoción</option></select></div>
-                        <div class="col-12 col-md-4"><label class="form-label">Utilidad (%)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_utilidadPrecio" /></div>
-                        <div class="col-12 col-md-4 d-grid align-self-end"><button type="button" class="btn btn-outline-primary" @onclick="CalcularPrecio">Calcular precio</button></div>
-                        <div class="col-12 col-md-6"><label class="form-label">Precio sin impuesto</label><input type="number" min="0" step="0.01" class="form-control" @bind="PrecioTarifaActual" @bind:after="RecalcularUtilidadDesdePrecio" /></div>
-                        <div class="col-12 col-md-6"><label class="form-label">Precio con impuesto</label><input type="text" readonly class="form-control" value="@PrecioConImpuestoTexto" /></div>
+                        <div class="col-12 seepos-form-seccion">Precios de venta</div>
+                        <div class="col-12">
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-1">
+                                    <thead>
+                                        <tr>
+                                            <th>Tarifa</th>
+                                            <th style="width:9rem">Utilidad (%)</th>
+                                            <th style="width:12rem">Precio sin impuesto</th>
+                                            <th class="text-end" style="width:12rem">Precio con impuesto</th>
+                                            @if (MuestraPrecioFinalColones) { <th class="text-end" style="width:12rem">Final en colones</th> }
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var f in FilasPrecio)
+                                        {
+                                            <tr>
+                                                <td>@f.Nombre</td>
+                                                <td><input @key="ClaveCampo('u', f)" type="number" step="0.01" class="form-control form-control-sm" aria-label="@($"Utilidad {f.Nombre}")" disabled="@(!Sesion.PuedeCambiarPrecio)"
+                                                           value="@EntradaNumerica.Importe(UtilidadDe(f))" @onchange="e => CambiarUtilidad(f, e.Value?.ToString())" /></td>
+                                                <td><input @key="ClaveCampo('p', f)" type="number" min="0" step="0.01" class="form-control form-control-sm" aria-label="@($"Precio sin impuesto {f.Nombre}")" disabled="@(!Sesion.PuedeCambiarPrecio)"
+                                                           value="@EntradaNumerica.Importe(PrecioDe(f))" @onchange="e => CambiarPrecio(f, e.Value?.ToString())" /></td>
+                                                <td class="text-end seepos-importe">@Formato.Importe(ConImpuesto(PrecioDe(f)))</td>
+                                                @if (MuestraPrecioFinalColones) { <td class="text-end seepos-importe">@Formato.Importe(FinalEnColones(PrecioDe(f)))</td> }
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            @if (!Sesion.PuedeCambiarPrecio) { <p class="form-text text-warning-emphasis mb-1"><i class="bi bi-lock-fill me-1" aria-hidden="true"></i>No tiene permiso para modificar precios ni utilidades.</p> }
+                            <p class="form-text mb-0">Escriba la utilidad para calcular el precio, o el precio para ver su utilidad. @(_extras.Count > 0 ? "Las tarifas nuevas se guardan por artículo." : "Las tarifas nuevas se crean en Catálogos → Tarifas.")</p>
+                        </div>
+
+                        <div class="col-12 seepos-form-seccion">Descuento</div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="articulo-max-descuento">Descuento máximo</label>
+                            <div class="input-group"><input id="articulo-max-descuento" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.Max_Descuento" /><span class="input-group-text">%</span></div>
+                            <p class="form-text mb-0">Tope que se puede dar por línea al facturar. En 0 no se permite descuento, salvo que un administrador quite el tope en esa línea.</p>
+                        </div>
 
                         <div class="col-12 seepos-form-seccion">Último costo</div>
                         <div class="col-12 col-md-4">
                             <label class="form-label" for="articulo-moneda-costo">Moneda del costo</label>
-                            <select id="articulo-moneda-costo" class="form-select" @bind="_edicion.MonedaCosto">
+                            <select id="articulo-moneda-costo" class="form-select" @bind="_edicion.MonedaCosto" @bind:after="AlCambiarMonedaCosto">
                                 <option value="1">Colones</option>
                                 <option value="2">Dólares</option>
                             </select>
                         </div>
+                        @if (_edicion.MonedaCosto > 1)
+                        {
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input id="articulo-convierte-colones" class="form-check-input" type="checkbox"
+                                           @bind="_edicion.ConviertePrecioColones" @bind:after="AlCambiarConvierteColones" />
+                                    <label class="form-check-label" for="articulo-convierte-colones">Convertir a colones para la venta</label>
+                                </div>
+                                <p class="form-text mb-0">El tipo de cambio se congela en este artículo. No cambia en cada factura. Actualícelo aquí cuando quiera recotizar.</p>
+                            </div>
+                        }
+                        @if (MuestraPrecioFinalColones)
+                        {
+                            <div class="col-12 col-md-4">
+                                <label class="form-label">Tipo de cambio (Valor venta)</label>
+                                <div class="input-group">
+                                    <input type="text" readonly class="form-control" value="@_edicion.TipoCambioVenta.ToString("N4")" />
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="TomarTipoCambio">Actualizar</button>
+                                </div>
+                            </div>
+                        }
                         <div class="col-12 col-md-4">
                             <label class="form-label">Costo (base + fletes + otros)</label>
                             <input type="text" readonly class="form-control" value="@Formato.Importe(CostoCalculado)" />
@@ -672,16 +800,16 @@
                                     <div class="list-group position-absolute shadow w-100" style="z-index: 5; max-height: 14rem; overflow-y: auto;">
                                         @foreach (var i in _insumosFormula)
                                         {
-                                            <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center @(i.TipoArticulo == 2 ? "" : "list-group-item-warning")" @onclick="() => ElegirInsumoFormula(i)">
+                                            <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" @onclick="() => ElegirInsumoFormula(i)">
                                                 <span><strong>@i.Cod_Articulo</strong> <span class="text-secondary">@i.Descripcion</span></span>
-                                                <span class="badge @(i.TipoArticulo == 2 ? "text-bg-success" : "text-bg-secondary")">@TipoArticuloTexto(i.TipoArticulo)</span>
+                                                <span class="badge text-bg-success">@TipoArticuloTexto(i.TipoArticulo)</span>
                                             </button>
                                         }
                                     </div>
                                 }
                                 else if (_insumoFormulaBuscado && !string.IsNullOrWhiteSpace(_textoInsumoFormula))
                                 {
-                                    <div class="form-text text-danger">Sin artículos para esa búsqueda.</div>
+                                    <div class="form-text text-danger">Sin materias primas para esa búsqueda.</div>
                                 }
                                 @if (_codigoFormula > 0)
                                 {
@@ -696,7 +824,44 @@
                             }
                             else
                             {
-                                <div class="col-12 table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Insumo</th><th class="text-end">Cantidad</th><th></th></tr></thead><tbody>@foreach (var item in _formula) { <tr><td><strong>@item.CodArticulo</strong><br /><span class="small text-secondary">@item.Descripcion</span></td><td class="text-end">@item.CantidadPorUnidad.ToString("N4")</td><td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarFormula(item)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button></td></tr> }</tbody></table></div>
+                                <div class="col-12 table-responsive">
+                                    <table class="table table-sm align-middle">
+                                        <thead><tr><th>Insumo</th><th class="text-end">Cantidad</th><th></th></tr></thead>
+                                        <tbody>
+                                            @foreach (var item in _formula)
+                                            {
+                                                <tr>
+                                                    <td><strong>@item.CodArticulo</strong><br /><span class="small text-secondary">@item.Descripcion</span></td>
+                                                    @if (_formulaEditando == item.IdInsumo)
+                                                    {
+                                                        <td class="text-end"><input type="number" min="0.0001" step="0.0001" class="form-control form-control-sm text-end ms-auto" style="max-width: 9rem;" aria-label="Cantidad por unidad" @bind="_cantidadFormulaEdicion" /></td>
+                                                        <td class="text-end text-nowrap">
+                                                            <button type="button" class="btn btn-sm btn-primary" @onclick="() => GuardarEdicionFormula(item)">Guardar</button>
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelarAccionFormula">Cancelar</button>
+                                                        </td>
+                                                    }
+                                                    else if (_formulaQuitando == item.IdInsumo)
+                                                    {
+                                                        <td class="text-end">@item.CantidadPorUnidad.ToString("N4")</td>
+                                                        <td class="text-end text-nowrap">
+                                                            <span class="small text-danger me-1">¿Quitar este insumo?</span>
+                                                            <button type="button" class="btn btn-sm btn-danger" @onclick="() => QuitarFormula(item)">Sí, quitar</button>
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelarAccionFormula">No</button>
+                                                        </td>
+                                                    }
+                                                    else
+                                                    {
+                                                        <td class="text-end">@item.CantidadPorUnidad.ToString("N4")</td>
+                                                        <td class="text-end text-nowrap">
+                                                            <button type="button" class="btn btn-sm btn-link" @onclick="() => EditarFormula(item)"><i class="bi bi-pencil" aria-hidden="true"></i> Editar</button>
+                                                            <button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => PedirQuitarFormula(item)"><i class="bi bi-trash" aria-hidden="true"></i> Quitar</button>
+                                                        </td>
+                                                    }
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
                             }
                         </div>
                     }
@@ -746,10 +911,23 @@
                         }
                     </div>
                 }
+                else if (_pestanaInventario == "registro")
+                {
+                    <CertificadosRegistroPanel Dueno="articulo" IdDueno="_edicion.Codigo" SoloLectura="@(!Sesion.Puede(Titulo, AccionPantalla.Modificar))" />
+                }
                 else if (_pestanaInventario == "otros")
                 {
                     <div class="row g-3">
-                        <div class="col-12"><h3 class="h6 mb-0">Rebaja otro artículo</h3><p class="form-text">Al vender este artículo, rebaja existencia de otro (por ejemplo, un combo que consume un componente).</p></div>
+                        <div class="col-12"><h3 class="h6 mb-0">Presentación empaquetada</h3>
+                            @if (Sesion.EsCostaPets)
+                            {
+                                <p class="form-text">Elija el artículo que se rebaja del inventario y cuántas unidades se rebajan por cada venta de este código.</p>
+                            }
+                            else
+                            {
+                            <p class="form-text">Si este código es una caja o paquete, elija el artículo unidad y cuántas unidades trae cada caja. El inventario se controla en la unidad: vender 1 caja descuenta ese factor. El comprobante sigue mostrando este código y su precio. Un factor mayor que 1 activa este comportamiento.</p>
+                            }
+                        </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label">Artículo a rebajar</label>
                             <div class="input-group">
@@ -757,14 +935,25 @@
                                 <button type="button" class="btn btn-outline-primary" @onclick="AbrirBuscadorDescarga"><i class="bi bi-search" aria-hidden="true"></i></button>
                             </div>
                         </div>
+                        @if (!Sesion.EsCostaPets)
+                        {
                         <div class="col-12 col-md-6"><label class="form-label">Código de presentación</label><input type="number" min="0" class="form-control" @bind="_edicion.Cod_PresentOtro" /></div>
                         <div class="col-12 col-md-6"><label class="form-label">Cantidad de presentación</label><input type="number" min="0" step="0.001" class="form-control" @bind="_edicion.CantidadPresentOtro" /></div>
-                        <div class="col-12 col-md-6"><label class="form-label">Cantidad a descargar</label><input type="number" min="0" step="0.001" class="form-control" @bind="_edicion.CantidadDescarga" /></div>
+                        }
+                        <div class="col-12 col-md-6"><label class="form-label">@(Sesion.EsCostaPets ? "Cantidad a rebajar" : "Unidades por caja")</label><input type="number" min="0" step="1" class="form-control" @bind="_edicion.CantidadDescarga" @bind:after="AlCambiarFactorEmpaque" /></div>
+                        <div class="col-12">
+                            <div class="alert @(ResumenEmpaque.Valido ? "alert-success" : "alert-light border") py-2 mb-0" role="status" aria-live="polite">
+                                <i class="bi @(ResumenEmpaque.Valido ? "bi-check-circle" : "bi-info-circle") me-1" aria-hidden="true"></i>@ResumenEmpaque.Texto
+                            </div>
+                        </div>
 
+                        @if (!Sesion.EsCostaPets)
+                        {
                         <div class="col-12"><hr /><h3 class="h6 mb-0">Información de proveedor</h3></div>
                         <div class="col-12 col-md-4"><label class="form-label">Código QVET</label><input type="number" min="0" class="form-control" @bind="_edicion.IdCodigoInternoQvet" /></div>
                         <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Código de proveedor" @bind-Valor="_edicion.CodigoProveedor" /></div>
                         <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Descripción de proveedor" @bind-Valor="_edicion.DescripcionProveedor" /></div>
+                        }
                     </div>
                 }
                 else if (_pestanaInventario == "existencias")
@@ -782,7 +971,14 @@
                     else
                     {
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <div><span class="text-secondary small d-block">Existencia total</span><span class="h5 mb-0">@_existenciaConsol.ExistenciaTotal.ToString("N2")</span></div>
+                            <div>
+                                <span class="text-secondary small d-block">Existencia total</span>
+                                <span class="h5 mb-0">@_existenciaConsol.ExistenciaTotal.ToString("N2")</span>
+                                @if (_existenciaConsol.EsPresentacionEmpaquetada)
+                                {
+                                    <div class="form-text mb-0">Cajas disponibles (unidades ÷ @_existenciaConsol.FactorEmpaque.ToString("0.###") de @_existenciaConsol.CodArticuloUnidad). El ajuste se hace en el artículo unidad.</div>
+                                }
+                            </div>
                             <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CargarExistencias">Refrescar</button>
                         </div>
 
@@ -796,10 +992,20 @@
                                     <tr>
                                         <td>@b.NombreBodega</td>
                                         <td class="text-end">@b.Existencia.ToString("N2")</td>
-                                        <td class="text-end"><div class="input-group input-group-sm">
-                                            <input type="number" step="0.001" min="0" class="form-control text-end" @bind="_ajusteExistencia" />
-                                            <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(b.IdBodega, null)">Aplicar</button>
-                                        </div></td>
+                                        <td class="text-end">
+                                            @if (_existenciaConsol.EsPresentacionEmpaquetada)
+                                            {
+                                                <span class="text-secondary small">Ajuste en el artículo unidad</span>
+                                            }
+                                            else
+                                            {
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" step="0.001" min="0" class="form-control text-end"
+                                                           value="@AjusteTexto(b.IdBodega, null)" @onchange="e => SetAjuste(b.IdBodega, null, e.Value?.ToString())" />
+                                                    <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(b.IdBodega, null, AjusteDe(b.IdBodega, null))">Aplicar</button>
+                                                </div>
+                                            }
+                                        </td>
                                     </tr>
                                 }
                                 @if (_existenciaConsol.PorBodega.Count == 0)
@@ -823,10 +1029,20 @@
                                             <td>@(l.Vencimiento?.ToString("dd/MM/yyyy") ?? "—")</td>
                                             <td>@pb.NombreBodega</td>
                                             <td class="text-end">@pb.Existencia.ToString("N2")</td>
-                                            <td class="text-end"><div class="input-group input-group-sm">
-                                                <input type="number" step="0.001" min="0" class="form-control text-end" @bind="_ajusteExistencia" />
-                                                <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(pb.IdBodega, l.Id)">Aplicar</button>
-                                            </div></td>
+                                            <td class="text-end">
+                                                @if (_existenciaConsol.EsPresentacionEmpaquetada)
+                                                {
+                                                    <span class="text-secondary small">Ajuste en el artículo unidad</span>
+                                                }
+                                                else
+                                                {
+                                                    <div class="input-group input-group-sm">
+                                                        <input type="number" step="0.001" min="0" class="form-control text-end"
+                                                               value="@AjusteTexto(pb.IdBodega, l.Id)" @onchange="e => SetAjuste(pb.IdBodega, l.Id, e.Value?.ToString())" />
+                                                        <button type="button" class="btn btn-outline-primary" @onclick="() => AjustarExistencia(pb.IdBodega, l.Id, AjusteDe(pb.IdBodega, l.Id))">Aplicar</button>
+                                                    </div>
+                                                }
+                                            </td>
                                         </tr>
                                     }
                                     var bodegasNuevasLote = _bodegasMov.Where(b => !l.PorBodega.Any(pb => pb.IdBodega == b.IdBodega)).ToList();
@@ -842,9 +1058,10 @@
                                             </td>
                                             <td class="text-end">0,00</td>
                                             <td class="text-end"><div class="input-group input-group-sm">
-                                                <input type="number" step="0.001" min="0" class="form-control text-end" @bind="_ajusteExistencia" />
+                                                <input type="number" step="0.001" min="0" class="form-control text-end"
+                                                       value="@AjusteNuevaBodegaTexto(l.Id)" @onchange="e => SetAjusteNuevaBodega(l.Id, e.Value?.ToString())" />
                                                 <button type="button" class="btn btn-outline-primary"
-                                                        @onclick="() => AjustarExistencia(BodegaSeleccionadaLote(l.Id, bodegasNuevasLote), l.Id)">
+                                                        @onclick="() => AjustarExistencia(BodegaSeleccionadaLote(l.Id, bodegasNuevasLote), l.Id, AjusteNuevaBodegaDe(l.Id))">
                                                     Aplicar
                                                 </button>
                                             </div></td>
@@ -968,6 +1185,30 @@
     private HxOffcanvas _detalle = default!;
     private HxModal _modal = default!;
     private HxModal _modalCabys = default!;
+    private HxModal _modalRevisionCabys = default!;
+    private DTOs.Inventario.ResultadoAuditoriaCabysWeb? _cabysResultado;
+    private bool _cabysCargando;
+    private bool _cabysSoloActivos = true;
+
+    private async Task AbrirRevisionCabys()
+    {
+        _cabysResultado = null;
+        await _modalRevisionCabys.ShowAsync();
+        await CargarRevisionCabys();
+    }
+
+    private async Task CargarRevisionCabys()
+    {
+        _cabysCargando = true;
+        _cabysResultado = await Respuestas.DatoAsync(await AuditoriaCabys.Obtener(_cabysSoloActivos), "revisar los CABYS");
+        _cabysCargando = false;
+    }
+
+    private async Task EditarDesdeRevisionCabys(DTOs.Inventario.ArticuloCabysInconsistenteWeb a)
+    {
+        await _modalRevisionCabys.HideAsync();
+        await Editar(new InventarioDTO { Codigo = a.Codigo, Descripcion = a.Descripcion });
+    }
 
     private string _ultimoCodigoArticulo = string.Empty;
     private string _texto = string.Empty;
@@ -1006,13 +1247,14 @@
     private string _nuevoCodigoBarras = string.Empty;
     private string _tarifaCodigoBarras = string.Empty;
     private string _pestanaInventario = "generales";
-    private string _tarifaPrecio = "A";
-    private float _utilidadPrecio;
     private int _tipoArticulo = 1;
     private List<SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente> _formula = new();
     private long _codigoFormula;
     private double _cantidadFormula = 1;
     private string? _errorFormula;
+    private long? _formulaEditando;
+    private long? _formulaQuitando;
+    private double _cantidadFormulaEdicion;
     private string _textoInsumoFormula = string.Empty;
     private List<InventarioDTO> _insumosFormula = new();
     private bool _buscandoInsumoFormula, _insumoFormulaBuscado;
@@ -1024,6 +1266,7 @@
     private double _cantidadNuevoLote;
     private List<SubFamiliasFilterInventarioDTO> _familias = new();
     private List<ImpuestoFiscalDTO> _impuestos = new();
+    private List<MonedaFiscalDTO> _monedas = new();
     private List<ProveedoresFilterInventarioDTO> _proveedoresInventario = new();
     private List<Presentacione> _presentaciones = new();
     private string _textoCabys = string.Empty;
@@ -1243,6 +1486,7 @@
         ReiniciarEditorProduccion();
         ReiniciarImagenEditor();
         await CargarCatalogosInventario();
+        await CargarTarifasEdicion(0);
         _ultimoCodigoArticulo = (await Respuestas.DatoAsync(await Api.UltimoCodigo(), "consultar el último código"))?.Codigo ?? string.Empty;
         _edicion = new InventarioDTO
         {
@@ -1271,6 +1515,7 @@
         ReiniciarEditorProduccion();
         ReiniciarImagenEditor();
         await CargarCatalogosInventario();
+        await CargarTarifasEdicion(_edicion.Codigo);
         // §3 lotes — el tipo lo trae el DTO (1=Normal, 2=MP, 3=PT). Compat: si el
         // artículo aún no tiene tipo migrado, se infiere de EsPadre.
         _tipoArticulo = _edicion.TipoArticulo is 1 or 2 or 3
@@ -1304,6 +1549,8 @@
         return true;
     }
 
+    private Task GuardarDesdeFormulario(EditContext _) => Guardar();
+
     private async Task Guardar()
     {
         if (_edicion is null || _guardando)
@@ -1311,16 +1558,32 @@
             return;
         }
 
-        if ((string.IsNullOrWhiteSpace(_edicion.Cod_Articulo) || string.IsNullOrWhiteSpace(_edicion.Descripcion))
-            && await AvisoValidacion("Código y descripción son obligatorios.")) return;
+        var faltantes = new List<string>();
+        if (string.IsNullOrWhiteSpace(_edicion.Cod_Articulo)) faltantes.Add("Código");
+        if (string.IsNullOrWhiteSpace(_edicion.Descripcion)) faltantes.Add("Descripción");
+        if (_edicion.Id_Impuesto <= 0) faltantes.Add("Impuesto");
+        if (_edicion.SubFamilia <= 0) faltantes.Add("Familia");
+        if (faltantes.Count > 0)
+        {
+            _pestanaInventario = faltantes.Count == 1 && faltantes[0] == "Impuesto"
+                ? "precios"
+                : "generales";
+            if (await AvisoValidacion(ValidacionFormulario.MensajeCamposFaltantes(faltantes))) return;
+        }
 
         _edicion.Cod_Articulo = _edicion.Cod_Articulo!.Trim();
+        if (_edicion.MonedaCosto <= 1)
+        {
+            _edicion.ConviertePrecioColones = false;
+            _edicion.TipoCambioVenta = 1;
+        }
+        else if (_edicion.ConviertePrecioColones && _edicion.TipoCambioVenta <= 0)
+        {
+            await TomarTipoCambio();
+        }
 
         if (_esNuevo && _todos.Any(a => string.Equals(a.Cod_Articulo?.Trim(), _edicion.Cod_Articulo, StringComparison.OrdinalIgnoreCase))
             && await AvisoValidacion($"Ya existe un artículo con el código «{_edicion.Cod_Articulo}». El código debe ser único.")) return;
-
-        if (_edicion.Id_Impuesto <= 0
-            && await AvisoValidacion("Seleccione el impuesto del artículo.")) return;
 
         if (!await Dialogos.ConfirmarAsync(_esNuevo ? "Se registrará el nuevo artículo." : "Se actualizarán los datos del artículo."))
         {
@@ -1338,10 +1601,12 @@
             var codigoArticulo = respuesta.Responses?.Codigo > 0 ? respuesta.Responses.Codigo : _edicion.Codigo;
             var imagenGuardada = !_imagenEditorModificada
                 || (codigoArticulo > 0 && await GuardarCambiosImagen(codigoArticulo));
+            var preciosGuardados = await GuardarPreciosExtras(codigoArticulo);
             await _modal.HideAsync();
-            Dialogos.Exito(imagenGuardada
-                ? (_esNuevo ? "Artículo creado." : "Artículo actualizado.")
-                : (_esNuevo ? "Artículo creado, pero no se pudo guardar la imagen." : "Artículo actualizado, pero no se pudo guardar la imagen."));
+            var aviso = (imagenGuardada ? string.Empty : ", pero no se pudo guardar la imagen")
+                + (preciosGuardados ? string.Empty : (imagenGuardada ? ", pero" : " ni") + " no se pudieron guardar los precios de las tarifas nuevas");
+            var baseMensaje = _esNuevo ? "Artículo creado" : "Artículo actualizado";
+            Dialogos.Exito(baseMensaje + aviso + ".");
             await RecargarDesdeApi();
         }
         else if (_edicion is not null)
@@ -1387,6 +1652,7 @@
     private string ClasePestanaFormula => ClasePestana("formula");
     private string ClasePestanaLotes => ClasePestana("lotes");
     private string ClasePestanaBonificacion => ClasePestana("bonificacion");
+    private string ClasePestanaRegistro => ClasePestana("registro");
     private string ClasePestanaOtros => ClasePestana("otros");
     private string ClasePestanaExistencias => ClasePestana("existencias");
     private string ClasePestanaMovimientos => ClasePestana("movimientos");
@@ -1402,13 +1668,18 @@
     private void MostrarFormula() => _pestanaInventario = "formula";
     private void MostrarLotes() => _pestanaInventario = "lotes";
     private void MostrarBonificacion() => _pestanaInventario = "bonificacion";
+    private void MostrarRegistro() => _pestanaInventario = "registro";
     private void MostrarOtros() => _pestanaInventario = "otros";
 
     // ---- §3.1b/c — pestañas Existencias y Movimientos ----
     private ExistenciaConsolidada? _existenciaConsol;
     private MovimientoInventarioPagina? _movimientos;
     private bool _cargandoExistencias, _cargandoMovimientos;
-    private double _ajusteExistencia;
+    // Un valor por fila (bodega + lote), no un solo campo compartido: antes todas las
+    // filas de "Ajustar a" mostraban el mismo número porque @bind apuntaba a un único
+    // _ajusteExistencia, y "Aplicar" en cualquier fila mandaba ese mismo valor compartido.
+    private readonly Dictionary<(int Bodega, long? IdLote), double> _ajustesExistencia = new();
+    private readonly Dictionary<long, double> _ajustesNuevaBodegaLote = new();
     private int _movPagina = 1;
     private DateTime? _movDesde, _movHasta;
     private int _movBodega;
@@ -1447,6 +1718,22 @@
         if (int.TryParse(e.Value?.ToString(), out var b)) _bodegaNuevaPorLote[idLote] = b;
     }
 
+    private double AjusteDe(int bodega, long? idLote) => _ajustesExistencia.TryGetValue((bodega, idLote), out var v) ? v : 0;
+    private string AjusteTexto(int bodega, long? idLote) => AjusteDe(bodega, idLote).ToString(System.Globalization.CultureInfo.InvariantCulture);
+    private void SetAjuste(int bodega, long? idLote, string? texto)
+    {
+        if (double.TryParse(texto, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v))
+            _ajustesExistencia[(bodega, idLote)] = v;
+    }
+
+    private double AjusteNuevaBodegaDe(long idLote) => _ajustesNuevaBodegaLote.TryGetValue(idLote, out var v) ? v : 0;
+    private string AjusteNuevaBodegaTexto(long idLote) => AjusteNuevaBodegaDe(idLote).ToString(System.Globalization.CultureInfo.InvariantCulture);
+    private void SetAjusteNuevaBodega(long idLote, string? texto)
+    {
+        if (double.TryParse(texto, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v))
+            _ajustesNuevaBodegaLote[idLote] = v;
+    }
+
     private async Task MostrarMovimientos()
     {
         _pestanaInventario = "movimientos";
@@ -1460,6 +1747,8 @@
         _cargandoExistencias = true;
         var r = await Lotes2.ExistenciaConsolidadaAsync(_edicion.Codigo);
         _cargandoExistencias = false;
+        _ajustesExistencia.Clear();
+        _ajustesNuevaBodegaLote.Clear();
         _existenciaConsol = r.Status == DTOs.Generated.ResponseStatus._0 ? r.Responses : null;
         if (_existenciaConsol is null && !string.IsNullOrWhiteSpace(r.CurrentException))
             await Dialogos.ErrorAsync(r.CurrentException);
@@ -1485,9 +1774,14 @@
             await Dialogos.ErrorAsync(r.CurrentException);
     }
 
-    private async Task AjustarExistencia(int bodega, long? idStockLote)
+    private async Task AjustarExistencia(int bodega, long? idStockLote, double cantidad)
     {
         if (_edicion is null) return;
+        if (_existenciaConsol?.EsPresentacionEmpaquetada == true)
+        {
+            await Dialogos.ErrorAsync("Esta presentación no tiene existencia propia. Ajuste el artículo unidad.");
+            return;
+        }
         if (bodega <= 0)
         {
             await Dialogos.ErrorAsync("Seleccione la bodega antes de aplicar el ajuste.");
@@ -1497,15 +1791,16 @@
                             ?? _existenciaConsol?.Lotes.SelectMany(l => l.PorBodega).FirstOrDefault(b => b.IdBodega == bodega)?.NombreBodega
                             ?? _bodegasMov.FirstOrDefault(b => b.IdBodega == bodega)?.NombreBodega
                             ?? $"bodega {bodega}";
-        if (!await Dialogos.ConfirmarAsync(
-                $"Se fijará la existencia en {nombreBodega} en {_ajusteExistencia:N2} y quedará registrado el movimiento.", "Ajustar existencia"))
-            return;
+        var confirmoAjuste = await Dialogos.ConfirmarAsync(
+            $"Se fijará la existencia en {nombreBodega} en {cantidad:N2} y quedará registrado el movimiento.", "Ajustar existencia");
+        await ReabrirEdicionArticulo();
+        if (!confirmoAjuste) return;
         var r = await Lotes2.ActualizarExistenciaAsync(new ActualizarExistencia
         {
             IdArticulo = _edicion.Codigo,
             Bodega = bodega,
             IdStockLote = idStockLote,
-            Cantidad = _ajusteExistencia,
+            Cantidad = cantidad,
             Observaciones = "Ajuste manual desde inventario"
         });
         if (r.Status != DTOs.Generated.ResponseStatus._0)
@@ -1515,6 +1810,26 @@
         }
         Dialogos.Exito("Existencia ajustada.");
         await CargarExistencias();
+        if (_movimientos is not null) await CargarMovimientos(1);
+        await RefrescarListadoAsync();
+    }
+
+    /// <summary>
+    /// El ajuste cambia la existencia que muestran la rejilla, la tarjeta de resumen y las
+    /// presentaciones derivadas del artículo; sin esto había que recargar la página.
+    /// </summary>
+    private async Task RefrescarListadoAsync()
+    {
+        if (!_modoBusqueda) await RecargarDesdeApi();
+        else if (Helpers.Texto.Normalizar(_texto).Length >= 2)
+        {
+            _todos = (await Respuestas.DatoAsync(await Api.Buscar(_texto, IncluirInhabilitados), "actualizar el inventario"))
+                     ?.ToList() ?? _todos;
+            Refiltrar();
+        }
+
+        if (_elegido is not null)
+            _elegido = _todos.FirstOrDefault(a => a.Codigo == _elegido.Codigo) ?? _elegido;
     }
 
     // Costo = base + fletes + otros cargos, igual que el sistema actual
@@ -1528,7 +1843,51 @@
     private void ElegirArticuloDescarga(InventarioDTO articulo)
     {
         _articuloDescargaSeleccionado = articulo;
-        if (_edicion is not null) _edicion.CodigoDescarga = articulo.Cod_Articulo;
+        if (_edicion is not null)
+        {
+            _edicion.CodigoDescarga = articulo.Cod_Articulo;
+            AlCambiarFactorEmpaque();
+        }
+    }
+
+    /// <summary>Confirma en palabras la relación caja/unidad que se está capturando, para
+    /// detectar un error de digitación antes de guardar.</summary>
+    private (string Texto, bool Valido) ResumenEmpaque
+    {
+        get
+        {
+            if (_edicion is null) return (string.Empty, false);
+            var caja = (_edicion.Cod_Articulo ?? string.Empty).Trim();
+            var unidad = (_edicion.CodigoDescarga ?? string.Empty).Trim();
+            var factor = Convert.ToDouble(_edicion.CantidadDescarga);
+            if (unidad.Length == 0 && factor <= 1)
+                return ("Sin presentación empaquetada: este artículo se controla por sí mismo.", false);
+            if (unidad.Length == 0)
+                return ("Elija el artículo a rebajar.", false);
+            if (factor <= 1)
+                return ("Indique una cantidad mayor que 1 para activar la presentación empaquetada.", false);
+            if (string.Equals(caja, unidad, StringComparison.OrdinalIgnoreCase))
+                return ("Un artículo no puede rebajarse a sí mismo.", false);
+            var nombreCaja = caja.Length == 0 ? "(sin código todavía)" : caja;
+            var cantidad = factor.ToString("0.###");
+            var descripcion = _articuloDescargaSeleccionado is { } a
+                && string.Equals((a.Cod_Articulo ?? string.Empty).Trim(), unidad, StringComparison.OrdinalIgnoreCase)
+                    ? $" ({a.Descripcion})" : string.Empty;
+            return ($"El artículo {nombreCaja} equivale a {cantidad} unidades del artículo {unidad}{descripcion}. "
+                + $"Vender 1 de {nombreCaja} descuenta {cantidad} de {unidad}.", true);
+        }
+    }
+
+    private void AlCambiarFactorEmpaque()
+    {
+        if (_edicion is null) return;
+        _edicion.DescargaOtro = !string.IsNullOrWhiteSpace(_edicion.CodigoDescarga)
+            && _edicion.CantidadDescarga > 1;
+        if (_edicion.DescargaOtro)
+        {
+            _edicion.Lote = false;
+            _edicion.LoteUnico = false;
+        }
     }
 
 
@@ -1616,7 +1975,7 @@
 
     private async Task EliminarBonificacionArticulo(ArticuloBonificacionConfiguracion bonificacion)
     {
-        if (!await Dialogos.ConfirmarPeligroAsync("¿Desea quitar esta bonificación del artículo?")) return;
+        if (!await ConfirmarQuitarEnFichaAsync("¿Desea quitar esta bonificación del artículo?")) return;
 
         if (await Respuestas.CorrectaAsync(await ArticuloBonificacion.Eliminar(bonificacion.IdConfiguracion), "quitar la bonificación"))
         {
@@ -1637,6 +1996,18 @@
         if (_edicion is not null) await _modal.ShowAsync();
     }
 
+    /// <summary>
+    /// Confirmación de algo que se quita desde dentro de "Editar artículo". El cuadro de
+    /// confirmación es otro modal y HxModal cierra el que estaba abierto, así que la ficha
+    /// se vuelve a mostrar (con su estado) sea cual sea la respuesta.
+    /// </summary>
+    private async Task<bool> ConfirmarQuitarEnFichaAsync(string mensaje)
+    {
+        var acepto = await Dialogos.ConfirmarPeligroAsync(mensaje);
+        await ReabrirEdicionArticulo();
+        return acepto;
+    }
+
     private async Task AgregarProductoRegalo()
     {
         if (_edicion is null || _articuloRegaloSeleccionado is null) return;
@@ -1654,7 +2025,7 @@
 
     private async Task QuitarProductoRegalo(ArticulosRelacionadosDTO producto)
     {
-        if (_edicion is null || !await Dialogos.ConfirmarPeligroAsync("¿Quitar este artículo de la mezcla?")) return;
+        if (_edicion is null || !await ConfirmarQuitarEnFichaAsync("¿Quitar este artículo de la mezcla?")) return;
 
         if (await Respuestas.CorrectaAsync(
             await Relacionados.GuardarBonificacion(_edicion.Codigo, producto.Codigo, 1, false),
@@ -1665,80 +2036,265 @@
         }
     }
 
-    private float PrecioTarifaActual
+    // ---- Precios por tarifa ------------------------------------------------------
+    // A–D y Promoción viven en el propio artículo; las tarifas nuevas (id 5 o mayor) en _extras.
+
+    private sealed class FilaPrecio
     {
-        get => _edicion is null ? 0 : _tarifaPrecio switch
+        public string Clave { get; init; } = "A";
+        public string Nombre { get; init; } = string.Empty;
+    }
+
+    private sealed class PrecioExtraEdicion
+    {
+        public short IdTarifa { get; init; }
+        public string Nombre { get; init; } = string.Empty;
+        public decimal Precio { get; set; }
+        public decimal? Utilidad { get; set; }
+    }
+
+    private List<TarifaPrecioDTO> _catalogoTarifas = new();
+    private List<PrecioExtraEdicion> _extras = new();
+    private bool _extrasModificados;
+
+    private IEnumerable<FilaPrecio> FilasPrecio
+    {
+        get
         {
+            var legado = new[] { ("A", (short)1), ("B", (short)2), ("C", (short)3), ("D", (short)4) };
+            foreach (var (clave, id) in legado)
+            {
+                var tarifa = _catalogoTarifas.FirstOrDefault(t => t.IdTarifa == id);
+                if (_catalogoTarifas.Count > 0 && (tarifa is null || !tarifa.Activa)) continue;
+                yield return new FilaPrecio { Clave = clave, Nombre = tarifa?.Nombre ?? $"Precio {clave}" };
+            }
+            foreach (var extra in _extras) yield return new FilaPrecio { Clave = "T" + extra.IdTarifa, Nombre = extra.Nombre };
+            yield return new FilaPrecio { Clave = "P", Nombre = "Promoción" };
+        }
+    }
+
+    private PrecioExtraEdicion? Extra(FilaPrecio f)
+        => f.Clave.StartsWith('T') ? _extras.FirstOrDefault(e => "T" + e.IdTarifa == f.Clave) : null;
+
+    private double PrecioDe(FilaPrecio f)
+    {
+        if (_edicion is null) return 0;
+        return f.Clave switch
+        {
+            "A" => _edicion.Precio_A,
             "B" => _edicion.Precio_B,
             "C" => _edicion.Precio_C,
             "D" => _edicion.Precio_D,
             "P" => _edicion.Precio_Promo,
-            _ => _edicion.Precio_A
+            _ => (double)(Extra(f)?.Precio ?? 0)
         };
-        set
+    }
+
+    private double? UtilidadDe(FilaPrecio f)
+    {
+        if (_edicion is null) return null;
+        return f.Clave switch
         {
-            if (_edicion is null) return;
-            switch (_tarifaPrecio)
-            {
-                case "B": _edicion.Precio_B = value; break;
-                case "C": _edicion.Precio_C = value; break;
-                case "D": _edicion.Precio_D = value; break;
-                case "P": _edicion.Precio_Promo = value; break;
-                default: _edicion.Precio_A = value; break;
-            }
+            "A" => _edicion.Utilidad_A,
+            "B" => _edicion.Utilidad_B,
+            "C" => _edicion.Utilidad_C,
+            "D" => _edicion.Utilidad_D,
+            "P" => _edicion.Utilidad_Promo,
+            _ => (double?)Extra(f)?.Utilidad
+        };
+    }
+
+    // Blazor compara contra lo ultimo que pinto, no contra lo que hay en el campo: si el
+    // usuario escribe 10.555 y el modelo ya valia 10.56, el campo se quedaria en 10.555.
+    // Un @key distinto recrea solo ese campo con el valor redondeado.
+    private readonly Dictionary<string, int> _refrescoCampos = new();
+
+    private (string, int) ClaveCampo(char campo, FilaPrecio f) => ClaveCosto(campo + f.Clave);
+
+    private (string, int) ClaveCosto(string clave) => (clave, _refrescoCampos.GetValueOrDefault(clave));
+
+    private (string, int) ClaveCosto(char clave) => ClaveCosto(clave.ToString());
+
+    private void ForzarRefresco(string clave) => _refrescoCampos[clave] = _refrescoCampos.GetValueOrDefault(clave) + 1;
+
+    private static bool TieneMasDeDosDecimales(double v) => Math.Round((decimal)v, 2) != (decimal)v;
+
+    /// <summary>Costo base, fletes y otros cargos: se guardan con 2 decimales.</summary>
+    private void CambiarCosto(Action<float> poner, string? texto, char campo)
+    {
+        if (_edicion is null) return;
+        if (!EntradaNumerica.TryLeer(texto, out var v)) return;
+        poner(EntradaNumerica.Redondear(Math.Max(0, v)));
+        if (v < 0 || TieneMasDeDosDecimales(v)) ForzarRefresco(campo.ToString());
+    }
+
+    private void PonerPrecio(FilaPrecio f, decimal precio)
+    {
+        if (_edicion is null) return;
+        precio = Math.Round(precio, 2);
+        switch (f.Clave)
+        {
+            case "A": _edicion.Precio_A = (float)precio; break;
+            case "B": _edicion.Precio_B = (float)precio; break;
+            case "C": _edicion.Precio_C = (float)precio; break;
+            case "D": _edicion.Precio_D = (float)precio; break;
+            case "P": _edicion.Precio_Promo = (float)precio; break;
+            default:
+                if (Extra(f) is { } extra) { extra.Precio = precio; _extrasModificados = true; }
+                break;
         }
     }
 
-    private decimal PrecioConImpuesto
-        => Math.Round((decimal)PrecioTarifaActual * (1 + (decimal)(_edicion?.IVenta ?? 0) / 100), 2);
-
-    private string PrecioConImpuestoTexto => PrecioConImpuesto.ToString("N2");
-
-    /// <summary>Replica el cálculo de utilidad del inventario anterior sin usar float para operar.</summary>
-    private async Task CalcularPrecio()
+    private void PonerUtilidad(FilaPrecio f, decimal? utilidad)
     {
         if (_edicion is null) return;
-        var basePrecio = (decimal)_edicion.PrecioBase;
-        var utilidad = (decimal)_utilidadPrecio / 100;
+        var valor = utilidad is null ? (float?)null : (float)Math.Round(utilidad.Value, 2);
+        switch (f.Clave)
+        {
+            case "A": _edicion.Utilidad_A = valor; break;
+            case "B": _edicion.Utilidad_B = valor; break;
+            case "C": _edicion.Utilidad_C = valor; break;
+            case "D": _edicion.Utilidad_D = valor; break;
+            case "P": _edicion.Utilidad_Promo = valor; break;
+            default:
+                if (Extra(f) is { } extra) { extra.Utilidad = utilidad is null ? null : Math.Round(utilidad.Value, 2); _extrasModificados = true; }
+                break;
+        }
+    }
+
+    private decimal ConImpuesto(double precio)
+        => Math.Round((decimal)precio * (1 + (decimal)(_edicion?.IVenta ?? 0) / 100), 2);
+
+    private decimal FinalEnColones(double precio)
+        => ConImpuesto((double)PrecioVenta.EnColones(_edicion, (float)precio));
+
+    /// <summary>Al escribir la utilidad se calcula el precio (regla del inventario anterior; CostaPets: sobre el precio).</summary>
+    private async Task CambiarUtilidad(FilaPrecio f, string? texto)
+    {
+        if (_edicion is null || !Sesion.PuedeCambiarPrecio) return;
+        if (string.IsNullOrWhiteSpace(texto)) { PonerUtilidad(f, null); return; }
+        if (!EntradaNumerica.TryLeer(texto, out var pct)) return;
+        var utilidad = (decimal)pct / 100;
         if (Sesion.EsCostaPets && utilidad >= 1)
         {
             await Dialogos.ErrorAsync("La utilidad debe ser menor al 100 % para calcular el precio CostaPets.");
             return;
         }
+        var basePrecio = (decimal)_edicion.PrecioBase;
         var precio = Sesion.EsCostaPets
             ? basePrecio / (1 - utilidad)
             : basePrecio * (1 + utilidad) + (decimal)_edicion.Fletes + (decimal)_edicion.OtrosCargos;
-        PrecioTarifaActual = (float)Math.Round(precio, 2);
+        PonerUtilidad(f, (decimal)pct);
+        PonerPrecio(f, precio);
+        if (TieneMasDeDosDecimales(pct)) ForzarRefresco("u" + f.Clave);
+        if (MuestraPrecioFinalColones) await TomarTipoCambio();
     }
 
-    /// <summary>
-    /// Inverso de <see cref="CalcularPrecio"/>: al escribir el precio de venta se
-    /// recalcula la Utilidad (%) a partir del costo, para no tener que pulsar el botón.
-    /// </summary>
-    private void RecalcularUtilidadDesdePrecio()
+    /// <summary>Al escribir el precio se recalcula su utilidad a partir del costo (inverso de <see cref="CambiarUtilidad"/>).</summary>
+    private void CambiarPrecio(FilaPrecio f, string? texto)
     {
-        if (_edicion is null) return;
+        if (_edicion is null || !Sesion.PuedeCambiarPrecio) return;
+        if (!EntradaNumerica.TryLeer(texto, out var valor)) return;
+        var precio = (decimal)Math.Max(0, valor);
+        PonerPrecio(f, precio);
+        if (valor < 0 || TieneMasDeDosDecimales(valor)) ForzarRefresco("p" + f.Clave);
         var basePrecio = (decimal)_edicion.PrecioBase;
-        var precio = (decimal)PrecioTarifaActual;
         if (basePrecio <= 0 || precio <= 0) return;
-
-        decimal utilidad = Sesion.EsCostaPets
+        var utilidad = Sesion.EsCostaPets
             ? 1 - basePrecio / precio
             : (precio - (decimal)_edicion.Fletes - (decimal)_edicion.OtrosCargos) / basePrecio - 1;
+        PonerUtilidad(f, Math.Max(0, utilidad) * 100);
+    }
 
-        _utilidadPrecio = (float)Math.Round(Math.Max(0, utilidad) * 100, 2);
+    /// <summary>Carga el catálogo de tarifas y los precios del artículo en las nuevas. Si el API aún no las tiene, la ficha sigue con A–D.</summary>
+    private async Task CargarTarifasEdicion(long codigoArticulo)
+    {
+        _catalogoTarifas = new();
+        _extras = new();
+        _extrasModificados = false;
+        var catalogo = await TarifasApi.Listar(false);
+        if (!catalogo.EsCorrecta || catalogo.Responses is null) return;
+        _catalogoTarifas = catalogo.Responses.OrderBy(t => t.Orden).ThenBy(t => t.IdTarifa).ToList();
+
+        var guardados = new List<PrecioTarifaArticuloDTO>();
+        if (codigoArticulo > 0)
+        {
+            var precios = await TarifasApi.PreciosDeArticulo(codigoArticulo);
+            if (precios.EsCorrecta && precios.Responses is not null) guardados = precios.Responses.ToList();
+        }
+        _extras = _catalogoTarifas.Where(t => t.IdTarifa > 4).Select(t =>
+        {
+            var g = guardados.FirstOrDefault(x => x.IdTarifa == t.IdTarifa);
+            return new PrecioExtraEdicion { IdTarifa = t.IdTarifa, Nombre = t.Nombre, Precio = g?.Precio ?? 0, Utilidad = g?.Utilidad };
+        }).ToList();
+    }
+
+    private async Task<bool> GuardarPreciosExtras(long codigoArticulo)
+    {
+        if (!_extrasModificados || _extras.Count == 0 || codigoArticulo <= 0) return true;
+        var r = await TarifasApi.GuardarPreciosDeArticulo(codigoArticulo,
+            _extras.Select(e => new PrecioTarifaArticuloDTO { IdTarifa = e.IdTarifa, Precio = e.Precio, Utilidad = e.Utilidad }).ToList());
+        return await Respuestas.CorrectaAsync(r, "guardar los precios de las tarifas nuevas");
+    }
+
+    private bool MuestraPrecioFinalColones
+        => _edicion is { MonedaCosto: > 1, ConviertePrecioColones: true };
+
+    private async Task AlCambiarMonedaCosto()
+    {
+        if (_edicion is null) return;
+        if (_edicion.MonedaCosto <= 1)
+        {
+            _edicion.ConviertePrecioColones = false;
+            _edicion.TipoCambioVenta = 1;
+            return;
+        }
+        _edicion.ConviertePrecioColones = true;
+        await TomarTipoCambio();
+    }
+
+    private async Task AlCambiarConvierteColones()
+    {
+        if (_edicion is null) return;
+        if (!_edicion.ConviertePrecioColones)
+        {
+            _edicion.TipoCambioVenta = 1;
+            return;
+        }
+        await TomarTipoCambio();
+    }
+
+    private async Task TomarTipoCambio()
+    {
+        if (_edicion is null || _edicion.MonedaCosto <= 1) return;
+        await AsegurarMonedas();
+        var moneda = _monedas.FirstOrDefault(m => m.CodMoneda == _edicion.MonedaCosto);
+        var tc = moneda?.ValorVenta ?? 0;
+        if (tc <= 0)
+        {
+            await Dialogos.ErrorAsync("Esa moneda no tiene tipo de cambio de venta. Revíselo en Monedas.");
+            return;
+        }
+        _edicion.TipoCambioVenta = tc;
+    }
+
+    private async Task AsegurarMonedas()
+    {
+        if (_monedas.Count > 0) return;
+        _monedas = (await Respuestas.DatoAsync(await MonedasApi.Obtener(), "consultar las monedas"))?.ToList() ?? new();
     }
 
     private void ReiniciarEditorProduccion()
     {
         _pestanaInventario = "generales";
-        _tarifaPrecio = "A";
-        _utilidadPrecio = 0;
+        _extras = new();
+        _extrasModificados = false;
         _tipoArticulo = 1;
         _formula = new();
         _codigoFormula = 0;
         _cantidadFormula = 1;
         _errorFormula = null;
+        CancelarAccionFormula();
         _textoInsumoFormula = string.Empty;
         _insumosFormula = new();
         _insumoFormulaBuscado = false;
@@ -1771,9 +2327,9 @@
     };
 
     /// <summary>
-    /// Busca artículos para la fórmula. No filtra por tipo en el cliente (la data
-    /// puede no estar migrada); marca cuáles son Materia prima y el API valida al
-    /// guardar. Ordena las Materias primas primero.
+    /// Busca insumos para la fórmula: solo se ofrecen artículos de tipo Materia prima
+    /// (<c>TipoArticulo == 2</c>); los Normales y Productos terminados no aparecen. El API
+    /// vuelve a validar el tipo al guardar el componente.
     /// </summary>
     private async Task BuscarInsumoFormula()
     {
@@ -1792,9 +2348,10 @@
         _insumoFormulaBuscado = true;
         _insumosFormula = r.EsCorrecta && r.Responses is not null
             ? r.Responses
-                .Where(x => x.Codigo != _edicion!.Codigo && _formula.All(f => f.IdInsumo != x.Codigo))
-                .OrderByDescending(x => x.TipoArticulo == 2)
-                .ThenBy(x => x.Descripcion)
+                .Where(x => x.TipoArticulo == 2
+                            && x.Codigo != _edicion!.Codigo
+                            && _formula.All(f => f.IdInsumo != x.Codigo))
+                .OrderBy(x => x.Descripcion)
                 .Take(20)
                 .ToList()
             : new();
@@ -1851,15 +2408,65 @@
         Dialogos.Exito("Insumo agregado a la fórmula.");
     }
 
+    private void CancelarAccionFormula()
+    {
+        _formulaEditando = null;
+        _formulaQuitando = null;
+    }
+
+    private void EditarFormula(SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente item)
+    {
+        _errorFormula = null;
+        _formulaQuitando = null;
+        _formulaEditando = item.IdInsumo;
+        _cantidadFormulaEdicion = item.CantidadPorUnidad;
+    }
+
+    private void PedirQuitarFormula(SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente item)
+    {
+        _errorFormula = null;
+        _formulaEditando = null;
+        _formulaQuitando = item.IdInsumo;
+    }
+
+    /// <summary>El API actualiza la cantidad cuando el insumo ya está en la fórmula.</summary>
+    private async Task GuardarEdicionFormula(SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente item)
+    {
+        _errorFormula = null;
+        if (_edicion is null) return;
+        if (_cantidadFormulaEdicion <= 0)
+        {
+            _errorFormula = "La cantidad por unidad debe ser mayor a cero.";
+            return;
+        }
+        var r = await ProduccionApi.GuardarComponenteAsync(new SuvesaPosSitioAplicacion.DTOs.Produccion.GuardarComponenteFormula
+        {
+            IdArticuloTerminado = _edicion.Codigo,
+            IdInsumo = item.IdInsumo,
+            Cantidad = _cantidadFormulaEdicion,
+            Activo = true
+        });
+        if (r.Status != DTOs.Generated.ResponseStatus._0)
+        {
+            _errorFormula = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? "No se pudo actualizar la cantidad del insumo.";
+            return;
+        }
+        CancelarAccionFormula();
+        await CargarFormula();
+        Dialogos.Exito("Cantidad actualizada.");
+    }
+
+    /// <summary>La confirmación es en la propia fila: un cuadro de mensaje cerraría "Editar artículo".</summary>
     private async Task QuitarFormula(SuvesaPosSitioAplicacion.DTOs.Produccion.FormulaComponente item)
     {
-        if (_edicion is null || !await Dialogos.ConfirmarPeligroAsync("¿Desea quitar este insumo de la fórmula?")) return;
+        if (_edicion is null) return;
         var r = await ProduccionApi.GuardarComponenteAsync(new SuvesaPosSitioAplicacion.DTOs.Produccion.GuardarComponenteFormula
         {
             IdArticuloTerminado = _edicion.Codigo,
             IdInsumo = item.IdInsumo,
             Activo = false
         });
+        CancelarAccionFormula();
         if (r.Status != DTOs.Generated.ResponseStatus._0)
         {
             _errorFormula = r.CurrentException ?? r.ValidationErrors?.FirstOrDefault() ?? "No se pudo quitar el insumo de la fórmula.";
@@ -1877,6 +2484,7 @@
         _proveedoresInventario = (await Respuestas.DatoAsync(await Catalogos.Proveedores(), "consultar los proveedores de inventario"))?.ToList() ?? new();
         _presentaciones = (await Respuestas.DatoAsync(await Catalogos.Presentaciones(), "consultar las presentaciones"))?.Where(x => x.Estado).ToList() ?? new();
         _impuestos = (await Respuestas.DatoAsync(await ImpuestosApi.Obtener(), "consultar los impuestos"))?.Where(i => i.Estado != false).ToList() ?? new();
+        _monedas = (await Respuestas.DatoAsync(await MonedasApi.Obtener(), "consultar las monedas"))?.ToList() ?? new();
     }
 
     /// <summary>El % de venta del artículo viaja aparte (IVenta) para no romper las
@@ -1929,9 +2537,12 @@
     {
         if (_edicion is not null)
         {
+            var tipoPrevio = _edicion.TipoArticulo;
             _edicion.TipoArticulo = _tipoArticulo;
             _edicion.EsPadre = _tipoArticulo == 2;          // compat
-            if (_tipoArticulo is 2 or 3) _edicion.Lote = true;   // MP y PT obligan lote
+            if (_tipoArticulo == 3) _edicion.Lote = true;   // PT obliga lote
+            // MP maneja lote por defecto, pero se puede quitar (envases, empaques, embalajes).
+            else if (_tipoArticulo == 2 && tipoPrevio != 2) _edicion.Lote = true;
             if (_tipoArticulo != 2) _edicion.LoteUnico = false;  // lote único sólo en MP
             if (_tipoArticulo != 3 && _pestanaInventario == "formula") _pestanaInventario = "generales";
         }
@@ -1989,7 +2600,7 @@
 
     private async Task EliminarLote(StockLoteDTO lote)
     {
-        if (lote.Id <= 0 || !await Dialogos.ConfirmarPeligroAsync($"¿Desea quitar el lote {lote.Lote}?")) return;
+        if (lote.Id <= 0 || !await ConfirmarQuitarEnFichaAsync($"¿Desea quitar el lote {lote.Lote}?")) return;
         if (await Respuestas.CorrectaAsync(await Api.EliminarLote(lote.Id), "quitar el lote"))
         {
             _lotesEdicion.Remove(lote);
@@ -2029,7 +2640,7 @@
     private async Task QuitarCodigoBarras(CodigoBarrasInventarioDTO codigo)
     {
         if (_edicion?.CodigoBarras is null
-            || !await Dialogos.ConfirmarPeligroAsync("¿Desea quitar este código de barras?"))
+            || !await ConfirmarQuitarEnFichaAsync("¿Desea quitar este código de barras?"))
         {
             return;
         }

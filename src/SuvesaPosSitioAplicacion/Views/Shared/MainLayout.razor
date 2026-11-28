@@ -7,6 +7,7 @@
 @inject IEstadoOcupado Ocupado
 @inject NavigationManager Navegacion
 @inject IJSRuntime JS
+@inject IRelojEquipo RelojEquipo
 
 <div class="seepos-barra-carga @(Ocupado.Ocupado ? "seepos-barra-carga-activa" : null)" role="status" aria-hidden="@(Ocupado.Ocupado ? "false" : "true")">
     <span class="visually-hidden">Cargando</span>
@@ -95,6 +96,8 @@
     private bool _lateralAbierta = true;
     private bool _menuCompacto;
     private bool _oscuro;
+    private PeriodicTimer? _marcaEquipo;
+    private CancellationTokenSource? _marcaEquipoCancel;
 
     private string TextoAlternarMenu => _menuCompacto ? "Expandir menu" : "Contraer menu";
 
@@ -154,7 +157,13 @@
 
     private Task AlCambiarOcupado() => InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Ocupado.Cambio -= AlCambiarOcupado;
+    public void Dispose()
+    {
+        Ocupado.Cambio -= AlCambiarOcupado;
+        _marcaEquipoCancel?.Cancel();
+        _marcaEquipo?.Dispose();
+        _marcaEquipoCancel?.Dispose();
+    }
 
     private async Task Salir()
     {
@@ -190,7 +199,23 @@
             }
 
             await modulo.DisposeAsync();
+            await RelojEquipo.PublicarMarcaAsync();
+            _marcaEquipoCancel = new CancellationTokenSource();
+            _marcaEquipo = new PeriodicTimer(TimeSpan.FromSeconds(30));
+            _ = MantenerMarcaEquipoAsync(_marcaEquipoCancel.Token);
             await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task MantenerMarcaEquipoAsync(CancellationToken cancelacion)
+    {
+        try
+        {
+            while (_marcaEquipo is not null && await _marcaEquipo.WaitForNextTickAsync(cancelacion))
+                await InvokeAsync(() => RelojEquipo.PublicarMarcaAsync());
+        }
+        catch (Exception)
+        {
         }
     }
 }

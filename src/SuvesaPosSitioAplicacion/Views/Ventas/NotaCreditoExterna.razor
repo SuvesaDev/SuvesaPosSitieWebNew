@@ -1,0 +1,292 @@
+@page "/sales/external-credit-note"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Ventas
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject INotasCreditoExternas Api
+@inject IEmisoresFiscales EmisoresApi
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+@*  Nota de crédito electrónica (referencia 09, sin inventario) contra un comprobante emitido FUERA de este sistema (p. ej. una factura
+    del sistema anterior) o que aquí solo existe como venta interna. Se suben la factura y su acuse de Hacienda: sin acuse aceptado no se
+    puede hacer la nota. El efecto en el saldo se aplica cuando Hacienda la acepta. Solo administradores (función de seguridad propia). *@
+
+<AppPantalla Pantalla="@Titulo" Codigo="VENTAS.NOTA_DE_CREDITO_EXTERNA" Nivel="NivelPantalla.Escritorio">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="CargarLista" title="Actualizar la lista"><i class="bi bi-arrow-clockwise"></i></button>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nueva nota</button>
+    </Acciones>
+    <ChildContent>
+        @if (!PuedeCrear)
+        {
+            <div class="alert alert-info py-2">Su rol puede consultar las notas, pero no crear nuevas.</div>
+        }
+        else
+        {
+            <div class="card mb-3">
+                <div class="card-header fw-semibold">1. Comprobante del sistema anterior</div>
+                <div class="card-body">
+                    <p class="text-secondary small mb-3">
+                        Suba la factura (<code>FE-…xml</code>) y su acuse de Hacienda (<code>AHC-…xml</code>). Si Hacienda no aceptó el comprobante, no se puede hacer la nota.
+                        Solo se pueden referenciar facturas que no existen en el sistema o que aquí son ventas internas.
+                    </p>
+                    <div class="row g-3 align-items-end">
+                        @if (_emisores.Count > 1)
+                        {
+                            <div class="col-md-4">
+                                <label class="form-label">Emisor</label>
+                                <select class="form-select" @bind="_idEmisor" @bind:after="Invalidar">
+                                    @foreach (var e in _emisores)
+                                    {
+                                        <option value="@e.Id">@e.Nombre</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                        <div class="col-md-4">
+                            <label class="form-label">Factura (XML)</label>
+                            <InputFile class="form-control" accept=".xml,text/xml,application/xml" OnChange="SeleccionarFactura" />
+                            @if (_nombreFactura is not null) { <div class="form-text">@_nombreFactura</div> }
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Acuse de Hacienda (XML)</label>
+                            <InputFile class="form-control" accept=".xml,text/xml,application/xml" OnChange="SeleccionarAcuse" />
+                            @if (_nombreAcuse is not null) { <div class="form-text">@_nombreAcuse</div> }
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-primary" disabled="@(!PuedeValidar)" @onclick="Validar">
+                                @if (_validando) { <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> }
+                                Validar archivos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (_validacion is { Valido: false })
+            {
+                <div class="alert alert-danger">
+                    <div class="fw-semibold mb-1">No se puede hacer la nota con estos archivos:</div>
+                    <ul class="mb-0">
+                        @foreach (var error in _validacion.Errores)
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+            else if (_validacion is { Valido: true } v)
+            {
+                <div class="card mb-3">
+                    <div class="card-header fw-semibold">Comprobante validado</div>
+                    <div class="card-body">
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-3"><div class="small text-secondary">Documento</div><div>@(v.TipoDocumento == "04" ? "Tiquete" : "Factura") @v.Consecutivo</div></div>
+                            <div class="col-md-3"><div class="small text-secondary">Fecha</div><div>@v.FechaEmision.ToString("dd/MM/yyyy HH:mm")</div></div>
+                            <div class="col-md-3"><div class="small text-secondary">Receptor</div><div>@v.ReceptorNombre</div><div class="small text-secondary">@v.ReceptorIdentificacion</div></div>
+                            <div class="col-md-3"><div class="small text-secondary">Total / disponible</div><div>@v.TotalOrigen.ToString("N2") / <strong>@v.Disponible.ToString("N2")</strong></div>
+                                @if (v.AcreditadoPrevio > 0) { <div class="small text-secondary">Ya acreditado: @v.AcreditadoPrevio.ToString("N2")</div> }</div>
+                            <div class="col-12"><div class="small text-secondary">Clave</div><code class="small">@v.Clave</code></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header fw-semibold">2. Cliente que recibe el crédito</div>
+                    <div class="card-body">
+                        @if (v.ClientesCandidatos.Count == 0)
+                        {
+                            <div class="alert alert-warning mb-0">No hay ningún cliente con la identificación @v.ReceptorIdentificacion. Créelo en el catálogo de clientes y vuelva a validar.</div>
+                        }
+                        else
+                        {
+                            @foreach (var c in v.ClientesCandidatos)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="cliente" id="cli-@c.IdCliente" disabled="@(!c.Activo)"
+                                           checked="@(_borrador.IdCliente == c.IdCliente)" @onchange="() => SeleccionarCliente(c.IdCliente)" />
+                                    <label class="form-check-label" for="cli-@c.IdCliente">
+                                        @c.Nombre <span class="text-secondary small">· @c.Cedula · n.º @c.IdCliente</span>
+                                        @if (!c.Activo) { <span class="badge bg-secondary ms-1">Inactivo</span> }
+                                        @if (!string.IsNullOrWhiteSpace(c.Nota)) { <span class="text-secondary small ms-1">@c.Nota</span> }
+                                    </label>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header fw-semibold">3. ¿Existe como venta interna en el sistema?</div>
+                    <div class="card-body">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="venta" id="venta-ninguna" checked="@(_borrador.IdVenta is null)" @onchange="() => SeleccionarVenta(null)" />
+                            <label class="form-check-label" for="venta-ninguna">No existe en el sistema: todo el monto queda como crédito a favor del cliente</label>
+                        </div>
+                        @foreach (var venta in VentasDelCliente)
+                        {
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="radio" name="venta" id="venta-@venta.IdVenta" checked="@(_borrador.IdVenta == venta.IdVenta)" @onchange="() => SeleccionarVenta(venta.IdVenta)" />
+                                <label class="form-check-label" for="venta-@venta.IdVenta">
+                                    Venta interna n.º @venta.NumFactura.ToString("0") · @venta.Fecha.ToString("dd/MM/yyyy") · total @venta.Total.ToString("N2") · saldo <strong>@venta.Saldo.ToString("N2")</strong>
+                                    <span class="badge bg-@(venta.Coincidencia == "Alta" ? "success" : "secondary") ms-1">Coincidencia @venta.Coincidencia.ToLowerInvariant()</span>
+                                    @if (venta.TieneDevolucionInterna) { <span class="badge bg-warning text-dark ms-1">Ya devuelta de forma interna</span> }
+                                </label>
+                            </div>
+                        }
+                        @if (VentasDelCliente.Count == 0)
+                        {
+                            <div class="text-secondary small">No se encontró ninguna venta interna parecida (mismo número o total) para este cliente.</div>
+                        }
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header fw-semibold">4. La nota</div>
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                            <span class="fw-semibold me-auto">Líneas a acreditar</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="TodasLasLineas">Todo lo que queda</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="NingunaLinea">Ninguna</button>
+                        </div>
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr><th>#</th><th>Detalle</th><th class="text-end">Cant. original</th><th class="text-end">Ya acreditada</th><th class="text-end">Queda</th>
+                                        <th class="text-end" style="width: 9rem">Acreditar</th><th class="text-end">Total (con IVA)</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var l in v.Lineas)
+                                    {
+                                        var cantidad = ReglasNotaCreditoExterna.CantidadDe(_borrador, l.NumeroLinea);
+                                        var errorLinea = ReglasNotaCreditoExterna.ErrorDeCantidad(l, cantidad);
+                                        <tr class="@(l.CantidadDisponible <= 0m ? "text-secondary" : null)">
+                                            <td>@l.NumeroLinea</td>
+                                            <td>@l.Detalle <span class="text-secondary small">(@l.CodigoCabys)</span></td>
+                                            <td class="text-end">@l.Cantidad.ToString("0.###")</td>
+                                            <td class="text-end">@l.CantidadAcreditadaPrevia.ToString("0.###")</td>
+                                            <td class="text-end">@l.CantidadDisponible.ToString("0.###")</td>
+                                            <td class="text-end">
+                                                <input type="number" min="0" max="@l.CantidadDisponible.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)" step="0.001"
+                                                       class="form-control form-control-sm text-end @(errorLinea is null ? null : "is-invalid")" disabled="@(l.CantidadDisponible <= 0m)"
+                                                       value="@cantidad.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)" title="@errorLinea"
+                                                       @onchange="e => CambiarCantidad(l, e.Value)" />
+                                            </td>
+                                            <td class="text-end">@ReglasNotaCreditoExterna.MontoLinea(l, cantidad).ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot>
+                                    <tr><th colspan="6" class="text-end">Total de la nota (con IVA)</th><th class="text-end">@MontoEfectivo.ToString("N2")</th></tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <AppCampoTexto Etiqueta="Motivo (va a Hacienda como razón de la referencia)" Requerido="true" @bind-Valor="_borrador.Razon" Marcador="Ej.: Devolución de artículos de la factura del sistema anterior" />
+                                <div class="form-text text-end">@((_borrador.Razon ?? string.Empty).Length)/@ReglasNotaCreditoExterna.MaximoRazon</div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="solo-fiscal" checked="@(_borrador.SoloFiscal || SoloFiscalForzado)" disabled="@SoloFiscalForzado"
+                                           @onchange="e => _borrador.SoloFiscal = (bool)(e.Value ?? false)" />
+                                    <label class="form-check-label" for="solo-fiscal">
+                                        Solo fiscal (se emite a Hacienda, sin tocar el saldo ni dejar crédito a favor)
+                                    </label>
+                                </div>
+                                @if (SoloFiscalForzado)
+                                {
+                                    <div class="form-text text-warning-emphasis">Esta venta ya se devolvió de forma interna: si la nota moviera el saldo, el cliente quedaría acreditado dos veces.</div>
+                                }
+                                else if (_borrador.SoloFiscal)
+                                {
+                                    <div class="mt-2"><AppCampoTexto Etiqueta="Motivo del modo solo fiscal" Requerido="true" @bind-Valor="_borrador.MotivoSoloFiscal" Marcador="Ej.: Ya compensada en el sistema anterior" /></div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3 border-primary">
+                    <div class="card-body">
+                        <div class="fw-semibold mb-1">Resumen</div>
+                        <div>Monto de la nota: <strong>@MontoEfectivo.ToString("N2")</strong> · código de referencia 09 (nota de crédito financiera)</div>
+                        <div class="text-secondary">@ReglasNotaCreditoExterna.EfectoFinanciero(v, _borrador)</div>
+                        <div class="text-secondary small">El efecto en el saldo se aplica cuando Hacienda acepta la nota. No mueve inventario.</div>
+                        @if (ErrorActual is { } error)
+                        {
+                            <div class="alert alert-warning py-2 mt-2 mb-0">@error</div>
+                        }
+                        <div class="mt-3">
+                            <button class="btn btn-success" disabled="@(ErrorActual is not null || _creando)" @onclick="Crear">
+                                @if (_creando) { <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> }
+                                Crear nota de crédito
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+
+        <div class="card">
+            <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+                <span class="fw-semibold me-auto">Notas de crédito externas</span>
+                <select class="form-select form-select-sm w-auto" @bind="_estadoFiltro" @bind:after="BuscarLista">
+                    <option value="">Todos los estados</option>
+                    <option value="Aceptado">Aceptado</option>
+                    <option value="Rechazado">Rechazado</option>
+                    <option value="RecibidoPorHacienda">Recibido por Hacienda</option>
+                    <option value="PendienteGeneracion">Pendiente</option>
+                </select>
+                <input class="form-control form-control-sm w-auto" placeholder="Clave, consecutivo o motivo" @bind="_textoFiltro" @bind:event="onchange" @bind:after="BuscarLista" />
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Comprobante</th><th class="text-end">Monto</th><th>Estado</th><th>Efecto</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var n in _pagina.Items)
+                        {
+                            <tr>
+                                <td>@n.Id</td>
+                                <td>@n.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@n.NombreCliente <div class="text-secondary small" title="@n.Razon">@Recortar(n.Razon, 40)</div></td>
+                                <td class="small">@ComprobanteReferenciado(n)</td>
+                                <td class="text-end">@n.Monto.ToString("N2")</td>
+                                <td>
+                                    <span class="badge bg-@Color(n.Estadodgt)">@Humano(n.Estadodgt)</span>
+                                    <AppMensajeHacienda Texto="@n.MensajeMh" Gravedad="@n.MensajeMhGravedad" Max="90" />
+                                </td>
+                                <td>
+                                    @if (n.EsSoloFiscal) { <span class="badge bg-secondary" title="@n.MotivoSoloFiscal">Solo fiscal</span> }
+                                    else if (n.IdVenta is not null) { <span class="badge bg-light text-dark">Factura vinculada</span> }
+                                    else { <span class="badge bg-light text-dark">Crédito a favor</span> }
+                                </td>
+                                <td class="text-end">
+                                    @if (!string.IsNullOrWhiteSpace(n.Consecutivodgt) && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
+                                    {
+                                        <BotonImprimir Tipo="nota-credito-externa" Id="n.Id" Texto="PDF" />
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        @if (_pagina.Items.Count == 0)
+                        {
+                            <tr><td colspan="8" class="text-center text-secondary py-4">Todavía no hay notas de crédito externas.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (_pagina.Total > Tamano)
+            {
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <button class="btn btn-sm btn-outline-secondary" disabled="@(_paginaNum <= 1)" @onclick="Anterior">Anterior</button>
+                    <span class="small text-secondary">Página @_paginaNum de @TotalPaginas</span>
+                    <button class="btn btn-sm btn-outline-secondary" disabled="@(_paginaNum >= TotalPaginas)" @onclick="Siguiente">Siguiente</button>
+                </div>
+            }
+        </div>
+    </ChildContent>
+</AppPantalla>

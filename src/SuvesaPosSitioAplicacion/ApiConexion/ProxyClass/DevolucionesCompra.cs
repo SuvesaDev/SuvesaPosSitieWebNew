@@ -10,11 +10,13 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyClass;
 public sealed class DevolucionesCompra : ProxyBase, IDevolucionesCompra
 {
     private readonly IDevolucionCompraApiCliente _api;
+    private readonly HttpClient _http;
 
-    public DevolucionesCompra(IDevolucionCompraApiCliente api, IContextoSesion sesion, ILogger<DevolucionesCompra> log)
+    public DevolucionesCompra(IDevolucionCompraApiCliente api, IHttpClientFactory factory, IContextoSesion sesion, ILogger<DevolucionesCompra> log)
         : base(sesion, log)
     {
         _api = api;
+        _http = factory.CreateClient("SeePosApi");
     }
 
     public Task<ResponseGeneric<ICollection<DevolucionCompraDTO>>> Buscar(FiltroFacturaDevCompras filtro)
@@ -37,4 +39,9 @@ public sealed class DevolucionesCompra : ProxyBase, IDevolucionesCompra
             var r = await _api.CrearDevolucionCompraAsync(devolucion);
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "registrar la devolución de compra");
+
+    public Task<ResponseGeneric<DevolucionCompraDTO>> Anular(long id)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<DevolucionCompraDTO>(
+            await _http.PostAsync($"DevolucionCompra/Anular?id={id}", null)),
+            "anular la devolución de compra");
 }

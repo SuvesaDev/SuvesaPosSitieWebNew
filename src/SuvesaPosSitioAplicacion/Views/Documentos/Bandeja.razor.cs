@@ -8,7 +8,8 @@ namespace SuvesaPosSitioAplicacion.Views.Documentos;
 public partial class Bandeja
 {
     private const string Titulo = "Bandeja de documentos";
-    private static readonly string[] _pestanas = { "Preventas", "Facturas", "Notas de Crédito", "Consignaciones" };
+    // La pestaña 5 (notas de crédito contra comprobantes del sistema anterior) va al final para no mover los índices de las demás.
+    private static readonly string[] _pestanas = { "Preventas", "Facturas", "Notas de Crédito", "Notas de Débito", "Consignaciones", "NC externas" };
 
     private int _tab;
     private DateTime _desde = DateTime.Today.AddDays(-7);
@@ -34,7 +35,7 @@ public partial class Bandeja
     private string? _claveFiscal;
     private string? _contenidoFiscal;
 
-    private bool EsFiscal => _tab is 1 or 2;
+    private bool EsFiscal => _tab is 1 or 2 or 3 or 5;
 
     private IReadOnlyList<DocumentoBandeja> Filas => EsFiscal ? _fiscales : _comunes;
 
@@ -126,9 +127,25 @@ public partial class Bandeja
                 }
             case 3:
                 {
+                    var r = await Respuestas.DatoAsync(await Api.NotasDebito(f), "consultar las notas de débito");
+                    _fiscales = r?.Registros ?? new();
+                    _comunes = new();
+                    _total = r?.TotalRegistros ?? 0;
+                    break;
+                }
+            case 4:
+                {
                     var r = await Respuestas.DatoAsync(await Api.Consignaciones(f), "consultar las consignaciones");
                     _comunes = r?.Registros ?? new();
                     _fiscales = new();
+                    _total = r?.TotalRegistros ?? 0;
+                    break;
+                }
+            case 5:
+                {
+                    var r = await Respuestas.DatoAsync(await Api.NotasCreditoExternas(f), "consultar las notas de crédito externas");
+                    _fiscales = r?.Registros ?? new();
+                    _comunes = new();
                     _total = r?.TotalRegistros ?? 0;
                     break;
                 }
@@ -151,6 +168,11 @@ public partial class Bandeja
         {
             _detNC = await Respuestas.DatoAsync(await Api.DetalleNotaCredito(d.Id), "consultar el detalle de la nota de crédito");
         }
+        else if (_tab == 3)
+        {
+            // El detalle de la nota de débito reutiliza la forma del de la nota de crédito.
+            _detNC = await Respuestas.DatoAsync(await Api.DetalleNotaDebito(d.Id), "consultar el detalle de la nota de débito");
+        }
         else
         {
             _detComun = d;
@@ -161,13 +183,54 @@ public partial class Bandeja
 
     private void Devolucion(DocumentoBandeja d) => DevolucionPorVentaId(d.Id);
 
+    /// <summary>La devolución solo se ofrece en facturas sin anular y sin devolver por completo (sin devoluciones o con devolución parcial).</summary>
+    private bool PuedeDevolverFila(DocumentoBandeja d)
+        => _tab == 1 && !d.Anulado && !(d is DocumentoFiscalBandeja f && f.EstadoDevolucion == 2);
+
+    private static Microsoft.AspNetCore.Components.RenderFragment InsigniaDevolucion(int estado) => builder =>
+    {
+        if (estado is not (1 or 2)) return;
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", estado == 2 ? "badge text-bg-secondary ms-1" : "badge text-bg-warning ms-1");
+        builder.AddContent(2, estado == 2 ? "Devuelta" : "Devolución parcial");
+        builder.CloseElement();
+    };
+
     // Llevamos el Id exacto de la venta (no el consecutivo, que se repite entre
     // series/tipos) para que la pantalla de devoluciones cargue el documento correcto.
     private void DevolucionPorVentaId(long idVenta)
         => Navegacion.NavigateTo($"/sales/repayment?ventaId={idVenta}");
 
-    private async Task AccionFiscal(string clave)
+    private DocumentoFiscalBandeja? _docFiscal;
+    private bool _reemitiendo;
+
+    /// <summary>Solo una factura/tiquete (venta) RECHAZADA, y solo con el permiso Reemitir (Super Administración siempre).</summary>
+    private bool PuedeReemitir => _docFiscal is { Clase: "Factura" } d
+        && string.Equals(d.EstadoHacienda, "Rechazado", StringComparison.OrdinalIgnoreCase)
+        && Sesion.Puede(Titulo, SuvesaPosSitioAplicacion.Class.AccionPantalla.Reemitir);
+
+    private async Task ReemitirComprobante()
     {
+        if (_docFiscal is null || _reemitiendo) return;
+        var ok = await Dialogos.ConfirmarAsync(
+            $"Se emitirá un comprobante NUEVO para la factura {_docFiscal.Consecutivo}, con clave y consecutivo nuevos y la hora de ahora. " +
+            "El comprobante rechazado queda en el historial. No se rebaja inventario ni se crea deuda. ¿Reemitir?",
+            "Reemitir comprobante", "Reemitir");
+        if (!ok) return;
+
+        _reemitiendo = true;
+        var r = await Respuestas.DatoAsync(await Fiscal.Reemitir(_docFiscal.Id), "reemitir el comprobante");
+        _reemitiendo = false;
+        if (r is null) return;
+
+        Dialogos.Exito($"Comprobante reemitido (factura N° {r.NumFactura:0}). En unos instantes se envía a Hacienda; consulte el estado desde esta bandeja.");
+        await _modalFiscal.HideAsync();
+        await Cargar();
+    }
+
+    private async Task AccionFiscal(string clave, DocumentoFiscalBandeja? documento = null)
+    {
+        _docFiscal = documento;
         _claveFiscal = clave;
         _contenidoFiscal = null;
         await _modalFiscal.ShowAsync();

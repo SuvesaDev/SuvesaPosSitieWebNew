@@ -21,4 +21,16 @@ public static class ContextoLlamada
         get => _token.Value;
         set => _token.Value = value;
     }
+
+    private static readonly AsyncLocal<string?> _claveInterna = new();
+
+    /// <summary>
+    /// Clave interna del cajero para las llamadas del arqueo: el API la valida en cada
+    /// llamada y solo deja operar la caja de ese cajero. Nunca se registra en el log.
+    /// </summary>
+    public static string? ClaveInterna
+    {
+        get => _claveInterna.Value;
+        set => _claveInterna.Value = value;
+    }
 }

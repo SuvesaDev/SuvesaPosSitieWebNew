@@ -24,6 +24,8 @@ public class DocumentoBandeja
     public string Clase { get; set; } = string.Empty;
     public DateTime Fecha { get; set; }
     public string Consecutivo { get; set; } = string.Empty;
+    /// <summary>Descripción de la serie de facturación con la que se emitió el documento.</summary>
+    public string? Serie { get; set; }
     public string? Cliente { get; set; }
     public string? Sucursal { get; set; }
     public decimal Subtotal { get; set; }
@@ -41,6 +43,10 @@ public sealed class DocumentoFiscalBandeja : DocumentoBandeja
     public string? EstadoHacienda { get; set; }
     public bool EnviadoHacienda { get; set; }
     public string? MensajeRechazoHacienda { get; set; }
+    /// <summary>«Aviso» (aceptado con observación) o «Error»; null si no hay mensaje.</summary>
+    public string? MensajeHaciendaGravedad { get; set; }
+    /// <summary>Solo facturas: 0 = sin devoluciones, 1 = devuelta parcialmente, 2 = devuelta por completo.</summary>
+    public int EstadoDevolucion { get; set; }
 }
 
 public sealed class BandejaDocumentosResultado<T>

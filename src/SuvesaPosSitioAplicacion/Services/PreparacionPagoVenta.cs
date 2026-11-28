@@ -11,13 +11,48 @@ namespace SuvesaPosSitioAplicacion.Services;
 /// </summary>
 public static class PreparacionPagoVenta
 {
+    /// <summary>Máximo de líneas (depósitos o cheques) que una misma forma de pago admite en un cobro.</summary>
+    public const int MaxLineasPorForma = 5;
+
     /// <summary>Una forma de pago y lo que el cajero digitó como recibido.</summary>
     public readonly record struct LineaPago(
         string Codigo,
         decimal Recibido,
         bool EsEfectivo,
         bool RequiereReferencia,
-        string? Referencia);
+        string? Referencia,
+        bool RequiereBanco = false,
+        int? IdBanco = null,
+        bool RequiereFecha = false,
+        DateTime? Fecha = null,
+        bool FechaPuedeSerFutura = false);
+
+    /// <summary>
+    /// Línea de una fila adicional (botón «+») según su forma de pago: el efectivo no pide referencia ni banco (y puede dar vuelto),
+    /// la tarjeta pide referencia, el depósito y el cheque piden referencia (o número de cheque), banco y, si el panel lo pide, fecha.
+    /// </summary>
+    public static LineaPago LineaDeExtra(bool esEfectivo, bool tarjeta, bool deposito, bool cheque, PagoExtra x, bool pedirFecha)
+        => new(x.Codigo, x.Monto,
+            EsEfectivo: esEfectivo,
+            RequiereReferencia: tarjeta || deposito || cheque,
+            Referencia: cheque ? x.NumeroCheque : x.Referencia,
+            RequiereBanco: deposito || cheque,
+            IdBanco: x.IdBanco,
+            RequiereFecha: pedirFecha && (deposito || cheque),
+            Fecha: x.FechaPago,
+            FechaPuedeSerFutura: cheque);
+
+    /// <summary>Código de la forma de pago «Saldo a favor» (el que deja una nota de crédito): no es efectivo, no da vuelto y no pide referencia.</summary>
+    public const string CodigoSaldoAFavor = "SALDOFAV";
+
+    public static bool EsSaldoAFavor(string? codigo) => string.Equals(codigo?.Trim(), CodigoSaldoAFavor, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Una forma es «efectivo» (puede dar vuelto) si viene marcada así o si no es tarjeta, depósito, cheque ni saldo a favor.</summary>
+    public static bool EsFormaEfectivo(bool efectivo, bool tarjeta, bool deposito, bool cheque, string? codigo)
+        => !EsSaldoAFavor(codigo) && (efectivo || !(tarjeta || deposito || cheque));
+
+    /// <summary>Hoy en Costa Rica (UTC−6): un depósito no puede tener fecha posterior.</summary>
+    public static DateTime HoyCostaRica() => DateTime.UtcNow.AddHours(-6).Date;
 
     /// <summary>Reparto ya calculado, con los importes por forma y los avisos.</summary>
     public readonly record struct Reparto(
@@ -76,12 +111,48 @@ public static class PreparacionPagoVenta
         var errores = new List<string>();
         if (activas.Count == 0)
             errores.Add("Indique al menos una forma de pago.");
-        foreach (var l in activas.Where(l => l.RequiereReferencia && string.IsNullOrWhiteSpace(l.Referencia)))
-            errores.Add($"La forma de pago {l.Codigo} requiere número de referencia.");
+        errores.AddRange(ValidarInstrumentos(activas));
         if (recibidoNoEfectivo - total > 0.005m)
             errores.Add("El monto en tarjeta/transferencia supera el total; no se puede dar vuelto de un medio que no es efectivo.");
 
         return new Reparto(total, recibidoTotal, aplicadoTotal, vuelto, faltante, formas, errores);
+    }
+
+    /// <summary>
+    /// Validación de los instrumentos (tarjeta, depósito, cheque) de un cobro: referencia y banco por línea
+    /// (el aviso dice cuál línea falla cuando hay varias de la misma forma), duplicados de banco + referencia y
+    /// el tope de <see cref="MaxLineasPorForma"/> líneas por forma. Las usa también la pantalla Cobrar.
+    /// </summary>
+    public static List<string> ValidarInstrumentos(IReadOnlyList<LineaPago> activas)
+    {
+        var errores = new List<string>();
+        // Con varias líneas de la misma forma (varios depósitos/cheques) el aviso dice cuál es.
+        string Nombre(int i)
+        {
+            var codigo = activas[i].Codigo;
+            if (activas.Count(x => x.Codigo == codigo) < 2) return codigo;
+            return $"{codigo} (línea {activas.Take(i + 1).Count(x => x.Codigo == codigo)})";
+        }
+        for (var i = 0; i < activas.Count; i++)
+        {
+            var l = activas[i];
+            if (l.RequiereReferencia && string.IsNullOrWhiteSpace(l.Referencia))
+                errores.Add($"La forma de pago {Nombre(i)} requiere número de referencia.");
+            if (l.RequiereBanco && l.IdBanco is null)
+                errores.Add($"La forma de pago {Nombre(i)} requiere seleccionar el banco.");
+            if (l.RequiereFecha && l.Fecha is null)
+                errores.Add($"La forma de pago {Nombre(i)} requiere la fecha del pago.");
+            else if (l.Fecha is { } fecha && !l.FechaPuedeSerFutura && fecha.Date > HoyCostaRica())
+                errores.Add($"La fecha de la forma de pago {Nombre(i)} no puede ser futura.");
+        }
+        foreach (var g in activas
+                     .Where(l => l.IdBanco is not null && !string.IsNullOrWhiteSpace(l.Referencia))
+                     .GroupBy(l => (l.IdBanco, Ref: l.Referencia!.Trim().ToUpperInvariant()))
+                     .Where(g => g.Count() > 1))
+            errores.Add($"Hay {g.Count()} pagos con el mismo banco y la misma referencia ({g.First().Referencia!.Trim()}): un depósito o cheque no puede registrarse dos veces.");
+        foreach (var g in activas.GroupBy(l => l.Codigo).Where(g => g.Count() > MaxLineasPorForma))
+            errores.Add($"La forma de pago {g.Key} admite como máximo {MaxLineasPorForma} líneas.");
+        return errores;
     }
 
     private static decimal Redondear(decimal v) => Math.Round(v, 2, MidpointRounding.AwayFromZero);

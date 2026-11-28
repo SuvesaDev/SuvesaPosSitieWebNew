@@ -68,6 +68,8 @@ public sealed class LayoutDocumentoModelo
     public string Preset { get; set; } = "corporativo-a4";
     public bool EncabezadoDosColumnas { get; set; } = true;
     public bool TotalesDestacados { get; set; } = true;
+    /// <summary>Datos del emisor a la derecha (logo solo a la izquierda). Solo plantillas nuevas; false si el JSON no lo trae.</summary>
+    public bool EmisorEnColumnaDerecha { get; set; }
 }
 
 public sealed class QrDocumentoModelo

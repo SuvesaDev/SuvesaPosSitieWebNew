@@ -1,206 +1,699 @@
 @page "/buys/importations"
+@page "/buys/importations/{IdImportacion:long}"
 @using Microsoft.AspNetCore.Components.Forms
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.DTOs.Compras
 @using SuvesaPosSitioAplicacion.Services
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IImportaciones Api
 @inject IManejadorRespuestas Respuestas
-@inject IContextoSesion Sesion
-@inject IJSRuntime JS
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.ICompras ComprasApi
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IEmisoresFiscales EmisoresApi
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.ISeriesFacturacionFiscales SeriesApi
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IProveedoresConsulta ProveedoresApi
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IInventarioConsulta InventarioApi
+@inject IServicioDialogos Dialogos
+@inject SuvesaPosSitioAplicacion.Security.IContextoSesion Sesion
+@inject NavigationManager Navegacion
 
 <AppPantalla Pantalla="Importaciones" Icono="bi-box-seam" Subtitulo="Expedientes de compra extranjera, nacionalización y evidencia documental" Nivel="NivelPantalla.Escritorio">
     <Acciones>
+        <button class="btn btn-sm btn-outline-secondary me-2" @onclick="IrABandeja"><i class="bi bi-list-ul me-1"></i>Bandeja</button>
         <button class="btn btn-sm btn-outline-primary" @onclick="Nueva"><i class="bi bi-plus-lg me-1"></i>Nueva importación</button>
     </Acciones>
     <ChildContent>
-        <div class="row g-3">
-            <div class="col-12 col-xxl-8">
-                <div class="card">
-                    <div class="card-header"><strong>@(_actual is null ? "Nueva importación" : $"Importación #{_actual.IdImportacion}")</strong></div>
-                    <div class="card-body">
-                        @if (_actual is null)
+        <div class="card">
+            <div class="card-header"><strong>@(_actual is null ? "Nueva importación" : $"Importación #{_actual.IdImportacion}")</strong></div>
+            <div class="card-body">
+                @if (_actual is null)
+                {
+                    <div class="row g-3">
+                        <div class="col-md-4"><label class="form-label">Factura extranjera *</label><input class="form-control" @bind="_nueva.FacturaExtranjera" /></div>
+                        <div class="col-md-4"><label class="form-label">DUA</label><input class="form-control" @bind="_nueva.Dua" /></div>
+                        <div class="col-md-4"><label class="form-label">Embarque / BL</label><input class="form-control" @bind="_nueva.Embarque" /></div>
+                        <div class="col-md-3"><label class="form-label">Proveedor extranjero *</label><select class="form-select" @bind="_nueva.IdProveedorExtranjero"><option value="0">Seleccione...</option>@foreach(var p in _proveedores){<option value="@p.CodigoProv">@p.Nombre</option>}</select></div>
+                        <div class="col-md-3"><label class="form-label">Bodega *</label><select class="form-select" @bind="_nueva.IdBodega"><option value="0">Seleccione...</option>@foreach(var b in _bodegas){<option value="@b.IdBodega">@b.NombreBodega</option>}</select></div>
+                        <div class="col-md-3"><label class="form-label">Emisor *</label><select class="form-select" @bind="_nueva.IdEmisor"><option value="">Seleccione...</option>@foreach(var e in _emisores){<option value="@e.Id">@e.Nombre · @e.Identificacion</option>}</select></div>
+                        <div class="col-md-3"><label class="form-label">Serie mensaje receptor</label><select class="form-select" @bind="_nueva.IdSerieMensajeReceptor"><option value="">Seleccione...</option>@foreach(var s in _series.Where(s=>s.IdEmisor==_nueva.IdEmisor && s.CodigoFE=="05")){<option value="@s.IdSerie">@s.Descripcion</option>}</select></div>
+                        <div class="col-md-2"><label class="form-label">Moneda *</label><select class="form-select" @bind="_nueva.CodMoneda"><option value="2">USD</option><option value="1">CRC</option></select></div>
+                        <div class="col-md-2"><label class="form-label">Tipo cambio DUA *</label><input type="number" min="0.000001" step="0.000001" class="form-control" @bind="_nueva.TipoCambioDua" /></div>
+                        <div class="col-md-2"><label class="form-label">Fecha TC DUA *</label><input type="date" class="form-control" @bind="_nueva.FechaTipoCambioDua" /></div>
+                        <div class="col-12"><label class="form-label">Observaciones</label><input class="form-control" @bind="_nueva.Observaciones" /></div>
+                    </div>
+                    <hr />
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0">Artículos de la factura extranjera</h6>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary me-2" @onclick="AbrirImportadorPdf"><i class="bi bi-file-earmark-pdf me-1"></i>Importar desde PDF</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AbrirBuscadorArticulo"><i class="bi bi-search me-1"></i>Buscar artículo</button>
+                        </div>
+                    </div>
+                    <AppBuscadorArticulo @ref="_buscadorArticulo" AlElegir="ElegirArticulo" IdBodega="@(_nueva.IdBodega > 0 ? _nueva.IdBodega : null)" />
+
+                    @if (_articuloActual is not null)
+                    {
+                        <div class="border rounded p-3 mb-3 bg-body-tertiary">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong>@_articuloActual.Descripcion</strong>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelarEdicionLinea">Cancelar</button>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-md-3"><label class="form-label">Código proveedor</label><input class="form-control" @bind="_codigoProveedor" /></div>
+                                <div class="col-md-4"><label class="form-label">Descripción proveedor</label><input class="form-control" @bind="_descripcionProveedor" /></div>
+                                <div class="col-md-2"><label class="form-label">Unidades</label><input type="number" min="0.001" step="0.001" class="form-control" @bind="_cantidad" /></div>
+                                <div class="col-md-3"><label class="form-label">Costo unitario moneda</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_costoUnitario" /></div>
+                                <div class="col-md-3"><label class="form-label">Ley 6946 unitaria</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_tributoDuaUnitario" /><small class="text-secondary">Entra al costo. Exacta por artículo en el DELIMP.</small></div>
+                                <div class="col-md-3"><label class="form-label">IVA aduanal unitario</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_ivaAduanalUnitario" /><small class="text-secondary">Crédito fiscal. No entra al costo.</small></div>
+                                <div class="col-md-4"><label class="form-label">Precio A a aplicar (opcional, IVA incluido)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_precioAAplicado" /><small class="text-secondary">Si se deja vacío, el cierre actualiza solo el costo.</small></div>
+                            </div>
+                            @if (_articuloActual.Lote)
+                            {
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <label class="form-label mb-0">Lotes</label>
+                                        <button type="button" class="btn btn-sm btn-link" @onclick="() => _lotes.Add(new LoteEdicion())">+ Agregar lote</button>
+                                    </div>
+                                    @foreach (var lote in _lotes)
+                                    {
+                                        <div class="row g-2 align-items-end mb-2">
+                                            <div class="col-md-4"><input class="form-control" placeholder="Número de lote" @bind="lote.Numero" /></div>
+                                            <div class="col-md-4"><input type="date" class="form-control" @bind="lote.Vence" /></div>
+                                            <div class="col-md-3"><input type="number" min="0" step="0.001" class="form-control text-end" @bind="lote.Cantidad" /></div>
+                                            <div class="col-md-1"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => _lotes.Remove(lote)"><i class="bi bi-trash"></i></button></div>
+                                        </div>
+                                    }
+                                    @{ var sumaLotes = _lotes.Sum(x => x.Cantidad); }
+                                    <div class="small @(Math.Abs(sumaLotes - _cantidad) > 0.001m ? "text-danger" : "text-success")">Repartido: @sumaLotes de @_cantidad</div>
+                                </div>
+                            }
+                            <button type="button" class="btn btn-primary mt-3" @onclick="AgregarOActualizarLinea">@(_indiceEdicionLinea is null ? "Agregar" : "Actualizar")</button>
+                        </div>
+                    }
+
+                    @if (_nueva.Lineas.Count == 0) { <p class="text-secondary mb-0">Agregue los artículos de la factura extranjera.</p> }
+                    else
+                    {
+                        <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Artículo</th><th>Código proveedor</th><th>Descripción</th><th class="text-end">Unidades</th><th class="text-end">Costo unitario</th><th class="text-end">Ley 6946</th><th></th></tr></thead><tbody>
+                            @for (var i = 0; i < _nueva.Lineas.Count; i++)
+                            {
+                                var indice = i;
+                                var item = _nueva.Lineas[i];
+                                <tr>
+                                    <td>@(_articulosPorCodigo.TryGetValue(item.IdArticulo, out var nombre) ? nombre : item.IdArticulo.ToString())</td>
+                                    <td>@item.CodigoProveedor</td>
+                                    <td>@item.DescripcionProveedor</td>
+                                    <td class="text-end">@item.Cantidad</td>
+                                    <td class="text-end">@item.CostoProveedorMonedaUnitario:N6</td>
+                                    <td class="text-end">@item.TributoDuaUnitario:N6</td>
+                                    <td class="text-nowrap">
+                                        <button type="button" class="btn btn-sm btn-link" @onclick="() => EditarLinea(indice)"><i class="bi bi-pencil"></i></button>
+                                        <button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(indice)"><i class="bi bi-trash"></i></button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody></table></div>
+                    }
+                    <button class="btn btn-primary mt-3" disabled="@(_guardando || _nueva.Lineas.Count == 0 || _nueva.IdEmisor is null or <= 0)" @onclick="Crear">@(_guardando ? "Guardando..." : "Crear expediente")</button>
+                    @if (_nueva.IdEmisor is null or <= 0) { <div class="form-text text-danger mt-1">Seleccione el Emisor antes de crear el expediente.</div> }
+                }
+                else
+                {
+                    <dl class="row mb-0"><dt class="col-7 text-secondary fw-normal">Mercancía</dt><dd class="col-5 text-end">₡@_actual.CostoMercanciaCrc:N2</dd><dt class="col-7 text-secondary fw-normal">Costos logísticos (prorrateados por valor)</dt><dd class="col-5 text-end">₡@_actual.CostosImportacionCrc:N2</dd><dt class="col-7 text-secondary fw-normal">Ley 6946 (entra al costo)</dt><dd class="col-5 text-end">₡@_actual.TributosDuaCrc:N2</dd><dt class="col-7 text-secondary fw-normal">IVA aduanal (crédito, fuera del costo)</dt><dd class="col-5 text-end">₡@_actual.IvaAduanalCrc:N2</dd><dt class="col-7 text-secondary fw-normal">IVA de facturas locales aceptadas</dt><dd class="col-5 text-end">₡@_actual.IvaLocalAceptadoCrc:N2</dd><dt class="col-7 text-secondary fw-normal">IVA acreditable (D-104)</dt><dd class="col-5 text-end">₡@_actual.IvaAcreditableCrc:N2</dd><dt class="col-7 text-secondary fw-normal">PROCOMER / timbres (entran al costo)</dt><dd class="col-5 text-end">₡@(_actual.ProcomerCrc + _actual.TimbresCrc):N2</dd><dt class="col-7">Costo nacionalizado</dt><dd class="col-5 text-end fw-bold">₡@_actual.CostoNacionalizadoCrc:N2</dd></dl>
+                    <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Artículo</th><th class="text-end">Unidades</th><th class="text-end">Costo proveedor</th><th class="text-end">Log./unidad</th><th class="text-end">Ley 6946/u</th><th class="text-end">IVA aduana/u</th><th class="text-end">Nacionalizado/unidad</th><th></th></tr></thead><tbody>@foreach (var item in _actual.Lineas) { <tr><td>@(item.DescripcionArticulo ?? item.IdArticulo.ToString()) <span class="text-secondary small">· @item.DescripcionProveedor</span></td><td class="text-end">@item.Cantidad</td><td class="text-end">₡@item.CostoProveedorCrcUnitario:N6</td><td class="text-end">₡@item.CostoImportacionUnitario:N6</td><td class="text-end">₡@item.TributoDuaUnitario:N6</td><td class="text-end">₡@item.IvaAduanalUnitario:N6</td><td class="text-end fw-semibold">₡@item.CostoNacionalizadoUnitario:N6</td><td>@if (_actual.Estado != 6) { <button class="btn btn-sm btn-link" title="Actualizar tributo DUA de esta línea" @onclick="() => PrepararTributoDua(item)"><i class="bi bi-pencil"></i></button> }</td></tr> }</tbody></table></div>
+                    @if (_lineaTributoDua is not null)
+                    {
+                        <div class="row g-2 align-items-end mb-3 border rounded p-2">
+                            <div class="col-md-4"><label class="form-label">Ley 6946 unitaria de "@(_lineaTributoDua.DescripcionArticulo ?? _lineaTributoDua.DescripcionProveedor)"</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_tributoDua.TributoDuaUnitario" /><small class="text-secondary">Entra al costo.</small></div>
+                            <div class="col-md-4"><label class="form-label">IVA aduanal unitario</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_tributoDua.IvaAduanalUnitario" /><small class="text-secondary">No entra al costo.</small></div>
+                            <div class="col-md-4"><label class="form-label">Certificado de origen</label><input class="form-control" @bind="_tributoDua.CertificadoOrigen" /></div>
+                            <div class="col-md-4"><label class="form-label">Registro sanitario</label><input class="form-control" @bind="_tributoDua.RegistroSanitario" /></div>
+                            <div class="col-md-4"><label class="form-label">Vence el registro</label><input type="date" class="form-control" @bind="_tributoDua.VencimientoRegistroSanitario" /></div>
+                            <div class="col-md-3"><button class="btn btn-outline-primary" @onclick="GuardarTributoDua">Guardar</button> <button class="btn btn-outline-secondary" @onclick="() => _lineaTributoDua = null">Cancelar</button></div>
+                        </div>
+                    }
+                    <hr />
+                    <h6>Costos logísticos capitalizables (globales del envío)</h6>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3"><label class="form-label">Categoría</label><select class="form-select" @bind="_costo.Categoria"><option value="2">Flete</option><option value="3">Seguro</option><option value="5">Agencia aduanal</option><option value="6">Documentación</option><option value="7">Almacenaje</option><option value="8">Manejo</option><option value="9">Transporte local</option><option value="10">Otro</option><option value="11">PROCOMER</option><option value="12">Timbres</option></select></div>
+                        <div class="col-md-4"><label class="form-label">Descripción</label><input class="form-control" @bind="_costo.Descripcion" /></div>
+                        <div class="col-md-2"><label class="form-label">Moneda</label><select class="form-select" @bind="_costo.CodMoneda"><option value="1">CRC</option><option value="2">USD</option></select></div>
+                        @if (_costo.CodMoneda == 1)
                         {
-                            <div class="row g-3">
-                                <div class="col-md-4"><label class="form-label">Factura extranjera *</label><input class="form-control" @bind="_nueva.FacturaExtranjera" /></div>
-                                <div class="col-md-4"><label class="form-label">DUA</label><input class="form-control" @bind="_nueva.Dua" /></div>
-                                <div class="col-md-4"><label class="form-label">Embarque / BL</label><input class="form-control" @bind="_nueva.Embarque" /></div>
-                                <div class="col-md-3"><label class="form-label">Proveedor extranjero *</label><select class="form-select" @bind="_nueva.IdProveedorExtranjero"><option value="0">Seleccione...</option>@foreach(var p in _proveedores){<option value="@p.CodigoProv">@p.Nombre</option>}</select></div>
-                                <div class="col-md-3"><label class="form-label">Bodega *</label><select class="form-select" @bind="_nueva.IdBodega"><option value="0">Seleccione...</option>@foreach(var b in _bodegas){<option value="@b.IdBodega">@b.NombreBodega</option>}</select></div>
-                                <div class="col-md-3"><label class="form-label">Empresa</label><select class="form-select" @bind="_nueva.IdEmpresa"><option value="">Seleccione...</option>@foreach(var e in _empresas){<option value="@e.Id">@e.Nombre</option>}</select></div>
-                                <div class="col-md-3"><label class="form-label">Emisor</label><select class="form-select" @bind="_nueva.IdEmisor"><option value="">Seleccione...</option>@foreach(var e in _emisores){<option value="@e.Id">@e.Nombre · @e.Identificacion</option>}</select></div>
-                                <div class="col-md-3"><label class="form-label">Serie mensaje receptor</label><select class="form-select" @bind="_nueva.IdSerieMensajeReceptor"><option value="">Seleccione...</option>@foreach(var s in _series.Where(s=>s.IdEmisor==_nueva.IdEmisor && s.CodigoFE=="05")){<option value="@s.IdSerie">@s.Descripcion</option>}</select></div>
-                                <div class="col-md-2"><label class="form-label">Moneda *</label><select class="form-select" @bind="_nueva.CodMoneda"><option value="2">USD</option><option value="1">CRC</option></select></div>
-                                <div class="col-md-2"><label class="form-label">Tipo cambio DUA *</label><input type="number" min="0.000001" step="0.000001" class="form-control" @bind="_nueva.TipoCambioDua" /></div>
-                                <div class="col-md-2"><label class="form-label">Fecha TC DUA *</label><input type="date" class="form-control" @bind="_nueva.FechaTipoCambioDua" /></div>
-                                <div class="col-12"><label class="form-label">Observaciones</label><input class="form-control" @bind="_nueva.Observaciones" /></div>
-                            </div>
-                            <hr />
-                            <h6>Artículos de la factura extranjera</h6>
-                            <div class="row g-2 align-items-end mb-3">
-                                <div class="col-md-2"><label class="form-label">Buscar artículo</label><input class="form-control" @bind="_textoArticulo" @bind:event="oninput" @bind:after="BuscarArticulos" /></div>
-                                <div class="col-md-2"><label class="form-label">Código proveedor</label><input class="form-control" @bind="_linea.CodigoProveedor" /></div>
-                                <div class="col-md-3"><label class="form-label">Descripción proveedor</label><input class="form-control" @bind="_linea.DescripcionProveedor" /></div>
-                                <div class="col-md-2"><label class="form-label">Unidades</label><input type="number" min="0.001" step="0.001" class="form-control" @bind="_linea.Cantidad" /></div>
-                                <div class="col-md-2"><label class="form-label">Costo unitario moneda</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_linea.CostoProveedorMonedaUnitario" /></div>
-                                <div class="col-md-1"><button type="button" class="btn btn-outline-primary w-100" @onclick="AgregarLinea">Agregar</button></div>
-                            </div>
-                            <div class="row g-2 mb-3"><div class="col-md-3"><label class="form-label">Tributo DUA unitario (opcional)</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_linea.TributoDuaUnitario" /><small class="text-secondary">Si ya tiene la Declaración de Importación con el impuesto por SKU. Si no, se completa después con "Actualizar tributo".</small></div></div>
-                            @if (_articulos.Count > 0) { <div class="list-group mb-3">@foreach(var articulo in _articulos.Take(8)){<button type="button" class="list-group-item list-group-item-action" @onclick="()=>ElegirArticulo(articulo)"><strong>@articulo.Descripcion</strong><span class="text-secondary ms-2">@articulo.Cod_Articulo</span></button>}</div> }
-                            <div class="row g-2 mb-3"><div class="col-md-3"><label class="form-label">Precio A a aplicar (opcional, IVA incluido)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_linea.PrecioAAplicado" /><small class="text-secondary">Si se deja vacío, el cierre actualiza solo el costo. El redondeo se decide manualmente.</small></div></div>
-                            <div class="row g-2 align-items-end mb-3"><div class="col-md-3"><label class="form-label">Lote (si aplica)</label><input class="form-control" @bind="_lote.Numero" /></div><div class="col-md-3"><label class="form-label">Vencimiento</label><input type="date" class="form-control" @bind="_lote.FechaVencimiento" /></div><div class="col-md-2"><label class="form-label">Unidades lote</label><input type="number" min="0.001" step="0.001" class="form-control" @bind="_lote.Cantidad" /></div><div class="col-md-2"><button type="button" class="btn btn-sm btn-outline-secondary" @onclick="AgregarLote">Agregar lote</button></div><div class="col-md-2"><small class="text-secondary">Solo use lotes cuando el artículo los maneje.</small></div></div>
-                            @if (_linea.Lotes.Count > 0) { <p class="small text-secondary">Lotes de la línea actual: @string.Join(", ", _linea.Lotes.Select(x => $"{x.Numero} ({x.Cantidad})"))</p> }
-                            @if (_nueva.Lineas.Count == 0) { <p class="text-secondary mb-0">Agregue los artículos de la factura extranjera.</p> }
-                            else { <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Artículo</th><th>Código proveedor</th><th>Descripción</th><th class="text-end">Unidades</th><th class="text-end">Costo unitario</th><th class="text-end">Tributo DUA</th><th></th></tr></thead><tbody>@foreach (var item in _nueva.Lineas) { <tr><td>@(_articulosPorCodigo.TryGetValue(item.IdArticulo, out var nombre) ? nombre : item.IdArticulo.ToString())</td><td>@item.CodigoProveedor</td><td>@item.DescripcionProveedor</td><td class="text-end">@item.Cantidad</td><td class="text-end">@item.CostoProveedorMonedaUnitario:N6</td><td class="text-end">@item.TributoDuaUnitario:N6</td><td><button class="btn btn-sm btn-link text-danger" @onclick="() => QuitarLinea(item)"><i class="bi bi-trash"></i></button></td></tr> }</tbody></table></div> }
-                            <button class="btn btn-primary mt-3" disabled="@(_guardando || _nueva.Lineas.Count == 0)" @onclick="Crear">@(_guardando ? "Guardando..." : "Crear expediente")</button>
+                            <div class="col-md-3"><label class="form-label">Monto capitalizable (CRC)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_costo.MontoCapitalizable" /></div>
                         }
                         else
                         {
-                            <dl class="row mb-0"><dt class="col-7 text-secondary fw-normal">Mercancía</dt><dd class="col-5 text-end">₡@_actual.CostoMercanciaCrc:N2</dd><dt class="col-7 text-secondary fw-normal">Costos logísticos (prorrateados por valor)</dt><dd class="col-5 text-end">₡@_actual.CostosImportacionCrc:N2</dd><dt class="col-7 text-secondary fw-normal">Tributo DUA (por línea, sin prorratear)</dt><dd class="col-5 text-end">₡@_actual.TributosDuaCrc:N2</dd><dt class="col-7">Costo nacionalizado</dt><dd class="col-5 text-end fw-bold">₡@_actual.CostoNacionalizadoCrc:N2</dd></dl>
-                            <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Artículo</th><th class="text-end">Unidades</th><th class="text-end">Costo proveedor</th><th class="text-end">Log./unidad</th><th class="text-end">Tributo DUA/unidad</th><th class="text-end">Nacionalizado/unidad</th><th></th></tr></thead><tbody>@foreach (var item in _actual.Lineas) { <tr><td>@(item.DescripcionArticulo ?? item.IdArticulo.ToString()) <span class="text-secondary small">· @item.DescripcionProveedor</span></td><td class="text-end">@item.Cantidad</td><td class="text-end">₡@item.CostoProveedorCrcUnitario:N6</td><td class="text-end">₡@item.CostoImportacionUnitario:N6</td><td class="text-end">₡@item.TributoDuaUnitario:N6</td><td class="text-end fw-semibold">₡@item.CostoNacionalizadoUnitario:N6</td><td>@if (_actual.Estado != 6) { <button class="btn btn-sm btn-link" title="Actualizar tributo DUA de esta línea" @onclick="() => PrepararTributoDua(item)"><i class="bi bi-pencil"></i></button> }</td></tr> }</tbody></table></div>
-                            @if (_lineaTributoDua is not null)
-                            {
-                                <div class="row g-2 align-items-end mb-3 border rounded p-2">
-                                    <div class="col-md-6"><label class="form-label">Tributo DUA unitario de "@(_lineaTributoDua.DescripcionArticulo ?? _lineaTributoDua.DescripcionProveedor)" (de la Declaración de Importación)</label><input type="number" min="0" step="0.000001" class="form-control" @bind="_tributoDua.TributoDuaUnitario" /></div>
-                                    <div class="col-md-3"><button class="btn btn-outline-primary" @onclick="GuardarTributoDua">Guardar</button> <button class="btn btn-outline-secondary" @onclick="() => _lineaTributoDua = null">Cancelar</button></div>
-                                </div>
-                            }
-                            <hr />
-                            <h6>Costos logísticos capitalizables (globales del envío)</h6>
-                            <div class="row g-2 align-items-end">
-                                <div class="col-md-3"><label class="form-label">Categoría</label><select class="form-select" @bind="_costo.Categoria"><option value="2">Flete</option><option value="3">Seguro</option><option value="5">Agencia aduanal</option><option value="6">Documentación</option><option value="7">Almacenaje</option><option value="8">Manejo</option><option value="9">Transporte local</option><option value="10">Otro</option></select></div>
-                                <div class="col-md-4"><label class="form-label">Descripción</label><input class="form-control" @bind="_costo.Descripcion" /></div>
-                                <div class="col-md-3"><label class="form-label">Monto capitalizable (CRC)</label><input type="number" min="0" step="0.01" class="form-control" @bind="_costo.MontoCapitalizable" /></div>
-                                <div class="col-md-2"><label class="form-label">IVA acreditable</label><input type="number" min="0" step="0.01" class="form-control" @bind="_costo.IvaAcreditable" /></div>
-                                <div class="col-12"><button class="btn btn-outline-primary" @onclick="AgregarCosto">Agregar costo</button><small class="text-secondary ms-2">Se reparte entre los artículos según su participación en el valor de la mercancía, no en partes iguales. El tributo DUA no va aquí: se captura por línea arriba.</small></div>
-                            </div>
-                            <div class="mt-3 border-top pt-3"><label class="form-label">Fecha de recepción física</label><div class="input-group"><input type="date" class="form-control" @bind="_cierre.FechaRecepcion" /><button class="btn btn-success" disabled="@(_guardando || _actual.Estado == 6)" @onclick="Cerrar">@(_actual.Estado == 6 ? "Importación cerrada" : "Cerrar y registrar inventario")</button></div><small class="text-secondary">El cierre es definitivo: registra existencias, actualiza el costo global del artículo y deja una cuenta por pagar por el proveedor extranjero y por cada factura local con XML fiscal. No genera movimiento de caja.</small></div>
-                            @if (_actual.ComprasGeneradas.Count > 0)
-                            {
-                                <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Proveedor</th><th>Factura</th><th class="text-end">Total</th></tr></thead><tbody>@foreach (var c in _actual.ComprasGeneradas) { <tr><td>@c.Proveedor</td><td>@c.Factura</td><td class="text-end">@(c.CodMoneda == 2 ? "$" : "₡")@c.TotalFactura:N2</td></tr> }</tbody></table></div>
-                            }
-                            <hr />
-                            <h6>Documentos y evidencia</h6>
-                            <div class="row g-2 align-items-end">
-                                <div class="col-md-3"><label class="form-label">Tipo</label><select class="form-select" @bind="_tipoDocumento"><option value="1">Factura extranjera PDF</option><option value="2">DUA</option><option value="3">Conocimiento de embarque</option><option value="4">XML fiscal nacional</option><option value="5">PDF fiscal nacional</option><option value="6">Evidencia interna</option></select></div>
-                                <div class="col-md-3"><label class="form-label">Archivo</label><InputFile class="form-control" OnChange="SeleccionarArchivo" /></div>
-                                <div class="col-md-2"><label class="form-label">Clave fiscal XML</label><input class="form-control" @bind="_claveFiscal" /></div>
-                                @if (_tipoDocumento == 4)
-                                {
-                                    <div class="col-md-2"><label class="form-label">Proveedor local *</label><select class="form-select" @bind="_idProveedorLocalDocumento"><option value="">Seleccione...</option>@foreach(var p in _proveedores){<option value="@p.CodigoProv">@p.Nombre</option>}</select></div>
-                                }
-                                <div class="col-md-2"><button class="btn btn-outline-primary w-100" disabled="@(_archivo is null || (_tipoDocumento == 4 && _idProveedorLocalDocumento is null))" @onclick="Adjuntar">Adjuntar</button></div>
-                            </div>
-                            @if (_tipoDocumento == 4) { <small class="text-secondary">El proveedor local (almacén fiscal, agencia aduanal, etc.) es obligatorio: de aquí sale la cuenta por pagar al cerrar.</small> }
-                            @if (_actual.Documentos.Count > 0) { <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Documento</th><th>Proveedor local</th><th>Clave fiscal</th><th>Estado Hacienda</th><th>Detalle</th><th></th></tr></thead><tbody>@foreach (var doc in _actual.Documentos) { <tr><td>@doc.NombreArchivo</td><td>@doc.NombreProveedorLocal</td><td><small>@doc.ClaveFiscal</small></td><td>@if (doc.EstadoFiscal == "Rechazado") { <span class="badge text-bg-warning">Rechazado</span> } else { @doc.EstadoFiscal }</td><td class="small text-secondary">@doc.DetalleFiscal</td><td>@if (doc.Tipo == 4) { <button class="btn btn-sm btn-outline-primary" @onclick="() => EnviarMensajeReceptor(doc.IdImportacionDocumento)">Enviar / reintentar</button> }</td></tr> }</tbody></table></div> }
+                            <div class="col-md-2"><label class="form-label">Monto en USD</label><input type="number" min="0" step="0.01" class="form-control" @bind="_costo.MontoOrigen" /></div>
+                            <div class="col-md-2"><label class="form-label">Tipo de cambio de esta factura</label><input type="number" min="0.000001" step="0.000001" class="form-control" @bind="_costo.TipoCambio" /></div>
+                        }
+                        <div class="col-md-2"><label class="form-label">IVA acreditable</label><input type="number" min="0" step="0.01" class="form-control" @bind="_costo.IvaAcreditable" /></div>
+                        <div class="col-md-3"><div class="form-check mt-4"><input class="form-check-input" type="checkbox" id="costo-estimado" @bind="_costo.EsEstimado" /><label class="form-check-label" for="costo-estimado">Proforma estimada</label></div></div>
+                        @if (_costo.EsEstimado)
+                        {
+                            <div class="col-md-3"><label class="form-label">Movimiento del recinto</label><input class="form-control" @bind="_costo.MovimientoRecinto" placeholder="317736" /></div>
+                        }
+                        <div class="col-12"><button class="btn btn-outline-primary" @onclick="AgregarCosto">Agregar costo</button><small class="text-secondary ms-2">Se reparte por valor de mercancía. Un flete en dólares usa el tipo de cambio de esa factura, no el del DUA. La proforma del recinto queda estimada hasta que llegue la factura del mismo movimiento. La Ley 6946 y el IVA de aduana van por línea.</small></div>
+                        @if (_actual.Costos.Count > 0)
+                        {
+                            <div class="col-12"><ul class="list-unstyled small mb-0">@foreach (var c in _actual.Costos) { <li>@c.Descripcion · ₡@c.MontoCapitalizable:N2 @if (c.EsEstimado) { <span class="badge text-bg-warning">Estimado, mov. @c.MovimientoRecinto</span> }</li> }</ul></div>
                         }
                     </div>
-                </div>
+                    <div class="mt-3 border-top pt-3"><label class="form-label">Fecha de recepción física</label><div class="input-group"><input type="date" class="form-control" @bind="_cierre.FechaRecepcion" /><button class="btn btn-success" disabled="@(_guardando || _actual.Estado == 6)" @onclick="Cerrar">@(_actual.Estado == 6 ? "Importación cerrada" : "Cerrar y registrar inventario")</button></div><small class="text-secondary">El cierre es definitivo: registra existencias y deja el costo del artículo como promedio ponderado. Una factura local solo se cierra si su Mensaje Receptor ya está aceptado. No genera movimiento de caja.</small></div>
+                    @if (_actual.ComprasGeneradas.Count > 0)
+                    {
+                        <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Proveedor</th><th>Factura</th><th class="text-end">Total</th></tr></thead><tbody>@foreach (var c in _actual.ComprasGeneradas) { <tr><td>@c.Proveedor</td><td>@c.Factura</td><td class="text-end">@(c.CodMoneda == 2 ? "$" : "₡")@c.TotalFactura:N2</td></tr> }</tbody></table></div>
+                    }
+                    <hr />
+                    <h6>Documentos y evidencia</h6>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3"><label class="form-label">Tipo</label><select class="form-select" @bind="_tipoDocumento"><option value="1">Factura extranjera PDF</option><option value="2">DUA</option><option value="3">Conocimiento de embarque</option><option value="4">XML fiscal nacional</option><option value="5">PDF fiscal nacional</option><option value="6">Evidencia interna</option></select></div>
+                        <div class="col-md-3"><label class="form-label">Archivo</label><InputFile class="form-control" OnChange="SeleccionarArchivo" /></div>
+                        <div class="col-md-2"><label class="form-label">Clave fiscal XML</label><input class="form-control" @bind="_claveFiscal" /></div>
+                        @if (_tipoDocumento == 4)
+                        {
+                            <div class="col-md-2"><label class="form-label">Proveedor local *</label><select class="form-select" @bind="_idProveedorLocalDocumento"><option value="">Seleccione...</option>@foreach(var p in _proveedores){<option value="@p.CodigoProv">@p.Nombre</option>}</select></div>
+                        }
+                        <div class="col-md-2"><button class="btn btn-outline-primary w-100" disabled="@(_archivo is null || (_tipoDocumento == 4 && _idProveedorLocalDocumento is null))" @onclick="Adjuntar">Adjuntar</button></div>
+                    </div>
+                    @if (_tipoDocumento == 4) { <small class="text-secondary">El proveedor local (almacén fiscal, agencia aduanal, etc.) es obligatorio: de aquí sale la cuenta por pagar al cerrar.</small> }
+                    @if (_actual.Documentos.Any(d => d.Tipo == 4))
+                    {
+                        <div class="col-md-4 mt-2"><label class="form-label">Mensaje Receptor</label><select class="form-select" @bind="_mensajeReceptor"><option value="1">Aceptado</option><option value="2">Aceptado parcialmente</option><option value="3">Rechazado</option></select></div>
+                    }
+                    @if (_actual.Documentos.Count > 0) { <div class="table-responsive mt-3"><table class="table table-sm"><thead><tr><th>Documento</th><th>Proveedor local</th><th>Clave fiscal</th><th>Estado Hacienda</th><th>Detalle</th><th></th></tr></thead><tbody>@foreach (var doc in _actual.Documentos) { <tr><td>@doc.NombreArchivo</td><td>@doc.NombreProveedorLocal</td><td><small>@doc.ClaveFiscal</small></td><td>@if (doc.EstadoFiscal == "Rechazado") { <span class="badge text-bg-warning">Rechazado</span> } else { @doc.EstadoFiscal }</td><td class="small text-secondary">@doc.DetalleFiscal</td><td>@if (doc.Tipo == 4) { <button class="btn btn-sm btn-outline-primary" @onclick="() => EnviarMensajeReceptor(doc.IdImportacionDocumento)">Enviar / reintentar</button> }</td></tr> }</tbody></table></div> }
+                }
             </div>
-            <div class="col-12 col-xxl-4"><div class="card"><div class="card-header"><strong>Importaciones recientes</strong></div><div class="list-group list-group-flush">@foreach (var item in _lista) { <button class="list-group-item list-group-item-action" @onclick="() => _actual = item"><strong>@item.FacturaExtranjera</strong><span class="d-block small text-secondary">DUA @(item.Dua ?? "pendiente") · @item.Unidades unidades · ₡@item.CostoNacionalizadoCrc:N2</span></button> } @if (_lista.Count == 0) { <span class="list-group-item text-secondary">No hay importaciones registradas.</span> }</div></div>
-                <div class="card mt-3"><div class="card-header"><strong>Reporte y KPI</strong></div><div class="card-body"><div class="row g-2"><div class="col-12"><label class="form-label">DUA</label><input class="form-control form-control-sm" @bind="_filtroReporte.Dua" /></div><div class="col-6"><label class="form-label">Proveedor (ID)</label><input type="number" class="form-control form-control-sm" @bind="_filtroReporte.IdProveedor" /></div><div class="col-6"><label class="form-label">Desde</label><input type="date" class="form-control form-control-sm" @bind="_filtroReporte.Desde" /></div><div class="col-6"><label class="form-label">Hasta</label><input type="date" class="form-control form-control-sm" @bind="_filtroReporte.Hasta" /></div><div class="col-12"><button class="btn btn-sm btn-outline-primary" @onclick="ConsultarReporte">Consultar KPI</button>@if (Sesion.Puede("COMPRAS.IMPORTACIONES", AccionPantalla.Exportar)) { <button class="btn btn-sm btn-outline-success ms-2" disabled="@(_reporte is null)" @onclick="ExportarCsv"><i class="bi bi-filetype-csv me-1"></i>Excel (CSV)</button> }</div></div>
-                @if (_reporte is not null) { <dl class="row small mt-3 mb-0"><dt class="col-7 fw-normal text-secondary">Costo nacionalizado</dt><dd class="col-5 text-end">₡@_reporte.CostoNacionalizado:N2</dd><dt class="col-7 fw-normal text-secondary">Logística</dt><dd class="col-5 text-end">@_reporte.PorcentajeLogistico:N2%</dd><dt class="col-7 fw-normal text-secondary">Días nacionalización</dt><dd class="col-5 text-end">@_reporte.DiasPromedioNacionalizacion:N1</dd><dt class="col-7 fw-normal text-secondary">Docs. pendientes</dt><dd class="col-5 text-end">@_reporte.DocumentosPendientes</dd><dt class="col-7 fw-normal text-secondary">Margen esperado</dt><dd class="col-5 text-end">@_reporte.MargenEsperado:N2%</dd></dl><div class="table-responsive mt-3"><table class="table table-sm small"><thead><tr><th>DUA</th><th class="text-end">Costo</th><th class="text-end">Docs.</th></tr></thead><tbody>@foreach (var fila in _reporte.Filas) { <tr><td>@(fila.Dua ?? fila.FacturaExtranjera)</td><td class="text-end">₡@fila.CostoNacionalizado:N2</td><td class="text-end">@fila.DocumentosPendientes</td></tr> }</tbody></table></div> }</div></div></div>
         </div>
     </ChildContent>
 </AppPantalla>
 
+<HxModal @ref="_modalImportarPdf" Title="Importar artículos desde PDF" Size="ModalSize.ExtraLarge">
+    <BodyTemplate>
+        <div class="border rounded p-3 mb-3 bg-body-tertiary">
+            <label class="form-label" for="archivo-factura-pdf">PDF de la factura extranjera</label>
+            <InputFile id="archivo-factura-pdf" class="form-control" accept=".pdf,application/pdf" OnChange="ImportarPdf" />
+            <div class="form-text">Extracción automática: corrija cantidad y costo, quite lo que no corresponda y agregue a mano las líneas que el PDF no haya leído.</div>
+            @if (!string.IsNullOrWhiteSpace(_nombreArchivoPdf)) { <div class="small mt-2"><i class="bi bi-file-earmark-check me-1 text-success" aria-hidden="true"></i>@_nombreArchivoPdf</div> }
+        </div>
+        @if (_extrayendoPdf)
+        {
+            <div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Leyendo PDF...</span></div></div>
+        }
+        else if (_pdfCandidatas.Count > 0)
+        {
+            @if (!_pdfTextoExtraido)
+            {
+                <div class="alert alert-warning">No se pudo leer texto de este PDF (probablemente es una imagen escaneada). Puede cerrar y adjuntarlo igual como evidencia, capturando las líneas manualmente.</div>
+            }
+            @if (_editorPdf == EditorPdf.Busqueda)
+            {
+                <div class="border rounded p-3 mb-3 bg-body-tertiary">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2"><strong>Asociar artículo interno</strong><button type="button" class="btn btn-sm btn-link text-danger" @onclick="CancelarEditorPdf">Cancelar asociación</button></div>
+                    <p class="small text-secondary mb-2">Busque y elija el artículo que corresponde a la línea del PDF. El importador permanece abierto.</p>
+                    <div class="input-group mb-3"><input type="search" class="form-control" placeholder="Código o descripción del artículo" @bind="_textoBusquedaPdf" @onkeydown="BuscarArticuloPdfConEnter" /><button type="button" class="btn btn-outline-primary" disabled="@_buscandoArticuloPdf" @onclick="BuscarArticulosPdf">@(_buscandoArticuloPdf ? "Buscando..." : "Buscar")</button></div>
+                    @if (_buscandoArticuloPdf) { <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div> }
+                    else if (_resultadosBusquedaPdf.Count > 0) { <div class="table-responsive seepos-importador-resultados"><table class="table table-sm table-hover mb-0"><thead><tr><th>Código</th><th>Descripción</th><th class="text-end">Existencia</th><th class="text-end">Precio</th></tr></thead><tbody>@foreach (var articulo in _resultadosBusquedaPdf) { <tr role="button" @onclick="() => ElegirArticuloPdf(articulo)"><td><code>@articulo.Cod_Articulo</code></td><td>@articulo.Descripcion</td><td class="text-end">@Formato.Cantidad(articulo.Existencia)</td><td class="text-end">@Formato.Importe(articulo.Precio_A)</td></tr> }</tbody></table></div> }
+                    else if (!string.IsNullOrWhiteSpace(_textoBusquedaPdf)) { <p class="small text-secondary mb-0">No hay artículos para la búsqueda indicada.</p> }
+                </div>
+            }
+            @if (_editorPdf == EditorPdf.Lotes && LineaPdfSeleccionada is not null)
+            {
+                <div class="border rounded p-3 mb-3 bg-body-tertiary">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <strong>Lotes: @LineaPdfSeleccionada.Articulo?.Descripcion</strong>
+                        <button type="button" class="btn btn-sm btn-primary" @onclick="CancelarEditorPdf">Aceptar lote</button>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-5"><label class="form-label">Número de lote</label><input class="form-control" @bind="LineaPdfSeleccionada.Lote" /></div>
+                        <div class="col-12 col-md-4"><label class="form-label">Vencimiento</label><input type="date" class="form-control" @bind="LineaPdfSeleccionada.Vencimiento" /></div>
+                        <div class="col-12 col-md-3"><label class="form-label">Cantidad</label><input type="number" min="0" step="0.001" class="form-control text-end" @bind="LineaPdfSeleccionada.CantidadLotePrincipal" /></div>
+                    </div>
+                    <div class="mt-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="form-text mb-0">¿La factura trae varios lotes de este artículo? Agréguelos aquí. La suma de todos los lotes debe dar @LineaPdfSeleccionada.Cantidad.</span>
+                            <button type="button" class="btn btn-sm btn-link" @onclick="() => LineaPdfSeleccionada!.LotesExtra.Add(new LoteExtraPdf())">+ Otro lote</button>
+                        </div>
+                        @foreach (var le in LineaPdfSeleccionada.LotesExtra)
+                        {
+                            <div class="row g-2 align-items-end mt-1">
+                                <div class="col-5"><input class="form-control form-control-sm" placeholder="Número" @bind="le.Numero" /></div>
+                                <div class="col-4"><input type="date" class="form-control form-control-sm" @bind="le.Vence" /></div>
+                                <div class="col-2"><input type="number" min="0.001" step="0.001" class="form-control form-control-sm text-end" placeholder="Cant." @bind="le.Cantidad" /></div>
+                                <div class="col-1"><button type="button" class="btn btn-sm btn-link text-danger" @onclick="() => LineaPdfSeleccionada!.LotesExtra.Remove(le)"><i class="bi bi-trash" aria-hidden="true"></i></button></div>
+                            </div>
+                        }
+                        @{ var sumaLotes = SumaLotesPdf(LineaPdfSeleccionada); }
+                        <div class="small mt-2 @(Math.Abs(sumaLotes - LineaPdfSeleccionada.Cantidad) > 0.001m ? "text-danger" : "text-success")">
+                            Repartido: @sumaLotes de @LineaPdfSeleccionada.Cantidad
+                        </div>
+                    </div>
+                </div>
+            }
+            <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>#</th><th>Código prov.</th><th>Descripción prov.</th><th>Código interno</th><th>Descripción interna</th><th class="text-end">Cantidad</th><th class="text-end">Costo unit.</th><th class="text-end">Ley 6946</th><th class="text-end">Precio A</th><th>Opciones</th></tr></thead><tbody>
+                @for (var i = 0; i < _pdfCandidatas.Count; i++)
+                {
+                    var candidata = _pdfCandidatas[i];
+                    var indice = i;
+                    <tr class="@(candidata.RequiereRevision ? "table-warning" : null)">
+                        <td>@candidata.NumeroLinea</td>
+                        <td>@if (candidata.Manual) { <input class="form-control form-control-sm" placeholder="Código" @bind="candidata.CodigoProveedor" /> } else { <code>@candidata.CodigoProveedor</code> }</td>
+                        <td>@if (candidata.Manual) { <input class="form-control form-control-sm" placeholder="Descripción del proveedor" @bind="candidata.DescripcionProveedor" /> } else { @candidata.DescripcionProveedor }</td>
+                        <td>@if (candidata.Articulo is null) { <span class="text-warning">Sin asociar</span> } else { <code>@candidata.Articulo.Cod_Articulo</code> }</td>
+                        <td>@(candidata.Articulo?.Descripcion ?? "—")</td>
+                        <td style="min-width:7rem"><input type="number" min="0.001" step="0.001" class="form-control form-control-sm text-end" @bind="candidata.Cantidad" @bind:after="() => RecalcularLineaPdf(candidata)" /></td>
+                        <td style="min-width:7rem"><input type="number" min="0" step="0.000001" class="form-control form-control-sm text-end" @bind="candidata.CostoUnitario" /></td>
+                        <td style="min-width:7rem"><input type="number" min="0" step="0.000001" class="form-control form-control-sm text-end" @bind="candidata.TributoDuaUnitario" /></td>
+                        <td style="min-width:7rem"><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" @bind="candidata.PrecioAAplicado" /></td>
+                        <td class="text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="() => AsociarArticuloPdf(indice)">@((candidata.Articulo is null) ? "Asociar" : "Cambiar")</button>
+                            @if (Sesion.EsCostaPets || candidata.Articulo?.Lote == true) { <button type="button" class="btn btn-sm btn-outline-secondary me-1" title="Lote" @onclick="() => AbrirLotesPdf(indice)"><i class="bi bi-box-seam" aria-hidden="true"></i></button> }
+                            <button type="button" class="btn btn-sm btn-outline-danger" title="Quitar esta línea" aria-label="Quitar esta línea" @onclick="() => QuitarLineaPdf(indice)"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                        </td>
+                    </tr>
+                    @if (ManejaLotePdf(candidata))
+                    {
+                        <tr><td colspan="10" class="small @(LoteIncompletoPdf(candidata) ? "text-warning" : "text-secondary")"><i class="bi @(LoteIncompletoPdf(candidata) ? "bi-exclamation-triangle" : "bi-box-seam") me-1" aria-hidden="true"></i>@(LoteIncompletoPdf(candidata) ? "Indique lote y vencimiento para esta línea importada." : ResumenLotesPdf(candidata))</td></tr>
+                    }
+                }
+            </tbody></table></div>
+            @if (_pdfCandidatas.Any(l => l.Articulo is null)) { <p class="form-text mb-2">Asocie cada línea a un artículo interno antes de aplicar el PDF.</p> }
+            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AgregarLineaPdf"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar línea</button>
+        }
+        else if (_pdfIntentado)
+        {
+            <div class="alert alert-warning">No se encontraron líneas de artículo en este PDF. Puede agregarlas aquí, o cerrar y adjuntar el archivo solo como evidencia.</div>
+            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AgregarLineaPdf"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar línea</button>
+        }
+    </BodyTemplate>
+    <FooterTemplate>
+        <button type="button" class="btn btn-outline-secondary" @onclick="CerrarImportadorPdf">Cerrar</button>
+        <button type="button" class="btn btn-primary" disabled="@(_pdfCandidatas.Count == 0 || _pdfCandidatas.Any(l => l.Articulo is null) || _pdfCandidatas.Any(LoteIncompletoPdf))" @onclick="AplicarImportacionPdf"><i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Aplicar a la importación</button>
+    </FooterTemplate>
+</HxModal>
+
 @code {
     private CrearImportacionWebDTO _nueva = new() { TipoCambioDua = 1 };
-    private ImportacionLineaWebDTO _linea = new();
-    private ImportacionCostoWebDTO _costo = new() { Categoria = 2 };
-    private ImportacionLoteWebDTO _lote = new();
+    private ImportacionCostoWebDTO _costo = new() { Categoria = 2, CodMoneda = 1 };
+    private int _mensajeReceptor = 1;
     private CerrarImportacionWebDTO _cierre = new();
-    private FiltroReporteImportacionWebDTO _filtroReporte = new();
-    private ReporteImportacionWebDTO? _reporte;
-    private List<ImportacionResumenWebDTO> _lista = new();
     private ImportacionResumenWebDTO? _actual;
     private IBrowserFile? _archivo;
     private int _tipoDocumento = 1;
     private string? _claveFiscal;
     private bool _guardando;
 
+    [Parameter]
+    public long? IdImportacion { get; set; }
+
     private List<SuvesaPosSitioAplicacion.DTOs.Generated.Bodega> _bodegas = new();
-    private List<SuvesaPosSitioAplicacion.DTOs.Generated.EmpresaDTO> _empresas = new();
     private List<SuvesaPosSitioAplicacion.DTOs.Fiscal.EmisorFiscalDTO> _emisores = new();
     private List<SuvesaPosSitioAplicacion.DTOs.Fiscal.SerieFacturacionFiscalDTO> _series = new();
     private List<SuvesaPosSitioAplicacion.DTOs.Generated.ProveedorDTO> _proveedores = new();
-    private List<SuvesaPosSitioAplicacion.DTOs.Generated.InventarioDTO> _articulos = new();
-    private string _textoArticulo = string.Empty;
     private readonly Dictionary<long, string> _articulosPorCodigo = new();
     private int? _idProveedorLocalDocumento;
     private ActualizarTributoDuaImportacionWebDTO _tributoDua = new();
+
+    // Editor inline de línea — mismo patrón de Compra.razor: se llena al elegir un
+    // artículo (búsqueda manual o asociación de una candidata del PDF), nunca se
+    // inserta nada en _nueva.Lineas sin pasar por "Agregar"/"Actualizar" aquí.
+    private AppBuscadorArticulo _buscadorArticulo = default!;
+    private InventarioDTO? _articuloActual;
+    private decimal _cantidad = 1m, _costoUnitario, _tributoDuaUnitario, _ivaAduanalUnitario;
+    private decimal? _precioAAplicado;
+    private string _codigoProveedor = string.Empty, _descripcionProveedor = string.Empty;
+    private sealed class LoteEdicion { public string Numero = string.Empty; public DateTime? Vence; public decimal Cantidad; }
+    private readonly List<LoteEdicion> _lotes = new();
+    private int? _indiceEdicionLinea;
+
+    // Importación desde PDF — mismo patrón que "Importar factura electrónica" (XML) de
+    // Compra.razor: búsqueda de artículo embebida en el propio modal (no un modal
+    // encima de otro), edición inline de cantidad/costo/tributo/precio por fila, e
+    // ícono de lote que abre un sub-editor cuando el artículo asociado los maneja.
+    private enum EditorPdf { Ninguno, Busqueda, Lotes }
+    private sealed class LineaCandidataPdf
+    {
+        public int NumeroLinea { get; init; }
+        public string? CodigoProveedor { get; set; }
+        public string DescripcionProveedor { get; set; } = string.Empty;
+        public bool Manual { get; init; }
+        public decimal Cantidad { get; set; }
+        public decimal CostoUnitario { get; set; }
+        public decimal TributoDuaUnitario { get; set; }
+        public decimal? PrecioAAplicado { get; set; }
+        public bool RequiereRevision { get; init; }
+        public InventarioDTO? Articulo { get; set; }
+        public string Lote { get; set; } = string.Empty;
+        public DateTime Vencimiento { get; set; } = DateTime.Today;
+        public decimal CantidadLotePrincipal { get; set; }
+        public List<LoteExtraPdf> LotesExtra { get; } = new();
+    }
+    private sealed class LoteExtraPdf { public string Numero = string.Empty; public DateTime Vence = DateTime.Today; public decimal Cantidad; }
+
+    private HxModal _modalImportarPdf = default!;
+    private bool _extrayendoPdf, _pdfIntentado, _pdfTextoExtraido, _buscandoArticuloPdf;
+    private string _nombreArchivoPdf = string.Empty, _textoBusquedaPdf = string.Empty;
+    private List<LineaCandidataPdf> _pdfCandidatas = new();
+    private List<InventarioDTO> _resultadosBusquedaPdf = new();
+    private EditorPdf _editorPdf;
+    private int? _indicePdfAsignacion, _indicePdfOpciones;
+
+    private LineaCandidataPdf? LineaPdfSeleccionada => _indicePdfOpciones is int indice && indice >= 0 && indice < _pdfCandidatas.Count ? _pdfCandidatas[indice] : null;
+
     protected override async Task OnInitializedAsync()
     {
-        await Cargar();
         _bodegas = ((await Respuestas.DatoAsync(await ComprasApi.Bodegas(false))) ?? []).ToList();
-        _empresas = ((await Respuestas.DatoAsync(await ComprasApi.Empresas())) ?? []).ToList();
         _emisores = ((await Respuestas.DatoAsync(await EmisoresApi.Obtener())) ?? []).ToList();
+        if (_emisores.Count == 1) _nueva.IdEmisor = _emisores[0].Id;
         _series = ((await Respuestas.DatoAsync(await SeriesApi.Obtener())) ?? []).ToList();
         _proveedores = ((await Respuestas.DatoAsync(await ProveedoresApi.Obtener())) ?? []).ToList();
     }
-    private async Task Cargar()
+
+    protected override async Task OnParametersSetAsync()
     {
-        var datos = await Respuestas.DatoAsync(await Api.Listar());
-        if (datos is not null) _lista = datos.ToList();
+        if (IdImportacion is > 0 && (_actual is null || _actual.IdImportacion != IdImportacion))
+            _actual = await Respuestas.DatoAsync(await Api.Obtener(IdImportacion.Value));
     }
-    private void AgregarLinea()
+
+    private void IrABandeja() => Navegacion.NavigateTo("/buys/importationsbox");
+
+    private async Task AbrirBuscadorArticulo()
     {
-        if (_linea.IdArticulo <= 0 || _linea.Cantidad <= 0 || _linea.CostoProveedorMonedaUnitario < 0) return;
-        _nueva.Lineas.Add(_linea);
-        _linea = new();
-        _lote = new();
+        if (_nueva.IdProveedorExtranjero <= 0 || _nueva.IdBodega <= 0 || _nueva.CodMoneda <= 0 || _nueva.TipoCambioDua <= 0)
+        {
+            await Dialogos.ErrorAsync("Complete proveedor, bodega, moneda y tipo de cambio DUA antes de agregar artículos.");
+            return;
+        }
+        await _buscadorArticulo.AbrirAsync();
     }
-    private async Task BuscarArticulos()
+
+    private void ElegirArticulo(InventarioDTO articulo)
     {
-        if (_textoArticulo.Trim().Length < 2) { _articulos.Clear(); return; }
-        _articulos = ((await Respuestas.DatoAsync(await InventarioApi.Buscar(_textoArticulo))) ?? []).ToList();
-    }
-    private void ElegirArticulo(SuvesaPosSitioAplicacion.DTOs.Generated.InventarioDTO articulo)
-    {
-        _linea.IdArticulo = articulo.Codigo;
-        _linea.DescripcionProveedor = string.IsNullOrWhiteSpace(_linea.DescripcionProveedor) ? articulo.Descripcion ?? string.Empty : _linea.DescripcionProveedor;
-        _textoArticulo = articulo.Descripcion ?? articulo.Cod_Articulo ?? string.Empty;
+        _articuloActual = articulo;
+        _indiceEdicionLinea = null;
+        _lotes.Clear();
+        _codigoProveedor = string.Empty;
+        _descripcionProveedor = articulo.Descripcion ?? string.Empty;
+        _cantidad = 1m;
+        _costoUnitario = 0m;
+        _tributoDuaUnitario = 0m;
+        _ivaAduanalUnitario = 0m;
+        _precioAAplicado = null;
         _articulosPorCodigo[articulo.Codigo] = articulo.Descripcion ?? articulo.Cod_Articulo ?? articulo.Codigo.ToString();
-        _articulos.Clear();
     }
-    private void AgregarLote()
+
+    private void EditarLinea(int indice)
     {
-        if (string.IsNullOrWhiteSpace(_lote.Numero) || _lote.Cantidad <= 0) return;
-        _linea.Lotes.Add(_lote);
-        _lote = new();
+        var linea = _nueva.Lineas[indice];
+        _articuloActual = new InventarioDTO { Codigo = linea.IdArticulo, Descripcion = _articulosPorCodigo.GetValueOrDefault(linea.IdArticulo, linea.DescripcionProveedor), Lote = linea.Lotes.Count > 0 };
+        _indiceEdicionLinea = indice;
+        _codigoProveedor = linea.CodigoProveedor;
+        _descripcionProveedor = linea.DescripcionProveedor;
+        _cantidad = linea.Cantidad;
+        _costoUnitario = linea.CostoProveedorMonedaUnitario;
+        _tributoDuaUnitario = linea.TributoDuaUnitario;
+        _ivaAduanalUnitario = linea.IvaAduanalUnitario;
+        _precioAAplicado = linea.PrecioAAplicado;
+        _lotes.Clear();
+        foreach (var lote in linea.Lotes)
+            _lotes.Add(new LoteEdicion { Numero = lote.Numero, Vence = lote.FechaVencimiento.HasValue ? lote.FechaVencimiento.Value.ToDateTime(TimeOnly.MinValue) : null, Cantidad = lote.Cantidad });
     }
-    private void QuitarLinea(ImportacionLineaWebDTO linea) => _nueva.Lineas.Remove(linea);
+
+    private void CancelarEdicionLinea()
+    {
+        _articuloActual = null;
+        _indiceEdicionLinea = null;
+        _lotes.Clear();
+    }
+
+    private async Task AgregarOActualizarLinea()
+    {
+        if (_articuloActual is null || _cantidad <= 0 || _costoUnitario < 0) return;
+        if (_articuloActual.Lote)
+        {
+            if (_lotes.Count == 0 || _lotes.Any(x => string.IsNullOrWhiteSpace(x.Numero) || x.Cantidad <= 0 || x.Vence is null)
+                || Math.Abs(_lotes.Sum(x => x.Cantidad) - _cantidad) > 0.001m)
+            {
+                await Dialogos.ErrorAsync("Este artículo maneja lotes: indique lotes válidos (número, vencimiento y cantidad) cuya suma coincida con las unidades.");
+                return;
+            }
+        }
+        var linea = new ImportacionLineaWebDTO
+        {
+            IdArticulo = _articuloActual.Codigo,
+            CodigoProveedor = _codigoProveedor,
+            DescripcionProveedor = _descripcionProveedor,
+            Cantidad = _cantidad,
+            CostoProveedorMonedaUnitario = _costoUnitario,
+            TributoDuaUnitario = _tributoDuaUnitario,
+            IvaAduanalUnitario = _ivaAduanalUnitario,
+            PrecioAAplicado = _precioAAplicado,
+            Lotes = _articuloActual.Lote
+                ? _lotes.Select(l => new ImportacionLoteWebDTO { Numero = l.Numero.Trim(), FechaVencimiento = l.Vence.HasValue ? DateOnly.FromDateTime(l.Vence.Value) : null, Cantidad = l.Cantidad }).ToList()
+                : new(),
+        };
+        if (_indiceEdicionLinea is int indice) _nueva.Lineas[indice] = linea; else _nueva.Lineas.Add(linea);
+        CancelarEdicionLinea();
+    }
+
+    private void QuitarLinea(int indice) => _nueva.Lineas.RemoveAt(indice);
+
+    private async Task AbrirImportadorPdf()
+    {
+        _pdfCandidatas.Clear();
+        _pdfIntentado = false;
+        _nombreArchivoPdf = string.Empty;
+        CancelarEditorPdf();
+        await _modalImportarPdf.ShowAsync();
+    }
+
+    private Task CerrarImportadorPdf() => _modalImportarPdf.HideAsync();
+
+    private async Task ImportarPdf(InputFileChangeEventArgs e)
+    {
+        _nombreArchivoPdf = e.File.Name;
+        _extrayendoPdf = true;
+        _pdfCandidatas.Clear();
+        _pdfIntentado = false;
+        CancelarEditorPdf();
+        StateHasChanged();
+        try
+        {
+            await using var flujo = e.File.OpenReadStream(20 * 1024 * 1024);
+            using var memoria = new MemoryStream();
+            await flujo.CopyToAsync(memoria);
+            var resultado = await Respuestas.DatoAsync(await Api.ExtraerPdf(new ExtraerLineasFacturaPdfWebDTO { NombreArchivo = e.File.Name, Contenido = memoria.ToArray() }), "leer el PDF");
+            _pdfIntentado = true;
+            if (resultado is not null)
+            {
+                _pdfTextoExtraido = resultado.TextoExtraido;
+                _pdfCandidatas = resultado.Lineas.Select(l => new LineaCandidataPdf
+                {
+                    NumeroLinea = l.NumeroLinea,
+                    CodigoProveedor = l.CodigoProveedor,
+                    DescripcionProveedor = l.DescripcionProveedor,
+                    Cantidad = l.Cantidad is > 0 ? l.Cantidad.Value : 1m,
+                    CostoUnitario = l.PrecioUnitario ?? 0m,
+                    RequiereRevision = l.RequiereRevision,
+                }).ToList();
+                foreach (var candidata in _pdfCandidatas) candidata.CantidadLotePrincipal = candidata.Cantidad;
+            }
+        }
+        finally { _extrayendoPdf = false; }
+    }
+
+    private async Task AsociarArticuloPdf(int indice)
+    {
+        _indicePdfAsignacion = indice;
+        _indicePdfOpciones = null;
+        _editorPdf = EditorPdf.Busqueda;
+        var candidata = _pdfCandidatas[indice];
+        _textoBusquedaPdf = !string.IsNullOrWhiteSpace(candidata.CodigoProveedor) ? candidata.CodigoProveedor : candidata.DescripcionProveedor;
+        _resultadosBusquedaPdf.Clear();
+        await BuscarArticulosPdf();
+    }
+
+    private async Task BuscarArticuloPdfConEnter(KeyboardEventArgs e) { if (e.Key == "Enter") await BuscarArticulosPdf(); }
+
+    private async Task BuscarArticulosPdf()
+    {
+        var texto = _textoBusquedaPdf.Trim();
+        _resultadosBusquedaPdf.Clear();
+        if (texto.Length < 2) return;
+        _buscandoArticuloPdf = true;
+        try { _resultadosBusquedaPdf = ((await Respuestas.DatoAsync(await InventarioApi.Buscar(texto))) ?? []).ToList(); }
+        finally { _buscandoArticuloPdf = false; }
+    }
+
+    private async Task ElegirArticuloPdf(InventarioDTO articulo)
+    {
+        if (_indicePdfAsignacion is not int indice) return;
+        // El buscador embebido devuelve una proyección ligera (mismo caso ya documentado en
+        // Compra.razor.ElegirArticuloXml): la propiedad Lote llega completa recién en la
+        // consulta individual — sin esto, el ícono de lote nunca se mostraba aunque el
+        // artículo sí manejara lotes.
+        var detalle = await Respuestas.DatoAsync(await InventarioApi.Uno(articulo.Codigo));
+        if (detalle is not null) articulo = detalle;
+        var candidata = _pdfCandidatas[indice];
+        candidata.Articulo = articulo;
+        candidata.Lote = string.Empty;
+        candidata.Vencimiento = DateTime.Today;
+        candidata.CantidadLotePrincipal = candidata.Cantidad;
+        candidata.LotesExtra.Clear();
+        _articulosPorCodigo[articulo.Codigo] = articulo.Descripcion ?? articulo.Cod_Articulo ?? articulo.Codigo.ToString();
+        CancelarEditorPdf();
+    }
+
+    private void AgregarLineaPdf()
+    {
+        var numero = _pdfCandidatas.Count == 0 ? 1 : _pdfCandidatas.Max(l => l.NumeroLinea) + 1;
+        _pdfCandidatas.Add(new LineaCandidataPdf
+        {
+            NumeroLinea = numero,
+            CodigoProveedor = string.Empty,
+            DescripcionProveedor = string.Empty,
+            Cantidad = 1,
+            CantidadLotePrincipal = 1,
+            RequiereRevision = true,
+            Manual = true,
+        });
+    }
+
+    private async Task QuitarLineaPdf(int indice)
+    {
+        if (indice < 0 || indice >= _pdfCandidatas.Count) return;
+        var linea = _pdfCandidatas[indice];
+        var nombre = string.IsNullOrWhiteSpace(linea.DescripcionProveedor) ? $"la línea {linea.NumeroLinea}" : linea.DescripcionProveedor.Trim();
+        if (!await Dialogos.ConfirmarAsync($"Se quitará «{nombre}» de la lista. No se cargará al aplicar el PDF.")) return;
+
+        _pdfCandidatas.RemoveAt(indice);
+        if (_indicePdfAsignacion == indice || _indicePdfOpciones == indice)
+            CancelarEditorPdf();
+        else
+        {
+            if (_indicePdfAsignacion is int asignacion && asignacion > indice) _indicePdfAsignacion = asignacion - 1;
+            if (_indicePdfOpciones is int opciones && opciones > indice) _indicePdfOpciones = opciones - 1;
+        }
+    }
+
+    private void CancelarEditorPdf()
+    {
+        _editorPdf = EditorPdf.Ninguno;
+        _indicePdfAsignacion = null;
+        _indicePdfOpciones = null;
+        _textoBusquedaPdf = string.Empty;
+        _resultadosBusquedaPdf.Clear();
+    }
+
+    private Task AbrirLotesPdf(int indice)
+    {
+        _indicePdfOpciones = indice;
+        var candidata = _pdfCandidatas[indice];
+        if (candidata.LotesExtra.Count == 0) candidata.CantidadLotePrincipal = candidata.Cantidad;
+        _editorPdf = EditorPdf.Lotes;
+        return Task.CompletedTask;
+    }
+
+    private static void RecalcularLineaPdf(LineaCandidataPdf l)
+    {
+        l.Cantidad = Math.Max(0.001m, l.Cantidad);
+        if (l.LotesExtra.Count == 0) l.CantidadLotePrincipal = l.Cantidad;
+    }
+
+    private bool ManejaLotePdf(LineaCandidataPdf l) => l.Articulo is not null && (Sesion.EsCostaPets || l.Articulo.Lote);
+    private static decimal SumaLotesPdf(LineaCandidataPdf l) => l.CantidadLotePrincipal + l.LotesExtra.Sum(e => e.Cantidad);
+
+    /// <summary>La línea maneja lotes y falta información: número de lote, cantidad
+    /// principal ≤ 0, algún lote extra incompleto, o la suma de todos los lotes no
+    /// cuadra con la cantidad de la línea.</summary>
+    private bool LoteIncompletoPdf(LineaCandidataPdf l)
+    {
+        if (!ManejaLotePdf(l)) return false;
+        if (string.IsNullOrWhiteSpace(l.Lote)) return true;
+        if (l.LotesExtra.Count == 0) return l.CantidadLotePrincipal <= 0;
+        if (l.CantidadLotePrincipal <= 0) return true;
+        if (l.LotesExtra.Any(e => string.IsNullOrWhiteSpace(e.Numero) || e.Cantidad <= 0)) return true;
+        return Math.Abs(SumaLotesPdf(l) - l.Cantidad) > 0.001m;
+    }
+
+    private string ResumenLotesPdf(LineaCandidataPdf l)
+    {
+        if (l.LotesExtra.Count == 0) return $"Lote {l.Lote} · vence {l.Vencimiento:dd/MM/yyyy}";
+        var partes = new List<string> { $"{l.Lote} ({l.CantidadLotePrincipal})" };
+        partes.AddRange(l.LotesExtra.Select(e => $"{e.Numero} ({e.Cantidad})"));
+        return "Lotes: " + string.Join(" · ", partes);
+    }
+
+    private async Task AplicarImportacionPdf()
+    {
+        if (_pdfCandidatas.Count == 0 || _pdfCandidatas.Any(l => l.Articulo is null)) return;
+        var sinLote = _pdfCandidatas.Where(LoteIncompletoPdf).ToList();
+        if (sinLote.Count > 0) { await Dialogos.ErrorAsync($"Revise los lotes de {sinLote.Count} artículo(s): falta el número o los lotes no suman la cantidad de la línea.", "Importar PDF"); return; }
+        if (_pdfCandidatas.Any(l => l.Cantidad <= 0)) { await Dialogos.ErrorAsync("Cada línea debe tener una cantidad mayor a cero.", "Importar PDF"); return; }
+
+        foreach (var candidata in _pdfCandidatas)
+        {
+            var articulo = candidata.Articulo!;
+            var lotes = ManejaLotePdf(candidata)
+                ? new List<ImportacionLoteWebDTO> { new() { Numero = candidata.Lote.Trim(), FechaVencimiento = DateOnly.FromDateTime(candidata.Vencimiento), Cantidad = candidata.CantidadLotePrincipal } }
+                    .Concat(candidata.LotesExtra.Select(le => new ImportacionLoteWebDTO { Numero = le.Numero.Trim(), FechaVencimiento = DateOnly.FromDateTime(le.Vence), Cantidad = le.Cantidad })).ToList()
+                : new();
+            _nueva.Lineas.Add(new ImportacionLineaWebDTO
+            {
+                IdArticulo = articulo.Codigo,
+                CodigoProveedor = candidata.CodigoProveedor ?? string.Empty,
+                DescripcionProveedor = string.IsNullOrWhiteSpace(candidata.DescripcionProveedor) ? (articulo.Descripcion ?? string.Empty) : candidata.DescripcionProveedor,
+                Cantidad = candidata.Cantidad,
+                CostoProveedorMonedaUnitario = candidata.CostoUnitario,
+                TributoDuaUnitario = candidata.TributoDuaUnitario,
+                PrecioAAplicado = candidata.PrecioAAplicado,
+                Lotes = lotes,
+            });
+            _articulosPorCodigo[articulo.Codigo] = articulo.Descripcion ?? articulo.Cod_Articulo ?? articulo.Codigo.ToString();
+        }
+        _pdfCandidatas.Clear();
+        await _modalImportarPdf.HideAsync();
+    }
+
     private async Task Crear()
     {
         _guardando = true;
         try
         {
             var dato = await Respuestas.DatoAsync(await Api.Crear(_nueva), "crear el expediente de importación");
-            if (dato is not null) { _actual = dato; await Cargar(); }
+            if (dato is not null)
+            {
+                _actual = dato;
+                Navegacion.NavigateTo($"/buys/importations/{dato.IdImportacion}");
+            }
         }
         finally { _guardando = false; }
     }
+
     private async Task AgregarCosto()
     {
         if (_actual is null) return;
         var dato = await Respuestas.DatoAsync(await Api.AgregarCosto(_actual.IdImportacion, _costo), "agregar el costo");
-        if (dato is not null) { _actual = dato; _costo = new() { Categoria = 2 }; await Cargar(); }
+        if (dato is not null) { _actual = dato; _costo = new() { Categoria = 2, CodMoneda = 1 }; }
     }
+
     private ImportacionLineaResultadoWebDTO? _lineaTributoDua;
     private void PrepararTributoDua(ImportacionLineaResultadoWebDTO item)
     {
         _lineaTributoDua = item;
-        _tributoDua = new() { IdImportacionLinea = item.IdImportacionLinea, TributoDuaUnitario = item.TributoDuaUnitario };
+        _tributoDua = new()
+        {
+            IdImportacionLinea = item.IdImportacionLinea,
+            TributoDuaUnitario = item.TributoDuaUnitario,
+            IvaAduanalUnitario = item.IvaAduanalUnitario,
+            CertificadoOrigen = item.CertificadoOrigen,
+            RegistroSanitario = item.RegistroSanitario,
+            VencimientoRegistroSanitario = item.VencimientoRegistroSanitario,
+        };
     }
     private async Task GuardarTributoDua()
     {
         if (_actual is null || _lineaTributoDua is null) return;
         var dato = await Respuestas.DatoAsync(await Api.ActualizarTributoDua(_actual.IdImportacion, _tributoDua), "actualizar el tributo DUA");
-        if (dato is not null) { _actual = dato; _lineaTributoDua = null; await Cargar(); }
+        if (dato is not null) { _actual = dato; _lineaTributoDua = null; }
     }
     private async Task SeleccionarArchivo(InputFileChangeEventArgs e) => _archivo = e.File;
     private async Task Adjuntar()
@@ -211,7 +704,7 @@
         using var memoria = new MemoryStream();
         await flujo.CopyToAsync(memoria);
         var dato = await Respuestas.DatoAsync(await Api.AgregarDocumento(_actual.IdImportacion, new ImportacionDocumentoCargaWebDTO { Tipo = _tipoDocumento, NombreArchivo = _archivo.Name, TipoMime = _archivo.ContentType, Contenido = memoria.ToArray(), ClaveFiscal = _claveFiscal, IdProveedorLocal = _tipoDocumento == 4 ? _idProveedorLocalDocumento : null }), "adjuntar el documento");
-        if (dato is not null) { _actual = dato; _archivo = null; _claveFiscal = null; _idProveedorLocalDocumento = null; await Cargar(); }
+        if (dato is not null) { _actual = dato; _archivo = null; _claveFiscal = null; _idProveedorLocalDocumento = null; }
     }
     private async Task Cerrar()
     {
@@ -220,25 +713,26 @@
         try
         {
             var dato = await Respuestas.DatoAsync(await Api.Cerrar(_actual.IdImportacion, _cierre), "cerrar la importación");
-            if (dato is not null) { _actual = dato; await Cargar(); }
+            if (dato is not null) _actual = dato;
         }
         finally { _guardando = false; }
     }
     private async Task EnviarMensajeReceptor(long idDocumento)
     {
         if (_actual is null) return;
-        var dato = await Respuestas.DatoAsync(await Api.EnviarMensajeReceptor(_actual.IdImportacion, idDocumento), "enviar el Mensaje Receptor");
-        if (dato is not null) { _actual = dato; await Cargar(); }
+        var dato = await Respuestas.DatoAsync(await Api.EnviarMensajeReceptor(_actual.IdImportacion, idDocumento, _mensajeReceptor), "enviar el Mensaje Receptor");
+        if (dato is not null) _actual = dato;
     }
-    private async Task ConsultarReporte()
-        => _reporte = await Respuestas.DatoAsync(await Api.Reporte(_filtroReporte), "consultar los KPI de importación");
-    private async Task ExportarCsv()
+    private void Nueva()
     {
-        if (_reporte is null) return;
-        static string Q(string? texto) => "\"" + (texto ?? string.Empty).Replace("\"", "\"\"") + "\"";
-        var csv = "Importación,Factura extranjera,DUA,Costo nacionalizado,Porcentaje logístico,Días nacionalización,Documentos pendientes,Margen esperado\n"
-            + string.Join("\n", _reporte.Filas.Select(x => $"{x.IdImportacion},{Q(x.FacturaExtranjera)},{Q(x.Dua)},{x.CostoNacionalizado},{x.PorcentajeLogistico},{x.DiasNacionalizacion},{x.DocumentosPendientes},{x.MargenEsperado}"));
-        await JS.InvokeVoidAsync("seepos.descargarTexto", $"importaciones-{DateTime.Today:yyyyMMdd}.csv", csv, "text/csv;charset=utf-8");
+        _actual = null;
+        _nueva = new() { TipoCambioDua = 1 };
+        if (_emisores.Count == 1) _nueva.IdEmisor = _emisores[0].Id;
+        CancelarEdicionLinea();
+        _cierre = new();
+        _articulosPorCodigo.Clear();
+        _lineaTributoDua = null;
+        _idProveedorLocalDocumento = null;
+        Navegacion.NavigateTo("/buys/importations");
     }
-    private void Nueva() { _actual = null; _nueva = new() { TipoCambioDua = 1 }; _linea = new(); _lote = new(); _cierre = new(); _articulosPorCodigo.Clear(); _lineaTributoDua = null; _idProveedorLocalDocumento = null; }
 }

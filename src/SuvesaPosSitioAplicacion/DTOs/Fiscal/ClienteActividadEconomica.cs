@@ -19,6 +19,12 @@ public partial class ClienteDTO
 
     [JsonPropertyName("actividades")]
     public System.Collections.Generic.List<ActividadEconomicaClienteDTO> Actividades { get; set; } = new();
+
+    [JsonPropertyName("requiereDespacho")]
+    public bool RequiereDespacho { get; set; }
+
+    [JsonPropertyName("diasMinimosCaducidad")]
+    public int? DiasMinimosCaducidad { get; set; }
 }
 
 public partial class FiltranClienteDTO
@@ -30,6 +36,12 @@ public partial class FiltranClienteDTO
     /// unidos, para poder filtrar la lista por esos textos. Se borra al regenerar NSwag.</summary>
     [JsonPropertyName("sucursalesTexto")]
     public string? SucursalesTexto { get; set; }
+
+    [JsonPropertyName("requiereDespacho")]
+    public bool RequiereDespacho { get; set; }
+
+    [JsonPropertyName("diasMinimosCaducidad")]
+    public int? DiasMinimosCaducidad { get; set; }
 }
 
 /// <summary>Una actividad económica del cliente (Hacienda). Mismo contrato que

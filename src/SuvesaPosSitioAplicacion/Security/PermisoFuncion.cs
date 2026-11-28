@@ -15,6 +15,16 @@ public sealed record PermisoFuncion(
         => Acciones.Contains(accion.ToString().ToUpperInvariant());
 
     /// <summary>
+    /// Un permiso del grupo padre (p.ej. <c>COMPRAS.TOMA</c>) cubre las hojas
+    /// (<c>COMPRAS.TOMA.PRETOMA</c>). No usa prefijos parciales de segmento.
+    /// </summary>
+    public static bool Cubre(string concedido, string pedido)
+        => !string.IsNullOrWhiteSpace(concedido)
+           && !string.IsNullOrWhiteSpace(pedido)
+           && (pedido.Equals(concedido, StringComparison.OrdinalIgnoreCase)
+               || pedido.StartsWith(concedido + ".", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
     /// Serializa para guardarlo en un claim: <c>moduloCodigo|funcionCodigo|VER,CREAR,...</c>.
     /// Texto plano (no JSON) porque hay uno por funcion, ~90 por sesion, y el ticket se
     /// serializa entero en cada renovacion.

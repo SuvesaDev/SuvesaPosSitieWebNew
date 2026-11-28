@@ -74,6 +74,7 @@ public sealed class ContextoSesion : IContextoSesion
     public bool EsAgente => Claim(ClaimsSeePos.EsAgente) == bool.TrueString;
     public bool EsServicioAlCliente => Claim(ClaimsSeePos.EsServicioAlCliente) == bool.TrueString;
     public bool PermitirExistenciaNegativa => Claim(ClaimsSeePos.PermiteExistenciaNegativa) == bool.TrueString;
+    public bool PuedeCambiarPrecio => EsSuperAdministrador || Claim(ClaimsSeePos.CambiarPrecio) == bool.TrueString;
     public bool HabilitaImportaciones => EsSuperAdministrador || Claim(ClaimsSeePos.HabilitaImportaciones) == bool.TrueString;
 
     public int IdSucursal => int.TryParse(Claim(ClaimsSeePos.IdSucursal), out var id) ? id : 0;
@@ -108,9 +109,20 @@ public sealed class ContextoSesion : IContextoSesion
 
         var codigo = MenuSeePos.ResolverCodigo(funcionCodigo);
 
-        if (_porFuncion.TryGetValue(codigo, out var permiso))
+        if (_porFuncion.TryGetValue(codigo, out var permiso) && permiso.Permite(accion))
         {
-            return permiso.Permite(accion);
+            return true;
+        }
+
+        // VER (u otra acción) en el grupo padre cubre las hojas. En Roles, marcar
+        // Compras → Toma no grababa Pretoma ni Toma Física, y el submenú las
+        // enseñaba igual: la pantalla y el API las negaban.
+        foreach (var padre in _permisos)
+        {
+            if (PermisoFuncion.Cubre(padre.FuncionCodigo, codigo) && padre.Permite(accion))
+            {
+                return true;
+            }
         }
 
         // Funcion no mencionada por el rol: no es lo mismo que denegada mientras el

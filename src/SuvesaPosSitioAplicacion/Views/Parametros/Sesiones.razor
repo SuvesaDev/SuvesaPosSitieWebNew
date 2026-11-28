@@ -1,0 +1,246 @@
+@page "/parameters/sessions"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Reportes
+@using SuvesaPosSitioAplicacion.Security
+@using SuvesaPosSitioAplicacion.Services
+@implements IDisposable
+@inject AlmacenTickets Almacen
+@inject IUsuarios UsuariosApi
+@inject IReportesOperacion Reportes
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+@inject IRelojEquipo Reloj
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Navegacion
+
+<AppPantalla Pantalla="Sesiones activas" Codigo="@Codigo" Icono="bi-display" Nivel="NivelPantalla.Escritorio"
+             Subtitulo="Quién está conectado a este sitio, desde qué equipo, y la opción de cerrar esa sesión.">
+    <Acciones>
+        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="Cargar" disabled="@_cargando">
+            <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Actualizar
+        </button>
+        <a class="btn btn-sm btn-outline-secondary" href="/parameters/users">
+            <i class="bi bi-person-badge me-1" aria-hidden="true"></i>Usuarios
+        </a>
+    </Acciones>
+    <ChildContent>
+        @if (_sesiones.Count == 0 && !_cargando)
+        {
+            <section class="card mb-3"><div class="card-body text-secondary">No hay sesiones conectadas en este sitio.</div></section>
+        }
+        else
+        {
+            <div class="card mb-3">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Dispositivo</th>
+                                <th>IP</th>
+                                <th>Ingreso</th>
+                                <th>Última actividad</th>
+                                <th>Estado</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var fila in _sesiones)
+                            {
+                                var propia = fila.Id == _sesionPropia;
+                                <tr class="@(propia ? "table-active" : null)">
+                                    <td>
+                                        <div class="fw-semibold">@fila.Usuario</div>
+                                        <div class="small text-secondary">@fila.Nombre@(propia ? " · esta sesión" : "")</div>
+                                    </td>
+                                    <td class="small">@Dispositivo(fila.UserAgent)</td>
+                                    <td class="small">@(string.IsNullOrWhiteSpace(fila.DireccionIp) ? "—" : fila.DireccionIp)</td>
+                                    <td class="text-nowrap small">@fila.Inicio.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td class="text-nowrap small">@Hace(fila.UltimaActividad)</td>
+                                    <td><span class="badge @Clase(fila)">@Etiqueta(fila)</span></td>
+                                    <td class="text-end">
+                                        @if (PuedeCerrar)
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-danger text-nowrap" @onclick="() => Cerrar(fila)">
+                                                Cerrar sesión
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <section class="card">
+            <div class="card-header fw-semibold"><i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>Intentos de ingreso fallidos de hoy</div>
+            <div class="card-body">
+                @if (_alertas.Count == 0)
+                {
+                    <p class="text-secondary mb-0">No hay intentos fallidos en el día.</p>
+                }
+                else
+                {
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var alerta in _alertas)
+                        {
+                            <li class="mb-2">
+                                <span class="fw-semibold">@alerta.Fecha.ToString("HH:mm")</span>
+                                · El usuario @alerta.Referencia no pudo ingresar
+                                @if (!string.IsNullOrWhiteSpace(alerta.Identificacion))
+                                {
+                                    <span>desde @alerta.Identificacion</span>
+                                }
+                                .
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </section>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Codigo = "PARAMETROS.USUARIOS";
+
+    private readonly List<SesionConectada> _sesiones = new();
+    private readonly List<FilaReporteOperacionWebDTO> _alertas = new();
+    private readonly HashSet<string> _bloqueados = new(StringComparer.OrdinalIgnoreCase);
+    private string? _sesionPropia;
+    private bool _cargando;
+    private PeriodicTimer? _reloj;
+    private CancellationTokenSource? _cancelacion;
+
+    private bool PuedeCerrar => Sesion.Puede(Codigo, AccionPantalla.Editar);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var estado = await Auth.GetAuthenticationStateAsync();
+        _sesionPropia = estado.User.FindFirst(ClaimsSeePos.SesionId)?.Value;
+        await Cargar();
+        _cancelacion = new CancellationTokenSource();
+        _reloj = new PeriodicTimer(TimeSpan.FromSeconds(20));
+        _ = RefrescarAsync(_cancelacion.Token);
+    }
+
+    private async Task Cargar()
+    {
+        if (_cargando) return;
+        _cargando = true;
+        try
+        {
+            var sesiones = await Almacen.SesionesVigentesAsync();
+            _sesiones.Clear();
+            _sesiones.AddRange(sesiones);
+
+            var usuarios = await Respuestas.DatoAsync(await UsuariosApi.Buscar(string.Empty), "consultar usuarios");
+            _bloqueados.Clear();
+            foreach (var usuario in usuarios ?? [])
+            {
+                if (usuario.Bloqueado && !string.IsNullOrWhiteSpace(usuario.IdUsuario))
+                    _bloqueados.Add(usuario.IdUsuario);
+            }
+
+            var hoy = await Reloj.HoyAsync();
+            var reporte = await Respuestas.DatoAsync(await Reportes.Consultar("auditoria", new FiltroReporteOperacionWebDTO
+            {
+                Desde = hoy,
+                Hasta = hoy,
+                Pagina = 1,
+                TamanoPagina = 200,
+            }), "consultar intentos fallidos");
+            _alertas.Clear();
+            _alertas.AddRange((reporte?.Filas ?? []).Where(f => f.Estado == "IngresoFallido").Take(12));
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async Task Cerrar(SesionConectada fila)
+    {
+        var propia = fila.Id == _sesionPropia;
+        var mensaje = propia
+            ? "Se cerrará su propia sesión y tendrá que volver a ingresar."
+            : $"Se cerrará la sesión de {fila.Usuario}. Tendrá que volver a ingresar.";
+        if (!await Dialogos.ConfirmarPeligroAsync(mensaje, "Cerrar sesión"))
+            return;
+        if (!await Almacen.CerrarSesionAsync(fila.Id))
+        {
+            Dialogos.Advertencia("Esa sesión ya no estaba activa.");
+            await Cargar();
+            return;
+        }
+        if (propia)
+        {
+            Navegacion.NavigateTo("/cuenta/salir", forceLoad: true);
+            return;
+        }
+        Dialogos.Exito($"Sesión de {fila.Usuario} cerrada.");
+        await Cargar();
+    }
+
+    private async Task RefrescarAsync(CancellationToken cancelacion)
+    {
+        try
+        {
+            while (_reloj is not null && await _reloj.WaitForNextTickAsync(cancelacion))
+                await InvokeAsync(Cargar);
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private bool Bloqueada(SesionConectada fila) => _bloqueados.Contains(fila.Usuario);
+
+    private bool Inactiva(SesionConectada fila)
+        => DateTime.Now - fila.UltimaActividad > TimeSpan.FromMinutes(RegistroSesiones.MinutosInactividad);
+
+    private string Etiqueta(SesionConectada fila)
+        => Bloqueada(fila) ? "Bloqueada" : Inactiva(fila) ? "Inactiva" : "Activa";
+
+    private string Clase(SesionConectada fila)
+        => Bloqueada(fila) ? "text-bg-danger" : Inactiva(fila) ? "text-bg-warning" : "text-bg-success";
+
+    private static string Hace(DateTime momento)
+    {
+        var minutos = (int)Math.Max(0, (DateTime.Now - momento).TotalMinutes);
+        if (minutos < 1) return "Hace un momento";
+        if (minutos < 60) return $"Hace {minutos} min";
+        var horas = minutos / 60;
+        if (horas < 24) return $"Hace {horas} h";
+        return momento.ToString("dd/MM/yyyy HH:mm");
+    }
+
+    private static string Dispositivo(string? agente)
+    {
+        if (string.IsNullOrWhiteSpace(agente)) return "—";
+        var navegador = agente.Contains("Edg/", StringComparison.Ordinal) ? "Edge"
+            : agente.Contains("Chrome/", StringComparison.Ordinal) ? "Chrome"
+            : agente.Contains("Firefox/", StringComparison.Ordinal) ? "Firefox"
+            : agente.Contains("Safari/", StringComparison.Ordinal) ? "Safari"
+            : "Navegador";
+        var sistema = agente.Contains("Windows", StringComparison.Ordinal) ? "Windows"
+            : agente.Contains("Android", StringComparison.Ordinal) ? "Android"
+            : agente.Contains("iPhone", StringComparison.Ordinal) ? "iPhone"
+            : agente.Contains("Mac OS", StringComparison.Ordinal) ? "Mac"
+            : agente.Contains("Linux", StringComparison.Ordinal) ? "Linux"
+            : "";
+        return string.IsNullOrEmpty(sistema) ? navegador : $"{navegador} / {sistema}";
+    }
+
+    public void Dispose()
+    {
+        _cancelacion?.Cancel();
+        _reloj?.Dispose();
+        _cancelacion?.Dispose();
+    }
+}

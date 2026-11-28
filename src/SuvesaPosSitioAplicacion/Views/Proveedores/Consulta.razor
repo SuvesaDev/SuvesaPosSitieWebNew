@@ -228,9 +228,18 @@
     <BodyTemplate>
         @if (_edicion is not null)
         {
-            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formProveedor" class="seepos-proveedor-editor">
-                <DataAnnotationsValidator />
+            <nav class="nav nav-pills gap-2 mb-4 seepos-editor-tabs" aria-label="Secciones del proveedor">
+                <button type="button" class="btn btn-sm @ClasePestana("datos")" @onclick='() => _pestana = "datos"'>Datos del proveedor</button>
+                <button type="button" class="btn btn-sm @ClasePestana("cuentas")" @onclick='() => _pestana = "cuentas"'>Cuentas bancarias</button>
+                @if (!_esNuevo)
+                {
+                    <button type="button" class="btn btn-sm @ClasePestana("certificados")" @onclick='() => _pestana = "certificados"'>Certificados de registro</button>
+                }
+            </nav>
+            <EditForm Model="_edicion" OnSubmit="GuardarDesdeFormulario" id="formProveedor" class="seepos-proveedor-editor">
                 <div class="row g-3">
+                    @if (_pestana == "datos")
+                    {
                     <div class="col-12"><div class="seepos-proveedor-seccion">Datos del proveedor</div></div>
                     <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Nombre" @bind-Valor="_edicion.Nombre" Requerido="true" /></div>
                     <div class="col-12 col-md-6">
@@ -260,7 +269,9 @@
                             <label class="form-check-label" for="proveedor-actualizado">Actualizado</label>
                         </div>
                     </div>
-
+                    }
+                    else if (_pestana == "cuentas")
+                    {
                     <div class="col-12"><div class="seepos-proveedor-seccion">Cuentas bancarias</div></div>
                     <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Tipo de cuenta" @bind-Valor="_cuentaEdicion.TipoCuenta" /></div>
                     <div class="col-12 col-md-3"><AppCampoTexto Etiqueta="Banco" @bind-Valor="_cuentaEdicion.Banco" /></div>
@@ -297,8 +308,14 @@
                             </table>
                         </div>
                     }
+                    }
                 </div>
             </EditForm>
+            @if (!_esNuevo && _pestana == "certificados")
+            {
+                @* Fuera del EditForm: sus campos no deben enviar el formulario del proveedor. *@
+                <CertificadosRegistroPanel Dueno="proveedor" IdDueno="_edicion.CodigoProv" SoloLectura="@(!Sesion.Puede(Titulo, AccionPantalla.Modificar))" />
+            }
         }
     </BodyTemplate>
     <FooterTemplate>
@@ -335,6 +352,9 @@
     private bool _consultandoHacienda;
     private CuentaBancariaProveedorDTO _cuentaEdicion = NuevaCuenta();
     private int? _indiceCuentaEditando;
+    private string _pestana = "datos";
+
+    private string ClasePestana(string pestana) => _pestana == pestana ? "btn-primary" : "btn-outline-primary";
 
     protected override async Task OnInitializedAsync()
     {
@@ -392,6 +412,7 @@
     private async Task Agregar()
     {
         _esNuevo = true;
+        _pestana = "datos";
         _edicion = new ProveedorDTO { Estado = true, Actualizado = true };
         _cuentaEdicion = NuevaCuenta();
         _indiceCuentaEditando = null;
@@ -401,6 +422,7 @@
     private async Task Editar(ProveedorDTO proveedor)
     {
         _esNuevo = false;
+        _pestana = "datos";
         _edicion = Copiar(proveedor);
         _cuentaEdicion = NuevaCuenta();
         _indiceCuentaEditando = null;
@@ -422,13 +444,14 @@
             return;
         }
 
-        var cedula = _edicion.Cedula?.Trim() ?? string.Empty;
+        var cedula = new string((_edicion.Cedula ?? string.Empty).Where(char.IsDigit).ToArray());
         if (cedula.Length < 9)
         {
             await Dialogos.ErrorAsync("Ingrese una cédula válida de al menos 9 dígitos para consultar Hacienda.");
             return;
         }
 
+        _edicion.Cedula = cedula;
         _consultandoHacienda = true;
         var resultado = await Respuestas.DatoAsync(await Api.BuscarHacienda(cedula), "consultar el proveedor en Hacienda");
         _consultandoHacienda = false;
@@ -441,6 +464,8 @@
         }
     }
 
+    private Task GuardarDesdeFormulario(EditContext _) => Guardar();
+
     private async Task Guardar()
     {
         if (_edicion is null || _guardando)
@@ -448,9 +473,14 @@
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(_edicion.Nombre) || string.IsNullOrWhiteSpace(_edicion.Cedula))
+        var faltantes = new List<string>();
+        if (string.IsNullOrWhiteSpace(_edicion.Nombre)) faltantes.Add("Nombre");
+        if (string.IsNullOrWhiteSpace(_edicion.Cedula)) faltantes.Add("Cédula");
+        if (faltantes.Count > 0)
         {
-            await Dialogos.ErrorAsync("Nombre y cédula son obligatorios.");
+            await Dialogos.ErrorAsync(
+                ValidacionFormulario.MensajeCamposFaltantes(faltantes),
+                "Datos incompletos");
             return;
         }
 

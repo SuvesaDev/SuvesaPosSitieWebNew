@@ -25,4 +25,16 @@ public sealed class PagoFacturaDTO
 
     [JsonPropertyName("referencia")]
     public string? Referencia { get; set; }
+
+    /// <summary>Solo forma de pago Cheque: número del cheque del cliente.</summary>
+    [JsonPropertyName("numeroCheque")]
+    public string? NumeroCheque { get; set; }
+
+    /// <summary>Solo forma de pago Cheque: banco emisor (catálogo EntidadesBancaria.IdBanco).</summary>
+    [JsonPropertyName("idBanco")]
+    public int? IdBanco { get; set; }
+
+    /// <summary>Fecha en que el cliente hizo el depósito, transferencia o cheque (opcional; no puede ser futura salvo en cheques).</summary>
+    [JsonPropertyName("fechaPago")]
+    public DateTime? FechaPago { get; set; }
 }

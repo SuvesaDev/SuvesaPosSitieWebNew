@@ -29,8 +29,15 @@
                 {
                     var cod = f.Codigo!;
                     var noEfectivo = f.Tarjeta || f.Deposito || f.Cheque;
+                    var conFecha = MostrarFecha && (f.Deposito || f.Cheque);
+                    var colsRelleno = MostrarFecha ? 3 : 2;
                     <tr>
-                        <td class="fw-normal text-secondary" style="min-width:9rem">@f.Descripcion</td>
+                        <td class="fw-normal text-secondary" style="min-width:9rem">@f.Descripcion
+                            @if (PreparacionPagoVenta.EsSaldoAFavor(cod) && f.MontoDisponible is { } disponible)
+                            {
+                                <div class="small text-success">disponible @Formato.Importe((decimal)disponible)</div>
+                            }
+                        </td>
                         <td style="min-width:7rem">
                             <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end"
                                    value="@MontoTexto(cod)" @onchange="e => SetMonto(cod, e.Value)" />
@@ -48,15 +55,108 @@
                                 </select>
                             </td>
                         }
+                        else if (f.Deposito)
+                        {
+                            <td style="min-width:8rem">
+                                <input type="text" class="form-control form-control-sm" placeholder="Referencia"
+                                       value="@RefDe(cod)" @onchange="e => SetRef(cod, e.Value?.ToString())" />
+                            </td>
+                            <td style="min-width:9rem">
+                                <select class="form-select form-select-sm" value="@BancoTexto(cod)" @onchange="e => SetBanco(cod, e.Value?.ToString())">
+                                    <option value="">Banco...</option>
+                                    @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
+                                </select>
+                            </td>
+                        }
                         else if (noEfectivo)
                         {
-                            <td style="min-width:8rem" colspan="2">
+                            <td style="min-width:8rem" colspan="@colsRelleno">
                                 <input type="text" class="form-control form-control-sm" placeholder="Referencia"
                                        value="@RefDe(cod)" @onchange="e => SetRef(cod, e.Value?.ToString())" />
                             </td>
                         }
-                        else { <td colspan="2"></td> }
+                        else { <td colspan="@colsRelleno"></td> }
+                        @if (conFecha)
+                        {
+                            <td style="min-width:9rem">
+                                <input type="date" class="form-control form-control-sm" max="@HoyTexto()"
+                                       aria-label="@(f.Cheque ? "Fecha del cheque" : "Fecha del depósito")" title="@(f.Cheque ? "Fecha del cheque" : "Fecha del depósito")"
+                                       value="@FechaTexto(FechaDe(cod))" @onchange="e => SetFecha(cod, e.Value?.ToString())" />
+                            </td>
+                        }
+                        @if (PermiteVarias)
+                        {
+                            <td class="text-end text-nowrap">
+                                @if (LineasDe(cod) < PreparacionPagoVenta.MaxLineasPorForma && !PreparacionPagoVenta.EsSaldoAFavor(cod))
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                            title="Agregar línea de pago de @f.Descripcion"
+                                            aria-label="Agregar línea de pago de @f.Descripcion" @onclick="() => AgregarExtra(cod)">+ Línea</button>
+                                }
+                            </td>
+                        }
                     </tr>
+                    @if (PermiteVarias)
+                    {
+                        var extras = ExtrasDe(cod);
+                        @for (var i = 0; i < extras.Count; i++)
+                        {
+                            var x = extras[i];
+                            <tr @key="x.Id">
+                                <td class="fw-normal text-secondary ps-4">@f.Descripcion @(i + 2)</td>
+                                <td style="min-width:7rem">
+                                    <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end"
+                                           aria-label="Monto @f.Descripcion @(i + 2)"
+                                           value="@MontoTexto(x)" @onchange="e => SetExtraMonto(x, e.Value)" />
+                                </td>
+                                @if (f.Deposito || f.Cheque)
+                                {
+                                    <td style="min-width:8rem">
+                                        <input type="text" class="form-control form-control-sm" placeholder="@(f.Cheque ? "N° cheque" : "Referencia")"
+                                               aria-label="@(f.Cheque ? "Número de cheque" : "Referencia") @f.Descripcion @(i + 2)"
+                                               value="@(f.Cheque ? x.NumeroCheque : x.Referencia)"
+                                               @onchange="e => SetExtraReferencia(x, e.Value?.ToString(), f.Cheque)" />
+                                    </td>
+                                    <td style="min-width:9rem">
+                                        <select class="form-select form-select-sm" aria-label="Banco @f.Descripcion @(i + 2)"
+                                                value="@(x.IdBanco?.ToString() ?? "")" @onchange="e => SetExtraBanco(x, e.Value?.ToString())">
+                                            <option value="">Banco...</option>
+                                            @foreach (var b in _bancos) { <option value="@b.Id">@b.Banco</option> }
+                                        </select>
+                                    </td>
+                                    @if (conFecha)
+                                    {
+                                        <td style="min-width:9rem">
+                                            <input type="date" class="form-control form-control-sm" max="@HoyTexto()"
+                                                   aria-label="@(f.Cheque ? "Fecha del cheque" : "Fecha del depósito") @(i + 2)"
+                                                   value="@FechaTexto(x.FechaPago)" @onchange="e => SetExtraFecha(x, e.Value?.ToString())" />
+                                        </td>
+                                    }
+                                }
+                                else if (f.Tarjeta)
+                                {
+                                    <td style="min-width:8rem" colspan="@colsRelleno">
+                                        <input type="text" class="form-control form-control-sm" placeholder="Referencia"
+                                               aria-label="Referencia @f.Descripcion @(i + 2)"
+                                               value="@x.Referencia" @onchange="e => SetExtraReferencia(x, e.Value?.ToString(), false)" />
+                                    </td>
+                                }
+                                else if (noEfectivo)
+                                {
+                                    <td style="min-width:8rem" colspan="@colsRelleno">
+                                        <input type="text" class="form-control form-control-sm" placeholder="Referencia"
+                                               aria-label="Referencia @f.Descripcion @(i + 2)"
+                                               value="@x.Referencia" @onchange="e => SetExtraReferencia(x, e.Value?.ToString(), false)" />
+                                    </td>
+                                }
+                                else { <td colspan="@colsRelleno"></td> }
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" title="Quitar esta línea"
+                                            aria-label="Quitar @f.Descripcion @(i + 2)" @onclick="() => QuitarExtra(x)">−</button>
+                                </td>
+                            </tr>
+                        }
+                    }
                 }
             </tbody>
         </table>
@@ -104,6 +204,23 @@
     [Parameter] public Dictionary<string, int?> IdsBanco { get; set; } = new();
     [Parameter] public EventCallback<Dictionary<string, int?>> IdsBancoChanged { get; set; }
 
+    /// <summary>
+    /// Permite pagar con más de un depósito o cheque (botón «+»). Solo debe activarla una pantalla que, además de
+    /// los diccionarios, lea <see cref="Extras"/> al armar el cobro: si no, esos montos no viajarían.
+    /// </summary>
+    [Parameter] public bool PermiteVarias { get; set; }
+
+    /// <summary>Pide la fecha de cada depósito o cheque (obligatoria en el depósito). Solo debe activarla una pantalla que envíe esa fecha al API.</summary>
+    [Parameter] public bool MostrarFecha { get; set; }
+
+    /// <summary>Fecha del depósito o cheque de la línea principal, por código de forma de pago (two-way). Solo con <see cref="MostrarFecha"/>.</summary>
+    [Parameter] public Dictionary<string, DateTime?> Fechas { get; set; } = new();
+    [Parameter] public EventCallback<Dictionary<string, DateTime?>> FechasChanged { get; set; }
+
+    /// <summary>Líneas adicionales de cualquier forma de pago (two-way). Solo se usan con <see cref="PermiteVarias"/>.</summary>
+    [Parameter] public List<PagoExtra> Extras { get; set; } = new();
+    [Parameter] public EventCallback<List<PagoExtra>> ExtrasChanged { get; set; }
+
     /// <summary>Se dispara cada vez que cambia el reparto (el padre lee <see cref="Reparto"/>).</summary>
     [Parameter] public EventCallback<PreparacionPagoVenta.Reparto> RepartoChanged { get; set; }
 
@@ -127,6 +244,11 @@
     private string? NumeroChequeDe(string cod) => NumerosCheque.TryGetValue(cod, out var n) ? n : null;
     private int? BancoDe(string cod) => IdsBanco.TryGetValue(cod, out var b) ? b : null;
     private string BancoTexto(string cod) => BancoDe(cod)?.ToString() ?? "";
+    private DateTime? FechaDe(string cod) => Fechas.TryGetValue(cod, out var f) ? f : null;
+    private static string FechaTexto(DateTime? f) => f?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+    private static string HoyTexto() => FechaTexto(PreparacionPagoVenta.HoyCostaRica());
+    private static DateTime? LeerFecha(string? texto)
+        => DateTime.TryParseExact(texto, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var f) ? f : null;
 
     // El <input type="number"> exige el punto como separador decimal; renderizar el
     // decimal con la cultura actual (es-CR usa coma) lo dejaría vacío tras un re-render.
@@ -134,6 +256,66 @@
     {
         var m = MontoDe(cod);
         return m > 0 ? m.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
+    }
+
+    private List<PagoExtra> ExtrasDe(string cod) => Extras.Where(e => e.Codigo == cod).ToList();
+    private int LineasDe(string cod) => 1 + Extras.Count(e => e.Codigo == cod);
+
+    private static string MontoTexto(PagoExtra x)
+        => x.Monto > 0 ? x.Monto.ToString(System.Globalization.CultureInfo.InvariantCulture) : "";
+
+    private async Task NotificarExtras()
+    {
+        await ExtrasChanged.InvokeAsync(Extras);
+        Recalcular();
+        await RepartoChanged.InvokeAsync(_reparto);
+    }
+
+    private async Task AgregarExtra(string cod)
+    {
+        if (LineasDe(cod) >= PreparacionPagoVenta.MaxLineasPorForma) return;
+        Extras.Add(new PagoExtra { Codigo = cod });
+        await NotificarExtras();
+    }
+
+    private async Task QuitarExtra(PagoExtra x)
+    {
+        Extras.Remove(x);
+        await NotificarExtras();
+    }
+
+    private async Task SetExtraMonto(PagoExtra x, object? valor)
+    {
+        x.Monto = decimal.TryParse(Convert.ToString(valor), System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var m) && m > 0 ? m : 0m;
+        await NotificarExtras();
+    }
+
+    private async Task SetExtraReferencia(PagoExtra x, string? valor, bool esCheque)
+    {
+        var texto = string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+        if (esCheque) x.NumeroCheque = texto; else x.Referencia = texto;
+        await NotificarExtras();
+    }
+
+    private async Task SetExtraFecha(PagoExtra x, string? valor)
+    {
+        x.FechaPago = LeerFecha(valor);
+        await NotificarExtras();
+    }
+
+    private async Task SetFecha(string cod, string? valor)
+    {
+        Fechas[cod] = LeerFecha(valor);
+        await FechasChanged.InvokeAsync(Fechas);
+        Recalcular();
+        await RepartoChanged.InvokeAsync(_reparto);
+    }
+
+    private async Task SetExtraBanco(PagoExtra x, string? valor)
+    {
+        x.IdBanco = int.TryParse(valor, out var id) ? id : null;
+        await NotificarExtras();
     }
 
     private async Task SetMonto(string cod, object? valor)
@@ -173,16 +355,37 @@
     // tarjeta / depósito / cheque. La bandera Efectivo del catálogo no siempre está
     // puesta; sin este respaldo, pagar en efectivo por encima del total se rechazaba
     // como "sobrepago en un medio que no es efectivo".
-    private static bool EsEfectivo(FormasPagoDTO f) => f.Efectivo || !(f.Tarjeta || f.Deposito || f.Cheque);
+    private static bool EsEfectivo(FormasPagoDTO f) => PreparacionPagoVenta.EsFormaEfectivo(f.Efectivo, f.Tarjeta, f.Deposito, f.Cheque, f.Codigo);
 
     private void Recalcular()
     {
-        _reparto = PreparacionPagoVenta.Calcular(Total, Formas
-            .Where(f => f.Codigo is not null && MontoDe(f.Codigo!) > 0)
-            .Select(f => new PreparacionPagoVenta.LineaPago(
-                f.Codigo!, MontoDe(f.Codigo!),
-                EsEfectivo: EsEfectivo(f),
-                RequiereReferencia: f.Tarjeta || f.Deposito || f.Cheque,
-                Referencia: f.Cheque ? NumeroChequeDe(f.Codigo!) : RefDe(f.Codigo!))));
+        // Por cada forma: su línea principal y, si se permiten varias, sus líneas adicionales (depósitos/cheques).
+        var lineas = new List<PreparacionPagoVenta.LineaPago>();
+        foreach (var f in Formas.Where(f => f.Codigo is not null))
+        {
+            var cod = f.Codigo!;
+            if (MontoDe(cod) > 0)
+                lineas.Add(new(cod, MontoDe(cod),
+                    EsEfectivo: EsEfectivo(f),
+                    RequiereReferencia: f.Tarjeta || f.Deposito || f.Cheque,
+                    Referencia: f.Cheque ? NumeroChequeDe(cod) : RefDe(cod),
+                    RequiereBanco: f.Cheque || f.Deposito,
+                    IdBanco: BancoDe(cod),
+                    RequiereFecha: MostrarFecha && (f.Cheque || f.Deposito),
+                    Fecha: FechaDe(cod),
+                    FechaPuedeSerFutura: f.Cheque));
+            if (PermiteVarias)
+                foreach (var x in Extras.Where(e => e.Codigo == cod && e.Monto > 0))
+                    lineas.Add(PreparacionPagoVenta.LineaDeExtra(EsEfectivo(f), f.Tarjeta, f.Deposito, f.Cheque, x, MostrarFecha));
+        }
+        _reparto = PreparacionPagoVenta.Calcular(Total, lineas);
+
+        // El saldo a favor no puede pasar de lo que el cliente tiene.
+        foreach (var f in Formas.Where(f => PreparacionPagoVenta.EsSaldoAFavor(f.Codigo) && f.MontoDisponible is not null))
+        {
+            var disponible = (decimal)f.MontoDisponible!.Value;
+            if (MontoDe(f.Codigo!) - disponible > 0.005m)
+                _reparto = _reparto with { Errores = _reparto.Errores.Append($"El saldo a favor aplicado excede el disponible ({Formato.Importe(disponible)}).").ToList() };
+        }
     }
 }

@@ -29,9 +29,17 @@ public static class ClaimsSeePos
     public const string EsServicioAlCliente = "seepos:esServicioAlCliente";
     public const string AceptaConsignacion = "seepos:aceptaConsignacion";
     /// <summary>El perfil deja facturar / mover stock aunque quede en negativo.</summary>
+    /// <summary>Permiso por usuario: puede modificar el precio de una linea al facturar.</summary>
+    public const string CambiarPrecio = "seepos:cambiarPrecio";
     public const string PermiteExistenciaNegativa = "seepos:permiteExistenciaNegativa";
     public const string HabilitaImportaciones = "seepos:habilitaImportaciones";
 
     /// <summary>Un claim por funcion. Valor: "moduloCodigo|funcionCodigo|VER,CREAR,...".</summary>
     public const string Permiso = "seepos:permiso";
+
+    /// <summary>Identificador de esta sesión del sitio, para listarla y poder cerrarla.</summary>
+    public const string SesionId = "seepos:sesionId";
+    public const string DireccionIp = "seepos:direccionIp";
+    public const string AgenteSesion = "seepos:agenteSesion";
+    public const string InicioSesion = "seepos:inicioSesion";
 }

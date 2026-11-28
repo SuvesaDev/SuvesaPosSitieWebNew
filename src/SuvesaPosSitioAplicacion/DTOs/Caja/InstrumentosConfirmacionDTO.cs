@@ -7,12 +7,24 @@ public sealed class InstrumentoConfirmacionWebDTO
     public string Estado { get; set; } = "PendienteConfirmacion";
     public decimal Monto { get; set; }
     public string Referencia { get; set; } = "";
+    public string? NumeroCheque { get; set; }
+    public int? IdBanco { get; set; }
     public long? NumApertura { get; set; }
     public string Responsable { get; set; } = "";
     public DateTime FechaCaptura { get; set; }
     public DateTime FechaAlertaUtc { get; set; }
     public DateTime FechaLimiteUtc { get; set; }
     public string? Motivo { get; set; }
+    public List<InstrumentoEventoWebDTO> Eventos { get; set; } = new();
+}
+
+public sealed class InstrumentoEventoWebDTO
+{
+    public string EstadoAnterior { get; set; } = "";
+    public string EstadoNuevo { get; set; } = "";
+    public string Usuario { get; set; } = "";
+    public string? Motivo { get; set; }
+    public DateTime FechaUtc { get; set; }
 }
 
 public sealed class FiltroInstrumentosConfirmacionWebDTO { public string? Estado { get; set; } public string? Tipo { get; set; } public long? NumApertura { get; set; } }

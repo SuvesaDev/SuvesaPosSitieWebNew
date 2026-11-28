@@ -45,6 +45,7 @@
                                 <thead>
                                     <tr>
                                         <th>Fecha</th>
+                                        <th>En espera</th>
                                         <th>Factura</th>
                                         <th>Proveedor</th>
                                         <th class="text-end">Total</th>
@@ -58,6 +59,7 @@
                                     {
                                         <tr>
                                             <td>@c.Fecha.ToString("dd/MM/yyyy")</td>
+                                            <td>@Espera(c.Fecha)</td>
                                             <td><code class="small">@c.Factura</code></td>
                                             <td>@c.NombreProveedor</td>
                                             <td class="text-end seepos-importe">@Formato.Importe((double)c.TotalFactura)</td>
@@ -132,7 +134,7 @@
                                             <td class="text-end seepos-importe">@Formato.Importe((double)r.Impuesto)</td>
                                             <td>@CondicionImpuestoTexto(r.CondicionImpuesto)</td>
                                             <td class="text-break"><span class="small">@r.Clave</span></td>
-                                            <td><span class="badge @ClaseEstado(r.Estado)">@r.Estado</span>@if (!string.IsNullOrWhiteSpace(r.CausaError)) { <div class="text-danger small" title="@r.CausaError">@Truncar(r.CausaError)</div> }</td>
+                                            <td><span class="badge @ClaseEstado(r.Estado)">@r.Estado</span><AppMensajeHacienda Texto="@r.CausaError" Gravedad="@r.CausaErrorGravedad" Max="60" /></td>
                                             <td>@r.IntentosEnvio</td>
                                             <td class="text-end"><button class="btn btn-sm btn-link p-0" @onclick="() => AccionFiscal(r.Clave)">Detalle</button></td>
                                         </tr>
@@ -241,6 +243,14 @@
         _cargando = false;
     }
 
+    private static string Espera(DateTime fecha)
+    {
+        if (fecha == default) return "—";
+        var dias = (DateTime.Today - fecha.Date).Days;
+        if (dias <= 0) return "hoy";
+        return dias == 1 ? "1 día" : $"{dias} días";
+    }
+
     private async Task GenerarMensajeReceptor(CompraPendienteMensajeReceptorDTO compra)
         => await _modalMensajeReceptor.AbrirAsync(compra.IdCompra, compra.TotalFactura, compra.Impuesto);
 
@@ -276,7 +286,6 @@
     }
 
     private static string? Nulo(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
-    private static string Truncar(string s) => s.Length <= 60 ? s : s[..60] + "…";
 
     private static string ClaseEstado(string estado)
     {

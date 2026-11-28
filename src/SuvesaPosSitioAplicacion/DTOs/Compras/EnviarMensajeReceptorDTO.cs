@@ -53,6 +53,8 @@ public sealed class ItemHistorialMensajeReceptorDTO
     public string Clave { get; set; } = string.Empty;
     public string Estado { get; set; } = string.Empty;
     public string? CausaError { get; set; }
+    /// <summary>«Aviso» (aceptado con observación) o «Error»; null si no hay texto.</summary>
+    public string? CausaErrorGravedad { get; set; }
     public DateTime FechaCreacionUtc { get; set; }
     public int IntentosEnvio { get; set; }
 }

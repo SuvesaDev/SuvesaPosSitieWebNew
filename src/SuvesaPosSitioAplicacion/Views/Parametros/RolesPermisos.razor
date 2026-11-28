@@ -416,16 +416,16 @@
                             <label class="form-check-label" for="perfilCostaPets">Costa Pets</label>
                         </div></div>
                         <div class="col-12 col-md-6"><div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="perfilEsAgente" @bind="_perfil.EsAgente" @bind:after="() => { if (_perfil.EsAgente) _perfil.EsServicioAlCliente = false; }" disabled="@(!_puedeEscribir)" />
+                            <input class="form-check-input" type="checkbox" id="perfilEsAgente" @bind="_perfil.EsAgente" disabled="@(!_puedeEscribir)" />
                             <label class="form-check-label" for="perfilEsAgente">Es agente</label>
                         </div></div>
                         <div class="col-12 col-md-6"><div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="perfilServicioCliente" @bind="_perfil.EsServicioAlCliente" @bind:after="() => { if (_perfil.EsServicioAlCliente) _perfil.EsAgente = false; }" disabled="@(!_puedeEscribir)" />
+                            <input class="form-check-input" type="checkbox" id="perfilServicioCliente" @bind="_perfil.EsServicioAlCliente" disabled="@(!_puedeEscribir)" />
                             <label class="form-check-label" for="perfilServicioCliente">Servicio al Cliente</label>
                         </div></div>
                         @if (_perfil.EsAgente || _perfil.EsServicioAlCliente)
                         {
-                            <div class="col-12"><div class="form-text">Agente y Servicio al Cliente son roles excluyentes para el cálculo de comisiones: solo puede activarse uno.</div></div>
+                            <div class="col-12"><div class="form-text">Un perfil puede ser Agente y Servicio al Cliente a la vez (perfil dual). Cobra como Agente en los clientes de su ruta y en consumidor final; como Servicio al Cliente cuando factura a un cliente de otra ruta. Nunca se le paga dos veces por la misma venta.</div></div>
                         }
                         <div class="col-12 col-md-6"><div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="perfilAceptaConsignacion" @bind="_perfil.AceptaConsignacion" disabled="@(!_puedeEscribir)" />
@@ -438,6 +438,11 @@
                         <div class="col-12 col-md-6"><div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="perfilHabilitaImportaciones" @bind="_perfil.HabilitaImportaciones" disabled="@(!_puedeEscribir)" />
                             <label class="form-check-label" for="perfilHabilitaImportaciones">Importación</label>
+                        </div></div>
+                        <div class="col-12 col-md-6"><div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="perfilEsSupervisorBodega" @bind="_perfil.EsSupervisorBodega" disabled="@(!_puedeEscribir)" />
+                            <label class="form-check-label" for="perfilEsSupervisorBodega">Supervisor de bodega</label>
+                            <div class="form-text">Su clave interna autoriza el ingreso manual de código o lote al empacar.</div>
                         </div></div>
                     </div>
                 </div>
@@ -638,7 +643,7 @@
                 <div class="col-12">
                     <label class="form-label">Acciones que expone</label>
                     <div class="d-flex flex-wrap gap-3">
-                        @foreach (var acc in TodasLasAcciones)
+                        @foreach (var acc in AccionesEditablesDelCatalogo)
                         {
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="fa_@acc"
@@ -694,6 +699,9 @@
 
     private static readonly string[] TodasLasAcciones =
         { "VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "EXPORTAR", "IMPRIMIR" };
+
+    /// <summary>Las del catálogo general más REEMITIR, que solo expone la Bandeja de documentos (no es una acción por defecto).</summary>
+    private static readonly string[] AccionesEditablesDelCatalogo = TodasLasAcciones.Append("REEMITIR").ToArray();
 
     private enum Tab { Roles, Perfiles, Catalogo, Acciones }
     private Tab _tab = Tab.Roles;
@@ -808,7 +816,7 @@
 
     // ---- matriz del modal ----
     private static readonly string[] OrdenAcciones =
-        { "VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "IMPRIMIR", "EXPORTAR" };
+        { "VER", "CREAR", "EDITAR", "BORRAR", "ACTIVAR", "IMPRIMIR", "EXPORTAR", "REEMITIR" };
 
     private static string Etiqueta(string accion) => accion switch
     {
@@ -1014,6 +1022,7 @@
             AceptaConsignacion = origen.AceptaConsignacion,
             PermiteExistenciaNegativa = origen.PermiteExistenciaNegativa,
             HabilitaImportaciones = origen.HabilitaImportaciones,
+            EsSupervisorBodega = origen.EsSupervisorBodega,
             Activo = origen.Activo
         };
         _modalPerfil.MostrarAsync();
@@ -1069,9 +1078,10 @@
         if (perfil.AceptaConsignacion) yield return "Acepta consignación";
         if (perfil.PermiteExistenciaNegativa) yield return "Permite existencia negativa";
         if (perfil.HabilitaImportaciones) yield return "Importación";
+        if (perfil.EsSupervisorBodega) yield return "Supervisor de bodega";
         if (!perfil.EsSuperAdministracion && !perfil.GestionaUsuarios && !perfil.CostaPets
             && !perfil.EsAgente && !perfil.EsServicioAlCliente
-            && !perfil.AceptaConsignacion && !perfil.PermiteExistenciaNegativa && !perfil.HabilitaImportaciones)
+            && !perfil.AceptaConsignacion && !perfil.PermiteExistenciaNegativa && !perfil.HabilitaImportaciones && !perfil.EsSupervisorBodega)
             yield return "Sin capacidades especiales";
     }
 

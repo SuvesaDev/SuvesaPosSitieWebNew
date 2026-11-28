@@ -140,6 +140,9 @@ public static class CatalogoReportes
             R("gastos", "Gastos", "MODULO_REPORTES.GASTOS",
                 "Compras clasificadas como gasto operacional y su saldo.", "bi-receipt-cutoff",
                 Periodo | Proveedor | Texto, Periodo | Proveedor),
+            R("importaciones", "Importaciones", "MODULO_REPORTES.IMPORTACIONES",
+                "Costo nacionalizado, logística y documentos pendientes por expediente.", "bi-box-seam",
+                Periodo | Proveedor | Texto, Periodo | Proveedor),
             R("cuentas-por-pagar", "Cuentas por pagar", "MODULO_REPORTES.CUENTAS_POR_PAGAR",
                 "Compras pendientes y antigüedad desde la fecha de compra.", "bi-credit-card-2-front",
                 Periodo | Proveedor | Texto, Periodo | Proveedor),
@@ -182,6 +185,18 @@ public static class CatalogoReportes
             R("auditoria", "Auditoría", "MODULO_REPORTES.AUDITORIA",
                 "Cambios registrados por usuario, acción y documento.", "bi-shield-check",
                 Periodo | Texto, Periodo),
+        ]),
+        new("fiscal", "IVA y fiscal", "bi-percent",
+        [
+            R("iva-repercutido", "IVA Repercutido", "MODULO_REPORTES.IVA_REPERCUTIDO",
+                "IVA cobrado en ventas por tarifa y emisor: comprobantes aceptados menos notas de crédito.", "bi-receipt",
+                Periodo | Empresa, Periodo | Empresa, false),
+            R("iva-soportado", "IVA Soportado", "MODULO_REPORTES.IVA_SOPORTADO",
+                "Crédito fiscal por emisor: compras, gastos e importaciones según su Mensaje Receptor.", "bi-receipt-cutoff",
+                Periodo | Empresa, Periodo | Empresa, false),
+            R("prorrata", "Prorrata", "MODULO_REPORTES.PRORRATA",
+                "Proporción del crédito fiscal por emisor y año: provisional mes a mes y regularización.", "bi-percent",
+                Empresa, Empresa, false),
         ]),
     ];
 

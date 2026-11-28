@@ -96,6 +96,14 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    // Solo lectura, para supervisores y administradores: cada cajero ve únicamente
+                    // el arqueo de su propia caja en "Arqueo Caja"; este permiso muestra los de todos.
+                    Titulo = "Consulta de Arqueos",
+                    Codigo = "CAJA.CONSULTA_DE_ARQUEOS",
+                    Ruta = "/initial/cash/arqueoconsulta",
+                },
+                new ItemMenu
+                {
                     // El "Cierre Caja" legado (/initial/cash/closecash, lee OpcionesDePagos)
                     // fue reemplazado por "Conciliación de caja", que cierra desde el mayor
                     // de caja (MovimientoCaja) — la fuente única tras la Fase 3. La pantalla
@@ -197,7 +205,13 @@ public static partial class MenuSeePos
                     {
                         new ItemMenu
                         {
-                            // La pantalla (TomaFisica.razor) se gatea con COMPRAS.TOMA_FISICA;
+                            Titulo = "Pretoma",
+                            Codigo = "COMPRAS.TOMA.PRETOMA",
+                            Ruta = "/buys/physical-precount",
+                        },
+                        new ItemMenu
+                        {
+                            // La pantalla (TomaFisica.razor) se gatea con COMPRAS.TOMA.TOMA_FISICA;
                             // el item vive bajo el grupo "Toma" para que se lea Toma > Toma Física.
                             Titulo = "Toma Física",
                             Codigo = "COMPRAS.TOMA.TOMA_FISICA",
@@ -221,7 +235,7 @@ public static partial class MenuSeePos
                 {
                     Titulo = "Importaciones",
                     Codigo = "COMPRAS.IMPORTACIONES",
-                    Ruta = "/buys/importations",
+                    Ruta = "/buys/importationsbox",
                 },
                 new ItemMenu
                 {
@@ -271,6 +285,46 @@ public static partial class MenuSeePos
         },
         new ItemMenu
         {
+            Titulo = "Bodega",
+            Codigo = "BODEGA",
+            Ruta = "/bodega/cola",
+            Icono = "bi-box-seam",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Cola de alistamiento",
+                    Codigo = "BODEGA.COLA_DE_ALISTAMIENTO",
+                    Ruta = "/bodega/cola",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Recibo de mercadería",
+                    Codigo = "BODEGA.RECIBO_DE_MERCADERIA",
+                    Ruta = "/bodega/recibo",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Empaque",
+                    Codigo = "BODEGA.EMPAQUE",
+                    Ruta = "/bodega/empaque",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Despacho",
+                    Codigo = "BODEGA.DESPACHO",
+                    Ruta = "/bodega/despacho",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Rutas de entrega",
+                    Codigo = "BODEGA.RUTAS_DE_ENTREGA",
+                    Ruta = "/bodega/rutas",
+                }
+            }
+        },
+        new ItemMenu
+        {
             // ANADIDO, no viene de SidebarData.jsx.
             //
             // Las tres rutas existen en el enrutador de React pero el menu actual no
@@ -307,6 +361,12 @@ public static partial class MenuSeePos
                     Titulo = "Ajuste de Bodega de Consignación",
                     Codigo = "CONSIGNACION.AJUSTE_DE_BODEGA_DE_CONSIGNACION",
                     Ruta = "/consignment/adjust",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Boletas de Consignación",
+                    Codigo = "CONSIGNACION.BOLETAS_DE_CONSIGNACION",
+                    Ruta = "/consignment/tickets",
                 },
                 new ItemMenu
                 {
@@ -387,6 +447,14 @@ public static partial class MenuSeePos
                     Titulo = "Devoluciones",
                     Codigo = "VENTAS.DEVOLUCIONES",
                     Ruta = "/sales/repayment",
+                },
+                new ItemMenu
+                {
+                    // Nota de crédito electrónica (referencia 09, sin inventario) contra un comprobante del sistema anterior o una venta interna.
+                    // Solo administradores: la función se concede únicamente a roles de administración.
+                    Titulo = "Nota de crédito externa",
+                    Codigo = "VENTAS.NOTA_DE_CREDITO_EXTERNA",
+                    Ruta = "/sales/external-credit-note",
                 }
             }
         },
@@ -630,6 +698,44 @@ public static partial class MenuSeePos
         },
         new ItemMenu
         {
+            // Gestión y seguimiento de cobranzas (docs/COBRANZA_WEB.md). Los códigos casan con
+            // el módulo COBRANZA de la semilla del API.
+            Titulo = "Cobranza",
+            Codigo = "COBRANZA",
+            Ruta = "/collections",
+            Icono = "bi-telephone-outbound",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Seguimiento",
+                    Codigo = "COBRANZA.SEGUIMIENTO",
+                    Ruta = "/collections/follow-up",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Dashboard",
+                    Codigo = "COBRANZA.DASHBOARD",
+                    Ruta = "/collections/dashboard",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Gerencial",
+                    Codigo = "COBRANZA.GERENCIAL",
+                    Ruta = "/collections/management",
+                },
+                new ItemMenu
+                {
+                    // El administrador aprueba o rechaza las solicitudes de facturar a crédito a un
+                    // cliente bloqueado por morosidad (una factura por autorización).
+                    Titulo = "Autorizaciones de crédito",
+                    Codigo = "COBRANZA.AUTORIZACIONES_DE_CREDITO",
+                    Ruta = "/collections/credit-authorizations",
+                },
+            }
+        },
+        new ItemMenu
+        {
             Titulo = "Módulo Reportes",
             Codigo = "MODULO_REPORTES",
             Ruta = "/moduloReportes",
@@ -750,6 +856,33 @@ public static partial class MenuSeePos
                     Titulo = "Compras",
                     Codigo = "MODULO_REPORTES.COMPRAS",
                     Ruta = "/moduloReportes/compras",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Importaciones",
+                    Codigo = "MODULO_REPORTES.IMPORTACIONES",
+                    Ruta = "/moduloReportes/importaciones",
+                },
+                new ItemMenu
+                {
+                    // Fase 1 de IVA por emisor (Ley del IVA): IVA cobrado en ventas, por tarifa. Soportado y Prorrata siguen.
+                    Titulo = "IVA Repercutido",
+                    Codigo = "MODULO_REPORTES.IVA_REPERCUTIDO",
+                    Ruta = "/moduloReportes/iva-repercutido",
+                },
+                new ItemMenu
+                {
+                    // Fase 2 de IVA por emisor: crédito fiscal de compras, gastos e importaciones.
+                    Titulo = "IVA Soportado",
+                    Codigo = "MODULO_REPORTES.IVA_SOPORTADO",
+                    Ruta = "/moduloReportes/iva-soportado",
+                },
+                new ItemMenu
+                {
+                    // Fase 3 de IVA por emisor: prorrata (proporcionalidad del crédito fiscal) y su regularización anual.
+                    Titulo = "Prorrata",
+                    Codigo = "MODULO_REPORTES.PRORRATA",
+                    Ruta = "/moduloReportes/prorrata",
                 },
                 new ItemMenu
                 {

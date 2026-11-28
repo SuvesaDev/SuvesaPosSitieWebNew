@@ -1,0 +1,97 @@
+@page "/collections/management"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Cobranza
+@using SuvesaPosSitioAplicacion.Services
+@inject ICobranza Api
+@inject IManejadorRespuestas Respuestas
+@inject IRelojEquipo RelojEquipo
+
+@* Tablero gerencial: efectividad de promesas, volumen de gestión y DSO por colaborador. El API cachea 5 minutos.
+   El DSO es una estimación pendiente de validar con contabilidad (docs/MODULO_COBRANZAS_API.md §8). *@
+
+<AppPantalla Pantalla="Gerencial" Codigo="COBRANZA.GERENCIAL" Icono="bi-graph-up-arrow" Subtitulo="Productividad del equipo de cobro">
+    <ChildContent>
+        <div class="card mb-3"><div class="card-body row g-2 align-items-end">
+            <div class="col-6 col-md-3">
+                <label class="form-label small" for="ger-desde">Desde</label>
+                <input id="ger-desde" type="date" class="form-control" @bind="_desde" />
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small" for="ger-hasta">Hasta</label>
+                <input id="ger-hasta" type="date" class="form-control" @bind="_hasta" />
+            </div>
+            <div class="col-12 col-md-2">
+                <button class="btn btn-primary w-100" disabled="@(_cargando || _hasta < _desde)" @onclick="Cargar">
+                    @(_cargando ? "Consultando..." : "Consultar")
+                </button>
+            </div>
+        </div></div>
+
+        @if (_dash is not null)
+        {
+            <div class="row g-3 mb-3">
+                @foreach (var (titulo, valor) in new[] {
+                    ("Seguimientos activos", _dash.SeguimientosActivos.ToString()),
+                    ("Interacciones del período", _dash.InteraccionesTotales.ToString()),
+                    ("Efectividad de promesas", _dash.EfectividadPromesasGlobal is { } e ? $"{e:N1} %" : "—") })
+                {
+                    <div class="col-12 col-md-4"><div class="card h-100"><div class="card-body py-2">
+                        <div class="text-secondary small">@titulo</div><div class="fs-4">@valor</div>
+                    </div></div></div>
+                }
+            </div>
+
+            <div class="card"><div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr>
+                        <th>Colaborador</th><th class="text-end">Activos</th><th class="text-end">Cerrados</th>
+                        <th class="text-end">Interacciones</th><th class="text-end">Cumplidas</th><th class="text-end">Incumplidas</th>
+                        <th class="text-end">Efectividad</th><th class="text-end">Cartera</th><th class="text-end" title="Estimación: fracción pendiente de lo facturado × edad promedio">DSO (días)</th>
+                    </tr></thead>
+                    <tbody>
+                        @if (_dash.Cobradores.Count == 0) { <tr><td colspan="9" class="text-center text-secondary py-3">Sin actividad en el período.</td></tr> }
+                        @foreach (var c in _dash.Cobradores)
+                        {
+                            <tr>
+                                <td>@c.Cobrador</td>
+                                <td class="text-end">@c.SeguimientosActivos</td>
+                                <td class="text-end">@c.SeguimientosCerradosPeriodo</td>
+                                <td class="text-end">@c.Interacciones</td>
+                                <td class="text-end">@c.PromesasCumplidas</td>
+                                <td class="text-end @(c.PromesasIncumplidas > 0 ? "text-danger" : null)">@c.PromesasIncumplidas</td>
+                                <td class="text-end">@(c.EfectividadPromesas is { } e ? $"{e:N1} %" : "—")</td>
+                                <td class="text-end">@Formato.Importe(c.SaldoCartera)</td>
+                                <td class="text-end">@(c.Dso is { } d ? d.ToString("N1") : "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div></div>
+            <div class="small text-secondary mt-2">Calculado el @PresentacionCobranza.Fecha(_dash.GeneradoUtc) · se refresca como máximo cada 5 minutos.</div>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private DateTime _desde = DateTime.Today.AddDays(-29);
+    private DateTime _hasta = DateTime.Today;
+    private bool _cargando;
+    private DashboardGerencialWebDTO? _dash;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hasta = await RelojEquipo.HoyAsync();
+        _desde = _hasta.AddDays(-29);
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        _dash = await Respuestas.DatoAsync(
+            await Api.DashboardGerencial(DateOnly.FromDateTime(_desde), DateOnly.FromDateTime(_hasta)),
+            "consultar el tablero gerencial");
+        _cargando = false;
+    }
+}

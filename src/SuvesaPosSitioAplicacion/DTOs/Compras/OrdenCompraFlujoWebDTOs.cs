@@ -71,12 +71,19 @@ public sealed class LineaOrdenCompraDetalleWebDTO
     public long CodArticulo { get; set; }
     public string Descripcion { get; set; } = "";
     public double Cantidad { get; set; }
+    public double CantidadRecibida { get; set; }
     public double CostoUnitario { get; set; }
     public double PorcDescuento { get; set; }
     public double Descuento { get; set; }
     public double PorcImpuesto { get; set; }
     public double Impuesto { get; set; }
     public double TotalLinea { get; set; }
+}
+
+public sealed class RecepcionLineaOrdenWebDTO
+{
+    public long Id { get; set; }
+    public double CantidadRecibida { get; set; }
 }
 
 public sealed class ResultadoEnvioOrdenCompraWebDTO

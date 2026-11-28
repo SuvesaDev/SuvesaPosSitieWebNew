@@ -87,6 +87,45 @@ public sealed class Cobros : ProxyBase, ICobros
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "buscar la preventa del cliente");
 
+    public Task<ResponseGeneric<FacturaDTO>> EditarPreventa(PreventaDTO preventa)
+        => Ejecutar(async () =>
+        {
+            var factura = new FacturaDTO
+            {
+                Id = preventa.Id,
+                NumFactura = preventa.NumFactura,
+                Tipo = preventa.Tipo,
+                NumCaja = preventa.NumCaja,
+                Fecha = preventa.Fecha,
+                CodCliente = preventa.CodCliente,
+                Observaciones = preventa.Observaciones,
+                CodMoneda = preventa.CodMoneda,
+                Orden = preventa.Orden,
+                Taller = preventa.Taller,
+                Mascotas = preventa.Mascotas,
+                Agente = preventa.Agente,
+                Cod_agente = preventa.Cod_agente,
+                SubTotalGravada = preventa.SubTotalGravada,
+                SubTotalExento = preventa.SubTotalExento,
+                SubTotal = preventa.SubTotal,
+                Descuento = preventa.Descuento,
+                ImpVenta = preventa.ImpVenta,
+                Exonerar = preventa.Exonerar,
+                Total = preventa.Total,
+                Ficha = preventa.Ficha,
+                IdSucursal = preventa.IdSucursal,
+                IdEmpresa = preventa.IdEmpresa,
+                Preventa = true,
+                IdClienteSucursal = preventa.IdClienteSucursal,
+                IdPlazo = preventa.IdPlazo,
+                EsConsignacion = preventa.EsConsignacion,
+                ConsignacionAceptada = preventa.ConsignacionAceptada,
+                Detalle = preventa.Detalle?.ToList()
+            };
+            var r = await _venta.EditarFacturaAsync(factura);
+            return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
+        }, "guardar los cambios de la preventa");
+
     public Task<ResponseGeneric<ICollection<CobroDocumentosDTO>>> Cobrar(ICollection<CobroDocumentosDTO> cobros)
         => Ejecutar(async () =>
         {

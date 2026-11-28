@@ -217,7 +217,16 @@
     private async Task AgregarSubFamilia()
     {
         if (_familiaSeleccionada is null) return;
-        _subFamiliaEdicion = new SubFamiliaDTO { CodigoFamilia = _familiaSeleccionada.Codigo, Estado = true, FechaCreacion = await RelojEquipo.AhoraAsync() };
+        await Sesion.CargarAsync();
+        _subFamiliaEdicion = new SubFamiliaDTO
+        {
+            CodigoFamilia = _familiaSeleccionada.Codigo,
+            Estado = true,
+            FechaCreacion = await RelojEquipo.AhoraAsync(),
+            // IdUsuarioCreacion y Observaciones no admiten NULL en SubFamilias.
+            IdUsuarioCreacion = Sesion.Usuario,
+            Observaciones = string.Empty
+        };
         await _modalSubFamilia.ShowAsync();
     }
 
@@ -231,8 +240,14 @@
     {
         if (_subFamiliaEdicion is null || _guardando) return;
         if (string.IsNullOrWhiteSpace(_subFamiliaEdicion.SubCodigo) || string.IsNullOrWhiteSpace(_subFamiliaEdicion.Descripcion)) { await Dialogos.ErrorAsync("Indique el código y la descripción de la sub-familia."); return; }
-        _guardando = true;
+        _subFamiliaEdicion.Observaciones ??= string.Empty;
         var nueva = _subFamiliaEdicion.Codigo == 0;
+        if (nueva && string.IsNullOrWhiteSpace(_subFamiliaEdicion.IdUsuarioCreacion))
+        {
+            await Sesion.CargarAsync();
+            _subFamiliaEdicion.IdUsuarioCreacion = Sesion.Usuario;
+        }
+        _guardando = true;
         var respuesta = nueva ? await Api.CrearSubFamilia(_subFamiliaEdicion) : await Api.EditarSubFamilia(_subFamiliaEdicion);
         _guardando = false;
         if (await Respuestas.CorrectaAsync(respuesta, nueva ? "crear la sub-familia" : "editar la sub-familia"))

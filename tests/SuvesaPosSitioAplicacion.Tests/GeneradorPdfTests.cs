@@ -68,4 +68,28 @@ public class GeneradorPdfTests
 
         Assert.NotEmpty(new GeneradorPdfQuestPdf().Tabla(sinTotales));
     }
+
+    [Fact]
+    public void ConMembreteEmpresa_SigueGenerando()
+    {
+        // PNG 1×1 mínimo válido: el render del logo no puede tumbar el PDF.
+        var png = Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
+
+        var conEmpresa = Reporte(3) with
+        {
+            Empresa = new EncabezadoEmpresaPdf(
+                NombreEmisor: "Empresa de Prueba S.A.",
+                Identificacion: "3-101-123456",
+                NombreSucursal: "Sucursal Central",
+                Telefono: "2222-2222",
+                Correo: "info@prueba.cr",
+                Logo: png)
+        };
+
+        var bytes = new GeneradorPdfQuestPdf().Tabla(conEmpresa);
+
+        Assert.NotEmpty(bytes);
+        Assert.Equal("%PDF-", System.Text.Encoding.ASCII.GetString(bytes, 0, 5));
+    }
 }

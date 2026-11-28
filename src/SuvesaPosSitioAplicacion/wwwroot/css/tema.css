@@ -740,6 +740,46 @@ body,
 
 .seepos-facturacion .card-body { padding: 1.05rem; }
 
+.seepos-audit-accion {
+    min-width: 5.5rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+}
+.seepos-diff-antes,
+.seepos-diff-despues {
+    display: inline-block;
+    max-width: 18rem;
+    padding: .15rem .45rem;
+    border-radius: .35rem;
+    font-weight: 600;
+    word-break: break-word;
+}
+.seepos-diff-antes {
+    background: #f8d7da;
+    color: #842029;
+    text-decoration: line-through;
+}
+.seepos-diff-despues {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+.seepos-factura-cliente { position: relative; }
+
+.seepos-factura-cliente-lista {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + .25rem);
+    left: 0;
+    right: 0;
+    max-height: 16rem;
+    overflow-y: auto;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .58rem;
+    box-shadow: 0 .45rem 1.1rem rgba(62, 47, 35, .12);
+    background: var(--bs-body-bg);
+}
+
 .seepos-facturacion .form-label {
     margin-bottom: .35rem;
     color: var(--seepos-gris-texto);
@@ -2085,6 +2125,9 @@ body,
 .seepos-documento-resumen strong { color:var(--seepos-documento-azul); font-size:1.1rem; font-variant-numeric:tabular-nums; }
 .seepos-documento-mensaje { display:flex; gap:.55rem; margin-top:.7rem; border-radius:.5rem; padding:.6rem .7rem; background:var(--bs-warning-bg-subtle); color:var(--bs-warning-text-emphasis); font-size:.78rem; }
 .seepos-documento-mensaje > i { margin-top:.12rem; }
+/* Aviso de Hacienda: el documento fue aceptado pero trae una observación. */
+.seepos-aviso-hacienda { display:flex; gap:.4rem; align-items:flex-start; margin-top:.2rem; padding:.25rem .5rem; border-radius:.4rem; background:var(--bs-warning-bg-subtle); border:1px solid var(--bs-warning-border-subtle); color:var(--bs-warning-text-emphasis); white-space:pre-line; }
+.seepos-aviso-hacienda > i { margin-top:.12rem; }
 .seepos-documento-mensaje strong, .seepos-documento-mensaje span { display:block; }
 @media (max-width: 480px) {
     .seepos-documento-cabecera-principal { flex-direction:column; }

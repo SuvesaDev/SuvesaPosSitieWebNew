@@ -38,6 +38,7 @@ builder.Services.AddMudServices();
 // Respalda el almacen de tickets. En una sola instancia basta con memoria;
 // para varias, cambiar por Redis o SQL sin tocar AlmacenTickets.
 builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSingleton<RegistroSesiones>();
 builder.Services.AddSingleton<AlmacenTickets>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -87,6 +88,7 @@ builder.Services.AddSingleton<ISondaLegado, SondaLegado>();
 // solo por debajo de cierto umbral de facturacion. VERIFICAR antes de produccion.
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 builder.Services.AddSingleton<IGeneradorPdf, GeneradorPdfQuestPdf>();
+builder.Services.AddScoped<MembreteReporte>();
 builder.Services.AddSingleton<IGeneradorReporteOperacion, GeneradorReporteOperacion>();
 
 builder.Services.AddScoped<IAlmacenEspacioTrabajo, AlmacenEspacioTrabajoNavegador>();
@@ -131,9 +133,15 @@ builder.Services.AddHttpClient<IProduccionApiCliente, ProduccionApiCliente>(c =>
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 builder.Services.AddHttpClient<IConsignacionInvApiCliente, ConsignacionInvApiCliente>(c => c.BaseAddress = new Uri(urlApi))
     .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+builder.Services.AddHttpClient<IAlistamientoApiCliente, AlistamientoApiCliente>(c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
+builder.Services.AddHttpClient<IReciboApiCliente, ReciboApiCliente>(c => c.BaseAddress = new Uri(urlApi))
+    .AddHttpMessageHandler<ApiAuthHeaderHandler>();
 // ReportesOperacion recibe IHttpClientFactory y toma el cliente nombrado SeePosApi
 // ya configurado arriba. No es un cliente HTTP tipado (que exige HttpClient directo).
 builder.Services.AddScoped<IReportesOperacion, ReportesOperacion>();
+builder.Services.AddScoped<SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IIvaReportes, SuvesaPosSitioAplicacion.ApiConexion.ProxyClass.IvaReportes>();
+builder.Services.AddScoped<IAuditoria, Auditoria>();
 ClienteApi<ICentrosApiCliente, CentrosApiCliente>();
 ClienteApi<IBancosApiCliente, BancosApiCliente>();
 ClienteApi<IInventarioApiCliente, InventarioApiCliente>();
@@ -199,6 +207,7 @@ builder.Services.AddScoped<IProveedoresConsulta, ProveedoresConsulta>();
 builder.Services.AddScoped<ICuentasPorCobrar, CuentasPorCobrar>();
 builder.Services.AddScoped<IFacturacion, Facturacion>();
 builder.Services.AddScoped<IRutasComerciales, RutasComerciales>();
+builder.Services.AddScoped<ITarifasPrecio, TarifasPrecio>();
 builder.Services.AddScoped<IComisiones, Comisiones>();
 builder.Services.AddScoped<ICompras, Compras>();
 builder.Services.AddScoped<IBandejaDocumentos, BandejaDocumentos>();
@@ -245,6 +254,12 @@ builder.Services.AddScoped<IArticuloBonificacion, ArticuloBonificacion>();
 builder.Services.AddScoped<IConfiguracionCorreo, ConfiguracionCorreo>();
 builder.Services.AddScoped<IEnviosCorreo, EnviosCorreo>();
 builder.Services.AddScoped<IAlertasAdministrador, AlertasAdministrador>();
+builder.Services.AddScoped<ICertificadosRegistro, CertificadosRegistro>();
+builder.Services.AddScoped<ICobranza, Cobranza>();
+builder.Services.AddScoped<INotasCreditoExternas, NotasCreditoExternas>();
+builder.Services.AddScoped<IAuditoriaCabys, AuditoriaCabys>();
+builder.Services.AddScoped<IDesbloqueoCredito, DesbloqueoCredito>();
+builder.Services.AddScoped<IClienteUnificacion, ClienteUnificacion>();
 builder.Services.AddScoped<IAvisadorAlertas, AvisadorAlertas>();
 builder.Services.AddScoped<ITipoCambio, TipoCambio>();
 
@@ -254,7 +269,12 @@ builder.Services.AddScoped<IEstadoOcupado, EstadoOcupado>();
 builder.Services.AddSingleton<AccesorServiciosCircuito>();
 builder.Services.AddScoped<Microsoft.AspNetCore.Components.Server.Circuits.CircuitHandler, CircuitoServiciosHandler>();
 builder.Services.AddTransient<OcupadoHandler>();
-builder.Services.ConfigureHttpClientDefaults(b => b.AddHttpMessageHandler<OcupadoHandler>());
+builder.Services.AddTransient<FechaEquipoHandler>();
+builder.Services.ConfigureHttpClientDefaults(b =>
+{
+    b.AddHttpMessageHandler<FechaEquipoHandler>();
+    b.AddHttpMessageHandler<OcupadoHandler>();
+});
 
 // Motor de plantillas de impresión (MOTOR_PLANTILLAS_IMPRESION_WEB.md).
 builder.Services.AddScoped<IPlantillasImpresion, PlantillasImpresion>();
@@ -387,7 +407,12 @@ app.MapGet("/documentos/{tipo}/{id:long}/pdf", async (
 {
     var r = await api.Pdf(tipo, id, formato, copia);
     if (!r.EsCorrecta || r.Responses is not { Length: > 0 } bytes)
-        return Results.Problem(r.Excepcion ?? "No se pudo generar el documento.");
+    {
+        var detalle = r.Excepcion ?? "No se pudo generar el documento.";
+        // El navegador abre esta ruta en una pestaña: un ProblemDetails JSON no se
+        // entiende. Se deja el motivo en texto plano.
+        return Results.Text(detalle, "text/plain; charset=utf-8", statusCode: 400);
+    }
 
     var nombre = $"{tipo}-{id}.pdf";
     // Sin nombre de descarga el navegador puede abrir el PDF en línea; la acción
@@ -473,7 +498,8 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
 
 app.MapGet("/reportes/cuentas-por-pagar", async (
     ICuentasPorPagar api,
-    IGeneradorPdf pdf) =>
+    IGeneradorPdf pdf,
+    MembreteReporte membrete) =>
 {
     var r = await api.ObtenerDeudas();
 
@@ -503,6 +529,8 @@ app.MapGet("/reportes/cuentas-por-pagar", async (
         }
     }
 
+    var empresa = await membrete.ResolverAsync();
+
     var bytes = pdf.Tabla(new ReporteTabular(
         Titulo: "Cuentas por pagar",
         Subtitulo: "Facturas pendientes por proveedor",
@@ -510,7 +538,8 @@ app.MapGet("/reportes/cuentas-por-pagar", async (
         Filas: filas,
         Totales: new[] { "", "", "", "Total", Formato.Importe(total) })
     {
-        ColumnasNumericas = new HashSet<int> { 3, 4 }
+        ColumnasNumericas = new HashSet<int> { 3, 4 },
+        Empresa = empresa
     });
 
     return Results.File(bytes, "application/pdf", "cuentas-por-pagar.pdf");
@@ -520,15 +549,25 @@ app.MapGet("/reportes/cuentas-por-pagar", async (
 app.MapGet("/reportes/estado-cuenta", async (
     [Microsoft.AspNetCore.Mvc.FromQuery] long idCliente,
     [Microsoft.AspNetCore.Mvc.FromQuery] DateTime? corte,
+    [Microsoft.AspNetCore.Mvc.FromQuery] long? idClienteSucursal,
     SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IComandosFacturacion api,
-    IGeneradorPdf pdf) =>
+    IGeneradorPdf pdf,
+    MembreteReporte membrete,
+    HttpContext http) =>
 {
+    var generadoPor = http.User?.FindFirst(ClaimsSeePos.NombreUsuario)?.Value
+        ?? http.User?.Identity?.Name;
     if (idCliente <= 0) return Results.BadRequest("Indique el cliente.");
     var r = await api.EstadoCuenta(idCliente, corte);
     if (!r.EsCorrecta || r.Responses is null)
         return Results.Problem(r.Excepcion ?? "No se pudo consultar el estado de cuenta.");
 
     var e = r.Responses;
+    // Filtro opcional por sucursal del cliente: el detalle se limita a esa sucursal.
+    var detalleFiltrado = idClienteSucursal is > 0
+        ? e.Detalle.Where(d => d.IdClienteSucursal == idClienteSucursal).ToList()
+        : e.Detalle;
+    var nombreSucursal = idClienteSucursal is > 0 ? detalleFiltrado.Select(d => d.SucursalCliente).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? $"#{idClienteSucursal}" : null;
     var bytes = pdf.EstadoCuenta(new EstadoCuentaPdf(
         NombreCliente: e.Nombre ?? $"Cliente {idCliente}",
         IdentificacionCliente: idCliente.ToString(),
@@ -542,7 +581,7 @@ app.MapGet("/reportes/estado-cuenta", async (
         Vencido31a60: (decimal)e.Vencido31a60,
         Vencido61a90: (decimal)e.Vencido61a90,
         Vencido91oMas: (decimal)e.Vencido91oMas,
-        Detalle: e.Detalle.Select(d => new LineaEstadoCuentaPdf(
+        Detalle: detalleFiltrado.Select(d => new LineaEstadoCuentaPdf(
             Factura: d.NumFactura.ToString("0"),
             Consecutivo: d.ConsecutivoMh,
             Fecha: d.Fecha,
@@ -551,9 +590,68 @@ app.MapGet("/reportes/estado-cuenta", async (
             NotasCredito: (decimal)d.NotasCreditoAplicadas,
             Pagado: (decimal)d.PagosAplicados,
             Saldo: (decimal)d.SaldoActual,
-            EstadoMh: d.EstadoMh)).ToList()));
+            EstadoMh: d.EstadoMh,
+            DiasMora: Math.Max(0, (e.FechaCorte.Date - (d.Vence ?? d.Fecha).Date).Days),
+            Sucursal: d.SucursalCliente)).ToList(),
+        GeneradoPor: generadoPor)
+    {
+        SucursalFiltro = nombreSucursal,
+        Empresa = await membrete.ResolverAsync(),
+        EnTransito = (decimal)e.EnTransito,
+        FacturasEnTransito = e.FacturasEnTransito.Select(t => new LineaEnTransitoPdf(t.NumFactura.ToString("0"), t.NumeroRecibo, t.FechaReciboUtc.ToLocalTime(), (decimal)t.MontoEnTransito)).ToList(),
+    });
 
     return Results.File(bytes, "application/pdf", $"estado-cuenta-{idCliente}.pdf");
+});
+
+// IVA repercutido en Excel (resumen por tarifa + detalle), mismo período que la pantalla.
+app.MapGet("/reportes/iva-repercutido.xlsx", async (
+    [Microsoft.AspNetCore.Mvc.FromQuery] int idEmpresa,
+    [Microsoft.AspNetCore.Mvc.FromQuery] DateTime desde,
+    [Microsoft.AspNetCore.Mvc.FromQuery] DateTime hasta,
+    SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IIvaReportes api) =>
+{
+    if (idEmpresa <= 0) return Results.BadRequest("Indique el emisor.");
+    var r = await api.Repercutido(idEmpresa, desde, hasta);
+    if (!r.EsCorrecta || r.Responses is null)
+        return Results.Problem(r.Excepcion ?? "No se pudo consultar el IVA repercutido.");
+    // Hoja «Líneas»: si no se pueden traer los artículos, el Excel sale igual (resumen y detalle) sin esa hoja.
+    var lineas = await api.LineasRepercutido(idEmpresa, desde, hasta);
+    var bytes = SuvesaPosSitioAplicacion.Services.GeneradorIvaExcel.IvaRepercutido(r.Responses, DateTime.Now, lineas.EsCorrecta ? lineas.Responses : null);
+    return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        $"iva-repercutido-{idEmpresa}-{desde:yyyyMMdd}-{hasta:yyyyMMdd}.xlsx");
+});
+
+// IVA soportado en Excel (resumen por origen + detalle), mismo período que la pantalla.
+app.MapGet("/reportes/iva-soportado.xlsx", async (
+    [Microsoft.AspNetCore.Mvc.FromQuery] int idEmpresa,
+    [Microsoft.AspNetCore.Mvc.FromQuery] DateTime desde,
+    [Microsoft.AspNetCore.Mvc.FromQuery] DateTime hasta,
+    SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IIvaReportes api) =>
+{
+    if (idEmpresa <= 0) return Results.BadRequest("Indique el emisor.");
+    var r = await api.Soportado(idEmpresa, desde, hasta);
+    if (!r.EsCorrecta || r.Responses is null)
+        return Results.Problem(r.Excepcion ?? "No se pudo consultar el IVA soportado.");
+    var lineas = await api.LineasSoportado(idEmpresa, desde, hasta);
+    var bytes = SuvesaPosSitioAplicacion.Services.GeneradorIvaExcel.IvaSoportado(r.Responses, DateTime.Now, lineas.EsCorrecta ? lineas.Responses : null);
+    return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        $"iva-soportado-{idEmpresa}-{desde:yyyyMMdd}-{hasta:yyyyMMdd}.xlsx");
+});
+
+// Prorrata del IVA en Excel (por mes + resumen y regularización).
+app.MapGet("/reportes/prorrata.xlsx", async (
+    [Microsoft.AspNetCore.Mvc.FromQuery] int idEmpresa,
+    [Microsoft.AspNetCore.Mvc.FromQuery] int anio,
+    [Microsoft.AspNetCore.Mvc.FromQuery] int hastaMes,
+    SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IIvaReportes api) =>
+{
+    if (idEmpresa <= 0) return Results.BadRequest("Indique el emisor.");
+    var r = await api.Prorrata(idEmpresa, anio, hastaMes <= 0 ? 12 : hastaMes);
+    if (!r.EsCorrecta || r.Responses is null)
+        return Results.Problem(r.Excepcion ?? "No se pudo consultar la prorrata.");
+    var bytes = SuvesaPosSitioAplicacion.Services.GeneradorIvaExcel.Prorrata(r.Responses, DateTime.Now);
+    return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"prorrata-{idEmpresa}-{anio}-{r.Responses.HastaMes:00}.xlsx");
 });
 
 app.MapGet("/healthz", () => Results.Ok(new { estado = "ok", ola = 0 })).AllowAnonymous();

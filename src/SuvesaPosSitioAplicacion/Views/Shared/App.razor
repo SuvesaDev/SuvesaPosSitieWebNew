@@ -60,6 +60,14 @@
             enlace.remove();
             setTimeout(function () { URL.revokeObjectURL(enlace.href); }, 0);
         };
+        document.addEventListener('submit', function () {
+            var campo = document.getElementById('seepos-fecha-equipo');
+            if (!campo) return;
+            var d = new Date();
+            var p = function (n) { return String(n).padStart(2, '0'); };
+            campo.value = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate())
+                + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+        }, true);
         (function () {
             try {
                 var guardado = localStorage.getItem('seepos.tema');

@@ -36,7 +36,23 @@ public sealed record ReporteTabular(
 {
     /// <summary>Columnas que se alinean a la derecha, por llevar importes.</summary>
     public IReadOnlySet<int> ColumnasNumericas { get; init; } = new HashSet<int>();
+
+    /// <summary>
+    /// Membrete de la empresa (logo, emisor, sucursal). Si falta, el PDF solo
+    /// lleva el título del reporte — comportamiento histórico.
+    /// </summary>
+    public EncabezadoEmpresaPdf? Empresa { get; init; }
 }
+
+/// <summary>Identidad del emisor/sucursal que encabeza un reporte tabular.</summary>
+public sealed record EncabezadoEmpresaPdf(
+    string NombreEmisor,
+    string? Identificacion = null,
+    string? NombreSucursal = null,
+    string? Telefono = null,
+    string? Correo = null,
+    string? Direccion = null,
+    byte[]? Logo = null);
 
 /// <summary>Datos ya consolidados para el estado de cuenta que recibe el cliente.</summary>
 public sealed record EstadoCuentaPdf(
@@ -53,7 +69,20 @@ public sealed record EstadoCuentaPdf(
     decimal Vencido61a90,
     decimal Vencido91oMas,
     IReadOnlyList<LineaEstadoCuentaPdf> Detalle,
-    string Moneda = "CRC");
+    string Moneda = "CRC",
+    string? GeneradoPor = null)
+{
+    /// <summary>Si el estado se limitó a una sucursal del cliente, su nombre (el saldo total pasa a ser el de esa sucursal).</summary>
+    public string? SucursalFiltro { get; init; }
+    /// <summary>Membrete corporativo (logo, razón social, identificación y contacto). Si falta, el PDF no lo lleva.</summary>
+    public EncabezadoEmpresaPdf? Empresa { get; init; }
+    /// <summary>Pagos con depósito/cheque aún pendientes de confirmar: ya ocupan el límite pero no bajan el saldo ni cuentan como mora.</summary>
+    public decimal EnTransito { get; init; }
+    public IReadOnlyList<LineaEnTransitoPdf> FacturasEnTransito { get; init; } = Array.Empty<LineaEnTransitoPdf>();
+}
+
+/// <summary>Un recibo pendiente de aprobación aplicado a una factura.</summary>
+public sealed record LineaEnTransitoPdf(string Factura, long Recibo, DateTime Fecha, decimal Monto);
 
 /// <summary>Una factura con saldo pendiente dentro de un estado de cuenta.</summary>
 public sealed record LineaEstadoCuentaPdf(
@@ -65,4 +94,6 @@ public sealed record LineaEstadoCuentaPdf(
     decimal NotasCredito,
     decimal Pagado,
     decimal Saldo,
-    string? EstadoMh);
+    string? EstadoMh,
+    int DiasMora = 0,
+    string? Sucursal = null);

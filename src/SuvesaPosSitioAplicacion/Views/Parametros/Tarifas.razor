@@ -1,0 +1,128 @@
+@page "/parameters/rates"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Tarifas
+@using SuvesaPosSitioAplicacion.Services
+@inject ITarifasPrecio Api
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="@Titulo" Nivel="NivelPantalla.Tableta"
+             Subtitulo="Listas de precio. A–D son las de siempre; cree las que necesite y asígnelas a los clientes. Cada artículo guarda su precio por tarifa en su ficha.">
+    <Acciones>
+        <div class="form-check form-switch me-2">
+            <input id="tarifas-inactivas" class="form-check-input" type="checkbox" @bind="_verInactivas" @bind:after="Recargar" />
+            <label class="form-check-label small" for="tarifas-inactivas">Ver inactivas</label>
+        </div>
+        @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Nueva"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
+        }
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Recargar" title="Actualizar"><i class="bi bi-arrow-clockwise"></i></button>
+    </Acciones>
+    <ChildContent>
+        <div class="card"><div class="card-body">
+            <AppRejilla TItem="TarifaPrecioDTO" Datos="Cargar" TextoVacio="No hay tarifas." @ref="_rejilla">
+                <Columnas>
+                    <HxGridColumn TItem="TarifaPrecioDTO" HeaderText="Orden" ItemTextSelector="t => t.Orden.ToString()" SortKeySelector="t => t.Orden" />
+                    <HxGridColumn TItem="TarifaPrecioDTO" HeaderText="Tarifa" SortKeySelector="t => t.Nombre">
+                        <ItemTemplate Context="t">@t.Nombre @if (t.EsSistema) { <span class="badge text-bg-light border ms-1">de siempre</span> }</ItemTemplate>
+                    </HxGridColumn>
+                    <HxGridColumn TItem="TarifaPrecioDTO" HeaderText="Clientes" HeaderCssClass="text-end" ItemCssClass="text-end" ItemTextSelector="t => t.Clientes.ToString()" />
+                    <HxGridColumn TItem="TarifaPrecioDTO" HeaderText="Artículos con precio" HeaderCssClass="text-end" ItemCssClass="text-end" ItemTextSelector="t => t.Articulos.ToString()" />
+                    <HxGridColumn TItem="TarifaPrecioDTO" HeaderText="Estado">
+                        <ItemTemplate Context="t"><span class="badge @(t.Activa ? "text-bg-success" : "text-bg-secondary")">@(t.Activa ? "Activa" : "Inactiva")</span></ItemTemplate>
+                    </HxGridColumn>
+                    <HxGridColumn TItem="TarifaPrecioDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
+                        <ItemTemplate Context="t">
+                            @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
+                            {
+                                <button class="btn btn-sm btn-outline-primary" title="Editar tarifa" @onclick="() => Editar(t)"><i class="bi bi-pencil"></i></button>
+                            }
+                        </ItemTemplate>
+                    </HxGridColumn>
+                </Columnas>
+            </AppRejilla>
+        </div></div>
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modal" Titulo="@(_edicion?.IdTarifa > 0 ? "Editar tarifa" : "Nueva tarifa")"
+          Subtitulo="@(_edicion?.EsSistema == true ? "Tarifa de siempre: se puede renombrar o desactivar." : null)"
+          Tamano="ModalSize.Regular" AlGuardar="Guardar" Guardando="_guardando">
+    <ChildContent>
+        @if (_edicion is not null)
+        {
+            @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger py-2">@_error</div> }
+            <div class="row g-3">
+                <div class="col-12"><AppCampoTexto Etiqueta="Nombre de la tarifa" @bind-Valor="_edicion.Nombre" Requerido="true" /></div>
+                <div class="col-6 col-md-4">
+                    <label class="form-label" for="tarifa-orden">Orden</label>
+                    <input id="tarifa-orden" type="number" min="1" step="1" class="form-control" @bind="_edicion.Orden" />
+                </div>
+                <div class="col-6 col-md-8 d-flex align-items-end">
+                    <div class="form-check form-switch mb-2">
+                        <input id="tarifa-activa" class="form-check-input" type="checkbox" @bind="_edicion.Activa" />
+                        <label class="form-check-label" for="tarifa-activa">Tarifa activa</label>
+                    </div>
+                </div>
+                @if (_edicion.IdTarifa > 0 && _edicion.Clientes > 0)
+                {
+                    <div class="col-12"><p class="form-text mb-0">La tienen asignada @_edicion.Clientes cliente(s): para desactivarla, cámbieles primero la tarifa.</p></div>
+                }
+            </div>
+        }
+    </ChildContent>
+</AppModal>
+
+@code {
+    private const string Titulo = "Tarifas";
+    private AppRejilla<TarifaPrecioDTO>? _rejilla;
+    private AppModal _modal = default!;
+    private List<TarifaPrecioDTO> _tarifas = new();
+    private TarifaPrecioDTO? _edicion;
+    private bool _cargado, _guardando, _verInactivas;
+    private string _error = string.Empty;
+
+    private async Task<GridDataProviderResult<TarifaPrecioDTO>> Cargar(GridDataProviderRequest<TarifaPrecioDTO> request)
+    {
+        if (!_cargado)
+        {
+            _tarifas = ((await Respuestas.DatoAsync(await Api.Listar(_verInactivas), "consultar las tarifas")) ?? Array.Empty<TarifaPrecioDTO>()).ToList();
+            _cargado = true;
+        }
+        return request.ApplyTo(_tarifas);
+    }
+
+    private async Task Recargar() { _cargado = false; if (_rejilla is not null) await _rejilla.RefrescarAsync(); }
+
+    private async Task Nueva()
+    {
+        _error = string.Empty;
+        _edicion = new TarifaPrecioDTO { Activa = true, Orden = (_tarifas.Count == 0 ? 0 : _tarifas.Max(t => t.Orden)) + 1 };
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Editar(TarifaPrecioDTO t)
+    {
+        _error = string.Empty;
+        _edicion = new TarifaPrecioDTO { IdTarifa = t.IdTarifa, Nombre = t.Nombre, Activa = t.Activa, Orden = t.Orden, EsSistema = t.EsSistema, Clientes = t.Clientes, Articulos = t.Articulos };
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_edicion is null) return;
+        if (string.IsNullOrWhiteSpace(_edicion.Nombre)) { _error = "Escriba el nombre de la tarifa."; return; }
+        _error = string.Empty;
+        _guardando = true;
+        var r = _edicion.IdTarifa == 0 ? await Api.Crear(_edicion) : await Api.Actualizar(_edicion.IdTarifa, _edicion);
+        _guardando = false;
+        // El motivo de un rechazo (nombre repetido, clientes que la usan) se muestra dentro del modal.
+        if (!r.EsCorrecta) { _error = r.Excepcion ?? "No se pudo guardar la tarifa."; return; }
+        await _modal.OcultarAsync();
+        await Recargar();
+        Dialogos.Exito("Tarifa guardada.");
+    }
+}

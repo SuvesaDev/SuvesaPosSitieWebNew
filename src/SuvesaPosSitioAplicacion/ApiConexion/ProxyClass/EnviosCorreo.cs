@@ -28,8 +28,9 @@ public sealed class EnviosCorreo : ProxyBase, IEnviosCorreo
             await _api.GetAsync($"api/envios-correo/comprobantes?{string.Join("&", q)}")), "consultar los envíos de correo");
     }
 
-    public Task<ResponseGeneric<bool>> Reenviar(string clave)
+    public Task<ResponseGeneric<bool>> Reenviar(string clave, string? destinatarios = null)
         => Ejecutar(async () => await LecturaEnvelope.Leer<bool>(
-            await _api.PostAsync($"api/envios-correo/comprobantes/{Uri.EscapeDataString(clave)}/reenviar", null)),
+            await _api.PostAsync($"api/envios-correo/comprobantes/{Uri.EscapeDataString(clave)}/reenviar",
+                string.IsNullOrWhiteSpace(destinatarios) ? null : System.Net.Http.Json.JsonContent.Create(new { destinatarios }))),
             "reencolar el envío");
 }

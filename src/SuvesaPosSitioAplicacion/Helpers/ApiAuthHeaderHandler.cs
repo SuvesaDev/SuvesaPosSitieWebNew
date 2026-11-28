@@ -40,6 +40,13 @@ public sealed class ApiAuthHeaderHandler : DelegatingHandler
                 request.RequestUri?.AbsolutePath);
         }
 
+        var clave = ContextoLlamada.ClaveInterna;
+        if (!string.IsNullOrWhiteSpace(clave))
+        {
+            request.Headers.Remove("X-Clave-Interna");
+            request.Headers.Add("X-Clave-Interna", clave);
+        }
+
         return base.SendAsync(request, cancellationToken);
     }
 
