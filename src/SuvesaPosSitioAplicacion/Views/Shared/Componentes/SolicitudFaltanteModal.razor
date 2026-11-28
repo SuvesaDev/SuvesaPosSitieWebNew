@@ -1,0 +1,138 @@
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.Services
+@inject IFaltantes Api
+@inject IClientesConsulta ClientesApi
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+@* Registro rápido de una solicitud de faltante (demanda insatisfecha). Sirve desde facturación, con el cliente y el artículo ya cargados, y como modal
+   independiente. Un producto que no está en el catálogo se describe con texto libre. *@
+
+<AppModal @ref="_modal" Titulo="Reportar producto sin existencia" Subtitulo="Registre lo que el cliente pidió y no hay, para que Compras lo gestione y se le avise cuando llegue."
+          Tamano="ModalSize.Regular" AlGuardar="Guardar" Guardando="_guardando" PuedeGuardar="PuedeGuardar" TextoGuardar="Registrar solicitud" IconoGuardar="bi-send">
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Producto</label>
+        @if (_idInventario is not null)
+        {
+            <div class="d-flex justify-content-between align-items-center border rounded px-3 py-2">
+                <span>@_producto</span>
+                <button type="button" class="btn btn-sm btn-link" @onclick="QuitarArticulo">Cambiar</button>
+            </div>
+        }
+        else
+        {
+            <div class="d-flex gap-2 mb-2">
+                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="BuscarArticulo"><i class="bi bi-search me-1" aria-hidden="true"></i>Buscar en el catálogo</button>
+                <span class="text-muted small align-self-center">o escriba el producto si no está catalogado:</span>
+            </div>
+            <input type="text" class="form-control" maxlength="300" placeholder="Producto nuevo o no catalogado" aria-label="Producto no catalogado" @bind="_descripcion" @bind:event="oninput" />
+        }
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-sm-4">
+            <label class="form-label fw-semibold" for="faltante-cantidad">Cantidad</label>
+            <input id="faltante-cantidad" type="number" min="0" step="any" class="form-control" @bind="_cantidad" @bind:event="oninput" />
+        </div>
+        <div class="col-sm-8">
+            <label class="form-label fw-semibold" for="faltante-nota">Nota (opcional)</label>
+            <input id="faltante-nota" type="text" maxlength="500" class="form-control" @bind="_nota" />
+        </div>
+    </div>
+
+    <div>
+        <label class="form-label fw-semibold">Cliente que lo solicita</label>
+        @if (_idCliente is not null)
+        {
+            <div class="d-flex justify-content-between align-items-center border rounded px-3 py-2">
+                <span>@_nombreCliente</span>
+                <button type="button" class="btn btn-sm btn-link" @onclick="QuitarCliente">Cambiar</button>
+            </div>
+        }
+        else
+        {
+            <input type="search" class="form-control" placeholder="Cédula o nombre del cliente (opcional)" aria-label="Buscar cliente" @bind="_textoCliente" @bind:event="oninput" @bind:after="BuscarClientes" />
+            @if (_clientes.Count > 0)
+            {
+                <ul class="list-group mt-1" style="max-height:10rem;overflow:auto">
+                    @foreach (var c in _clientes)
+                    {
+                        <li class="list-group-item list-group-item-action py-1" role="button" @onclick="() => ElegirCliente(c)">@c.Nombre <span class="text-muted small">@c.Cedula</span></li>
+                    }
+                </ul>
+            }
+        }
+    </div>
+</AppModal>
+
+<AppBuscadorArticulo @ref="_buscador" AlElegir="ElegirArticulo" />
+
+@code {
+    /// <summary>Datos con los que se abre. En facturación vienen el cliente y, si hay uno, el artículo.</summary>
+    public sealed record Inicial(long? IdCliente = null, string? NombreCliente = null, long? IdInventario = null, string? Producto = null, string Origen = "Modal");
+
+    /// <summary>Se registró la solicitud.</summary>
+    [Parameter] public EventCallback<SolicitudFaltanteDTO> AlRegistrar { get; set; }
+
+    private AppModal _modal = default!;
+    private AppBuscadorArticulo _buscador = default!;
+    private long? _idInventario, _idCliente;
+    private string? _producto, _descripcion, _nombreCliente, _textoCliente, _nota;
+    private string _origen = "Modal";
+    private decimal _cantidad;
+    private bool _guardando;
+    private List<FiltranClienteDTO> _clientes = new();
+
+    private bool PuedeGuardar => _cantidad > 0m && (_idInventario is not null || !string.IsNullOrWhiteSpace(_descripcion));
+
+    public async Task AbrirAsync(Inicial? inicial = null)
+    {
+        inicial ??= new Inicial();
+        (_idCliente, _nombreCliente, _idInventario, _producto, _origen) = (inicial.IdCliente, inicial.NombreCliente, inicial.IdInventario, inicial.Producto, inicial.Origen);
+        _descripcion = _nota = _textoCliente = null;
+        _cantidad = 0m;
+        _clientes = new();
+        await _modal.MostrarAsync();
+    }
+
+    private Task BuscarArticulo() => _buscador.AbrirAsync();
+    private void QuitarArticulo() { _idInventario = null; _producto = null; }
+    private void QuitarCliente() { _idCliente = null; _nombreCliente = null; }
+
+    private void ElegirArticulo(InventarioDTO articulo)
+    {
+        (_idInventario, _producto) = (articulo.Codigo, $"{articulo.Cod_Articulo} · {articulo.Descripcion}");
+        _descripcion = null;
+    }
+
+    private async Task BuscarClientes()
+    {
+        _clientes = new();
+        if (string.IsNullOrWhiteSpace(_textoCliente) || _textoCliente.Trim().Length < 3) return;
+        var r = await Respuestas.DatoAsync(await ClientesApi.Buscar(_textoCliente.Trim()), "buscar clientes");
+        _clientes = (r ?? Array.Empty<FiltranClienteDTO>()).Take(8).ToList();
+    }
+
+    private void ElegirCliente(FiltranClienteDTO cliente)
+    {
+        (_idCliente, _nombreCliente) = (cliente.Identificacion, cliente.Nombre);
+        _clientes = new();
+    }
+
+    private async Task Guardar()
+    {
+        _guardando = true;
+        var creada = await Respuestas.DatoAsync(await Api.Crear(new CrearSolicitudFaltanteRequest
+        {
+            IdInventario = _idInventario, Descripcion = _idInventario is null ? _descripcion : null, Cantidad = _cantidad,
+            IdCliente = _idCliente, Origen = _origen, Nota = _nota,
+        }), "registrar la solicitud");
+        _guardando = false;
+        if (creada is null) return;
+        await _modal.OcultarAsync();
+        Dialogos.Exito("Solicitud registrada. Compras ya la puede ver.");
+        await AlRegistrar.InvokeAsync(creada);
+    }
+}

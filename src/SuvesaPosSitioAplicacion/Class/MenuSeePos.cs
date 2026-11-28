@@ -800,6 +800,24 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Mis solicitudes de faltantes",
+                    Codigo = "COMERCIAL.FALTANTES",
+                    Ruta = "/comercial/faltantes",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Abastecimiento de faltantes",
+                    Codigo = "COMERCIAL.FALTANTES_COMPRAS",
+                    Ruta = "/comercial/faltantes-compras",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Historial de faltantes",
+                    Codigo = "COMERCIAL.FALTANTES_HISTORIAL",
+                    Ruta = "/comercial/faltantes-historial",
+                },
+                new ItemMenu
+                {
                     Titulo = "Centro de alertas",
                     Codigo = "COMERCIAL.ALERTAS",
                     Ruta = "/comercial/alertas",

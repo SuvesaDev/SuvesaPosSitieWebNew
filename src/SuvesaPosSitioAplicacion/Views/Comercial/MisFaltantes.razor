@@ -1,0 +1,137 @@
+@page "/comercial/faltantes"
+@using System.Globalization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.Services
+@inject IFaltantes Api
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Mis solicitudes de faltantes" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio" Icono="bi-box-seam"
+             Subtitulo="Lo que sus clientes pidieron y no había: en qué va cada pedido para informarles. Cuando llega la mercadería le aparece una alerta.">
+    <Acciones>
+        @if (Sesion.Puede(Codigo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Nueva"><i class="bi bi-plus-lg me-1"></i>Reportar faltante</button>
+        }
+    </Acciones>
+    <ChildContent>
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+            <label class="small text-muted" for="faltantes-mostrar">Mostrar</label>
+            <select id="faltantes-mostrar" class="form-select form-select-sm w-auto" @bind="_soloAbiertas" @bind:after="Cargar">
+                <option value="@true">Solo abiertas</option>
+                <option value="@false">Todas</option>
+            </select>
+        </div>
+        <div class="card"><div class="card-body p-0">
+            <AppCargable Cargando="_cargando" Vacio="@(!_cargando && _filas.Count == 0)" TextoVacio="No tiene solicitudes de faltantes.">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th class="text-end">Pedido</th><th class="text-end">Llegó</th><th>Estado</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in _filas)
+                            {
+                                <tr>
+                                    <td class="text-nowrap">@s.FechaCreacionUtc.ToLocalTime().ToString("d", Cultura)</td>
+                                    <td>@(s.NombreCliente ?? "—")</td>
+                                    <td>@s.Producto@if (!s.EsCatalogado) { <span class="badge text-bg-light border ms-1">No catalogado</span> }</td>
+                                    <td class="text-end">@s.Cantidad.ToString("N2", Cultura)</td>
+                                    <td class="text-end">@s.CantidadAbastecida.ToString("N2", Cultura)</td>
+                                    <td>
+                                        <span class="badge @EstadoSolicitudFaltante.Clase(s.Estado)">@EstadoSolicitudFaltante.Texto(s.Estado)</span>
+                                        @if (!string.IsNullOrEmpty(Detalle(s))) { <div class="small text-muted">@Detalle(s)</div> }
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        @if (EstadoSolicitudFaltante.EstaAbierta(s.Estado) && Sesion.Puede(Codigo, AccionPantalla.Editar))
+                                        {
+                                            <button class="btn btn-sm btn-outline-success me-1" title="Se facturó: concretar la venta" @onclick="() => PedirFactura(s)"><i class="bi bi-receipt"></i></button>
+                                            <button class="btn btn-sm btn-outline-danger" title="Cancelar la solicitud" @onclick="() => PedirCancelacion(s)"><i class="bi bi-x-lg"></i></button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </AppCargable>
+        </div></div>
+    </ChildContent>
+</AppPantalla>
+
+<SolicitudFaltanteModal @ref="_modalNueva" AlRegistrar="AlRegistrar" />
+
+<AppModal @ref="_modalFactura" Titulo="Concretar la venta" Subtitulo="Indique la factura con la que se vendió lo solicitado." Tamano="ModalSize.Regular"
+          AlGuardar="Concretar" Guardando="_guardando" PuedeGuardar="@(_idVenta > 0)" TextoGuardar="Concretar venta">
+    <label class="form-label" for="faltante-venta">Factura (código interno de la venta)</label>
+    <input id="faltante-venta" type="number" min="1" class="form-control" @bind="_idVenta" @bind:event="oninput" />
+    <div class="form-text">Debe ser del mismo cliente e incluir el producto solicitado.</div>
+</AppModal>
+
+<AppModal @ref="_modalCancelar" Titulo="Cancelar la solicitud" Tamano="ModalSize.Regular" AlGuardar="Cancelar" Guardando="_guardando" Peligro="true" TextoGuardar="Cancelar solicitud">
+    <label class="form-label" for="faltante-motivo">Motivo (opcional)</label>
+    <input id="faltante-motivo" type="text" maxlength="500" class="form-control" @bind="_motivo" />
+</AppModal>
+
+@code {
+    private const string Codigo = "COMERCIAL.FALTANTES";
+    private static readonly CultureInfo Cultura = new("es-CR");
+
+    private SolicitudFaltanteModal _modalNueva = default!;
+    private AppModal _modalFactura = default!, _modalCancelar = default!;
+    private List<SolicitudFaltanteDTO> _filas = new();
+    private SolicitudFaltanteDTO? _actual;
+    private bool _soloAbiertas = true, _cargando = true, _guardando;
+    private long _idVenta;
+    private string? _motivo;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        _filas = (await Respuestas.DatoAsync(await Api.Mis(_soloAbiertas), "consultar sus solicitudes") ?? Array.Empty<SolicitudFaltanteDTO>()).ToList();
+        _cargando = false;
+    }
+
+    private Task Nueva() => _modalNueva.AbrirAsync();
+    private Task AlRegistrar(SolicitudFaltanteDTO _) => Cargar();
+
+    private static string Detalle(SolicitudFaltanteDTO s) => s.Estado switch
+    {
+        EstadoSolicitudFaltante.EnOrdenCompra => $"Orden {s.NumeroOrdenCompra}" + (s.FechaEstimadaArribo is DateTime f ? $" · llega aprox. el {f.ToString("d", Cultura)}" : string.Empty),
+        EstadoSolicitudFaltante.Abastecido => "Ya está en bodega: ofrézcalo al cliente.",
+        EstadoSolicitudFaltante.Cancelada => s.MotivoCancelacion ?? string.Empty,
+        _ => s.CantidadAbastecida > 0m ? $"Llegaron {s.CantidadAbastecida.ToString("N2", Cultura)}; faltan {s.CantidadPendiente.ToString("N2", Cultura)}." : string.Empty,
+    };
+
+    private async Task PedirFactura(SolicitudFaltanteDTO s) { _actual = s; _idVenta = 0; await _modalFactura.MostrarAsync(); }
+    private async Task PedirCancelacion(SolicitudFaltanteDTO s) { _actual = s; _motivo = null; await _modalCancelar.MostrarAsync(); }
+
+    private async Task Concretar()
+    {
+        if (_actual is null) return;
+        _guardando = true;
+        var r = await Respuestas.DatoAsync(await Api.Concretar(_actual.Id, _idVenta), "concretar la solicitud");
+        _guardando = false;
+        if (r is null) return;
+        await _modalFactura.OcultarAsync();
+        Dialogos.Exito("Venta concretada.");
+        await Cargar();
+    }
+
+    private async Task Cancelar()
+    {
+        if (_actual is null) return;
+        _guardando = true;
+        var r = await Respuestas.DatoAsync(await Api.Cancelar(_actual.Id, _motivo), "cancelar la solicitud");
+        _guardando = false;
+        if (r is null) return;
+        await _modalCancelar.OcultarAsync();
+        Dialogos.Exito("Solicitud cancelada.");
+        await Cargar();
+    }
+}

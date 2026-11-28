@@ -2261,6 +2261,39 @@
             "VER",
             "EDITAR"
           ]
+        },
+        {
+          "codigo": "COMERCIAL.FALTANTES",
+          "nombre": "Mis solicitudes de faltantes",
+          "ruta": "/comercial/faltantes",
+          "padre": null,
+          "orden": 12,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.FALTANTES_COMPRAS",
+          "nombre": "Abastecimiento de faltantes",
+          "ruta": "/comercial/faltantes-compras",
+          "padre": null,
+          "orden": 13,
+          "acciones": [
+            "VER",
+            "EDITAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.FALTANTES_HISTORIAL",
+          "nombre": "Historial de faltantes",
+          "ruta": "/comercial/faltantes-historial",
+          "padre": null,
+          "orden": 14,
+          "acciones": [
+            "VER"
+          ]
         }
       ]
     }

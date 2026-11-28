@@ -352,6 +352,62 @@ public sealed class ComercialProxyTests
         Assert.Contains("\"sumaAMetaRuta\":false", hGuarda.Cuerpo);
     }
 
+    private static (Faltantes Proxy, Captura Handler) Falt(string json)
+        => Nuevo(json, f => new Faltantes(f, new SesionFalsa(), NullLogger<Faltantes>.Instance));
+
+    [Fact]
+    public async Task CrearFaltante_EnviaPostConElProductoYLaCantidad()
+    {
+        var (proxy, handler) = Falt("""{"status":0,"responses":{"id":5,"idUsuarioSolicitante":"u1","producto":"Collar XL","esCatalogado":false,"cantidad":3,"estado":"Pendiente","origen":"Modal"}}""");
+
+        var r = await proxy.Crear(new CrearSolicitudFaltanteRequest { Descripcion = "Collar XL", Cantidad = 3m, IdCliente = 7, Origen = "Facturacion" });
+
+        Assert.True(r.EsCorrecta, r.Excepcion);
+        Assert.Equal(HttpMethod.Post, handler.Metodo);
+        Assert.Equal("/api/comercial/faltantes", handler.Ruta);
+        Assert.Contains("\"descripcion\":\"Collar XL\"", handler.Cuerpo);
+        Assert.Contains("\"origen\":\"Facturacion\"", handler.Cuerpo);
+        Assert.Equal(EstadoSolicitudFaltante.Pendiente, r.Responses!.Estado);
+    }
+
+    [Fact]
+    public async Task ConsultarFaltantes_MisBandejaEHistorialUsanSusRutas()
+    {
+        var (mis, hMis) = Falt("""{"status":0,"responses":[{"id":1,"producto":"X","estado":"EnOrdenCompra","cantidad":2,"numeroOrdenCompra":"OC-9"}]}""");
+        Assert.Equal("OC-9", Assert.Single((await mis.Mis(true)).Responses!).NumeroOrdenCompra);
+        Assert.Equal("/api/comercial/faltantes/mis?soloAbiertas=true", hMis.Ruta);
+
+        var (bandeja, hBandeja) = Falt("""{"status":0,"responses":[{"producto":"X","unidadesPorAbastecer":5,"clientesEsperando":2,"idsSolicitud":[1,2]}]}""");
+        Assert.Equal(2, Assert.Single((await bandeja.Bandeja()).Responses!).ClientesEsperando);
+        Assert.Equal("/api/comercial/faltantes/bandeja", hBandeja.Ruta);
+
+        var (historial, hHistorial) = Falt("""{"status":0,"responses":{"solicitudes":3,"montoVentaPerdida":6000,"tasaRecuperacionPct":50,"porProducto":[],"porMarca":[],"noCatalogados":[]}}""");
+        var h = await historial.Historial(new FiltroHistorialFaltantesDTO { Desde = new DateTime(2026, 11, 1), Hasta = new DateTime(2026, 11, 30), IdRuta = 10 });
+        Assert.Equal(6000m, h.Responses!.MontoVentaPerdida);
+        Assert.Equal("/api/comercial/faltantes/historial?Desde=2026-11-01&Hasta=2026-11-30&IdRuta=10", hHistorial.Ruta);
+    }
+
+    [Fact]
+    public async Task GestionarFaltantes_ConcretarCancelarYLigarOrdenUsanPut()
+    {
+        var cuerpo = """{"status":0,"responses":{"id":5,"producto":"X","estado":"VentaConcretada","cantidad":1}}""";
+        var (concreta, hConcreta) = Falt(cuerpo);
+        Assert.True((await concreta.Concretar(5, 99)).EsCorrecta);
+        Assert.Equal((HttpMethod.Put, "/api/comercial/faltantes/5/concretar"), (hConcreta.Metodo, hConcreta.Ruta));
+        Assert.Contains("\"idVenta\":99", hConcreta.Cuerpo);
+
+        var (cancela, hCancela) = Falt(cuerpo);
+        Assert.True((await cancela.Cancelar(5, "ya no lo quiere")).EsCorrecta);
+        Assert.Equal("/api/comercial/faltantes/5/cancelar", hCancela.Ruta);
+        Assert.Contains("ya no lo quiere", hCancela.Cuerpo);
+
+        var (liga, hLiga) = Falt("""{"status":0,"responses":2}""");
+        var n = await liga.VincularOrdenCompra(new VincularOrdenCompraRequest { IdsSolicitud = { 1, 2 }, NumeroOrdenCompra = "OC-1", FechaEstimadaArribo = new DateTime(2026, 12, 5) });
+        Assert.Equal(2, n.Responses);
+        Assert.Equal((HttpMethod.Put, "/api/comercial/faltantes/orden-compra"), (hLiga.Metodo, hLiga.Ruta));
+        Assert.Contains("\"numeroOrdenCompra\":\"OC-1\"", hLiga.Cuerpo);
+    }
+
     [Fact]
     public async Task CrearYActualizarMeta_UsanPostYPutConElMotivo()
     {

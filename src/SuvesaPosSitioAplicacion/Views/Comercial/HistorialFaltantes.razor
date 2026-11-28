@@ -1,0 +1,91 @@
+@page "/comercial/faltantes-historial"
+@using System.Globalization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.DTOs.Rutas
+@using SuvesaPosSitioAplicacion.Services
+@inject IFaltantes Api
+@inject IRutasComerciales ApiRutas
+@inject IManejadorRespuestas Respuestas
+
+<AppPantalla Pantalla="Historial de faltantes" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio" Icono="bi-graph-down-arrow"
+             Subtitulo="Qué se dejó de vender por falta de producto: quiebres, unidades no surtidas, venta perdida a precio de lista y cuánto se recuperó. Lo que sí se facturó no se cuenta como perdido.">
+    <ChildContent>
+        <div class="d-flex flex-wrap gap-3 align-items-end mb-3">
+            <div><label class="form-label small mb-0" for="hf-desde">Desde</label><input id="hf-desde" type="date" class="form-control form-control-sm" @bind="_desde" /></div>
+            <div><label class="form-label small mb-0" for="hf-hasta">Hasta</label><input id="hf-hasta" type="date" class="form-control form-control-sm" @bind="_hasta" /></div>
+            <div>
+                <label class="form-label small mb-0" for="hf-ruta">Ruta</label>
+                <select id="hf-ruta" class="form-select form-select-sm" @bind="_idRuta">
+                    <option value="0">Todas</option>
+                    @foreach (var r in _rutas) { <option value="@r.IdRuta">@r.Nombre</option> }
+                </select>
+            </div>
+            <button class="btn btn-sm btn-primary" @onclick="Cargar"><i class="bi bi-funnel me-1"></i>Consultar</button>
+        </div>
+
+        <AppCargable Cargando="_cargando" Vacio="@(!_cargando && _h.Solicitudes == 0)" TextoVacio="No hay solicitudes de faltantes en ese periodo.">
+            <div class="row g-3 mb-3">
+                @Tarjeta("Quiebres", _h.Quiebres.ToString("N0", Cultura))
+                @Tarjeta("Unidades no surtidas", _h.UnidadesNoSurtidas.ToString("N2", Cultura))
+                @Tarjeta("Venta perdida", _h.MontoVentaPerdida.ToString("N2", Cultura))
+                @Tarjeta("Recuperación", _h.TasaRecuperacionPct.ToString("N1", Cultura) + " %")
+            </div>
+            @Tabla("Por producto", _h.PorProducto, true)
+            @Tabla("Por laboratorio", _h.PorMarca, false)
+            @if (_h.NoCatalogados.Count > 0) { @Tabla("Productos no catalogados más pedidos", _h.NoCatalogados, false) }
+        </AppCargable>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Codigo = "COMERCIAL.FALTANTES_HISTORIAL";
+    private static readonly CultureInfo Cultura = new("es-CR");
+
+    private HistorialFaltantesDTO _h = new();
+    private List<RutaComercialDTO> _rutas = new();
+    private DateTime? _desde = DateTime.Today.AddDays(-90), _hasta = DateTime.Today;
+    private int _idRuta;
+    private bool _cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _rutas = ((await Respuestas.DatoAsync(await ApiRutas.Listar(), "consultar las rutas")) ?? Array.Empty<RutaComercialDTO>()).Where(r => r.Activo && !r.EsConsumidorFinal).OrderBy(r => r.Nombre).ToList();
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        _h = await Respuestas.DatoAsync(await Api.Historial(new FiltroHistorialFaltantesDTO { Desde = _desde, Hasta = _hasta, IdRuta = _idRuta > 0 ? _idRuta : null }), "consultar el historial de faltantes") ?? new HistorialFaltantesDTO();
+        _cargando = false;
+    }
+
+    private RenderFragment Tarjeta(string titulo, string valor) => @<div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body py-2"><div class="small text-muted">@titulo</div><div class="fs-5 fw-semibold">@valor</div></div></div></div>;
+
+    private RenderFragment Tabla(string titulo, List<FilaHistorialFaltanteDTO> filas, bool conLaboratorio) =>
+        @<div class="mb-3">
+            <h2 class="h6 text-muted">@titulo</h2>
+            <div class="card"><div class="card-body p-0"><div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr><th>Producto</th>@if (conLaboratorio) { <th>Laboratorio</th> }<th class="text-end">Quiebres</th><th class="text-end">Solicitadas</th><th class="text-end">No surtidas</th><th class="text-end">Venta perdida</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var f in filas)
+                        {
+                            <tr>
+                                <td>@f.Producto</td>
+                                @if (conLaboratorio) { <td>@(f.Marca ?? "—")</td> }
+                                <td class="text-end">@f.Quiebres</td>
+                                <td class="text-end">@f.UnidadesSolicitadas.ToString("N2", Cultura)</td>
+                                <td class="text-end">@f.UnidadesNoSurtidas.ToString("N2", Cultura)</td>
+                                <td class="text-end">@f.MontoVentaPerdida.ToString("N2", Cultura)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div></div></div>
+        </div>;
+}
