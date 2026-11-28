@@ -447,6 +447,14 @@ public static partial class MenuSeePos
                     Titulo = "Devoluciones",
                     Codigo = "VENTAS.DEVOLUCIONES",
                     Ruta = "/sales/repayment",
+                },
+                new ItemMenu
+                {
+                    // Nota de crédito electrónica (referencia 09, sin inventario) contra un comprobante del sistema anterior o una venta interna.
+                    // Solo administradores: la función se concede únicamente a roles de administración.
+                    Titulo = "Nota de crédito externa",
+                    Codigo = "VENTAS.NOTA_DE_CREDITO_EXTERNA",
+                    Ruta = "/sales/external-credit-note",
                 }
             }
         },
@@ -723,6 +731,114 @@ public static partial class MenuSeePos
                     Titulo = "Autorizaciones de crédito",
                     Codigo = "COBRANZA.AUTORIZACIONES_DE_CREDITO",
                     Ruta = "/collections/credit-authorizations",
+                },
+            }
+        },
+        new ItemMenu
+        {
+            // Parámetros y calendario del módulo comercial (metas, alertas y KPIs). Los códigos casan con el
+            // módulo COMERCIAL de la semilla del API; ningún rol los tiene hasta que administración los active.
+            Titulo = "Gestión Comercial",
+            Codigo = "COMERCIAL",
+            Ruta = "/comercial",
+            Icono = "bi-graph-up-arrow",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Parámetros comerciales",
+                    Codigo = "COMERCIAL.PARAMETROS",
+                    Ruta = "/comercial/parametros",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Calendario hábil",
+                    Codigo = "COMERCIAL.CALENDARIO",
+                    Ruta = "/comercial/calendario",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Catálogos comerciales",
+                    Codigo = "COMERCIAL.CATALOGOS",
+                    Ruta = "/comercial/catalogos",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Clasificación de clientes",
+                    Codigo = "COMERCIAL.CLASIFICACION_CLIENTES",
+                    Ruta = "/comercial/clasificacion-clientes",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Clasificación de artículos",
+                    Codigo = "COMERCIAL.CLASIFICACION_ARTICULOS",
+                    Ruta = "/comercial/clasificacion-articulos",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Cobertura de vacaciones",
+                    Codigo = "COMERCIAL.COBERTURAS",
+                    Ruta = "/comercial/coberturas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Metas de ventas",
+                    Codigo = "COMERCIAL.METAS",
+                    Ruta = "/comercial/metas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Panel de metas",
+                    Codigo = "COMERCIAL.PANEL_METAS",
+                    Ruta = "/comercial/panel-metas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Atribución de ventas del SAC",
+                    Codigo = "COMERCIAL.ATRIBUCION_SAC",
+                    Ruta = "/comercial/atribucion-sac",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Mis solicitudes de faltantes",
+                    Codigo = "COMERCIAL.FALTANTES",
+                    Ruta = "/comercial/faltantes",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Abastecimiento de faltantes",
+                    Codigo = "COMERCIAL.FALTANTES_COMPRAS",
+                    Ruta = "/comercial/faltantes-compras",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Historial de faltantes",
+                    Codigo = "COMERCIAL.FALTANTES_HISTORIAL",
+                    Ruta = "/comercial/faltantes-historial",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Reglas de venta cruzada",
+                    Codigo = "COMERCIAL.VENTA_CRUZADA",
+                    Ruta = "/comercial/venta-cruzada",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Oportunidades de venta cruzada",
+                    Codigo = "COMERCIAL.OPORTUNIDADES_CRUZADA",
+                    Ruta = "/comercial/oportunidades-cruzada",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Centro de alertas",
+                    Codigo = "COMERCIAL.ALERTAS",
+                    Ruta = "/comercial/alertas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Supervisión de alertas",
+                    Codigo = "COMERCIAL.ALERTAS_SUPERVISION",
+                    Ruta = "/comercial/alertas-supervision",
                 },
             }
         },

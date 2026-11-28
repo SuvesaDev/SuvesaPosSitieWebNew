@@ -1,0 +1,73 @@
+@page "/comercial/oportunidades-cruzada"
+@using System.Globalization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.Services
+@inject IVentaCruzada Api
+@inject IManejadorRespuestas Respuestas
+
+<AppPantalla Pantalla="Oportunidades de venta cruzada" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio" Icono="bi-cart-plus"
+             Subtitulo="Clientes de sus rutas que compran un producto y no su complemento. Llámelos y ofrézcaselo.">
+    <ChildContent>
+        <div class="small text-muted mb-2">@(_datos.DiasVentana > 0 ? $"Se mira lo que cada cliente compró en los últimos {_datos.DiasVentana} días." : string.Empty)</div>
+        @if (_datos.EsSupervision && _rutas.Count > 1)
+        {
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                <label class="small text-muted" for="vc-ruta">Ruta</label>
+                <select id="vc-ruta" class="form-select form-select-sm w-auto" @bind="_idRuta" @bind:after="Cargar">
+                    <option value="0">Todas</option>
+                    @foreach (var r in _rutas) { <option value="@r.Key">@r.Value</option> }
+                </select>
+            </div>
+        }
+        <div class="card"><div class="card-body p-0">
+            <AppCargable Cargando="_cargando" Vacio="@(!_cargando && _datos.Oportunidades.Count == 0)" TextoVacio="No hay oportunidades de venta cruzada en este momento.">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Cliente</th><th>Ruta</th><th>Compra</th><th>Ofrézcale</th><th>Última compra</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var o in _datos.Oportunidades)
+                            {
+                                <tr>
+                                    <td>@o.NombreCliente</td>
+                                    <td>@o.NombreRuta</td>
+                                    <td class="small">@string.Join(", ", o.Compro)</td>
+                                    <td class="fw-semibold">@string.Join(", ", o.Ofrecer)</td>
+                                    <td class="text-nowrap">@(o.UltimaCompra?.ToString("d", Cultura) ?? "—")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </AppCargable>
+        </div></div>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Codigo = "COMERCIAL.OPORTUNIDADES_CRUZADA";
+    private static readonly CultureInfo Cultura = new("es-CR");
+
+    private OportunidadesVentaCruzadaDTO _datos = new();
+    private readonly Dictionary<int, string> _rutas = new();
+    private int _idRuta;
+    private bool _cargando = true;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        _datos = await Respuestas.DatoAsync(await Api.Oportunidades(_idRuta > 0 ? _idRuta : null), "consultar las oportunidades") ?? new OportunidadesVentaCruzadaDTO();
+        // Las rutas del filtro salen de lo que ya trajo la primera consulta sin filtro.
+        if (_idRuta == 0)
+        {
+            _rutas.Clear();
+            foreach (var o in _datos.Oportunidades.Where(o => !string.IsNullOrEmpty(o.NombreRuta)).DistinctBy(o => o.IdRuta).OrderBy(o => o.NombreRuta)) _rutas[o.IdRuta] = o.NombreRuta!;
+        }
+        _cargando = false;
+    }
+}

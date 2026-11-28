@@ -2087,6 +2087,22 @@
             "EXPORTAR",
             "IMPRIMIR"
           ]
+        },
+        {
+          "codigo": "VENTAS.NOTA_DE_CREDITO_EXTERNA",
+          "nombre": "Nota de crédito externa",
+          "ruta": "/sales/external-credit-note",
+          "padre": null,
+          "orden": 8,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
         }
       ]
     },
@@ -2590,6 +2606,204 @@
             "ACTIVAR",
             "EXPORTAR",
             "IMPRIMIR"
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "COMERCIAL",
+      "nombre": "Gestión Comercial",
+      "orden": 13,
+      "icono": "bi-graph-up-arrow",
+      "funciones": [
+        {
+          "codigo": "COMERCIAL.PARAMETROS",
+          "nombre": "Parámetros comerciales",
+          "ruta": "/comercial/parametros",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.CALENDARIO",
+          "nombre": "Calendario hábil",
+          "ruta": "/comercial/calendario",
+          "padre": null,
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.CATALOGOS",
+          "nombre": "Catálogos comerciales",
+          "ruta": "/comercial/catalogos",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.CLASIFICACION_CLIENTES",
+          "nombre": "Clasificación de clientes",
+          "ruta": "/comercial/clasificacion-clientes",
+          "padre": null,
+          "orden": 4,
+          "acciones": [
+            "VER",
+            "EDITAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.CLASIFICACION_ARTICULOS",
+          "nombre": "Clasificación de artículos",
+          "ruta": "/comercial/clasificacion-articulos",
+          "padre": null,
+          "orden": 5,
+          "acciones": [
+            "VER",
+            "EDITAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.COBERTURAS",
+          "nombre": "Cobertura de vacaciones",
+          "ruta": "/comercial/coberturas",
+          "padre": null,
+          "orden": 6,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.METAS",
+          "nombre": "Metas de ventas",
+          "ruta": "/comercial/metas",
+          "padre": null,
+          "orden": 7,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.ALERTAS",
+          "nombre": "Centro de alertas",
+          "ruta": "/comercial/alertas",
+          "padre": null,
+          "orden": 8,
+          "acciones": [
+            "VER",
+            "EDITAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.ALERTAS_SUPERVISION",
+          "nombre": "Supervisión de alertas",
+          "ruta": "/comercial/alertas-supervision",
+          "padre": null,
+          "orden": 9,
+          "acciones": [
+            "VER",
+            "EDITAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.PANEL_METAS",
+          "nombre": "Panel de metas",
+          "ruta": "/comercial/panel-metas",
+          "padre": null,
+          "orden": 10,
+          "acciones": [
+            "VER"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.ATRIBUCION_SAC",
+          "nombre": "Atribución de ventas del SAC",
+          "ruta": "/comercial/atribucion-sac",
+          "padre": null,
+          "orden": 11,
+          "acciones": [
+            "VER",
+            "EDITAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.FALTANTES",
+          "nombre": "Mis solicitudes de faltantes",
+          "ruta": "/comercial/faltantes",
+          "padre": null,
+          "orden": 12,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.FALTANTES_COMPRAS",
+          "nombre": "Abastecimiento de faltantes",
+          "ruta": "/comercial/faltantes-compras",
+          "padre": null,
+          "orden": 13,
+          "acciones": [
+            "VER",
+            "EDITAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.FALTANTES_HISTORIAL",
+          "nombre": "Historial de faltantes",
+          "ruta": "/comercial/faltantes-historial",
+          "padre": null,
+          "orden": 14,
+          "acciones": [
+            "VER"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.VENTA_CRUZADA",
+          "nombre": "Reglas de venta cruzada",
+          "ruta": "/comercial/venta-cruzada",
+          "padre": null,
+          "orden": 15,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR"
+          ]
+        },
+        {
+          "codigo": "COMERCIAL.OPORTUNIDADES_CRUZADA",
+          "nombre": "Oportunidades de venta cruzada",
+          "ruta": "/comercial/oportunidades-cruzada",
+          "padre": null,
+          "orden": 16,
+          "acciones": [
+            "VER"
           ]
         }
       ]

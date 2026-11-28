@@ -8,7 +8,8 @@ namespace SuvesaPosSitioAplicacion.Views.Documentos;
 public partial class Bandeja
 {
     private const string Titulo = "Bandeja de documentos";
-    private static readonly string[] _pestanas = { "Preventas", "Facturas", "Notas de Crédito", "Notas de Débito", "Consignaciones" };
+    // La pestaña 5 (notas de crédito contra comprobantes del sistema anterior) va al final para no mover los índices de las demás.
+    private static readonly string[] _pestanas = { "Preventas", "Facturas", "Notas de Crédito", "Notas de Débito", "Consignaciones", "NC externas" };
 
     private int _tab;
     private DateTime _desde = DateTime.Today.AddDays(-7);
@@ -34,7 +35,7 @@ public partial class Bandeja
     private string? _claveFiscal;
     private string? _contenidoFiscal;
 
-    private bool EsFiscal => _tab is 1 or 2 or 3;
+    private bool EsFiscal => _tab is 1 or 2 or 3 or 5;
 
     private IReadOnlyList<DocumentoBandeja> Filas => EsFiscal ? _fiscales : _comunes;
 
@@ -137,6 +138,14 @@ public partial class Bandeja
                     var r = await Respuestas.DatoAsync(await Api.Consignaciones(f), "consultar las consignaciones");
                     _comunes = r?.Registros ?? new();
                     _fiscales = new();
+                    _total = r?.TotalRegistros ?? 0;
+                    break;
+                }
+            case 5:
+                {
+                    var r = await Respuestas.DatoAsync(await Api.NotasCreditoExternas(f), "consultar las notas de crédito externas");
+                    _fiscales = r?.Registros ?? new();
+                    _comunes = new();
                     _total = r?.TotalRegistros ?? 0;
                     break;
                 }

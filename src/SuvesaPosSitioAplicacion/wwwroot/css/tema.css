@@ -2125,6 +2125,9 @@ body,
 .seepos-documento-resumen strong { color:var(--seepos-documento-azul); font-size:1.1rem; font-variant-numeric:tabular-nums; }
 .seepos-documento-mensaje { display:flex; gap:.55rem; margin-top:.7rem; border-radius:.5rem; padding:.6rem .7rem; background:var(--bs-warning-bg-subtle); color:var(--bs-warning-text-emphasis); font-size:.78rem; }
 .seepos-documento-mensaje > i { margin-top:.12rem; }
+/* Aviso de Hacienda: el documento fue aceptado pero trae una observación. */
+.seepos-aviso-hacienda { display:flex; gap:.4rem; align-items:flex-start; margin-top:.2rem; padding:.25rem .5rem; border-radius:.4rem; background:var(--bs-warning-bg-subtle); border:1px solid var(--bs-warning-border-subtle); color:var(--bs-warning-text-emphasis); white-space:pre-line; }
+.seepos-aviso-hacienda > i { margin-top:.12rem; }
 .seepos-documento-mensaje strong, .seepos-documento-mensaje span { display:block; }
 @media (max-width: 480px) {
     .seepos-documento-cabecera-principal { flex-direction:column; }

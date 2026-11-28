@@ -138,7 +138,7 @@ public class FiltroMenuTests
     public void ElMenuRealSeCargoCompleto()
     {
         static int Contar(IEnumerable<ItemMenu> ns) => ns.Sum(n => 1 + Contar(n.Hijos));
-        Assert.Equal(13, MenuSeePos.Items.Count);
+        Assert.Equal(14, MenuSeePos.Items.Count);
         // 84 originales + 19 (arbol de permisos MODULO_REPORTES.*) + 2 (Gastos,
         // Cumplimiento CABYS) + 4 (Apartados y préstamos, KPI por ruta, Empaquetado y
         // maquila, Mermas) + 1 (Panel ejecutivo) + 1 (Tablero de Consignación, pantalla
@@ -153,7 +153,9 @@ public class FiltroMenuTests
         // raíz + Cola, Empaque, Despacho, Ubicaciones, Rutas) + 1 (Recibo de mercadería) + 4
         // (módulo Cobranza: Cobranza, Seguimiento, Dashboard, Gerencial) + 1 (Cobranza →
         // Autorizaciones de crédito) + 3 (IVA Repercutido, Soportado y Prorrata).
-        Assert.Equal(163, Contar(MenuSeePos.Items));   // develop suma "Consulta de Arqueos" y quita "Bodega → Ubicaciones" (ya está en Catálogos)
+        // + 1 (Ventas → Nota de crédito externa) + 17 (módulo Gestión Comercial: parámetros, calendario, catálogos, clasificaciones, coberturas,
+        // metas, centro de alertas y supervisión, panel de metas, atribución del SAC, faltantes y venta cruzada), que llegaron de develop.
+        Assert.Equal(181, Contar(MenuSeePos.Items));   // 163 + los 18 de develop; develop suma "Consulta de Arqueos" y quita "Bodega → Ubicaciones" (ya está en Catálogos)
     }
 
     private sealed class ContabilidadFalsa : IContextoContabilidad

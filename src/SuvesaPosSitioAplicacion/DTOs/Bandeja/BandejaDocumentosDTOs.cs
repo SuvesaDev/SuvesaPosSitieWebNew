@@ -43,6 +43,8 @@ public sealed class DocumentoFiscalBandeja : DocumentoBandeja
     public string? EstadoHacienda { get; set; }
     public bool EnviadoHacienda { get; set; }
     public string? MensajeRechazoHacienda { get; set; }
+    /// <summary>«Aviso» (aceptado con observación) o «Error»; null si no hay mensaje.</summary>
+    public string? MensajeHaciendaGravedad { get; set; }
     /// <summary>Solo facturas: 0 = sin devoluciones, 1 = devuelta parcialmente, 2 = devuelta por completo.</summary>
     public int EstadoDevolucion { get; set; }
 }

@@ -1,0 +1,29 @@
+@* Lo que Hacienda dijo de un comprobante. Error: rojo. Aviso (documento aceptado con observación): amarillo, no impide nada.
+   El API ya entrega el texto limpio, una frase por línea; aquí solo se presenta. *@
+@if (!string.IsNullOrWhiteSpace(Texto))
+{
+    if (EsAviso)
+    {
+        <div class="seepos-aviso-hacienda small" title="@Texto"><i class="bi bi-exclamation-triangle-fill"></i><span>@Aviso</span></div>
+    }
+    else
+    {
+        <div class="text-danger small" title="@Texto" style="@(Completo ? "white-space:pre-line" : null)">@(Completo ? Texto : EnUnaLinea)</div>
+    }
+}
+
+@code {
+    [Parameter] public string? Texto { get; set; }
+    /// <summary>«Aviso» o «Error». Sin dato (API antiguo) se trata como error, igual que antes.</summary>
+    [Parameter] public string? Gravedad { get; set; }
+    /// <summary>Longitud máxima en listas; 0 = sin recorte. El texto completo siempre va en el tooltip.</summary>
+    [Parameter] public int Max { get; set; } = 90;
+    /// <summary>Para el detalle: muestra todas las frases, una por línea.</summary>
+    [Parameter] public bool Completo { get; set; }
+
+    private bool EsAviso => string.Equals(Gravedad, "Aviso", StringComparison.OrdinalIgnoreCase);
+    private string EnUnaLinea => Recortar((Texto ?? string.Empty).Replace("\n", " "));
+    private string Aviso => Completo ? (Texto ?? string.Empty) : "Observación de Hacienda: " + EnUnaLinea;
+
+    private string Recortar(string t) => Max <= 0 || t.Length <= Max ? t : t[..Max] + "…";
+}

@@ -1,0 +1,104 @@
+@page "/comercial/atribucion-sac"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.DTOs.Rutas
+@using SuvesaPosSitioAplicacion.Services
+@inject IPanelMetas Api
+@inject IRutasComerciales ApiRutas
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Atribución de ventas del SAC" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio" Icono="bi-diagram-3"
+             Subtitulo="Cómo cuentan las ventas que factura Servicio al Cliente en una ruta: sumadas también a la meta de la ruta y de su titular, o solo a la meta de quien las facturó.">
+    <ChildContent>
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+            <label class="small text-muted" for="atr-ruta">Ruta</label>
+            <select id="atr-ruta" class="form-select form-select-sm w-auto" @bind="_idRuta" @bind:after="Cargar">
+                <option value="0">Seleccione una ruta…</option>
+                @foreach (var r in _rutas)
+                {
+                    <option value="@r.IdRuta">@r.Nombre</option>
+                }
+            </select>
+        </div>
+
+        <AppCargable Cargando="_cargando" Vacio="@(!_cargando && _idRuta > 0 && _colaboradores.Count == 0)" TextoVacio="La ruta no tiene colaboradores.">
+            @if (_idRuta > 0)
+            {
+                <div class="card"><div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr><th>Colaborador</th><th>Rol en la ruta</th><th>Sus ventas cuentan…</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in _colaboradores)
+                                {
+                                    <tr>
+                                        <td>@c.Nombre</td>
+                                        <td>
+                                            @if (c.EsTitular) { <span class="badge text-bg-primary">Titular</span> }
+                                            @if (c.EsServicioAlCliente) { <span class="badge text-bg-info">Servicio al Cliente</span> }
+                                        </td>
+                                        <td>
+                                            @if (c.EsServicioAlCliente)
+                                            {
+                                                <select class="form-select form-select-sm w-auto" disabled="@(!PuedeEditar || _guardando)"
+                                                        value="@Valor(c)" @onchange="e => Cambiar(c, EsSuma(e))">
+                                                    <option value="1">En la meta de la ruta, del titular y la suya</option>
+                                                    <option value="0">Solo en la suya</option>
+                                                </select>
+                                            }
+                                            else { <span class="text-muted small">No aplica</span> }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div></div>
+            }
+        </AppCargable>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Codigo = "COMERCIAL.ATRIBUCION_SAC";
+
+    private List<RutaComercialDTO> _rutas = new();
+    private List<ColaboradorAtribucionDTO> _colaboradores = new();
+    private int _idRuta;
+    private bool _cargando, _guardando;
+
+    private bool PuedeEditar => Sesion.Puede(Codigo, AccionPantalla.Editar);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var rutas = await Respuestas.DatoAsync(await ApiRutas.Listar(), "consultar las rutas");
+        _rutas = (rutas ?? Array.Empty<RutaComercialDTO>()).Where(r => r.Activo && !r.EsConsumidorFinal).OrderBy(r => r.Nombre).ToList();
+    }
+
+    private async Task Cargar()
+    {
+        _colaboradores = new();
+        if (_idRuta <= 0) return;
+        _cargando = true;
+        var lista = await Respuestas.DatoAsync(await Api.ListarAtribucion(_idRuta), "consultar los colaboradores");
+        _colaboradores = (lista ?? Array.Empty<ColaboradorAtribucionDTO>()).ToList();
+        _cargando = false;
+    }
+
+    private static string Valor(ColaboradorAtribucionDTO c) => c.SumaAMetaRuta ? "1" : "0";
+    private static bool EsSuma(ChangeEventArgs e) => e.Value?.ToString() == "1";
+
+    private async Task Cambiar(ColaboradorAtribucionDTO c, bool suma)
+    {
+        _guardando = true;
+        var guardado = await Respuestas.DatoAsync(await Api.GuardarAtribucion(_idRuta, c.IdUsuario, suma), "guardar la atribución");
+        if (guardado is not null) { c.SumaAMetaRuta = guardado.SumaAMetaRuta; Dialogos.Exito("Atribución guardada."); }
+        else await Cargar();
+        _guardando = false;
+    }
+}

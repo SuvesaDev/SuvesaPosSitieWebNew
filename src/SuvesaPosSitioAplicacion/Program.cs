@@ -215,6 +215,16 @@ builder.Services.AddScoped<IContextoContabilidad, ContextoContabilidad>();
 builder.Services.AddScoped<IFacturacion, Facturacion>();
 builder.Services.AddScoped<IRutasComerciales, RutasComerciales>();
 builder.Services.AddScoped<ITarifasPrecio, TarifasPrecio>();
+builder.Services.AddScoped<IParametrosComerciales, ParametrosComerciales>();
+builder.Services.AddScoped<ICalendarioHabil, CalendarioHabil>();
+builder.Services.AddScoped<ICatalogosComerciales, CatalogosComerciales>();
+builder.Services.AddScoped<IClasificacionComercial, ClasificacionComercial>();
+builder.Services.AddScoped<ICoberturasRuta, CoberturasRuta>();
+builder.Services.AddScoped<IMetasVenta, MetasVenta>();
+builder.Services.AddScoped<IPanelMetas, PanelMetas>();
+builder.Services.AddScoped<IFaltantes, Faltantes>();
+builder.Services.AddScoped<IVentaCruzada, VentaCruzada>();
+builder.Services.AddScoped<IAlertasComerciales, AlertasComerciales>();
 builder.Services.AddScoped<IComisiones, Comisiones>();
 builder.Services.AddScoped<ICompras, Compras>();
 builder.Services.AddScoped<IBandejaDocumentos, BandejaDocumentos>();
@@ -264,6 +274,7 @@ builder.Services.AddScoped<IEnviosCorreo, EnviosCorreo>();
 builder.Services.AddScoped<IAlertasAdministrador, AlertasAdministrador>();
 builder.Services.AddScoped<ICertificadosRegistro, CertificadosRegistro>();
 builder.Services.AddScoped<ICobranza, Cobranza>();
+builder.Services.AddScoped<INotasCreditoExternas, NotasCreditoExternas>();
 builder.Services.AddScoped<IAuditoriaCabys, AuditoriaCabys>();
 builder.Services.AddScoped<IDesbloqueoCredito, DesbloqueoCredito>();
 builder.Services.AddScoped<IClienteUnificacion, ClienteUnificacion>();
@@ -447,6 +458,12 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
     int? idFamilia,
     string? tipoVenta,
     bool? incluirAnuladas,
+    int? idCanal,
+    int? idRuta,
+    string? idEjecutor,
+    string? rolOrigen,
+    int? codMarca,
+    int? idEspecie,
     DateTime? fechaReferencia,
     DateTime? generado,
     IContextoSesion sesion,
@@ -484,6 +501,12 @@ app.MapGet("/reportes/operacion/{tipo}/{formato}", async (
             IdFamilia = idFamilia,
             TipoVenta = tipoVenta,
             IncluirAnuladas = incluirAnuladas ?? false,
+            IdCanal = idCanal,
+            IdRuta = idRuta,
+            IdEjecutor = idEjecutor,
+            RolOrigen = rolOrigen,
+            CodMarca = codMarca,
+            IdEspecie = idEspecie,
             TamanoPagina = 2000,
             Texto = string.IsNullOrWhiteSpace(texto) ? null : texto.Trim()
         });

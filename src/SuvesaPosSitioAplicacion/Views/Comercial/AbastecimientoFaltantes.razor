@@ -1,0 +1,120 @@
+@page "/comercial/faltantes-compras"
+@using System.Globalization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.Services
+@inject IFaltantes Api
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Abastecimiento de faltantes" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio" Icono="bi-truck"
+             Subtitulo="La demanda abierta de cada producto, de todos los clientes que lo esperan. Ligue la orden de compra y su fecha estimada: el vendedor lo ve en su bandeja. Cuando la compra entra, las solicitudes se abastecen solas.">
+    <Acciones>
+        @if (Sesion.Puede(Codigo, AccionPantalla.Editar))
+        {
+            <button class="btn btn-sm btn-primary" disabled="@(_seleccion.Count == 0)" @onclick="AbrirOrden"><i class="bi bi-link-45deg me-1"></i>Ligar orden de compra (@_seleccion.Count)</button>
+        }
+    </Acciones>
+    <ChildContent>
+        <div class="card"><div class="card-body p-0">
+            <AppCargable Cargando="_cargando" Vacio="@(!_cargando && _grupos.Count == 0)" TextoVacio="No hay solicitudes pendientes de abastecer.">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:2rem"></th><th>Producto</th><th>Laboratorio</th><th>Zonas</th>
+                                <th class="text-end">Demandadas</th><th class="text-end">Por abastecer</th><th class="text-end">En bodega</th>
+                                <th class="text-end">Clientes</th><th>Vendedores</th><th>Orden de compra</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var g in _grupos)
+                            {
+                                <tr>
+                                    <td><input type="checkbox" class="form-check-input" aria-label="Seleccionar @g.Producto" checked="@Elegido(g)" @onchange="e => Alternar(g, e)" disabled="@(!Sesion.Puede(Codigo, AccionPantalla.Editar))" /></td>
+                                    <td>@g.Producto@if (!g.EsCatalogado) { <span class="badge text-bg-light border ms-1">No catalogado</span> }</td>
+                                    <td>@(g.Marca ?? "—")</td>
+                                    <td class="small">@(g.Zonas.Count == 0 ? "—" : string.Join(", ", g.Zonas))</td>
+                                    <td class="text-end">@g.UnidadesDemandadas.ToString("N2", Cultura)</td>
+                                    <td class="text-end fw-semibold">@g.UnidadesPorAbastecer.ToString("N2", Cultura)</td>
+                                    <td class="text-end">@(g.EsCatalogado ? g.ExistenciaActual.ToString("N2", Cultura) : "—")</td>
+                                    <td class="text-end">@g.ClientesEsperando</td>
+                                    <td class="small">@string.Join(", ", g.Solicitantes)</td>
+                                    <td class="small">
+                                        @if (g.OrdenesCompra.Count == 0) { <span class="text-muted">Sin orden</span> }
+                                        else { <span>@string.Join(", ", g.OrdenesCompra)</span>@if (g.FechaEstimadaArribo is DateTime f) { <div class="text-muted">llega aprox. @f.ToString("d", Cultura)</div> } }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </AppCargable>
+        </div></div>
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modalOrden" Titulo="Ligar orden de compra" Subtitulo="@($"Se aplica a {_seleccion.Count} producto(s) seleccionado(s).")" Tamano="ModalSize.Regular"
+          AlGuardar="Ligar" Guardando="_guardando" PuedeGuardar="@(!string.IsNullOrWhiteSpace(_orden))" TextoGuardar="Ligar orden">
+    <div class="mb-3">
+        <label class="form-label" for="faltante-oc">Número de orden de compra</label>
+        <input id="faltante-oc" type="text" maxlength="50" class="form-control" @bind="_orden" @bind:event="oninput" />
+    </div>
+    <div>
+        <label class="form-label" for="faltante-arribo">Fecha estimada de arribo</label>
+        <input id="faltante-arribo" type="date" class="form-control" @bind="_arribo" />
+    </div>
+</AppModal>
+
+@code {
+    private const string Codigo = "COMERCIAL.FALTANTES_COMPRAS";
+    private static readonly CultureInfo Cultura = new("es-CR");
+
+    private AppModal _modalOrden = default!;
+    private List<GrupoAbastecimientoDTO> _grupos = new();
+    private readonly HashSet<GrupoAbastecimientoDTO> _seleccion = new();
+    private bool _cargando = true, _guardando;
+    private string? _orden;
+    private DateTime? _arribo;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        _seleccion.Clear();
+        _grupos = (await Respuestas.DatoAsync(await Api.Bandeja(), "consultar la bandeja de abastecimiento") ?? Array.Empty<GrupoAbastecimientoDTO>()).ToList();
+        _cargando = false;
+    }
+
+    private bool Elegido(GrupoAbastecimientoDTO g) => _seleccion.Contains(g);
+
+    private void Alternar(GrupoAbastecimientoDTO g, ChangeEventArgs e)
+    {
+        if (e.Value is true) _seleccion.Add(g); else _seleccion.Remove(g);
+    }
+
+    private async Task AbrirOrden()
+    {
+        _orden = null;
+        _arribo = null;
+        await _modalOrden.MostrarAsync();
+    }
+
+    private async Task Ligar()
+    {
+        _guardando = true;
+        var n = await Api.VincularOrdenCompra(new VincularOrdenCompraRequest
+        {
+            IdsSolicitud = _seleccion.SelectMany(g => g.IdsSolicitud).ToList(), NumeroOrdenCompra = _orden!.Trim(), FechaEstimadaArribo = _arribo,
+        });
+        _guardando = false;
+        var cantidad = await Respuestas.DatoAsync(n, "ligar la orden de compra");
+        if (n.EsCorrecta is false) return;
+        await _modalOrden.OcultarAsync();
+        Dialogos.Exito($"Orden ligada a {cantidad} solicitud(es).");
+        await Cargar();
+    }
+}

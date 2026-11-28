@@ -1,0 +1,178 @@
+@page "/comercial/panel-metas"
+@using System.Globalization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.Services
+@inject IPanelMetas Api
+@inject IManejadorRespuestas Respuestas
+
+<AppPantalla Pantalla="Panel de metas" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio" Icono="bi-speedometer2"
+             Subtitulo="Cumplimiento de las metas del mes, cómo cerrarían al ritmo actual (días hábiles de lunes a viernes) y la cartera vencida contra su tope.">
+    <Acciones>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Mes">
+            <button class="btn btn-outline-secondary" title="Mes anterior" @onclick="() => CambiarMes(-1)"><i class="bi bi-chevron-left"></i></button>
+            <span class="btn btn-outline-secondary disabled fw-semibold text-capitalize" style="min-width:10rem">@NombreMes</span>
+            <button class="btn btn-outline-secondary" title="Mes siguiente" @onclick="() => CambiarMes(1)"><i class="bi bi-chevron-right"></i></button>
+        </div>
+    </Acciones>
+    <ChildContent>
+        @if (!_cargando && _panel.MesFuturo)
+        {
+            <div class="alert alert-info py-2">Este mes aún no empieza: todavía no hay avance que medir.</div>
+        }
+        else if (!_cargando)
+        {
+            <div class="small text-muted mb-2">
+                Avance al @(_panel.Corte?.ToString("d", Cultura)) · @_panel.DiasHabilesTranscurridos de @_panel.DiasHabilesTotales días hábiles (@_panel.DiasHabilesRestantes por delante)
+                @if (!_panel.ProyeccionConfiable)
+                {
+                    <span class="badge text-bg-warning ms-2">Proyección poco confiable: van muy pocos días hábiles</span>
+                }
+            </div>
+        }
+
+        <AppCargable Cargando="_cargando" Vacio="@(!_cargando && _panel.Metas.Count == 0 && _panel.Carteras.Count == 0)" TextoVacio="No hay metas para este mes en su alcance.">
+            @if (_panel.Metas.Count > 0)
+            {
+                <div class="card mb-3"><div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Sobre qué</th>
+                                    <th class="text-end">Meta</th>
+                                    <th class="text-end">Vendido</th>
+                                    <th style="min-width:10rem">Cumplimiento</th>
+                                    <th class="text-end">Cerraría en</th>
+                                    <th class="text-end">Unidades</th>
+                                    <th class="text-end">Clientes nuevos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var grupo in Grupos)
+                                {
+                                    <tr class="table-secondary"><td colspan="7" class="fw-semibold"><i class="bi @(grupo.Key.StartsWith("R") ? "bi-signpost-split" : "bi-person") me-1"></i>@grupo.Value.Titulo</td></tr>
+                                    @foreach (var m in grupo.Value.Metas)
+                                    {
+                                        <tr>
+                                            <td class="ps-4">@Dimension(m)</td>
+                                            <td class="text-end">@Numero(m.MontoMeta)</td>
+                                            <td class="text-end">@Numero(m.MontoReal)</td>
+                                            <td>@Barra(m.CumplimientoPct)</td>
+                                            <td class="text-end">
+                                                @if (m.ProyeccionMonto is not null)
+                                                {
+                                                    <span class="@(ProyeccionBaja(m) ? "text-danger fw-semibold" : null)">@Numero(m.ProyeccionMonto)</span>
+                                                    <div class="small text-muted">@Porcentaje(m.ProyeccionPct)</div>
+                                                }
+                                                else { <span>—</span> }
+                                            </td>
+                                            <td class="text-end">@Avance(m.UnidadesReal, m.UnidadesMeta, m.CumplimientoUnidadesPct)</td>
+                                            <td class="text-end">@Avance(m.ClientesNuevosReal, m.ClientesNuevosMeta, m.CumplimientoClientesPct)</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div></div>
+            }
+
+            @if (_panel.Carteras.Count > 0)
+            {
+                <h2 class="h6 text-muted">Cartera vencida al corte</h2>
+                <div class="card"><div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Ruta o persona</th>
+                                    <th class="text-end">Vencido al corte</th>
+                                    <th class="text-end">Arrastre</th>
+                                    <th class="text-end">Por cobrar del mes</th>
+                                    <th class="text-end">% vencido</th>
+                                    <th class="text-end">Tope</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in _panel.Carteras.OrderBy(x => x.Nivel == NivelMeta.Ruta ? 0 : 1).ThenBy(x => NombreCartera(x)))
+                                {
+                                    <tr class="@(c.SuperaTope ? "table-danger" : null)">
+                                        <td><i class="bi @(c.Nivel == NivelMeta.Ruta ? "bi-signpost-split" : "bi-person") me-1"></i>@NombreCartera(c)</td>
+                                        <td class="text-end">@Numero(c.VencidoAlCorte)</td>
+                                        <td class="text-end">@Numero(c.Arrastre)</td>
+                                        <td class="text-end">@Numero(c.PorCobrarMes)</td>
+                                        <td class="text-end fw-semibold">@Porcentaje(c.Pct)</td>
+                                        <td class="text-end">
+                                            @if (c.TopePct is null) { <span class="text-muted">Sin tope</span> }
+                                            else { <span>@Porcentaje(c.TopePct)</span>@if (c.SuperaTope) { <i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Supera el tope"></i> } }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div></div>
+            }
+        </AppCargable>
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    private const string Codigo = "COMERCIAL.PANEL_METAS";
+    private static readonly CultureInfo Cultura = new("es-CR");
+
+    private sealed record GrupoMetas(string Titulo, List<AvanceMetaDTO> Metas);
+
+    private PanelMetasDTO _panel = new();
+    private int _anio = DateTime.Today.Year, _mes = DateTime.Today.Month;
+    private bool _cargando = true;
+
+    private string NombreMes => new DateTime(_anio, _mes, 1).ToString("MMMM 'de' yyyy", Cultura);
+
+    private IEnumerable<KeyValuePair<string, GrupoMetas>> Grupos => _panel.Metas
+        .GroupBy(m => m.Nivel == NivelMeta.Ruta ? "R" + m.IdRuta : "U" + m.IdUsuario)
+        .Select(g => new KeyValuePair<string, GrupoMetas>(g.Key,
+            new GrupoMetas(g.First().Nivel == NivelMeta.Ruta ? "Ruta " + (g.First().NombreRuta ?? g.First().IdRuta?.ToString()) : (g.First().NombreUsuario ?? g.First().IdUsuario ?? "—"),
+                g.OrderBy(m => m.TipoDimension != DimensionMeta.Global).ThenBy(m => m.TipoDimension).ThenBy(m => m.NombreDimension).ToList())))
+        .OrderBy(g => g.Key.StartsWith("R") ? 0 : 1).ThenBy(g => g.Value.Titulo);
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        _panel = await Respuestas.DatoAsync(await Api.Consultar(_anio, _mes), "consultar el panel de metas") ?? new PanelMetasDTO { Anio = _anio, Mes = _mes };
+        _cargando = false;
+    }
+
+    private async Task CambiarMes(int delta)
+    {
+        var fecha = new DateTime(_anio, _mes, 1).AddMonths(delta);
+        if (fecha.Year < 2000 || fecha.Year > 2100) return;
+        (_anio, _mes) = (fecha.Year, fecha.Month);
+        await Cargar();
+    }
+
+    private static string Numero(decimal? v) => v is null ? "—" : v.Value.ToString("N2", Cultura);
+    private static string Porcentaje(decimal? v) => v is null ? "—" : v.Value.ToString("N1", Cultura) + " %";
+    private static bool ProyeccionBaja(AvanceMetaDTO m) => m.ProyeccionPct is < 100m;
+
+    private static string Dimension(AvanceMetaDTO m)
+        => m.TipoDimension == DimensionMeta.Global ? "Total de ventas" : $"{m.TipoDimension}: {m.NombreDimension}";
+
+    private static string NombreCartera(CarteraVencidaDTO c)
+        => c.Nivel == NivelMeta.Ruta ? "Ruta " + (c.NombreRuta ?? c.IdRuta?.ToString()) : (c.NombreUsuario ?? c.IdUsuario ?? "—");
+
+    private static string Avance(decimal real, decimal? meta, decimal? pct)
+        => meta is null ? "—" : $"{real.ToString("N0", Cultura)} de {meta.Value.ToString("N0", Cultura)} ({Porcentaje(pct)})";
+
+    private static Microsoft.AspNetCore.Components.MarkupString Barra(decimal? pct)
+    {
+        if (pct is null) return new("—");
+        var ancho = Math.Min(100m, Math.Max(0m, pct.Value)).ToString("0.#", CultureInfo.InvariantCulture);
+        var color = pct >= 100m ? "bg-success" : pct >= 70m ? "bg-warning" : "bg-danger";
+        return new($"<div class=\"progress\" role=\"progressbar\" aria-valuenow=\"{ancho}\" aria-valuemin=\"0\" aria-valuemax=\"100\" style=\"height:1.1rem\"><div class=\"progress-bar {color}\" style=\"width:{ancho}%\">{pct.Value.ToString("N1", Cultura)} %</div></div>");
+    }
+}

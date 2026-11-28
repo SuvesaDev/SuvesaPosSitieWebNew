@@ -134,7 +134,7 @@
                                             <td class="text-end seepos-importe">@Formato.Importe((double)r.Impuesto)</td>
                                             <td>@CondicionImpuestoTexto(r.CondicionImpuesto)</td>
                                             <td class="text-break"><span class="small">@r.Clave</span></td>
-                                            <td><span class="badge @ClaseEstado(r.Estado)">@r.Estado</span>@if (!string.IsNullOrWhiteSpace(r.CausaError)) { <div class="text-danger small" title="@r.CausaError">@Truncar(r.CausaError)</div> }</td>
+                                            <td><span class="badge @ClaseEstado(r.Estado)">@r.Estado</span><AppMensajeHacienda Texto="@r.CausaError" Gravedad="@r.CausaErrorGravedad" Max="60" /></td>
                                             <td>@r.IntentosEnvio</td>
                                             <td class="text-end"><button class="btn btn-sm btn-link p-0" @onclick="() => AccionFiscal(r.Clave)">Detalle</button></td>
                                         </tr>
@@ -286,7 +286,6 @@
     }
 
     private static string? Nulo(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
-    private static string Truncar(string s) => s.Length <= 60 ? s : s[..60] + "…";
 
     private static string ClaseEstado(string estado)
     {

@@ -16,6 +16,9 @@ public interface IBandejaDocumentos
 
     Task<ResponseGeneric<BandejaDocumentosResultado<DocumentoFiscalBandeja>>> NotasCredito(BandejaDocumentosFiltro filtro);
 
+    /// <summary>Notas de crédito electrónicas contra comprobantes emitidos fuera del sistema (referencia 09, sin inventario).</summary>
+    Task<ResponseGeneric<BandejaDocumentosResultado<DocumentoFiscalBandeja>>> NotasCreditoExternas(BandejaDocumentosFiltro filtro);
+
     /// <summary>Notas de débito que respaldan la anulación de una nota de crédito.</summary>
     Task<ResponseGeneric<BandejaDocumentosResultado<DocumentoFiscalBandeja>>> NotasDebito(BandejaDocumentosFiltro filtro);
 

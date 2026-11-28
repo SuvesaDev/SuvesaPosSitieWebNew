@@ -1,0 +1,61 @@
+@using System.Globalization
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+
+@* Lista de alertas comerciales, compartida por el Centro de alertas y la Supervisión. Una alerta tiene un solo estado para todos sus destinatarios. *@
+
+@if (Items.Count == 0)
+{
+    <div class="text-center text-body-secondary py-5"><i class="bi bi-bell-slash fs-3" aria-hidden="true"></i><p class="mt-2 mb-0">@TextoVacio</p></div>
+}
+else
+{
+    <ul class="list-group list-group-flush">
+        @foreach (var a in Items)
+        {
+            <li class="list-group-item">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                    <div class="flex-grow-1">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                            <span class="badge @ClaseSeveridad(a.Severidad)">@(a.Severidad == "Critica" ? "Crítica" : a.Severidad)</span>
+                            <strong>@a.Titulo</strong>
+                            @if (a.Estado == "Gestionada") { <span class="badge text-bg-success">Gestionada</span> }
+                            else if (a.Estado == "Cerrada") { <span class="badge text-bg-secondary">Ya no aplica</span> }
+                        </div>
+                        <div>@a.Detalle</div>
+                        <div class="small text-body-secondary mt-1">
+                            @a.FechaCreacionUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm", Cultura)
+                            @if (!string.IsNullOrEmpty(a.NombreRuta)) { <span> · Ruta @a.NombreRuta</span> }
+                            @if (MostrarDestinatarios && a.Destinatarios.Count > 0) { <span> · Le llega a: @string.Join(", ", a.Destinatarios)</span> }
+                            @if (MostrarDestinatarios && a.Destinatarios.Count == 0) { <span> · No le llega a nadie (solo supervisión)</span> }
+                        </div>
+                        @if (a.Estado == "Gestionada")
+                        {
+                            <div class="small mt-1"><i class="bi bi-check2-circle text-success me-1" aria-hidden="true"></i>Gestionó <strong>@a.GestionadaPor</strong> el @a.FechaGestionUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm", Cultura)@(string.IsNullOrWhiteSpace(a.NotaGestion) ? "" : ": " + a.NotaGestion)</div>
+                        }
+                    </div>
+                    @if (a.Estado == "Pendiente" && PuedeGestionar)
+                    {
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => AlGestionar.InvokeAsync(a)"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Gestionar</button>
+                    }
+                </div>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private static readonly CultureInfo Cultura = new("es-CR");
+
+    [Parameter, EditorRequired] public IReadOnlyList<AlertaComercialDTO> Items { get; set; } = Array.Empty<AlertaComercialDTO>();
+    [Parameter] public bool MostrarDestinatarios { get; set; }
+    [Parameter] public bool PuedeGestionar { get; set; }
+    [Parameter] public string TextoVacio { get; set; } = "No hay alertas.";
+    [Parameter] public EventCallback<AlertaComercialDTO> AlGestionar { get; set; }
+
+    private static string ClaseSeveridad(string severidad) => severidad switch
+    {
+        "Critica" => "text-bg-danger",
+        "Preventiva" => "text-bg-warning",
+        _ => "text-bg-info",
+    };
+}

@@ -1,0 +1,114 @@
+@page "/comercial/alertas"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.Services
+@inject IAlertasComerciales Api
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Centro de alertas" Codigo="@Codigo" Nivel="NivelPantalla.Tableta" Icono="bi-bell"
+             Subtitulo="Avisos de sus clientes, de su rentabilidad y del inventario. Cada alerta tiene un solo estado: si usted o un compañero de ruta la gestiona, queda gestionada para todos.">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" title="Actualizar"><i class="bi bi-arrow-clockwise"></i></button>
+    </Acciones>
+    <ChildContent>
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body py-3"><div class="small text-body-secondary">Pendientes</div><div class="fs-4 fw-semibold">@_resumen.Pendientes</div></div></div></div>
+            <div class="col-6 col-md-3"><div class="card h-100"><div class="card-body py-3"><div class="small text-body-secondary">Críticas</div><div class="fs-4 fw-semibold text-danger">@_resumen.PendientesCriticas</div></div></div></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+                <select class="form-select form-select-sm w-auto" aria-label="Estado" @bind="_estado" @bind:after="Buscar">
+                    <option value="Pendiente">Pendientes</option>
+                    <option value="Gestionada">Gestionadas</option>
+                    <option value="Todas">Todas</option>
+                </select>
+                <select class="form-select form-select-sm w-auto" aria-label="Tipo de alerta" @bind="_tipo" @bind:after="Buscar">
+                    <option value="">Todos los tipos</option>
+                    @foreach (var t in TipoAlertaComercial.Todos) { <option value="@t.Valor">@t.Texto</option> }
+                </select>
+            </div>
+            <div class="card-body p-0">
+                <AppCargable Cargando="_cargando">
+                    <ListaAlertasComerciales Items="_pagina.Items" PuedeGestionar="@Sesion.Puede(Codigo, AccionPantalla.Editar)" AlGestionar="Abrir"
+                                             TextoVacio="@(_estado == "Pendiente" ? "No tiene alertas pendientes." : "No hay alertas con ese filtro.")" />
+                </AppCargable>
+            </div>
+            <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span class="small text-muted">@Resumen</span>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" disabled="@(_pagina.Pagina <= 1 || _cargando)" @onclick="() => CambiarPagina(-1)"><i class="bi bi-chevron-left"></i> Anterior</button>
+                    <button class="btn btn-outline-secondary" disabled="@(!HaySiguiente || _cargando)" @onclick="() => CambiarPagina(1)">Siguiente <i class="bi bi-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modal" Titulo="Gestionar alerta" Subtitulo="@_gestionando?.Titulo" Tamano="ModalSize.Regular" AlGuardar="Guardar" Guardando="_guardando" TextoGuardar="Marcar como gestionada">
+    <ChildContent>
+        @if (_gestionando is not null)
+        {
+            @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger py-2">@_error</div> }
+            <p>@_gestionando.Detalle</p>
+            <AppCampoTexto Etiqueta="Qué hizo o acordó (opcional)" @bind-Valor="_nota" />
+            <p class="form-text mb-0">Queda en la alerta para todos los destinatarios y para la supervisión.</p>
+        }
+    </ChildContent>
+</AppModal>
+
+@code {
+    private const string Codigo = "COMERCIAL.ALERTAS";
+
+    private AppModal _modal = default!;
+    private PaginaAlertasComercialesDTO _pagina = new();
+    private ResumenAlertasComercialesDTO _resumen = new();
+    private AlertaComercialDTO? _gestionando;
+    private string _estado = "Pendiente", _tipo = string.Empty, _error = string.Empty;
+    private string? _nota;
+    private int _numeroPagina = 1;
+    private bool _cargando = true, _guardando;
+
+    private bool HaySiguiente => _pagina.Pagina * _pagina.Tamano < _pagina.Total;
+    private string Resumen => _pagina.Total == 0 ? "Sin resultados" : $"Mostrando {(_pagina.Pagina - 1) * _pagina.Tamano + 1}–{Math.Min(_pagina.Pagina * _pagina.Tamano, _pagina.Total)} de {_pagina.Total}";
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        _pagina = await Respuestas.DatoAsync(await Api.Bandeja(new FiltroAlertasComercialesDTO
+        {
+            Estado = _estado, Tipo = string.IsNullOrEmpty(_tipo) ? null : _tipo, Pagina = _numeroPagina,
+        }), "consultar las alertas") ?? new PaginaAlertasComercialesDTO();
+        _resumen = await Respuestas.DatoAsync(await Api.Resumen(), "consultar el resumen de alertas") ?? new ResumenAlertasComercialesDTO();
+        _cargando = false;
+    }
+
+    private async Task Buscar() { _numeroPagina = 1; await Cargar(); }
+    private async Task CambiarPagina(int delta) { _numeroPagina = Math.Max(1, _pagina.Pagina + delta); await Cargar(); }
+
+    private async Task Abrir(AlertaComercialDTO alerta)
+    {
+        _error = string.Empty;
+        _nota = null;
+        _gestionando = alerta;
+        await _modal.MostrarAsync();
+    }
+
+    private async Task Guardar()
+    {
+        if (_gestionando is null) return;
+        _error = string.Empty;
+        _guardando = true;
+        var r = await Api.Gestionar(_gestionando.Id, _nota);
+        _guardando = false;
+        if (!r.EsCorrecta) { _error = r.Excepcion ?? "No se pudo gestionar la alerta."; return; }
+        await _modal.OcultarAsync();
+        await Cargar();
+        Dialogos.Exito("Alerta gestionada.");
+    }
+}

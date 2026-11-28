@@ -28,6 +28,10 @@ public sealed class BandejaDocumentos : ProxyBase, IBandejaDocumentos
         => Ejecutar(async () => await Leer<BandejaDocumentosResultado<DocumentoFiscalBandeja>>(
             await _api.PostAsJsonAsync("BandejaDocumentos/NotasCredito", filtro, Json)), "consultar las notas de crédito");
 
+    public Task<ResponseGeneric<BandejaDocumentosResultado<DocumentoFiscalBandeja>>> NotasCreditoExternas(BandejaDocumentosFiltro filtro)
+        => Ejecutar(async () => await Leer<BandejaDocumentosResultado<DocumentoFiscalBandeja>>(
+            await _api.PostAsJsonAsync("BandejaDocumentos/NotasCreditoExternas", filtro, Json)), "consultar las notas de crédito externas");
+
     public Task<ResponseGeneric<BandejaDocumentosResultado<DocumentoFiscalBandeja>>> NotasDebito(BandejaDocumentosFiltro filtro)
         => Ejecutar(async () => await Leer<BandejaDocumentosResultado<DocumentoFiscalBandeja>>(
             await _api.PostAsJsonAsync("BandejaDocumentos/NotasDebito", filtro, Json)), "consultar las notas de débito");

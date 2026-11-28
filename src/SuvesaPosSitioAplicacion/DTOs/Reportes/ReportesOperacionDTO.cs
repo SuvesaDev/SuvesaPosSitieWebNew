@@ -18,6 +18,20 @@ public sealed class FiltroReporteOperacionWebDTO
     /// <summary>"01" contado / "02" crédito.</summary>
     public string? TipoVenta { get; set; }
     public bool IncluirAnuladas { get; set; }
+
+    // Filtros del módulo comercial (solo Ventas, Ventas detalladas y Ventas entre horas los entienden).
+    /// <summary>Canal comercial efectivo del cliente (el de su sucursal o, si no tiene, el del cliente).</summary>
+    public int? IdCanal { get; set; }
+    /// <summary>Ruta comercial de la venta.</summary>
+    public int? IdRuta { get; set; }
+    /// <summary>Login de quien facturó (no es el titular de la ruta: para ese está <see cref="IdAgente"/>).</summary>
+    public string? IdEjecutor { get; set; }
+    /// <summary>"Agente" o "SAC".</summary>
+    public string? RolOrigen { get; set; }
+    /// <summary>Laboratorio o marca del artículo (solo Ventas detalladas).</summary>
+    public int? CodMarca { get; set; }
+    /// <summary>Especie del artículo (solo Ventas detalladas).</summary>
+    public int? IdEspecie { get; set; }
     public int Pagina { get; set; } = 1;
     public int TamanoPagina { get; set; } = 25;
 }
@@ -63,4 +77,24 @@ public sealed class FilaReporteOperacionWebDTO
     public string EstadoHacienda { get; set; } = string.Empty;
     /// <summary>Condición del impuesto (01-05) enviada en el Mensaje Receptor, en texto.</summary>
     public string CondicionImpuestoHacienda { get; set; } = string.Empty;
+
+    // Columnas del módulo comercial (solo Ventas y Ventas detalladas las llenan).
+    /// <summary>"Agente" o "SAC": con qué rol se facturó.</summary>
+    public string Origen { get; set; } = string.Empty;
+    /// <summary>Quien facturó.</summary>
+    public string Ejecutor { get; set; } = string.Empty;
+    public string Ruta { get; set; } = string.Empty;
+    /// <summary>Sucursal del cliente (no la sucursal de la empresa).</summary>
+    public string SucursalCliente { get; set; } = string.Empty;
+    /// <summary>Descuento por pronto pago concedido a la factura; no está incluido en el monto.</summary>
+    public decimal ProntoPago { get; set; }
+
+    // Columnas del reporte de Clientes (módulo comercial).
+    /// <summary>"Nuevo", "Recurrente" o "En recuperación"; vacío si no compró en el periodo.</summary>
+    public string Comportamiento { get; set; } = string.Empty;
+    public string Canal { get; set; } = string.Empty;
+    /// <summary>Titular de la ruta del cliente y, si hay cobertura vigente, quién cubre y hasta cuándo.</summary>
+    public string Atiende { get; set; } = string.Empty;
+    /// <summary>Avisos: sin comprar hace tiempo, baja de compra o nunca ha comprado.</summary>
+    public string Alerta { get; set; } = string.Empty;
 }

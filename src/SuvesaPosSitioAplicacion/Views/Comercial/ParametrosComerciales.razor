@@ -1,0 +1,269 @@
+@page "/comercial/parametros"
+@using System.Globalization
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.DTOs.Rutas
+@using SuvesaPosSitioAplicacion.Services
+@inject IParametrosComerciales Api
+@inject IRutasComerciales ApiRutas
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Parámetros comerciales" Codigo="@Codigo" Nivel="NivelPantalla.Tableta" Icono="bi-sliders"
+             Subtitulo="Umbrales de las alertas y topes de cartera vencida del módulo comercial. Un valor sin configurar mantiene apagada la alerta que lo usa.">
+    <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="RecargarTodo" title="Actualizar"><i class="bi bi-arrow-clockwise"></i></button>
+    </Acciones>
+    <ChildContent>
+        <div class="card mb-3">
+            <div class="card-header fw-semibold">Umbrales y topes generales</div>
+            <div class="card-body">
+                <AppRejilla TItem="ParametroComercialDTO" Datos="CargarParametros" TextoVacio="No hay parámetros." @ref="_rejillaParametros">
+                    <Columnas>
+                        <HxGridColumn TItem="ParametroComercialDTO" HeaderText="Parámetro" SortKeySelector="p => p.Descripcion">
+                            <ItemTemplate Context="p">@p.Descripcion<div class="small text-muted"><code>@p.Clave</code></div></ItemTemplate>
+                        </HxGridColumn>
+                        <HxGridColumn TItem="ParametroComercialDTO" HeaderText="Valor" HeaderCssClass="text-end" ItemCssClass="text-end">
+                            <ItemTemplate Context="p">
+                                @if (p.Valor is null) { <span class="badge text-bg-warning">Sin configurar</span> }
+                                else { <span>@Formatear(p)</span> }
+                            </ItemTemplate>
+                        </HxGridColumn>
+                        <HxGridColumn TItem="ParametroComercialDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
+                            <ItemTemplate Context="p">
+                                @if (Sesion.Puede(Codigo, AccionPantalla.Editar))
+                                {
+                                    <button class="btn btn-sm btn-outline-primary" title="Cambiar el valor" @onclick="() => EditarParametro(p)"><i class="bi bi-pencil"></i></button>
+                                }
+                            </ItemTemplate>
+                        </HxGridColumn>
+                    </Columnas>
+                </AppRejilla>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Tope de cartera vencida por ruta</span>
+                @if (Sesion.Puede(Codigo, AccionPantalla.Editar))
+                {
+                    <button class="btn btn-sm btn-primary" @onclick="NuevoTope"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
+                }
+            </div>
+            <div class="card-body">
+                <p class="form-text">La ruta que no figura aquí usa el tope general de arriba.</p>
+                <AppRejilla TItem="TopeCarteraRutaDTO" Datos="CargarTopes" TextoVacio="Ninguna ruta tiene un tope propio." @ref="_rejillaTopes">
+                    <Columnas>
+                        <HxGridColumn TItem="TopeCarteraRutaDTO" HeaderText="Ruta" SortKeySelector="t => t.NombreRuta" ItemTextSelector="NombreRuta" />
+                        <HxGridColumn TItem="TopeCarteraRutaDTO" HeaderText="Tope" HeaderCssClass="text-end" ItemCssClass="text-end" SortKeySelector="t => t.Porcentaje"
+                                      ItemTextSelector="TextoTope" />
+                        <HxGridColumn TItem="TopeCarteraRutaDTO" HeaderText="" HeaderCssClass="text-end" ItemCssClass="text-end">
+                            <ItemTemplate Context="t">
+                                @if (Sesion.Puede(Codigo, AccionPantalla.Editar))
+                                {
+                                    <button class="btn btn-sm btn-outline-primary me-1" title="Cambiar el tope" @onclick="() => EditarTope(t)"><i class="bi bi-pencil"></i></button>
+                                }
+                                @if (Sesion.Puede(Codigo, AccionPantalla.Borrar))
+                                {
+                                    <button class="btn btn-sm btn-outline-danger" title="Quitar el tope propio" @onclick="() => QuitarTope(t)"><i class="bi bi-trash"></i></button>
+                                }
+                            </ItemTemplate>
+                        </HxGridColumn>
+                    </Columnas>
+                </AppRejilla>
+            </div>
+        </div>
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modalParametro" Titulo="Cambiar parámetro" Subtitulo="@_parametro?.Descripcion"
+          Tamano="ModalSize.Regular" AlGuardar="GuardarParametro" Guardando="_guardando">
+    <ChildContent>
+        @if (_parametro is not null)
+        {
+            @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger py-2">@_error</div> }
+            <label class="form-label" for="param-valor">Valor (@Unidad(_parametro))</label>
+            @if (_parametro.Unidad == "bandera")
+            {
+                <select id="param-valor" class="form-select" value="@ValorBandera" @onchange="CambiarBandera">
+                    <option value="0">No</option>
+                    <option value="1">Sí</option>
+                </select>
+            }
+            else
+            {
+                <input id="param-valor" type="number" class="form-control" step="@(_parametro.Unidad == "porcentaje" ? "0.01" : "1")" min="0" @bind="_valor" />
+            }
+            @if (_parametro.PermiteVacio)
+            {
+                <p class="form-text mb-0">Déjelo vacío para apagar la alerta que usa este valor.</p>
+            }
+        }
+    </ChildContent>
+</AppModal>
+
+<AppModal @ref="_modalTope" Titulo="@(_topeNuevo ? "Agregar tope por ruta" : "Cambiar tope por ruta")"
+          Tamano="ModalSize.Regular" AlGuardar="GuardarTope" Guardando="_guardando">
+    <ChildContent>
+        @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger py-2">@_error</div> }
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label" for="tope-ruta">Ruta</label>
+                <select id="tope-ruta" class="form-select" @bind="_idRutaTope" disabled="@(!_topeNuevo)">
+                    <option value="0">Seleccione una ruta…</option>
+                    @foreach (var r in _rutasDisponibles)
+                    {
+                        <option value="@r.IdRuta">@r.Nombre</option>
+                    }
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="tope-pct">Tope de cartera vencida (%)</label>
+                <input id="tope-pct" type="number" class="form-control" step="0.01" min="0" max="100" @bind="_porcentajeTope" />
+            </div>
+        </div>
+    </ChildContent>
+</AppModal>
+
+@code {
+    private const string Codigo = "COMERCIAL.PARAMETROS";
+    private AppRejilla<ParametroComercialDTO>? _rejillaParametros;
+    private AppRejilla<TopeCarteraRutaDTO>? _rejillaTopes;
+    private AppModal _modalParametro = default!, _modalTope = default!;
+    private List<ParametroComercialDTO> _parametros = new();
+    private List<TopeCarteraRutaDTO> _topes = new();
+    private List<RutaComercialDTO> _rutasDisponibles = new();
+    private bool _parametrosCargados, _topesCargados, _guardando, _topeNuevo;
+    private ParametroComercialDTO? _parametro;
+    private decimal? _valor, _porcentajeTope;
+    private int _idRutaTope;
+    private string _error = string.Empty;
+
+    private async Task<GridDataProviderResult<ParametroComercialDTO>> CargarParametros(GridDataProviderRequest<ParametroComercialDTO> request)
+    {
+        if (!_parametrosCargados)
+        {
+            _parametros = ((await Respuestas.DatoAsync(await Api.Listar(), "consultar los parámetros")) ?? Array.Empty<ParametroComercialDTO>()).ToList();
+            _parametrosCargados = true;
+        }
+        return request.ApplyTo(_parametros);
+    }
+
+    private async Task<GridDataProviderResult<TopeCarteraRutaDTO>> CargarTopes(GridDataProviderRequest<TopeCarteraRutaDTO> request)
+    {
+        if (!_topesCargados)
+        {
+            _topes = ((await Respuestas.DatoAsync(await Api.ListarTopesRuta(), "consultar los topes por ruta")) ?? Array.Empty<TopeCarteraRutaDTO>()).ToList();
+            _topesCargados = true;
+        }
+        return request.ApplyTo(_topes);
+    }
+
+    private async Task RecargarTodo()
+    {
+        _parametrosCargados = false;
+        _topesCargados = false;
+        if (_rejillaParametros is not null) await _rejillaParametros.RefrescarAsync();
+        if (_rejillaTopes is not null) await _rejillaTopes.RefrescarAsync();
+    }
+
+    private static string NombreRuta(TopeCarteraRutaDTO t) => t.NombreRuta ?? $"#{t.IdRuta}";
+
+    private static string TextoTope(TopeCarteraRutaDTO t) => $"{t.Porcentaje.ToString("0.##", CultureInfo.CurrentCulture)} %";
+
+    private string ValorBandera => _valor == 1m ? "1" : "0";
+
+    private void CambiarBandera(ChangeEventArgs e) => _valor = e.Value?.ToString() == "1" ? 1m : 0m;
+
+    private static string Unidad(ParametroComercialDTO p) => p.Unidad switch { "dias" => "días", "meses" => "meses", "porcentaje" => "%", "bandera" => "sí o no", _ => p.Unidad };
+
+    private static string Formatear(ParametroComercialDTO p)
+        => p.Unidad switch
+        {
+            "bandera" => p.Valor == 1m ? "Sí" : "No",
+            "porcentaje" => $"{p.Valor!.Value.ToString("0.##", CultureInfo.CurrentCulture)} %",
+            _ => $"{p.Valor!.Value.ToString("0", CultureInfo.CurrentCulture)} {Unidad(p)}",
+        };
+
+    private async Task EditarParametro(ParametroComercialDTO p)
+    {
+        _error = string.Empty;
+        _parametro = p;
+        _valor = p.Valor;
+        await _modalParametro.MostrarAsync();
+    }
+
+    private async Task GuardarParametro()
+    {
+        if (_parametro is null) return;
+        _error = string.Empty;
+        _guardando = true;
+        var r = await Api.Actualizar(_parametro.Clave, _valor);
+        _guardando = false;
+        // El motivo de un rechazo (fuera de rango, falta el valor) se muestra dentro del modal.
+        if (!r.EsCorrecta) { _error = r.Excepcion ?? "No se pudo guardar el parámetro."; return; }
+        await _modalParametro.OcultarAsync();
+        _parametrosCargados = false;
+        if (_rejillaParametros is not null) await _rejillaParametros.RefrescarAsync();
+        Dialogos.Exito("Parámetro guardado.");
+    }
+
+    private async Task CargarRutas()
+    {
+        if (_rutasDisponibles.Count > 0) return;
+        var rutas = await Respuestas.DatoAsync(await ApiRutas.Listar(), "consultar las rutas");
+        _rutasDisponibles = (rutas ?? Array.Empty<RutaComercialDTO>()).Where(r => r.Activo).OrderBy(r => r.Nombre).ToList();
+    }
+
+    private async Task NuevoTope()
+    {
+        _error = string.Empty;
+        _topeNuevo = true;
+        _idRutaTope = 0;
+        _porcentajeTope = null;
+        await CargarRutas();
+        // Una ruta que ya tiene tope propio se edita, no se agrega otra vez.
+        var conTope = _topes.Select(t => t.IdRuta).ToHashSet();
+        _rutasDisponibles = _rutasDisponibles.Where(r => !conTope.Contains(r.IdRuta)).ToList();
+        await _modalTope.MostrarAsync();
+    }
+
+    private async Task EditarTope(TopeCarteraRutaDTO t)
+    {
+        _error = string.Empty;
+        _topeNuevo = false;
+        _idRutaTope = t.IdRuta;
+        _porcentajeTope = t.Porcentaje;
+        _rutasDisponibles = new() { new RutaComercialDTO { IdRuta = t.IdRuta, Nombre = t.NombreRuta ?? ("#" + t.IdRuta) } };
+        await _modalTope.MostrarAsync();
+    }
+
+    private async Task GuardarTope()
+    {
+        if (_idRutaTope <= 0) { _error = "Seleccione la ruta."; return; }
+        if (_porcentajeTope is null) { _error = "Indique el porcentaje del tope."; return; }
+        _error = string.Empty;
+        _guardando = true;
+        var r = await Api.GuardarTopeRuta(_idRutaTope, _porcentajeTope.Value);
+        _guardando = false;
+        if (!r.EsCorrecta) { _error = r.Excepcion ?? "No se pudo guardar el tope."; return; }
+        await _modalTope.OcultarAsync();
+        _topesCargados = false;
+        _rutasDisponibles = new();   // se vuelve a leer la lista para que la próxima alta no repita rutas
+        if (_rejillaTopes is not null) await _rejillaTopes.RefrescarAsync();
+        Dialogos.Exito("Tope guardado.");
+    }
+
+    private async Task QuitarTope(TopeCarteraRutaDTO t)
+    {
+        if (!await Dialogos.ConfirmarAsync($"¿Quitar el tope propio de «{t.NombreRuta}»? La ruta pasará a usar el tope general.", "Quitar tope")) return;
+        var r = await Api.QuitarTopeRuta(t.IdRuta);
+        if (!await Respuestas.CorrectaAsync(r, "quitar el tope")) return;
+        _topesCargados = false;
+        _rutasDisponibles = new();
+        if (_rejillaTopes is not null) await _rejillaTopes.RefrescarAsync();
+        Dialogos.Exito("Tope quitado.");
+    }
+}

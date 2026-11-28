@@ -1,0 +1,181 @@
+@page "/comercial/venta-cruzada"
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.DTOs.Comercial
+@using SuvesaPosSitioAplicacion.Services
+@inject IVentaCruzada Api
+@inject IMetasVenta ApiOpciones
+@inject IContextoSesion Sesion
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+
+<AppPantalla Pantalla="Reglas de venta cruzada" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio" Icono="bi-diagram-2"
+             Subtitulo="Qué se complementa con qué: quien compra el origen y no su complemento aparece como oportunidad y genera una alerta. Cada lado puede ser un artículo, una familia completa o una categoría completa.">
+    <Acciones>
+        @if (Sesion.Puede(Codigo, AccionPantalla.Crear))
+        {
+            <button class="btn btn-sm btn-primary" @onclick="Nueva"><i class="bi bi-plus-lg me-1"></i>Agregar regla</button>
+        }
+    </Acciones>
+    <ChildContent>
+        <div class="card"><div class="card-body p-0">
+            <AppCargable Cargando="_cargando" Vacio="@(!_cargando && _reglas.Count == 0)" TextoVacio="No hay reglas. Use «Agregar regla».">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Si el cliente compra…</th><th>…y no compra</th><th>Origen de la regla</th><th>Estado</th><th style="width:7rem"></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in _reglas)
+                            {
+                                <tr class="@(r.Activo ? null : "text-muted")">
+                                    <td>@Etiqueta(r.OrigenTipo)<div>@r.OrigenNombre</div></td>
+                                    <td>@Etiqueta(r.ComplementoTipo)<div>@r.ComplementoNombre</div></td>
+                                    <td>@if (r.EsRelacionExistente) { <span class="badge text-bg-light border" title="Viene de los artículos relacionados; se cambia desde el artículo">Artículo relacionado</span> } else { <span>Regla propia</span> }</td>
+                                    <td><span class="badge @(r.Activo ? "text-bg-success" : "text-bg-secondary")">@(r.Activo ? "Activa" : "Inactiva")</span></td>
+                                    <td class="text-end text-nowrap">
+                                        @if (!r.EsRelacionExistente)
+                                        {
+                                            @if (Sesion.Puede(Codigo, AccionPantalla.Editar))
+                                            {
+                                                <button class="btn btn-sm btn-outline-secondary me-1" title="@(r.Activo ? "Desactivar" : "Activar")" @onclick="() => Alternar(r)"><i class="bi @(r.Activo ? "bi-pause-fill" : "bi-play-fill")"></i></button>
+                                            }
+                                            @if (Sesion.Puede(Codigo, AccionPantalla.Borrar))
+                                            {
+                                                <button class="btn btn-sm btn-outline-danger" title="Eliminar la regla" @onclick="() => Eliminar(r)"><i class="bi bi-trash"></i></button>
+                                            }
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </AppCargable>
+        </div></div>
+    </ChildContent>
+</AppPantalla>
+
+<AppModal @ref="_modal" Titulo="Agregar regla" Subtitulo="Elija el origen y lo que se le debería ofrecer." Tamano="ModalSize.Regular"
+          AlGuardar="Guardar" Guardando="_guardando" PuedeGuardar="PuedeGuardar" TextoGuardar="Guardar regla">
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Si el cliente compra</label>
+        @Lado(true)
+    </div>
+    <div>
+        <label class="form-label fw-semibold">…y no compra</label>
+        @Lado(false)
+    </div>
+</AppModal>
+
+<AppBuscadorArticulo @ref="_buscador" AlElegir="ElegirArticulo" />
+
+@code {
+    private const string Codigo = "COMERCIAL.VENTA_CRUZADA";
+
+    private AppModal _modal = default!;
+    private AppBuscadorArticulo _buscador = default!;
+    private List<ReglaVentaCruzadaDTO> _reglas = new();
+    private readonly Dictionary<string, List<OpcionFiltroDTO>> _opciones = new();
+    private bool _cargando = true, _guardando, _eligiendoOrigen;
+    private string _tipoOrigen = TipoComplemento.Articulo, _tipoComplemento = TipoComplemento.Articulo;
+    private long? _idOrigen, _idComplemento;
+    private string? _nombreOrigen, _nombreComplemento;
+
+    private bool PuedeGuardar => _idOrigen is not null && _idComplemento is not null;
+
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        _reglas = (await Respuestas.DatoAsync(await Api.Reglas(), "consultar las reglas") ?? Array.Empty<ReglaVentaCruzadaDTO>()).ToList();
+        _cargando = false;
+    }
+
+    private static string Etiqueta(string tipo) => TipoComplemento.Todos.FirstOrDefault(t => t.Valor == tipo).Texto ?? tipo;
+
+    private async Task Nueva()
+    {
+        (_tipoOrigen, _tipoComplemento) = (TipoComplemento.Articulo, TipoComplemento.Articulo);
+        (_idOrigen, _idComplemento, _nombreOrigen, _nombreComplemento) = (null, null, null, null);
+        await _modal.MostrarAsync();
+    }
+
+    private RenderFragment Lado(bool origen) => @<div>
+        <select class="form-select form-select-sm mb-2" aria-label="@(origen ? "Tipo de origen" : "Tipo de complemento")" value="@(origen ? _tipoOrigen : _tipoComplemento)" @onchange="e => CambiarTipo(origen, e)">
+            @foreach (var t in TipoComplemento.Todos) { <option value="@t.Valor">@t.Texto</option> }
+        </select>
+        @if ((origen ? _tipoOrigen : _tipoComplemento) == TipoComplemento.Articulo)
+        {
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => BuscarArticulo(origen)"><i class="bi bi-search me-1" aria-hidden="true"></i>Buscar artículo</button>
+                <span>@(origen ? _nombreOrigen : _nombreComplemento)</span>
+            </div>
+        }
+        else
+        {
+            <select class="form-select form-select-sm" aria-label="@(origen ? "Origen" : "Complemento")" value="@((origen ? _idOrigen : _idComplemento)?.ToString())" @onchange="e => ElegirOpcion(origen, e)">
+                <option value="">Seleccione…</option>
+                @foreach (var o in Opciones(origen ? _tipoOrigen : _tipoComplemento)) { <option value="@o.Id">@o.Nombre</option> }
+            </select>
+        }
+    </div>;
+
+    private IEnumerable<OpcionFiltroDTO> Opciones(string tipo) => _opciones.GetValueOrDefault(tipo) ?? new List<OpcionFiltroDTO>();
+
+    private async Task CambiarTipo(bool origen, ChangeEventArgs e)
+    {
+        var tipo = e.Value?.ToString() ?? TipoComplemento.Articulo;
+        if (origen) (_tipoOrigen, _idOrigen, _nombreOrigen) = (tipo, null, null);
+        else (_tipoComplemento, _idComplemento, _nombreComplemento) = (tipo, null, null);
+        if (tipo != TipoComplemento.Articulo && !_opciones.ContainsKey(tipo))
+            _opciones[tipo] = (await Respuestas.DatoAsync(await ApiOpciones.OpcionesDimension(tipo), "consultar las opciones") ?? Array.Empty<OpcionFiltroDTO>()).ToList();
+    }
+
+    private void ElegirOpcion(bool origen, ChangeEventArgs e)
+    {
+        long? id = long.TryParse(e.Value?.ToString(), out var v) ? v : null;
+        var nombre = id is null ? null : Opciones(origen ? _tipoOrigen : _tipoComplemento).FirstOrDefault(o => o.Id == id)?.Nombre;
+        if (origen) (_idOrigen, _nombreOrigen) = (id, nombre);
+        else (_idComplemento, _nombreComplemento) = (id, nombre);
+    }
+
+    private Task BuscarArticulo(bool origen)
+    {
+        _eligiendoOrigen = origen;
+        return _buscador.AbrirAsync();
+    }
+
+    private void ElegirArticulo(InventarioDTO articulo)
+    {
+        var nombre = $"{articulo.Cod_Articulo} · {articulo.Descripcion}";
+        if (_eligiendoOrigen) (_idOrigen, _nombreOrigen) = (articulo.Codigo, nombre);
+        else (_idComplemento, _nombreComplemento) = (articulo.Codigo, nombre);
+    }
+
+    private async Task Guardar()
+    {
+        _guardando = true;
+        var r = await Respuestas.DatoAsync(await Api.Crear(new GuardarReglaVentaCruzadaRequest
+        {
+            OrigenTipo = _tipoOrigen, OrigenId = _idOrigen!.Value, ComplementoTipo = _tipoComplemento, ComplementoId = _idComplemento!.Value,
+        }), "crear la regla");
+        _guardando = false;
+        if (r is null) return;
+        await _modal.OcultarAsync();
+        Dialogos.Exito("Regla guardada.");
+        await Cargar();
+    }
+
+    private async Task Alternar(ReglaVentaCruzadaDTO r)
+    {
+        if (await Respuestas.DatoAsync(await Api.CambiarActivo(r.Id, !r.Activo), "cambiar la regla") is not null) await Cargar();
+    }
+
+    private async Task Eliminar(ReglaVentaCruzadaDTO r)
+    {
+        if (!await Dialogos.ConfirmarPeligroAsync($"¿Eliminar la regla «{r.OrigenNombre} → {r.ComplementoNombre}»?")) return;
+        if (await Respuestas.CorrectaAsync(await Api.Eliminar(r.Id), "eliminar la regla")) { Dialogos.Exito("Regla eliminada."); await Cargar(); }
+    }
+}
