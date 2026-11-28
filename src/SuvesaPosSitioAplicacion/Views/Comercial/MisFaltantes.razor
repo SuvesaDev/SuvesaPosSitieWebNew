@@ -10,7 +10,7 @@
 @inject IServicioDialogos Dialogos
 
 <AppPantalla Pantalla="Mis solicitudes de faltantes" Codigo="@Codigo" Nivel="NivelPantalla.Escritorio" Icono="bi-box-seam"
-             Subtitulo="Lo que sus clientes pidieron y no había: en qué va cada pedido para informarles. Cuando llega la mercadería le aparece una alerta.">
+             Subtitulo="Lo que sus clientes pidieron y no había: en qué va cada pedido para informarles. Cuando llega la mercadería le aparece una alerta, y al facturarle el producto al cliente la solicitud se concreta sola.">
     <Acciones>
         @if (Sesion.Puede(Codigo, AccionPantalla.Crear))
         {
@@ -64,7 +64,7 @@
 
 <SolicitudFaltanteModal @ref="_modalNueva" AlRegistrar="AlRegistrar" />
 
-<AppModal @ref="_modalFactura" Titulo="Concretar la venta" Subtitulo="Indique la factura con la que se vendió lo solicitado." Tamano="ModalSize.Regular"
+<AppModal @ref="_modalFactura" Titulo="Concretar la venta" Subtitulo="Solo hace falta si la venta no se ligó sola (por ejemplo, se facturó menos de lo pedido). Indique la factura con la que se vendió." Tamano="ModalSize.Regular"
           AlGuardar="Concretar" Guardando="_guardando" PuedeGuardar="@(_idVenta > 0)" TextoGuardar="Concretar venta">
     <label class="form-label" for="faltante-venta">Factura (código interno de la venta)</label>
     <input id="faltante-venta" type="number" min="1" class="form-control" @bind="_idVenta" @bind:event="oninput" />
