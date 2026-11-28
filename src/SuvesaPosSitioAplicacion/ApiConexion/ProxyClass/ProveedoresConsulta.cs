@@ -54,11 +54,12 @@ public sealed class ProveedoresConsulta : ProxyBase, IProveedoresConsulta
     public Task<ResponseGeneric<BuscarClienteFacturacionDTO>> BuscarHacienda(string cedula)
         => Ejecutar(async () =>
         {
-            // El sistema actual utiliza este mismo endpoint de clientes para
-            // completar el nombre de una persona física o jurídica.
+            // Solo dígitos: Hacienda rechaza guiones y el mensaje genérico del API
+            // ("Error: Buscar cliente…") confundía al consultar un proveedor.
+            var limpia = new string((cedula ?? string.Empty).Where(char.IsDigit).ToArray());
             var r = await _clientes.BuscarClienteHaciendaAsync(new BuscarClienteDTO
             {
-                Cedula = cedula
+                Cedula = limpia
             });
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar el proveedor en Hacienda");

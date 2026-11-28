@@ -39,6 +39,10 @@ public sealed class ComandosFacturacion : ProxyBase, IComandosFacturacion
             return await Leer<EstadoCuentaClienteDTO>(await _api.GetAsync(ruta));
         }, "consultar el estado de cuenta");
 
+    public Task<ResponseGeneric<HistorialFacturaDTO>> HistorialFactura(long idVenta)
+        => Ejecutar(async () => await Leer<HistorialFacturaDTO>(await _api.GetAsync($"api/cobros/factura/{idVenta}/historial")),
+            "consultar el historial de la factura");
+
     private Task<ResponseGeneric<ResultadoOperacionFacturacionDTO>> Comando(
         string ruta, FacturaDTO venta, string? clave, string accion)
         => Ejecutar(async () =>

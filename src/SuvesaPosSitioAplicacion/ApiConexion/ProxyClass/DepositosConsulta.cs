@@ -18,7 +18,7 @@ public sealed class DepositosConsulta : ProxyBase, IDepositosConsulta
     }
 
     public Task<ResponseGeneric<ICollection<DepositosBuscarDTO>>> Buscar(
-        string? numero, DateTime? desde, DateTime? hasta)
+        string? numero, DateTime? desde, DateTime? hasta, string? claveInterna = null)
         => Ejecutar(async () =>
         {
             var numeroNormalizado = string.IsNullOrWhiteSpace(numero) ? null : numero.Trim();
@@ -40,5 +40,5 @@ public sealed class DepositosConsulta : ProxyBase, IDepositosConsulta
             var r = await _api.ObtenerDepositosAsync(filtro);
 
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
-        }, "consultar los depositos");
+        }, "consultar los depositos", claveInterna);
 }

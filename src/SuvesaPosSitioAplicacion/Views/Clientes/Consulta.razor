@@ -1,6 +1,8 @@
 @page "/initial/customers"
+@using MudBlazor
 @using SuvesaPosSitioAplicacion.Class
 @using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.DTOs.Tarifas
 @using SuvesaPosSitioAplicacion.Views.Shared.Componentes
 @inject IClientesConsulta Api
 @inject IManejadorRespuestas Respuestas
@@ -13,6 +15,10 @@
 @inject IClienteBonificacion ClienteBonificacion
 @inject SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface.IConfiguracionPlazosFiscales Plazos
 @inject IRelojEquipo RelojEquipo
+@inject IRutasComerciales RutasApi
+@inject ITarifasPrecio TarifasApi
+@inject IClienteUnificacion Unificacion
+@inject IJSRuntime JS
 
 @*  RUTA DEL MENU, no una propia.
     Esta pantalla ocupa la ruta del sistema actual, asi que a partir de aqui el menu
@@ -30,9 +36,12 @@
 
 <AppPantalla Pantalla="@Titulo" Icono="bi-people-fill" Subtitulo="Consulta y alta de clientes y sus mascotas" Nivel="NivelPantalla.Movil">
     <Acciones>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="ExportarCsv" disabled="@(_resultados.Count == 0)">
+            <i class="bi bi-file-earmark-spreadsheet me-1" aria-hidden="true"></i>Exportar CSV
+        </button>
         @if (Sesion.Puede(Titulo, AccionPantalla.Crear))
         {
-            <button class="btn btn-sm btn-primary" @onclick="Agregar">
+            <button type="button" class="btn btn-sm btn-primary" @onclick="Agregar">
                 <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Agregar
             </button>
         }
@@ -53,6 +62,13 @@
                     <option value="A">Activos</option>
                     <option value="I">Inactivos</option>
                     <option value="T">Todos</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="fCliProvincia">Provincia</label>
+                <select id="fCliProvincia" class="form-select" @bind="_idProvincia" @bind:after="Refiltrar">
+                    <option value="0">Todas</option>
+                    @foreach (var provincia in _provincias) { <option value="@provincia.Id">@provincia.Nombre</option> }
                 </select>
             </div>
         </AppFiltros>
@@ -96,39 +112,24 @@
             </div>
 
             @* Escritorio y tableta: rejilla. *@
-            <div class="d-none d-md-block card seepos-clientes-tabla">
-                <div class="card-body">
-                    <AppRejilla TItem="FiltranClienteDTO" Datos="Servir"
-                                Nivel="NivelPantalla.Tableta" @ref="_rejilla"
-                                TextoVacio="@(_modoBusqueda && _todos.Count == 0 ? "Escriba y pulse Buscar." : "Ningún cliente coincide.")">
-                        <Columnas>
-                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Cedula"
-                                          ItemTextSelector="c => c.Cedula"
-                                          SortKeySelector="c => c.Cedula" />
-                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Nombre"
-                                          ItemTextSelector="c => c.Nombre"
-                                          SortKeySelector="c => c.Nombre" />
-                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Telefono"
-                                          ItemTextSelector="c => c.Telefono_01" />
-                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Correo"
-                                          ItemTextSelector="c => c.E_Mail" />
-                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText="Credito"
-                                          ItemTextSelector="@(c => Formato.Importe(c.Max_Credito))"
-                                          SortKeySelector="c => c.Max_Credito"
-                                          HeaderCssClass="seepos-importe" ItemCssClass="seepos-importe" />
-                            <HxGridColumn TItem="FiltranClienteDTO" HeaderText=""
-                                          HeaderCssClass="text-end" ItemCssClass="text-end text-nowrap align-middle">
-                                <ItemTemplate Context="c">
-                                    <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(c)">Ver</button>
-                                    @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
-                                    {
-                                        <button class="btn btn-sm btn-link p-0 ms-3" @onclick="() => Editar(c)">Editar</button>
-                                    }
-                                </ItemTemplate>
-                            </HxGridColumn>
-                        </Columnas>
-                    </AppRejilla>
-                </div>
+            <div class="d-none d-md-block">
+                <MudIsla>
+                    <MudDataGrid T="FiltranClienteDTO" Items="_resultados" Dense="true" Hover="true" Striped="true"
+                                 Filterable="true" SortMode="SortMode.Multiple" Groupable="false"
+                                 FixedHeader="true" Height="60vh" Class="seepos-mud-grid">
+                        <NoRecordsContent><div class="text-secondary small py-4">@(_modoBusqueda && _todos.Count == 0 ? "Escriba y pulse Buscar." : "Ningún cliente coincide.")</div></NoRecordsContent>
+                        <Columns>
+                            <PropertyColumn Property="c => c.Cedula" Title="Cédula" />
+                            <PropertyColumn Property="c => c.Nombre" Title="Nombre" />
+                            <PropertyColumn Property="c => c.Telefono_01" Title="Teléfono" />
+                            <PropertyColumn Property="c => c.E_Mail" Title="Correo" />
+                            <PropertyColumn Property="c => c.Tipoprecio" Title="Precio" CellClass="justify-center" HeaderClass="justify-center"><CellTemplate>@NombreCategoriaPrecio(context.Item.Tipoprecio)</CellTemplate></PropertyColumn>
+                            <PropertyColumn Property="c => c.Max_Credito" Title="Crédito" CellClass="justify-end" HeaderClass="justify-end"><CellTemplate>@Formato.Importe(context.Item.Max_Credito)</CellTemplate></PropertyColumn>
+                            <TemplateColumn Title="Acciones" Sortable="false" Filterable="false"><CellTemplate><div class="d-flex gap-1"><button class="btn btn-sm btn-success" title="Ver detalle" aria-label="Ver detalle" @onclick="() => Ver(context.Item)"><i class="bi bi-eye"></i></button> @if (Sesion.Puede(Titulo, AccionPantalla.Modificar)) { <button class="btn btn-sm btn-outline-success" title="Editar cliente" aria-label="Editar cliente" @onclick="() => Editar(context.Item)"><i class="bi bi-pencil"></i></button> }</div></CellTemplate></TemplateColumn>
+                        </Columns>
+                        <PagerContent><MudDataGridPager T="FiltranClienteDTO" PageSizeOptions="new[] { 25, 50, 100 }" /></PagerContent>
+                    </MudDataGrid>
+                </MudIsla>
             </div>
         }
         </section>
@@ -136,12 +137,79 @@
     </ChildContent>
 </AppPantalla>
 
+<AppModal @ref="_modalUnificar" Titulo="Unificar clientes" Subtitulo="@(_origenUnificar?.Nombre)" Tamano="ModalSize.Large"
+          AlGuardar="Unificar" Guardando="_unificando" PuedeGuardar="@(_vistaUnificar is not null && _confirmoUnificar)"
+          TextoGuardar="Unificar" Peligro="true">
+    <ChildContent>
+        @if (_origenUnificar is not null)
+        {
+            <div class="alert alert-warning" role="alert">
+                Todo el historial de <strong>@_origenUnificar.Nombre</strong> (@_origenUnificar.Cedula) —facturas, cobros, saldos, pedidos y su ficha—
+                pasará al cliente que usted elija. <strong>@_origenUnificar.Nombre</strong> quedará inactivo. Las facturas electrónicas ya emitidas
+                no cambian; el cliente que queda conserva su límite de crédito, plazo y tipo de precio.
+            </div>
+
+            <label class="form-label" for="unificar-destino">Cliente que queda</label>
+            <div class="input-group">
+                <input id="unificar-destino" class="form-control" placeholder="Cédula o nombre" @bind="_textoDestinoUnificar"
+                       @bind:event="oninput" @onkeydown="@(async (KeyboardEventArgs e) => { if (e.Key == "Enter") await BuscarDestinoUnificar(); })" />
+                <button type="button" class="btn btn-outline-primary" @onclick="BuscarDestinoUnificar">Buscar</button>
+            </div>
+            @if (_candidatosUnificar.Count > 0)
+            {
+                <div class="list-group mt-1">
+                    @foreach (var c in _candidatosUnificar)
+                    {
+                        <button type="button" class="list-group-item list-group-item-action" @onclick="() => ElegirDestinoUnificar(c)">
+                            <span class="text-secondary me-2">@c.Cedula</span>@c.Nombre
+                        </button>
+                    }
+                </div>
+            }
+
+            @if (_destinoUnificar is not null && _vistaUnificar is not null)
+            {
+                <div class="mt-3">
+                    <div class="mb-2">Pasará a <strong>@_destinoUnificar.Nombre</strong> (@_destinoUnificar.Cedula): @_vistaUnificar.TotalFilas registro(s).</div>
+                    @if (_vistaUnificar.Filas.Count == 0)
+                    {
+                        <div class="text-secondary small">El cliente no tiene registros que pasar; solo quedará inactivo.</div>
+                    }
+                    else
+                    {
+                        <table class="table table-sm mb-2">
+                            <thead><tr><th>Registro</th><th class="text-end">Cantidad</th></tr></thead>
+                            <tbody>
+                                @foreach (var f in _vistaUnificar.Filas)
+                                {
+                                    <tr><td>@f.Tabla @(f.EsHistorial ? "" : "(ficha)")</td><td class="text-end">@f.Filas</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    <div class="form-check">
+                        <input id="unificar-confirmo" class="form-check-input" type="checkbox" @bind="_confirmoUnificar" />
+                        <label class="form-check-label" for="unificar-confirmo">Entiendo que esta acción no se puede deshacer.</label>
+                    </div>
+                </div>
+            }
+
+            @if (_errorUnificar is not null)
+            {
+                <div class="alert alert-danger mt-3 mb-0" role="alert">@_errorUnificar</div>
+            }
+        }
+    </ChildContent>
+</AppModal>
+
 <HxOffcanvas @ref="_detalle" Title="@(_elegido?.Nombre ?? "Cliente")"
              Placement="OffcanvasPlacement.End">
     <BodyTemplate>
         @if (_elegido is not null)
         {
-            <dl class="row small mb-0">
+            <div class="seepos-cliente-detalle-hero mb-3"><div><span class="small text-secondary d-block">Cliente</span><strong>@_elegido.Nombre</strong></div><span class="badge @(_elegido.Anulado ? "text-bg-secondary" : "text-bg-success")">@(_elegido.Anulado ? "Inactivo" : "Activo")</span></div>
+            <h3 class="seepos-detalle-seccion">Información de contacto</h3>
+            <dl class="row small mb-0 seepos-cliente-datos">
                 <dt class="col-5 fw-normal text-secondary">Cedula</dt>
                 <dd class="col-7"><code>@_elegido.Cedula</code></dd>
 
@@ -162,7 +230,7 @@
             </dl>
 
             <hr />
-
+            <h3 class="seepos-detalle-seccion">Condiciones comerciales</h3>
             <dl class="row small mb-0">
                 <dt class="col-5 fw-normal text-secondary">Credito maximo</dt>
                 <dd class="col-7 seepos-importe">@Formato.Importe(_elegido.Max_Credito)</dd>
@@ -221,7 +289,7 @@
                 </div>
             }
 
-            <div class="d-flex gap-2 border-top pt-3 mt-3">
+            <div class="d-flex gap-2 border-top pt-3 mt-3 seepos-detalle-acciones">
                 @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
                 {
                     <button class="btn btn-sm btn-primary" @onclick="() => Editar(_elegido)">Editar</button>
@@ -232,8 +300,20 @@
                             @onclick="() => CambiarEstado(_elegido)">
                         @(_elegido.Anulado ? "Activar" : "Desactivar")
                     </button>
+                    <button class="btn btn-sm btn-outline-danger" disabled="@(_estadoEliminacion is not { PuedeEliminar: true })"
+                            title="@(_estadoEliminacion?.Mensaje ?? "Elimina la ficha definitivamente")" @onclick="() => Eliminar(_elegido)">
+                        <i class="bi bi-trash me-1" aria-hidden="true"></i>Eliminar
+                    </button>
+                }
+                @if (PuedeUnificar)
+                {
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => AbrirUnificar(_elegido)">Unificar con otro…</button>
                 }
             </div>
+            @if (_estadoEliminacion is { PuedeEliminar: false, Mensaje: not null })
+            {
+                <div class="form-text mt-2">@_estadoEliminacion.Mensaje</div>
+            }
 
             <hr />
             <h3 class="h6">Carta de exoneración</h3>
@@ -255,6 +335,7 @@
                     <dt class="col-6 fw-normal text-secondary">Documento</dt><dd class="col-6">@_carta.NumeroDocumento</dd>
                     <dt class="col-6 fw-normal text-secondary">Vence</dt><dd class="col-6">@_carta.FechaVence.ToString("dd/MM/yyyy")</dd>
                     <dt class="col-6 fw-normal text-secondary">Exoneración</dt><dd class="col-6">@_carta.PorcentajeCompra.ToString("N2")%</dd>
+                    <dt class="col-6 fw-normal text-secondary">Crédito fiscal</dt><dd class="col-6">@(_carta.ReglaCreditoVenta switch { "CON_DERECHO" => "Da derecho", "SIN_DERECHO" => "No da derecho", _ => "Regla del cliente" })</dd>
                 </dl>
                 @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
                 {
@@ -336,6 +417,15 @@
                         <label class="form-label" for="carta-impuesto">Impuesto</label>
                         <input id="carta-impuesto" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_cartaEdicion.Impuesto" @bind:event="onchange" />
                     </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="carta-regla-credito">Crédito fiscal de lo exonerado</label>
+                        <select id="carta-regla-credito" class="form-select" value="@(_cartaEdicion.ReglaCreditoVenta ?? "")" @onchange="e => _cartaEdicion.ReglaCreditoVenta = string.IsNullOrEmpty(e.Value?.ToString()) ? null : e.Value!.ToString()">
+                            <option value="">Usar la regla del cliente</option>
+                            <option value="CON_DERECHO">Da derecho a crédito</option>
+                            <option value="SIN_DERECHO">No da derecho a crédito</option>
+                        </select>
+                        <div class="form-text">Prorrata del IVA: la carta manda sobre la regla del cliente.</div>
+                    </div>
                     <div class="col-12"><AppCampoTexto Etiqueta="Nota" @bind-Valor="_cartaEdicion.Nota" /></div>
                 </div>
             </EditForm>
@@ -351,8 +441,7 @@
     <BodyTemplate>
         @if (_edicion is not null)
         {
-            <EditForm Model="_edicion" OnValidSubmit="Guardar" id="formCliente" class="seepos-cliente-editor">
-                <DataAnnotationsValidator />
+            <EditForm Model="_edicion" OnSubmit="GuardarDesdeFormulario" id="formCliente" class="seepos-cliente-editor">
                 <nav class="mb-3 seepos-editor-tabs" aria-label="Secciones del cliente">
                     <div class="nav nav-pills flex-wrap gap-2">
                         <button type="button" class="btn btn-sm @ClaseGenerales" @onclick="AbrirGenerales">Datos generales</button>
@@ -396,9 +485,52 @@
                         </div>
 
                         <div class="col-12 seepos-form-seccion">Contacto</div>
-                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono01" /></div>
+                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono" @bind-Valor="_edicion.Telefono01" Requerido="true" /></div>
                         <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Teléfono alterno" @bind-Valor="_edicion.Telefono02" /></div>
-                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Correo cuentas por cobrar" @bind-Valor="_edicion.EMail" /></div>
+                        <div class="col-12 col-md-4"><AppCampoTexto Etiqueta="Correo cuentas por cobrar" @bind-Valor="_edicion.EMail" Requerido="true" /></div>
+
+                        <div class="col-12 seepos-form-seccion">Precios</div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cliente-categoria-precio">Categoría de precio</label>
+                            <select id="cliente-categoria-precio" class="form-select" @bind="CategoriaPrecioEdicion">
+                                @foreach (var t in OpcionesTarifa)
+                                {
+                                    <option value="@t.IdTarifa">@t.Nombre@(t.Activa ? string.Empty : " (inactiva)")</option>
+                                }
+                            </select>
+                            <div class="form-text">Tarifa de este cliente: la que se respeta al facturar. Se administran en Catálogos → Tarifas. Si el artículo no tiene precio en ella, se usa el Precio A.</div>
+                        </div>
+
+                        <div class="col-12 seepos-form-seccion">Ruta comercial</div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cliente-tipo">Tipo de cliente</label>
+                            <select id="cliente-tipo" class="form-select" value="@(_edicion.TipoCliente ?? "PUNTO_VENTA")" @onchange="e => _edicion.TipoCliente = e.Value?.ToString()">
+                                <option value="PUNTO_VENTA">Punto de venta / distribuidora</option>
+                                <option value="CONSUMIDOR_FINAL">Consumidor final</option>
+                            </select>
+                            <div class="form-text">@(_edicion.TipoCliente == "CONSUMIDOR_FINAL" ? "Consumidor final: usa la ruta de sistema «Consumidor Final»; la comisión es solo de quien factura." : "Punto de venta: tiene ruta y agente responsable.")</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cliente-ruta">Ruta comercial @if (_edicion.TipoCliente != "CONSUMIDOR_FINAL") { <span class="text-danger" aria-hidden="true">*</span> }</label>
+                            <select id="cliente-ruta" class="form-select" disabled="@(_edicion.TipoCliente == "CONSUMIDOR_FINAL")" value="@(_edicion.IdRutaComercial ?? 0)" @onchange="e => _edicion.IdRutaComercial = int.TryParse(e.Value?.ToString(), out var r) && r > 0 ? r : null">
+                                <option value="0">@(_edicion.TipoCliente == "CONSUMIDOR_FINAL" ? "Consumidor Final (automática)" : "Seleccione...")</option>
+                                @foreach (var ruta in _rutasComerciales.Where(r => !r.EsConsumidorFinal)) { <option value="@ruta.IdRuta">@ruta.Nombre</option> }
+                                @if (_edicion.IdRutaComercial is > 0 && !_rutasComerciales.Any(r => r.IdRuta == _edicion.IdRutaComercial))
+                                {
+                                    <option value="@_edicion.IdRutaComercial">Ruta @_edicion.IdRutaComercial (inactiva)</option>
+                                }
+                            </select>
+                            <div class="form-text">Obligatoria: de la ruta sale el agente responsable del cliente y es la ruta de todas sus facturas.</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cliente-regla-credito">Crédito fiscal de sus compras</label>
+                            <select id="cliente-regla-credito" class="form-select" value="@(_edicion.ReglaCreditoVenta ?? "")" @onchange="e => _edicion.ReglaCreditoVenta = string.IsNullOrEmpty(e.Value?.ToString()) ? null : e.Value!.ToString()">
+                                <option value="">Según la tarifa del artículo</option>
+                                <option value="CON_DERECHO">Da derecho a crédito (exportador, zona franca, CCSS, municipalidad...)</option>
+                                <option value="SIN_DERECHO">No da derecho a crédito</option>
+                            </select>
+                            <div class="form-text">Solo cambia las ventas exentas, no sujetas o exoneradas; una venta gravada común siempre da crédito. Se usa en la prorrata del IVA.</div>
+                        </div>
 
                         <div class="col-12 seepos-form-seccion">Ubicación</div>
                         <div class="col-12 col-md-4">
@@ -422,16 +554,20 @@
                                 @foreach (var distrito in _distritos) { <option value="@distrito.Id">@distrito.Nombre</option> }
                             </select>
                         </div>
-                        <div class="col-12"><AppCampoTexto Etiqueta="Dirección" @bind-Valor="_edicion.Direccion" /></div>
+                        <div class="col-12"><AppCampoTexto Etiqueta="Dirección" @bind-Valor="_edicion.Direccion" Requerido="true" /></div>
                         <div class="col-12"><AppCampoTexto Etiqueta="Observaciones" @bind-Valor="_edicion.Observaciones" /></div>
 
                         <div class="col-12 seepos-form-seccion">Facturación electrónica</div>
-                        <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo de facturación electrónica" @bind-Valor="_edicion.CorreoComprobante" /></div>
+                        <div class="col-12 col-md-6"><AppCampoTexto Etiqueta="Correo de facturación electrónica" @bind-Valor="_edicion.CorreoComprobante" Requerido="true" /></div>
+                        <div class="col-12 col-md-6">
+                            <AppCampoTexto Etiqueta="Correos en copia de la factura (opcional)" @bind-Valor="_edicion.CorreoCopiaComprobante" />
+                            <div class="form-text">Reciben copia (Cc) de cada factura electrónica del cliente. Separe los correos con <code>;</code> (máximo 5). Aplica también cuando la factura va al correo de una sucursal.</div>
+                        </div>
 
                         <div class="col-12">
                             <label class="form-label mb-1">Actividades económicas</label>
                             <p class="form-text mt-0 mb-2">Un cliente puede tener varias actividades registradas en Hacienda. La marcada como <strong>Principal</strong> es la que se usa en la factura electrónica.</p>
-                            @if (_edicion.Actividades.Count > 0)
+                            @if ((_edicion.Actividades?.Count ?? 0) > 0)
                             {
                                 <div class="table-responsive mb-2"><table class="table table-sm align-middle mb-0">
                                     <thead><tr><th>Código</th><th>Descripción</th><th class="text-center">Principal</th><th></th></tr></thead>
@@ -498,6 +634,7 @@
                                     <div class="form-check"><input id="cliente-actualizado" class="form-check-input" type="checkbox" @bind="_edicion.Actualizado" /><label class="form-check-label" for="cliente-actualizado">Actualizado</label></div>
                                     <div class="form-check"><input id="cliente-fallecido" class="form-check-input" type="checkbox" @bind="_edicion.Fallecido" /><label class="form-check-label" for="cliente-fallecido">Fallecido</label></div>
                                 }
+                                <div class="form-check"><input id="cliente-despacho" class="form-check-input" type="checkbox" @bind="_edicion.RequiereDespacho" /><label class="form-check-label" for="cliente-despacho">Requiere despacho (bodega)</label></div>
                                 @if (Sesion.EsCostaPets)
                                 {
                                     <div class="form-check"><input id="cliente-bonificado" class="form-check-input" type="checkbox" @bind="_edicion.TieneBonificacion" /><label class="form-check-label" for="cliente-bonificado">Bonificado</label></div>
@@ -530,6 +667,7 @@
                         </div>
                         <div class="col-12 col-md-4"><label class="form-label" for="cliente-credito">Límite de crédito</label><input id="cliente-credito" type="number" min="0" step="0.01" class="form-control" @bind="_edicion.MaxCredito" /></div>
                         <div class="col-12 col-md-4"><label class="form-label" for="cliente-descuento">Límite descuento (%)</label><input id="cliente-descuento" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.Descuento" /></div>
+                        <div class="col-12 col-md-4"><label class="form-label" for="cliente-caducidad">Días mínimos de caducidad al despachar</label><input id="cliente-caducidad" type="number" min="0" step="1" class="form-control" @bind="_edicion.DiasMinimosCaducidad" /></div>
                         @if (!Sesion.EsCostaPets)
                         {
                             <div class="col-12 col-md-4"><label class="form-label" for="cliente-descuento-especial">Descuento especial (%)</label><input id="cliente-descuento-especial" type="number" min="0" max="100" step="0.01" class="form-control" @bind="_edicion.DescuentoEspecial" /></div>
@@ -572,7 +710,7 @@
                         <div class="col-12 col-md-2 d-grid align-self-end">
                             <button type="button" class="btn btn-outline-primary" @onclick="AgregarDatosSucursal">@(_datosSucursalOriginal is null ? "Agregar" : "Guardar cambios")</button>
                         </div>
-                        <div class="col-12"><AppCampoTexto Etiqueta="Contacto" @bind-Valor="_datosSucursalEdicion.Contacto" /></div>
+                        <div class="col-12"><AppCampoTexto Etiqueta="Contacto" @bind-Valor="_datosSucursalEdicion.Contacto" /><div class="form-text">El correo de la sucursal es al que se envían las facturas emitidas a esa sucursal (varios, separados por «;»). Si queda vacío, se usa el correo de facturación electrónica del cliente.</div></div>
                         @if (_datosSucursalOriginal is not null)
                         {
                             <div class="col-12"><button type="button" class="btn btn-sm btn-link text-secondary p-0" @onclick="CancelarEdicionDatosSucursal">Cancelar edición</button></div>
@@ -649,6 +787,10 @@
         }
     </BodyTemplate>
     <FooterTemplate>
+        @if (!string.IsNullOrEmpty(_errorFicha))
+        {
+            <div class="alert alert-danger py-2 px-3 mb-0 me-auto small text-start" role="alert" style="white-space: pre-line;">@_errorFicha</div>
+        }
         <button class="btn btn-outline-secondary" @onclick="() => _modal.HideAsync()">Cancelar</button>
         <button class="btn btn-primary" type="submit" form="formCliente" disabled="@_guardando">
             @(_guardando ? "Guardando..." : "Guardar")
@@ -662,20 +804,32 @@
 @code {
     private const string Titulo = "Clientes";
 
-    private AppRejilla<FiltranClienteDTO>? _rejilla;
     private HxOffcanvas _detalle = default!;
     private HxModal _modal = default!;
     private HxModal _modalCarta = default!;
 
     private string _texto = string.Empty;
     private string _estado = "A";   // "A" activos, "I" inactivos, "T" todos
+    private int _idProvincia;       // 0 = todas las provincias
     private List<FiltranClienteDTO> _todos = new();
     private List<FiltranClienteDTO> _resultados = new();
+
+    private async Task ExportarCsv()
+    {
+        static string Q(string? texto) => "\"" + (texto ?? string.Empty).Replace("\"", "\"\"") + "\"";
+        var csv = "Identificación,Cédula,Nombre,Teléfono,Correo,Dirección,Provincia,Límite de crédito,Plazo de crédito (días),Estado\n"
+            + string.Join("\n", _resultados.Select(c => $"{c.Identificacion},{Q(c.Cedula)},{Q(c.Nombre)},{Q(c.Telefono_01)},{Q(c.E_Mail)},{Q(c.Direccion)},{Q(NombreProvincia(c.IdProvincia))},{c.Max_Credito},{c.Plazo_Credito},{(c.Abierto ? "Activo" : "Inactivo")}"));
+        await JS.InvokeVoidAsync("seepos.descargarTexto", $"clientes-{DateTime.Today:yyyyMMdd}.csv", csv, "text/csv;charset=utf-8");
+    }
+    private string NombreProvincia(int idProvincia) => _provincias.FirstOrDefault(p => p.Id == idProvincia)?.Nombre ?? string.Empty;
+
     private FiltranClienteDTO? _elegido;
     private bool _buscando;
     private ClienteDTO? _edicion;
     private bool _esNuevo;
     private bool _guardando;
+    // Errores de guardado dentro de la ficha: un cuadro de aviso encima cerraba el modal.
+    private string? _errorFicha;
     private List<ClienteAdjuntoDTO> _adjuntos = new();
     private List<ClienteAdjuntoDTO> _adjuntosNuevos = new();
     private bool _cargandoAdjuntos;
@@ -710,6 +864,34 @@
     private InventarioDTO? _articuloBonificacionSeleccionado;
     private string _descripcionBonificacion = string.Empty;
     private string _pestanaEdicion = "generales";
+
+    private List<TarifaPrecioDTO> _tarifas = new();
+
+    /// <summary>Tipoprecio del cliente = id de tarifa del catálogo (1–4 son Precio A–D); un valor vacío se muestra como A.</summary>
+    private int CategoriaPrecioEdicion
+    {
+        get => _edicion?.Tipoprecio is > 0 ? _edicion.Tipoprecio : 1;
+        set { if (_edicion is not null) _edicion.Tipoprecio = (short)value; }
+    }
+
+    /// <summary>Tarifas activas para elegir; si el cliente ya tiene una inactiva o el catálogo no cargó, se conserva su opción.</summary>
+    private IEnumerable<TarifaPrecioDTO> OpcionesTarifa
+    {
+        get
+        {
+            var lista = _tarifas.Count > 0
+                ? _tarifas.Where(t => t.Activa).ToList()
+                : new[] { 1, 2, 3, 4 }.Select(i => new TarifaPrecioDTO { IdTarifa = (short)i, Nombre = "Precio " + (char)('A' + i - 1), Activa = true }).ToList();
+            var actual = CategoriaPrecioEdicion;
+            if (lista.All(t => t.IdTarifa != actual))
+                lista.Add(_tarifas.FirstOrDefault(t => t.IdTarifa == actual) ?? new TarifaPrecioDTO { IdTarifa = (short)actual, Nombre = $"Tarifa {actual}", Activa = false });
+            return lista.OrderBy(t => t.Orden).ThenBy(t => t.IdTarifa);
+        }
+    }
+
+    private string NombreCategoriaPrecio(int t)
+        => _tarifas.FirstOrDefault(x => x.IdTarifa == t)?.Nombre?.Replace("Precio ", string.Empty)
+           ?? (t switch { 2 => "B", 3 => "C", 4 => "D", > 4 => $"Tarifa {t}", _ => "A" });
     private bool _variasSucursales;
 
     /// <summary>
@@ -728,16 +910,26 @@
     // lista; se guarda la cantidad de días en PlazoCredito y el API la traduce al
     // IdPlazo al facturar.
     private List<SuvesaPosSitioAplicacion.DTOs.Fiscal.ConfiguracionPlazoFiscalDTO> _plazosCredito = new();
+    private List<SuvesaPosSitioAplicacion.DTOs.Rutas.RutaComercialDTO> _rutasComerciales = new();
 
     protected override async Task OnInitializedAsync()
     {
         await RecargarDesdeApi();
+        await CargarProvincias();   // alimenta el filtro por provincia y la columna del CSV
         var rp = await Plazos.Obtener();
         if (rp.EsCorrecta && rp.Responses is not null)
             _plazosCredito = rp.Responses
                 .Where(p => p.Activo)
                 .OrderBy(p => p.CantidadDias)
                 .ToList();
+
+        // El catálogo de tarifas es de apoyo: si el API todavía no lo tiene, la ficha sigue con A–D.
+        var tarifas = await TarifasApi.Listar(true);
+        if (tarifas.EsCorrecta && tarifas.Responses is not null) _tarifas = tarifas.Responses.ToList();
+
+        _rutasComerciales = ((await Respuestas.DatoAsync(await RutasApi.Listar(null), "consultar las rutas comerciales"))
+            ?? Array.Empty<SuvesaPosSitioAplicacion.DTOs.Rutas.RutaComercialDTO>())
+            .Where(r => r.Activo).OrderBy(r => r.Nombre).ToList();
     }
 
     /// <summary>
@@ -800,6 +992,7 @@
     {
         _texto = string.Empty;
         _estado = "A";
+        _idProvincia = 0;
         Refiltrar();
     }
 
@@ -811,6 +1004,8 @@
         if (_estado == "A") q = q.Where(c => !c.Anulado);
         else if (_estado == "I") q = q.Where(c => c.Anulado);
 
+        if (_idProvincia > 0) q = q.Where(c => c.IdProvincia == _idProvincia);
+
         if (t.Length > 0)
             q = q.Where(c => Helpers.Texto.Normalizar(c.Nombre).Contains(t)
                           || Helpers.Texto.Normalizar(c.Cedula).Contains(t)
@@ -819,7 +1014,6 @@
                           || Helpers.Texto.Normalizar(c.SucursalesTexto).Contains(t));
 
         _resultados = q.ToList();
-        _rejilla?.RefrescarAsync();
         StateHasChanged();
     }
 
@@ -827,9 +1021,6 @@
         => _resultados.Count == 0 ? "Sin resultados"
            : $"{_resultados.Count} de {_todos.Count} cliente{(_todos.Count == 1 ? "" : "s")}";
 
-    private Task<GridDataProviderResult<FiltranClienteDTO>> Servir(
-        GridDataProviderRequest<FiltranClienteDTO> peticion)
-        => Task.FromResult(peticion.ApplyTo(_resultados));
 
     private async Task Ver(FiltranClienteDTO cliente)
     {
@@ -842,10 +1033,108 @@
         _carta = null;
         _cargandoCarta = true;
         await _detalle.ShowAsync();
+        _estadoEliminacion = null;
         await Task.WhenAll(
             CargarDatosSucursalDetalle(cliente.Identificacion),
             CargarAdjuntos(cliente.Identificacion),
-            CargarCarta(cliente.Cedula));
+            CargarCarta(cliente.Cedula),
+            CargarEstadoEliminacion(cliente.Identificacion));
+    }
+
+    // ---- REQ-03: eliminar (solo sin historial) y unificar clientes duplicados ----
+    private SuvesaPosSitioAplicacion.DTOs.Clientes.EstadoEliminacionClienteWebDTO? _estadoEliminacion;
+
+    /// <summary>Unificar mueve todo el historial de un cliente a otro: solo un administrador (el API lo vuelve a exigir).</summary>
+    private bool PuedeUnificar => Sesion.Puede(Titulo, AccionPantalla.Modificar)
+        && (Sesion.EsSuperAdministrador || string.Equals(Sesion.PerfilCodigo, "ADMIN", StringComparison.OrdinalIgnoreCase));
+
+    private async Task CargarEstadoEliminacion(long idCliente)
+    {
+        var r = await Unificacion.PuedeEliminar(idCliente);
+        _estadoEliminacion = r.EsCorrecta ? r.Responses : null;
+    }
+
+    private async Task Eliminar(FiltranClienteDTO cliente)
+    {
+        if (_estadoEliminacion is not { PuedeEliminar: true }) return;
+        if (!await Dialogos.ConfirmarPeligroAsync(
+                $"¿Eliminar definitivamente a {cliente.Nombre}? No tiene historial, pero la ficha no se podrá recuperar.")) return;
+
+        var r = await Unificacion.Eliminar(cliente.Identificacion);
+        var falla = await Respuestas.MensajeSiFallaAsync(r, "eliminar el cliente");
+        if (falla is not null) { if (falla.Length > 0) await Dialogos.ErrorAsync(falla); return; }
+        if (r.Responses is { Eliminado: false } rechazo)
+        {
+            // Apareció historial mientras tanto: se orienta a unificar.
+            _estadoEliminacion = rechazo;
+            await Dialogos.ErrorAsync(rechazo.Mensaje ?? "No se pudo eliminar el cliente.");
+            return;
+        }
+
+        await _detalle.HideAsync();
+        Dialogos.Exito("Cliente eliminado.");
+        await RefrescarResultados();
+    }
+
+    private AppModal _modalUnificar = default!;
+    private FiltranClienteDTO? _origenUnificar;
+    private string _textoDestinoUnificar = string.Empty;
+    private List<FiltranClienteDTO> _candidatosUnificar = new();
+    private FiltranClienteDTO? _destinoUnificar;
+    private SuvesaPosSitioAplicacion.DTOs.Clientes.VistaUnificacionWebDTO? _vistaUnificar;
+    private bool _confirmoUnificar;
+    private bool _unificando;
+    private string? _errorUnificar;
+
+    private async Task AbrirUnificar(FiltranClienteDTO origen)
+    {
+        _origenUnificar = origen;
+        _textoDestinoUnificar = string.Empty;
+        _candidatosUnificar = new();
+        _destinoUnificar = null;
+        _vistaUnificar = null;
+        _confirmoUnificar = false;
+        _errorUnificar = null;
+        await _detalle.HideAsync();
+        await _modalUnificar.MostrarAsync();
+    }
+
+    private async Task BuscarDestinoUnificar()
+    {
+        _errorUnificar = null;
+        if (string.IsNullOrWhiteSpace(_textoDestinoUnificar)) { _candidatosUnificar = new(); return; }
+        _candidatosUnificar = (await Respuestas.DatoAsync(await Api.Buscar(_textoDestinoUnificar), "buscar clientes"))?
+            .Where(c => !c.Anulado && c.Identificacion != _origenUnificar?.Identificacion).Take(8).ToList() ?? new();
+    }
+
+    private async Task ElegirDestinoUnificar(FiltranClienteDTO destino)
+    {
+        if (_origenUnificar is null) return;
+        _destinoUnificar = destino;
+        _candidatosUnificar = new();
+        _vistaUnificar = null;
+        _confirmoUnificar = false;
+        var r = await Unificacion.VistaPrevia(_origenUnificar.Identificacion, destino.Identificacion);
+        var falla = await Respuestas.MensajeSiFallaAsync(r, "consultar qué se va a unificar");
+        // En línea: un cuadro encima cerraría esta ventana.
+        _errorUnificar = string.IsNullOrEmpty(falla) ? null : falla;
+        if (falla is null) _vistaUnificar = r.Responses;
+        else _destinoUnificar = null;
+    }
+
+    private async Task Unificar()
+    {
+        if (_origenUnificar is null || _destinoUnificar is null || !_confirmoUnificar) return;
+        _unificando = true;
+        _errorUnificar = null;
+        var r = await Unificacion.Unificar(_origenUnificar.Identificacion, _destinoUnificar.Identificacion);
+        var falla = await Respuestas.MensajeSiFallaAsync(r, "unificar los clientes");
+        _unificando = false;
+        if (falla is not null) { _errorUnificar = falla.Length > 0 ? falla : null; return; }
+
+        await _modalUnificar.OcultarAsync();
+        Dialogos.Exito($"Clientes unificados: {r.Responses?.TotalFilas ?? 0} registros pasaron a {_destinoUnificar.Nombre}.");
+        await RefrescarResultados();
     }
 
     private async Task Agregar()
@@ -864,7 +1153,9 @@
             // El DTO generado no trae valor por defecto (queda null); sin esto el API
             // recibe datosSucursal:null y "request.DatosSucursal.Count" revienta con
             // NullReferenceException al crear un cliente sin varias sucursales.
-            DatosSucursal = new List<ClienteDatosSucursalDTO>()
+            DatosSucursal = new List<ClienteDatosSucursalDTO>(),
+            // Misma precaución: el markup hace `_edicion.Actividades.Count` al abrir.
+            Actividades = new List<ActividadEconomicaClienteDTO>()
         };
         _datosSucursalEdicion = new ClienteDatosSucursalDTO();
         _datosSucursalOriginal = null;
@@ -872,14 +1163,29 @@
         _adjuntosNuevos = new List<ClienteAdjuntoDTO>();
         _cargandoAdjuntos = false;
         _pestanaEdicion = "generales";
+        _errorFicha = null;
         _variasSucursales = false;
         _cantones = new List<CantonDTO>();
         _distritos = new List<DistritoDTO>();
         _actividadesClienteHacienda = new List<ActividadesEmpresaDTO>();
         _actCodigoCliente = _actDescripcionCliente = string.Empty;
-        await CargarProvincias();
-        await CargarTiposIdentificacion();
+
+        // Abrir el modal primero: si se espera a provincias/tipos y el API tarda o
+        // falla, el clic a Agregar parece no hacer nada (sin spinner ni feedback).
         await _modal.ShowAsync();
+
+        try
+        {
+            await CargarProvincias();
+            await CargarTiposIdentificacion();
+        }
+        catch
+        {
+            // El modal ya está abierto; no dejar el circuito en silencio.
+            await Dialogos.ErrorAsync(
+                "No se pudieron cargar provincia o tipo de identificación. Puede completar el resto y reintentar al guardar.",
+                "Catálogos incompletos");
+        }
     }
 
     private async Task Editar(FiltranClienteDTO cliente)
@@ -898,6 +1204,7 @@
         _datosSucursalOriginal = null;
         _variasSucursales = _edicion.DatosSucursal.Count > 0;
         _pestanaEdicion = "generales";
+        _errorFicha = null;
         _adjuntos = new List<ClienteAdjuntoDTO>();
         _adjuntosNuevos = new List<ClienteAdjuntoDTO>();
         _carta = null;
@@ -1113,14 +1420,21 @@
     /// (mismo endpoint que ya usa la búsqueda de proveedores) para autocompletar.</summary>
     private async Task ConsultarHacienda()
     {
-        if (_edicion is null || string.IsNullOrWhiteSpace(_edicion.Cedula))
+        if (_edicion is null)
         {
-            Dialogos.Advertencia("Indique la cédula antes de consultar Hacienda.");
             return;
         }
 
+        var cedula = new string((_edicion.Cedula ?? string.Empty).Where(char.IsDigit).ToArray());
+        if (cedula.Length < 9)
+        {
+            Dialogos.Advertencia("Indique una cédula válida (al menos 9 dígitos) antes de consultar Hacienda.");
+            return;
+        }
+
+        _edicion.Cedula = cedula;
         _consultandoHacienda = true;
-        var r = await Respuestas.DatoAsync(await Api.BuscarHacienda(_edicion.Cedula), "consultar el cliente en Hacienda");
+        var r = await Respuestas.DatoAsync(await Api.BuscarHacienda(cedula), "consultar el cliente en Hacienda");
         _consultandoHacienda = false;
 
         if (r is null)
@@ -1321,6 +1635,8 @@
     private static int IdSeleccionado(ChangeEventArgs evento)
         => int.TryParse(evento.Value?.ToString(), out var id) ? id : 0;
 
+    private Task GuardarDesdeFormulario(EditContext _) => Guardar();
+
     private async Task Guardar()
     {
         if (_edicion is null || _guardando)
@@ -1328,26 +1644,40 @@
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(_edicion.Cedula)
-            || string.IsNullOrWhiteSpace(_edicion.Nombre)
-            || string.IsNullOrWhiteSpace(_edicion.EMail)
-            || string.IsNullOrWhiteSpace(_edicion.Direccion))
+        _errorFicha = null;
+        var faltantes = new List<string>();
+        if (string.IsNullOrWhiteSpace(_edicion.Cedula)) faltantes.Add("Cédula");
+        if (string.IsNullOrWhiteSpace(_edicion.Nombre)) faltantes.Add("Nombre");
+        if (string.IsNullOrWhiteSpace(_edicion.Telefono01)) faltantes.Add("Teléfono");
+        if (string.IsNullOrWhiteSpace(_edicion.EMail)) faltantes.Add("Correo cuentas por cobrar");
+        if (string.IsNullOrWhiteSpace(_edicion.Direccion)) faltantes.Add("Dirección");
+        if (string.IsNullOrWhiteSpace(_edicion.CorreoComprobante)) faltantes.Add("Correo de facturación electrónica");
+        if (_edicion.TipoCliente != "CONSUMIDOR_FINAL" && _edicion.IdRutaComercial is not > 0) faltantes.Add("Ruta comercial");
+        if (faltantes.Count > 0)
         {
-            await Dialogos.ErrorAsync("Cédula, nombre, correo y dirección son obligatorios.");
+            _pestanaEdicion = "generales";
+            _errorFicha = ValidacionFormulario.MensajeCamposFaltantes(faltantes);
             return;
+        }
+
+        // Lo escrito en el formulario de sucursal sin pulsar «Agregar» se perdía en silencio al guardar:
+        // se agrega solo (si es válido) o se avisa de qué falta.
+        if (_variasSucursales && HayDatosSucursalPendientes)
+        {
+            var errorSucursal = ValidarDatosSucursalEdicion();
+            if (errorSucursal is not null)
+            {
+                _pestanaEdicion = "facturacion";
+                _errorFicha = errorSucursal + " Complete o borre los datos de la sucursal antes de guardar.";
+                return;
+            }
+            AplicarDatosSucursalEdicion();
         }
 
         if (_variasSucursales && (_edicion.DatosSucursal?.Count ?? 0) == 0)
         {
             _pestanaEdicion = "facturacion";
-            await Dialogos.ErrorAsync("Agregue al menos una sucursal para sus datos de facturación.");
-            return;
-        }
-
-        var confirmar = await Dialogos.ConfirmarAsync(
-            _esNuevo ? "Se registrará el nuevo cliente." : "Se actualizarán los datos del cliente.");
-        if (!confirmar)
-        {
+            _errorFicha = "Agregue al menos una sucursal para sus datos de facturación.";
             return;
         }
 
@@ -1366,32 +1696,36 @@
         var respuesta = eraNuevo ? await Api.Crear(_edicion) : await Api.Editar(_edicion);
         _guardando = false;
 
-        if (await Respuestas.CorrectaAsync(respuesta, eraNuevo ? "crear el cliente" : "editar el cliente"))
+        var error = await Respuestas.MensajeSiFallaAsync(respuesta, eraNuevo ? "crear el cliente" : "editar el cliente");
+        if (error is not null)
         {
-            if (eraNuevo && _adjuntosNuevos.Count > 0)
-            {
-                var idCliente = respuesta.Responses?.Identificacion ?? 0;
-                if (idCliente <= 0)
-                {
-                    await Dialogos.ErrorAsync("El cliente fue creado, pero la API no devolvió su identificador para guardar los documentos. Ábralo en edición para cargarlos.");
-                    await _modal.HideAsync();
-                    await RefrescarResultados();
-                    return;
-                }
+            _errorFicha = error.Length > 0 ? error : null;
+            return;
+        }
 
-                _edicion.Identificacion = idCliente;
-                _esNuevo = false;
-                if (!await PersistirAdjuntos(idCliente, recargar: false))
-                {
-                    await Dialogos.ErrorAsync("El cliente fue creado, pero no se pudieron guardar todos los documentos. Puede reintentarlo desde esta pestaña.");
-                    return;
-                }
+        if (eraNuevo && _adjuntosNuevos.Count > 0)
+        {
+            var idCliente = respuesta.Responses?.Identificacion ?? 0;
+            if (idCliente <= 0)
+            {
+                await Dialogos.ErrorAsync("El cliente fue creado, pero la API no devolvió su identificador para guardar los documentos. Ábralo en edición para cargarlos.");
+                await _modal.HideAsync();
+                await RefrescarResultados();
+                return;
             }
 
-            await _modal.HideAsync();
-            Dialogos.Exito(eraNuevo ? "Cliente creado." : "Cliente actualizado.");
-            await RefrescarResultados();
+            _edicion.Identificacion = idCliente;
+            _esNuevo = false;
+            if (!await PersistirAdjuntos(idCliente, recargar: false))
+            {
+                await Dialogos.ErrorAsync("El cliente fue creado, pero no se pudieron guardar todos los documentos. Puede reintentarlo desde esta pestaña.");
+                return;
+            }
         }
+
+        await _modal.HideAsync();
+        Dialogos.Exito(eraNuevo ? "Cliente creado." : "Cliente actualizado.");
+        await RefrescarResultados();
     }
 
     private async Task CambiarEstado(FiltranClienteDTO cliente)
@@ -1441,7 +1775,10 @@
         PlazoCredito = cliente.Plazo_Credito,
         Descuento = cliente.Descuento,
         Empresa = cliente.Empresa,
-        Tipoprecio = cliente.Tipoprecio,
+        Tipoprecio = cliente.Tipoprecio > 0 ? cliente.Tipoprecio : (short)1,
+        IdRutaComercial = cliente.IdRutaComercial,
+        TipoCliente = string.IsNullOrWhiteSpace(cliente.TipoCliente) ? "PUNTO_VENTA" : cliente.TipoCliente,
+        ReglaCreditoVenta = cliente.ReglaCreditoVenta,
         Sinrestriccion = cliente.Sinrestriccion,
         Agente = cliente.Agente,
         CodMonedaCredito = cliente.CodMonedaCredito,
@@ -1449,6 +1786,7 @@
         Anulado = cliente.Anulado,
         OrdenCompra = cliente.OrdenCompra,
         CorreoComprobante = cliente.CorreoComprobante,
+        CorreoCopiaComprobante = cliente.CorreoCopiaComprobante,
         CodigoActividad = cliente.CodigoActividad,
         Actualizado = cliente.Actualizado,
         DescuentoEspecial = cliente.DescuentoEspecial,
@@ -1466,18 +1804,50 @@
         IdUsuarioCreacion = cliente.IdUsuarioCreacion,
         Estado = cliente.Estado,
         TieneBonificacion = cliente.TieneBonificacion,
+        RequiereDespacho = cliente.RequiereDespacho,
+        DiasMinimosCaducidad = cliente.DiasMinimosCaducidad,
         NombreFantasia = cliente.NombreFantasia
     };
 
+    private static readonly System.ComponentModel.DataAnnotations.EmailAddressAttribute FormatoCorreo = new();
+
+    /// <summary>Hay algo escrito en el formulario de sucursal que todavía no se agregó a la lista.</summary>
+    private bool HayDatosSucursalPendientes
+        => !string.IsNullOrWhiteSpace(_datosSucursalEdicion.Sucursal) || !string.IsNullOrWhiteSpace(_datosSucursalEdicion.NombreComercial)
+           || !string.IsNullOrWhiteSpace(_datosSucursalEdicion.Telefono) || !string.IsNullOrWhiteSpace(_datosSucursalEdicion.Email)
+           || !string.IsNullOrWhiteSpace(_datosSucursalEdicion.Contacto);
+
+    /// <summary>Valida el formulario de sucursal y normaliza su correo (varios separados por «;»). Devuelve el error o null.</summary>
+    private string? ValidarDatosSucursalEdicion()
+    {
+        if (string.IsNullOrWhiteSpace(_datosSucursalEdicion.Sucursal) || string.IsNullOrWhiteSpace(_datosSucursalEdicion.NombreComercial))
+            return "Indique sucursal y nombre comercial.";
+
+        var correos = (_datosSucursalEdicion.Email ?? string.Empty)
+            .Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var invalido = correos.FirstOrDefault(c => !FormatoCorreo.IsValid(c));
+        if (invalido is not null) return $"El correo «{invalido}» de la sucursal no es válido.";
+
+        _datosSucursalEdicion.Email = correos.Count == 0 ? null : string.Join(";", correos);
+        return null;
+    }
+
     private async Task AgregarDatosSucursal()
     {
-        if (_edicion is null || string.IsNullOrWhiteSpace(_datosSucursalEdicion.Sucursal)
-            || string.IsNullOrWhiteSpace(_datosSucursalEdicion.NombreComercial))
+        if (_edicion is null) return;
+        var error = ValidarDatosSucursalEdicion();
+        if (error is not null)
         {
-            await Dialogos.ErrorAsync("Indique sucursal y nombre comercial.");
+            await Dialogos.ErrorAsync(error);
             return;
         }
+        AplicarDatosSucursalEdicion();
+    }
 
+    private void AplicarDatosSucursalEdicion()
+    {
+        if (_edicion is null) return;
         _datosSucursalEdicion.IdCliente = _edicion.Identificacion;
         _edicion.DatosSucursal ??= new List<ClienteDatosSucursalDTO>();
 
@@ -1694,6 +2064,7 @@
             PorcentajeCompra = _carta.PorcentajeCompra,
             Impuesto = _carta.Impuesto,
             Nota = _carta.Nota,
+            ReglaCreditoVenta = _carta.ReglaCreditoVenta,
             Estado = _carta.Estado,
             IdUsuarioCreacion = _carta.IdUsuarioCreacion,
             IdUsuarioModificacion = Sesion.Usuario

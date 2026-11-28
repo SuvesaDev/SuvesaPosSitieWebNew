@@ -36,10 +36,19 @@ public interface IContextoSesion
     string? PerfilCodigo { get; }
 
     bool EsCostaPets { get; }
-    bool EsAgenteCostaPets { get; }
+    bool EsAgente { get; }
+    bool EsServicioAlCliente { get; }
 
     /// <summary>El perfil deja facturar / mover stock aunque quede en negativo.</summary>
     bool PermitirExistenciaNegativa { get; }
+    bool HabilitaImportaciones { get; }
+
+    /// <summary>
+    /// Permiso POR USUARIO (columna <c>Usuario.CambiarPrecio</c>) para modificar el precio de
+    /// una linea al facturar. Independiente del perfil y del rol: asi el agente puede facturar
+    /// sin tocar precios. El super administrador siempre puede.
+    /// </summary>
+    bool PuedeCambiarPrecio => EsSuperAdministrador;
 
     int IdSucursal { get; }
     string? NombreSucursal { get; }

@@ -33,6 +33,9 @@ public interface IDevolucionesVenta
 
     Task<ResponseGeneric<DevolucionVentaDTO>> Crear(DevolucionVentaDTO devolucion);
 
+    /// <summary>Anula la devolución. Si la nota de crédito ya fue aceptada, el API emite la nota de débito.</summary>
+    Task<ResponseGeneric<DevolucionVentaDTO>> Anular(long id);
+
     Task<ResponseGeneric<ICollection<PersonalDTO>>> Personal();
 
     Task<ResponseGeneric<ICollection<Moneda>>> Monedas();

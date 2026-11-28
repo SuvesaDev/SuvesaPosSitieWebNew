@@ -16,6 +16,12 @@ public interface IEstadoEspacioTrabajo
     /// <summary>Se dispara cuando cambian las pestanas o la seleccionada.</summary>
     event Action? Cambio;
 
+    /// <summary>Permite que una pantalla descarte su contexto al cerrar su pestaña.</summary>
+    event Action<string>? PestanaCerrada;
+
+    /// <summary>Se dispara después de cerrar todo el espacio de trabajo.</summary>
+    event Action? TodasCerradas;
+
     /// <summary>
     /// Abre la pantalla. Si ya hay una pestana para esa ruta la selecciona, salvo
     /// que sea una venta: esas siempre abren una nueva.

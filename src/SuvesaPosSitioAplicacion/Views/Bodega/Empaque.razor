@@ -1,0 +1,378 @@
+@page "/bodega/empaque"
+@page "/bodega/empaque/{Id:long}"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Bodega
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IAlistamientoApiCliente Api
+@inject IServicioDialogos Dialogos
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<AppPantalla Pantalla="Empaque" Codigo="BODEGA.EMPAQUE" Icono="bi-box"
+             Subtitulo="Una orden a la vez. Un disparo = una caja o etiqueta. El lote es el de la factura." Nivel="NivelPantalla.Tableta">
+ <ChildContent>
+  @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+
+  @if (_orden is null)
+  {
+    <div class="card"><div class="card-body">
+      <p class="text-secondary mb-2">Abra una orden desde la cola o indique su id.</p>
+      <div class="input-group" style="max-width:20rem">
+        <input class="form-control" @bind="_idManual" placeholder="Id de orden" />
+        <button class="btn btn-primary" @onclick="AbrirManual">Abrir</button>
+      </div>
+    </div></div>
+  }
+  else
+  {
+    <div class="card mb-3"><div class="card-body d-flex flex-wrap justify-content-between gap-2">
+      <div>
+        <strong>@_orden.NombreCliente</strong>
+        <div class="text-secondary small">@(_orden.EsConsignacionEnvio ? "Envío de consignación" : "Factura") @_orden.NumeroDocumento · @_orden.EstadoDescripcion · @_orden.UsuarioAlistamiento
+          @if (_orden.DiasMinimosCaducidad is > 0) { <span> · caducidad mínima @_orden.DiasMinimosCaducidad días</span> }
+          @if (_orden.IdOrdenOrigen is { } origen) { <span class="badge text-bg-warning ms-1">Saldo pendiente de la orden <a href="/bodega/empaque/@origen" class="text-reset">#@origen</a></span> }
+          @if (_orden.IdOrdenSaldo is { } saldo) { <span class="badge text-bg-info ms-1">Entrega parcial: el saldo quedó en la orden <a href="/bodega/empaque/@saldo" class="text-reset">#@saldo</a></span> }
+          @if (!string.IsNullOrWhiteSpace(_orden.RecibidoPor)) { <span> · recibió @_orden.RecibidoPor</span> }
+          @if (!string.IsNullOrWhiteSpace(_orden.FirmaPng))
+          {
+            <div class="mt-2"><img src="data:image/png;base64,@_orden.FirmaPng" alt="Firma de recibido" style="max-height:4rem; background:#fff; border-radius:.25rem;" /></div>
+          }
+        </div>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        @if (!_orden.EsPreventa && !_orden.EsConsignacionEnvio && _orden.Estado != 7)
+        {
+          <BotonImprimir Tipo="@(_orden.EsTiquete ? "tiquete-electronico" : "factura-electronica")" Id="_orden.IdVenta"
+                         Texto="@(_orden.EsTiquete ? "Imprimir tiquete" : "Imprimir factura")" Consecutivo="@_orden.NumeroDocumento"
+                         Clase="btn-outline-primary" />
+        }
+        @if (_orden.Estado == 1)
+        {
+          <button class="btn btn-primary" @onclick="Aceptar">Aceptar</button>
+        }
+        @if (_orden.Estado is 1 or 2)
+        {
+          <button class="btn btn-outline-dark" @onclick="Anular">Anular</button>
+        }
+        @if (_orden.Estado == 2)
+        {
+          <div class="input-group" style="max-width:11rem">
+            <input class="form-control" type="number" min="0" step="0.01" @bind="_pesoKg" placeholder="kg" title="Peso del bulto" />
+            <button class="btn btn-outline-secondary" @onclick="CerrarBulto">Cerrar bulto</button>
+          </div>
+          @if (!_orden.EsConsignacionEnvio && HayAlistadoYPendiente)
+          {
+            <button class="btn btn-outline-warning" @onclick="EntregaParcial" title="Despacha lo alistado y deja lo que falta pendiente en una orden nueva, sin nota de crédito">Entrega parcial</button>
+          }
+          <button class="btn btn-outline-danger" @onclick="Faltante" title="Cancela lo que falta: nota de crédito (o se quita de la preventa)">Cancelar faltante</button>
+          <button class="btn btn-success" @onclick="Empacar">Marcar empacado</button>
+        }
+        @if (_orden.Estado is 3 or 4)
+        {
+          <button class="btn btn-outline-success" @onclick="() => PedirEntrega(false)">Entregado</button>
+          <button class="btn btn-outline-dark" @onclick="() => PedirEntrega(true)">No entregado</button>
+        }
+        @if (_orden.Estado is 5 or 6)
+        {
+          <BotonImprimir Tipo="entrega-despacho" Id="_orden.Id" Texto="Comprobante de entrega" Clase="btn-outline-secondary" />
+        }
+      </div>
+    </div></div>
+
+    @if (_orden.Estado == 2)
+    {
+      <div class="card mb-3"><div class="card-body">
+        <label class="form-label" for="scan-alistamiento">Pistola / código</label>
+        <input id="scan-alistamiento" @ref="_scanEl" class="form-control form-control-lg" @bind="_scan" @bind:event="onchange" @bind:after="Escanear"
+               placeholder="EAN-13 o GS1-128" autocomplete="off" />
+        <p class="form-text mb-0">Pistola USB o colectora: un disparo es la caja/etiqueta (cantidad o peso del GS1). Si la barra está dañada, use el ingreso manual con un supervisor. Cierre el bulto para abrir el siguiente. El lote tiene que ser el de la factura.</p>
+      </div></div>
+    }
+
+    @if (_orden.Estado == 2)
+    {
+      <div class="mb-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => _manual = !_manual">
+          <i class="bi bi-keyboard me-1" aria-hidden="true"></i>Ingreso manual (supervisor)
+        </button>
+        @if (_manual)
+        {
+          <div class="card mt-2"><div class="card-body row g-2 align-items-end">
+            <div class="col-md-5"><label class="form-label" for="manual-codigo">Código del artículo</label>
+              <input id="manual-codigo" class="form-control" @bind="_codigoManual" @bind:event="onchange" autocomplete="off" /></div>
+            <div class="col-md-4"><label class="form-label" for="manual-clave">Clave interna del supervisor</label>
+              <input id="manual-clave" type="password" class="form-control" @bind="_claveSupervisor" @bind:event="onchange" autocomplete="off" /></div>
+            <div class="col-md-3 d-grid"><button class="btn btn-primary" @onclick="EscanearManual">Autorizar y agregar</button></div>
+            <div class="col-12 form-text">Solo un usuario con la opción «Supervisor de bodega» en su perfil. Si el artículo lleva lote, se toma el de la factura; no se puede elegir otro. Queda registrado quién autorizó.</div>
+          </div></div>
+        }
+      </div>
+    }
+
+    <div class="card mb-3"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+      <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Facturado</th><th class="text-end">Alistado</th><th>Estado</th>@if (_orden.Estado == 2) { <th style="min-width:11rem">Cantidad (sin lote)</th> }</tr></thead>
+      <tbody>
+        @foreach (var l in _orden.Lineas)
+        {
+          <tr class="@(l.Estado == 2 ? "table-success" : l.Estado == 3 ? "table-warning" : null)">
+            <td><code>@l.CodArticulo</code> @l.Descripcion</td>
+            <td>@(l.LoteFacturado ?? "—")</td>
+            <td class="text-end">@l.CantidadFacturada.ToString("N3")</td>
+            <td class="text-end">@l.CantidadAlistada.ToString("N3")</td>
+            <td>@l.EstadoDescripcion</td>
+            @if (_orden.Estado == 2)
+            {
+              <td>
+                @if (string.IsNullOrWhiteSpace(l.LoteFacturado) && l.Estado != 2)
+                {
+                  <div class="input-group input-group-sm">
+                    <input type="number" min="0" step="0.001" class="form-control text-end" aria-label="Cantidad de @l.CodArticulo"
+                           value="@(_cantidades.GetValueOrDefault(l.Id, string.Empty))" @onchange="e => _cantidades[l.Id] = e.Value?.ToString() ?? string.Empty" />
+                    <button type="button" class="btn btn-outline-primary" @onclick="() => IngresarCantidad(l)">Alistar</button>
+                  </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(l.LoteFacturado)) { <span class="text-secondary small">Escanee la etiqueta</span> }
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table></div></div>
+
+    @if (_orden.Bultos.Count > 0)
+    {
+      <div class="card mb-3"><div class="card-header">Bultos</div>
+        <ul class="list-group list-group-flush">
+          @foreach (var b in _orden.Bultos)
+          {
+            <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+              <span><code>@b.Codigo</code> @b.EstadoDescripcion</span>
+              <span class="d-flex align-items-center gap-2">
+                <span>@b.PesoKg.ToString("N2") kg</span>
+                @if (b.Estado != 1)
+                {
+                  <BotonImprimir Tipo="bulto-despacho" Id="b.Id" Texto="A4" Clase="btn-sm btn-outline-secondary" />
+                  <BotonImprimir Tipo="bulto-despacho" Id="b.Id" Formato="termico80" Texto="80 mm" Clase="btn-sm btn-outline-secondary" />
+                }
+              </span>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
+    @if (_orden.Scans.Count > 0)
+    {
+      <div class="card"><div class="card-header">Escaneos</div>
+        <div class="table-responsive"><table class="table table-sm mb-0">
+          <thead><tr><th>Hora</th><th>Código</th><th>Lote</th><th class="text-end">Cant.</th><th></th></tr></thead>
+          <tbody>
+            @foreach (var s in _orden.Scans.TakeLast(20).Reverse())
+            {
+              <tr>
+                <td>@s.Fecha.ToString("HH:mm:ss")</td>
+                <td><code>@s.CodigoCrudo</code></td>
+                <td>@(s.Lote ?? "—") @(s.LoteDistintoAlFacturado ? "(distinto al facturado)" : "")@(s.IngresoManual ? $" · manual, autorizó {s.UsuarioAutorizo}" : "")</td>
+                <td class="text-end">@s.Cantidad.ToString("N3")</td>
+                <td>@s.Usuario</td>
+              </tr>
+            }
+          </tbody>
+        </table></div>
+      </div>
+    }
+  }
+ </ChildContent>
+</AppPantalla>
+
+<CerrarEntregaModal @ref="_entrega" AlCerrar="AlCerrarEntrega" />
+
+@code {
+ [Parameter] public long Id { get; set; }
+ private AlistamientoOrden? _orden;
+ private CerrarEntregaModal _entrega = default!;
+ private ElementReference _scanEl;
+ private IJSObjectReference? _js;
+ private string _error = "", _scan = "", _idManual = "";
+ private decimal _pesoKg;
+ private bool _focoScan;
+ private bool _manual;
+ private string _codigoManual = "", _claveSupervisor = "";
+ private readonly HashSet<long> _etiquetasImpresas = new();
+
+ protected override async Task OnParametersSetAsync()
+ {
+     if (Id > 0) await Cargar(Id);
+ }
+
+ private async Task AbrirManual()
+ {
+     if (!long.TryParse(_idManual, out var id) || id <= 0) return;
+     Nav.NavigateTo($"/bodega/empaque/{id}");
+ }
+
+ private async Task Cargar(long id)
+ {
+     _error = "";
+     var r = await Api.OrdenAsync(id);
+     if (r.Status != ResponseStatus._0) { _error = r.CurrentException ?? "No se pudo abrir la orden."; _orden = null; return; }
+     _orden = r.Responses;
+     _focoScan = _orden?.Estado == 2;
+ }
+
+ protected override async Task OnAfterRenderAsync(bool firstRender)
+ {
+     if (!_focoScan) return;
+     _focoScan = false;
+     try { await _scanEl.FocusAsync(); } catch (Exception) { }
+ }
+
+ private async Task Aceptar()
+ {
+     if (_orden is null) return;
+     var r = await Api.AceptarAsync(_orden.Id);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo aceptar."); return; }
+     _orden = r.Responses;
+     _focoScan = true;
+ }
+
+ private async Task Escanear()
+ {
+     if (_orden is null || string.IsNullOrWhiteSpace(_scan)) return;
+     var codigo = _scan.Trim();
+     _scan = "";
+     var r = await Api.EscanearAsync(_orden.Id, codigo, null);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "Código rechazado."); _focoScan = true; return; }
+     _orden = r.Responses;
+     _focoScan = true;
+     await CerrarSiEstaCompleto();
+ }
+
+ private async Task EscanearManual()
+ {
+     if (_orden is null) return;
+     if (string.IsNullOrWhiteSpace(_codigoManual)) { await Dialogos.ErrorAsync("Escriba el código del artículo."); return; }
+     if (string.IsNullOrWhiteSpace(_claveSupervisor)) { await Dialogos.ErrorAsync("Indique la clave interna del supervisor."); return; }
+     var r = await Api.EscanearAsync(_orden.Id, _codigoManual.Trim(), null, manual: true, claveSupervisor: _claveSupervisor);
+     _claveSupervisor = "";
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "Ingreso manual rechazado."); return; }
+     _codigoManual = "";
+     _orden = r.Responses;
+     _focoScan = true;
+     await CerrarSiEstaCompleto();
+ }
+
+ // Al completar el 100% de lo facturado se cierra el bulto y se imprime la etiqueta sin pasos extra.
+ private async Task CerrarSiEstaCompleto()
+ {
+     if (_orden is null || _orden.Estado != 2 || _orden.Lineas.Count == 0) return;
+     if (_orden.Lineas.Any(l => l.Estado != 2)) return;
+     if (!_orden.Bultos.Any(b => b.Estado == 1)) return;
+     await CerrarBulto();
+ }
+
+ private async Task ImprimirEtiqueta(long idBulto)
+ {
+     if (!_etiquetasImpresas.Add(idBulto)) return;
+     _js ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/bodega.js");
+     await _js.InvokeVoidAsync("abrir", $"/documentos/bulto-despacho/{idBulto}/pdf?formato=termico80");
+ }
+
+ private async Task CerrarBulto()
+ {
+     if (_orden is null) return;
+     var r = await Api.CerrarBultoAsync(_orden.Id, null, _pesoKg);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo cerrar el bulto."); return; }
+     _pesoKg = 0;
+     _orden = r.Responses;
+     var cerrado = _orden?.Bultos.Where(b => b.Estado != 1).OrderByDescending(b => b.Numero).FirstOrDefault();
+     if (cerrado is not null) await ImprimirEtiqueta(cerrado.Id);
+     _focoScan = true;
+ }
+
+ private async Task Empacar()
+ {
+     if (_orden is null) return;
+     var abiertos = _orden.Bultos.Where(b => b.Estado == 1).Select(b => b.Id).ToHashSet();
+     var r = await Api.EmpacarAsync(_orden.Id, false, null);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo empacar."); return; }
+     _orden = r.Responses;
+     // «Marcar empacado» cierra los bultos que seguían abiertos: se imprime la etiqueta de cada uno.
+     foreach (var b in _orden?.Bultos.Where(x => x.Estado != 1 && abiertos.Contains(x.Id)) ?? Enumerable.Empty<BultoDespacho>())
+         await ImprimirEtiqueta(b.Id);
+     await Dialogos.InformarAsync("Orden empacada. Pase a Despacho para armar el manifiesto.");
+ }
+
+ private readonly Dictionary<long, string> _cantidades = new();
+
+ private bool HayAlistadoYPendiente => _orden is not null
+     && _orden.Lineas.Any(l => l.CantidadAlistada > 0)
+     && _orden.Lineas.Any(l => l.Estado != 2);
+
+ /// <summary>El operador digita la cantidad de un artículo sin lote; nunca más de lo facturado (lo valida el API).</summary>
+ private async Task IngresarCantidad(AlistamientoLinea linea)
+ {
+     if (_orden is null) return;
+     _cantidades.TryGetValue(linea.Id, out var texto);
+     if (!EntradaNumerica.TryLeer(texto, out var valor) || valor <= 0)
+     {
+         await Dialogos.ErrorAsync("Digite una cantidad mayor a cero.");
+         return;
+     }
+     var r = await Api.IngresarCantidadAsync(_orden.Id, linea.Id, (decimal)valor);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo registrar la cantidad."); return; }
+     _cantidades.Remove(linea.Id);
+     _orden = r.Responses;
+ }
+
+ private async Task EntregaParcial()
+ {
+     if (_orden is null) return;
+     if (!await Dialogos.ConfirmarAsync(
+             "Se despachará lo alistado y lo que falta quedará pendiente en una orden nueva para una segunda entrega. No se emite nota de crédito. ¿Continuar?",
+             "Entrega parcial")) return;
+     var r = await Api.EntregaParcialAsync(_orden.Id, null);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo registrar la entrega parcial."); return; }
+     _orden = r.Responses;
+     await Dialogos.InformarAsync(_orden?.IdOrdenSaldo is { } saldo
+         ? $"Entrega parcial registrada. Lo que falta quedó pendiente en la orden #{saldo}, que vuelve a la cola."
+         : "Entrega parcial registrada.");
+ }
+
+ private async Task Faltante()
+ {
+     if (_orden is null) return;
+     var texto = _orden.EsConsignacionEnvio
+         ? "Hay cantidad sin empacar. Se anulará la boleta de consignación y se emitirá otra por lo empacado; lo faltante vuelve a la bodega central. ¿Continuar?"
+         : _orden.EsPreventa
+             ? "Hay cantidad sin empacar. Se quitará de la preventa y se devolverá al inventario. ¿Continuar?"
+             : "Hay cantidad sin empacar. Se emitirá una nota de crédito por lo faltante. ¿Continuar?";
+     if (!await Dialogos.ConfirmarAsync(texto)) return;
+     var r = await Api.FaltanteAsync(_orden.Id);
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo registrar el faltante."); return; }
+     _orden = r.Responses;
+     var preventa = _orden?.EsPreventa == true;
+     await Dialogos.InformarAsync(_orden?.EsConsignacionEnvio == true
+         ? "Se ajustó la boleta de consignación por lo empacado. Puede marcar empacado si el resto está cubierto."
+         : preventa
+             ? "Se quitó lo faltante de la preventa. Puede marcar empacado si el resto está cubierto."
+             : "Se emitió la nota de crédito. Puede marcar empacado si el resto está cubierto.");
+ }
+
+ private async Task Anular()
+ {
+     if (_orden is null) return;
+     if (!await Dialogos.ConfirmarPeligroAsync("¿Anular esta orden de alistamiento? La factura no se toca.")) return;
+     var r = await Api.AnularAsync(_orden.Id, "Anulada en empaque");
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo anular."); return; }
+     _orden = r.Responses;
+ }
+
+ private Task PedirEntrega(bool no) => _orden is null ? Task.CompletedTask : _entrega.PedirAsync(_orden.Id, no);
+
+ private void AlCerrarEntrega(AlistamientoOrden orden) => _orden = orden;
+}

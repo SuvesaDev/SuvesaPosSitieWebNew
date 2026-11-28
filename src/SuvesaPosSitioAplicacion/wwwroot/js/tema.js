@@ -51,6 +51,54 @@ export function obtenerFechaHoraEquipo() {
     return new Date().toISOString();
 }
 
+// Hora local de pared del equipo, sin pasarla a UTC.
+export function descargarTexto(nombre, texto) {
+    const blob = new Blob([texto], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = nombre;
+    enlace.click();
+    URL.revokeObjectURL(url);
+}
+
+export function obtenerMarcaEquipo() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+// La clave interna nunca debe terminar en el buscador del menú si el navegador
+// restaura o mueve el foco durante un cambio de renderizado.
+export function limpiarBusquedaMenu() {
+    const limpiar = () => {
+        const buscador = document.getElementById('buscador-menu');
+        if (!buscador || !buscador.value) return;
+
+        // Si Blazor ya renderizó el botón, usar su propio evento mantiene también
+        // vacío el estado C# (_busqueda), no solo el valor visual del input.
+        const botonLimpiar = buscador.parentElement?.querySelector(
+            'button[aria-label="Limpiar búsqueda"]');
+        if (botonLimpiar) {
+            botonLimpiar.click();
+            return;
+        }
+
+        buscador.value = '';
+        buscador.dispatchEvent(new InputEvent('input', {
+            bubbles: true,
+            inputType: 'insertText',
+            data: null,
+        }));
+    };
+
+    limpiar();
+    // La restauración de foco/autorrelleno puede ocurrir justo después de la
+    // actualización interactiva. Repetir tras el render impide que una clave
+    // interna termine como texto del filtro del menú.
+    window.setTimeout(limpiar, 50);
+}
+
 // Mantiene visible el encabezado que el usuario acaba de desplegar. El menú es
 // el único contenedor que se mueve y solo lo hace si el elemento quedó fuera de
 // su área visible; no altera el desplazamiento de la pantalla de trabajo.

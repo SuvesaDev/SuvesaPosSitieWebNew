@@ -1,6 +1,7 @@
 @* Panel de filtros de una consulta: una tarjeta con una rejilla de campos y un
-   pie con el boton Buscar (redondo, primario) y Limpiar. Punto unico para que
-   todas las consultas del POS se vean igual.
+   pie con el boton Buscar y Limpiar. Buscar conserva el formato circular por
+   defecto o muestra un rótulo cuando TextoBuscar se especifica. Punto único para
+   que todas las consultas del POS se vean igual.
 
    Uso:
      <AppFiltros Titulo="Filtros" AlBuscar="Buscar" AlLimpiar="Limpiar" Buscando="_buscando">
@@ -27,8 +28,8 @@
         </div>
 
         <div class="seepos-panel-filtros-pie">
-            <button type="button" class="btn btn-primary seepos-fab-buscar"
-                    disabled="@Buscando" title="Buscar" aria-label="Buscar"
+            <button type="button" class="btn btn-primary @(string.IsNullOrWhiteSpace(TextoBuscar) ? "seepos-fab-buscar" : "seepos-boton-buscar")"
+                    disabled="@Buscando" title="@(TextoBuscar ?? "Buscar")" aria-label="@(TextoBuscar ?? "Buscar")"
                     @onclick="AlBuscar">
                 @if (Buscando)
                 {
@@ -37,6 +38,10 @@
                 else
                 {
                     <i class="bi bi-search" aria-hidden="true"></i>
+                }
+                @if (!string.IsNullOrWhiteSpace(TextoBuscar))
+                {
+                    <span>@TextoBuscar</span>
                 }
             </button>
 
@@ -72,6 +77,9 @@
     [Parameter] public EventCallback AlLimpiar { get; set; }
 
     [Parameter] public bool Buscando { get; set; }
+
+    /// <summary>Rótulo visible opcional. Si se omite, conserva el botón circular compacto.</summary>
+    [Parameter] public string? TextoBuscar { get; set; }
 
     /// <summary>Contenido a la derecha del titulo (p.ej. un conmutador de vista).</summary>
     [Parameter] public RenderFragment? Encabezado { get; set; }

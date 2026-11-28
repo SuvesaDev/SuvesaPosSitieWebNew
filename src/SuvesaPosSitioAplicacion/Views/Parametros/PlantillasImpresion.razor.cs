@@ -61,6 +61,7 @@ public partial class PlantillasImpresion
             ConfiguracionJson = _cat.ConfiguracionPorDefectoA4Json,
         };
         _cfg = ConfiguracionPlantillaModelo.Desde(_cat.ConfiguracionPorDefectoA4Json);
+        FijarLineasObligatorias();
         _anchoRollo = 80;
         _previewData = null;
         SincronizarTextareas(desdeModelo: true);
@@ -77,6 +78,7 @@ public partial class PlantillasImpresion
         _edicion = dto;
         _cat = await Respuestas.DatoAsync(await Api.Catalogo(TiposImpresionUi.Slug(dto.TipoDocumento)), "consultar el catálogo de la plantilla");
         _cfg = ConfiguracionPlantillaModelo.Desde(dto.ConfiguracionJson);
+        FijarLineasObligatorias();
         _anchoRollo = dto.AnchoRolloMm ?? 80;
         _previewData = null;
         SincronizarTextareas(desdeModelo: true);
@@ -164,6 +166,22 @@ public partial class PlantillasImpresion
             await Dialogos.ErrorAsync(r.Excepcion ?? "No se pudo previsualizar.");
     }
 
+    private void FijarLineasObligatorias()
+    {
+        if (_cfg is null) return;
+        _cfg.Encabezado.MostrarDatosEmisor = true;
+        foreach (var c in _cfg.Meta.Campos)
+        {
+            if (!c.Clave.Equals("responsable", StringComparison.OrdinalIgnoreCase)) continue;
+            c.Visible = true;
+            if (string.IsNullOrWhiteSpace(c.Etiqueta) || c.Etiqueta.Equals("Atendido por", StringComparison.OrdinalIgnoreCase))
+                c.Etiqueta = "Elaborado por";
+        }
+    }
+
+    private static bool LineaFija(string clave)
+        => clave.Equals("responsable", StringComparison.OrdinalIgnoreCase);
+
     private async Task Guardar()
     {
         if (_edicion is null || _cfg is null) return;
@@ -171,6 +189,7 @@ public partial class PlantillasImpresion
         try
         {
             SincronizarTextareas(desdeModelo: false);
+            FijarLineasObligatorias();
             _edicion.ConfiguracionJson = _cfg.AJson();
             _edicion.AnchoRolloMm = _edicion.Formato == 2 ? _anchoRollo : null;
             if (!TiposImpresionUi.UsaSerie(_edicion.TipoDocumento)) _edicion.IdSerie = null;

@@ -8,6 +8,8 @@ public sealed class CrearOrdenCompraWebDTO
     public int? IdEmisor { get; set; }
     public DateTime? Fecha { get; set; }
     public int CodMoneda { get; set; } = 1;
+    /// <summary>1 nacional (precio con IVA) · 2 internacional (base sin IVA).</summary>
+    public int? TipoOrdenCompra { get; set; }
     public double TipoCambio { get; set; } = 1;
     public bool Credito { get; set; }
     public int Plazo { get; set; }
@@ -37,6 +39,8 @@ public sealed class OrdenCompraFlujoWebDTO
     public int IdSucursal { get; set; }
     public int? IdEmisor { get; set; }
     public int CodMoneda { get; set; }
+    public int? TipoOrdenCompra { get; set; }
+    public string TipoOrdenCompraNombre { get; set; } = "Legado / no clasificada";
     public string MonedaNombre { get; set; } = "CRC";
     public double TipoCambio { get; set; } = 1;
     public bool Credito { get; set; }
@@ -67,12 +71,19 @@ public sealed class LineaOrdenCompraDetalleWebDTO
     public long CodArticulo { get; set; }
     public string Descripcion { get; set; } = "";
     public double Cantidad { get; set; }
+    public double CantidadRecibida { get; set; }
     public double CostoUnitario { get; set; }
     public double PorcDescuento { get; set; }
     public double Descuento { get; set; }
     public double PorcImpuesto { get; set; }
     public double Impuesto { get; set; }
     public double TotalLinea { get; set; }
+}
+
+public sealed class RecepcionLineaOrdenWebDTO
+{
+    public long Id { get; set; }
+    public double CantidadRecibida { get; set; }
 }
 
 public sealed class ResultadoEnvioOrdenCompraWebDTO

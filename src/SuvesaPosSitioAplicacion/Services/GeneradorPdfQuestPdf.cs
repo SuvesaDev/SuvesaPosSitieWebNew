@@ -23,18 +23,7 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                 pagina.Margin(1.5f, Unit.Centimetre);
                 pagina.DefaultTextStyle(t => t.FontSize(9));
 
-                pagina.Header().Column(c =>
-                {
-                    c.Item().Text(reporte.Titulo).FontSize(14).SemiBold();
-
-                    if (!string.IsNullOrWhiteSpace(reporte.Subtitulo))
-                    {
-                        c.Item().Text(reporte.Subtitulo).FontSize(9).FontColor(Colors.Grey.Darken1);
-                    }
-
-                    c.Item().PaddingTop(4).Text($"Generado el {DateTime.Now:dd/MM/yyyy HH:mm}")
-                        .FontSize(8).FontColor(Colors.Grey.Medium);
-                });
+                pagina.Header().Element(c => EncabezadoTabla(c, reporte));
 
                 pagina.Content().PaddingVertical(10).Table(tabla =>
                 {
@@ -97,6 +86,70 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
         }).GeneratePdf();
     }
 
+    private static void EncabezadoTabla(IContainer container, ReporteTabular reporte)
+    {
+        container.Column(col =>
+        {
+            if (reporte.Empresa is { } empresa)
+            {
+                col.Item().Row(row =>
+                {
+                    row.RelativeItem(1.2f).Element(c => IdentidadEmpresa(c, empresa));
+                    row.ConstantItem(10);
+                    row.RelativeItem(0.8f).BorderLeft(1.25f).BorderColor(Azul).PaddingLeft(8).Column(doc =>
+                    {
+                        doc.Item().Text(reporte.Titulo).FontSize(13).SemiBold().FontColor(Azul);
+                        if (!string.IsNullOrWhiteSpace(reporte.Subtitulo))
+                            doc.Item().PaddingTop(2).Text(reporte.Subtitulo)
+                                .FontSize(8).FontColor(Colors.Grey.Darken1);
+                        doc.Item().PaddingTop(4).Text($"Generado el {DateTime.Now:dd/MM/yyyy HH:mm}")
+                            .FontSize(7).FontColor(Colors.Grey.Medium);
+                    });
+                });
+                col.Item().PaddingTop(6).LineHorizontal(1).LineColor(Azul);
+                return;
+            }
+
+            col.Item().Text(reporte.Titulo).FontSize(14).SemiBold();
+            if (!string.IsNullOrWhiteSpace(reporte.Subtitulo))
+                col.Item().Text(reporte.Subtitulo).FontSize(9).FontColor(Colors.Grey.Darken1);
+            col.Item().PaddingTop(4).Text($"Generado el {DateTime.Now:dd/MM/yyyy HH:mm}")
+                .FontSize(8).FontColor(Colors.Grey.Medium);
+        });
+    }
+
+    /// <summary>Caja del logo en el membrete (mm): ancha y alta, para logos horizontales. El logo se ajusta sin deformarse.</summary>
+    private const float LogoAnchoMm = 58;
+    private const float LogoAltoMm = 34;
+
+    private static void IdentidadEmpresa(IContainer container, EncabezadoEmpresaPdf empresa)
+    {
+        container.Row(row =>
+        {
+            if (empresa.Logo is { Length: > 0 })
+            {
+                // Milímetros, no puntos: con 42 (puntos) la caja medía ~15 mm y el logo apenas se leía.
+                row.ConstantItem(LogoAnchoMm, Unit.Millimetre).Height(LogoAltoMm, Unit.Millimetre).Image(empresa.Logo).FitArea();
+                row.ConstantItem(6);
+            }
+
+            row.RelativeItem().Column(info =>
+            {
+                info.Item().Text(empresa.NombreEmisor).SemiBold().FontSize(12).FontColor(Azul);
+                if (!string.IsNullOrWhiteSpace(empresa.Identificacion))
+                    info.Item().Text($"Identificación: {empresa.Identificacion}").FontSize(8);
+                if (!string.IsNullOrWhiteSpace(empresa.NombreSucursal))
+                    info.Item().Text($"Sucursal: {empresa.NombreSucursal}").FontSize(8);
+                if (!string.IsNullOrWhiteSpace(empresa.Direccion))
+                    info.Item().Text(empresa.Direccion!).FontSize(7.5f).FontColor(Colors.Grey.Darken1);
+                var contacto = string.Join("  ·  ", new[] { empresa.Telefono, empresa.Correo }
+                    .Where(s => !string.IsNullOrWhiteSpace(s)));
+                if (contacto.Length > 0)
+                    info.Item().Text(contacto).FontSize(7.5f).FontColor(Colors.Grey.Darken1);
+            });
+        });
+    }
+
     /// <inheritdoc />
     public byte[] EstadoCuenta(EstadoCuentaPdf reporte)
     {
@@ -114,11 +167,14 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                     col.Item().Element(c => IndicadoresEstadoCuenta(c, reporte));
                     col.Item().PaddingTop(10).Element(c => AntiguedadEstadoCuenta(c, reporte));
                     col.Item().PaddingTop(12).Element(c => TablaEstadoCuenta(c, reporte));
+                    if (reporte.FacturasEnTransito.Count > 0)
+                        col.Item().PaddingTop(12).Element(c => TablaEnTransito(c, reporte));
                 });
                 pagina.Footer().PaddingTop(8).Row(row =>
                 {
-                    row.RelativeItem().Text($"Estado de cuenta generado el {DateTime.Now:dd/MM/yyyy HH:mm}")
-                        .FontSize(7).FontColor(Colors.Grey.Medium);
+                    var pie = $"Estado de cuenta generado el {DateTime.Now:dd/MM/yyyy HH:mm}"
+                        + (string.IsNullOrWhiteSpace(reporte.GeneradoPor) ? "" : $" por {reporte.GeneradoPor}");
+                    row.RelativeItem().Text(pie).FontSize(7).FontColor(Colors.Grey.Medium);
                     row.RelativeItem().AlignRight().Text(t =>
                     {
                         t.Span("Página ").FontSize(7).FontColor(Colors.Grey.Medium);
@@ -135,6 +191,9 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
     {
         container.Column(col =>
         {
+            if (reporte.Empresa is not null)
+                col.Item().PaddingBottom(8).Element(c => IdentidadEmpresa(c, reporte.Empresa));
+
             col.Item().Row(row =>
             {
                 row.RelativeItem().Column(cliente =>
@@ -187,6 +246,34 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
         });
     }
 
+    private static void TablaEnTransito(IContainer container, EstadoCuentaPdf reporte)
+    {
+        container.Column(col =>
+        {
+            col.Item().Text($"PAGOS PENDIENTES DE CONFIRMAR: {FormatearMonto(reporte.EnTransito, reporte.Moneda)}").SemiBold().FontSize(8.5f).FontColor(Azul);
+            col.Item().PaddingTop(1).Text("Depósitos o cheques por aprobar: ocupan el límite de crédito, pero no bajan el saldo ni cuentan como mora hasta confirmarse.")
+                .FontSize(7).FontColor(Colors.Grey.Darken1);
+            col.Item().PaddingTop(4).Table(tabla =>
+            {
+                tabla.ColumnsDefinition(def => { def.RelativeColumn(1.2f); def.RelativeColumn(1f); def.RelativeColumn(1.4f); def.RelativeColumn(1.2f); });
+                tabla.Header(h =>
+                {
+                    CabeceraEstadoCuenta(h.Cell(), "FACTURA", "izquierda");
+                    CabeceraEstadoCuenta(h.Cell(), "RECIBO", "izquierda");
+                    CabeceraEstadoCuenta(h.Cell(), "FECHA", "izquierda");
+                    CabeceraEstadoCuenta(h.Cell(), "MONTO", "derecha");
+                });
+                foreach (var t in reporte.FacturasEnTransito)
+                {
+                    tabla.Cell().BorderBottom(0.5f).BorderColor("#D4E2E8").Padding(3).Text(t.Factura);
+                    tabla.Cell().BorderBottom(0.5f).BorderColor("#D4E2E8").Padding(3).Text(t.Recibo.ToString("0"));
+                    tabla.Cell().BorderBottom(0.5f).BorderColor("#D4E2E8").Padding(3).Text(t.Fecha.ToString("dd/MM/yyyy HH:mm"));
+                    tabla.Cell().BorderBottom(0.5f).BorderColor("#D4E2E8").Padding(3).AlignRight().Text(FormatearMonto(t.Monto, reporte.Moneda));
+                }
+            });
+        });
+    }
+
     private static void AntiguedadEstadoCuenta(IContainer container, EstadoCuentaPdf reporte)
     {
         var tramos = new[]
@@ -220,18 +307,21 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
     {
         container.Column(col =>
         {
-            col.Item().Text("FACTURAS CON SALDO PENDIENTE").SemiBold().FontSize(8.5f).FontColor(Azul);
+            col.Item().Text(reporte.SucursalFiltro is { Length: > 0 }
+                ? $"FACTURAS CON SALDO PENDIENTE — SUCURSAL: {reporte.SucursalFiltro.ToUpperInvariant()}"
+                : "FACTURAS CON SALDO PENDIENTE").SemiBold().FontSize(8.5f).FontColor(Azul);
             col.Item().PaddingTop(4).Table(tabla =>
             {
                 tabla.ColumnsDefinition(def =>
                 {
-                    def.RelativeColumn(1.25f);
-                    def.RelativeColumn(1.1f);
-                    def.RelativeColumn(1.1f);
-                    def.RelativeColumn(1.25f);
-                    def.RelativeColumn(1.0f);
-                    def.RelativeColumn(1.1f);
-                    def.RelativeColumn(1.25f);
+                    def.RelativeColumn(1.2f);
+                    def.RelativeColumn(1.05f);
+                    def.RelativeColumn(1.05f);
+                    def.RelativeColumn(0.7f);
+                    def.RelativeColumn(1.2f);
+                    def.RelativeColumn(0.95f);
+                    def.RelativeColumn(1.05f);
+                    def.RelativeColumn(1.2f);
                     def.RelativeColumn(0.95f);
                 });
 
@@ -240,6 +330,7 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                     CabeceraEstadoCuenta(h.Cell(), "FACTURA", "izquierda");
                     CabeceraEstadoCuenta(h.Cell(), "FECHA", "centro");
                     CabeceraEstadoCuenta(h.Cell(), "VENCE", "centro");
+                    CabeceraEstadoCuenta(h.Cell(), "DÍAS MORA", "centro");
                     CabeceraEstadoCuenta(h.Cell(), "ORIGINAL", "derecha");
                     CabeceraEstadoCuenta(h.Cell(), "N/C", "derecha");
                     CabeceraEstadoCuenta(h.Cell(), "PAGADO", "derecha");
@@ -249,7 +340,7 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
 
                 if (reporte.Detalle.Count == 0)
                 {
-                    tabla.Cell().ColumnSpan(8).Background("#FFFFFF").BorderBottom(0.5f).BorderColor("#D4E2E8")
+                    tabla.Cell().ColumnSpan(9).Background("#FFFFFF").BorderBottom(0.5f).BorderColor("#D4E2E8")
                         .Padding(8).AlignCenter().Text("No hay facturas con saldo pendiente.")
                         .FontColor(Colors.Grey.Darken1);
                 }
@@ -262,9 +353,17 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
                         // El consecutivo fiscal completo se conserva en el CSV y
                         // consulta de pantalla. En un estado de cuenta ocuparía
                         // varias líneas y ocultaría el importe que se debe cobrar.
-                        CeldaEstadoCuenta(tabla.Cell(), fondo, "izquierda").Text(linea.Factura).SemiBold();
+                        CeldaEstadoCuenta(tabla.Cell(), fondo, "izquierda").Text(t =>
+                        {
+                            t.Line(linea.Factura).SemiBold();
+                            // Sucursal del cliente a la que pertenece la factura (si tiene).
+                            if (!string.IsNullOrWhiteSpace(linea.Sucursal))
+                                t.Line(linea.Sucursal).FontSize(6.5f).FontColor(Colors.Grey.Darken1);
+                        });
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "centro").Text(linea.Fecha.ToString("dd/MM/yyyy"));
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "centro").Text(linea.Vence?.ToString("dd/MM/yyyy") ?? "—");
+                        CeldaEstadoCuenta(tabla.Cell(), fondo, "centro").Text(linea.DiasMora > 0 ? linea.DiasMora.ToString() : "—")
+                            .FontColor(linea.DiasMora > 0 ? "#B42318" : "#1F2933");
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "derecha").Text(FormatearMonto(linea.Original, reporte.Moneda));
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "derecha").Text(FormatearMonto(linea.NotasCredito, reporte.Moneda));
                         CeldaEstadoCuenta(tabla.Cell(), fondo, "derecha").Text(FormatearMonto(linea.Pagado, reporte.Moneda));
@@ -279,8 +378,8 @@ public sealed class GeneradorPdfQuestPdf : IGeneradorPdf
             // una banda propia para que un importe grande nunca se parta.
             col.Item().Background(FondoSuave).BorderTop(1).BorderColor(Azul).Padding(6).Row(row =>
             {
-                row.RelativeItem().AlignRight().Text("SALDO TOTAL").SemiBold().FontColor(AzulOscuro);
-                row.ConstantItem(130).AlignRight().Text(FormatearMonto(reporte.SaldoAbierto, reporte.Moneda))
+                row.RelativeItem().AlignRight().Text(reporte.SucursalFiltro is { Length: > 0 } ? "SALDO DE LA SUCURSAL" : "SALDO TOTAL").SemiBold().FontColor(AzulOscuro);
+                row.ConstantItem(130).AlignRight().Text(FormatearMonto(reporte.SucursalFiltro is { Length: > 0 } ? reporte.Detalle.Sum(l => l.Saldo) : reporte.SaldoAbierto, reporte.Moneda))
                     .SemiBold().FontSize(11).FontColor(AzulOscuro);
             });
         });

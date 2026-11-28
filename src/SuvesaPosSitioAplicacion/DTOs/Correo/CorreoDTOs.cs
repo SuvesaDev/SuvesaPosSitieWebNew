@@ -51,6 +51,10 @@ public sealed class EnvioCorreoDTO
     public int IdEmisor { get; set; }
     public string TipoComprobante { get; set; } = "";
     public string? Destinatarios { get; set; }
+    /// <summary>Correos en copia (Cc) de la ficha del cliente al encolar.</summary>
+    public string? Copia { get; set; }
+    /// <summary>Cliente del comprobante (de la factura o de la nota), no deducido del correo.</summary>
+    public string? NombreReceptor { get; set; }
     public string Estado { get; set; } = "";
     public int Intentos { get; set; }
     public int MaxIntentos { get; set; }

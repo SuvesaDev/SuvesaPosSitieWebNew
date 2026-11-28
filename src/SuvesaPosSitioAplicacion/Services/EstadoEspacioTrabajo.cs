@@ -25,6 +25,8 @@ public sealed class EstadoEspacioTrabajo : IEstadoEspacioTrabajo
     public PestanaTrabajo? Actual { get; private set; }
 
     public event Action? Cambio;
+    public event Action<string>? PestanaCerrada;
+    public event Action? TodasCerradas;
 
     public PestanaTrabajo Abrir(string titulo, string ruta)
     {
@@ -81,7 +83,8 @@ public sealed class EstadoEspacioTrabajo : IEstadoEspacioTrabajo
             return;
         }
 
-        var eraActual = _pestanas[indice].Id == Actual?.Id;
+        var cerrada = _pestanas[indice];
+        var eraActual = cerrada.Id == Actual?.Id;
         _pestanas.RemoveAt(indice);
 
         if (eraActual)
@@ -91,6 +94,7 @@ public sealed class EstadoEspacioTrabajo : IEstadoEspacioTrabajo
             Actual = _pestanas.Count > 0 ? _pestanas[siguiente] : null;
         }
 
+        PestanaCerrada?.Invoke(cerrada.Ruta);
         Notificar();
     }
 
@@ -99,6 +103,7 @@ public sealed class EstadoEspacioTrabajo : IEstadoEspacioTrabajo
         _pestanas.Clear();
         Actual = null;
         _ultimaVenta = 0;
+        TodasCerradas?.Invoke();
         Notificar();
     }
 

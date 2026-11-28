@@ -10,6 +10,8 @@ public sealed class DevolucionInternaComandoWebDTO
     public List<DevolucionInternaLineaWebDTO>? Lineas { get; set; }
     /// <summary>true = anula la venta origen (factura rechazada que se recreará).</summary>
     public bool AnularOrigen { get; set; } = true;
+    /// <summary>Cambio de producto en una venta de contado: el total queda como saldo a favor del cliente.</summary>
+    public bool DejarComoSaldoAFavor { get; set; }
 }
 
 public sealed class DevolucionInternaLineaWebDTO

@@ -83,4 +83,45 @@ public class PreparacionPagoVentaTests
         var r = Calcular(10000m, new[] { Tarj(3000m), Efe(9000m) });
         Assert.Equal(r.AplicadoTotal, r.RecibidoTotal - r.Vuelto);
     }
+
+    private static LineaPago Dep(decimal r, string? refx, int? banco = 1) => new("DEP", r, EsEfectivo: false, RequiereReferencia: true, refx, RequiereBanco: true, IdBanco: banco);
+
+    [Fact]
+    public void VariosDepositos_SumanYCubren()
+    {
+        var r = Calcular(10000m, new[] { Dep(6000m, "A-1"), Dep(4000m, "A-2") });
+        Assert.True(r.Cubre100);
+        Assert.Equal(10000m, r.RecibidoTotal);
+        Assert.Equal(2, r.Formas.Count(f => f.Codigo == "DEP"));
+    }
+
+    [Fact]
+    public void DosDepositosConMismoBancoYReferencia_EsError()
+    {
+        var r = Calcular(10000m, new[] { Dep(5000m, "A-1"), Dep(5000m, " a-1 ") });
+        Assert.False(r.Cubre100);
+        Assert.Contains(r.Errores, e => e.Contains("mismo banco y la misma referencia"));
+    }
+
+    [Fact]
+    public void MismaReferenciaEnBancosDistintos_EsValida()
+    {
+        var r = Calcular(10000m, new[] { Dep(5000m, "A-1", banco: 1), Dep(5000m, "A-1", banco: 2) });
+        Assert.True(r.Cubre100);
+    }
+
+    [Fact]
+    public void ElAvisoDiceQueLineaFalla()
+    {
+        var r = Calcular(10000m, new[] { Dep(5000m, "A-1"), Dep(5000m, null) });
+        Assert.Contains(r.Errores, e => e.Contains("DEP (línea 2)") && e.Contains("referencia"));
+    }
+
+    [Fact]
+    public void MasDeCincoLineasDeLaMismaForma_EsError()
+    {
+        var lineas = Enumerable.Range(1, 6).Select(i => Dep(1000m, "R" + i)).ToArray();
+        var r = Calcular(6000m, lineas);
+        Assert.Contains(r.Errores, e => e.Contains("máximo 5"));
+    }
 }

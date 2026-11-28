@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Proyecto de un solo uso: genera el satélite de recursos en español para
+    Havit.Blazor.Components.Web.Bootstrap (que no trae traducción es), a partir
+    de los mismos nombres de clave que su ensamblado neutro (en inglés).
+    No se referencia desde el sitio — su ensamblado "neutro" (vacío, sin código)
+    colisionaría de nombre con el paquete real de Havit. Solo se usa para
+    compilar y luego copiar manualmente el satélite bin/<Config>/net10.0/es/
+    Havit.Blazor.Components.Web.Bootstrap.resources.dll dentro del sitio
+    (ver SuvesaPosSitioAplicacion.csproj, carpeta Localizacion/es/).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Havit.Blazor.Components.Web.Bootstrap</RootNamespace>
+    <AssemblyName>Havit.Blazor.Components.Web.Bootstrap</AssemblyName>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CS8021</NoWarn>
+  </PropertyGroup>
+
+</Project>

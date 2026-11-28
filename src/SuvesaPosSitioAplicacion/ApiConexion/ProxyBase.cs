@@ -23,6 +23,26 @@ public abstract class ProxyBase
         _log = log;
     }
 
+    /// <summary>
+    /// Igual que <see cref="Ejecutar{T}(Func{Task{ResponseGeneric{T}}}, string)"/>, mandando además la clave
+    /// interna del cajero en la cabecera, para los endpoints que solo operan la caja de su dueño.
+    /// </summary>
+    protected async Task<ResponseGeneric<T>> Ejecutar<T>(
+        Func<Task<ResponseGeneric<T>>> llamada,
+        string queSeIntentaba,
+        string? claveInterna)
+    {
+        ContextoLlamada.ClaveInterna = claveInterna;
+        try
+        {
+            return await Ejecutar(llamada, queSeIntentaba);
+        }
+        finally
+        {
+            ContextoLlamada.ClaveInterna = null;
+        }
+    }
+
     /// <summary>Ejecuta una llamada al API con el token puesto y los fallos contenidos.</summary>
     protected async Task<ResponseGeneric<T>> Ejecutar<T>(
         Func<Task<ResponseGeneric<T>>> llamada,

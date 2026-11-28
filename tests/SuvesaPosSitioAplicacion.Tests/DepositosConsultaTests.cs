@@ -89,8 +89,10 @@ public class DepositosConsultaTests
         public bool EsAdministrador => true;
         public string? PerfilCodigo => "SUPER_ADMIN";
         public bool EsCostaPets => false;
-        public bool EsAgenteCostaPets => false;
+        public bool EsAgente => false;
+        public bool EsServicioAlCliente => false;
         public bool PermitirExistenciaNegativa => false;
+        public bool HabilitaImportaciones => false;
         public int IdSucursal => 1;
         public string? NombreSucursal => "Central";
         public bool TieneSucursal => true;

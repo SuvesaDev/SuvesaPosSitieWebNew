@@ -32,4 +32,17 @@ public partial class Autenticacion
     /// <summary>Compat plano: capacidad del perfil (permitir existencia negativa).</summary>
     [JsonPropertyName("permiteExistenciaNegativa")]
     public bool PermiteExistenciaNegativa { get; set; }
+
+    [JsonPropertyName("habilitaImportaciones")]
+    public bool HabilitaImportaciones { get; set; }
+
+    /// <summary>Permiso POR USUARIO (no de perfil ni rol) para modificar el precio al facturar.</summary>
+    [JsonPropertyName("cambiarPrecio")]
+    public bool CambiarPrecio { get; set; }
+
+    [JsonPropertyName("esAgente")]
+    public bool EsAgente { get; set; }
+
+    [JsonPropertyName("esServicioAlCliente")]
+    public bool EsServicioAlCliente { get; set; }
 }

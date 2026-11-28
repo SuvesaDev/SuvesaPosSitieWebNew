@@ -82,6 +82,11 @@ public static class TiposImpresionUi
         13 => "Liquidación de consignación",
         14 => "Boleta de trámite de cobro",
         15 => "Devolución interna",
+        16 => "Nota de débito",
+        17 => "Factura de compra",
+        18 => "Devolución de compra",
+        19 => "Etiqueta de bulto",
+        20 => "Manifiesto de despacho",
         _ => $"Tipo {tipo}",
     };
 
@@ -102,10 +107,16 @@ public static class TiposImpresionUi
         13 => "liquidacion-consignacion",
         14 => "boleta-tramite-cobro",
         15 => "devolucion-interna",
+        16 => "nota-debito",
+        17 => "compra",
+        18 => "devolucion-compra",
+        19 => "bulto-despacho",
+        20 => "manifiesto-despacho",
+        21 => "entrega-despacho",
         _ => "",
     };
 
-    public static bool UsaSerie(int tipo) => tipo is 1 or 2 or 3;
+    public static bool UsaSerie(int tipo) => tipo is 1 or 2 or 3 or 16;
 
     public static string Formato(int f) => f == 2 ? "Térmico 80 mm" : "A4";
 
@@ -114,8 +125,8 @@ public static class TiposImpresionUi
     /// (PLANTILLAS_IMPRESION_VS_SERIES.md).</summary>
     public static VertienteImpresionUi Vertiente(int tipo) => tipo switch
     {
-        1 or 2 or 3 => VertienteImpresionUi.Facturacion,
-        6 or 8 or 9 => VertienteImpresionUi.Otro,
+        1 or 2 or 3 or 16 => VertienteImpresionUi.Facturacion,
+        6 or 8 or 9 or 17 or 18 => VertienteImpresionUi.Otro,
         _ => VertienteImpresionUi.Operativo,
     };
 
@@ -127,7 +138,7 @@ public static class TiposImpresionUi
     };
 
     public static IReadOnlyList<(int Valor, string Nombre)> Todos { get; } =
-        Enumerable.Range(1, 15).Select(v => (v, Nombre(v))).ToList();
+        Enumerable.Range(1, 18).Select(v => (v, Nombre(v))).ToList();
 
     /// <summary>Todos los tipos agrupados por vertiente, en el orden en que deben
     /// aparecer en el selector: Facturación, Operativo, Otros.</summary>

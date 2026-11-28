@@ -1562,6 +1562,41 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("codigo")]
         public string? Codigo { get; set; } = default!;
 
+        // Agregado a mano: precios de las listas B, C y D (0 = sin precio en esa lista),
+        // espejo de ArticulosImagenesCatalogoDTO del API.
+        [System.Text.Json.Serialization.JsonPropertyName("precioB")]
+        public double PrecioB { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("precioC")]
+        public double PrecioC { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("precioD")]
+        public double PrecioD { get; set; } = default!;
+
+        // Agregado a mano (16 sep 2026): tools/actualizar-contratos.sh necesita un API
+        // vivo y no había uno disponible en esta sesión. Coincide exactamente con los
+        // campos del API — al regenerar de verdad contra un servidor, estos campos deben
+        // salir igual y este comentario ya no hace falta.
+        [System.Text.Json.Serialization.JsonPropertyName("existencia")]
+        public double Existencia { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("version")]
+        public string? Version { get; set; } = default!;
+
+    }
+
+    // Agregado a mano (16 sep 2026), mismo motivo que Version arriba: coincide
+    // exactamente con RecatalogoImagenesResultadoDTO del API.
+    public partial class RecatalogoImagenesResultadoDTO
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("procesadas")]
+        public int Procesadas { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("fallidas")]
+        public int Fallidas { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("yaTeniaMiniatura")]
+        public int YaTeniaMiniatura { get; set; } = default!;
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -2032,6 +2067,12 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("tipoprecio")]
         public int Tipoprecio { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("idRutaComercial")]
+        public int? IdRutaComercial { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoCliente")]
+        public string? TipoCliente { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("descuentoEspecial")]
         public double DescuentoEspecial { get; set; } = default!;
@@ -3284,6 +3325,12 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.ComponentModel.DataAnnotations.Range(1, 5)]
         public int Tipoprecio { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("idRutaComercial")]
+        public int? IdRutaComercial { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoCliente")]
+        public string? TipoCliente { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("sinrestriccion")]
         public bool Sinrestriccion { get; set; } = default!;
 
@@ -3304,6 +3351,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("correoComprobante")]
         public string? CorreoComprobante { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("correoCopiaComprobante")]
+        public string? CorreoCopiaComprobante { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("actualizado")]
         public bool Actualizado { get; set; } = default!;
@@ -7415,6 +7465,12 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
         [System.Text.Json.Serialization.JsonPropertyName("tipoprecio")]
         public int Tipoprecio { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("idRutaComercial")]
+        public int? IdRutaComercial { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tipoCliente")]
+        public string? TipoCliente { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("sinrestriccion")]
         public bool Sinrestriccion { get; set; } = default!;
 
@@ -7435,6 +7491,9 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("correoComprobante")]
         public string? CorreoComprobante { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("correoCopiaComprobante")]
+        public string? CorreoCopiaComprobante { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("actualizado")]
         public bool Actualizado { get; set; } = default!;
@@ -8390,6 +8449,21 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("precio_Promo")]
         public float Precio_Promo { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("utilidad_A")]
+        public float? Utilidad_A { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("utilidad_B")]
+        public float? Utilidad_B { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("utilidad_C")]
+        public float? Utilidad_C { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("utilidad_D")]
+        public float? Utilidad_D { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("utilidad_Promo")]
+        public float? Utilidad_Promo { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("promo_Activa")]
         public bool Promo_Activa { get; set; } = default!;
@@ -9743,6 +9817,10 @@ namespace SuvesaPosSitioAplicacion.DTOs.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("monto")]
         public float Monto { get; set; } = default!;
+
+        // Agregado a mano hasta regenerar los contratos (./tools/actualizar-contratos.sh) contra el API nuevo.
+        [System.Text.Json.Serialization.JsonPropertyName("codMoneda")]
+        public int CodMoneda { get; set; } = 1;
 
         [System.Text.Json.Serialization.JsonPropertyName("observaciones")]
         public string? Observaciones { get; set; } = default!;

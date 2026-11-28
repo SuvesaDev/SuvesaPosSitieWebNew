@@ -7,5 +7,5 @@ namespace SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 public interface IDepositosConsulta
 {
     Task<ResponseGeneric<ICollection<DepositosBuscarDTO>>> Buscar(
-        string? numero, DateTime? desde, DateTime? hasta);
+        string? numero, DateTime? desde, DateTime? hasta, string? claveInterna = null);
 }

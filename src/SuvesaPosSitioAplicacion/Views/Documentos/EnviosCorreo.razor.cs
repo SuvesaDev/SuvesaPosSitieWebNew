@@ -1,5 +1,8 @@
 using Havit.Blazor.Components.Web.Bootstrap;
+using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface;
 using SuvesaPosSitioAplicacion.DTOs.Correo;
+using SuvesaPosSitioAplicacion.DTOs.Generated;
+using SuvesaPosSitioAplicacion.Views.Shared.Componentes;
 
 namespace SuvesaPosSitioAplicacion.Views.Documentos;
 
@@ -17,10 +20,15 @@ public partial class EnviosCorreo
     private DateTime? _desde, _hasta;
     private string? _texto;
     private int _paginaNum = 1;
+    private bool _mostrarTablaLegada => false;
 
     private bool HayMas => _paginaNum * Tamano < _pagina.Total;
 
-    protected override Task OnInitializedAsync() => Cargar();
+    protected override async Task OnInitializedAsync() => await Cargar();
+
+    /// <summary>El cliente del comprobante, tal como lo resuelve el API. Antes se deducía del correo, y varios clientes pueden compartir uno (p. ej. un correo comodín).</summary>
+    private static string NombreReceptor(EnvioCorreoDTO e)
+        => !string.IsNullOrWhiteSpace(e.NombreReceptor) ? e.NombreReceptor! : string.IsNullOrWhiteSpace(e.Destinatarios) ? "Sin destinatario" : e.Destinatarios!;
 
     private async Task Buscar()
     {
@@ -49,17 +57,44 @@ public partial class EnviosCorreo
         await _detalle.ShowAsync();
     }
 
+    private AppModal _modalReenvio = default!;
+    private EnvioCorreoDTO? _reenvio;
+    private string? _correoNuevo;
+    private bool _reenviando;
+
+    /// <summary>Abre el modal de reenvío: al mismo correo o a uno nuevo solo para este envío (la ficha del cliente no cambia).</summary>
     private async Task Reenviar(EnvioCorreoDTO e)
     {
-        if (!await Dialogos.ConfirmarAsync($"¿Reencolar el envío del comprobante {e.Clave}?", "Reenviar")) return;
-        if (await Respuestas.CorrectaAsync(await Api.Reenviar(e.Clave), "reencolar el envío"))
-        {
-            Dialogos.Exito("Envío reencolado.");
-            await Cargar();
-        }
+        _reenvio = e;
+        _correoNuevo = e.Destinatarios;
+        await _modalReenvio.MostrarAsync();
     }
 
-    private static bool Reenviable(string estado) => estado is "Fallido" or "OmitidoSinDestinatario" or "OmitidoRechazado";
+    private bool CorreoCambiado
+        => !string.IsNullOrWhiteSpace(_correoNuevo)
+           && !string.Equals(_correoNuevo.Trim(), _reenvio?.Destinatarios?.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private Task ReenviarAlMismo() => EjecutarReenvio(null);
+
+    private Task ReenviarANuevo() => EjecutarReenvio(_correoNuevo);
+
+    private async Task EjecutarReenvio(string? destinatarios)
+    {
+        if (_reenvio is null || _reenviando) return;
+        _reenviando = true;
+        try
+        {
+            if (await Respuestas.CorrectaAsync(await Api.Reenviar(_reenvio.Clave, destinatarios), "reencolar el envío"))
+            {
+                await _modalReenvio.OcultarAsync();
+                Dialogos.Exito(destinatarios is null ? "Envío reencolado." : "Envío reencolado al correo indicado.");
+                await Cargar();
+            }
+        }
+        finally { _reenviando = false; }
+    }
+
+    private static bool Reenviable(string estado) => estado is "Enviado" or "Fallido" or "OmitidoSinDestinatario" or "OmitidoRechazado";
 
     private static string Color(string estado) => estado switch
     {

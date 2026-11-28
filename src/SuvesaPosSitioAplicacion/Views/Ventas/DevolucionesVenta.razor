@@ -36,6 +36,20 @@
         <button class="btn btn-sm btn-outline-secondary" @onclick="Limpiar">Nueva devolución</button>
     </Acciones>
     <ChildContent>
+        @if (_ultimaNotaInterna > 0 && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
+        {
+            <div class="alert alert-success d-flex flex-wrap align-items-center gap-2 py-2">
+                <span>Devolución interna #@_ultimaNotaInterna registrada.</span>
+                <BotonImprimir Tipo="devolucion-interna" Id="_ultimaNotaInterna" Texto="Imprimir" Clase="btn-sm btn-outline-success" />
+            </div>
+        }
+        @if (_ultimaNota > 0 && Sesion.Puede(Titulo, AccionPantalla.Imprimir))
+        {
+            <div class="alert alert-success d-flex flex-wrap align-items-center gap-2 py-2">
+                <span>Nota de crédito #@_ultimaNota registrada.</span>
+                <BotonImprimir Tipo="nota-credito" Id="_ultimaNota" Texto="Imprimir nota" Clase="btn-sm btn-outline-success" />
+            </div>
+        }
         <AppDesbloqueoClave @ref="_bloqueo" Titulo="las devoluciones" AlCambiar="AlDesbloquear" />
         <fieldset disabled="@(!_desbloqueada)" class="border-0 p-0 m-0">
         <div class="row g-3">
@@ -88,9 +102,9 @@
                                     @if (_lotesVendidos.Count > 0)
                                     {
                                         <div class="col-12 col-md-3">
-                                            <label class="form-label">Lote vendido</label>
+                                            <label class="form-label">Lote vendido <span class="text-danger" aria-hidden="true">*</span></label>
                                             <select class="form-select" @bind="_idLoteSeleccionado">
-                                                @if (_lotesVendidos.Count > 1) { <option value="0">Seleccione...</option> }
+                                                <option value="0">Seleccione el lote...</option>
                                                 @foreach (var lote in _lotesVendidos)
                                                 {
                                                     var pendiente = Math.Max(0, lote.Cantidad - lote.CantidadDevuelta);
@@ -102,7 +116,7 @@
                                     <div class="col-6 col-md-2">
                                         <label class="form-label">Cantidad a devolver</label>
                                         <input type="number" min="0" max="@MaximoDevolucionSeleccionada" step="0.001" class="form-control" disabled="@(_lineaSeleccionada.IdGrupoBonificacion is not null)" @bind="_cantidadDevolver" @onkeydown="AgregarConEnter" />
-                                        @if (_lineaSeleccionada.IdGrupoBonificacion is not null) { <small class="text-secondary">El grupo de bonificación se devuelve completo.</small> }
+                                        @if (_lineaSeleccionada.IdGrupoBonificacion is int grupoSel) { <small class="text-secondary">Se devuelve el grupo de bonificación completo (@LineasDelGrupo(grupoSel) líneas) con los lotes con que se vendió.</small> }
                                     </div>
                                     <div class="col-6 col-md-2 d-grid"><button type="button" class="btn btn-outline-primary" @onclick="Agregar">Agregar</button></div>
                                     <div class="col-6 col-md-2 d-grid"><button type="button" class="btn btn-outline-secondary" @onclick="AgregarTodos">Agregar todos</button></div>
@@ -136,6 +150,19 @@
                     </select>
                 </div>
                 <div class="col-12 col-md-8"><label class="form-label">Notas</label><input class="form-control" @bind="_notas" /></div>
+                @if (PuedeDejarSaldoAFavor)
+                {
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input id="dev-saldo-favor" class="form-check-input" type="checkbox" @bind="_dejarSaldoAFavor" />
+                            <label class="form-check-label" for="dev-saldo-favor">Cambio de producto: dejar el total como saldo a favor del cliente</label>
+                        </div>
+                        <div class="form-text">
+                            @(_dejarSaldoAFavor
+                                ? "No sale dinero de caja: el monto queda como saldo a favor y se usa como forma de pago en la factura nueva. Requiere un cliente identificado."
+                                : "Sin marcar, lo pagado en efectivo se reintegra de caja y lo pagado con otro medio queda como saldo a favor.")</div>
+                    </div>
+                }
             </div>
         </div>
 
@@ -172,12 +199,13 @@
             <div class="col-12 col-md-2 d-grid"><button type="button" class="btn btn-primary" @onclick="BuscarDevolucionesAnteriores">Buscar</button></div>
         </div>
         @if (_devolucionesEncontradas.Count == 0) { <p class="text-secondary text-center py-3 mb-0">Sin resultados todavía.</p> }
-        else { <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Número</th><th>Fecha</th><th class="text-end">Monto</th></tr></thead><tbody>@foreach (var d in _devolucionesEncontradas) { <tr><td>@d.Devolucion</td><td>@d.Fecha</td><td class="text-end">@Formato.Importe(d.Monto)</td></tr> }</tbody></table></div> }
+        else { <div class="table-responsive"><table class="table table-sm"><thead><tr><th>Número</th><th>Fecha</th><th class="text-end">Monto</th><th></th></tr></thead><tbody>@foreach (var d in _devolucionesEncontradas) { <tr><td>@d.Devolucion</td><td>@d.Fecha</td><td class="text-end">@Formato.Importe(d.Monto)</td><td class="text-end">@if (d.Devolucion is > 0 && Sesion.Puede(Titulo, AccionPantalla.Imprimir)) { <BotonImprimir Tipo="nota-credito" Id="d.Devolucion.Value" Texto="PDF" Clase="btn-sm btn-outline-secondary" /> }@if (d.Devolucion is > 0 && Sesion.Puede(Titulo, AccionPantalla.Borrar)) { <button type="button" class="btn btn-sm btn-outline-danger ms-1" @onclick="() => AnularDevolucion(d.Devolucion.Value)">Anular</button> }</td></tr> }</tbody></table></div> }
     </BodyTemplate>
 </HxModal>
 
 @code {
     private const string Titulo = "Devoluciones";
+    private long _ultimaNota, _ultimaNotaInterna;
 
     private sealed class LineaDevolucion
     {
@@ -227,6 +255,9 @@
 
     private int _idPersonalRecibe;
     private string _notas = string.Empty;
+    /// <summary>Cambio de producto: la devolución de una factura de contado queda como saldo a favor en vez de reintegrarse.</summary>
+    private bool _dejarSaldoAFavor;
+    private bool PuedeDejarSaldoAFavor => _factura is not null && _factura.IdPlazo is not > 0 && !_factura.EsCredito;
     private bool _guardando;
 
     private int _filtroTipo;
@@ -270,7 +301,7 @@
         {
             _prefillPendiente = false;
             var factura = await Respuestas.DatoAsync(await Api.BuscarFacturaPorId(_prefillVentaId), "buscar la factura");
-            CargarFactura(factura);
+            await CargarFactura(factura);
         }
         else if (_prefillPendiente && !string.IsNullOrWhiteSpace(_numeroFactura))
         {
@@ -308,7 +339,7 @@
         {
             var factura = await Respuestas.DatoAsync(
                 await Api.BuscarFacturaPorId((int)lista[0].Id), "buscar la factura");
-            CargarFactura(factura);
+            await CargarFactura(factura);
             return;
         }
 
@@ -334,10 +365,10 @@
     {
         await _modalBuscarFactura.HideAsync();
         var factura = await Respuestas.DatoAsync(await Api.BuscarFacturaPorId((int)encontrada.Id), "buscar la factura");
-        CargarFactura(factura);
+        await CargarFactura(factura);
     }
 
-    private void CargarFactura(FacturaDTO? factura)
+    private async Task CargarFactura(FacturaDTO? factura)
     {
         if (factura is null) return;
         _factura = factura;
@@ -345,6 +376,10 @@
         _lineaSeleccionada = null;
         _lineas.Clear();
         RecalcularTotales();
+
+        // Una factura devuelta por completo ya no admite otra nota de crédito: se avisa al elegirla, no al armar la devolución.
+        if (factura.Detalle is { Count: > 0 } det && det.All(l => RestanteLinea(l) <= 0.001m))
+            await Dialogos.ErrorAsync($"La factura {factura.Consecutivo ?? factura.Id.ToString()} ya fue devuelta por completo con notas de crédito; no queda nada por devolver.");
     }
 
     private sealed record LoteVendido(long Id, string Numero, decimal Cantidad, decimal CantidadDevuelta);
@@ -356,6 +391,8 @@
         _lotesVendidos = new();
         _cantidadDevolver = 1;
         if (_lineaSeleccionada is null) return;
+        // Un grupo de bonificación se devuelve completo y con los lotes con que se vendió: no hay lote que elegir.
+        if (_lineaSeleccionada.IdGrupoBonificacion is not null) return;
 
         var consumos = _lineaSeleccionada.Lotes?.Where(l => l.IdStockLote > 0).ToList() ?? new List<LoteConsumoVenta>();
         if (consumos.Count == 0 && _lineaSeleccionada.Lote > 0)
@@ -374,7 +411,7 @@
                 (decimal)g.Sum(x => x.Cantidad),
                 (decimal)g.Sum(x => x.CantidadDevuelta)))
             .ToList();
-        if (_lotesVendidos.Count == 1) _idLoteSeleccionado = _lotesVendidos[0].Id;
+        // El lote se confirma siempre, aunque la venta tuviera uno solo: la devolución vuelve a ese lote.
     }
 
     // Lo que aún se puede devolver de una línea de la factura: lo vendido menos lo
@@ -418,7 +455,16 @@
             await Dialogos.ErrorAsync("Seleccione el lote que el cliente está devolviendo.");
             return;
         }
-        if (_cantidadDevolver <= 0 || _cantidadDevolver > MaximoDevolucionSeleccionada)
+        if (_lineaSeleccionada.IdGrupoBonificacion is int grupoAgregar)
+        {
+            // La cantidad del grupo no se edita: solo se verifica que no se haya devuelto ya.
+            if (_factura?.Detalle is { } det && det.Where(d => d.IdGrupoBonificacion == grupoAgregar).Any(d => RestanteLinea(d) <= 0))
+            {
+                await Dialogos.ErrorAsync("Este grupo de bonificación ya fue devuelto (contando devoluciones anteriores).");
+                return;
+            }
+        }
+        else if (_cantidadDevolver <= 0 || _cantidadDevolver > MaximoDevolucionSeleccionada)
         {
             await Dialogos.ErrorAsync(MaximoDevolucionSeleccionada <= 0
                 ? "Este artículo ya fue devuelto por completo (contando devoluciones anteriores)."
@@ -500,16 +546,45 @@
         RecalcularTotales();
     }
 
-    // Devuelve una línea de bonificación con los valores exactos de la factura
-    // (la de regalo va a precio 0 con su impuesto real, tal como se emitió).
+    private int LineasDelGrupo(int grupo) => _factura?.Detalle?.Count(d => d.IdGrupoBonificacion == grupo) ?? 0;
+
+    // Lotes con que se vendió la línea: el reparto (Lotes) o, si fue uno solo, el campo Lote.
+    private static List<(long IdLote, decimal Cantidad)> LotesDeLaLinea(FacturaDetallesDTO linea)
+    {
+        var lotes = linea.Lotes?.Where(l => l.IdStockLote > 0).Select(l => (l.IdStockLote, (decimal)l.Cantidad)).ToList()
+                    ?? new List<(long, decimal)>();
+        if (lotes.Count == 0 && linea.Lote > 0) lotes.Add((linea.Lote, Formato.AImporte(linea.Cantidad)));
+        return lotes;
+    }
+
+    // Devuelve una línea de bonificación con los valores exactos de la factura (la de regalo va a precio 0 con su
+    // impuesto real, tal como se emitió), una por cada lote con que se vendió.
     private void AgregarLineaBonificacion(FacturaDetallesDTO linea)
+    {
+        var total = Formato.AImporte(linea.Cantidad);
+        var calculoLinea = new CalculoDocumento.LineaCalculada(
+            SubTotal: Formato.AImporte(linea.SubTotal),
+            MontoDescuento: Formato.AImporte(linea.MontoDescuento),
+            MontoImpuesto: Formato.AImporte(linea.MontoImpuesto),
+            SubtotalGravado: Formato.AImporte(linea.SubtotalGravado),
+            Total: linea.EsBonificacion
+                ? 0m
+                : Formato.AImporte(linea.SubTotal) + Formato.AImporte(linea.MontoImpuesto));
+
+        // Cada lote con que se vendió es una línea de devolución (la devolución interna exige el lote de cada línea).
+        foreach (var parte in RepartoLotesDevolucion.Partir(total, calculoLinea, LotesDeLaLinea(linea)))
+            _lineas.Add(NuevaLineaBonificacion(linea, parte.Cantidad, parte.IdStockLote, parte.Calculo));
+    }
+
+    private static LineaDevolucion NuevaLineaBonificacion(FacturaDetallesDTO linea, decimal cantidad, long? idStockLote, CalculoDocumento.LineaCalculada calculo)
     {
         var nueva = new LineaDevolucion
         {
             IdVentaDetalle = linea.IdVentaDetalle ?? 0,
             Codigo = linea.CodFxArticulo,
             Descripcion = linea.Descripcion ?? string.Empty,
-            Cantidad = Formato.AImporte(linea.Cantidad),
+            Cantidad = cantidad,
+            IdStockLote = idStockLote,
             CantVet = Formato.AImporte(linea.CantVen),
             CantBod = Formato.AImporte(linea.CantBod),
             PrecioUnit = Formato.AImporte(linea.PrecioUnit),
@@ -520,21 +595,12 @@
             IdGrupoBonificacion = linea.IdGrupoBonificacion,
             IdConfiguracionBonificacion = linea.IdConfiguracionBonificacion,
             EsLineaPrincipal = linea.EsLineaPrincipalBonificacion == true,
-            // Se conservan SubTotal / MontoImpuesto reales (el mapeador V4.4 necesita el
-            // impuesto bruto de la línea de REGALO para absorberlo como código "03" /
-            // ImpuestoAsumidoEmisorFábrica). Pero su MontoTotalLinea fiscal es 0, así que
-            // el Total que suma _totales.Total (y llega como Monto) debe ser 0 también,
-            // o falla "los totales de la devolución no coinciden con sus líneas".
-            Calculo = new CalculoDocumento.LineaCalculada(
-                SubTotal: Formato.AImporte(linea.SubTotal),
-                MontoDescuento: Formato.AImporte(linea.MontoDescuento),
-                MontoImpuesto: Formato.AImporte(linea.MontoImpuesto),
-                SubtotalGravado: Formato.AImporte(linea.SubtotalGravado),
-                Total: linea.EsBonificacion
-                    ? 0m
-                    : Formato.AImporte(linea.SubTotal) + Formato.AImporte(linea.MontoImpuesto))
+            // Se conservan SubTotal / MontoImpuesto reales (el mapeador V4.4 necesita el impuesto bruto de la línea de
+            // REGALO para absorberlo como código "03"), pero su MontoTotalLinea fiscal es 0: el Total de la línea
+            // (calculado arriba) ya es 0 para el regalo, o falla "los totales de la devolución no coinciden".
+            Calculo = calculo
         };
-        _lineas.Add(nueva);
+        return nueva;
     }
 
     private void QuitarLinea(LineaDevolucion linea)
@@ -545,6 +611,7 @@
             _lineas.Remove(linea);
         RecalcularTotales();
     }
+
     private void RecalcularTotales()
     {
         _totales = CalculoDocumento.Totales(_lineas.Select(l => l.Calculo));
@@ -561,6 +628,18 @@
             FechaHasta = string.Empty
         };
         _devolucionesEncontradas = (await Respuestas.DatoAsync(await Api.Buscar(filtro), "buscar devoluciones"))?.ToList() ?? new();
+    }
+
+    private async Task AnularDevolucion(long id)
+    {
+        if (!await Dialogos.ConfirmarAsync(
+            "Se revierte el inventario y el dinero de esta devolución. Si la nota de crédito ya fue aceptada por Hacienda, se envía una nota de débito que la respalda.",
+            "Anular devolución"))
+            return;
+        var anulada = await Respuestas.DatoAsync(await Api.Anular(id), "anular la devolución");
+        if (anulada is null) return;
+        Dialogos.Exito("Devolución anulada.");
+        await BuscarDevolucionesAnteriores();
     }
 
     private async Task Registrar()
@@ -590,6 +669,7 @@
                 // Una devolución comercial, incluso si es completa, conserva la venta
                 // origen para su trazabilidad e impresión histórica.
                 AnularOrigen = false,
+                DejarComoSaldoAFavor = _dejarSaldoAFavor && PuedeDejarSaldoAFavor,
                 Lineas = _lineas.Select(l => new DTOs.Cobros.DevolucionInternaLineaWebDTO
                 {
                     IdVentaDetalle = l.IdVentaDetalle,
@@ -601,6 +681,7 @@
             var resultadoInterno = await Respuestas.DatoAsync(interna, "registrar la devolución interna");
             if (resultadoInterno is not null)
             {
+                _ultimaNotaInterna = resultadoInterno.IdDevolucionInterna;
                 Dialogos.Exito($"Nota de crédito interna #{resultadoInterno.IdDevolucionInterna} registrada.");
                 Limpiar();
             }
@@ -626,6 +707,7 @@
             NumApertura = 0,
             UsuarioRecibio = _personal.FirstOrDefault(p => p.IdPersonal == _idPersonalRecibe)?.NombrePersonal,
             NotasDevolucion = _notas,
+            DejarComoSaldoAFavor = _dejarSaldoAFavor && PuedeDejarSaldoAFavor,
             IdSucursal = Sesion.IdSucursal,
             Detalle = _lineas.Select(l => new DevolucionVentaDetalleDTO
             {
@@ -658,8 +740,10 @@
 
         var r = await Api.Crear(dto);
         _guardando = false;
-        if (await Respuestas.CorrectaAsync(r, "registrar la devolución"))
+        var creada = await Respuestas.DatoAsync(r, "registrar la devolución");
+        if (creada is not null)
         {
+            _ultimaNota = creada.Devolucion ?? 0;
             Dialogos.Exito("Devolución registrada correctamente.");
             Limpiar();
         }
@@ -676,6 +760,7 @@
         _lineas.Clear();
         _idPersonalRecibe = 0;
         _notas = string.Empty;
+        _dejarSaldoAFavor = false;
         RecalcularTotales();
     }
 }

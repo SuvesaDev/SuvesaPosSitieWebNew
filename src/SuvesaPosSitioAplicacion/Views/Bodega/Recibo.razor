@@ -1,0 +1,288 @@
+@page "/bodega/recibo"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@using SuvesaPosSitioAplicacion.ApiConexion
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Bodega
+@using SuvesaPosSitioAplicacion.DTOs.Generated
+@using SuvesaPosSitioAplicacion.Services
+@inject IReciboApiCliente Api
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+
+<AppPantalla Pantalla="Recibo de mercadería" Codigo="BODEGA.RECIBO_DE_MERCADERIA" Icono="bi-box-arrow-in-down"
+             Subtitulo="La mercadería devuelta entra al inventario cuando bodega confirma lo que recibió." Nivel="NivelPantalla.Tableta">
+ <Acciones>
+  <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar">Actualizar</button>
+ </Acciones>
+ <ChildContent>
+  @if (!string.IsNullOrWhiteSpace(_error)) { <div class="alert alert-danger">@_error</div> }
+
+  @if (_orden is null)
+  {
+   <div class="card mb-3"><div class="card-body row g-2 align-items-end">
+     <div class="col-md-5"><label class="form-label" for="recibo-buscar">Buscar</label>
+       <input id="recibo-buscar" class="form-control" @bind="_texto" @bind:event="onchange" placeholder="Cliente o factura" /></div>
+     <div class="col-md-3"><label class="form-label" for="recibo-estado">Estado</label>
+       <select id="recibo-estado" class="form-select" @bind="_estado">
+         <option value="0">Pendientes de recibo</option>
+         <option value="2">Recibidas</option>
+         <option value="3">Anuladas</option>
+       </select></div>
+     <div class="col-md-2 d-grid"><button class="btn btn-primary" @onclick="Cargar">Filtrar</button></div>
+   </div></div>
+
+   <div class="card"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+     <thead><tr><th>Fecha</th><th>Factura</th><th>Cliente</th><th>Origen</th><th>Estado</th><th class="text-end">Devuelto</th><th class="text-end">Recibido</th><th></th></tr></thead>
+     <tbody>
+       @foreach (var o in _cola)
+       {
+         <tr>
+           <td>@o.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+           <td><code>@o.NumeroDocumento</code></td>
+           <td>@o.NombreCliente</td>
+           <td>@(o.TipoOrigen == "NotaCredito" ? "Nota de crédito" : "Devolución interna") #@o.IdDevolucion</td>
+           <td><span class="badge @Badge(o.Estado)">@o.EstadoDescripcion</span></td>
+           <td class="text-end">@o.CantidadDevuelta.ToString("N2")</td>
+           <td class="text-end">@(o.Estado == 2 ? o.CantidadRecibida.ToString("N2") : "—")</td>
+           <td class="text-end"><button class="btn btn-sm @(o.Estado == 1 ? "btn-primary" : "btn-outline-secondary")" @onclick="() => Abrir(o.Id)">@(o.Estado == 1 ? "Recibir" : "Ver")</button></td>
+         </tr>
+       }
+       @if (_cola.Count == 0) { <tr><td colspan="8" class="text-secondary">No hay devoluciones en esta lista. Al emitir una devolución de venta con mercadería aparece aquí.</td></tr> }
+     </tbody>
+   </table></div></div>
+  }
+  else
+  {
+   var pendiente = _orden.Estado == 1;
+   <div class="card mb-3"><div class="card-body">
+     <div class="d-flex justify-content-between flex-wrap gap-2">
+       <div>
+         <div class="h5 mb-1">Factura <code>@_orden.NumeroDocumento</code> · @_orden.NombreCliente</div>
+         <div class="text-secondary small">
+           @(_orden.TipoOrigen == "NotaCredito" ? "Nota de crédito" : "Devolución interna") #@_orden.IdDevolucion
+           · @_orden.Fecha.ToString("dd/MM/yyyy HH:mm")
+           @if (!string.IsNullOrWhiteSpace(_orden.UsuarioCreacion)) { <text> · @_orden.UsuarioCreacion</text> }
+         </div>
+         @if (!string.IsNullOrWhiteSpace(_orden.Motivo)) { <div class="small mt-1">Motivo: @_orden.Motivo</div> }
+       </div>
+       <div><span class="badge @Badge(_orden.Estado) fs-6">@_orden.EstadoDescripcion</span></div>
+     </div>
+     @if (_orden.Estado == 3 && !string.IsNullOrWhiteSpace(_orden.MotivoAnulacion)) { <div class="alert alert-light border mt-3 mb-0">Anulada: @_orden.MotivoAnulacion</div> }
+     @if (_orden.Estado == 2) { <div class="small text-secondary mt-2">Recibida @_orden.FechaRecibo?.ToString("dd/MM/yyyy HH:mm") por @_orden.UsuarioRecibo. @_orden.Observaciones</div> }
+   </div></div>
+
+   <div class="card mb-3"><div class="table-responsive"><table class="table table-sm align-middle mb-0">
+     <thead><tr><th>Código</th><th>Descripción</th><th style="min-width:15rem">Lote</th><th>Bodega</th><th class="text-end">Devuelto</th><th class="text-end" style="min-width:9rem">Recibido</th></tr></thead>
+     <tbody>
+       @foreach (var l in _orden.Lineas)
+       {
+         <tr>
+           <td><code>@l.CodArticulo</code></td>
+           <td>@l.Descripcion</td>
+           <td>
+             @if (pendiente && l.ManejaLote)
+             {
+               var e = EstadoLote(l);
+               <select class="form-select form-select-sm" aria-label="Lote en que se recibe @l.Descripcion" @bind="e.Seleccion">
+                 <option value="0">Seleccione el lote...</option>
+                 @foreach (var o in l.LotesDisponibles)
+                 {
+                   <option value="@o.Id">@o.Numero@(o.FechaVencimiento is { } fv ? $" · vence {fv:dd/MM/yyyy}" : "")@(o.Id == l.IdStockLote ? " (devuelto)" : "")</option>
+                 }
+                 <option value="-1">➕ Lote nuevo...</option>
+               </select>
+               @if (e.Seleccion == -1)
+               {
+                 <div class="d-flex gap-1 mt-1">
+                   <input class="form-control form-control-sm" maxlength="50" placeholder="N.º de lote" aria-label="Número del lote nuevo" @bind="e.NuevoNumero" @bind:event="onchange" />
+                   <input type="date" class="form-control form-control-sm" aria-label="Vencimiento del lote nuevo" value="@(e.NuevoVence?.ToString("yyyy-MM-dd"))" @onchange="ev => e.NuevoVence = DateTime.TryParse(ev.Value?.ToString(), out var d) ? d : null" />
+                 </div>
+                 <div class="form-text">El lote nuevo necesita fecha de vencimiento (puede ser una ya pasada).</div>
+               }
+               @if (CambiaLote(l, e))
+               {
+                 <input class="form-control form-control-sm mt-1" maxlength="250" placeholder="Motivo del cambio de lote *" aria-label="Motivo del cambio de lote" @bind="e.Motivo" @bind:event="onchange" />
+               }
+             }
+             else if (!pendiente && l.ManejaLote && !string.IsNullOrWhiteSpace(l.NumeroLoteRecibido))
+             {
+               <span>@l.NumeroLoteRecibido</span>
+               @if (l.IdStockLoteRecibido != l.IdStockLote && l.IdStockLote is > 0)
+               {
+                 <div class="small text-secondary">Devuelto: @l.NumeroLote@(string.IsNullOrWhiteSpace(l.MotivoCambioLote) ? "" : $" · Motivo: {l.MotivoCambioLote}")</div>
+               }
+             }
+             else { @(string.IsNullOrWhiteSpace(l.NumeroLote) ? "—" : l.NumeroLote) }
+           </td>
+           <td>@l.NombreBodega</td>
+           <td class="text-end">@l.CantidadDevuelta.ToString("N2")</td>
+           <td class="text-end">
+             @if (pendiente)
+             {
+               <input type="number" min="0" max="@l.CantidadDevuelta" step="0.001" class="form-control form-control-sm text-end"
+                      aria-label="Cantidad recibida de @l.Descripcion"
+                      value="@CantidadDe(l).ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                      @onchange="e => FijarCantidad(l, e.Value?.ToString())" />
+             }
+             else { @l.CantidadRecibida.ToString("N2") }
+           </td>
+         </tr>
+       }
+     </tbody>
+   </table></div></div>
+
+   @if (pendiente)
+   {
+     <div class="card mb-3"><div class="card-body row g-2 align-items-end">
+       <div class="col-md-6"><label class="form-label" for="recibo-obs">Observaciones</label>
+         <input id="recibo-obs" class="form-control" maxlength="250" @bind="_observaciones" @bind:event="onchange" placeholder="Estado de la mercadería, diferencias..." /></div>
+       <div class="col-md-6"><label class="form-label" for="recibo-motivo">Motivo (solo para anular la orden)</label>
+         <input id="recibo-motivo" class="form-control" maxlength="250" @bind="_motivoAnulacion" @bind:event="onchange" /></div>
+     </div></div>
+     @if (HayFaltante) { <div class="alert alert-warning">Se está recibiendo menos de lo devuelto: la diferencia queda registrada como faltante y no sube al inventario.</div> }
+   }
+
+   <div class="d-flex gap-2">
+     <button class="btn btn-outline-secondary" @onclick="Volver" disabled="@_guardando">Volver</button>
+     @if (pendiente && Sesion.Puede(Titulo, AccionPantalla.Editar))
+     {
+       <button class="btn btn-primary" @onclick="Confirmar" disabled="@_guardando">@(_guardando ? "Guardando..." : "Confirmar recibo")</button>
+     }
+     @if (pendiente && Sesion.Puede(Titulo, AccionPantalla.Borrar))
+     {
+       <button class="btn btn-outline-danger" @onclick="Anular" disabled="@_guardando">Anular orden</button>
+     }
+   </div>
+  }
+ </ChildContent>
+</AppPantalla>
+
+@code {
+ private const string Titulo = "Recibo de mercadería";
+
+ private List<ReciboResumen> _cola = new();
+ private ReciboOrden? _orden;
+ private readonly Dictionary<long, decimal> _recibidas = new();
+ private string _error = "", _texto = "", _observaciones = "", _motivoAnulacion = "";
+ private int _estado;
+ private bool _guardando;
+
+ /// <summary>Elección de lote por línea: 0 sin elegir, -1 lote nuevo, otro valor = id de un lote existente.</summary>
+ private sealed class SeleccionLote { public long Seleccion { get; set; } public string? NuevoNumero { get; set; } public DateTime? NuevoVence { get; set; } public string? Motivo { get; set; } }
+ private readonly Dictionary<long, SeleccionLote> _lotes = new();
+
+ private SeleccionLote EstadoLote(ReciboLinea l)
+ {
+     if (!_lotes.TryGetValue(l.Id, out var e))
+         _lotes[l.Id] = e = new SeleccionLote { Seleccion = l.IdStockLote is > 0 && l.LotesDisponibles.Any(o => o.Id == l.IdStockLote) ? l.IdStockLote.Value : 0 };
+     return e;
+ }
+
+ /// <summary>El lote elegido es distinto al devuelto (o es uno nuevo): hay que dar el motivo.</summary>
+ private static bool CambiaLote(ReciboLinea l, SeleccionLote e) => l.IdStockLote is > 0 && e.Seleccion != 0 && e.Seleccion != l.IdStockLote;
+
+ /// <summary>Primer problema con los lotes de las líneas que se reciben, o null.</summary>
+ private string? ErrorDeLotes()
+ {
+     if (_orden is null) return null;
+     foreach (var l in _orden.Lineas.Where(x => x.ManejaLote && CantidadDe(x) > 0))
+     {
+         var e = EstadoLote(l);
+         if (e.Seleccion == 0) return $"Indique el lote en el que recibe «{l.Descripcion}».";
+         if (e.Seleccion == -1)
+         {
+             if (string.IsNullOrWhiteSpace(e.NuevoNumero)) return $"Escriba el número del lote nuevo de «{l.Descripcion}».";
+             if (e.NuevoVence is null) return $"El lote nuevo «{e.NuevoNumero.Trim()}» necesita fecha de vencimiento.";
+         }
+         if (CambiaLote(l, e) && (e.Motivo ?? "").Trim().Length < 5) return $"«{l.Descripcion}» se recibe en un lote distinto al devuelto: escriba el motivo del cambio (mínimo 5 caracteres).";
+     }
+     return null;
+ }
+
+ private ReciboLineaRecibida ALineaRecibida(ReciboLinea l)
+ {
+     var r = new ReciboLineaRecibida { IdLinea = l.Id, CantidadRecibida = CantidadDe(l) };
+     if (!l.ManejaLote || r.CantidadRecibida <= 0) return r;
+     var e = EstadoLote(l);
+     if (e.Seleccion == -1) { r.NuevoLoteNumero = e.NuevoNumero?.Trim(); r.NuevoLoteVencimiento = e.NuevoVence; }
+     else if (e.Seleccion > 0) r.IdStockLoteRecibido = e.Seleccion;
+     if (CambiaLote(l, e)) r.MotivoCambioLote = e.Motivo?.Trim();
+     return r;
+ }
+
+ private bool HayFaltante => _orden is not null && _orden.Lineas.Any(l => CantidadDe(l) < l.CantidadDevuelta);
+
+ protected override async Task OnInitializedAsync() => await Cargar();
+
+ private decimal CantidadDe(ReciboLinea l) => _recibidas.TryGetValue(l.Id, out var c) ? c : l.CantidadDevuelta;
+
+ private void FijarCantidad(ReciboLinea l, string? valor)
+ {
+     if (!decimal.TryParse(valor, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var c)
+         && !decimal.TryParse(valor, out c)) return;
+     _recibidas[l.Id] = Math.Clamp(c, 0m, l.CantidadDevuelta);
+ }
+
+ private async Task Cargar()
+ {
+     _error = "";
+     var r = await Api.ColaAsync(new ReciboFiltro { Estado = _estado == 0 ? null : _estado, Texto = string.IsNullOrWhiteSpace(_texto) ? null : _texto.Trim() });
+     if (r.Status != ResponseStatus._0) { _error = r.CurrentException ?? "No se pudo cargar la cola de recibo."; return; }
+     _cola = r.Responses ?? new();
+ }
+
+ private async Task Abrir(long id)
+ {
+     var r = await Api.OrdenAsync(id);
+     if (r.Status != ResponseStatus._0 || r.Responses is null) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo abrir la orden."); return; }
+     _orden = r.Responses;
+     _recibidas.Clear();
+     _lotes.Clear();
+     _observaciones = _motivoAnulacion = "";
+ }
+
+ private async Task Volver()
+ {
+     _orden = null;
+     await Cargar();
+ }
+
+ private async Task Confirmar()
+ {
+     if (_orden is null) return;
+     if (ErrorDeLotes() is { } errorLote) { await Dialogos.ErrorAsync(errorLote); return; }
+     var mensaje = HayFaltante
+         ? "Se recibe menos de lo devuelto. ¿Confirmar el recibo y subir al inventario solo lo recibido?"
+         : "¿Confirmar el recibo y subir la mercadería al inventario?";
+     if (!await Dialogos.ConfirmarAsync(mensaje, "Recibo de mercadería")) return;
+     _guardando = true;
+     var r = await Api.RecibirAsync(_orden.Id,
+         _orden.Lineas.Select(ALineaRecibida).ToList(),
+         string.IsNullOrWhiteSpace(_observaciones) ? null : _observaciones.Trim());
+     _guardando = false;
+     if (r.Status != ResponseStatus._0 || r.Responses is null) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo registrar el recibo."); return; }
+     Dialogos.Exito("Mercadería recibida: el inventario fue actualizado.");
+     await Volver();
+ }
+
+ private async Task Anular()
+ {
+     if (_orden is null) return;
+     if (string.IsNullOrWhiteSpace(_motivoAnulacion)) { await Dialogos.ErrorAsync("Indique el motivo de la anulación."); return; }
+     if (!await Dialogos.ConfirmarPeligroAsync("¿Anular esta orden de recibo? La mercadería no se ingresará al inventario.")) return;
+     _guardando = true;
+     var r = await Api.AnularAsync(_orden.Id, _motivoAnulacion.Trim());
+     _guardando = false;
+     if (r.Status != ResponseStatus._0) { await Dialogos.ErrorAsync(r.CurrentException ?? "No se pudo anular la orden."); return; }
+     await Volver();
+ }
+
+ private static string Badge(int e) => e switch
+ {
+     1 => "text-bg-warning",
+     2 => "text-bg-success",
+     3 => "text-bg-secondary",
+     _ => "text-bg-light"
+ };
+}

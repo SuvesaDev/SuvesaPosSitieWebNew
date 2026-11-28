@@ -16,6 +16,8 @@
         Hover="true"
         SelectionEnabled="@SeleccionActiva"
         @bind-SelectedDataItem="Seleccionado"
+        CurrentUserState="@EstadoUsuario"
+        CurrentUserStateChanged="AlCambiarEstadoUsuario"
         TableContainerCssClass="seepos-rejilla">
     <Columns>
         @Columnas
@@ -44,6 +46,13 @@
     [Parameter] public TItem? Seleccionado { get; set; }
     [Parameter] public EventCallback<TItem> SeleccionadoChanged { get; set; }
 
+    /// <summary>
+    /// Página y ordenamiento controlados por la pantalla. Permite restaurar una
+    /// rejilla al volver a su pestaña sin imponer estado global a las demás.
+    /// </summary>
+    [Parameter] public GridUserState EstadoUsuario { get; set; } = new(0, []);
+    [Parameter] public EventCallback<GridUserState> EstadoUsuarioChanged { get; set; }
+
     private HxGrid<TItem>? _rejilla;
 
     /// <summary>
@@ -56,6 +65,15 @@
         {
             await _rejilla.RefreshDataAsync();
         }
+    }
+
+    private async Task AlCambiarEstadoUsuario(GridUserState estado)
+    {
+        // HxGrid requiere un CurrentUserState no nulo. AppRejilla siempre inicia
+        // uno válido y entrega el cambio al padre cuando la pantalla desea
+        // persistirlo (p. ej. Reportes).
+        EstadoUsuario = estado;
+        await EstadoUsuarioChanged.InvokeAsync(estado);
     }
 
     private int TamanoPagina => Nivel switch

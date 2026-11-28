@@ -23,14 +23,19 @@ public sealed class OrdenesCompraFlujo : ProxyBase, IOrdenesCompraFlujo
         => Ejecutar(async () => await LecturaEnvelope.Leer<OrdenCompraFlujoWebDTO>(
             await _api.PostAsJsonAsync("api/ordenes-compra", cmd, LecturaEnvelope.Json)), "crear la orden de compra");
 
+    public Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Editar(long orden, CrearOrdenCompraWebDTO cmd)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<OrdenCompraFlujoWebDTO>(
+            await _api.PutAsJsonAsync($"api/ordenes-compra/{orden}", cmd, LecturaEnvelope.Json)), "corregir la orden de compra");
+
     public Task<ResponseGeneric<IReadOnlyList<OrdenCompraFlujoWebDTO>>> Listar(
-        int? idProveedor = null, int? estado = null, bool incluirAnuladas = false,
+        int? idProveedor = null, int? estado = null, int? tipoOrdenCompra = null, bool incluirAnuladas = false,
         DateTime? desde = null, DateTime? hasta = null, long? consecutivo = null, int limite = 200)
         => Ejecutar(async () =>
         {
             var q = new List<string> { $"incluirAnuladas={incluirAnuladas.ToString().ToLowerInvariant()}", $"limite={limite}" };
             if (idProveedor is { } p) q.Add($"idProveedor={p}");
             if (estado is { } e) q.Add($"estado={e}");
+            if (tipoOrdenCompra is { } t) q.Add($"tipoOrdenCompra={t}");
             if (desde is { } d) q.Add($"desde={d:yyyy-MM-dd}");
             if (hasta is { } h) q.Add($"hasta={h:yyyy-MM-dd}");
             if (consecutivo is { } c) q.Add($"consecutivo={c}");
@@ -41,6 +46,12 @@ public sealed class OrdenesCompraFlujo : ProxyBase, IOrdenesCompraFlujo
     public Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Obtener(long orden)
         => Ejecutar(async () => await LecturaEnvelope.Leer<OrdenCompraFlujoWebDTO>(
             await _api.GetAsync($"api/ordenes-compra/{orden}")), "consultar la orden de compra");
+
+    public Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Recibir(long orden, IReadOnlyList<RecepcionLineaOrdenWebDTO> lineas, bool cerrarDiferencia)
+        => Ejecutar(async () => await LecturaEnvelope.Leer<OrdenCompraFlujoWebDTO>(
+            await _api.PostAsJsonAsync($"api/ordenes-compra/{orden}/recibir",
+                new { CerrarDiferencia = cerrarDiferencia, Lineas = lineas }, LecturaEnvelope.Json)),
+            "registrar la recepción de la orden");
 
     public Task<ResponseGeneric<OrdenCompraFlujoWebDTO>> Entregar(long orden, DateTime? fecha)
         => Ejecutar(async () => await LecturaEnvelope.Leer<OrdenCompraFlujoWebDTO>(

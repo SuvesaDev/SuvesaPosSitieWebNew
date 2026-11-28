@@ -36,6 +36,11 @@
       "codigo": "IMPRIMIR",
       "nombre": "Imprimir",
       "orden": 7
+    },
+    {
+      "codigo": "REEMITIR",
+      "nombre": "Reemitir",
+      "orden": 8
     }
   ],
   "perfiles": [
@@ -45,8 +50,8 @@
       "esSuperAdministracion": true,
       "gestionaUsuarios": true,
       "costaPets": false,
-      "agenteCostaPets": false,
-      "aceptaConsignacion": false
+      "aceptaConsignacion": false,
+      "habilitaImportaciones": true
     },
     {
       "codigo": "ADMIN",
@@ -54,8 +59,8 @@
       "esSuperAdministracion": false,
       "gestionaUsuarios": true,
       "costaPets": false,
-      "agenteCostaPets": false,
-      "aceptaConsignacion": false
+      "aceptaConsignacion": false,
+      "habilitaImportaciones": false
     },
     {
       "codigo": "USUARIO",
@@ -63,15 +68,103 @@
       "esSuperAdministracion": false,
       "gestionaUsuarios": false,
       "costaPets": false,
-      "agenteCostaPets": false,
-      "aceptaConsignacion": false
+      "aceptaConsignacion": false,
+      "habilitaImportaciones": false
     }
   ],
   "modulos": [
     {
+      "codigo": "BODEGA",
+      "nombre": "Bodega",
+      "orden": 1,
+      "icono": "bi-box-seam",
+      "funciones": [
+        {
+          "codigo": "BODEGA.COLA_DE_ALISTAMIENTO",
+          "nombre": "Cola de alistamiento",
+          "ruta": "/bodega/cola",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "BODEGA.RECIBO_DE_MERCADERIA",
+          "nombre": "Recibo de mercadería",
+          "ruta": "/bodega/recibo",
+          "padre": null,
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "BODEGA.EMPAQUE",
+          "nombre": "Empaque",
+          "ruta": "/bodega/empaque",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "BODEGA.DESPACHO",
+          "nombre": "Despacho",
+          "ruta": "/bodega/despacho",
+          "padre": null,
+          "orden": 4,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "BODEGA.RUTAS_DE_ENTREGA",
+          "nombre": "Rutas de entrega",
+          "ruta": "/bodega/rutas",
+          "padre": null,
+          "orden": 5,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        }
+      ]
+    },
+    {
       "codigo": "CAJA",
       "nombre": "Caja",
-      "orden": 1,
+      "orden": 2,
       "icono": "bi-cash-stack",
       "funciones": [
         {
@@ -107,11 +200,27 @@
           ]
         },
         {
+          "codigo": "CAJA.CONSULTA_DE_ARQUEOS",
+          "nombre": "Consulta de Arqueos",
+          "ruta": "/initial/cash/arqueoconsulta",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "CAJA.CONCILIACION_DE_CAJA",
           "nombre": "Conciliación de caja",
           "ruta": "/initial/cash/reconciliation",
           "padre": null,
-          "orden": 3,
+          "orden": 4,
           "acciones": [
             "VER",
             "CREAR",
@@ -127,7 +236,7 @@
           "nombre": "Cobrar",
           "ruta": "/initial/charge",
           "padre": null,
-          "orden": 4,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -143,7 +252,7 @@
           "nombre": "Depósitos",
           "ruta": "/initial/cash/deposits",
           "padre": null,
-          "orden": 5,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",
@@ -205,9 +314,81 @@
       ]
     },
     {
+      "codigo": "COBRANZA",
+      "nombre": "Cobranza",
+      "orden": 3,
+      "icono": "bi-telephone-outbound",
+      "funciones": [
+        {
+          "codigo": "COBRANZA.SEGUIMIENTO",
+          "nombre": "Seguimiento",
+          "ruta": "/collections/follow-up",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "COBRANZA.DASHBOARD",
+          "nombre": "Dashboard",
+          "ruta": "/collections/dashboard",
+          "padre": null,
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "COBRANZA.GERENCIAL",
+          "nombre": "Gerencial",
+          "ruta": "/collections/management",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "COBRANZA.AUTORIZACIONES_DE_CREDITO",
+          "nombre": "Autorizaciones de crédito",
+          "ruta": "/collections/credit-authorizations",
+          "padre": null,
+          "orden": 4,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        }
+      ]
+    },
+    {
       "codigo": "COMPRAS",
       "nombre": "Compras",
-      "orden": 2,
+      "orden": 4,
       "icono": "bi-cart-fill",
       "funciones": [
         {
@@ -243,11 +424,27 @@
           ]
         },
         {
+          "codigo": "COMPRAS.DOCUMENTOS_ACEPTADOS",
+          "nombre": "Documentos aceptados",
+          "ruta": "/buys/received-messages",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "COMPRAS.CUENTAS_POR_PAGAR",
           "nombre": "Cuentas por pagar",
           "ruta": "/buys/countswihoutpay",
           "padre": null,
-          "orden": 3,
+          "orden": 4,
           "acciones": [
             "VER",
             "CREAR",
@@ -263,7 +460,7 @@
           "nombre": "Pedidos",
           "ruta": "/buys/orders/warehouseorders",
           "padre": null,
-          "orden": 4,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -295,7 +492,23 @@
           "nombre": "Toma",
           "ruta": "/buys/physical-count",
           "padre": null,
-          "orden": 5,
+          "orden": 6,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "COMPRAS.TOMA.PRETOMA",
+          "nombre": "Pretoma",
+          "ruta": "/buys/physical-precount",
+          "padre": "COMPRAS.TOMA",
+          "orden": 1,
           "acciones": [
             "VER",
             "CREAR",
@@ -311,7 +524,7 @@
           "nombre": "Toma Física",
           "ruta": "/buys/physical-count",
           "padre": "COMPRAS.TOMA",
-          "orden": 1,
+          "orden": 2,
           "acciones": [
             "VER",
             "CREAR",
@@ -327,7 +540,7 @@
           "nombre": "Traslado entre bodegas",
           "ruta": "/buys/warehouse-transfer",
           "padre": null,
-          "orden": 6,
+          "orden": 7,
           "acciones": [
             "VER",
             "CREAR",
@@ -343,7 +556,23 @@
           "nombre": "Orden de compra manual",
           "ruta": "/buys/purchaseorder",
           "padre": null,
-          "orden": 7,
+          "orden": 8,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "COMPRAS.IMPORTACIONES",
+          "nombre": "Importaciones",
+          "ruta": "/buys/importationsbox",
+          "padre": null,
+          "orden": 9,
           "acciones": [
             "VER",
             "CREAR",
@@ -359,7 +588,7 @@
           "nombre": "Devoluciones compra",
           "ruta": "/buys/purchasereturns",
           "padre": null,
-          "orden": 8,
+          "orden": 10,
           "acciones": [
             "VER",
             "CREAR",
@@ -375,7 +604,7 @@
           "nombre": "Abono Pagar",
           "ruta": "/buys/pay",
           "padre": null,
-          "orden": 9,
+          "orden": 11,
           "acciones": [
             "VER",
             "CREAR",
@@ -391,7 +620,7 @@
           "nombre": "Recibos de pago",
           "ruta": "/buys/payment-receipts",
           "padre": null,
-          "orden": 10,
+          "orden": 12,
           "acciones": [
             "VER",
             "CREAR",
@@ -407,15 +636,31 @@
     {
       "codigo": "CONSIGNACION",
       "nombre": "Consignación",
-      "orden": 3,
+      "orden": 5,
       "icono": null,
       "funciones": [
+        {
+          "codigo": "CONSIGNACION.TABLERO",
+          "nombre": "Tablero",
+          "ruta": "/consignment/dashboard",
+          "padre": null,
+          "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
         {
           "codigo": "CONSIGNACION.BODEGAS_DE_CONSIGNACION",
           "nombre": "Bodegas de Consignación",
           "ruta": "/consignment/warehouses",
           "padre": null,
-          "orden": 1,
+          "orden": 2,
           "acciones": [
             "VER",
             "CREAR",
@@ -431,7 +676,23 @@
           "nombre": "Ajuste de Bodega de Consignación",
           "ruta": "/consignment/adjust",
           "padre": null,
-          "orden": 2,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "CONSIGNACION.BOLETAS_DE_CONSIGNACION",
+          "nombre": "Boletas de Consignación",
+          "ruta": "/consignment/tickets",
+          "padre": null,
+          "orden": 4,
           "acciones": [
             "VER",
             "CREAR",
@@ -447,7 +708,7 @@
           "nombre": "Inventario Físico de Consignación",
           "ruta": "/consignment/count",
           "padre": null,
-          "orden": 3,
+          "orden": 5,
           "acciones": [
             "VER",
             "CREAR",
@@ -463,7 +724,7 @@
           "nombre": "Kardex de Consignación",
           "ruta": "/consignment/ledger",
           "padre": null,
-          "orden": 4,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",
@@ -479,7 +740,7 @@
           "nombre": "Facturacion de Consignaciones",
           "ruta": "/consignment/prebill",
           "padre": null,
-          "orden": 5,
+          "orden": 7,
           "acciones": [
             "VER",
             "CREAR",
@@ -495,7 +756,7 @@
           "nombre": "Estados de Consignación",
           "ruta": "/consignment/settlements",
           "padre": null,
-          "orden": 6,
+          "orden": 8,
           "acciones": [
             "VER",
             "CREAR",
@@ -511,7 +772,7 @@
     {
       "codigo": "INICIO",
       "nombre": "Inicio",
-      "orden": 4,
+      "orden": 6,
       "icono": "bi-house-door-fill",
       "funciones": [
         {
@@ -575,7 +836,8 @@
             "BORRAR",
             "ACTIVAR",
             "EXPORTAR",
-            "IMPRIMIR"
+            "IMPRIMIR",
+            "REEMITIR"
           ]
         },
         {
@@ -615,7 +877,7 @@
     {
       "codigo": "MODULO_INVENTARIO",
       "nombre": "Módulo Inventario",
-      "orden": 5,
+      "orden": 7,
       "icono": "bi-boxes",
       "funciones": [
         {
@@ -639,15 +901,495 @@
     {
       "codigo": "MODULO_REPORTES",
       "nombre": "Módulo Reportes",
-      "orden": 6,
+      "orden": 8,
       "icono": "bi-bar-chart-fill",
       "funciones": [
         {
-          "codigo": "MODULO_REPORTES.MODULO_REPORTES",
-          "nombre": "Módulo Reportes",
-          "ruta": "/moduloReportes",
+          "codigo": "MODULO_REPORTES.PANEL_EJECUTIVO",
+          "nombre": "Panel ejecutivo",
+          "ruta": "/moduloReportes/panel-ejecutivo",
           "padre": null,
           "orden": 1,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.VENTAS",
+          "nombre": "Ventas",
+          "ruta": "/moduloReportes/ventas",
+          "padre": null,
+          "orden": 2,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.VENTAS_DETALLE",
+          "nombre": "Ventas detalle",
+          "ruta": "/moduloReportes/ventas-detalle",
+          "padre": null,
+          "orden": 3,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.VENTAS_ENTRE_HORAS",
+          "nombre": "Ventas entre horas",
+          "ruta": "/moduloReportes/ventas-horas",
+          "padre": null,
+          "orden": 4,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.COMPORTAMIENTO_DE_CLIENTES",
+          "nombre": "Comportamiento de clientes",
+          "ruta": "/moduloReportes/clientes",
+          "padre": null,
+          "orden": 5,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.RENTABILIDAD",
+          "nombre": "Rentabilidad",
+          "ruta": "/moduloReportes/rentabilidad",
+          "padre": null,
+          "orden": 6,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.VENTAS_VS_COMPRAS",
+          "nombre": "Ventas vs compras",
+          "ruta": "/moduloReportes/ventas-compras",
+          "padre": null,
+          "orden": 7,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.RECUPERACION_DE_CARTERA",
+          "nombre": "Recuperación de cartera",
+          "ruta": "/moduloReportes/recuperacion-cxc",
+          "padre": null,
+          "orden": 8,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.CUENTAS_POR_COBRAR",
+          "nombre": "Cuentas por cobrar",
+          "ruta": "/moduloReportes/cuentas-por-cobrar",
+          "padre": null,
+          "orden": 9,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.CUMPLIMIENTO_CABYS",
+          "nombre": "Cumplimiento CABYS",
+          "ruta": "/moduloReportes/cabys",
+          "padre": null,
+          "orden": 10,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.CUENTAS_POR_PAGAR",
+          "nombre": "Cuentas por pagar",
+          "ruta": "/moduloReportes/cuentas-por-pagar",
+          "padre": null,
+          "orden": 11,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.APARTADOS_Y_PRESTAMOS",
+          "nombre": "Apartados y préstamos",
+          "ruta": "/moduloReportes/apartados",
+          "padre": null,
+          "orden": 12,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.KPI_POR_RUTA_COMERCIAL",
+          "nombre": "KPI por ruta comercial",
+          "ruta": "/moduloReportes/kpi-rutas",
+          "padre": null,
+          "orden": 13,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.CAJA",
+          "nombre": "Caja",
+          "ruta": "/moduloReportes/caja",
+          "padre": null,
+          "orden": 14,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.ARQUEOS_Y_CIERRES",
+          "nombre": "Arqueos y cierres",
+          "ruta": "/moduloReportes/arqueos-cierres",
+          "padre": null,
+          "orden": 15,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.DEPOSITOS",
+          "nombre": "Depósitos",
+          "ruta": "/moduloReportes/depositos",
+          "padre": null,
+          "orden": 16,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.COMPRAS",
+          "nombre": "Compras",
+          "ruta": "/moduloReportes/compras",
+          "padre": null,
+          "orden": 17,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.IMPORTACIONES",
+          "nombre": "Importaciones",
+          "ruta": "/moduloReportes/importaciones",
+          "padre": null,
+          "orden": 18,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.IVA_REPERCUTIDO",
+          "nombre": "IVA Repercutido",
+          "ruta": "/moduloReportes/iva-repercutido",
+          "padre": null,
+          "orden": 19,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.IVA_SOPORTADO",
+          "nombre": "IVA Soportado",
+          "ruta": "/moduloReportes/iva-soportado",
+          "padre": null,
+          "orden": 20,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.PRORRATA",
+          "nombre": "Prorrata",
+          "ruta": "/moduloReportes/prorrata",
+          "padre": null,
+          "orden": 21,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.GASTOS",
+          "nombre": "Gastos",
+          "ruta": "/moduloReportes/gastos",
+          "padre": null,
+          "orden": 22,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.INVENTARIO",
+          "nombre": "Inventario",
+          "ruta": "/moduloReportes/inventario",
+          "padre": null,
+          "orden": 23,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.INVENTARIO_ABC",
+          "nombre": "Inventario ABC",
+          "ruta": "/moduloReportes/inventario-abc",
+          "padre": null,
+          "orden": 24,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.ROTACION_DE_INVENTARIO",
+          "nombre": "Rotación de inventario",
+          "ruta": "/moduloReportes/rotacion-inventario",
+          "padre": null,
+          "orden": 25,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.BONIFICACIONES",
+          "nombre": "Bonificaciones",
+          "ruta": "/moduloReportes/bonificaciones",
+          "padre": null,
+          "orden": 26,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.LOTES_Y_VENCIMIENTOS",
+          "nombre": "Lotes y vencimientos",
+          "ruta": "/moduloReportes/lotes",
+          "padre": null,
+          "orden": 27,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.TRAZABILIDAD",
+          "nombre": "Trazabilidad",
+          "ruta": "/moduloReportes/trazabilidad",
+          "padre": null,
+          "orden": 28,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.EMPAQUETADO_Y_MAQUILA",
+          "nombre": "Empaquetado y maquila",
+          "ruta": "/moduloReportes/empaquetado",
+          "padre": null,
+          "orden": 29,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.MERMAS",
+          "nombre": "Mermas",
+          "ruta": "/moduloReportes/mermas",
+          "padre": null,
+          "orden": 30,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "MODULO_REPORTES.AUDITORIA",
+          "nombre": "Auditoría",
+          "ruta": "/moduloReportes/auditoria",
+          "padre": null,
+          "orden": 31,
           "acciones": [
             "VER",
             "CREAR",
@@ -663,7 +1405,7 @@
     {
       "codigo": "PRESUPUESTOS",
       "nombre": "Presupuestos",
-      "orden": 7,
+      "orden": 9,
       "icono": "bi-file-earmark-text",
       "funciones": [
         {
@@ -703,7 +1445,7 @@
     {
       "codigo": "PRODUCCION",
       "nombre": "Producción",
-      "orden": 8,
+      "orden": 10,
       "icono": "bi-hammer",
       "funciones": [
         {
@@ -743,7 +1485,7 @@
     {
       "codigo": "VENTAS",
       "nombre": "Ventas",
-      "orden": 9,
+      "orden": 11,
       "icono": "bi-receipt",
       "funciones": [
         {
@@ -811,11 +1553,27 @@
           ]
         },
         {
+          "codigo": "VENTAS.COMISIONES",
+          "nombre": "Comisiones",
+          "ruta": "/sales/commissions",
+          "padre": null,
+          "orden": 5,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "VENTAS.TRAMITE_DE_COBRO",
           "nombre": "Trámite de cobro",
           "ruta": "/sales/collection-process",
           "padre": null,
-          "orden": 5,
+          "orden": 6,
           "acciones": [
             "VER",
             "CREAR",
@@ -831,7 +1589,23 @@
           "nombre": "Devoluciones",
           "ruta": "/sales/repayment",
           "padre": null,
-          "orden": 6,
+          "orden": 7,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
+          "codigo": "VENTAS.NOTA_DE_CREDITO_EXTERNA",
+          "nombre": "Nota de crédito externa",
+          "ruta": "/sales/external-credit-note",
+          "padre": null,
+          "orden": 8,
           "acciones": [
             "VER",
             "CREAR",
@@ -847,7 +1621,7 @@
     {
       "codigo": "PARAMETROS",
       "nombre": "Parametros",
-      "orden": 10,
+      "orden": 12,
       "icono": "bi-gear-fill",
       "funciones": [
         {
@@ -1059,11 +1833,27 @@
           ]
         },
         {
+          "codigo": "CATALOGOS.RUTAS",
+          "nombre": "Rutas",
+          "ruta": "/parameters/routes",
+          "padre": "CATALOGOS",
+          "orden": 10,
+          "acciones": [
+            "VER",
+            "CREAR",
+            "EDITAR",
+            "BORRAR",
+            "ACTIVAR",
+            "EXPORTAR",
+            "IMPRIMIR"
+          ]
+        },
+        {
           "codigo": "CATALOGOS.TARIFAS",
           "nombre": "Tarifas",
           "ruta": "/parameters/rates",
           "padre": "CATALOGOS",
-          "orden": 10,
+          "orden": 11,
           "acciones": [
             "VER",
             "CREAR",
@@ -1079,7 +1869,7 @@
           "nombre": "Tipos de Bonificación",
           "ruta": "/parameters/bonus-types",
           "padre": "CATALOGOS",
-          "orden": 11,
+          "orden": 12,
           "acciones": [
             "VER",
             "CREAR",
@@ -1095,7 +1885,7 @@
           "nombre": "Tipos de Cobro",
           "ruta": "/parameters/collection-types",
           "padre": "CATALOGOS",
-          "orden": 12,
+          "orden": 13,
           "acciones": [
             "VER",
             "CREAR",
@@ -1111,7 +1901,7 @@
           "nombre": "Tipos de Exoneración",
           "ruta": "/parameters/exemption-types",
           "padre": "CATALOGOS",
-          "orden": 13,
+          "orden": 14,
           "acciones": [
             "VER",
             "CREAR",
@@ -1127,7 +1917,7 @@
           "nombre": "Tipos de Factura",
           "ruta": "/parameters/invoice-types",
           "padre": "CATALOGOS",
-          "orden": 14,
+          "orden": 15,
           "acciones": [
             "VER",
             "CREAR",
@@ -1143,7 +1933,7 @@
           "nombre": "Tipos de Identificación",
           "ruta": "/parameters/identification-types",
           "padre": "CATALOGOS",
-          "orden": 15,
+          "orden": 16,
           "acciones": [
             "VER",
             "CREAR",
@@ -1159,7 +1949,7 @@
           "nombre": "Ubicaciones",
           "ruta": "/parameters/locations",
           "padre": "CATALOGOS",
-          "orden": 16,
+          "orden": 17,
           "acciones": [
             "VER",
             "CREAR",

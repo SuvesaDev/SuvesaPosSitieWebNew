@@ -13,7 +13,7 @@
 @inject IServicioDialogos Dialogos
 @inject IJSRuntime JS
 
-<AppPantalla Pantalla="Kardex de Consignación" Codigo="CONSIGNACION.KARDEX" Icono="bi-journal-text"
+<AppPantalla Pantalla="Kardex de Consignación" Codigo="CONSIGNACION.KARDEX_DE_CONSIGNACION" Icono="bi-journal-text"
              Subtitulo="Movimientos de la bodega de consignación de un cliente" Nivel="NivelPantalla.Tableta">
  <Acciones>
   <button class="btn btn-sm btn-outline-secondary" @onclick="Exportar" disabled="@(_kardex is null || !_kardex.Movimientos.Any())">Exportar CSV</button>

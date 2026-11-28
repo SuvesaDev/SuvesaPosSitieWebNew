@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json.Serialization;
 
 namespace SuvesaPosSitioAplicacion.DTOs.Generated;
@@ -14,4 +15,13 @@ public partial class FacturaCompraDTO
 
     [JsonPropertyName("numAperturaContado")]
     public long NumAperturaContado { get; set; }
+
+    /// <summary>Emisor/Identificacion/Tipo del XML importado (el proveedor) — hace falta
+    /// para el Mensaje Receptor y solo se conoce al importar el XML.</summary>
+    [JsonPropertyName("tipoIdentificacionProveedorDgt")]
+    public string? TipoIdentificacionProveedorDgt { get; set; }
+
+    /// <summary>FechaEmision del XML importado (instante UTC).</summary>
+    [JsonPropertyName("fechaEmisionDgt")]
+    public DateTime? FechaEmisionDgt { get; set; }
 }

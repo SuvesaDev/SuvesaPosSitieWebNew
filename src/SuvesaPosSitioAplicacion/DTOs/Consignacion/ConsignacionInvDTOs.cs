@@ -68,6 +68,32 @@ public sealed class AnularBoletaConsignacion
     public string Motivo { get; set; } = "";
 }
 
+public sealed class BoletasConsignacionFiltro
+{
+    public long? IdCliente { get; set; }
+    public int? Tipo { get; set; }
+    public bool IncluirAnuladas { get; set; }
+    public DateTime? Desde { get; set; }
+    public DateTime? Hasta { get; set; }
+}
+
+public sealed class BoletaConsignacionResumen
+{
+    public long Id { get; set; }
+    public int Tipo { get; set; }
+    public string TipoDescripcion { get; set; } = "";
+    public long IdCliente { get; set; }
+    public string NombreCliente { get; set; } = "";
+    public DateTime Fecha { get; set; }
+    public string? Documento { get; set; }
+    public long? NumeroInterno { get; set; }
+    public string? Motivo { get; set; }
+    public double CostoTotal { get; set; }
+    /// <summary>true = los importes son el precio de la tarifa del cliente; false = costo del artículo (boletas anteriores).</summary>
+    public bool ValoradaAPrecio { get; set; }
+    public bool Anulada { get; set; }
+}
+
 public sealed class BoletaConsignacionLinea
 {
     public long IdArticulo { get; set; }
@@ -97,6 +123,8 @@ public sealed class BoletaConsignacion
     public bool CierreTotal { get; set; }
     public string? Observaciones { get; set; }
     public double CostoTotal { get; set; }
+    /// <summary>true = los importes son el precio de la tarifa del cliente; false = costo del artículo (boletas anteriores).</summary>
+    public bool ValoradaAPrecio { get; set; }
     public bool Anulada { get; set; }
     public DateTime? FechaAnulacion { get; set; }
     public string? UsuarioAnulacion { get; set; }
@@ -243,6 +271,35 @@ public sealed class ConteoConsignacion
     public List<ConteoConsignacionLinea> Lineas { get; set; } = new();
 }
 
+public sealed class ConteosConsignacionFiltro
+{
+    public long? IdCliente { get; set; }
+    public int? Estado { get; set; }
+    public DateTime? Desde { get; set; }
+    public DateTime? Hasta { get; set; }
+}
+
+public sealed class ConteoConsignacionResumen
+{
+    public long Id { get; set; }
+    public long IdCliente { get; set; }
+    public string NombreCliente { get; set; } = "";
+    public DateTime Fecha { get; set; }
+    public string? Agente { get; set; }
+    public string? Usuario { get; set; }
+    public int Estado { get; set; }
+    public string EstadoDescripcion { get; set; } = "";
+    public double VendidoTotal { get; set; }
+    public double SobranteTotal { get; set; }
+    public long? IdPrefactura { get; set; }
+}
+
+public sealed class AnularConteoConsignacion
+{
+    public long IdConteo { get; set; }
+    public string Motivo { get; set; } = "";
+}
+
 public sealed class AprobarDiferenciasConteoConsignacion
 {
     public long IdConteo { get; set; }
@@ -346,6 +403,10 @@ public sealed class FacturarPrefacturaConsignacion
     public int? IdSucursal { get; set; }
     public string? Usuario { get; set; }
     public string? CedulaCajero { get; set; }
+    /// <summary>Selección manual de ruta comercial — solo la exige/usa un usuario validado
+    /// con perfil Funcionario SAC (mismo criterio que en Facturación normal); para un
+    /// Agente se resuelve solo desde su ruta predeterminada.</summary>
+    public int? IdRutaComercial { get; set; }
     public List<PagoPrefacturaConsignacion> Pagos { get; set; } = new();
 }
 
@@ -354,6 +415,10 @@ public sealed class PagoPrefacturaConsignacion
     public string FormaPago { get; set; } = "";
     public decimal Monto { get; set; }
     public string? Referencia { get; set; }
+    /// <summary>Solo forma de pago Cheque: número del cheque del cliente.</summary>
+    public string? NumeroCheque { get; set; }
+    /// <summary>Solo forma de pago Cheque: banco emisor (catálogo EntidadesBancaria.IdBanco).</summary>
+    public int? IdBanco { get; set; }
 }
 
 public sealed class AnularPrefacturaConsignacion
@@ -415,5 +480,8 @@ public sealed class PrefacturaConsignacion
     public double ImpVenta { get; set; }
     public double Total { get; set; }
     public string? Observaciones { get; set; }
+    /// <summary>Ruta congelada al generar (SAC/Agente). Si viene, no se reasigna al liquidar.</summary>
+    public int? IdRutaComercial { get; set; }
+    public string? IdUsuarioAgente { get; set; }
     public List<PrefacturaConsignacionLinea> Lineas { get; set; } = new();
 }

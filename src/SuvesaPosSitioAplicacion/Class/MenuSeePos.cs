@@ -96,6 +96,14 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    // Solo lectura, para supervisores y administradores: cada cajero ve únicamente
+                    // el arqueo de su propia caja en "Arqueo Caja"; este permiso muestra los de todos.
+                    Titulo = "Consulta de Arqueos",
+                    Codigo = "CAJA.CONSULTA_DE_ARQUEOS",
+                    Ruta = "/initial/cash/arqueoconsulta",
+                },
+                new ItemMenu
+                {
                     // El "Cierre Caja" legado (/initial/cash/closecash, lee OpcionesDePagos)
                     // fue reemplazado por "Conciliación de caja", que cierra desde el mayor
                     // de caja (MovimientoCaja) — la fuente única tras la Fase 3. La pantalla
@@ -163,6 +171,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Documentos aceptados",
+                    Codigo = "COMPRAS.DOCUMENTOS_ACEPTADOS",
+                    Ruta = "/buys/received-messages",
+                },
+                new ItemMenu
+                {
                     Titulo = "Cuentas por pagar",
                     Codigo = "COMPRAS.CUENTAS_POR_PAGAR",
                     Ruta = "/buys/countswihoutpay",
@@ -191,7 +205,13 @@ public static partial class MenuSeePos
                     {
                         new ItemMenu
                         {
-                            // La pantalla (TomaFisica.razor) se gatea con COMPRAS.TOMA_FISICA;
+                            Titulo = "Pretoma",
+                            Codigo = "COMPRAS.TOMA.PRETOMA",
+                            Ruta = "/buys/physical-precount",
+                        },
+                        new ItemMenu
+                        {
+                            // La pantalla (TomaFisica.razor) se gatea con COMPRAS.TOMA.TOMA_FISICA;
                             // el item vive bajo el grupo "Toma" para que se lea Toma > Toma Física.
                             Titulo = "Toma Física",
                             Codigo = "COMPRAS.TOMA.TOMA_FISICA",
@@ -210,6 +230,12 @@ public static partial class MenuSeePos
                     Titulo = "Orden de compra manual",
                     Codigo = "COMPRAS.ORDEN_DE_COMPRA_MANUAL",
                     Ruta = "/buys/purchaseorder",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Importaciones",
+                    Codigo = "COMPRAS.IMPORTACIONES",
+                    Ruta = "/buys/importationsbox",
                 },
                 new ItemMenu
                 {
@@ -259,6 +285,46 @@ public static partial class MenuSeePos
         },
         new ItemMenu
         {
+            Titulo = "Bodega",
+            Codigo = "BODEGA",
+            Ruta = "/bodega/cola",
+            Icono = "bi-box-seam",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Cola de alistamiento",
+                    Codigo = "BODEGA.COLA_DE_ALISTAMIENTO",
+                    Ruta = "/bodega/cola",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Recibo de mercadería",
+                    Codigo = "BODEGA.RECIBO_DE_MERCADERIA",
+                    Ruta = "/bodega/recibo",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Empaque",
+                    Codigo = "BODEGA.EMPAQUE",
+                    Ruta = "/bodega/empaque",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Despacho",
+                    Codigo = "BODEGA.DESPACHO",
+                    Ruta = "/bodega/despacho",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Rutas de entrega",
+                    Codigo = "BODEGA.RUTAS_DE_ENTREGA",
+                    Ruta = "/bodega/rutas",
+                }
+            }
+        },
+        new ItemMenu
+        {
             // ANADIDO, no viene de SidebarData.jsx.
             //
             // Las tres rutas existen en el enrutador de React pero el menu actual no
@@ -277,6 +343,15 @@ public static partial class MenuSeePos
                 // retiró junto con sus endpoints en el API (§8).
                 new ItemMenu
                 {
+                    // Existía como pantalla huérfana (Codigo="CONSIGNACION.TABLERO" ya
+                    // escrito a mano en Tablero.razor, sin nodo de menú ni permiso
+                    // gobernado) — ver docs/PLAN_MODULO_REPORTES_ERP_WEB.md, bug #6.
+                    Titulo = "Tablero",
+                    Codigo = "CONSIGNACION.TABLERO",
+                    Ruta = "/consignment/dashboard",
+                },
+                new ItemMenu
+                {
                     Titulo = "Bodegas de Consignación",
                     Codigo = "CONSIGNACION.BODEGAS_DE_CONSIGNACION",
                     Ruta = "/consignment/warehouses",
@@ -286,6 +361,12 @@ public static partial class MenuSeePos
                     Titulo = "Ajuste de Bodega de Consignación",
                     Codigo = "CONSIGNACION.AJUSTE_DE_BODEGA_DE_CONSIGNACION",
                     Ruta = "/consignment/adjust",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Boletas de Consignación",
+                    Codigo = "CONSIGNACION.BOLETAS_DE_CONSIGNACION",
+                    Ruta = "/consignment/tickets",
                 },
                 new ItemMenu
                 {
@@ -350,6 +431,12 @@ public static partial class MenuSeePos
                 },
                 new ItemMenu
                 {
+                    Titulo = "Comisiones",
+                    Codigo = "VENTAS.COMISIONES",
+                    Ruta = "/sales/commissions",
+                },
+                new ItemMenu
+                {
                     // Constancia de entrega de facturas al cliente para su trámite interno de pago.
                     Titulo = "Trámite de cobro",
                     Codigo = "VENTAS.TRAMITE_DE_COBRO",
@@ -360,6 +447,14 @@ public static partial class MenuSeePos
                     Titulo = "Devoluciones",
                     Codigo = "VENTAS.DEVOLUCIONES",
                     Ruta = "/sales/repayment",
+                },
+                new ItemMenu
+                {
+                    // Nota de crédito electrónica (referencia 09, sin inventario) contra un comprobante del sistema anterior o una venta interna.
+                    // Solo administradores: la función se concede únicamente a roles de administración.
+                    Titulo = "Nota de crédito externa",
+                    Codigo = "VENTAS.NOTA_DE_CREDITO_EXTERNA",
+                    Ruta = "/sales/external-credit-note",
                 }
             }
         },
@@ -456,6 +551,12 @@ public static partial class MenuSeePos
                             Titulo = "Presentaciones",
                             Codigo = "CATALOGOS.PRESENTACIONES",
                             Ruta = "/parameters/presentations",
+                        },
+                        new ItemMenu
+                        {
+                            Titulo = "Rutas",
+                            Codigo = "CATALOGOS.RUTAS",
+                            Ruta = "/parameters/routes",
                         },
                         new ItemMenu
                         {
@@ -597,10 +698,258 @@ public static partial class MenuSeePos
         },
         new ItemMenu
         {
+            // Gestión y seguimiento de cobranzas (docs/COBRANZA_WEB.md). Los códigos casan con
+            // el módulo COBRANZA de la semilla del API.
+            Titulo = "Cobranza",
+            Codigo = "COBRANZA",
+            Ruta = "/collections",
+            Icono = "bi-telephone-outbound",
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    Titulo = "Seguimiento",
+                    Codigo = "COBRANZA.SEGUIMIENTO",
+                    Ruta = "/collections/follow-up",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Dashboard",
+                    Codigo = "COBRANZA.DASHBOARD",
+                    Ruta = "/collections/dashboard",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Gerencial",
+                    Codigo = "COBRANZA.GERENCIAL",
+                    Ruta = "/collections/management",
+                },
+                new ItemMenu
+                {
+                    // El administrador aprueba o rechaza las solicitudes de facturar a crédito a un
+                    // cliente bloqueado por morosidad (una factura por autorización).
+                    Titulo = "Autorizaciones de crédito",
+                    Codigo = "COBRANZA.AUTORIZACIONES_DE_CREDITO",
+                    Ruta = "/collections/credit-authorizations",
+                },
+            }
+        },
+        new ItemMenu
+        {
             Titulo = "Módulo Reportes",
-            Codigo = "MODULO_REPORTES.MODULO_REPORTES",
+            Codigo = "MODULO_REPORTES",
             Ruta = "/moduloReportes",
             Icono = "bi-bar-chart-fill",
+            // Un hijo por cada uno de los 27 tipos genéricos que expone
+            // ReportesOperacionController. Cada ruta abre una hoja independiente. La barra
+            // lateral los presenta en dominios visuales construidos desde CatalogoReportes,
+            // pero este árbol canónico permanece plano para no cambiar códigos ni semilla.
+            // Comisiones es la hoja 28 y reutiliza el permiso VENTAS.COMISIONES.
+            Hijos = new ItemMenu[]
+            {
+                new ItemMenu
+                {
+                    // KPIs consolidados de Ventas, CxC, Compras, Gastos, Inventario y
+                    // Mermas — reusa los mismos indicadores que cada pestaña de detalle
+                    // (ReportesOperacionManager.PanelEjecutivoAsync), no fórmulas propias.
+                    Titulo = "Panel ejecutivo",
+                    Codigo = "MODULO_REPORTES.PANEL_EJECUTIVO",
+                    Ruta = "/moduloReportes/panel-ejecutivo",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Ventas",
+                    Codigo = "MODULO_REPORTES.VENTAS",
+                    Ruta = "/moduloReportes/ventas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Ventas detalle",
+                    Codigo = "MODULO_REPORTES.VENTAS_DETALLE",
+                    Ruta = "/moduloReportes/ventas-detalle",
+                },
+                new ItemMenu
+                {
+                    // Catálogo submenú Ventas N°10 ("Reporte de Ventas entre Horas").
+                    Titulo = "Ventas entre horas",
+                    Codigo = "MODULO_REPORTES.VENTAS_ENTRE_HORAS",
+                    Ruta = "/moduloReportes/ventas-horas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Comportamiento de clientes",
+                    Codigo = "MODULO_REPORTES.COMPORTAMIENTO_DE_CLIENTES",
+                    Ruta = "/moduloReportes/clientes",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Rentabilidad",
+                    Codigo = "MODULO_REPORTES.RENTABILIDAD",
+                    Ruta = "/moduloReportes/rentabilidad",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Ventas vs compras",
+                    Codigo = "MODULO_REPORTES.VENTAS_VS_COMPRAS",
+                    Ruta = "/moduloReportes/ventas-compras",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Recuperación de cartera",
+                    Codigo = "MODULO_REPORTES.RECUPERACION_DE_CARTERA",
+                    Ruta = "/moduloReportes/recuperacion-cxc",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Cuentas por cobrar",
+                    Codigo = "MODULO_REPORTES.CUENTAS_POR_COBRAR",
+                    Ruta = "/moduloReportes/cuentas-por-cobrar",
+                },
+                new ItemMenu
+                {
+                    // Submenú Ventas N°9 del catálogo (Reportes_ERP_Distribuidora...docx).
+                    Titulo = "Cumplimiento CABYS",
+                    Codigo = "MODULO_REPORTES.CUMPLIMIENTO_CABYS",
+                    Ruta = "/moduloReportes/cabys",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Cuentas por pagar",
+                    Codigo = "MODULO_REPORTES.CUENTAS_POR_PAGAR",
+                    Ruta = "/moduloReportes/cuentas-por-pagar",
+                },
+                new ItemMenu
+                {
+                    // Catálogo N°7 ("Reporte de Apartados y Préstamos").
+                    Titulo = "Apartados y préstamos",
+                    Codigo = "MODULO_REPORTES.APARTADOS_Y_PRESTAMOS",
+                    Ruta = "/moduloReportes/apartados",
+                },
+                new ItemMenu
+                {
+                    // Anexo "Comportamiento del Agente" del catálogo: ventas, clientes
+                    // atendidos y comisión generada por ruta comercial.
+                    Titulo = "KPI por ruta comercial",
+                    Codigo = "MODULO_REPORTES.KPI_POR_RUTA_COMERCIAL",
+                    Ruta = "/moduloReportes/kpi-rutas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Caja",
+                    Codigo = "MODULO_REPORTES.CAJA",
+                    Ruta = "/moduloReportes/caja",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Arqueos y cierres",
+                    Codigo = "MODULO_REPORTES.ARQUEOS_Y_CIERRES",
+                    Ruta = "/moduloReportes/arqueos-cierres",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Depósitos",
+                    Codigo = "MODULO_REPORTES.DEPOSITOS",
+                    Ruta = "/moduloReportes/depositos",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Compras",
+                    Codigo = "MODULO_REPORTES.COMPRAS",
+                    Ruta = "/moduloReportes/compras",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Importaciones",
+                    Codigo = "MODULO_REPORTES.IMPORTACIONES",
+                    Ruta = "/moduloReportes/importaciones",
+                },
+                new ItemMenu
+                {
+                    // Fase 1 de IVA por emisor (Ley del IVA): IVA cobrado en ventas, por tarifa. Soportado y Prorrata siguen.
+                    Titulo = "IVA Repercutido",
+                    Codigo = "MODULO_REPORTES.IVA_REPERCUTIDO",
+                    Ruta = "/moduloReportes/iva-repercutido",
+                },
+                new ItemMenu
+                {
+                    // Fase 2 de IVA por emisor: crédito fiscal de compras, gastos e importaciones.
+                    Titulo = "IVA Soportado",
+                    Codigo = "MODULO_REPORTES.IVA_SOPORTADO",
+                    Ruta = "/moduloReportes/iva-soportado",
+                },
+                new ItemMenu
+                {
+                    // Fase 3 de IVA por emisor: prorrata (proporcionalidad del crédito fiscal) y su regularización anual.
+                    Titulo = "Prorrata",
+                    Codigo = "MODULO_REPORTES.PRORRATA",
+                    Ruta = "/moduloReportes/prorrata",
+                },
+                new ItemMenu
+                {
+                    // Catálogo N°3 ("Reportes de Gastos"). Complementario de "Compras":
+                    // misma tabla, filtrado por Compras.Gasto = true.
+                    Titulo = "Gastos",
+                    Codigo = "MODULO_REPORTES.GASTOS",
+                    Ruta = "/moduloReportes/gastos",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Inventario",
+                    Codigo = "MODULO_REPORTES.INVENTARIO",
+                    Ruta = "/moduloReportes/inventario",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Inventario ABC",
+                    Codigo = "MODULO_REPORTES.INVENTARIO_ABC",
+                    Ruta = "/moduloReportes/inventario-abc",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Rotación de inventario",
+                    Codigo = "MODULO_REPORTES.ROTACION_DE_INVENTARIO",
+                    Ruta = "/moduloReportes/rotacion-inventario",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Bonificaciones",
+                    Codigo = "MODULO_REPORTES.BONIFICACIONES",
+                    Ruta = "/moduloReportes/bonificaciones",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Lotes y vencimientos",
+                    Codigo = "MODULO_REPORTES.LOTES_Y_VENCIMIENTOS",
+                    Ruta = "/moduloReportes/lotes",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Trazabilidad",
+                    Codigo = "MODULO_REPORTES.TRAZABILIDAD",
+                    Ruta = "/moduloReportes/trazabilidad",
+                },
+                new ItemMenu
+                {
+                    // Catálogo N°13 ("Reporte de Empaquetado / Maquila").
+                    Titulo = "Empaquetado y maquila",
+                    Codigo = "MODULO_REPORTES.EMPAQUETADO_Y_MAQUILA",
+                    Ruta = "/moduloReportes/empaquetado",
+                },
+                new ItemMenu
+                {
+                    // Catálogo N°10 propuesto ("Auditoría de Mermas..."). Fuente real hoy:
+                    // diferencias negativas de toma física (ver nota en el manager).
+                    Titulo = "Mermas",
+                    Codigo = "MODULO_REPORTES.MERMAS",
+                    Ruta = "/moduloReportes/mermas",
+                },
+                new ItemMenu
+                {
+                    Titulo = "Auditoría",
+                    Codigo = "MODULO_REPORTES.AUDITORIA",
+                    Ruta = "/moduloReportes/auditoria",
+                },
+            }
         }
     }
     .OrderBy(i => string.Equals(i.Codigo, "PARAMETROS", StringComparison.Ordinal) ? 1 : 0)

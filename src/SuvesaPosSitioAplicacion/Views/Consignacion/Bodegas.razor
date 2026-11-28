@@ -16,7 +16,7 @@
 @inject IEmisoresFiscales EmisoresApi
 @inject NavigationManager Nav
 
-<AppPantalla Pantalla="Bodegas de Consignación" Codigo="CONSIGNACION.BODEGAS" Icono="bi-shop"
+<AppPantalla Pantalla="Bodegas de Consignación" Codigo="CONSIGNACION.BODEGAS_DE_CONSIGNACION" Icono="bi-shop"
              Subtitulo="Una bodega de inventario por cliente en consignación" Nivel="NivelPantalla.Tableta">
  <Acciones>
   <button class="btn btn-sm btn-outline-secondary" @onclick="Cargar" disabled="@_cargando">Actualizar</button><button class="btn btn-sm btn-outline-primary" @onclick='() => Nav.NavigateTo("/consignment/dashboard")'>Tablero</button>

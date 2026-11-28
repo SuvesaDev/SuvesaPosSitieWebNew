@@ -95,7 +95,8 @@ public sealed class ClientesConsulta : ProxyBase, IClientesConsulta
     public Task<ResponseGeneric<BuscarClienteFacturacionDTO>> BuscarHacienda(string cedula)
         => Ejecutar(async () =>
         {
-            var r = await _api.BuscarClienteHaciendaAsync(new BuscarClienteDTO { Cedula = cedula });
+            var limpia = new string((cedula ?? string.Empty).Where(char.IsDigit).ToArray());
+            var r = await _api.BuscarClienteHaciendaAsync(new BuscarClienteDTO { Cedula = limpia });
             return EnvelopeApi.A(r.Status, r.CurrentException, r.ValidationErrors, r.Responses);
         }, "consultar el cliente en Hacienda");
 

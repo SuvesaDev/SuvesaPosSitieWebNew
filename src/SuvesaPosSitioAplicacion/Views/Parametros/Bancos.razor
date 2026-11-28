@@ -39,7 +39,7 @@
     </Acciones>
 
     <ChildContent>
-        <div class="card">
+        <div class="card seepos-catalogo-bancos">
             <div class="card-body">
                 <AppRejilla TItem="EntidadesBancariasDTO"
                             Datos="Cargar"
@@ -65,16 +65,17 @@
                             <ItemTemplate Context="b">
                                 @if (Sesion.Puede(Titulo, AccionPantalla.Modificar))
                                 {
-                                    <button class="btn btn-sm btn-link p-0 me-3"
-                                            @onclick="() => Editar(b)">Editar</button>
-                                    <button class="btn btn-sm btn-link p-0 me-3"
-                                            @onclick="() => AbrirCuentas(b)">Cuentas</button>
+                                    <button class="btn btn-sm btn-outline-primary me-1" title="Editar banco" aria-label="Editar banco"
+                                            @onclick="() => Editar(b)"><i class="bi bi-pencil"></i></button>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" title="Administrar cuentas" aria-label="Administrar cuentas"
+                                            @onclick="() => AbrirCuentas(b)"><i class="bi bi-bank"></i></button>
                                 }
                                 @if (Sesion.Puede(Titulo, AccionPantalla.Borrar))
                                 {
-                                    <button class="btn btn-sm btn-link p-0 @(b.Activo ? "text-danger" : "text-success")"
+                                    <button class="btn btn-sm @(b.Activo ? "btn-outline-danger" : "btn-outline-success")"
+                                            title="@(b.Activo ? "Desactivar banco" : "Activar banco")" aria-label="@(b.Activo ? "Desactivar banco" : "Activar banco")"
                                             @onclick="() => AlternarEstado(b)">
-                                        @(b.Activo ? "Desactivar" : "Activar")
+                                        <i class="bi @(b.Activo ? "bi-slash-circle" : "bi-check-circle")"></i>
                                     </button>
                                 }
                             </ItemTemplate>

@@ -1,0 +1,254 @@
+# Plan del Módulo de Reportes ERP Web
+
+## Propósito y decisión de alcance
+
+Este documento define cómo construir el módulo de reportes del sitio Blazor para una distribuidora. Es la guía de implementación del frente web y debe leerse junto con `../../DevSuvesaPosWeb/ApiSuvesaPos/docs/PLAN_MODULO_REPORTES_ERP_API.md` antes de iniciar cambios.
+
+La decisión es construir un módulo de consulta y análisis con datos reales del API. No se deben portar las cinco pestañas maqueta del React anterior ni mostrar KPIs cuya fuente no esté definida. El primer entregable cubre ventas, cartera, caja, compras, inventario, lotes y trazabilidad; logística avanzada, cuotas y rentabilidad neta quedan condicionadas a completar sus datos fuente.
+
+## Fuentes analizadas
+
+- `/Users/amartinez/Downloads/TICOFOODSTER.docx`: antigüedad de CxC, estados de cuenta, facturas pendientes y detalle de abonos.
+- `/Users/amartinez/Downloads/Reportes_ERP_Distribuidora_Consolidado_Optimizado vf.docx`: catálogo de ventas, compras, inventario, cartera, caja, agentes, lotes, bonificaciones, auditoría y panel gerencial; además propone DSO, ABC, DSI, OTIF, cobertura, cuota, churn y rentabilidad neta.
+
+> **Nota de vigencia (14 sep 2026):** el tercer punto original de esta lista ("Estado actual del proyecto: `/moduloReportes` consume únicamente `ObtenerReporterCompras`") describía el estado *antes* de este módulo y ya no es cierto — ver **`## Estado actual auditado`** más abajo para lo que existe hoy. Se conserva el resto de este documento (decisiones de UX, contrato, fases) porque sigue siendo la guía vigente; lo que cambia es qué falta de él.
+
+## Estado actual auditado e implementado (16 sep 2026)
+
+Auditoría e implementación sobre `feature/modulo-reportes`. La fase W0/W1/W2 de este documento está construida y la estabilización de experiencia de usuario quedó aplicada: catálogo de entrada, reportes hoja independientes, filtros progresivos, consulta explícita, estado aislado por pestaña y permisos de exportación por acción.
+
+### Lo que existe y funciona
+
+- `/moduloReportes` es hoy un catálogo buscable de **28 reportes** agrupados en 8 dominios: Gerencia; Ventas y clientes; Cartera; Caja y bancos; Compras y pagos; Inventario; Lotes y trazabilidad; Cumplimiento y auditoría. Cada reporte tiene su propia página y ruta `/moduloReportes/<tipo>` y conserva filtros, resultado y estado de rejilla de forma independiente mientras su pestaña siga abierta.
+- El catálogo muestra propósito y filtros en lenguaje de usuario, favoritos y reportes recientes. No expone códigos internos de permiso. El menú lateral presenta los mismos dominios como agrupadores visuales sin alterar los códigos canónicos de seguridad.
+- `ReporteOperacionPanel` comparte la estructura, no el estado: solo muestra filtros que el API realmente entiende, separa básicos de avanzados, ofrece rangos rápidos y exige una consulta explícita. Los catálogos auxiliares se cargan únicamente cuando el reporte los necesita.
+- El resultado documenta el alcance aplicado, hora de consulta y fuente. Los KPI del panel ejecutivo permiten abrir desgloses compatibles heredando el filtro que produjo la cifra. La tabla conserva paginación y orden al volver a la pestaña.
+- Excel y PDF respetan `EXPORTAR`/`IMPRIMIR` respectivamente y se regeneran con una instantánea exacta del filtro consultado. Si el API limita la respuesta a 2.000 filas, la pantalla lo informa y no dibuja una gráfica potencialmente parcial.
+- `Services/GeneradorReporteOperacion.cs` ya genera Excel (ClosedXML) y PDF (QuestPDF) de forma genérica para cualquier tipo del hub — es el motor de exportación reutilizable que el plan pedía en W0.
+- `Views/Shared/Componentes/AppGraficosReporte.razor` + `Services/ResumenGraficasReporteOperacion.cs` ya dan un gráfico por tipo de reporte (barras horizontales dibujadas a mano, sin librería).
+- `Views/Ventas/Comisiones.razor` (`/sales/commissions`) es el reporte de comisiones, con export CSV/XLSX propio y cierre de período.
+- `Views/Ventas/EstadoCuenta.razor` ya cubre "estado de cuenta por cliente" con antigüedad y export PDF/CSV — el requerimiento explícito de `TICOFOODSTER.docx` de estado de cuenta individual ya existe.
+
+### Bugs y deuda concretos detectados (antes de sumar reportes nuevos, conviene resolver esto)
+
+1. **Exportar Excel/PDF daba 404 en varios tipos — ✅ resuelto.** El endpoint usa ahora `CatalogoReportes` como lista única para los 27 reportes genéricos, en vez de mantener otro whitelist manual. Comisiones conserva su exportador propio.
+2. **~~Dos implementaciones de "cuentas por pagar"~~ — aclarado, no era duplicidad (14 sep 2026).** `GET /reportes/cuentas-por-pagar` (Program.cs) es el botón "Descargar PDF" de `Views/Compras/CuentasPorPagar.razor` — el "Arquetipo 05" que ese mismo archivo documenta como plantilla para pantallas de reporte con PDF. Consulta `AbonoPagarController` (deudas pendientes por proveedor, para registrar abonos): un propósito y una fuente distintos del tipo `cuentas-por-pagar` del hub (antigüedad, filtros, paginación). Se dejó como está.
+3. **✅ Dos implementaciones de "compras" — resuelto (14 sep 2026).** `GET /reportes/compras/pdf` (Program.cs) era código huérfano de verdad: ninguna pantalla lo enlazaba, solo llamaba al `ReportsMaster` legado del API (3 de 4 métodos sin implementar). Se retiró la ruta, el proxy `IReportes`/`Reportes.cs` y su registro; del lado API se retiró `ReportsMaster` completo (proyecto, controller, `Startup.cs`, solución) — ver plan API.
+4. **Permisos planos, no por reporte — ✅ resuelto (14–16 sep 2026).** El nodo "Módulo Reportes" tiene hojas con código `MODULO_REPORTES.<TIPO>` y cada hoja abre `/moduloReportes/<tipo>`; `comisiones` conserva `VENTAS.COMISIONES`. La web valida `VER` por hoja y además valida `EXPORTAR` para Excel e `IMPRIMIR` para PDF, tanto al dibujar la acción como en el endpoint de descarga. Los 8 dominios nuevos son agrupadores de interfaz y no crean permisos artificiales ni alteran la semilla del API.
+   - **No es un cambio de comportamiento visible todavía**: mientras nadie tenga esos 19 códigos concedidos ni denegados en su rol, el sistema los trata como "no gobernados" y los deja visibles por defecto (`SeePos:VerPantallasNoGobernadas`, default `true`) — el mismo colchón que ya usan otras pantallas nuevas. El día que se conceda/deniegue alguno de estos códigos en Parámetros→Roles, ese rol empieza a verse afectado de verdad.
+   - ✅ Hecho el 14–16 sep 2026: se concedieron los 27 códigos `MODULO_REPORTES.*` a los 3 roles existentes (`Administrador`, `Admin_CostaPets`, `SA COSTA PETS` — los únicos que hay hoy en el sistema, los tres de alcance administrativo total) y se activó `Seguridad:ExigirPermisos` en el API. La matriz reporte×rol de abajo sigue siendo la referencia para el día que existan roles más acotados (Cajero, Contador, etc.) — hoy no hay ningún rol así que discriminar.
+5. **Sin librería de gráficos real**: no hay Chart.js/ApexCharts/etc. en el proyecto. El ícono de "gráfico de pastel" en `AppGraficosReporte.razor` en realidad dibuja una segunda lista de barras horizontales — no hay pie/donut ni curva ABC/Pareto real, pese a que el tipo `inventario-abc` existe.
+6. **`Views/Consignacion/Tablero.razor` — ✅ resuelto 14 sep 2026.** Estaba construido y funcionando, pero sin nodo de menú — la pantalla ya tenía escrito a mano `Codigo="CONSIGNACION.TABLERO"` pero esa función nunca había existido en el menú ni en la semilla del API (permiso "no gobernado", visible solo por URL directa). Se agregó como hijo "Tablero" bajo "Consignación" (primero de la lista). No se fusionó con el Panel ejecutivo — quedan como dos paneles separados, uno por dominio.
+7. **Agrupamiento de gráfico genérico sin sentido de dominio en varios tipos — ✅ resuelto 16 sep 2026.** `ResumenGraficasReporteOperacion.cs`: `ventas-horas`, `kpi-rutas` e `inventario-abc` no tienen `Fecha` real por fila, así que la evolución por día caía vacía; `cabys` y `empaquetado` no tienen `Monto`/`Cantidad`/`Saldo`, así que la serie sumaba siempre cero; `rentabilidad` agrupaba por `Estado` casi único por fila (una nota de comisión por documento) y `bonificaciones`/`mermas`/`ventas-compras` agrupaban por un `Estado` constante (un solo balde). Cada uno ahora usa el eje real de su dominio (franja horaria, ruta, ranking de artículos por venta, conteo, cliente/artículo, mes) — ver `ResumenGraficasReporteOperacionTests.cs`. Sigue pendiente lo de la nota 5 (sin librería real, sin curva Pareto acumulada dibujada — el "ranking de artículos" de `inventario-abc` es una lectura visual del 80/20, no una curva).
+8. **✅ Directorio de clientes y proveedores sin exportar — resuelto 14 sep 2026.** `Views/Clientes/Consulta.razor` y `Views/Proveedores/Consulta.razor` (catálogos CRUD, no forman parte del hub de reportes) no tenían ninguna forma de exportar el listado. Se agregó un botón "Exportar CSV" en cada uno (mismo patrón `seepos.descargarTexto` que ya usan `Comisiones.razor`/`Kardex.razor`/`EstadoCuenta.razor`), exportando el conjunto filtrado en pantalla.
+
+## Usuarios, decisiones y permisos
+
+| Rol operativo | Necesita ver | Puede exportar o imprimir | Puede administrar definición |
+| --- | --- | --- | --- |
+| Administrador | Todo el catálogo y la auditoría | Sí | Sí, según permisos de Parámetros |
+| Gerente | Tablero gerencial, ventas, margen, cartera, inventario, compras y caja consolidados | Sí | No cambia reglas ni fuentes |
+| Cajero | Apertura, arqueo, cierre, movimientos, predepósitos y depósitos propios | Sí, de su alcance | No |
+| Contador | CxC, CxP, cobros, compras, caja, depósitos confirmados, fiscal y auditoría | Sí | No, salvo permiso explícito |
+| Auxiliar contable | Mismo dominio del contador, con datos sensibles limitados por sucursal si aplica | Sí | No |
+| Control de inventario | Existencias, kardex, lotes, vencimientos, mermas, ajustes, rotación y reorden | Sí | No |
+| Jefatura de facturación | Ventas, documentos fiscales, devoluciones, descuentos, notas de crédito y productividad | Sí | No |
+| Personal de facturación | Sus documentos, ventas y errores de emisión; no márgenes globales ni auditoría | Sí, de su alcance | No |
+| Control y trazabilidad de inventario | Lotes, movimientos, compra-origen, venta-destino, vencimientos y producción | Sí | No |
+
+La seguridad se implementará por códigos de función y acciones `VER`, `EXPORTAR` e `IMPRIMIR`. No se codifican permisos por nombre de rol. El administrador configura cada rol en la matriz ya existente. Los filtros de sucursal, empresa y agente se aplican en el API, no solo se ocultan en la interfaz.
+
+**Estado (16 sep 2026): el árbol de permisos existe, está concedido a los 3 roles reales del sistema, y `Seguridad:ExigirPermisos` ya está activo.** El menú y el API distinguen los 27 tipos genéricos por código propio (`MODULO_REPORTES.<TIPO>`); Comisiones reutiliza `VENTAS.COMISIONES`. Los 3 roles que existen hoy (`Administrador`, `Admin_CostaPets`, `SA COSTA PETS`) tienen todo concedido. La matriz de abajo sigue siendo la referencia para cuando el negocio cree roles más acotados.
+
+### Matriz reporte × rol (detalle sobre la tabla anterior)
+
+Referencia directa entre los tipos ya construidos (o por construir) y los roles pedidos, para guiar el seed de permisos cuando se construya el árbol `REPORTES.*`. "Propio" significa acotado a los datos del usuario (su caja, su cartera de clientes, sus documentos), no el consolidado de la empresa.
+
+| Tipo de reporte | Admin | Gerente | Cajero | Contador | Auxiliar | Ctrl. inventario | Jefe facturación | Personal facturación | Ctrl./trazab. inventario |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `ventas`, `ventas-detalle` | ✔ | ✔ | — | ✔ | ✔ | — | ✔ | Propio | — |
+| `clientes` (comportamiento) | ✔ | ✔ | — | — | ✔ | — | ✔ | — | — |
+| `rentabilidad` | ✔ | ✔ | — | — | — | — | — | — | — |
+| `ventas-compras` (comparativo) | ✔ | ✔ | — | ✔ | — | — | — | — | — |
+| `comisiones` | ✔ | ✔ | — | — | — | — | ✔ | Propio | — |
+| `cuentas-por-cobrar`, `recuperacion-cxc`, estado de cuenta | ✔ | ✔ | — | ✔ | ✔ | — | — | — | — |
+| `cuentas-por-pagar`, `compras` | ✔ | ✔ | — | ✔ | ✔ | — | — | — | — |
+| Gastos *(nuevo)* | ✔ | ✔ | — | ✔ | ✔ | — | — | — | — |
+| `caja`, `arqueos-cierres`, `depositos` | ✔ | ✔ | Propio | ✔ | — | — | — | — | — |
+| `inventario`, `inventario-abc`, `rotacion-inventario` | ✔ | ✔ | — | — | — | ✔ | — | — | ✔ |
+| `lotes`, `trazabilidad` (kardex) | ✔ | ✔ | — | — | — | ✔ | — | — | ✔ |
+| Mermas/quiebres *(nuevo)* | ✔ | ✔ | — | — | — | ✔ | — | — | ✔ |
+| `bonificaciones` | ✔ | ✔ | — | — | — | — | ✔ | — | — |
+| CABYS *(nuevo)* | ✔ | ✔ | — | ✔ | — | — | ✔ | — | — |
+| Apartados/Préstamos *(nuevo)* | ✔ | ✔ | — | ✔ | ✔ | — | — | — | — |
+| Empaquetado/Maquila *(nuevo)* | ✔ | ✔ | — | — | — | ✔ | — | — | ✔ |
+| `auditoria` / reimpresiones | ✔ | — | — | ✔ | — | — | ✔ | — | — |
+| KPI ruta/agente *(nuevo)* | ✔ | ✔ | — | — | — | — | ✔ | — | — |
+| Dashboard BI/gerencial *(nuevo)* | ✔ | ✔ | — | — | — | — | — | — | — |
+
+## Catálogo priorizado
+
+### Fase uno datos disponibles y de mayor valor — ✅ construida, con deuda (ver `## Estado actual auditado`)
+
+1. **Ventas y facturación:** ventas netas por fecha, cliente, vendedor, familia, proveedor o artículo; detalle de documentos; contado/crédito; descuentos; devoluciones; notas de crédito; ventas por hora; top de clientes, artículos y servicios. — ✅ **las 10 modalidades del catálogo quedaron cubiertas el 14 sep 2026** (venía auditado como 4 completas / 4 parciales / 2 sin construir). Se cerraron las 6 que faltaban:
+
+   | # | Modalidad del catálogo | Estado final |
+   |---|---|---|
+   | 1 | Detalladas por cliente y/o general, con modalidad de pago | ✅ `ventas-detalle` filtra por `IdCliente` y ahora también por `TipoVenta` (contado/crédito) |
+   | 2 | Macro por fecha determinada | ✅ `Desde`/`Hasta` |
+   | 3 | Por colaborador | ✅ nuevo filtro `IdAgente` (campo de texto, login del agente) en `ventas`/`ventas-detalle`/`ventas-horas` |
+   | 4 | Por familia de producto | ✅ nuevo filtro `IdFamilia` (dropdown poblado desde `IFamilias.Obtener()`) en `ventas-detalle` |
+   | 5 | Por tipo de venta (Contado/Crédito) | ✅ nuevo filtro `TipoVenta` |
+   | 6 | Anuladas y devoluciones | ✅ nuevo checkbox "Incluir anuladas" (`IncluirAnuladas`, default apagado — no cambia el comportamiento de nadie que no lo marque); devoluciones ya estaban |
+   | 7 | Comisiones a colaborador | ✅ `comisiones` (reporte aparte) |
+   | 8 | Ganancias | ✅ `rentabilidad` |
+   | 9 | Descuento | ✅ nuevo indicador "Descuento total" en `ventas-detalle` |
+   | 10 | Ventas entre horas | ✅ nuevo tipo **`ventas-horas`** — agrupa la facturación por hora del día (0-23), pestaña propia en el hub |
+
+   Filtros nuevos visibles solo cuando aplican (`ventas`/`ventas-detalle`/`ventas-horas`; familia solo en `ventas-detalle`). Incluidos en el whitelist de exportación desde el commit (no se repitió el bug #1).
+2. **Cuentas por cobrar:** antigüedad 1 a 30, 31 a 60, 61 a 90 y más de 90 días; estado de cuenta; facturas pendientes; aplicaciones y recibos; recuperación por periodo; DSO cuando la definición de fecha de vencimiento esté validada. — ✅ construido (`cuentas-por-cobrar`, `EstadoCuenta.razor`), con DSO ya calculado; falta el ajuste de cubetas a 1-30/31-60/61-90/+90 (hoy es por vencer/1-30/31-60/+60, lado API).
+3. **Caja y depósitos:** aperturas, arqueos, cierres, diferencias, movimientos; predepósitos; depósitos y cheques por estado de confirmación. — ✅ construido (`caja`, `arqueos-cierres`, `depositos`, pantallas operativas de Caja).
+4. **Compras y cuentas por pagar:** detalle de compras, proveedor, impuesto, descuentos, vencimiento, saldo y pagos. — ✅ construido pero **duplicado** (bugs #2 y #3 de arriba) — resolver antes de sumar reportes nuevos de este dominio (Gastos).
+5. **Inventario y lotes:** existencia y valoración, kardex, lotes por vencimiento, artículos bajo mínimo, ajuste de inventario y trazabilidad venta-lote-compra cuando exista el vínculo de lote. — ✅ construido (`inventario`, `lotes`, `trazabilidad`); "artículos bajo mínimo" vive aparte en `Modulo.razor` → "Alertas operativas", no integrado al hub de reportes.
+6. **Bonificaciones, devoluciones y auditoría:** bonificaciones entregadas, devoluciones de venta y compra, bitácora de cambios, reimpresiones y cambios de estado de cotizaciones. — ⚠️ parcial: `bonificaciones` y `auditoria` existen. **Reimpresiones investigado 14 sep 2026, con hallazgo concreto**: no van a `Bitacoras` (la tabla de `auditoria`) — existe una tabla **dedicada** `BitacoraReimpresiones` (API: `SuvesaPos.Data/Models/BitacoraReimpresione.cs`, campos `Usuario, Cedula, Fecha, Factura, Motivo`), pero **nada en todo el sistema escribe ahí** — mismo patrón que `Stock.TipoAjuste` (campo/tabla scaffoleada para una función que nunca se terminó de cablear). Hoy "reimprimir desde la Bandeja" es solo volver a pedir el PDF (`GET /documentos/{tipo}/{id}/pdf`), sin dejar rastro. Que `Motivo` sea obligatorio en el esquema sugiere que el diseño original quería pedirle al usuario una razón al reimprimir (no loguear en silencio cada descarga) — eso es una decisión de UX/Producto (¿modal pidiendo motivo?, ¿logueo automático sin preguntar?) que hay que tomar antes de cablear el escritor; agregar el reporte de lectura antes de eso no tendría sentido, quedaría siempre vacío.
+
+### Reportes nuevos identificados en la relectura de fuentes (no estaban en el catálogo original de este plan)
+
+Mapeados 1:1 con la sección "Lo que sigue sin construirse" del plan API — depende de que el API los construya primero (A4.3–A4.7 de ese documento):
+
+- ✅ **Reporte de Gastos** (catálogo N°3) — hecho 14 sep 2026: pestaña `gastos` en el dominio "Compras" del hub, junto a `compras`, con permiso propio `MODULO_REPORTES.GASTOS` y export Excel/PDF.
+- ✅ **Cumplimiento CABYS** (submenú Ventas N°9) — hecho 14 sep 2026: pestaña `cabys` en el dominio "Ventas y cartera", permiso `MODULO_REPORTES.CUMPLIMIENTO_CABYS`, export Excel/PDF.
+- ✅ **Apartados y Préstamos** (catálogo N°7) — hecho 14 sep 2026: pestaña `apartados` en "Ventas y cartera", permiso `MODULO_REPORTES.APARTADOS_Y_PRESTAMOS`.
+- ✅ **Empaquetado/Maquila** (catálogo N°13) — hecho 14 sep 2026: pestaña `empaquetado` en "Inventario", permiso `MODULO_REPORTES.EMPAQUETADO_Y_MAQUILA`.
+- ✅ **KPI por ruta** (anexo "Comportamiento del Agente") — hecho 14 sep 2026, parcial: pestaña `kpi-rutas` en "Ventas y cartera" (no junto a Comisiones, quedó como reporte propio en el hub). Es por ruta, no por agente individual, y sin cumplimiento de cuota (no hay meta capturada en el modelo). Ver detalle en el plan API.
+- ✅ **Mermas consolidadas** — hecho 14 sep 2026: pestaña `mermas` en "Inventario", reporte nuevo (no se enriqueció "Alertas operativas") sobre diferencias negativas de toma física — es la única fuente con motivo verificable hoy (`Stock.TipoAjuste` resultó ser un campo sin llenar, ver plan API).
+
+Del anexo "extras" (notas de seguimiento comercial, boletas de cambio, validación de depósito acreditado): son **funcionalidad nueva, no reportes sobre datos existentes** — requieren decisión de Producto sobre alcance antes de diseñar pantalla (ver API, punto 10 de "Lo que sigue sin construirse", y `## Decisiones que debe aprobar Producto` al final de este documento).
+
+### Fase dos requiere validación de datos o nueva captura
+
+- ✅ ABC/Pareto, rotación y DSI — construidos (pestañas `inventario-abc`, `rotacion-inventario`); falta solo el sign-off de Producto sobre los cortes 80/95% y la ventana de días, no desarrollo.
+- ✅ Margen por factura y por línea — construido, y con costo histórico real (`VentasDetalle.PrecioCosto`/`CostoReal`, instantánea al facturar, no el costo actual del catálogo). El punto original de este documento asumía que faltaba ese dato; no era así — ver plan API, A3. Margen por vendedor/cliente agregado y una regla explícita de flete/costos indirectos siguen sin construir.
+- Comisiones, cumplimiento de cuota, rentabilidad por agente y zona: comisiones y rentabilidad por ruta ya existen (`comisiones`, `kpi-rutas`); cumplimiento de cuota sigue bloqueado — no hay metas por agente/periodo capturadas en ningún lado.
+- Cobertura, visitas, efectividad de ruta, OTIF, carga de vehículos y heatmap: **confirmado sin modelo transaccional** (`RutaComercial`/`RutaComercialAgente` son catálogo puro, sin tabla de visita/plan/entrega/vehículo). Sigue siendo captura nueva completa, no un reporte — necesita alcance de Producto primero (ver plan API, A3).
+- Churn, reactivación y penetración de catálogo: requieren periodos y definición comercial aprobada; sí pueden iniciar como análisis de última compra y familias compradas.
+- Mermas, quiebres y ventas perdidas: los ajustes existen, pero hace falta clasificar motivo, capturar demanda no atendida y distinguir vencimiento, daño, pérdida y conteo físico.
+- Trazabilidad inversa de producción: hay cabecera y líneas de producción, pero se debe confirmar que cada insumo y producto terminado guarda lote y cantidad trazable.
+
+## Experiencia de usuario
+
+### Página inicial
+
+La ruta `/moduloReportes` es un catálogo, no un reporte de compras. Muestra tarjetas agrupadas en 8 dominios, búsqueda por necesidad, propósito y filtros disponibles, favoritos y accesos recientes. Las funciones no autorizadas no aparecen.
+
+**Estado (16 sep 2026):** `/moduloReportes` ya dejó de ser un reporte único de compras (eso está cumplido). Hasta el 14 sep 2026 había quedado como pestañas dentro de una sola página (`Compras.razor`, `?tipo=` por query string, arreglo estático `Grupos`); el 16 sep se corrigió un bug real de esa forma (cambiar de reporte por el menú no actualizaba el contenido porque no había `OnParametersSetAsync`) separando cada tipo en su propia página/ruta real (`/moduloReportes/<tipo>`, 28 archivos en `Views/Reportes/`, cada uno instanciando `ReporteOperacionPanel`).
+
+**✅ Catálogo de entrada — hecho 16 sep 2026.** `/moduloReportes` (sin tipo) es `ModuloReportes.razor`: tarjetas navegables agrupadas por dominio usando el catálogo único `CatalogoReportes`. Cada tarjeta abre su propia página/pestaña, explica para qué sirve y enumera sus filtros. Los códigos internos no se muestran. Una hoja no incluye selectores para sustituirse por otro reporte: se vuelve al catálogo o se abre otra hoja desde el menú, preservando la percepción y el estado de pantallas independientes.
+
+**✅ Independencia entre reportes — hecho 16 sep 2026.** `IEstadoReportes` mantiene un contexto separado por tipo: filtros editables, última consulta, instantánea aplicada, resultado y orden/página de rejilla. Cambiar de reporte no mezcla datos; cerrar una pestaña descarta únicamente su contexto y "cerrar todas" limpia todos. El estado no serializa miles de filas en el navegador.
+
+**Pendiente, no bloqueante:** "última actualización global" por tarjeta. No existe un endpoint que indique cuándo cambió por última vez la fuente de cada reporte. La hoja sí muestra la hora de su propia consulta; el catálogo no inventa una fecha global.
+
+### Patrón de una pantalla de reporte
+
+1. Cabecera con nombre, descripción, ayuda de fórmula y acciones Exportar Excel, Exportar PDF e Imprimir cuando el rol lo permita.
+2. `AppFiltros` reutilizable: empresa, sucursal, rango de fecha obligatorio, moneda, cliente, proveedor, familia, artículo, bodega, agente, estado fiscal y condición, según corresponda.
+3. Consulta explícita. No cargar millones de filas al abrir ni recalcular por cada pulsación.
+4. Tarjetas de resumen y una tabla `AppRejilla` o isla `MudDataGrid` para consultas pesadas. La tabla debe paginar en servidor, ordenar por columnas permitidas y mostrar una fila de total coherente con los filtros.
+5. Gráficas solo cuando agreguen lectura: tendencia mensual, composición por categoría, antigüedad y comparativos. Deben tener la misma tabla accesible debajo y no ser la única fuente del dato.
+6. Enlace de desglose: desde una cifra se abre el detalle filtrado, conservando los filtros y sin duplicar cálculos en el navegador.
+
+### Reglas visuales y de seguridad
+
+- Fechas de filtro se inicializan desde el reloj del equipo; el API recibe fechas de negocio sin convertirlas de manera ambigua a UTC.
+- Los montos se calculan y redondean en el servidor con `decimal`; la web solo formatea.
+- El estado de un depósito o cheque usa las etiquetas definidas: Pendiente de confirmación, Confirmado, Recuperación, Cobrado, No confirmado y Rechazado para cheque.
+- Las exportaciones deben incluir título, periodo, filtros, usuario y hora de generación. No se exportan más filas de las autorizadas ni datos fuera del alcance de sucursal.
+
+## Contrato esperado del API
+
+El sitio no consulta tablas ni descarga conjuntos completos. Para cada reporte consume un contrato con:
+
+```text
+Filtro común + dimensiones específicas
+Resumen (KPIs y totales)
+Página de filas ordenada en servidor
+Metadatos: fecha de corte, moneda, fórmula o notas, total de registros
+Token o identificador de exportación cuando el archivo se genera en segundo plano
+```
+
+Los DTOs del sitio se crean a partir de contratos regenerados o, mientras el contrato se estabiliza, clientes manuales encapsulados en `ApiConexion`. No se edita código generado.
+
+## Secuencia de implementación web
+
+### W0 contrato y navegación — ✅ hecho (16 sep 2026)
+
+- Crear el árbol de funciones bajo `REPORTES` con categorías y reportes hoja. Regenerar la semilla de seguridad desde `MenuSeePos.cs` y revisar permisos de rol. — ✅ hecho (14 sep 2026), ver bug/deuda #4 de arriba.
+- Convertir `/moduloReportes` en catálogo y conservar el reporte de compras como una hoja concreta, no como página raíz. — ✅ hecho (16 sep 2026): `ModuloReportes.razor` es el catálogo de tarjetas por dominio, cada tipo (incluido `compras`) es su propia página/ruta hoja. Queda pendiente, no bloqueante, mostrar "última actualización" por tarjeta (no hay fuente de ese dato todavía).
+- Definir el componente compartido de filtros, estado de carga, formato de totales, explicación de métricas y exportación. — ✅ hecho (`AppFiltros`, `AppRejilla`, `GeneradorReporteOperacion`).
+
+### W1 finanzas operativas — ✅ hecho, con deuda
+
+- Construir Compras, CxP, Antigüedad CxC, Estado de cuenta, Facturas pendientes y Recuperación de cartera. — ✅ construido; deuda: duplicidad de Compras/CxP (bugs #2, #3) y cubetas de antigüedad.
+- Construir Caja y depósitos, con separación visual de pendientes bancarios. — ✅ construido.
+- Reusar los PDF de recibo/factura solo para documentos; los reportes consolidados se exportan desde el nuevo endpoint de reporte. — ✅ cumplido (`GeneradorReporteOperacion` separado de la impresión fiscal `QuestPDF`).
+
+### W2 ventas e inventario — ✅ hecho, con deuda
+
+- Construir Ventas netas/detalle, descuentos/devoluciones/notas y top de clientes/artículos. — ✅ construido.
+- Construir Kardex, existencias, lotes/vencimientos y trazabilidad por artículo. — ✅ construido.
+- Incorporar gráficos de tendencia únicamente sobre los agregados que entregue el API. — ⚠️ hecho pero limitado: solo barras horizontales dibujadas a mano, sin librería (bug #7 de agrupamiento sin sentido de dominio ya resuelto el 16 sep 2026).
+
+### Fase de estabilización (nueva, antes de W3) — ✅ aplicada en la web
+
+Se resolvió la deuda funcional y de experiencia de W0–W2 que podía atenderse en la web. Permanecen como decisiones separadas las visualizaciones avanzadas que necesitan una librería y los reportes que requieren nueva captura de datos:
+
+1. ✅ Corregir el whitelist de exportación (`Program.cs:430`) para los 8 tipos que hoy daban 404 — hecho 14 sep 2026 (commit `1ceb8cd`).
+2. ✅ Compras (hub vs. `/reportes/compras/pdf` legado) — hecho 14 sep 2026, era código muerto, se retiró. CxP (hub vs. `/reportes/cuentas-por-pagar`) — revisado y aclarado: no era duplicidad real, son dos pantallas con propósito distinto; no requería cambio.
+3. ✅ Construir el árbol `MODULO_REPORTES.*` (API) + convertir el nodo plano del menú en submenú filtrado por permiso (web) — hecho 14–16 sep 2026. ✅ Paso operativo también cerrado: los 27 códigos genéricos concedidos a los 3 roles existentes y `Seguridad:ExigirPermisos` activo (ver nota en "Usuarios, decisiones y permisos" arriba).
+4. ✅ Ajustar cubetas de antigüedad de CxC a 1-30/31-60/61-90/+90 — hecho 14 sep 2026 (commit `1b947024` en la API).
+5. Decidir el destino de `Views/Consignacion/Tablero.razor` (enlazar en el menú o absorber en el dashboard de W3-BI).
+6. Pendiente de decisión: adoptar una librería de gráficos real para pie/curva ABC. Mientras tanto se ocultan gráficos cuando la muestra del API está limitada, evitando conclusiones incorrectas.
+7. ✅ Gastos, CABYS, Apartados/Préstamos, Empaquetado/Maquila, KPI por ruta y Mermas ya forman parte del catálogo y sus hojas independientes.
+
+### W3 indicadores avanzados — ⏳ sin iniciar (vigente tal cual)
+
+- Activar ABC, DSI, margen y comportamiento de clientes solo al aprobar fórmulas y fuentes.
+- Agregar rutas, cuotas, visitas, flete y OTIF después de que sus módulos transaccionales existan y pasen pruebas de calidad de datos.
+
+### Panel ejecutivo — ✅ hecho 14 sep 2026 (versión mínima, sin librería de gráficos)
+
+Pestaña **"Panel ejecutivo"** (`panel-ejecutivo`, permiso `MODULO_REPORTES.PANEL_EJECUTIVO`, página propia `Views/Reportes/PanelEjecutivo.razor` desde el 16 sep 2026), grupo "Panel ejecutivo" al frente de la fila de dominios. Muestra las 12 tarjetas de indicador que ya devuelve `PanelEjecutivoAsync` (API) — reutiliza el mismo componente de tarjetas que cualquier otro reporte, sin trabajo de UI adicional. No tiene filas (`Filas` vacío), así que la grilla y el gráfico de barras quedan vacíos por diseño (`AppGraficosReporte` ya se oculta solo cuando `Filas.Count == 0`).
+
+**Lo que NO incluye, deliberadamente, por alcance:**
+- **Sin librería de gráficos real.** Sigue sin haber Chart.js/ApexCharts/etc. en el proyecto — el panel es 12 tarjetas de número, no gráficos. Adoptar una librería queda como decisión de Producto/Diseño aparte (bug/deuda #5 de `## Estado actual auditado`, sigue abierto).
+- **Sin feed para Power BI/Tableau.** La recomendación de `Reportes_ERP_Distribuidora_Consolidado_Optimizado vf.docx` (sección 7) de conectar una herramienta de BI externa no se atendió — el panel es una pantalla propia, no un export/API pensado para eso.
+- **No absorbió `Views/Consignacion/Tablero.razor`** (seguía huérfano del menú, bug #6 de `## Estado actual auditado`) — quedan como dos paneles separados; evaluar si conviene fusionarlos más adelante.
+
+## Pruebas y aceptación web
+
+- Pruebas de permisos: un cajero no ve margen gerencial; un contador sí ve cartera; control de inventario no ve datos financieros no concedidos.
+- Pruebas de filtros: el mismo periodo y dimensión da igual total en pantalla, PDF y Excel.
+- Pruebas de límites: tabla paginada, carga y exportación no congelan el circuito Blazor.
+- Pruebas de accesibilidad: tablas navegables, estados no dependientes solo de color y filtros etiquetados.
+- Pruebas E2E con datos semilla controlados para una venta, devolución, nota, cobro, depósito pendiente/confirmado, compra, lote y vencimiento.
+
+## Criterios de salida de fase uno
+
+- Todo total mostrado tiene definición, fuente, filtros y moneda explícitos.
+- CxC concilia con el mayor de cuentas por cobrar, no con un campo calculado en el navegador.
+- Caja concilia con `MovimientoCaja`; depósitos/cheques pendientes no se presentan como efectivo ni cobro confirmado.
+- Toda exportación reproduce exactamente los filtros y respeta autorización.
+- Los reportes intensivos consultan páginas o agregados del servidor y no cargan el historial completo en Blazor.
+
+**Estado (16 sep 2026):** los criterios web de fase uno están cumplidos. Excel y PDF validan la acción correspondiente y reproducen la instantánea exacta de filtros de la consulta visible. El límite actual de 2.000 filas proviene del contrato del API, se comunica explícitamente y queda como trabajo de backend si el negocio necesita exportaciones masivas o asincrónicas.
+
+## Decisiones que debe aprobar Producto antes de fase dos
+
+1. Fórmula oficial de venta neta, costo, margen, DSO, DSI, cartera vencida y devolución.
+2. Alcance de sucursal y empresa para cada rol.
+3. Si una bonificación reduce margen y cómo se atribuye a cliente, agente y proveedor.
+4. Modelo operativo de rutas, visitas, cuota, entrega, flete y ventas perdidas.
+5. Retención histórica, horario de corte y límite permitido de exportación.
+6. **(nuevo)** Alcance de las funcionalidades del anexo "extras" de `Reportes_ERP_Distribuidora_Consolidado_Optimizado vf.docx`: notas de seguimiento/bitácora comercial de visitas, boletas de cambio por producto vencido/dañado, y validación de que un pago por depósito fue efectivamente acreditado. Son funcionalidad nueva (no solo reportes sobre datos existentes) — definir si entran a este módulo, a otro, o quedan fuera de alcance antes de diseñarlas.
+7. ✅ Resuelto (14 sep 2026): se retiró `ReportsMaster`/`ReportesController` (API) y la ruta web `/reportes/compras/pdf`, código muerto de verdad. `/reportes/cuentas-por-pagar` se dejó — no era duplicidad, es el PDF de una pantalla operativa distinta (ver "Bugs y deuda concretos" arriba).

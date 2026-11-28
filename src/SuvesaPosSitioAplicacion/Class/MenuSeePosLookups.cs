@@ -56,9 +56,25 @@ public static partial class MenuSeePos
     /// <summary>Todos los nodos del menu en pre-orden.</summary>
     public static IReadOnlyList<ItemMenu> Planos => _planos.Value;
 
+    /// <summary>
+    /// Títulos que la UI usa y no coinciden letra por letra con el menú. Sin esto,
+    /// "Prefactura de Consignación" no casa con CONSIGNACION.FACTURACION_DE_CONSIGNACIONES
+    /// y el rol que sí tiene Facturación de Consignaciones ve "Sin permiso".
+    /// </summary>
+    private static readonly Dictionary<string, string> _aliasTitulo = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Prefactura de Consignación"] = "CONSIGNACION.FACTURACION_DE_CONSIGNACIONES",
+        ["Facturación de Consignaciones"] = "CONSIGNACION.FACTURACION_DE_CONSIGNACIONES",
+        ["Registro de Consignaciones"] = "CONSIGNACION.FACTURACION_DE_CONSIGNACIONES",
+    };
+
     /// <summary>Codigo de funcion para un titulo de pantalla. Null si no esta o es ambiguo sin resolver.</summary>
     public static string? CodigoDeTitulo(string? titulo)
-        => titulo is { Length: > 0 } && _codigoPorTitulo.Value.TryGetValue(titulo, out var c) ? c : null;
+    {
+        if (titulo is not { Length: > 0 }) return null;
+        if (_aliasTitulo.TryGetValue(titulo, out var alias)) return alias;
+        return _codigoPorTitulo.Value.TryGetValue(titulo, out var c) ? c : null;
+    }
 
     /// <summary>Codigo de funcion para una ruta Blazor.</summary>
     public static string? CodigoDeRuta(string? ruta)

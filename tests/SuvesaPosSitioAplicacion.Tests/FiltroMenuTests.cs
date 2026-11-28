@@ -27,8 +27,10 @@ public class FiltroMenuTests
         public bool EsAdministrador => EsSuperAdministrador;
         public string? PerfilCodigo => EsSuperAdministrador ? "SUPER_ADMIN" : "USUARIO";
         public bool EsCostaPets => false;
-        public bool EsAgenteCostaPets => false;
+        public bool EsAgente => false;
+        public bool EsServicioAlCliente => false;
         public bool PermitirExistenciaNegativa => false;
+        public bool HabilitaImportaciones => false;
         public int IdSucursal => 1;
         public string? NombreSucursal => "Central";
         public bool TieneSucursal => true;
@@ -36,7 +38,9 @@ public class FiltroMenuTests
         public IReadOnlyCollection<PermisoFuncion> Permisos => Array.Empty<PermisoFuncion>();
 
         public bool EstaGobernada(string funcionCodigo) => true;
-        public bool PuedeVer(string funcionCodigo) => EsSuperAdministrador || _codigos.Contains(funcionCodigo);
+        public bool PuedeVer(string funcionCodigo)
+            => EsSuperAdministrador
+               || _codigos.Any(c => PermisoFuncion.Cubre(c, funcionCodigo));
         public bool Puede(string funcionCodigo, AccionPantalla accion) => PuedeVer(funcionCodigo);
         public Task CargarAsync() => Task.CompletedTask;
     }
@@ -97,6 +101,33 @@ public class FiltroMenuTests
     }
 
     [Fact]
+    public void RamaToma_ElPermisoDelGrupoCubrePretomaYTomaFisica()
+    {
+        var sesion = new SesionFalsa(false, "COMPRAS.TOMA");
+        var toma = MenuSeePos.Items
+            .Single(i => i.Codigo == "COMPRAS")
+            .Hijos.Single(h => h.Codigo == "COMPRAS.TOMA");
+
+        var hojas = FiltroMenu.Visibles(toma.Hijos, sesion).Select(h => h.Codigo).ToList();
+
+        Assert.Contains("COMPRAS.TOMA.PRETOMA", hojas);
+        Assert.Contains("COMPRAS.TOMA.TOMA_FISICA", hojas);
+    }
+
+    [Fact]
+    public void RamaToma_SoloTomaFisicaNoEnseñaPretoma()
+    {
+        var sesion = new SesionFalsa(false, "COMPRAS.TOMA.TOMA_FISICA");
+        var toma = MenuSeePos.Items
+            .Single(i => i.Codigo == "COMPRAS")
+            .Hijos.Single(h => h.Codigo == "COMPRAS.TOMA");
+
+        var hojas = FiltroMenu.Visibles(toma.Hijos, sesion).Select(h => h.Codigo).ToList();
+
+        Assert.Equal(new[] { "COMPRAS.TOMA.TOMA_FISICA" }, hojas);
+    }
+
+    [Fact]
     public void ElMenuRealNoTieneTitulosDuplicadosEnLaRaiz()
     {
         var titulos = MenuSeePos.Items.Select(i => i.Titulo).ToList();
@@ -107,7 +138,16 @@ public class FiltroMenuTests
     public void ElMenuRealSeCargoCompleto()
     {
         static int Contar(IEnumerable<ItemMenu> ns) => ns.Sum(n => 1 + Contar(n.Hijos));
-        Assert.Equal(10, MenuSeePos.Items.Count);
-        Assert.Equal(82, Contar(MenuSeePos.Items));
+        Assert.Equal(12, MenuSeePos.Items.Count);
+        // 84 originales + 19 (arbol de permisos MODULO_REPORTES.*) + 2 (Gastos,
+        // Cumplimiento CABYS) + 4 (Apartados y préstamos, KPI por ruta, Empaquetado y
+        // maquila, Mermas) + 1 (Panel ejecutivo) + 1 (Tablero de Consignación, pantalla
+        // huérfana que ya existía sin nodo de menú) + 1 (Ventas entre horas) + 1
+        // (Importaciones) + 1 (Reportes → Importaciones, KPI trasladado fuera de
+        // Compras → Importaciones) + 1 (Pretoma) + 1 (Boletas de Consignación) + 1 (Recibo de mercadería).
+        // + 4 (módulo Cobranza: Cobranza, Seguimiento, Dashboard, Gerencial).
+        // + 1 (Cobranza → Autorizaciones de crédito: aprobación de facturas a crédito a clientes morosos).
+        // + 1 (Ventas → Nota de crédito externa: NC electrónica contra un comprobante del sistema anterior, solo administradores).
+        Assert.Equal(133, Contar(MenuSeePos.Items));   // 124 + Cobranza + Autorizaciones + IVA Repercutido, Soportado y Prorrata + Nota de crédito externa
     }
 }

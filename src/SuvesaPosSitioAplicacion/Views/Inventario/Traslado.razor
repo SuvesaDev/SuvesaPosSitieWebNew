@@ -53,7 +53,13 @@
           }
         </div>
         <div class="col-md-3"><label class="form-label">Lote</label>
-          <select class="form-select" @bind="_loteSel"><option value="0">Sin lote</option>@foreach (var l in _lotes){<option value="@l.Id">@l.Numero</option>}</select></div>
+          <select class="form-select" @bind="_loteSel" disabled="@(_artSel is not null && (_artSel.Lote || _artSel.LoteUnico) && _lotes.Count == 0)">
+            @if (_artSel is null || (!_artSel.Lote && !_artSel.LoteUnico))
+            { <option value="0">Sin lote</option> }
+            else
+            { <option value="0">Elija el lote del origen</option> }
+            @foreach (var l in _lotes){<option value="@l.Id">@l.Numero</option>}
+          </select></div>
         <div class="col-md-2"><label class="form-label">Cantidad</label><input type="number" min="0.001" step="0.001" class="form-control" @bind="_cant" /></div>
         <div class="col-md-2 d-grid"><button class="btn btn-outline-primary" @onclick="AgregarLinea" disabled="@(_artSel is null || _cant <= 0)">Agregar</button></div>
       </div>
@@ -80,7 +86,9 @@
   @if (_hecho is not null)
   {
     <div class="card mb-3"><div class="card-header text-bg-success">Traslado #@_hecho.Id · @_hecho.NombreBodegaOrigen → @_hecho.NombreBodegaDestino · costo @_hecho.CostoTotal.ToString("N2")</div>
-      <div class="card-body"><table class="table table-sm mb-0">
+      <div class="card-body">
+        <div class="mb-2"><BotonImprimir Tipo="traslado-bodega" Id="_hecho.Id" Texto="Imprimir traslado" Clase="btn-outline-primary" /></div>
+        <table class="table table-sm mb-0">
         <thead><tr><th>Artículo</th><th>Lote</th><th class="text-end">Cantidad</th></tr></thead>
         <tbody>@foreach (var l in _hecho.Lineas){<tr><td><code>@l.CodArticulo</code> @l.Descripcion</td><td>@l.NumeroLote</td><td class="text-end">@l.Cantidad.ToString("N3")</td></tr>}</tbody>
       </table></div></div>
@@ -101,6 +109,7 @@
             <td class="text-end">@t.CantidadLineas</td>
             <td>@t.EstadoDescripcion</td>
             <td class="text-end">
+              <BotonImprimir Tipo="traslado-bodega" Id="t.Id" Texto="PDF" Clase="btn-sm btn-link p-0" />
               <button class="btn btn-sm btn-link p-0" @onclick="() => Ver(t.Id)">Ver</button>
               @if (t.Estado != 2) { <button class="btn btn-sm btn-link text-danger p-0 ms-2" @onclick="() => AbrirAnular(t.Id)">Anular</button> }
             </td>
@@ -144,7 +153,9 @@
  protected override async Task OnInitializedAsync()
  {
      var r = await Api.BodegasOperativasAsync(Sesion.IdSucursal > 0 ? Sesion.IdSucursal : null);
-     _bodegas = r.Status == ResponseStatus._0 ? (r.Responses ?? new()) : new();
+     _bodegas = r.Status == ResponseStatus._0
+         ? (r.Responses ?? new()).Where(b => b.IdSucursal == Sesion.IdSucursal).ToList()
+         : new();
      await CargarRecientes();
  }
 
@@ -162,19 +173,25 @@
      _artSel = null;
      if (t.Length < 2) { _arts = new(); return; }
      var r = await Inventario.Buscar(t);
-     _arts = r.EsCorrecta ? (r.Responses ?? new List<InventarioDTO>()).Take(20).ToList() : new();
+     _arts = r.EsCorrecta ? (r.Responses ?? new List<InventarioDTO>()).Where(a => a.Servicio != true).Take(20).ToList() : new();
  }
 
  private async Task ElegirArt(InventarioDTO a)
  {
-     _artSel = a; _texArt = $"{a.Cod_Articulo} — {a.Descripcion}"; _arts = new(); _loteSel = 0; _lotes = new();
-     var r = await Api.ExistenciaConsolidadaAsync(a.Codigo);
-     if (Ok(r)) _lotes = (r.Responses?.Lotes ?? new()).Where(l => !l.Vencido && !l.Bloqueado).ToList();
+     if (a.Servicio == true)
+     { _ = Dialogos.ErrorAsync("Un servicio no se traslada."); return; }
+    if (_origen <= 0)
+    { _ = Dialogos.ErrorAsync("Seleccione la bodega de origen antes de elegir el artículo."); return; }
+    _artSel = a; _texArt = $"{a.Cod_Articulo} — {a.Descripcion}"; _arts = new(); _loteSel = 0; _lotes = new();
+    var r = await Api.ExistenciaConsolidadaAsync(a.Codigo);
+    if (Ok(r)) _lotes = (r.Responses?.Lotes ?? new()).Where(l => !l.Vencido && !l.Bloqueado && l.PorBodega.Any(b => b.IdBodega == _origen && b.Existencia > 0)).ToList();
  }
 
  private void AgregarLinea()
  {
      if (_artSel is null || _cant <= 0) return;
+     if ((_artSel.Lote || _artSel.LoteUnico || _lotes.Count > 0) && _loteSel <= 0)
+     { _ = Dialogos.ErrorAsync("Este artículo maneja lotes. Elija el lote que está en la bodega de origen."); return; }
      if (_lineas.Any(x => x.IdArticulo == _artSel.Codigo && x.IdStockLote == (_loteSel > 0 ? _loteSel : null)))
      { _ = Dialogos.ErrorAsync("Ese artículo/lote ya está en la lista."); return; }
      _lineas.Add(new TrasladoBodegaLinea

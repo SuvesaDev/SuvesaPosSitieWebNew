@@ -22,9 +22,12 @@ public sealed class PerfilLoginDTO
     [JsonPropertyName("esSuperAdministracion")] public bool EsSuperAdministracion { get; set; }
     [JsonPropertyName("gestionaUsuarios")] public bool GestionaUsuarios { get; set; }
     [JsonPropertyName("costaPets")] public bool CostaPets { get; set; }
-    [JsonPropertyName("agenteCostaPets")] public bool AgenteCostaPets { get; set; }
+    [JsonPropertyName("esAgente")] public bool EsAgente { get; set; }
+    [JsonPropertyName("esServicioAlCliente")] public bool EsServicioAlCliente { get; set; }
     [JsonPropertyName("aceptaConsignacion")] public bool AceptaConsignacion { get; set; }
     [JsonPropertyName("permiteExistenciaNegativa")] public bool PermiteExistenciaNegativa { get; set; }
+    [JsonPropertyName("habilitaImportaciones")] public bool HabilitaImportaciones { get; set; }
+    [JsonPropertyName("esSupervisorBodega")] public bool EsSupervisorBodega { get; set; }
 }
 
 public sealed class PermisoLoginDTO
@@ -113,9 +116,12 @@ public sealed class PerfilSeguridadDTO
     [JsonPropertyName("esSuperAdministracion")] public bool EsSuperAdministracion { get; set; }
     [JsonPropertyName("gestionaUsuarios")] public bool GestionaUsuarios { get; set; }
     [JsonPropertyName("costaPets")] public bool CostaPets { get; set; }
-    [JsonPropertyName("agenteCostaPets")] public bool AgenteCostaPets { get; set; }
+    [JsonPropertyName("esAgente")] public bool EsAgente { get; set; }
+    [JsonPropertyName("esServicioAlCliente")] public bool EsServicioAlCliente { get; set; }
     [JsonPropertyName("aceptaConsignacion")] public bool AceptaConsignacion { get; set; }
     [JsonPropertyName("permiteExistenciaNegativa")] public bool PermiteExistenciaNegativa { get; set; }
+    [JsonPropertyName("habilitaImportaciones")] public bool HabilitaImportaciones { get; set; }
+    [JsonPropertyName("esSupervisorBodega")] public bool EsSupervisorBodega { get; set; }
     [JsonPropertyName("activo")] public bool Activo { get; set; } = true;
 }
 
@@ -133,6 +139,7 @@ public sealed class UsuarioAltaDTO
     [JsonPropertyName("email")] public string? Email { get; set; }
     [JsonPropertyName("activo")] public bool Activo { get; set; } = true;
     [JsonPropertyName("idRol")] public int? IdRol { get; set; }
+    [JsonPropertyName("cambiarPrecio")] public bool CambiarPrecio { get; set; }
 }
 
 /// <summary>Cuerpo de <c>/seguridad/usuarios/{id}/perfil</c> y <c>/rol</c>: <c>{ "id": 3 }</c>.</summary>
@@ -153,4 +160,11 @@ public sealed class UsuarioDetalleDTO
     [JsonPropertyName("idPerfil")] public int IdPerfil { get; set; }
     [JsonPropertyName("idRol")] public int? IdRol { get; set; }
     [JsonPropertyName("iniciales")] public string? Iniciales { get; set; }
+    // Permisos por usuario (columnas de Usuario). Se leen para devolverlos al editar:
+    // ModificarUsuario sobrescribe TODOS con lo que reciba, asi que omitirlos los borraba.
+    [JsonPropertyName("cambiarPrecio")] public bool CambiarPrecio { get; set; }
+    [JsonPropertyName("porcPrecio")] public double PorcPrecio { get; set; }
+    [JsonPropertyName("aplicarDesc")] public bool AplicarDesc { get; set; }
+    [JsonPropertyName("porcDesc")] public double PorcDesc { get; set; }
+    [JsonPropertyName("existNegativa")] public bool ExistNegativa { get; set; }
 }

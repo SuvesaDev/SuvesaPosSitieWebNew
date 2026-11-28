@@ -3,15 +3,15 @@
 @inject IJSRuntime JS
 
 @* Isla de MudBlazor. Envuelve el contenido que use componentes .mud-* (hoy solo
-   MudDataGrid en consultas pesadas) y monta SOLO aqui los proveedores de Mud:
-   tema + popover. Asi Mud no toca el resto de la app — no hay MudThemeProvider
-   global — y Bootstrap/Havit siguen mandando fuera de esta isla.
+   MudDataGrid en consultas pesadas) y monta SOLO aqui su tema. El proveedor de
+   popovers vive una vez en MainLayout, porque MudBlazor requiere uno estable
+   durante todo el circuito. Asi Bootstrap/Havit siguen mandando fuera de esta
+   isla y no se crean proveedores al navegar entre pantallas.
 
    El tema replica la paleta de marca (tema.css) para que la rejilla no se vea
    "de otra libreria". El modo oscuro se lee de data-bs-theme una vez al montar. *@
 
 <MudThemeProvider Theme="_tema" IsDarkMode="_oscuro" />
-<MudPopoverProvider />
 
 <div class="seepos-mud-isla">
     @ChildContent

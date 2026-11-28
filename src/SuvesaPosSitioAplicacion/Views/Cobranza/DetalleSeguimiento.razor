@@ -1,0 +1,447 @@
+@page "/collections/follow-up/{Id:long}"
+@using SuvesaPosSitioAplicacion.ApiConexion.ProxyInterface
+@using SuvesaPosSitioAplicacion.Class
+@using SuvesaPosSitioAplicacion.DTOs.Cobranza
+@using SuvesaPosSitioAplicacion.Security
+@using SuvesaPosSitioAplicacion.Services
+@using SuvesaPosSitioAplicacion.Views.Shared.Componentes
+@inject ICobranza Api
+@inject IManejadorRespuestas Respuestas
+@inject IServicioDialogos Dialogos
+@inject IContextoSesion Sesion
+@inject IRelojEquipo RelojEquipo
+
+@* Detalle de un seguimiento: formulario de nueva interacción, promesa de pago, facturas y timeline en
+   orden cronológico inverso (lo más reciente arriba). Las promesas incumplidas van en rojo. *@
+
+<AppPantalla Pantalla="Seguimiento" Codigo="COBRANZA.SEGUIMIENTO" Icono="bi-telephone-outbound"
+             Subtitulo="@(_detalle is null ? null : $"Seguimiento {_detalle.Resumen.Id}")">
+    <Acciones>
+        <a class="btn btn-sm btn-outline-secondary" href="/collections/follow-up"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Volver</a>
+    </Acciones>
+    <ChildContent>
+        @if (_cargando && _detalle is null)
+        {
+            <div class="text-secondary">Cargando...</div>
+        }
+        else if (_detalle is null)
+        {
+            <div class="alert alert-warning">No se encontró el seguimiento.</div>
+        }
+        else
+        {
+            var r = _detalle.Resumen;
+            <div class="card mb-3"><div class="card-body d-flex flex-wrap gap-4 align-items-center">
+                <div><div class="text-secondary small">Cliente</div><strong>@r.NombreCliente</strong> <span class="text-secondary small">@r.IdCliente</span></div>
+                <div><div class="text-secondary small">Cobrador</div>@r.Cobrador</div>
+                <div><div class="text-secondary small">Estado</div>
+                    <span class="badge @PresentacionCobranza.ClaseEstado(r.Estado)">@PresentacionCobranza.Rotulo(r.Estado)</span>
+                    @if (r.Estado == EstadoSeguimientoWeb.Cerrado)
+                    {
+                        <span class="small text-secondary ms-1">@PresentacionCobranza.Rotulo(r.MotivoCierre) · @(r.FechaCierreUtc is { } c ? PresentacionCobranza.Fecha(c) : "")</span>
+                    }
+                </div>
+                <div><div class="text-secondary small">Facturas abiertas</div>@r.FacturasActivas</div>
+                <div><div class="text-secondary small">Saldo</div><strong>@Formato.Importe(r.SaldoActivo)</strong></div>
+                @if (PuedeReasignar)
+                {
+                    <button class="btn btn-sm btn-outline-secondary ms-auto" @onclick="AbrirReasignar">
+                        <i class="bi bi-person-gear me-1" aria-hidden="true"></i>Reasignar
+                    </button>
+                }
+            </div></div>
+
+            <div class="row g-3">
+                <div class="col-12 col-xl-5">
+                    @if (PuedeGestionar)
+                    {
+                        <div class="card mb-3"><div class="card-header"><strong>Nueva interacción</strong></div><div class="card-body">
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small" for="tipo-inter">Tipo</label>
+                                    <select id="tipo-inter" class="form-select" @bind="_interaccion.Tipo">
+                                        @foreach (var t in PresentacionCobranza.TiposDigitables) { <option value="@t">@PresentacionCobranza.Rotulo(t)</option> }
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small" for="res-inter">Resultado</label>
+                                    <select id="res-inter" class="form-select" @bind="_interaccion.Resultado">
+                                        @foreach (var x in PresentacionCobranza.ResultadosDigitables) { <option value="@x">@PresentacionCobranza.Rotulo(x)</option> }
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small" for="obs-inter">Observación (lo conversado con el cliente)</label>
+                                    <textarea id="obs-inter" class="form-control" rows="3" maxlength="2000"
+                                              @bind="_interaccion.Observacion" @bind:event="oninput"></textarea>
+                                    <div class="form-text">Mínimo @PresentacionCobranza.MinimoObservacion caracteres.</div>
+                                </div>
+                                <div class="col-12 d-flex gap-2">
+                                    <button class="btn btn-primary" disabled="@(_guardando || !PresentacionCobranza.ObservacionValida(_interaccion.Observacion))" @onclick="RegistrarInteraccion">
+                                        @(_guardando ? "Guardando..." : "Registrar")
+                                    </button>
+                                    <button class="btn btn-outline-primary" disabled="@(_hayPromesaPendiente)" title="@(_hayPromesaPendiente ? "Ya hay una promesa pendiente" : null)" @onclick="AbrirPromesa">
+                                        <i class="bi bi-calendar-check me-1" aria-hidden="true"></i>Promesa de pago
+                                    </button>
+                                    <button class="btn btn-outline-secondary" @onclick="AbrirAgregarFacturas">
+                                        <i class="bi bi-plus-square me-1" aria-hidden="true"></i>Agregar facturas
+                                    </button>
+                                </div>
+                            </div>
+                        </div></div>
+                    }
+                    else if (r.Estado != EstadoSeguimientoWeb.Cerrado)
+                    {
+                        <div class="alert alert-info">Lo gestiona <strong>@r.Cobrador</strong>. Un administrador puede reasignarlo.</div>
+                    }
+
+                    <div class="card mb-3"><div class="card-header"><strong>Promesas de pago</strong></div>
+                        <ul class="list-group list-group-flush">
+                            @if (_detalle.Promesas.Count == 0) { <li class="list-group-item text-secondary">Sin promesas.</li> }
+                            @foreach (var p in _detalle.Promesas)
+                            {
+                                <li class="list-group-item @(p.Estado == EstadoPromesaWeb.Incumplida ? "list-group-item-danger" : null)">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>@Formato.Importe(p.MontoAcordado) para el @p.FechaPrometida.ToString("dd/MM/yyyy")</strong>
+                                        <span class="badge @PresentacionCobranza.ClasePromesa(p.Estado)">@PresentacionCobranza.Rotulo(p.Estado)</span>
+                                    </div>
+                                    <div class="small">@p.Motivo</div>
+                                    <div class="small text-secondary">Abonado @Formato.Importe(p.MontoAbonado) · registrada por @p.Usuario el @PresentacionCobranza.Fecha(p.FechaRegistroUtc)</div>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+
+                    <div class="card"><div class="card-header"><strong>Facturas</strong></div><div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Factura</th><th>Vence</th><th class="text-end">Saldo</th><th>Situación</th></tr></thead>
+                            <tbody>
+                                @foreach (var f in _detalle.Facturas)
+                                {
+                                    <tr class="@(f.Activa ? null : "text-secondary")">
+                                        <td>@f.NumFactura.ToString("0")</td>
+                                        <td>@(f.Vence?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                        <td class="text-end">@Formato.Importe(f.Activa ? f.SaldoVigente : 0m)</td>
+                                        <td>@(f.Activa ? "Abierta" : $"Salió: {PresentacionCobranza.Rotulo(f.MotivoSalida)}")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div></div>
+                </div>
+
+                <div class="col-12 col-xl-7">
+                    <div class="card"><div class="card-header"><strong>Bitácora</strong> <span class="text-secondary small">más reciente primero</span></div>
+                        <ul class="list-group list-group-flush">
+                            @foreach (var i in _detalle.Timeline)
+                            {
+                                <li class="list-group-item @(i.Tipo == TipoInteraccionWeb.Sistema ? "bg-body-tertiary" : null)">
+                                    <div class="d-flex justify-content-between small">
+                                        <span>
+                                            <i class="bi @PresentacionCobranza.Icono(i.Tipo) me-1" aria-hidden="true"></i>
+                                            <strong>@PresentacionCobranza.Rotulo(i.Tipo)</strong>
+                                            @if (i.Resultado != ResultadoInteraccionWeb.SinResultado)
+                                            {
+                                                <span class="badge text-bg-light ms-1">@PresentacionCobranza.Rotulo(i.Resultado)</span>
+                                            }
+                                            @if (i.IdCorrige is not null) { <span class="badge text-bg-warning ms-1">Corrige nota @i.IdCorrige</span> }
+                                        </span>
+                                        <span class="text-secondary">@i.Usuario · @PresentacionCobranza.Fecha(i.FechaUtc)</span>
+                                    </div>
+                                    <div class="mt-1" style="white-space:pre-wrap">@i.Observacion</div>
+                                    @if (i.Monto is { } m) { <div class="small text-success">Monto aplicado: @Formato.Importe(m)</div> }
+                                    @if (PuedeGestionar && i.Tipo != TipoInteraccionWeb.Sistema)
+                                    {
+                                        <button class="btn btn-sm btn-link p-0 mt-1" @onclick="() => AbrirCorreccion(i)">
+                                            <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Corregir nota
+                                        </button>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    </div>
+
+                    @if (_detalle.Reasignaciones.Count > 0)
+                    {
+                        <div class="card mt-3"><div class="card-header"><strong>Reasignaciones</strong></div>
+                            <ul class="list-group list-group-flush">
+                                @foreach (var x in _detalle.Reasignaciones)
+                                {
+                                    <li class="list-group-item small">
+                                        @x.CobradorAnterior → <strong>@x.CobradorNuevo</strong> · @x.Motivo
+                                        <span class="text-secondary">(@x.UsuarioAdministrador, @PresentacionCobranza.Fecha(x.FechaUtc))</span>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <AppModal @ref="_modalPromesa" Titulo="Promesa de pago" AlGuardar="GuardarPromesa" Guardando="_guardando" PuedeGuardar="PromesaValida">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label small" for="pdp-fecha">Fecha prometida</label>
+                        <input id="pdp-fecha" type="date" class="form-control" min="@_hoy.ToString("yyyy-MM-dd")" @bind="_fechaPromesa" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small" for="pdp-monto">Monto acordado (máx. @Formato.Importe(r.SaldoActivo))</label>
+                        <input id="pdp-monto" type="number" step="0.01" min="0" class="form-control" @bind="_montoPromesa" @bind:event="onchange" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small" for="pdp-motivo">Motivo</label>
+                        <input id="pdp-motivo" class="form-control" maxlength="500" @bind="_motivoPromesa" @bind:event="oninput" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small" for="pdp-obs">Observación (opcional)</label>
+                        <textarea id="pdp-obs" class="form-control" rows="2" @bind="_obsPromesa"></textarea>
+                    </div>
+                </div>
+            </AppModal>
+
+            <AppModal @ref="_modalFacturas" Titulo="Agregar facturas" Subtitulo="@($"Vencidas de {r.NombreCliente} sin seguimiento")" AlGuardar="GuardarFacturas"
+                      Guardando="_guardando" PuedeGuardar="@(_marcadas.Count > 0 && PresentacionCobranza.ObservacionValida(_obsFacturas))">
+                @if (_disponibles is null)
+                {
+                    <div class="text-secondary">Buscando facturas...</div>
+                }
+                else if (_disponibles.Count == 0)
+                {
+                    <div class="alert alert-info mb-2">El cliente no tiene otras facturas vencidas libres en la misma moneda.</div>
+                }
+                else
+                {
+                    <div class="table-responsive mb-2"><table class="table table-sm align-middle mb-0">
+                        <thead><tr><th style="width:2rem"></th><th>Factura</th><th>Vence</th><th class="text-end">Mora</th><th class="text-end">Saldo</th></tr></thead>
+                        <tbody>
+                            @foreach (var f in _disponibles)
+                            {
+                                <tr>
+                                    <td><input type="checkbox" class="form-check-input" checked="@_marcadas.Contains(f.IdVenta)"
+                                               @onchange="e => MarcarFactura(f.IdVenta, (bool)(e.Value ?? false))" aria-label="Agregar factura @f.NumFactura.ToString("0")" /></td>
+                                    <td>@f.NumFactura.ToString("0")</td>
+                                    <td>@(f.Vence?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                    <td class="text-end">@f.DiasMora d</td>
+                                    <td class="text-end">@Formato.Importe(f.Saldo)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table></div>
+                }
+                <label class="form-label small" for="obs-facturas">Observación (por qué se suman)</label>
+                <textarea id="obs-facturas" class="form-control" rows="3" maxlength="2000" @bind="_obsFacturas" @bind:event="oninput"></textarea>
+                <div class="form-text">Mínimo @PresentacionCobranza.MinimoObservacion caracteres.</div>
+            </AppModal>
+
+            <AppModal @ref="_modalCorreccion" Titulo="Corregir nota" Subtitulo="La nota original no se modifica: se agrega una nueva que la corrige."
+                      AlGuardar="GuardarCorreccion" Guardando="_guardando" PuedeGuardar="PresentacionCobranza.ObservacionValida(_textoCorreccion)">
+                @if (_original is not null)
+                {
+                    <div class="border rounded p-2 mb-2 bg-body-tertiary small">
+                        <div class="text-secondary">@PresentacionCobranza.Rotulo(_original.Tipo) · @_original.Usuario · @PresentacionCobranza.Fecha(_original.FechaUtc)</div>
+                        <div style="white-space:pre-wrap">@_original.Observacion</div>
+                    </div>
+                }
+                <label class="form-label small" for="obs-correccion">Corrección</label>
+                <textarea id="obs-correccion" class="form-control" rows="3" maxlength="2000" @bind="_textoCorreccion" @bind:event="oninput"></textarea>
+                <div class="form-text">Mínimo @PresentacionCobranza.MinimoObservacion caracteres.</div>
+            </AppModal>
+
+            <AppModal @ref="_modalReasignar" Titulo="Reasignar seguimiento" AlGuardar="GuardarReasignar" Guardando="_guardando"
+                      PuedeGuardar="@(!string.IsNullOrWhiteSpace(_nuevoCobrador) && _motivoReasignar.Trim().Length >= 5)">
+                <div class="mb-2">
+                    <label class="form-label small" for="rea-cobrador">Nuevo cobrador (usuario)</label>
+                    <input id="rea-cobrador" class="form-control" @bind="_nuevoCobrador" @bind:event="oninput" />
+                </div>
+                <div>
+                    <label class="form-label small" for="rea-motivo">Motivo</label>
+                    <input id="rea-motivo" class="form-control" maxlength="500" @bind="_motivoReasignar" @bind:event="oninput" />
+                </div>
+            </AppModal>
+        }
+    </ChildContent>
+</AppPantalla>
+
+@code {
+    [Parameter] public long Id { get; set; }
+
+    private SeguimientoDetalleWebDTO? _detalle;
+    private bool _cargando = true;
+    private bool _guardando;
+    private DateTime _hoy = DateTime.Today;
+
+    private NuevaInteraccionWebComando _interaccion = new();
+
+    private AppModal _modalPromesa = default!;
+    private DateTime _fechaPromesa = DateTime.Today;
+    private decimal _montoPromesa;
+    private string _motivoPromesa = string.Empty;
+    private string _obsPromesa = string.Empty;
+
+    private AppModal _modalFacturas = default!;
+    private List<FacturaVencidaWebDTO>? _disponibles;
+    private readonly HashSet<long> _marcadas = new();
+    private string _obsFacturas = string.Empty;
+
+    private AppModal _modalCorreccion = default!;
+    private InteraccionWebDTO? _original;
+    private string _textoCorreccion = string.Empty;
+
+    private AppModal _modalReasignar = default!;
+    private string _nuevoCobrador = string.Empty;
+    private string _motivoReasignar = string.Empty;
+
+    private bool Abierto => _detalle is not null && _detalle.Resumen.Estado != EstadoSeguimientoWeb.Cerrado;
+
+    private bool PuedeGestionar => Abierto
+        && string.Equals(_detalle!.Resumen.Cobrador, Sesion.Usuario, StringComparison.OrdinalIgnoreCase)
+        && Sesion.Puede("COBRANZA.SEGUIMIENTO", AccionPantalla.Crear);
+
+    private bool PuedeReasignar => Abierto && Sesion.Puede("COBRANZA.GERENCIAL", AccionPantalla.Editar);
+
+    private bool _hayPromesaPendiente => _detalle?.Promesas.Any(p => p.Estado == EstadoPromesaWeb.Pendiente) == true;
+
+    private bool PromesaValida => _montoPromesa > 0
+        && _montoPromesa <= (_detalle?.Resumen.SaldoActivo ?? 0m)
+        && DateOnly.FromDateTime(_fechaPromesa) >= DateOnly.FromDateTime(_hoy)
+        && _motivoPromesa.Trim().Length >= 5;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _hoy = await RelojEquipo.HoyAsync();
+        _fechaPromesa = _hoy;
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        _cargando = true;
+        _detalle = await Respuestas.DatoAsync(await Api.Detalle(Id), "consultar el seguimiento");
+        _cargando = false;
+    }
+
+    private async Task RegistrarInteraccion()
+    {
+        if (!PresentacionCobranza.ObservacionValida(_interaccion.Observacion)) return;
+        _guardando = true;
+        _interaccion.Observacion = _interaccion.Observacion.Trim();
+        var id = await Respuestas.DatoAsync(await Api.RegistrarInteraccion(Id, _interaccion), "registrar la interacción");
+        _guardando = false;
+        if (id == 0) return;
+        _interaccion = new NuevaInteraccionWebComando { Tipo = _interaccion.Tipo };
+        Dialogos.Exito("Interacción registrada.");
+        await Cargar();
+    }
+
+    private async Task AbrirPromesa()
+    {
+        _fechaPromesa = _hoy;
+        _montoPromesa = 0;
+        _motivoPromesa = string.Empty;
+        _obsPromesa = string.Empty;
+        await _modalPromesa.MostrarAsync();
+    }
+
+    private async Task GuardarPromesa()
+    {
+        if (!PromesaValida) return;
+        _guardando = true;
+        var id = await Respuestas.DatoAsync(await Api.RegistrarPromesa(Id, new NuevaPromesaWebComando
+        {
+            FechaPrometida = DateOnly.FromDateTime(_fechaPromesa),
+            MontoAcordado = Math.Round(_montoPromesa, 2),
+            Motivo = _motivoPromesa.Trim(),
+            Observacion = string.IsNullOrWhiteSpace(_obsPromesa) ? null : _obsPromesa.Trim(),
+        }), "registrar la promesa de pago");
+        _guardando = false;
+        if (id == 0) return;
+        await _modalPromesa.OcultarAsync();
+        Dialogos.Exito("Promesa de pago registrada.");
+        await Cargar();
+    }
+
+    private async Task AbrirAgregarFacturas()
+    {
+        if (_detalle is null) return;
+        _disponibles = null;
+        _marcadas.Clear();
+        _obsFacturas = string.Empty;
+        await _modalFacturas.MostrarAsync();
+
+        var r = _detalle.Resumen;
+        var pagina = await Respuestas.DatoAsync(await Api.FacturasVencidas(new FiltroFacturasVencidasWeb
+        {
+            IdCliente = r.IdCliente, Gestion = FiltroGestionWeb.SinSeguimiento, Tamano = 200,
+        }), "consultar las facturas vencidas del cliente");
+        // El API exige la misma moneda del seguimiento.
+        _disponibles = pagina?.Items.Where(f => f.CodMoneda == r.CodMoneda).ToList() ?? new();
+    }
+
+    private void MarcarFactura(long idVenta, bool marcada)
+    {
+        if (marcada) _marcadas.Add(idVenta); else _marcadas.Remove(idVenta);
+    }
+
+    private async Task GuardarFacturas()
+    {
+        if (_marcadas.Count == 0 || !PresentacionCobranza.ObservacionValida(_obsFacturas)) return;
+        _guardando = true;
+        var ok = await Respuestas.DatoAsync(await Api.AgregarFacturas(Id, new AgregarFacturasWebComando
+        {
+            IdsVenta = _marcadas.ToList(), Observacion = _obsFacturas.Trim(),
+        }), "agregar facturas al seguimiento");
+        _guardando = false;
+        // Si falló (p. ej. otro cobrador tomó una factura), se recarga la lista para mostrar lo vigente.
+        if (!ok) { await AbrirAgregarFacturas(); return; }
+        await _modalFacturas.OcultarAsync();
+        Dialogos.Exito("Facturas agregadas al seguimiento.");
+        await Cargar();
+    }
+
+    private async Task AbrirCorreccion(InteraccionWebDTO original)
+    {
+        _original = original;
+        _textoCorreccion = string.Empty;
+        await _modalCorreccion.MostrarAsync();
+    }
+
+    /// <summary>La corrección es una nota nueva que apunta a la original; la bitácora es inmutable.</summary>
+    private async Task GuardarCorreccion()
+    {
+        if (_original is null || !PresentacionCobranza.ObservacionValida(_textoCorreccion)) return;
+        _guardando = true;
+        var id = await Respuestas.DatoAsync(await Api.RegistrarInteraccion(Id, new NuevaInteraccionWebComando
+        {
+            Tipo = TipoInteraccionWeb.NotaInterna,
+            Resultado = ResultadoInteraccionWeb.SinResultado,
+            Observacion = _textoCorreccion.Trim(),
+            IdCorrige = _original.Id,
+        }), "registrar la corrección");
+        _guardando = false;
+        if (id == 0) return;
+        await _modalCorreccion.OcultarAsync();
+        Dialogos.Exito("Corrección registrada.");
+        await Cargar();
+    }
+
+    private async Task AbrirReasignar()
+    {
+        _nuevoCobrador = string.Empty;
+        _motivoReasignar = string.Empty;
+        await _modalReasignar.MostrarAsync();
+    }
+
+    private async Task GuardarReasignar()
+    {
+        _guardando = true;
+        var ok = await Respuestas.DatoAsync(await Api.Reasignar(Id, new ReasignarWebComando
+        {
+            NuevoCobrador = _nuevoCobrador.Trim(),
+            Motivo = _motivoReasignar.Trim(),
+        }), "reasignar el seguimiento");
+        _guardando = false;
+        if (!ok) return;
+        await _modalReasignar.OcultarAsync();
+        Dialogos.Exito("Seguimiento reasignado.");
+        await Cargar();
+    }
+}
